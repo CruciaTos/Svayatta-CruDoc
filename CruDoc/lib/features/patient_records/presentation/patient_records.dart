@@ -10,50 +10,41 @@ class PatientRecords extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.midnightBlue,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.bgTop, AppColors.bgBottom],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Patients Record',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+      backgroundColor: Colors.transparent,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Patients Record',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 8),
-                const _SearchBar(),
-                const SizedBox(height: 16),
-                const LastPatientsCard(),
-                const SizedBox(height: 16),
-                const UpcomingPatientCard(),
-                const SizedBox(height: 16),
-                const Text(
-                  'All Patients',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 8),
+              const _SearchBar(),
+              const SizedBox(height: 16),
+              const LastPatientsCard(),
+              const SizedBox(height: 16),
+              const UpcomingPatientCard(),
+              const SizedBox(height: 16),
+              const Text(
+                'All Patients',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 12),
-                const Expanded(
-                  child: _PatientsList(),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+              const Expanded(
+                child: _PatientsList(),
+              ),
+            ],
           ),
         ),
       ),

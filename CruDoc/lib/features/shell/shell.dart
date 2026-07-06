@@ -1,4 +1,6 @@
+import 'dart:ui';   // for ImageFilter
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/features/shell/components/animated_background.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard.dart';
 import 'package:doctor_management_app/features/patient_records/presentation/patient_records.dart';
 import 'package:doctor_management_app/features/work/presentation/events.dart';
@@ -15,25 +17,76 @@ class Shell extends StatefulWidget {
 
 class _ShellState extends State<Shell> {
   int _currentIndex = 0;
+  final PageController _pageController = PageController();
 
   final List<Widget> _screens = const [
-    HomeDashboardScreen(),       // 0 – grid
-    PatientRecords(),            // 1 – check
-    EventsScreen(),              // 2 – description
-    RevenueScreen(),             // 3 – calendar
-    SummaryScreen(),             // 4 – person (new)
+    HomeDashboardScreen(),
+    PatientRecords(),
+    EventsScreen(),
+    RevenueScreen(),
+    SummaryScreen(),
   ];
+
+  // Height of the nav bar (including margins/padding) – we'll use this to pad the content
+  static const double navBarHeight = 78.0;   // adjust to match your bar
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onNavTap(int index) {
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: BottomNavBar(
-        selectedIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // ---- Background gradient + animated lines + PageView ----
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color(0xFF2C3E50),
+                  Color(0xFFAED6F1),
+                ],
+              ),
+            ),
+            child: AnimatedBackground(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) => setState(() => _currentIndex = index),
+                children: _screens
+                    .map((screen) => Padding(
+                          padding: EdgeInsets.only(
+                              bottom: navBarHeight),   // make room for the overlay
+                          child: screen,
+                        ))
+                    .toList(),
+              ),
+            ),
+          ),
+          // ---- Floating navigation bar ----
+          Positioned(
+            left: 20,
+            right: 20,
+            bottom: 12,
+            child: BottomNavBar(
+              selectedIndex: _currentIndex,
+              onTap: _onNavTap,
+            ),
+          ),
+        ],
       ),
     );
   }

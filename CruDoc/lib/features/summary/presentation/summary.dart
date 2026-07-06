@@ -7,67 +7,54 @@ class SummaryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.midnightBlue,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.bgTop, AppColors.bgBottom],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Summary',
+      backgroundColor: Colors.transparent,   // global gradient shows through
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Summary',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 24),
+              _PlaceholderCard(
+                icon: Icons.chat,
+                title: 'WhatsApp Updates',
+                subtitle: 'Last sync: --',
+                actionText: 'Connect WhatsApp',
+              ),
+              const SizedBox(height: 16),
+              _PlaceholderCard(
+                icon: Icons.calendar_month,
+                title: 'Calendar',
+                subtitle: 'No events synced',
+                actionText: 'Sync Calendar',
+              ),
+              const SizedBox(height: 16),
+              _PlaceholderCard(
+                icon: Icons.wifi,
+                title: 'Connectivity',
+                subtitle: 'All services online',
+                actionText: 'Check Status',
+              ),
+              const Spacer(),
+              const Center(
+                child: Text(
+                  'More integrations coming soon',
                   style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
                   ),
                 ),
-                const SizedBox(height: 24),
-                // --- WhatsApp Updates Placeholder ---
-                _PlaceholderCard(
-                  icon: Icons.chat,
-                  title: 'WhatsApp Updates',
-                  subtitle: 'Last sync: --',
-                  actionText: 'Connect WhatsApp',
-                ),
-                const SizedBox(height: 16),
-                // --- Calendar Placeholder ---
-                _PlaceholderCard(
-                  icon: Icons.calendar_month,
-                  title: 'Calendar',
-                  subtitle: 'No events synced',
-                  actionText: 'Sync Calendar',
-                ),
-                const SizedBox(height: 16),
-                // --- Connectivity Placeholder ---
-                _PlaceholderCard(
-                  icon: Icons.wifi,
-                  title: 'Connectivity',
-                  subtitle: 'All services online',
-                  actionText: 'Check Status',
-                ),
-                const Spacer(),
-                // Optional note at the bottom
-                const Center(
-                  child: Text(
-                    'More integrations coming soon',
-                    style: TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-              ],
-            ),
+              ),
+              const SizedBox(height: 12),
+            ],
           ),
         ),
       ),
@@ -128,7 +115,7 @@ class _PlaceholderCard extends StatelessWidget {
           ),
           TextButton(
             onPressed: () {
-              // Placeholder action – replace with real integration later
+              // Placeholder – real integration later
             },
             child: Text(
               actionText,

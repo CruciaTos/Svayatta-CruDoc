@@ -7,30 +7,19 @@ class HomeDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.midnightBlue,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.bgTop, AppColors.bgBottom],
-          ),
-        ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                _TopBar(),
-                SizedBox(height: 24),
-                _IncomeCard(),
-                SizedBox(height: 16),
-                _StatsGrid(),
-                SizedBox(height: 16),
-                _GoPremiumCard(),
-              ],
-            ),
+      backgroundColor: Colors.transparent,   // no extra background
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: const [
+              _TopBar(),
+              SizedBox(height: 24),
+              _IncomeCard(),
+              SizedBox(height: 16),
+              _StatsGrid(),
+            ],
           ),
         ),
       ),
@@ -83,17 +72,6 @@ class _TopBar extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        Container(
-          width: 42,
-          height: 42,
-          decoration: BoxDecoration(
-            color: AppColors.cardSurfaceAlt,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.divider),
-          ),
-          child: const Icon(Icons.notifications_none_rounded,
-              color: AppColors.silver, size: 22),
         ),
       ],
     );
@@ -335,63 +313,6 @@ class _StatCard extends StatelessWidget {
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------- GO PREMIUM CARD ----------
-class _GoPremiumCard extends StatelessWidget {
-  const _GoPremiumCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [AppColors.slateBlue, AppColors.cardSurfaceAlt],
-        ),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Stack(
-        children: [
-          Positioned(
-            right: -10,
-            top: -10,
-            child: Icon(
-              Icons.workspace_premium_rounded,
-              size: 90,
-              color: AppColors.beige.withOpacity(0.08),
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Go Premium',
-                style: TextStyle(
-                  color: AppColors.beige,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Power up your workflow\nwith exclusive features.',
-                style: TextStyle(
-                  color: AppColors.beige.withOpacity(0.85),
-                  fontSize: 13,
-                  height: 1.35,
                 ),
               ),
             ],

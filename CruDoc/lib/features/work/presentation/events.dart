@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:doctor_management_app/features/work/widgets/visit_card.dart'; // new import
 
 // ---------- DATA MODEL ----------
 class Visit {
@@ -96,7 +97,6 @@ class _EventsScreenState extends State<EventsScreen> {
         _showError('Could not open the link');
       }
     } catch (e) {
-      // Graceful fallback for MissingPluginException or any other error
       _showError('Unable to open link. Please try again.');
     }
   }
@@ -111,84 +111,84 @@ class _EventsScreenState extends State<EventsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.midnightBlue,
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [AppColors.bgTop, AppColors.bgBottom],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Events',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                  ),
+      backgroundColor: Colors.transparent,   // global gradient + lines show through
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Events',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
                 ),
-                const SizedBox(height: 24),
-                // ----- ONLINE SESSIONS -----
-                const Text(
-                  'Upcoming Online Sessions',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+              ),
+              const SizedBox(height: 24),
+              // ----- ONLINE SESSIONS -----
+              const Text(
+                'Upcoming Online Sessions',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 12),
-                if (onlineSessions.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.only(bottom: 20),
-                    child: Text(
-                      'No upcoming online sessions',
-                      style: TextStyle(
-                        color: AppColors.textSecondary,
-                        fontSize: 14,
-                      ),
-                    ),
-                  )
-                else
-                  ...onlineSessions.map(
-                    (session) => _OnlineSessionCard(
-                      session: session,
-                      onTap: () => _launchUrl(session.link),
+              ),
+              const SizedBox(height: 12),
+              if (onlineSessions.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 20),
+                  child: Text(
+                    'No upcoming online sessions',
+                    style: TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
                     ),
                   ),
+                )
+              else
+                ...onlineSessions.map(
+                  (session) => _OnlineSessionCard(
+                    session: session,
+                    onTap: () => _launchUrl(session.link),
+                  ),
+                ),
 
-                const SizedBox(height: 24),
-                // ----- UPCOMING VISITS -----
-                const Text(
-                  'Upcoming Visits',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
+              const SizedBox(height: 24),
+              // ----- UPCOMING VISITS -----
+              const Text(
+                'Upcoming Visits',
+                style: TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: ListView.builder(
-                    physics: const ClampingScrollPhysics(),
-                    itemCount: upcomingVisits.length,
-                    itemBuilder: (context, index) => _VisitCard(
-                      visit: upcomingVisits[index],
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView.builder(
+                  physics: const ClampingScrollPhysics(),
+                  itemCount: upcomingVisits.length,
+                  itemBuilder: (context, index) {
+                    final visit = upcomingVisits[index];
+                    return VisitCard(
+                      patientName: visit.patientName,
+                      date: visit.date,
+                      day: visit.day,
+                      time: visit.time,
+                      duration: visit.duration,
+                      address: visit.address,
+                      mapsQuery: visit.mapsQuery,
                       onMapTap: (query) => _launchUrl(
                         'https://www.google.com/maps/search/?api=1&query=$query',
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -242,96 +242,6 @@ class _OnlineSessionCard extends StatelessWidget {
             onTap: onTap,
             child: const Icon(Icons.open_in_new,
                 color: AppColors.beige, size: 20),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------- VISIT CARD ----------
-class _VisitCard extends StatelessWidget {
-  final Visit visit;
-  final Function(String) onMapTap;
-  const _VisitCard({required this.visit, required this.onMapTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            visit.patientName,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.calendar_today, size: 16, color: AppColors.silver),
-              const SizedBox(width: 6),
-              Text(
-                '${visit.date}  •  ${visit.day}',
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.access_time, size: 16, color: AppColors.silver),
-              const SizedBox(width: 6),
-              Text(
-                '${visit.time}  •  ${visit.duration}',
-                style: const TextStyle(
-                    color: AppColors.textSecondary, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.location_on, size: 16, color: AppColors.silver),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  visit.address,
-                  style: const TextStyle(
-                      color: AppColors.textSecondary, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          GestureDetector(
-            onTap: () => onMapTap(visit.mapsQuery),
-            child: Row(
-              children: const [
-                Icon(Icons.map, size: 16, color: AppColors.beige),
-                SizedBox(width: 6),
-                Text(
-                  'Open in Google Maps',
-                  style: TextStyle(
-                    color: AppColors.beige,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

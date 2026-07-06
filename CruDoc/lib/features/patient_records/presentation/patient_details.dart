@@ -28,13 +28,16 @@ class PatientDetailsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.midnightBlue,
+      backgroundColor: Colors.transparent, // transparent for animated lines
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.bgTop, AppColors.bgBottom],
+            colors: [
+              Color(0xFF2C3E50), // dark grey (same as dashboard)
+              Color(0xFFAED6F1), // light blue (same as dashboard)
+            ],
           ),
         ),
         child: SafeArea(
@@ -136,7 +139,7 @@ class PatientDetailsPage extends StatelessWidget {
                         value: '$sessionsAttended sessions',
                       ),
                       const SizedBox(height: 16),
-                      // Last Visit (already displayed above, but added here too)
+                      // Last Visit
                       _DetailRow(
                         icon: Icons.history,
                         label: 'Last Visit',

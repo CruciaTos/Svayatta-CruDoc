@@ -3,6 +3,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
+import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart'; // adjust import path
 
 class HomeDashboardScreen extends StatelessWidget {
   const HomeDashboardScreen({super.key});
@@ -10,24 +11,24 @@ class HomeDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent, // global gradient shows through
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              _TopBar(),
-              SizedBox(height: 24),
-              _RevenueSnapshotCard(),
-              SizedBox(height: 16),
-              _StatsGrid(),
-              SizedBox(height: 20),
-              QuickActionsRow(),
-              SizedBox(height: 20),
-              TodaysVisitsCard(),
-              SizedBox(height: 16),
-              RecentActivityCard(),
+            children: [
+              _TopBar(),            // now tappable avatar
+              const SizedBox(height: 24),
+              const _RevenueSnapshotCard(),
+              const SizedBox(height: 16),
+              const _StatsGrid(),
+              const SizedBox(height: 20),
+              const QuickActionsRow(),
+              const SizedBox(height: 20),
+              const TodaysVisitsCard(),
+              const SizedBox(height: 16),
+              const RecentActivityCard(),
             ],
           ),
         ),
@@ -44,17 +45,26 @@ class _TopBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.slateBlue, width: 1.5),
-          ),
-          child: ClipOval(
-            child: Container(
-              color: AppColors.cardSurfaceAlt,
-              child: const Icon(Icons.person, color: AppColors.silver, size: 26),
+        // TAPPABLE PROFILE AVATAR
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const ProfileScreen()),
+            );
+          },
+          child: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.slateBlue, width: 1.5),
+            ),
+            child: ClipOval(
+              child: Container(
+                color: AppColors.cardSurfaceAlt,
+                child: const Icon(Icons.person, color: AppColors.silver, size: 26),
+              ),
             ),
           ),
         ),
@@ -93,12 +103,8 @@ class _RevenueSnapshotCard extends StatelessWidget {
   const _RevenueSnapshotCard();
 
   static const Map<String, double> _months = {
-    'Feb': 0.35,
-    'Mar': 0.55,
-    'Apr': 0.42,
-    'May': 0.9,
-    'Jun': 0.62,
-    'Jul': 0.48,
+    'Feb': 0.35, 'Mar': 0.55, 'Apr': 0.42,
+    'May': 0.9,  'Jun': 0.62, 'Jul': 0.48,
   };
 
   @override
@@ -124,22 +130,15 @@ class _RevenueSnapshotCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Revenue',
-                style: TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              const Text('Revenue',
+                  style: TextStyle(color: AppColors.textSecondary, fontSize: 14, fontWeight: FontWeight.w500)),
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
                   color: AppColors.cardSurfaceAlt,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.bar_chart_rounded,
-                    color: AppColors.silver, size: 16),
+                child: const Icon(Icons.bar_chart_rounded, color: AppColors.silver, size: 16),
               ),
             ],
           ),
@@ -147,25 +146,13 @@ class _RevenueSnapshotCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text(
-                '₹42,300',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  height: 1.0,
-                ),
-              ),
+              const Text('₹42,300',
+                  style: TextStyle(color: AppColors.textPrimary, fontSize: 30, fontWeight: FontWeight.w700, height: 1.0)),
               const SizedBox(width: 10),
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  'This month, so far',
-                  style: TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
+                child: Text('This month, so far',
+                    style: TextStyle(color: AppColors.textSecondary, fontSize: 12)),
               ),
             ],
           ),
@@ -186,20 +173,12 @@ class _RevenueSnapshotCard extends StatelessWidget {
                           duration: const Duration(milliseconds: 300),
                           height: 96 * entry.value,
                           decoration: BoxDecoration(
-                            color: isPeak
-                                ? AppColors.chartBarLight
-                                : AppColors.chartBarDim,
+                            color: isPeak ? AppColors.chartBarLight : AppColors.chartBarDim,
                             borderRadius: BorderRadius.circular(6),
                           ),
                         ),
                         const SizedBox(height: 8),
-                        Text(
-                          entry.key,
-                          style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
-                          ),
-                        ),
+                        Text(entry.key, style: const TextStyle(color: AppColors.textSecondary, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -225,19 +204,9 @@ class _StatsGrid extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              _StatCard(
-                label: 'Active Patients',
-                value: '38',
-                delta: '+3 this month',
-                deltaPositive: true,
-              ),
+              _StatCard(label: 'Active Patients', value: '38', delta: '+3 this month', deltaPositive: true),
               SizedBox(height: 14),
-              _StatCard(
-                label: 'Pending Invoices',
-                value: '5',
-                delta: '₹8,200 due',
-                deltaPositive: false,
-              ),
+              _StatCard(label: 'Pending Invoices', value: '5', delta: '₹8,200 due', deltaPositive: false),
             ],
           ),
         ),
@@ -245,19 +214,9 @@ class _StatsGrid extends StatelessWidget {
         Expanded(
           child: Column(
             children: [
-              _StatCard(
-                label: "This Week's Visits",
-                value: '17',
-                delta: '3 today',
-                deltaPositive: true,
-              ),
+              _StatCard(label: "This Week's Visits", value: '17', delta: '3 today', deltaPositive: true),
               SizedBox(height: 14),
-              _StatCard(
-                label: 'Packages Ending',
-                value: '2',
-                delta: 'renew soon',
-                deltaPositive: false,
-              ),
+              _StatCard(label: 'Packages Ending', value: '2', delta: 'renew soon', deltaPositive: false),
             ],
           ),
         ),
@@ -272,12 +231,7 @@ class _StatCard extends StatelessWidget {
   final String delta;
   final bool deltaPositive;
 
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.deltaPositive,
-  });
+  const _StatCard({required this.label, required this.value, required this.delta, required this.deltaPositive});
 
   @override
   Widget build(BuildContext context) {
@@ -292,36 +246,20 @@ class _StatCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
-          ),
+          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 13)),
           const SizedBox(height: 10),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              Text(value, style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.w700)),
               const SizedBox(width: 8),
               Padding(
                 padding: const EdgeInsets.only(bottom: 3),
                 child: Text(
                   delta,
                   style: TextStyle(
-                    color: deltaPositive
-                        ? AppColors.positiveGreen
-                        : Colors.redAccent.withOpacity(0.8),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
+                    color: deltaPositive ? AppColors.positiveGreen : Colors.redAccent.withOpacity(0.8),
+                    fontSize: 11.5, fontWeight: FontWeight.w500,
                   ),
                 ),
               ),

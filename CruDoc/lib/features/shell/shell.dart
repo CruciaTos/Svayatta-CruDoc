@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/patient_records/presentation/pati
 import 'package:doctor_management_app/features/revenue/presentation/revenue.dart';
 import 'package:doctor_management_app/features/summary/presentation/summary.dart';
 import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
+import 'package:doctor_management_app/features/invoice/presentation/invoice_create_screen.dart';
 
 
 class Shell extends StatefulWidget {
@@ -22,8 +23,10 @@ class _ShellState extends State<Shell> {
   final List<Widget> _screens = const [
     HomeDashboardScreen(),
     PatientRecords(),
+    InvoiceCreateScreen(),
     RevenueScreen(),
     SummaryScreen(),
+      // Placeholder for the fifth screen
   ];
 
   // Height of the nav bar (including margins/padding) – we'll use this to pad the content

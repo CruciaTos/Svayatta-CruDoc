@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
+import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
+import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
 
 class HomeDashboardScreen extends StatelessWidget {
   const HomeDashboardScreen({super.key});
@@ -7,7 +10,7 @@ class HomeDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,   // no extra background
+      backgroundColor: Colors.transparent, // global gradient shows through
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
@@ -16,9 +19,15 @@ class HomeDashboardScreen extends StatelessWidget {
             children: const [
               _TopBar(),
               SizedBox(height: 24),
-              _IncomeCard(),
+              _RevenueSnapshotCard(),
               SizedBox(height: 16),
               _StatsGrid(),
+              SizedBox(height: 20),
+              QuickActionsRow(),
+              SizedBox(height: 20),
+              TodaysVisitsCard(),
+              SizedBox(height: 16),
+              RecentActivityCard(),
             ],
           ),
         ),
@@ -55,7 +64,7 @@ class _TopBar extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Saira Goodman',
+                'Dr. Rutuja Nilgunkar',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 16,
@@ -64,7 +73,7 @@ class _TopBar extends StatelessWidget {
               ),
               SizedBox(height: 2),
               Text(
-                'Property agent',
+                'Physiotherapist',
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 13,
@@ -73,22 +82,23 @@ class _TopBar extends StatelessWidget {
             ],
           ),
         ),
+        const Icon(Icons.notifications_none, color: AppColors.silver, size: 24),
       ],
     );
   }
 }
 
-// ---------- INCOME CARD ----------
-class _IncomeCard extends StatelessWidget {
-  const _IncomeCard();
+// ---------- REVENUE SNAPSHOT CARD ----------
+class _RevenueSnapshotCard extends StatelessWidget {
+  const _RevenueSnapshotCard();
 
   static const Map<String, double> _months = {
-    'Jan': 0.35,
-    'Feb': 0.55,
-    'Mar': 0.42,
-    'Apr': 0.9,
-    'May': 0.62,
-    'Jun': 0.48,
+    'Feb': 0.35,
+    'Mar': 0.55,
+    'Apr': 0.42,
+    'May': 0.9,
+    'Jun': 0.62,
+    'Jul': 0.48,
   };
 
   @override
@@ -115,7 +125,7 @@ class _IncomeCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               const Text(
-                'Income',
+                'Revenue',
                 style: TextStyle(
                   color: AppColors.textSecondary,
                   fontSize: 14,
@@ -138,7 +148,7 @@ class _IncomeCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               const Text(
-                '\$1,209',
+                '₹42,300',
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 30,
@@ -150,7 +160,7 @@ class _IncomeCard extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
                 child: Text(
-                  'Average income 6 months',
+                  'This month, so far',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 12,
@@ -216,16 +226,16 @@ class _StatsGrid extends StatelessWidget {
           child: Column(
             children: [
               _StatCard(
-                label: 'Occupancy',
-                value: '92%',
-                delta: '+3% d/d',
+                label: 'Active Patients',
+                value: '38',
+                delta: '+3 this month',
                 deltaPositive: true,
               ),
               SizedBox(height: 14),
               _StatCard(
-                label: 'Overdue Pay',
-                value: '12',
-                delta: '+2 d/d',
+                label: 'Pending Invoices',
+                value: '5',
+                delta: '₹8,200 due',
                 deltaPositive: false,
               ),
             ],
@@ -236,17 +246,17 @@ class _StatsGrid extends StatelessWidget {
           child: Column(
             children: [
               _StatCard(
-                label: 'New request',
-                value: '13',
-                delta: '+6 d/d',
+                label: "This Week's Visits",
+                value: '17',
+                delta: '3 today',
                 deltaPositive: true,
               ),
               SizedBox(height: 14),
               _StatCard(
-                label: 'Inspections',
-                value: '9',
-                delta: '+1 d/d',
-                deltaPositive: true,
+                label: 'Packages Ending',
+                value: '2',
+                delta: 'renew soon',
+                deltaPositive: false,
               ),
             ],
           ),

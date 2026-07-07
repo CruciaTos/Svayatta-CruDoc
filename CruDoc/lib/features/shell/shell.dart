@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/shell/components/animated_background.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard.dart';
 import 'package:doctor_management_app/features/patient_records/presentation/patient_records.dart';
-import 'package:doctor_management_app/features/work/presentation/events.dart';
 import 'package:doctor_management_app/features/revenue/presentation/revenue.dart';
 import 'package:doctor_management_app/features/summary/presentation/summary.dart';
 import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
+
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -22,7 +22,6 @@ class _ShellState extends State<Shell> {
   final List<Widget> _screens = const [
     HomeDashboardScreen(),
     PatientRecords(),
-    EventsScreen(),
     RevenueScreen(),
     SummaryScreen(),
   ];

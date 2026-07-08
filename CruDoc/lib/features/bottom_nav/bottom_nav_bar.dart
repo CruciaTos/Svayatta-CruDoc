@@ -2,6 +2,9 @@ import 'dart:ui'; // required for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 
+// Vivid blue used for both container tint and active background
+const Color chartBarLight = Color.fromARGB(255, 30, 120, 255);
+
 class BottomNavBar extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
@@ -29,10 +32,11 @@ class BottomNavBar extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
-            color: AppColors.charcoalGray.withOpacity(0.75),
+            // Container background uses vivid blue with low opacity
+            color:  Color.fromARGB(255, 220, 250, 255),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: AppColors.divider.withOpacity(0.2),
+              color: chartBarLight.withOpacity(0.3), // vivid blue border
             ),
           ),
           child: Row(
@@ -46,14 +50,15 @@ class BottomNavBar extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: isActive ? AppColors.beige : Colors.transparent,
+                    // Active background = solid vivid blue
+                    color: isActive ? chartBarLight : Colors.transparent,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Icon(
                     _icons[index],
                     size: 22,
-                    color:
-                        isActive ? AppColors.midnightBlue : AppColors.silver,
+                    // White on active, silver when inactive
+                    color: isActive ? Colors.white : AppColors.silver,
                   ),
                 ),
               );

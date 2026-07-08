@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
-import 'package:doctor_management_app/features/shell/components/animated_background.dart'; // adjust path if needed
+import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -36,20 +36,8 @@ class PatientDetailsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Container(
-        // Same gradient as Shell
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color.fromARGB(255, 108, 162, 255),
-              Color.fromARGB(255, 143, 210, 255),
-            ],
-          ),
-        ),
-        child: AnimatedBackground(    // 👈 Animated lines from Shell
-          child: SafeArea(
+      body: ShellBackground(
+        child: SafeArea(
             bottom: false,
             child: Column(
               children: [
@@ -134,7 +122,6 @@ class PatientDetailsPage extends StatelessWidget {
             ),
           ),
         ),
-      ),
       bottomNavigationBar: const _BottomActionBar(),
     );
   }

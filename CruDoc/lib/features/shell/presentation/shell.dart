@@ -1,6 +1,6 @@
 import 'dart:ui';   // for ImageFilter
 import 'package:flutter/material.dart';
-import 'package:doctor_management_app/features/shell/components/animated_background.dart';
+import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
 import 'package:doctor_management_app/features/revenue/presentation/revenue.dart';
@@ -54,29 +54,17 @@ class _ShellState extends State<Shell> {
       body: Stack(
         children: [
           // ---- Background gradient + animated lines + PageView ----
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Color.fromARGB(255, 108, 162, 255),
-                  Color.fromARGB(255, 143, 210, 255),
-                ],
-              ),
-            ),
-            child: AnimatedBackground(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (index) => setState(() => _currentIndex = index),
-                children: _screens
-                    .map((screen) => Padding(
-                          padding: EdgeInsets.only(
-                              bottom: navBarHeight),   // make room for the overlay
-                          child: screen,
-                        ))
-                    .toList(),
-              ),
+          ShellBackground(
+            child: PageView(
+              controller: _pageController,
+              onPageChanged: (index) => setState(() => _currentIndex = index),
+              children: _screens
+                  .map((screen) => Padding(
+                        padding: EdgeInsets.only(
+                            bottom: navBarHeight),   // make room for the overlay
+                        child: screen,
+                      ))
+                  .toList(),
             ),
           ),
           // ---- Floating navigation bar ----

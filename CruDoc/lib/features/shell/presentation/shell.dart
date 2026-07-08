@@ -60,8 +60,8 @@ class _ShellState extends State<Shell> {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF2C3E50),
-                  Color(0xFFAED6F1),
+                  Color.fromARGB(255, 108, 162, 255),
+                  Color.fromARGB(255, 143, 210, 255),
                 ],
               ),
             ),

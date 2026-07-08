@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/shell/components/animated_background.dart'; // adjust path if needed
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -36,90 +37,101 @@ class PatientDetailsPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: Container(
-        // Solid black background – no opacity
-        color: Colors.black,
-        child: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              const _TopBar(),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                  physics: const ClampingScrollPhysics(),
-                  children: [
-                    _PatientHeader(
-                      name: name,
-                      age: age,
-                      gender: gender,
-                      condition: condition,
-                    ),
-                    const SizedBox(height: 20),
-                    _DoctorsNoteCard(note: doctorsNote),
-                    const SizedBox(height: 24),
-                    _StatsRow(
-                      sessionsAttended: sessionsAttended,
-                      lastVisit: lastVisit,
-                    ),
-                    const SizedBox(height: 24),
-                    const _SectionLabel(text: 'CONTACT & LOCATION'),
-                    const SizedBox(height: 12),
-                    _ContactCard(
-                      address: address,
-                      contact: contact,
-                      secondContact: secondContact,
-                    ),
-                    const SizedBox(height: 24),
-                    const _SectionLabel(text: 'SESSION HISTORY'),
-                    const SizedBox(height: 12),
-                    const _SessionHistorySection(
-                      sessions: [
-                        _SessionData(
-                          date: 'June 20, 2026',
-                          time: '10:30 AM',
-                          reason: 'Post-op knee mobility session',
-                        ),
-                        _SessionData(
-                          date: 'June 13, 2026',
-                          time: '09:00 AM',
-                          reason: 'Therapeutic ultrasound & review',
-                        ),
-                        _SessionData(
-                          date: 'June 06, 2026',
-                          time: '11:00 AM',
-                          reason: 'Balance & gait re-assessment',
-                        ),
-                        _SessionData(
-                          date: 'May 29, 2026',
-                          time: '02:30 PM',
-                          reason: 'Soft tissue mobilisation',
-                        ),
-                        _SessionData(
-                          date: 'May 22, 2026',
-                          time: '08:00 AM',
-                          reason: 'Postural correction exercises',
-                        ),
-                        _SessionData(
-                          date: 'May 15, 2026',
-                          time: '02:00 PM',
-                          reason: 'Manual therapy — lower back',
-                        ),
-                        _SessionData(
-                          date: 'May 08, 2026',
-                          time: '04:00 PM',
-                          reason: 'Strength training — upper body',
-                        ),
-                        _SessionData(
-                          date: 'April 02, 2026',
-                          time: '09:00 AM',
-                          reason: 'Gait training & balance assessment',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+        // Same gradient as Shell
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.fromARGB(255, 108, 162, 255),
+              Color.fromARGB(255, 143, 210, 255),
             ],
+          ),
+        ),
+        child: AnimatedBackground(    // 👈 Animated lines from Shell
+          child: SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                const _TopBar(),
+                Expanded(
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                    physics: const ClampingScrollPhysics(),
+                    children: [
+                      _PatientHeader(
+                        name: name,
+                        age: age,
+                        gender: gender,
+                        condition: condition,
+                      ),
+                      const SizedBox(height: 20),
+                      _DoctorsNoteCard(note: doctorsNote),
+                      const SizedBox(height: 24),
+                      _StatsRow(
+                        sessionsAttended: sessionsAttended,
+                        lastVisit: lastVisit,
+                      ),
+                      const SizedBox(height: 24),
+                      const _SectionLabel(text: 'CONTACT & LOCATION'),
+                      const SizedBox(height: 12),
+                      _ContactCard(
+                        address: address,
+                        contact: contact,
+                        secondContact: secondContact,
+                      ),
+                      const SizedBox(height: 24),
+                      const _SectionLabel(text: 'SESSION HISTORY'),
+                      const SizedBox(height: 12),
+                      const _SessionHistorySection(
+                        sessions: [
+                          _SessionData(
+                            date: 'June 20, 2026',
+                            time: '10:30 AM',
+                            reason: 'Post-op knee mobility session',
+                          ),
+                          _SessionData(
+                            date: 'June 13, 2026',
+                            time: '09:00 AM',
+                            reason: 'Therapeutic ultrasound & review',
+                          ),
+                          _SessionData(
+                            date: 'June 06, 2026',
+                            time: '11:00 AM',
+                            reason: 'Balance & gait re-assessment',
+                          ),
+                          _SessionData(
+                            date: 'May 29, 2026',
+                            time: '02:30 PM',
+                            reason: 'Soft tissue mobilisation',
+                          ),
+                          _SessionData(
+                            date: 'May 22, 2026',
+                            time: '08:00 AM',
+                            reason: 'Postural correction exercises',
+                          ),
+                          _SessionData(
+                            date: 'May 15, 2026',
+                            time: '02:00 PM',
+                            reason: 'Manual therapy — lower back',
+                          ),
+                          _SessionData(
+                            date: 'May 08, 2026',
+                            time: '04:00 PM',
+                            reason: 'Strength training — upper body',
+                          ),
+                          _SessionData(
+                            date: 'April 02, 2026',
+                            time: '09:00 AM',
+                            reason: 'Gait training & balance assessment',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -248,7 +260,7 @@ class _InfoPill extends StatelessWidget {
   }
 }
 
-// ---------- Doctor's Note (labeled callout, not a floating placeholder) ----------
+// ---------- Doctor's Note ----------
 class _DoctorsNoteCard extends StatelessWidget {
   final String? note;
   const _DoctorsNoteCard({required this.note});
@@ -257,11 +269,6 @@ class _DoctorsNoteCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool hasNote = note != null && note!.trim().isNotEmpty;
 
-    // NOTE: rounded corners + a border that isn't the same on every side
-    // throws "A borderRadius can only be given for uniform borders." at
-    // runtime — that was the crash. Fixed by clipping the rounding with
-    // ClipRRect and drawing the amber accent as a plain colored strip
-    // instead of an uneven border side.
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
       child: Container(
@@ -573,8 +580,6 @@ class _SessionData {
   });
 }
 
-// Wraps the timeline with a collapse/expand affordance so a long history
-// doesn't render as a wall of identical cards.
 class _SessionHistorySection extends StatefulWidget {
   final List<_SessionData> sessions;
   const _SessionHistorySection({required this.sessions});
@@ -749,7 +754,7 @@ class _BottomActionBar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D0D0D),
+        color: AppColors.cardSurface,
         border: Border(
           top: BorderSide(color: Colors.white.withOpacity(0.08)),
         ),

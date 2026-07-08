@@ -3,7 +3,8 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/widgets/last_patient.dart';
 import 'package:doctor_management_app/features/patients/widgets/upcoming_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
-import 'package:doctor_management_app/features/patients/presentation/patient_form.dart'; // your form file
+import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
+import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});
@@ -12,7 +13,6 @@ class PatientRecords extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
-      // No more FAB – button is now inline
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -34,7 +34,6 @@ class PatientRecords extends StatelessWidget {
               const SizedBox(height: 16),
               const UpcomingPatientCard(),
               const SizedBox(height: 16),
-              // Inline title + button
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -51,7 +50,7 @@ class PatientRecords extends StatelessWidget {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const AddPatientScreen()),
+                            builder: (_) => const AddPatientPage()),
                       );
                     },
                     child: Container(
@@ -327,6 +326,7 @@ class _PatientTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
+          // ✅ Regular push — no transparency
           onTap: () {
             Navigator.push(
               context,

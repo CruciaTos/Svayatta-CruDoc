@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/revenue/presentation/revenue.dart
 import 'package:doctor_management_app/features/summary/presentation/summary.dart';
 import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
 import 'package:doctor_management_app/features/invoice/presentation/invoice_create_screen.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointments.dart';
 
 
 class Shell extends StatefulWidget {
@@ -25,7 +26,7 @@ class _ShellState extends State<Shell> {
     PatientRecords(),
     InvoiceCreateScreen(),
     RevenueScreen(),
-    SummaryScreen(),
+    EventsScreen(),
       // Placeholder for the fifth screen
   ];
 

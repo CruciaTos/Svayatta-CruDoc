@@ -3,6 +3,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/widgets/last_patient.dart';
 import 'package:doctor_management_app/features/patients/widgets/upcoming_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_form.dart'; // your form file
 
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});
@@ -11,6 +12,7 @@ class PatientRecords extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.transparent,
+      // No more FAB – button is now inline
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
@@ -32,13 +34,52 @@ class PatientRecords extends StatelessWidget {
               const SizedBox(height: 16),
               const UpcomingPatientCard(),
               const SizedBox(height: 16),
-              const Text(
-                'All Patients',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
+              // Inline title + button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'All Patients',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AddPatientScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.slateBlue,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add,
+                              color: AppColors.textPrimary, size: 18),
+                          SizedBox(width: 4),
+                          Text(
+                            'Add',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               const Expanded(
@@ -259,14 +300,12 @@ class _PatientsList extends StatelessWidget {
     ),
   ];
 
-  static const double _itemExtent = 78.0;
-
   @override
   Widget build(BuildContext context) {
     return ListView.builder(
       padding: EdgeInsets.zero,
       physics: const ClampingScrollPhysics(),
-      itemExtent: _itemExtent,
+      itemExtent: 78.0,
       itemCount: _patients.length,
       itemBuilder: (context, index) =>
           _PatientTile(data: _patients[index]),
@@ -274,7 +313,7 @@ class _PatientsList extends StatelessWidget {
   }
 }
 
-// ---------- PATIENT TILE (navigates with full data) ----------
+// ---------- PATIENT TILE ----------
 class _PatientTile extends StatelessWidget {
   final _PatientData data;
   const _PatientTile({required this.data});
@@ -357,7 +396,7 @@ class _PatientTile extends StatelessWidget {
   }
 }
 
-// ---------- UPDATED DATA CLASS ----------
+// ---------- DATA CLASS ----------
 class _PatientData {
   final String name;
   final int age;

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
-import 'package:doctor_management_app/features/patient_records/widgets/last_patient.dart';
-import 'package:doctor_management_app/features/patient_records/widgets/upcoming_patient.dart';
-import 'package:doctor_management_app/features/patient_records/presentation/patient_details.dart';
+import 'package:doctor_management_app/features/patients/widgets/last_patient.dart';
+import 'package:doctor_management_app/features/patients/widgets/upcoming_patient.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
 
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});

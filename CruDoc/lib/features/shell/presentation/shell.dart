@@ -2,7 +2,7 @@ import 'dart:ui';   // for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/shell/components/animated_background.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard.dart';
-import 'package:doctor_management_app/features/patient_records/presentation/patient_records.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
 import 'package:doctor_management_app/features/revenue/presentation/revenue.dart';
 import 'package:doctor_management_app/features/summary/presentation/summary.dart';
 import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';

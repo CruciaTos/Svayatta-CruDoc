@@ -53,7 +53,7 @@ Widget _buildTextField(String label, TextEditingController controller,
       labelText: label,
       hintText: hint,
       labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-      hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5)),
       filled: true,
       fillColor: AppColors.cardSurfaceAlt,
       border: OutlineInputBorder(
@@ -348,6 +348,7 @@ class _EventsScreenState extends State<EventsScreen> {
     );
 
     if (result == true) {
+      if (!mounted) return;
       final dateStr =
           '${selectedDate.day} ${_monthName(selectedDate.month)} ${selectedDate.year}';
       final timeStr = selectedTime.format(context);
@@ -370,6 +371,9 @@ class _EventsScreenState extends State<EventsScreen> {
       ),
     );
     if (draft == null) return;
+    if (!mounted) return;
+
+    final timeStr = draft.scheduledTime.format(context);
 
     var patient = draft.patient;
     if (patient == null && draft.typedName.isNotEmpty) {
@@ -397,7 +401,6 @@ class _EventsScreenState extends State<EventsScreen> {
     final dateStr = '${draft.scheduledDate.day} '
         '${_monthName(draft.scheduledDate.month)} '
         '${draft.scheduledDate.year}';
-    final timeStr = draft.scheduledTime.format(context);
     final dayStr = _dayName(draft.scheduledDate.weekday);
     final scheduledStart = DateTime(
       draft.scheduledDate.year,
@@ -687,7 +690,12 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
     final requestId = ++_searchRequestId;
 
     if (query.length < 2) {
-      if (mounted) setState(() => _patientMatches = []);
+      if (mounted) {
+        setState(() {
+          _patientMatches = [];
+          _isSearching = false;
+        });
+      }
       return;
     }
 
@@ -736,6 +744,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final visiblePatientMatches = _patientMatches.take(5).toList(growable: false);
+
     return AlertDialog(
       backgroundColor: AppColors.cardSurface,
       title:
@@ -762,33 +772,47 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
             else if (_patientMatches.isNotEmpty)
               Container(
                 margin: const EdgeInsets.only(top: 6),
+                width: double.infinity,
                 decoration: BoxDecoration(
                   color: AppColors.cardSurfaceAlt,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: SizedBox(
-                  height: 160,           // fixed height – no shrinkWrap, no crash
-                  child: ListView.builder(
-                    padding: EdgeInsets.zero,
-                    itemCount: _patientMatches.length,
-                    itemBuilder: (context, i) {
-                      final match = _patientMatches[i];
-                      return ListTile(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < visiblePatientMatches.length; i++) ...[
+                      ListTile(
                         dense: true,
                         title: Text(
-                          match.fullName,
+                          visiblePatientMatches[i].fullName,
                           style: const TextStyle(
                               color: AppColors.textPrimary, fontSize: 14),
                         ),
                         subtitle: Text(
-                          match.phone,
+                          visiblePatientMatches[i].phone,
                           style: const TextStyle(
                               color: AppColors.textSecondary, fontSize: 12),
                         ),
-                        onTap: () => _selectPatient(match),
-                      );
-                    },
-                  ),
+                        onTap: () => _selectPatient(visiblePatientMatches[i]),
+                      ),
+                      if (i != visiblePatientMatches.length - 1)
+                        Divider(
+                          height: 1,
+                          color: AppColors.textSecondary.withValues(alpha: 0.12),
+                        ),
+                    ],
+                    if (_patientMatches.length > visiblePatientMatches.length)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                        child: Text(
+                          'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
+                          style: const TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               )
             else if (_selectedPatient == null &&
@@ -799,7 +823,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                   'No matching patient — add them in Patient '
                   'Records first.',
                   style: TextStyle(
-                    color: AppColors.textSecondary.withOpacity(0.8),
+                    color: AppColors.textSecondary.withValues(alpha: 0.8),
                     fontSize: 12,
                   ),
                 ),

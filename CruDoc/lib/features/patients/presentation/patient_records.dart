@@ -304,7 +304,7 @@ class _PatientsList extends StatelessWidget {
     return ListView.builder(
       padding: EdgeInsets.zero,
       physics: const ClampingScrollPhysics(),
-      itemExtent: 78.0,
+      itemExtent: 82.0,
       itemCount: _patients.length,
       itemBuilder: (context, index) =>
           _PatientTile(data: _patients[index]),
@@ -323,10 +323,9 @@ class _PatientTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
         color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
         child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          // ✅ Regular push — no transparency
+          borderRadius: BorderRadius.circular(20),
           onTap: () {
             Navigator.push(
               context,
@@ -346,22 +345,11 @@ class _PatientTile extends StatelessWidget {
             );
           },
           child: Container(
-            height: 70,
+            height: 74,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.silver.withOpacity(0.2),
-                  child: Text(
-                    data.name[0],
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 5),       // 👈 reduced from 8 to 5
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,7 +359,7 @@ class _PatientTile extends StatelessWidget {
                         data.name,
                         style: const TextStyle(
                           color: AppColors.textPrimary,
-                          fontSize: 15,
+                          fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -380,7 +368,7 @@ class _PatientTile extends StatelessWidget {
                         '${data.gender[0]}, ${data.age}  •  ${data.lastVisit}',
                         style: const TextStyle(
                           color: AppColors.textSecondary,
-                          fontSize: 13,
+                          fontSize: 11,
                         ),
                       ),
                     ],

@@ -3,8 +3,8 @@ import 'dart:async';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
+import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/features/patients/data/services/patient_firestore_service.dart';
 import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
 
 /// Clean API the presentation layer talks to for anything patient-related.
@@ -14,13 +14,13 @@ import 'package:doctor_management_app/features/patients/data/services/patient_lo
 /// sync engine in Phase 3; until then failed mirrors remain marked `pending`.
 class PatientRepository {
   PatientRepository({
-    PatientFirestoreService? firestoreService,
     PatientLocalService? localService,
-  }) : _firestoreService = firestoreService ?? PatientFirestoreService(),
-       _localService = localService ?? PatientLocalService();
+    FirestoreSyncService? syncService,
+  }) : _localService = localService ?? PatientLocalService(),
+       _syncService = syncService ?? FirestoreSyncService.instance;
 
-  final PatientFirestoreService _firestoreService;
   final PatientLocalService _localService;
+  final FirestoreSyncService _syncService;
 
   /// Creates a new patient and returns the newly assigned patient id.
   Future<String> createPatient(Patient patient) async {
@@ -43,7 +43,7 @@ class PatientRepository {
     );
 
     await _localService.upsertPatient(patientWithId);
-    unawaited(_mirrorCreateToFirestore(patientWithId));
+    unawaited(_syncService.triggerPostWriteSync());
     return id;
   }
 
@@ -63,13 +63,13 @@ class PatientRepository {
       ..['updatedAt'] = DateTime.now();
 
     await _localService.updatePatient(patientId, localData);
-    unawaited(_mirrorUpdateToFirestore(patientId, localData));
+    unawaited(_syncService.triggerPostWriteSync());
   }
 
   /// Soft-deletes a patient locally, then mirrors the existing Firestore delete.
   Future<void> deletePatient(String patientId) async {
     await _localService.softDeletePatient(patientId);
-    unawaited(_mirrorDeleteToFirestore(patientId));
+    unawaited(_syncService.triggerPostWriteSync());
   }
 
   /// Fetches a single patient by id.
@@ -91,36 +91,6 @@ class PatientRepository {
       query,
       includeArchived: includeArchived,
     );
-  }
-
-  Future<void> _mirrorCreateToFirestore(Patient patient) async {
-    try {
-      await _firestoreService.createPatient(patient);
-      await _localService.markSynced(patient.id);
-    } catch (_) {
-      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
-    }
-  }
-
-  Future<void> _mirrorUpdateToFirestore(
-    String patientId,
-    Map<String, dynamic> data,
-  ) async {
-    try {
-      await _firestoreService.updatePatient(patientId, data);
-      await _localService.markSynced(patientId);
-    } catch (_) {
-      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
-    }
-  }
-
-  Future<void> _mirrorDeleteToFirestore(String patientId) async {
-    try {
-      await _firestoreService.deletePatient(patientId);
-      await _localService.markSynced(patientId);
-    } catch (_) {
-      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
-    }
   }
 
   void _validate(Patient patient) {

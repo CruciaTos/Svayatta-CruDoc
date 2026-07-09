@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
-import 'package:doctor_management_app/features/appointments/data/services/visits_firestore_service.dart';
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 
@@ -20,15 +20,15 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 /// should call into — never the service directly.
 class VisitRepository {
   VisitRepository({
-    VisitFirestoreService? firestoreService,
     VisitLocalService? localService,
+    FirestoreSyncService? syncService,
     PatientRepository? patientRepository,
-  }) : _firestoreService = firestoreService ?? VisitFirestoreService(),
-       _localService = localService ?? VisitLocalService(),
+  }) : _localService = localService ?? VisitLocalService(),
+       _syncService = syncService ?? FirestoreSyncService.instance,
        _patientRepository = patientRepository ?? PatientRepository();
 
-  final VisitFirestoreService _firestoreService;
   final VisitLocalService _localService;
+  final FirestoreSyncService _syncService;
   final PatientRepository _patientRepository;
 
   /// Creates a new visit for an existing patient.
@@ -100,7 +100,7 @@ class VisitRepository {
     );
 
     await _localService.upsertVisit(visitWithId);
-    unawaited(_mirrorCreateToFirestore(visitWithId));
+    unawaited(_syncService.triggerPostWriteSync());
     return id;
   }
 
@@ -128,7 +128,7 @@ class VisitRepository {
       ..['updatedAt'] = DateTime.now();
 
     await _localService.updateVisit(visitId, localData);
-    unawaited(_mirrorUpdateToFirestore(visitId, localData));
+    unawaited(_syncService.triggerPostWriteSync());
   }
 
   /// Moves an existing visit to a new start time and/or duration,
@@ -296,27 +296,6 @@ class VisitRepository {
 
     if (!acknowledgeOverlap) {
       throw VisitOverlapWarning(conflicts);
-    }
-  }
-
-  Future<void> _mirrorCreateToFirestore(Visit visit) async {
-    try {
-      await _firestoreService.createVisit(visit);
-      await _localService.markSynced(visit.id);
-    } catch (_) {
-      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
-    }
-  }
-
-  Future<void> _mirrorUpdateToFirestore(
-    String visitId,
-    Map<String, dynamic> data,
-  ) async {
-    try {
-      await _firestoreService.updateVisit(visitId, data);
-      await _localService.markSynced(visitId);
-    } catch (_) {
-      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
     }
   }
 }

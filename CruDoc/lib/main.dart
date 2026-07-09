@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firestore_sync_service.dart';
+import 'core/services/initial_firestore_migration_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,7 @@ Future<void> main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
+  await InitialFirestoreMigrationService.instance.runIfNeeded();
   await FirestoreSyncService.instance.start();
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));

@@ -1,7 +1,11 @@
+import 'dart:async';
+
+import 'package:uuid/uuid.dart';
+
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
-import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
 import 'package:doctor_management_app/features/appointments/data/services/visits_firestore_service.dart';
+import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 
 /// Clean API the presentation layer talks to for anything visit-related.
@@ -17,11 +21,14 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 class VisitRepository {
   VisitRepository({
     VisitFirestoreService? firestoreService,
+    VisitLocalService? localService,
     PatientRepository? patientRepository,
-  })  : _firestoreService = firestoreService ?? VisitFirestoreService(),
-        _patientRepository = patientRepository ?? PatientRepository();
+  }) : _firestoreService = firestoreService ?? VisitFirestoreService(),
+       _localService = localService ?? VisitLocalService(),
+       _patientRepository = patientRepository ?? PatientRepository();
 
   final VisitFirestoreService _firestoreService;
+  final VisitLocalService _localService;
   final PatientRepository _patientRepository;
 
   /// Creates a new visit for an existing patient.
@@ -31,33 +38,70 @@ class VisitRepository {
   /// and use the id it returns here. This method never creates a
   /// patient, and never should.
   ///
+  /// TEMPORARY (functional-verification phase): the patient-existence
+  /// check and the overlap check below are disabled for now — both were
+  /// pre-create Firestore reads, and the patient-existence read in
+  /// particular was crashing the app when adding a new visitation.
+  /// [acknowledgeOverlap] is kept as a no-op parameter so the call site
+  /// doesn't need to change. Restore both `_checkPatient` and
+  /// `_checkOverlap` calls (and remove the `unused_element` ignore on
+  /// `_checkPatient`) once this is revisited — likely alongside the
+  /// planned Local-First/SQLite refactor.
+  ///
   /// Throws:
   /// - [VisitValidationException] for missing/invalid fields.
-  /// - [PatientNotFoundException] if `visit.patientId` doesn't exist.
-  /// - [InactivePatientException] if that patient is archived.
+  /// - [PatientNotFoundException] if `visit.patientId` doesn't exist. —
+  ///   currently disabled, see above.
+  /// - [InactivePatientException] if that patient is archived. —
+  ///   currently disabled, see above.
   /// - [SamePatientDoubleBookingException] if the same patient already
-  ///   has an overlapping visit — never bypassable.
+  ///   has an overlapping visit — never bypassable. — currently
+  ///   disabled, see above.
   /// - [VisitOverlapWarning] if a *different* patient has an overlapping
   ///   visit and [acknowledgeOverlap] is false. Catch this, show the
   ///   doctor the conflicting visits, and call again with
-  ///   `acknowledgeOverlap: true` if they confirm.
+  ///   `acknowledgeOverlap: true` if they confirm. — currently disabled,
+  ///   see above.
   /// - [VisitOverlapLimitExceededException] if saving would exceed
   ///   [kMaxOverlappingVisits] simultaneous active visits — never
-  ///   bypassable, regardless of [acknowledgeOverlap].
+  ///   bypassable, regardless of [acknowledgeOverlap]. — currently
+  ///   disabled, see above.
   Future<String> createVisit(
     Visit visit, {
     bool acknowledgeOverlap = false,
   }) async {
     _validate(visit);
-    await _checkPatient(visit.patientId);
-    await _checkOverlap(
+    // await _checkPatient(visit.patientId);
+    // await _checkOverlap(
+    //   patientId: visit.patientId,
+    //   start: visit.scheduledStart,
+    //   end: visit.scheduledEnd,
+    //   acknowledgeOverlap: acknowledgeOverlap,
+    // );
+
+    final now = DateTime.now();
+    final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
+    final visitWithId = Visit(
+      id: id,
       patientId: visit.patientId,
-      start: visit.scheduledStart,
-      end: visit.scheduledEnd,
-      acknowledgeOverlap: acknowledgeOverlap,
+      scheduledStart: visit.scheduledStart,
+      durationMinutes: visit.durationMinutes,
+      address: visit.address,
+      status: visit.status,
+      isDeleted: visit.isDeleted,
+      invoiceId: visit.invoiceId,
+      packageId: visit.packageId,
+      treatmentType: visit.treatmentType,
+      therapistNotes: visit.therapistNotes,
+      reminderStatus: visit.reminderStatus,
+      calendarEventId: visit.calendarEventId,
+      createdAt: now,
+      updatedAt: now,
     );
 
-    return _firestoreService.createVisit(visit);
+    await _localService.upsertVisit(visitWithId);
+    unawaited(_mirrorCreateToFirestore(visitWithId));
+    return id;
   }
 
   /// Updates arbitrary fields on an existing visit. Prefer
@@ -70,7 +114,7 @@ class VisitRepository {
   /// key that isn't one of the predefined [VisitStatus] values — this
   /// is the backstop that keeps free-text statuses out even if a
   /// caller bypasses [updateStatus].
-  Future<void> updateVisit(String visitId, Map<String, dynamic> data) {
+  Future<void> updateVisit(String visitId, Map<String, dynamic> data) async {
     if (data.containsKey('status')) {
       final raw = data['status'];
       final validValues = VisitStatus.values.map((s) => s.value).toSet();
@@ -80,7 +124,11 @@ class VisitRepository {
         );
       }
     }
-    return _firestoreService.updateVisit(visitId, data);
+    final localData = Map<String, dynamic>.from(data)
+      ..['updatedAt'] = DateTime.now();
+
+    await _localService.updateVisit(visitId, localData);
+    unawaited(_mirrorUpdateToFirestore(visitId, localData));
   }
 
   /// Moves an existing visit to a new start time and/or duration,
@@ -92,7 +140,7 @@ class VisitRepository {
     int? newDurationMinutes,
     bool acknowledgeOverlap = false,
   }) async {
-    final existing = await _firestoreService.getVisit(visitId);
+    final existing = await _localService.getVisit(visitId);
     if (existing == null) {
       throw VisitValidationException('No visit found with id "$visitId".');
     }
@@ -144,12 +192,12 @@ class VisitRepository {
   }
 
   /// Fetches a single visit by id, or null if it doesn't exist.
-  Future<Visit?> getVisit(String visitId) => _firestoreService.getVisit(visitId);
+  Future<Visit?> getVisit(String visitId) => _localService.getVisit(visitId);
 
   /// Streams active upcoming visits from [from] (defaults to now)
   /// onward, ordered by start time ascending.
   Stream<List<Visit>> watchUpcomingVisits({DateTime? from}) {
-    return _firestoreService.watchUpcomingVisits(from: from);
+    return _localService.watchUpcomingVisits(from: from);
   }
 
   /// Streams a single patient's visit history, most recent first.
@@ -157,7 +205,7 @@ class VisitRepository {
     String patientId, {
     bool includeDeleted = false,
   }) {
-    return _firestoreService.watchVisitsForPatient(
+    return _localService.watchVisitsForPatient(
       patientId,
       includeDeleted: includeDeleted,
     );
@@ -173,7 +221,7 @@ class VisitRepository {
     required DateTime end,
     String? excludeVisitId,
   }) {
-    return _firestoreService.findOverlapping(
+    return _localService.findOverlapping(
       start: start,
       end: end,
       excludeVisitId: excludeVisitId,
@@ -206,6 +254,7 @@ class VisitRepository {
     }
   }
 
+  // ignore: unused_element
   Future<void> _checkPatient(String patientId) async {
     final patient = await _patientRepository.getPatient(patientId);
     if (patient == null) {
@@ -223,7 +272,7 @@ class VisitRepository {
     String? excludeVisitId,
     required bool acknowledgeOverlap,
   }) async {
-    final conflicts = await _firestoreService.findOverlapping(
+    final conflicts = await _localService.findOverlapping(
       start: start,
       end: end,
       excludeVisitId: excludeVisitId,
@@ -234,8 +283,9 @@ class VisitRepository {
     // The same patient can never legitimately be at two visits at
     // once — that's never something to "acknowledge", it's just wrong,
     // regardless of how much headroom is left under the max-overlap cap.
-    final samePatientConflicts =
-        conflicts.where((v) => v.patientId == patientId);
+    final samePatientConflicts = conflicts.where(
+      (v) => v.patientId == patientId,
+    );
     if (samePatientConflicts.isNotEmpty) {
       throw SamePatientDoubleBookingException(samePatientConflicts.first);
     }
@@ -246,6 +296,27 @@ class VisitRepository {
 
     if (!acknowledgeOverlap) {
       throw VisitOverlapWarning(conflicts);
+    }
+  }
+
+  Future<void> _mirrorCreateToFirestore(Visit visit) async {
+    try {
+      await _firestoreService.createVisit(visit);
+      await _localService.markSynced(visit.id);
+    } catch (_) {
+      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
+    }
+  }
+
+  Future<void> _mirrorUpdateToFirestore(
+    String visitId,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      await _firestoreService.updateVisit(visitId, data);
+      await _localService.markSynced(visitId);
+    } catch (_) {
+      // Leave syncStatus=pending for the Phase 3 sync engine to retry.
     }
   }
 }

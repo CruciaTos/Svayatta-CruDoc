@@ -16,7 +16,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 /// set them.
 class VisitFirestoreService {
   VisitFirestoreService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -27,13 +27,11 @@ class VisitFirestoreService {
   ///
   /// The id is generated client-side (like [PatientFirestoreService]),
   /// so a retried call can safely reuse the same id instead of risking
-  /// a duplicate visit. `createdAt`/`updatedAt` on [visit] are ignored
-  /// in favor of the current time, so they're always correct regardless
-  /// of what the caller passed in.
+  /// a duplicate visit. Phase 2 repositories now pass in a fully stamped
+  /// [visit], so the same id/timestamps are mirrored to SQLite and Firestore.
   Future<String> createVisit(Visit visit) async {
-    final id = const Uuid().v4();
-    final now = DateTime.now();
-    final data = visit.copyWith(createdAt: now, updatedAt: now).toMap();
+    final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
+    final data = visit.toMap();
     await _visitsRef.doc(id).set(data);
     return id;
   }
@@ -78,8 +76,10 @@ class VisitFirestoreService {
     return _visitsRef
         .where('isDeleted', isEqualTo: false)
         .where('status', isEqualTo: VisitStatus.scheduled.value)
-        .where('scheduledStart',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where(
+          'scheduledStart',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(start),
+        )
         .orderBy('scheduledStart')
         .snapshots()
         .map((snapshot) => snapshot.docs.map(Visit.fromFirestore).toList());
@@ -95,8 +95,10 @@ class VisitFirestoreService {
     String patientId, {
     bool includeDeleted = false,
   }) {
-    Query<Map<String, dynamic>> query =
-        _visitsRef.where('patientId', isEqualTo: patientId);
+    Query<Map<String, dynamic>> query = _visitsRef.where(
+      'patientId',
+      isEqualTo: patientId,
+    );
     if (!includeDeleted) {
       query = query.where('isDeleted', isEqualTo: false);
     }
@@ -123,26 +125,25 @@ class VisitFirestoreService {
     // before `end`. The lower bound looks back by the maximum allowed
     // visit duration so a long visit that started earlier, but is
     // still running when the new one begins, isn't missed.
-    final lookbackStart =
-        start.subtract(const Duration(minutes: kMaxVisitDurationMinutes));
+    final lookbackStart = start.subtract(
+      const Duration(minutes: kMaxVisitDurationMinutes),
+    );
 
     final snapshot = await _visitsRef
-        .where('scheduledStart',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(lookbackStart))
+        .where(
+          'scheduledStart',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(lookbackStart),
+        )
         .where('scheduledStart', isLessThan: Timestamp.fromDate(end))
         .get();
 
-    final overlapping = snapshot.docs
-        .map(Visit.fromFirestore)
-        .where((visit) {
-          if (visit.id == excludeVisitId) return false;
-          if (visit.isDeleted) return false;
-          if (visit.status != VisitStatus.scheduled) return false;
-          return visit.scheduledStart.isBefore(end) &&
-              start.isBefore(visit.scheduledEnd);
-        })
-        .toList()
-      ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+    final overlapping = snapshot.docs.map(Visit.fromFirestore).where((visit) {
+      if (visit.id == excludeVisitId) return false;
+      if (visit.isDeleted) return false;
+      if (visit.status != VisitStatus.scheduled) return false;
+      return visit.scheduledStart.isBefore(end) &&
+          start.isBefore(visit.scheduledEnd);
+    }).toList()..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
 
     return overlapping;
   }

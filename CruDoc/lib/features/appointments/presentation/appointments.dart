@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:doctor_management_app/features/appointments/presentation/visitation_card.dart'; // VisitCard
+import 'package:doctor_management_app/features/appointments/presentation/visitation_card.dart';
+
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
+import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
+import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 // ---------- DATA MODELS ----------
 class Visit {
@@ -12,7 +18,6 @@ class Visit {
   final String duration;
   final String address;
   final String mapsQuery;
-
   const Visit({
     required this.patientName,
     required this.date,
@@ -29,7 +34,6 @@ class OnlineSession {
   final String date;
   final String time;
   final String link;
-
   const OnlineSession({
     required this.title,
     required this.date,
@@ -38,16 +42,196 @@ class OnlineSession {
   });
 }
 
+// ---------- SHARED DIALOG FORM HELPERS ----------
+Widget _buildTextField(String label, TextEditingController controller,
+    {String? hint, ValueChanged<String>? onChanged}) {
+  return TextField(
+    controller: controller,
+    onChanged: onChanged,
+    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+    decoration: InputDecoration(
+      labelText: label,
+      hintText: hint,
+      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+      hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+      filled: true,
+      fillColor: AppColors.cardSurfaceAlt,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+    ),
+  );
+}
+
+Widget _buildPickDateButton(
+    BuildContext context, DateTime date, ValueChanged<DateTime?> onPicked) {
+  final dateStr = '${date.day} ${_monthName(date.month)} ${date.year}';
+  return InkWell(
+    onTap: () async {
+      final picked = await showDatePicker(
+        context: context,
+        initialDate: date,
+        firstDate: DateTime.now(),
+        lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: AppColors.slateBlue,
+                onPrimary: AppColors.textPrimary,
+                surface: AppColors.cardSurface,
+                onSurface: AppColors.textPrimary,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+      onPicked(picked);
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_today, color: AppColors.silver, size: 18),
+          const SizedBox(width: 10),
+          Text(
+            dateStr,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildPickTimeButton(
+    BuildContext context, TimeOfDay time, ValueChanged<TimeOfDay?> onPicked) {
+  final timeStr = time.format(context);
+  return InkWell(
+    onTap: () async {
+      final picked = await showTimePicker(
+        context: context,
+        initialTime: time,
+        builder: (context, child) {
+          return Theme(
+            data: Theme.of(context).copyWith(
+              colorScheme: const ColorScheme.dark(
+                primary: AppColors.slateBlue,
+                onPrimary: AppColors.textPrimary,
+                surface: AppColors.cardSurface,
+                onSurface: AppColors.textPrimary,
+              ),
+            ),
+            child: child!,
+          );
+        },
+      );
+      onPicked(picked);
+    },
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time, color: AppColors.silver, size: 18),
+          const SizedBox(width: 10),
+          Text(
+            timeStr,
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildDurationDropdown(
+    String currentValue, ValueChanged<String?> onChanged) {
+  const durations = ['15 min', '30 min', '45 min', '60 min', '90 min', '120 min'];
+  return SizedBox(
+    height: 48,
+    width: double.infinity,   // ← width constraint fixes the expand issue
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: currentValue,
+          isExpanded: true,
+          menuMaxHeight: 200,
+          dropdownColor: AppColors.cardSurface,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          items: durations.map((d) {
+            return DropdownMenuItem(value: d, child: Text(d));
+          }).toList(),
+          onChanged: onChanged,
+          icon: const Icon(Icons.arrow_drop_down, color: AppColors.silver),
+        ),
+      ),
+    ),
+  );
+}
+
+// ---------- FORMAT HELPERS ----------
+String _monthName(int month) {
+  const months = [
+    '', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[month];
+}
+
+String _dayName(int weekday) {
+  const days = [
+    '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  ];
+  return days[weekday];
+}
+
+// ---------- ADD VISIT DIALOG RESULT ----------
+class _VisitDraft {
+  final Patient? patient;
+  final String typedName;
+  final DateTime scheduledDate;
+  final TimeOfDay scheduledTime;
+  final String duration;
+  final String address;
+  final String mapsQuery;
+  const _VisitDraft({
+    required this.patient,
+    required this.typedName,
+    required this.scheduledDate,
+    required this.scheduledTime,
+    required this.duration,
+    required this.address,
+    required this.mapsQuery,
+  });
+}
+
 // ---------- EVENTS SCREEN ----------
 class EventsScreen extends StatefulWidget {
   const EventsScreen({super.key});
-
   @override
   State<EventsScreen> createState() => _EventsScreenState();
 }
 
 class _EventsScreenState extends State<EventsScreen> {
-  // ---------- DYNAMIC DATA ----------
+  final VisitRepository _visitRepository = VisitRepository();
+  final PatientRepository _patientRepository = PatientRepository();
+
   List<OnlineSession> onlineSessions = [
     const OnlineSession(
       title: 'Monthly Webinar: Patient Care',
@@ -87,7 +271,6 @@ class _EventsScreenState extends State<EventsScreen> {
     ),
   ];
 
-  // ---------- SAFELY OPEN A URL ----------
   Future<void> _launchUrl(String url) async {
     try {
       final uri = Uri.parse(url);
@@ -108,12 +291,9 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
-  // ---------- ADD ONLINE SESSION DIALOG ----------
   Future<void> _addOnlineSession() async {
     final titleController = TextEditingController();
     final linkController = TextEditingController();
-
-    // Use stateful variables inside the dialog
     DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
     TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
 
@@ -132,27 +312,15 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     _buildTextField('Title', titleController),
                     const SizedBox(height: 12),
-                    // Date picker button
-                    _buildPickDateButton(
-                      context,
-                      selectedDate,
-                      (picked) {
-                        if (picked != null) {
-                          setDialogState(() => selectedDate = picked);
-                        }
-                      },
-                    ),
+                    _buildPickDateButton(context, selectedDate,
+                        (picked) {
+                          if (picked != null) setDialogState(() => selectedDate = picked);
+                        }),
                     const SizedBox(height: 12),
-                    // Time picker button
-                    _buildPickTimeButton(
-                      context,
-                      selectedTime,
-                      (picked) {
-                        if (picked != null) {
-                          setDialogState(() => selectedTime = picked);
-                        }
-                      },
-                    ),
+                    _buildPickTimeButton(context, selectedTime,
+                        (picked) {
+                          if (picked != null) setDialogState(() => selectedTime = picked);
+                        }),
                     const SizedBox(height: 12),
                     _buildTextField('Meeting Link (URL)', linkController,
                         hint: 'https://meet.google.com/...'),
@@ -166,8 +334,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (titleController.text.isNotEmpty &&
-                        linkController.text.isNotEmpty) {
+                    if (titleController.text.isNotEmpty && linkController.text.isNotEmpty) {
                       Navigator.pop(context, true);
                     }
                   },
@@ -181,11 +348,9 @@ class _EventsScreenState extends State<EventsScreen> {
     );
 
     if (result == true) {
-      // Format date and time nicely
       final dateStr =
           '${selectedDate.day} ${_monthName(selectedDate.month)} ${selectedDate.year}';
       final timeStr = selectedTime.format(context);
-
       setState(() {
         onlineSessions.add(OnlineSession(
           title: titleController.text.trim(),
@@ -197,262 +362,156 @@ class _EventsScreenState extends State<EventsScreen> {
     }
   }
 
-  // ---------- ADD VISIT DIALOG ----------
   Future<void> _addVisit() async {
-    final nameController = TextEditingController();
-    final addressController = TextEditingController();
-    final mapsQueryController = TextEditingController();
-
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
-    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
-    String selectedDuration = '30 min'; // default duration
-
-    final result = await showDialog<bool>(
+    final draft = await showDialog<_VisitDraft>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: AppColors.cardSurface,
-              title: const Text('Add Visit',
-                  style: TextStyle(color: AppColors.textPrimary)),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTextField('Patient Name', nameController),
-                    const SizedBox(height: 12),
-                    _buildPickDateButton(
-                      context,
-                      selectedDate,
-                      (picked) {
-                        if (picked != null) {
-                          setDialogState(() => selectedDate = picked);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPickTimeButton(
-                      context,
-                      selectedTime,
-                      (picked) {
-                        if (picked != null) {
-                          setDialogState(() => selectedTime = picked);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    // Duration dropdown
-                    _buildDurationDropdown(
-                      selectedDuration,
-                      (value) {
-                        if (value != null) {
-                          setDialogState(() => selectedDuration = value);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
-                    _buildTextField('Address', addressController),
-                    const SizedBox(height: 12),
-                    _buildTextField('Maps Query (e.g., 123+Main+St)',
-                        mapsQueryController,
-                        hint: '123+Main+St'),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (nameController.text.isNotEmpty &&
-                        addressController.text.isNotEmpty) {
-                      Navigator.pop(context, true);
-                    }
-                  },
-                  child: const Text('Add'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      builder: (context) => _AddVisitDialog(
+        patientRepository: _patientRepository,
+      ),
     );
+    if (draft == null) return;
 
-    if (result == true) {
-      final dateStr =
-          '${selectedDate.day} ${_monthName(selectedDate.month)} ${selectedDate.year}';
-      final timeStr = selectedTime.format(context);
-      final dayStr = _dayName(selectedDate.weekday);
-
-      setState(() {
-        upcomingVisits.add(Visit(
-          patientName: nameController.text.trim(),
-          date: dateStr,
-          day: dayStr,
-          time: timeStr,
-          duration: selectedDuration,
-          address: addressController.text.trim(),
-          mapsQuery: mapsQueryController.text.trim(),
-        ));
-      });
+    var patient = draft.patient;
+    if (patient == null && draft.typedName.isNotEmpty) {
+      final matches = await _patientRepository.searchPatients(
+        draft.typedName,
+        includeArchived: false,
+      );
+      final exactMatches = matches
+          .where((p) => p.fullName.toLowerCase() == draft.typedName.toLowerCase())
+          .toList();
+      if (exactMatches.length == 1) {
+        patient = exactMatches.first;
+      }
     }
-  }
 
-  // ---------- HELPER WIDGETS ----------
-  Widget _buildTextField(String label, TextEditingController controller,
-      {String? hint}) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-        hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
-        filled: true,
-        fillColor: AppColors.cardSurfaceAlt,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      ),
+    if (patient == null) {
+      _showError(
+        'No matching patient named "${draft.typedName}". Pick a '
+        'suggestion from the list, or add this patient first from '
+        'Patient Records.',
+      );
+      return;
+    }
+
+    final dateStr = '${draft.scheduledDate.day} '
+        '${_monthName(draft.scheduledDate.month)} '
+        '${draft.scheduledDate.year}';
+    final timeStr = draft.scheduledTime.format(context);
+    final dayStr = _dayName(draft.scheduledDate.weekday);
+    final scheduledStart = DateTime(
+      draft.scheduledDate.year,
+      draft.scheduledDate.month,
+      draft.scheduledDate.day,
+      draft.scheduledTime.hour,
+      draft.scheduledTime.minute,
+    );
+    final durationMinutes = int.tryParse(draft.duration.split(' ').first) ?? 30;
+
+    await _saveVisit(
+      patient: patient,
+      scheduledStart: scheduledStart,
+      durationMinutes: durationMinutes,
+      address: draft.address,
+      dateStr: dateStr,
+      dayStr: dayStr,
+      timeStr: timeStr,
+      durationLabel: draft.duration,
+      mapsQuery: draft.mapsQuery,
     );
   }
 
-  Widget _buildPickDateButton(
-      BuildContext context, DateTime date, ValueChanged<DateTime?> onPicked) {
-    final dateStr =
-        '${date.day} ${_monthName(date.month)} ${date.year}';
-    return InkWell(
-      onTap: () async {
-        final picked = await showDatePicker(
-          context: context,
-          initialDate: date,
-          firstDate: DateTime.now(),
-          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.dark(
-                  primary: AppColors.slateBlue,
-                  onPrimary: AppColors.textPrimary,
-                  surface: AppColors.cardSurface,
-                  onSurface: AppColors.textPrimary,
-                ),
-              ),
-              child: child!,
-            );
-          },
-        );
-        onPicked(picked);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.cardSurfaceAlt,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.calendar_today, color: AppColors.silver, size: 18),
-            const SizedBox(width: 10),
-            Text(
-              dateStr,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+  Future<void> _saveVisit({
+    required Patient patient,
+    required DateTime scheduledStart,
+    required int durationMinutes,
+    required String address,
+    required String dateStr,
+    required String dayStr,
+    required String timeStr,
+    required String durationLabel,
+    required String mapsQuery,
+    bool acknowledgeOverlap = false,
+  }) async {
+    final now = DateTime.now();
+    final visit = vmodel.Visit(
+      id: '',
+      patientId: patient.id,
+      scheduledStart: scheduledStart,
+      durationMinutes: durationMinutes,
+      address: address,
+      status: vmodel.VisitStatus.scheduled,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    try {
+      await _visitRepository.createVisit(
+        visit,
+        acknowledgeOverlap: acknowledgeOverlap,
+      );
+    } on VisitOverlapWarning catch (e) {
+      if (!mounted) return;
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: AppColors.cardSurface,
+          title: const Text('Overlapping visit',
+              style: TextStyle(color: AppColors.textPrimary)),
+          content: Text(
+            'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
+            style: const TextStyle(color: AppColors.textSecondary),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Save Anyway'),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildPickTimeButton(
-      BuildContext context, TimeOfDay time, ValueChanged<TimeOfDay?> onPicked) {
-    final timeStr = time.format(context);
-    return InkWell(
-      onTap: () async {
-        final picked = await showTimePicker(
-          context: context,
-          initialTime: time,
-          builder: (context, child) {
-            return Theme(
-              data: Theme.of(context).copyWith(
-                colorScheme: const ColorScheme.dark(
-                  primary: AppColors.slateBlue,
-                  onPrimary: AppColors.textPrimary,
-                  surface: AppColors.cardSurface,
-                  onSurface: AppColors.textPrimary,
-                ),
-              ),
-              child: child!,
-            );
-          },
+      );
+      if (proceed == true) {
+        await _saveVisit(
+          patient: patient,
+          scheduledStart: scheduledStart,
+          durationMinutes: durationMinutes,
+          address: address,
+          dateStr: dateStr,
+          dayStr: dayStr,
+          timeStr: timeStr,
+          durationLabel: durationLabel,
+          mapsQuery: mapsQuery,
+          acknowledgeOverlap: true,
         );
-        onPicked(picked);
-      },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.cardSurfaceAlt,
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Row(
-          children: [
-            const Icon(Icons.access_time, color: AppColors.silver, size: 18),
-            const SizedBox(width: 10),
-            Text(
-              timeStr,
-              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-            ),
-          ],
-        ),
-      ),
+      }
+      return;
+    } on VisitException catch (e) {
+      _showError(e.message);
+      return;
+    } catch (e) {
+      _showError('Failed to save visit: $e');
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      upcomingVisits.add(Visit(
+        patientName: patient.fullName,
+        date: dateStr,
+        day: dayStr,
+        time: timeStr,
+        duration: durationLabel,
+        address: address,
+        mapsQuery: mapsQuery,
+      ));
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Visit added successfully')),
     );
-  }
-
-  Widget _buildDurationDropdown(
-      String currentValue, ValueChanged<String?> onChanged) {
-    const durations = ['15 min', '30 min', '45 min', '60 min', '90 min', '120 min'];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurfaceAlt,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: currentValue,
-          isExpanded: true,
-          dropdownColor: AppColors.cardSurface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-          items: durations.map((d) {
-            return DropdownMenuItem(value: d, child: Text(d));
-          }).toList(),
-          onChanged: onChanged,
-          icon: const Icon(Icons.arrow_drop_down, color: AppColors.silver),
-        ),
-      ),
-    );
-  }
-
-  // ---------- FORMAT HELPERS ----------
-  String _monthName(int month) {
-    const months = [
-      '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
-    ];
-    return months[month];
-  }
-
-  String _dayName(int weekday) {
-    const days = [
-      '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
-    ];
-    return days[weekday];
   }
 
   @override
@@ -474,7 +533,6 @@ class _EventsScreenState extends State<EventsScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              // ----- ONLINE SESSIONS HEADER WITH ADD BUTTON -----
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -499,7 +557,11 @@ class _EventsScreenState extends State<EventsScreen> {
                         children: [
                           Icon(Icons.add, color: AppColors.textPrimary, size: 18),
                           SizedBox(width: 4),
-                          Text('Add', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('Add',
+                              style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -522,9 +584,7 @@ class _EventsScreenState extends State<EventsScreen> {
                     onTap: () => _launchUrl(session.link),
                   ),
                 ),
-
               const SizedBox(height: 24),
-              // ----- UPCOMING VISITS HEADER WITH ADD BUTTON -----
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -549,7 +609,11 @@ class _EventsScreenState extends State<EventsScreen> {
                         children: [
                           Icon(Icons.add, color: AppColors.textPrimary, size: 18),
                           SizedBox(width: 4),
-                          Text('Add', style: TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                          Text('Add',
+                              style: TextStyle(
+                                  color: AppColors.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -586,7 +650,207 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 }
 
-// ---------- ONLINE SESSION CARD (unchanged) ----------
+// ---------- ADD VISIT DIALOG ----------
+class _AddVisitDialog extends StatefulWidget {
+  final PatientRepository patientRepository;
+  const _AddVisitDialog({required this.patientRepository});
+
+  @override
+  State<_AddVisitDialog> createState() => _AddVisitDialogState();
+}
+
+class _AddVisitDialogState extends State<_AddVisitDialog> {
+  final _nameController = TextEditingController();
+  final _addressController = TextEditingController();
+  final _mapsQueryController = TextEditingController();
+
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
+  String _selectedDuration = '30 min';
+
+  Patient? _selectedPatient;
+  List<Patient> _patientMatches = [];
+  int _searchRequestId = 0;
+  bool _isSearching = false;   // so the user knows something is happening
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _addressController.dispose();
+    _mapsQueryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _onNameChanged(String value) async {
+    _selectedPatient = null;
+    final query = value.trim();
+    final requestId = ++_searchRequestId;
+
+    if (query.length < 2) {
+      if (mounted) setState(() => _patientMatches = []);
+      return;
+    }
+
+    setState(() => _isSearching = true);   // show a small indicator
+
+    List<Patient> matches;
+    try {
+      matches = await widget.patientRepository.searchPatients(query);
+    } catch (e) {
+      matches = [];
+    }
+
+    if (!mounted || requestId != _searchRequestId) return;
+    setState(() {
+      _patientMatches = matches;
+      _isSearching = false;
+    });
+  }
+
+  void _selectPatient(Patient match) {
+    _nameController.text = match.fullName;
+    setState(() {
+      _selectedPatient = match;
+      _patientMatches = [];
+    });
+  }
+
+  void _submit() {
+    if (_nameController.text.trim().isEmpty ||
+        _addressController.text.trim().isEmpty) {
+      return;
+    }
+    Navigator.pop(
+      context,
+      _VisitDraft(
+        patient: _selectedPatient,
+        typedName: _nameController.text.trim(),
+        scheduledDate: _selectedDate,
+        scheduledTime: _selectedTime,
+        duration: _selectedDuration,
+        address: _addressController.text.trim(),
+        mapsQuery: _mapsQueryController.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.cardSurface,
+      title:
+          const Text('Add Visit', style: TextStyle(color: AppColors.textPrimary)),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _buildTextField(
+              'Patient Name',
+              _nameController,
+              hint: 'Start typing to search existing patients',
+              onChanged: _onNameChanged,
+            ),
+            if (_isSearching)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: SizedBox(
+                  height: 24,
+                  width: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              )
+            else if (_patientMatches.isNotEmpty)
+              Container(
+                margin: const EdgeInsets.only(top: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.cardSurfaceAlt,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: SizedBox(
+                  height: 160,           // fixed height – no shrinkWrap, no crash
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: _patientMatches.length,
+                    itemBuilder: (context, i) {
+                      final match = _patientMatches[i];
+                      return ListTile(
+                        dense: true,
+                        title: Text(
+                          match.fullName,
+                          style: const TextStyle(
+                              color: AppColors.textPrimary, fontSize: 14),
+                        ),
+                        subtitle: Text(
+                          match.phone,
+                          style: const TextStyle(
+                              color: AppColors.textSecondary, fontSize: 12),
+                        ),
+                        onTap: () => _selectPatient(match),
+                      );
+                    },
+                  ),
+                ),
+              )
+            else if (_selectedPatient == null &&
+                _nameController.text.trim().length >= 2)
+              Padding(
+                padding: const EdgeInsets.only(top: 6, left: 4),
+                child: Text(
+                  'No matching patient — add them in Patient '
+                  'Records first.',
+                  style: TextStyle(
+                    color: AppColors.textSecondary.withOpacity(0.8),
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+            _buildPickDateButton(
+              context,
+              _selectedDate,
+              (picked) {
+                if (picked != null) setState(() => _selectedDate = picked);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildPickTimeButton(
+              context,
+              _selectedTime,
+              (picked) {
+                if (picked != null) setState(() => _selectedTime = picked);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildDurationDropdown(
+              _selectedDuration,
+              (value) {
+                if (value != null) setState(() => _selectedDuration = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildTextField('Address', _addressController),
+            const SizedBox(height: 12),
+            _buildTextField('Maps Query (e.g., 123+Main+St)',
+                _mapsQueryController,
+                hint: '123+Main+St'),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          child: const Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------- ONLINE SESSION CARD ----------
 class _OnlineSessionCard extends StatelessWidget {
   final OnlineSession session;
   final VoidCallback onTap;

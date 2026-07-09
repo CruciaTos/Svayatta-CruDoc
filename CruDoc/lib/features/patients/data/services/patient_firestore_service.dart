@@ -103,7 +103,11 @@ class PatientFirestoreService {
     bool includeArchived = true,
   }) async {
     final query = rawQuery.trim();
-    if (query.isEmpty) return [];
+    print('🔍 searchPatients START: query="$query"');
+    if (query.isEmpty) {
+      print('🔍 Query empty, returning []');
+      return [];
+    }
 
     // Keeps insertion order and de-dupes by id if a patient matches more
     // than one way (e.g. the id short-circuit below AND a name match).
@@ -115,38 +119,59 @@ class PatientFirestoreService {
     // and any unexpected failure is swallowed rather than breaking the
     // rest of the search.
     if (!query.contains('/')) {
+      print('🔍 Trying exact ID lookup...');
       try {
         final byId = await getPatient(query);
         if (byId != null && (includeArchived || !byId.isArchived)) {
           results[byId.id] = byId;
+          print('🔍 Found patient by ID: ${byId.fullName}');
         }
-      } catch (_) {
-        // Not a valid id shape — name/phone matching below still runs.
+      } catch (e) {
+        print('🔍 ID lookup failed (expected): $e');
       }
     }
 
+    print('🔍 Normalizing query...');
     final normalizedQuery = normalizeForSearch(query);
     final normalizedPhoneQuery = normalizePhoneDigits(query);
+    print('🔍 Normalized: name="$normalizedQuery", phone="$normalizedPhoneQuery"');
     // Guards against a 1-2 digit query (or a short name that happens to
     // contain digits) matching almost every phone number in the list.
     final canMatchPhone = normalizedPhoneQuery.length >= 3;
 
+    print('🔍 Fetching all patients from Firestore...');
     final snapshot = await _patientsRef.get();
-    for (final doc in snapshot.docs) {
-      final patient = Patient.fromFirestore(doc);
-      if (results.containsKey(patient.id)) continue;
-      if (!includeArchived && patient.isArchived) continue;
+    print('🔍 Got ${snapshot.docs.length} patient documents');
+    
+    for (int i = 0; i < snapshot.docs.length; i++) {
+      final doc = snapshot.docs[i];
+      print('🔍 Processing doc $i/${snapshot.docs.length}: ${doc.id}');
+      try {
+        final patient = Patient.fromFirestore(doc);
+        if (results.containsKey(patient.id)) {
+          print('🔍   Already in results, skipping');
+          continue;
+        }
+        if (!includeArchived && patient.isArchived) {
+          print('🔍   Archived, skipping');
+          continue;
+        }
 
-      final nameMatch =
-          normalizeForSearch(patient.fullName).contains(normalizedQuery);
-      final phoneMatch = canMatchPhone &&
-          normalizePhoneDigits(patient.phone).contains(normalizedPhoneQuery);
+        final nameMatch =
+            normalizeForSearch(patient.fullName).contains(normalizedQuery);
+        final phoneMatch = canMatchPhone &&
+            normalizePhoneDigits(patient.phone).contains(normalizedPhoneQuery);
 
-      if (nameMatch || phoneMatch) {
-        results[patient.id] = patient;
+        if (nameMatch || phoneMatch) {
+          results[patient.id] = patient;
+          print('🔍   MATCH: ${patient.fullName}');
+        }
+      } catch (e) {
+        print('❌ Error processing doc $i: $e');
       }
     }
 
+    print('🔍 searchPatients END: found ${results.length} results');
     return results.values.toList();
   }
 

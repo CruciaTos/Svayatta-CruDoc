@@ -12,7 +12,7 @@ import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
 /// the UI) works with plain [Patient] objects.
 class PatientFirestoreService {
   PatientFirestoreService({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+    : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -30,7 +30,7 @@ class PatientFirestoreService {
   /// the only one.
   Future<String> createPatient(Patient patient) async {
     _validate(patient);
-    final id = const Uuid().v4();
+    final id = patient.id.trim().isEmpty ? const Uuid().v4() : patient.id;
     await _patientsRef.doc(id).set(patient.toMap());
     return id;
   }
@@ -40,14 +40,23 @@ class PatientFirestoreService {
   /// If [data] touches `firstName`, it's re-validated the same way as
   /// [createPatient] — a patient can't be edited into having an empty
   /// name any more than they could be created with one.
-  Future<void> updatePatient(String patientId, Map<String, dynamic> data) async {
+  Future<void> updatePatient(
+    String patientId,
+    Map<String, dynamic> data,
+  ) async {
     if (data.containsKey('firstName')) {
       final firstName = data['firstName'] as String? ?? '';
       if (firstName.trim().isEmpty) {
         throw const PatientValidationException('First name cannot be empty.');
       }
     }
-    await _patientsRef.doc(patientId).update(data);
+    final sanitized = <String, dynamic>{
+      for (final entry in data.entries)
+        entry.key: entry.value is DateTime
+            ? Timestamp.fromDate(entry.value as DateTime)
+            : entry.value,
+    };
+    await _patientsRef.doc(patientId).update(sanitized);
   }
 
   /// Deletes a patient document permanently.
@@ -69,8 +78,7 @@ class PatientFirestoreService {
         .where('isArchived', isEqualTo: false)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map(Patient.fromFirestore).toList());
+        .map((snapshot) => snapshot.docs.map(Patient.fromFirestore).toList());
   }
 
   /// Finds patients matching [rawQuery] by name, phone, or exact patient
@@ -134,7 +142,9 @@ class PatientFirestoreService {
     print('🔍 Normalizing query...');
     final normalizedQuery = normalizeForSearch(query);
     final normalizedPhoneQuery = normalizePhoneDigits(query);
-    print('🔍 Normalized: name="$normalizedQuery", phone="$normalizedPhoneQuery"');
+    print(
+      '🔍 Normalized: name="$normalizedQuery", phone="$normalizedPhoneQuery"',
+    );
     // Guards against a 1-2 digit query (or a short name that happens to
     // contain digits) matching almost every phone number in the list.
     final canMatchPhone = normalizedPhoneQuery.length >= 3;
@@ -142,7 +152,7 @@ class PatientFirestoreService {
     print('🔍 Fetching all patients from Firestore...');
     final snapshot = await _patientsRef.get();
     print('🔍 Got ${snapshot.docs.length} patient documents');
-    
+
     for (int i = 0; i < snapshot.docs.length; i++) {
       final doc = snapshot.docs[i];
       print('🔍 Processing doc $i/${snapshot.docs.length}: ${doc.id}');
@@ -157,9 +167,11 @@ class PatientFirestoreService {
           continue;
         }
 
-        final nameMatch =
-            normalizeForSearch(patient.fullName).contains(normalizedQuery);
-        final phoneMatch = canMatchPhone &&
+        final nameMatch = normalizeForSearch(
+          patient.fullName,
+        ).contains(normalizedQuery);
+        final phoneMatch =
+            canMatchPhone &&
             normalizePhoneDigits(patient.phone).contains(normalizedPhoneQuery);
 
         if (nameMatch || phoneMatch) {

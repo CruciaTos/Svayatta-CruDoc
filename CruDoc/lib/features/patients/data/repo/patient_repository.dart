@@ -1,5 +1,5 @@
-import 'package:doctor_management_app/features/patients/models/patient.dart';
-import 'package:doctor_management_app/features/patients/services/patient_firestore_service.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/services/patient_firestore_service.dart';
 
 /// Clean API the presentation layer talks to for anything patient-related.
 ///
@@ -36,5 +36,20 @@ class PatientRepository {
   /// Streams the live list of active (non-archived) patients.
   Stream<List<Patient>> watchPatients() {
     return _firestoreService.watchPatients();
+  }
+
+  /// Searches patients by name, phone, or exact patient id. See
+  /// [PatientFirestoreService.searchPatients] for matching rules — use
+  /// this before creating a new patient from the appointment screen so
+  /// the doctor can pick an existing match instead of creating a
+  /// duplicate.
+  Future<List<Patient>> searchPatients(
+    String query, {
+    bool includeArchived = true,
+  }) {
+    return _firestoreService.searchPatients(
+      query,
+      includeArchived: includeArchived,
+    );
   }
 }

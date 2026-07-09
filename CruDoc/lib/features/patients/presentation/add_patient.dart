@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
-import 'package:doctor_management_app/features/patients/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
-import 'package:doctor_management_app/features/patients/repositories/patient_repository.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 
 /// Screen that lets the doctor add a new patient.

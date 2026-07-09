@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:doctor_management_app/features/appointments/presentation/visit.dart'; // VisitCard
+import 'package:doctor_management_app/features/appointments/presentation/visitation_card.dart'; // VisitCard
 
 // ---------- DATA MODELS ----------
 class Visit {
@@ -111,54 +111,87 @@ class _EventsScreenState extends State<EventsScreen> {
   // ---------- ADD ONLINE SESSION DIALOG ----------
   Future<void> _addOnlineSession() async {
     final titleController = TextEditingController();
-    final dateController = TextEditingController();
-    final timeController = TextEditingController();
     final linkController = TextEditingController();
+
+    // Use stateful variables inside the dialog
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
 
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
-        title: const Text('Add Online Session',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDialogField('Title', titleController),
-              _buildDialogField('Date (e.g., July 18, 2026)', dateController),
-              _buildDialogField('Time (e.g., 11:00 AM)', timeController),
-              _buildDialogField('Meeting Link (URL)', linkController),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (titleController.text.isNotEmpty &&
-                  dateController.text.isNotEmpty &&
-                  timeController.text.isNotEmpty &&
-                  linkController.text.isNotEmpty) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.cardSurface,
+              title: const Text('Add Online Session',
+                  style: TextStyle(color: AppColors.textPrimary)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTextField('Title', titleController),
+                    const SizedBox(height: 12),
+                    // Date picker button
+                    _buildPickDateButton(
+                      context,
+                      selectedDate,
+                      (picked) {
+                        if (picked != null) {
+                          setDialogState(() => selectedDate = picked);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Time picker button
+                    _buildPickTimeButton(
+                      context,
+                      selectedTime,
+                      (picked) {
+                        if (picked != null) {
+                          setDialogState(() => selectedTime = picked);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField('Meeting Link (URL)', linkController,
+                        hint: 'https://meet.google.com/...'),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (titleController.text.isNotEmpty &&
+                        linkController.text.isNotEmpty) {
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
     if (result == true) {
+      // Format date and time nicely
+      final dateStr =
+          '${selectedDate.day} ${_monthName(selectedDate.month)} ${selectedDate.year}';
+      final timeStr = selectedTime.format(context);
+
       setState(() {
         onlineSessions.add(OnlineSession(
-          title: titleController.text,
-          date: dateController.text,
-          time: timeController.text,
-          link: linkController.text,
+          title: titleController.text.trim(),
+          date: dateStr,
+          time: timeStr,
+          link: linkController.text.trim(),
         ));
       });
     }
@@ -167,86 +200,259 @@ class _EventsScreenState extends State<EventsScreen> {
   // ---------- ADD VISIT DIALOG ----------
   Future<void> _addVisit() async {
     final nameController = TextEditingController();
-    final dateController = TextEditingController();
-    final dayController = TextEditingController();
-    final timeController = TextEditingController();
-    final durationController = TextEditingController();
     final addressController = TextEditingController();
     final mapsQueryController = TextEditingController();
 
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
+    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
+    String selectedDuration = '30 min'; // default duration
+
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
-        title: const Text('Add Visit',
-            style: TextStyle(color: AppColors.textPrimary)),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildDialogField('Patient Name', nameController),
-              _buildDialogField('Date (e.g., July 15, 2026)', dateController),
-              _buildDialogField('Day (e.g., Tuesday)', dayController),
-              _buildDialogField('Time (e.g., 10:30 AM)', timeController),
-              _buildDialogField('Duration (e.g., 45 min)', durationController),
-              _buildDialogField('Address', addressController),
-              _buildDialogField('Maps Query (e.g., 123+Main+St)', mapsQueryController),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (nameController.text.isNotEmpty &&
-                  dateController.text.isNotEmpty &&
-                  timeController.text.isNotEmpty &&
-                  addressController.text.isNotEmpty) {
-                Navigator.pop(context, true);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: AppColors.cardSurface,
+              title: const Text('Add Visit',
+                  style: TextStyle(color: AppColors.textPrimary)),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildTextField('Patient Name', nameController),
+                    const SizedBox(height: 12),
+                    _buildPickDateButton(
+                      context,
+                      selectedDate,
+                      (picked) {
+                        if (picked != null) {
+                          setDialogState(() => selectedDate = picked);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildPickTimeButton(
+                      context,
+                      selectedTime,
+                      (picked) {
+                        if (picked != null) {
+                          setDialogState(() => selectedTime = picked);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    // Duration dropdown
+                    _buildDurationDropdown(
+                      selectedDuration,
+                      (value) {
+                        if (value != null) {
+                          setDialogState(() => selectedDuration = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    _buildTextField('Address', addressController),
+                    const SizedBox(height: 12),
+                    _buildTextField('Maps Query (e.g., 123+Main+St)',
+                        mapsQueryController,
+                        hint: '123+Main+St'),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    if (nameController.text.isNotEmpty &&
+                        addressController.text.isNotEmpty) {
+                      Navigator.pop(context, true);
+                    }
+                  },
+                  child: const Text('Add'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
     if (result == true) {
+      final dateStr =
+          '${selectedDate.day} ${_monthName(selectedDate.month)} ${selectedDate.year}';
+      final timeStr = selectedTime.format(context);
+      final dayStr = _dayName(selectedDate.weekday);
+
       setState(() {
         upcomingVisits.add(Visit(
-          patientName: nameController.text,
-          date: dateController.text,
-          day: dayController.text,
-          time: timeController.text,
-          duration: durationController.text,
-          address: addressController.text,
-          mapsQuery: mapsQueryController.text,
+          patientName: nameController.text.trim(),
+          date: dateStr,
+          day: dayStr,
+          time: timeStr,
+          duration: selectedDuration,
+          address: addressController.text.trim(),
+          mapsQuery: mapsQueryController.text.trim(),
         ));
       });
     }
   }
 
-  Widget _buildDialogField(String label, TextEditingController controller) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        controller: controller,
-        style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
-        decoration: InputDecoration(
-          labelText: label,
-          labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-          filled: true,
-          fillColor: AppColors.cardSurfaceAlt,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
+  // ---------- HELPER WIDGETS ----------
+  Widget _buildTextField(String label, TextEditingController controller,
+      {String? hint}) {
+    return TextField(
+      controller: controller,
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        hintStyle: TextStyle(color: AppColors.textSecondary.withOpacity(0.5)),
+        filled: true,
+        fillColor: AppColors.cardSurfaceAlt,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(8),
+          borderSide: BorderSide.none,
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      ),
+    );
+  }
+
+  Widget _buildPickDateButton(
+      BuildContext context, DateTime date, ValueChanged<DateTime?> onPicked) {
+    final dateStr =
+        '${date.day} ${_monthName(date.month)} ${date.year}';
+    return InkWell(
+      onTap: () async {
+        final picked = await showDatePicker(
+          context: context,
+          initialDate: date,
+          firstDate: DateTime.now(),
+          lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.dark(
+                  primary: AppColors.slateBlue,
+                  onPrimary: AppColors.textPrimary,
+                  surface: AppColors.cardSurface,
+                  onSurface: AppColors.textPrimary,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        onPicked(picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.cardSurfaceAlt,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_today, color: AppColors.silver, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              dateStr,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildPickTimeButton(
+      BuildContext context, TimeOfDay time, ValueChanged<TimeOfDay?> onPicked) {
+    final timeStr = time.format(context);
+    return InkWell(
+      onTap: () async {
+        final picked = await showTimePicker(
+          context: context,
+          initialTime: time,
+          builder: (context, child) {
+            return Theme(
+              data: Theme.of(context).copyWith(
+                colorScheme: const ColorScheme.dark(
+                  primary: AppColors.slateBlue,
+                  onPrimary: AppColors.textPrimary,
+                  surface: AppColors.cardSurface,
+                  onSurface: AppColors.textPrimary,
+                ),
+              ),
+              child: child!,
+            );
+          },
+        );
+        onPicked(picked);
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColors.cardSurfaceAlt,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.access_time, color: AppColors.silver, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              timeStr,
+              style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDurationDropdown(
+      String currentValue, ValueChanged<String?> onChanged) {
+    const durations = ['15 min', '30 min', '45 min', '60 min', '90 min', '120 min'];
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurfaceAlt,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: currentValue,
+          isExpanded: true,
+          dropdownColor: AppColors.cardSurface,
+          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          items: durations.map((d) {
+            return DropdownMenuItem(value: d, child: Text(d));
+          }).toList(),
+          onChanged: onChanged,
+          icon: const Icon(Icons.arrow_drop_down, color: AppColors.silver),
+        ),
+      ),
+    );
+  }
+
+  // ---------- FORMAT HELPERS ----------
+  String _monthName(int month) {
+    const months = [
+      '', 'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month];
+  }
+
+  String _dayName(int weekday) {
+    const days = [
+      '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    ];
+    return days[weekday];
   }
 
   @override

@@ -10,14 +10,11 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 
 /// Clean API the presentation layer talks to for anything visit-related.
 ///
-/// Mirrors [PatientRepository]'s role: wraps [VisitFirestoreService] so
-/// the UI never touches Firestore types directly. This is also where
-/// every business rule from the appointment spec actually lives —
-/// patient existence/active checks, the scheduled/completed/cancelled/
-/// missed status enum, soft delete, and overlap detection with its
-/// max-4 hard limit. [VisitFirestoreService] underneath does none of
-/// this validation itself, so this repository is the one place the UI
-/// should call into — never the service directly.
+/// Reads and writes go through SQLite. Writes are marked pending locally and
+/// the central sync engine is triggered in the background. This is also where
+/// every appointment business rule lives: patient existence/active checks,
+/// the scheduled/completed/cancelled/missed status enum, soft delete, and
+/// overlap detection with its max-4 hard limit.
 class VisitRepository {
   VisitRepository({
     VisitLocalService? localService,

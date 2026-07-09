@@ -9,9 +9,8 @@ import 'package:doctor_management_app/features/patients/data/services/patient_lo
 
 /// Clean API the presentation layer talks to for anything patient-related.
 ///
-/// Phase 2 reads from SQLite and writes locally first, then mirrors the write
-/// to Firestore in the background. Firestore retry/sync ownership moves to the
-/// sync engine in Phase 3; until then failed mirrors remain marked `pending`.
+/// Reads and writes go through SQLite. Writes are marked pending locally and
+/// the central sync engine is triggered in the background.
 class PatientRepository {
   PatientRepository({
     PatientLocalService? localService,

@@ -10,8 +10,20 @@ import 'package:sqflite/sqflite.dart';
 /// first and mirrored to Firestore by the repository until the Phase 3 sync
 /// engine takes over retry/upload responsibility.
 class VisitLocalService {
-  VisitLocalService({LocalDatabaseService? databaseService})
-    : _databaseService = databaseService ?? LocalDatabaseService.instance;
+  factory VisitLocalService({LocalDatabaseService? databaseService}) {
+    if (databaseService != null) {
+      return VisitLocalService._(databaseService);
+    }
+    return instance;
+  }
+
+  VisitLocalService._(this._databaseService);
+
+  static final VisitLocalService instance = VisitLocalService._(
+    LocalDatabaseService.instance,
+  );
+
+  VisitLocalService.withDatabase(this._databaseService);
 
   final LocalDatabaseService _databaseService;
   final StreamController<List<Visit>> _upcomingVisitsController =

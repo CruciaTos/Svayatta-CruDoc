@@ -10,8 +10,20 @@ import 'package:sqflite/sqflite.dart';
 /// This is introduced in Phase 2 so repositories can read from SQLite while
 /// Firestore remains a secondary write target until the sync engine lands.
 class PatientLocalService {
-  PatientLocalService({LocalDatabaseService? databaseService})
-    : _databaseService = databaseService ?? LocalDatabaseService.instance;
+  factory PatientLocalService({LocalDatabaseService? databaseService}) {
+    if (databaseService != null) {
+      return PatientLocalService._(databaseService);
+    }
+    return instance;
+  }
+
+  PatientLocalService._(this._databaseService);
+
+  static final PatientLocalService instance = PatientLocalService._(
+    LocalDatabaseService.instance,
+  );
+
+  PatientLocalService.withDatabase(this._databaseService);
 
   final LocalDatabaseService _databaseService;
   final StreamController<List<Patient>> _patientsController =

@@ -55,6 +55,8 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.transaction((txn) async {
       await _createPatientsTable(txn);
       await _createVisitsTable(txn);
+      await _createRevenueEntriesTable(txn);
+      await _createPendingPaymentsTable(txn);
       await _createSyncStateTable(txn);
       await _createIndexes(txn);
     });
@@ -67,10 +69,22 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.transaction((txn) async {
       await _createPatientsTable(txn);
       await _createVisitsTable(txn);
+      await _createRevenueEntriesTable(txn);
+      await _createPendingPaymentsTable(txn);
       await _createSyncStateTable(txn);
 
       await _ensureColumns(txn, table: 'patients', columns: _patientsColumns);
       await _ensureColumns(txn, table: 'visits', columns: _visitsColumns);
+      await _ensureColumns(
+        txn,
+        table: 'revenue_entries',
+        columns: _revenueEntriesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'pending_payments',
+        columns: _pendingPaymentsColumns,
+      );
       await _ensureColumns(
         txn,
         table: 'sync_state',
@@ -133,6 +147,49 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
+  Future<void> _createRevenueEntriesTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS revenue_entries (
+        id TEXT PRIMARY KEY,
+        date INTEGER NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        amount REAL NOT NULL DEFAULT 0,
+        type TEXT NOT NULL DEFAULT 'miscellaneous'
+          CHECK (type IN ('visit', 'online', 'miscellaneous')),
+        payer TEXT,
+        patientId TEXT,
+        visitId TEXT,
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  Future<void> _createPendingPaymentsTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_payments (
+        id TEXT PRIMARY KEY,
+        date INTEGER NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        amount REAL NOT NULL DEFAULT 0,
+        isPaid INTEGER NOT NULL DEFAULT 0,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
   Future<void> _createSyncStateTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS sync_state (
@@ -186,6 +243,36 @@ class LocalDatabaseService extends ChangeNotifier {
       CREATE INDEX IF NOT EXISTS idx_visits_updated_at
       ON visits (updatedAt)
     ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_entries_active_date
+      ON revenue_entries (isActive, isDeleted, date DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_entries_type
+      ON revenue_entries (type)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_entries_sync_pending
+      ON revenue_entries (syncStatus, pendingDelete)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_entries_updated_at
+      ON revenue_entries (updatedAt)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_pending_payments_active_unpaid
+      ON pending_payments (isActive, isPaid, date DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_pending_payments_sync_pending
+      ON pending_payments (syncStatus, pendingDelete)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_pending_payments_updated_at
+      ON pending_payments (updatedAt)
+    ''');
   }
 
   Future<void> _ensureColumns(
@@ -238,6 +325,38 @@ class LocalDatabaseService extends ChangeNotifier {
     'therapistNotes': 'therapistNotes TEXT',
     'reminderStatus': 'reminderStatus TEXT',
     'calendarEventId': 'calendarEventId TEXT',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  static const Map<String, String> _revenueEntriesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'date': 'date INTEGER NOT NULL DEFAULT 0',
+    'description': "description TEXT NOT NULL DEFAULT ''",
+    'amount': 'amount REAL NOT NULL DEFAULT 0',
+    'type': "type TEXT NOT NULL DEFAULT 'miscellaneous'",
+    'payer': 'payer TEXT',
+    'patientId': 'patientId TEXT',
+    'visitId': 'visitId TEXT',
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  static const Map<String, String> _pendingPaymentsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'date': 'date INTEGER NOT NULL DEFAULT 0',
+    'description': "description TEXT NOT NULL DEFAULT ''",
+    'amount': 'amount REAL NOT NULL DEFAULT 0',
+    'isPaid': 'isPaid INTEGER NOT NULL DEFAULT 0',
+    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",

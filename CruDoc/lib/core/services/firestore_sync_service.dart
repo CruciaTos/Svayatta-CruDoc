@@ -24,7 +24,12 @@ class FirestoreSyncService {
   bool _isSyncing = false;
   bool _isStarted = false;
 
-  static const List<String> _collections = ['patients', 'visits'];
+  static const List<String> _collections = [
+    'patients',
+    'visits',
+    'revenue_entries',
+    'pending_payments',
+  ];
 
   Future<void> start() async {
     if (_isStarted) return;
@@ -164,6 +169,28 @@ class FirestoreSyncService {
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
+      case 'revenue_entries':
+        return {
+          'date': _timestampFromMillis(row['date']),
+          'description': row['description'] as String? ?? '',
+          'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+          'type': row['type'] as String? ?? 'miscellaneous',
+          'payer': row['payer'] as String?,
+          'patientId': row['patientId'] as String?,
+          'visitId': row['visitId'] as String?,
+          'isDeleted': row['isDeleted'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+      case 'pending_payments':
+        return {
+          'date': _timestampFromMillis(row['date']),
+          'description': row['description'] as String? ?? '',
+          'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+          'isPaid': row['isPaid'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
       default:
         throw ArgumentError('Unsupported sync collection: $collection');
     }
@@ -226,6 +253,38 @@ class FirestoreSyncService {
           'therapistNotes': data['therapistNotes'] as String?,
           'reminderStatus': data['reminderStatus'] as String?,
           'calendarEventId': data['calendarEventId'] as String?,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
+      case 'revenue_entries':
+        return {
+          'id': id,
+          'date': _timestampToMillis(data['date'], fallback: now),
+          'description': data['description'] as String? ?? '',
+          'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+          'type': data['type'] as String? ?? 'miscellaneous',
+          'payer': data['payer'] as String?,
+          'patientId': data['patientId'] as String?,
+          'visitId': data['visitId'] as String?,
+          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+          'isActive': 1,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
+      case 'pending_payments':
+        return {
+          'id': id,
+          'date': _timestampToMillis(data['date'], fallback: now),
+          'description': data['description'] as String? ?? '',
+          'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+          'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
+          'isActive': 1,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',

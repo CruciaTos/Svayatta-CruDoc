@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 
+import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
@@ -76,6 +78,16 @@ class VisitRepository {
     //   acknowledgeOverlap: acknowledgeOverlap,
     // );
 
+    // Every new visit has a "new" address as far as this repository is
+    // concerned, so it always needs geocoding — unless the caller already
+    // supplied coordinates (e.g. re-creating a visit from data that was
+    // geocoded elsewhere). A failed geocode throws before anything is
+    // written, so a visit can never be saved with missing/invalid
+    // coordinates.
+    final coords = (visit.latitude != null && visit.longitude != null)
+        ? (latitude: visit.latitude!, longitude: visit.longitude!)
+        : await _geocodeAddress(visit.address);
+
     final now = DateTime.now();
     final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
     final visitWithId = Visit(
@@ -84,6 +96,8 @@ class VisitRepository {
       scheduledStart: visit.scheduledStart,
       durationMinutes: visit.durationMinutes,
       address: visit.address,
+      latitude: coords.latitude,
+      longitude: coords.longitude,
       status: visit.status,
       isDeleted: visit.isDeleted,
       invoiceId: visit.invoiceId,
@@ -107,6 +121,14 @@ class VisitRepository {
   /// right guardrails. `updatedAt` is stamped automatically by the
   /// service layer regardless of what's passed here.
   ///
+  /// If [data] contains an `address` key, it's compared against the
+  /// visit's current stored address. Only a genuine change triggers a
+  /// fresh Geocoding API call — re-saving the same address never
+  /// re-geocodes. A failed geocode throws [GeocodingException] before
+  /// any local write happens, so the visit's existing (valid)
+  /// coordinates are left untouched rather than overwritten with
+  /// nothing.
+  ///
   /// Throws [VisitValidationException] if [data] contains a `status`
   /// key that isn't one of the predefined [VisitStatus] values — this
   /// is the backstop that keeps free-text statuses out even if a
@@ -121,8 +143,23 @@ class VisitRepository {
         );
       }
     }
-    final localData = Map<String, dynamic>.from(data)
-      ..['updatedAt'] = DateTime.now();
+
+    final localData = Map<String, dynamic>.from(data);
+
+    if (localData.containsKey('address')) {
+      final newAddress = (localData['address'] as String?)?.trim() ?? '';
+      final existing = await _localService.getVisit(visitId);
+      final addressChanged =
+          existing == null || existing.address.trim() != newAddress;
+
+      if (addressChanged) {
+        final coords = await _geocodeAddress(newAddress);
+        localData['latitude'] = coords.latitude;
+        localData['longitude'] = coords.longitude;
+      }
+    }
+
+    localData['updatedAt'] = DateTime.now();
 
     await _localService.updateVisit(visitId, localData);
     unawaited(_syncService.triggerPostWriteSync());
@@ -294,5 +331,75 @@ class VisitRepository {
     if (!acknowledgeOverlap) {
       throw VisitOverlapWarning(conflicts);
     }
+  }
+
+  /// Calls the Google Geocoding API to resolve [address] into
+  /// coordinates. Never returns partial/invalid data — any failure
+  /// (network error, non-200 response, unparseable body, "not found"
+  /// status, or a missing lat/lng in the result) surfaces as a
+  /// [GeocodingException] instead.
+  Future<({double latitude, double longitude})> _geocodeAddress(
+    String address,
+  ) async {
+    final trimmed = address.trim();
+    final uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
+      'address': trimmed,
+      'key': kGoogleMapsApiKey,
+    });
+
+    final http.Response response;
+    try {
+      response = await http.get(uri);
+    } catch (_) {
+      throw const GeocodingException(
+        'Could not reach the geocoding service. Check your connection '
+        'and try again.',
+      );
+    }
+
+    if (response.statusCode != 200) {
+      throw GeocodingException(
+        'Geocoding request failed (HTTP ${response.statusCode}). '
+        'Please try again.',
+      );
+    }
+
+    late final Map<String, dynamic> body;
+    try {
+      body = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {
+      throw const GeocodingException(
+        'Received an unexpected response while locating this address.',
+      );
+    }
+
+    final status = body['status'] as String?;
+    final results = body['results'] as List<dynamic>?;
+    if (status != 'OK' || results == null || results.isEmpty) {
+      throw GeocodingException(
+        'Could not find a location for "$trimmed". Please check the '
+        'address and try again.',
+      );
+    }
+
+    double? lat;
+    double? lng;
+    try {
+      final location =
+          (results.first as Map<String, dynamic>)['geometry']
+              as Map<String, dynamic>?;
+      final coords = location?['location'] as Map<String, dynamic>?;
+      lat = (coords?['lat'] as num?)?.toDouble();
+      lng = (coords?['lng'] as num?)?.toDouble();
+    } catch (_) {
+      // Fall through — handled by the null check below.
+    }
+    if (lat == null || lng == null) {
+      throw GeocodingException(
+        'Could not determine coordinates for "$trimmed".',
+      );
+    }
+
+    return (latitude: lat, longitude: lng);
   }
 }

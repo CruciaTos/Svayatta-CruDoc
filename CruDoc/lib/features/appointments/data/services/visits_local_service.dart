@@ -215,6 +215,8 @@ class VisitLocalService {
       'scheduledStart': _dateTimeToMillis(visit.scheduledStart),
       'durationMinutes': visit.durationMinutes,
       'address': visit.address,
+      'latitude': visit.latitude,
+      'longitude': visit.longitude,
       'status': visit.status.value,
       'isDeleted': visit.isDeleted ? 1 : 0,
       'isActive': pendingDelete ? 0 : 1,
@@ -248,6 +250,12 @@ class VisitLocalService {
         case 'durationMinutes':
           row[entry.key] = (entry.value as num).toInt();
           break;
+        case 'latitude':
+        case 'longitude':
+          row[entry.key] = entry.value == null
+              ? null
+              : (entry.value as num).toDouble();
+          break;
         case 'isDeleted':
         case 'isActive':
           if (entry.value is bool) {
@@ -279,6 +287,8 @@ class VisitLocalService {
       scheduledStart: _millisToDateTime(row['scheduledStart']),
       durationMinutes: (row['durationMinutes'] as num?)?.toInt() ?? 30,
       address: row['address'] as String? ?? '',
+      latitude: (row['latitude'] as num?)?.toDouble(),
+      longitude: (row['longitude'] as num?)?.toDouble(),
       status: VisitStatus.fromValue(row['status'] as String?),
       isDeleted: row['isDeleted'] == 1,
       invoiceId: row['invoiceId'] as String?,

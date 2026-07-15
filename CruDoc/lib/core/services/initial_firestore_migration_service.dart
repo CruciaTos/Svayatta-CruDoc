@@ -129,6 +129,8 @@ class InitialFirestoreMigrationService {
           ),
           'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
           'address': data['address'] as String? ?? '',
+          'latitude': (data['latitude'] as num?)?.toDouble(),
+          'longitude': (data['longitude'] as num?)?.toDouble(),
           'status': data['status'] as String? ?? 'scheduled',
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

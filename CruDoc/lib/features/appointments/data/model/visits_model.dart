@@ -14,6 +14,31 @@ const int kMaxOverlappingVisits = 4;
 const int kMinVisitDurationMinutes = 5;
 const int kMaxVisitDurationMinutes = 480; // 8 hours
 
+/// Google Maps API key used for both the Geocoding API (address ->
+/// coordinates) and the Static Maps API (map preview images).
+///
+/// TODO: move this to a secure secrets/config source before shipping.
+/// Kept as a plain constant here — matching this file's existing flat
+/// constant style above — to avoid introducing a new config file for a
+/// single key.
+const String kGoogleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY';
+
+/// Builds a Google Static Maps image URL for the given coordinates, or
+/// `null` if either coordinate is missing.
+///
+/// Deliberately parameter-stable (no timestamps, session tokens, or other
+/// varying values) so `CachedNetworkImage` derives the same cache key for
+/// the same visit across app launches, instead of re-downloading the image
+/// every time.
+String? staticMapUrlFor({required double? latitude, required double? longitude}) {
+  if (latitude == null || longitude == null) return null;
+  return 'https://maps.googleapis.com/maps/api/staticmap'
+      '?center=$latitude,$longitude'
+      '&zoom=15&size=600x300&scale=2'
+      '&markers=color:red%7C$latitude,$longitude'
+      '&key=$kGoogleMapsApiKey';
+}
+
 /// Predefined visit lifecycle states.
 ///
 /// Deliberately an enum rather than a free-text string, so an invalid
@@ -71,6 +96,12 @@ class Visit {
   /// where a visit happens can change from appointment to appointment.
   final String address;
 
+  /// Coordinates geocoded from [address]. Both are null until a successful
+  /// Geocoding API call has resolved this visit's address — never written
+  /// as invalid/partial data (see [VisitRepository]'s create/update flow).
+  final double? latitude;
+  final double? longitude;
+
   final VisitStatus status;
 
   /// True once this visit has been soft-deleted (e.g. it was created by
@@ -104,6 +135,8 @@ class Visit {
     required this.status,
     required this.createdAt,
     required this.updatedAt,
+    this.latitude,
+    this.longitude,
     this.isDeleted = false,
     this.invoiceId,
     this.packageId,
@@ -117,6 +150,11 @@ class Visit {
   /// [scheduledStart] + [durationMinutes].
   DateTime get scheduledEnd =>
       scheduledStart.add(Duration(minutes: durationMinutes));
+
+  /// Google Static Maps image URL for this visit's stored coordinates, or
+  /// null if it hasn't been geocoded yet.
+  String? get staticMapUrl =>
+      staticMapUrlFor(latitude: latitude, longitude: longitude);
 
   /// True if this visit's time range intersects [other]'s. Two visits
   /// with abutting edges (one ends exactly when the other starts) do
@@ -140,6 +178,8 @@ class Visit {
       scheduledStart: _timestampToDate(map['scheduledStart']),
       durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 30,
       address: map['address'] as String? ?? '',
+      latitude: (map['latitude'] as num?)?.toDouble(),
+      longitude: (map['longitude'] as num?)?.toDouble(),
       status: VisitStatus.fromValue(map['status'] as String?),
       isDeleted: map['isDeleted'] as bool? ?? false,
       invoiceId: map['invoiceId'] as String?,
@@ -161,6 +201,8 @@ class Visit {
       'scheduledStart': Timestamp.fromDate(scheduledStart),
       'durationMinutes': durationMinutes,
       'address': address,
+      'latitude': latitude,
+      'longitude': longitude,
       'status': status.value,
       'isDeleted': isDeleted,
       'invoiceId': invoiceId,
@@ -179,6 +221,8 @@ class Visit {
     DateTime? scheduledStart,
     int? durationMinutes,
     String? address,
+    double? latitude,
+    double? longitude,
     VisitStatus? status,
     bool? isDeleted,
     String? invoiceId,
@@ -196,6 +240,8 @@ class Visit {
       scheduledStart: scheduledStart ?? this.scheduledStart,
       durationMinutes: durationMinutes ?? this.durationMinutes,
       address: address ?? this.address,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
       status: status ?? this.status,
       isDeleted: isDeleted ?? this.isDeleted,
       invoiceId: invoiceId ?? this.invoiceId,

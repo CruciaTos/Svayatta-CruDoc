@@ -126,6 +126,8 @@ class LocalDatabaseService extends ChangeNotifier {
         scheduledStart INTEGER NOT NULL,
         durationMinutes INTEGER NOT NULL DEFAULT 30,
         address TEXT NOT NULL DEFAULT '',
+        latitude REAL,
+        longitude REAL,
         status TEXT NOT NULL DEFAULT 'scheduled'
           CHECK (status IN ('scheduled', 'completed', 'cancelled', 'missed')),
         isDeleted INTEGER NOT NULL DEFAULT 0,
@@ -316,6 +318,8 @@ class LocalDatabaseService extends ChangeNotifier {
     'scheduledStart': 'scheduledStart INTEGER NOT NULL DEFAULT 0',
     'durationMinutes': 'durationMinutes INTEGER NOT NULL DEFAULT 30',
     'address': "address TEXT NOT NULL DEFAULT ''",
+    'latitude': 'latitude REAL',
+    'longitude': 'longitude REAL',
     'status': "status TEXT NOT NULL DEFAULT 'scheduled'",
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',

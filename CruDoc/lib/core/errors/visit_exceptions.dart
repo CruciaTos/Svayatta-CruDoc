@@ -92,3 +92,14 @@ class VisitOverlapLimitExceededException extends VisitException {
           '$kMaxOverlappingVisits overlapping visits at the same time.',
         );
 }
+
+/// The visit's address could not be converted into coordinates —
+/// either the Geocoding API request failed outright (network error,
+/// non-200 response) or it returned no usable result for the address
+/// (not found, ambiguous, malformed).
+///
+/// Thrown *before* any local write happens, so a visit is never saved
+/// with a missing or invalid `latitude`/`longitude`.
+class GeocodingException extends VisitException {
+  const GeocodingException(super.message);
+}

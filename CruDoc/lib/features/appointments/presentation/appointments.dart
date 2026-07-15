@@ -17,6 +17,8 @@ class Visit {
   final String time;
   final String duration;
   final String address;
+  final double? latitude;
+  final double? longitude;
   final String mapsQuery;
   const Visit({
     required this.patientName,
@@ -25,6 +27,8 @@ class Visit {
     required this.time,
     required this.duration,
     required this.address,
+    this.latitude,
+    this.longitude,
     required this.mapsQuery,
   });
 }
@@ -448,11 +452,17 @@ class _EventsScreenState extends State<EventsScreen> {
       updatedAt: now,
     );
 
+    vmodel.Visit? savedVisit;
     try {
-      await _visitRepository.createVisit(
+      final id = await _visitRepository.createVisit(
         visit,
         acknowledgeOverlap: acknowledgeOverlap,
       );
+      // The repository geocodes the address as part of createVisit and
+      // writes lat/lng straight to SQLite, so this is a fast local read —
+      // no extra network round trip — just to pull those coordinates back
+      // for the card we're about to render.
+      savedVisit = await _visitRepository.getVisit(id);
     } on VisitOverlapWarning catch (e) {
       if (!mounted) return;
       final proceed = await showDialog<bool>(
@@ -509,6 +519,8 @@ class _EventsScreenState extends State<EventsScreen> {
         time: timeStr,
         duration: durationLabel,
         address: address,
+        latitude: savedVisit?.latitude,
+        longitude: savedVisit?.longitude,
         mapsQuery: mapsQuery,
       ));
     });
@@ -637,6 +649,8 @@ class _EventsScreenState extends State<EventsScreen> {
                       time: visit.time,
                       duration: visit.duration,
                       address: visit.address,
+                      latitude: visit.latitude,
+                      longitude: visit.longitude,
                       mapsQuery: visit.mapsQuery,
                       onMapTap: (query) => _launchUrl(
                         'https://www.google.com/maps/search/?api=1&query=$query',

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
+    show staticMapUrlFor;
 
 class VisitCard extends StatelessWidget {
   final String patientName;
@@ -8,6 +11,8 @@ class VisitCard extends StatelessWidget {
   final String time;
   final String duration;
   final String address;
+  final double? latitude;
+  final double? longitude;
   final String mapsQuery;
   final void Function(String query) onMapTap;
 
@@ -19,6 +24,8 @@ class VisitCard extends StatelessWidget {
     required this.time,
     required this.duration,
     required this.address,
+    this.latitude,
+    this.longitude,
     required this.mapsQuery,
     required this.onMapTap,
   });
@@ -108,16 +115,20 @@ class VisitCard extends StatelessWidget {
             ),
           ),
 
-          // --- Map button (unchanged) ---
+          // --- Map preview / open-in-maps button ---
           Positioned(
             left: 4,
             right: 4,
             bottom: 4,
             child: GestureDetector(
-              onTap: () => onMapTap(mapsQuery),
+              onTap: () => onMapTap(
+                (latitude != null && longitude != null)
+                    ? '$latitude,$longitude'
+                    : mapsQuery,
+              ),
               child: Container(
                 height: 120,
-                alignment: Alignment.center,
+                clipBehavior: Clip.antiAlias,
                 decoration: BoxDecoration(
                   color: AppColors.cardSurfaceAlt,
                   borderRadius: BorderRadius.circular(28),
@@ -126,22 +137,79 @@ class VisitCard extends StatelessWidget {
                     width: 1,
                   ),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.map_outlined, color: AppColors.beige, size: 24),
-                    const SizedBox(width: 10),
-                    Text(
-                      'Tap to open in Google Maps',
-                      style: TextStyle(
-                        color: AppColors.beige,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
+                child: _buildMapPreview(),
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMapPreview() {
+    final mapImageUrl = staticMapUrlFor(latitude: latitude, longitude: longitude);
+    if (mapImageUrl == null) {
+      return _buildMapPlaceholder();
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CachedNetworkImage(
+          imageUrl: mapImageUrl,
+          fit: BoxFit.cover,
+          placeholder: (context, url) => const Center(
+            child: SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+          errorWidget: (context, url, error) => _buildMapPlaceholder(),
+        ),
+        Positioned(
+          right: 10,
+          bottom: 8,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.55),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.map_outlined, size: 14, color: Colors.white),
+                SizedBox(width: 4),
+                Text(
+                  'Open in Google Maps',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMapPlaceholder() {
+    return Center(
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.map_outlined, color: AppColors.beige, size: 24),
+          const SizedBox(width: 10),
+          Text(
+            'Tap to open in Google Maps',
+            style: TextStyle(
+              color: AppColors.beige,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

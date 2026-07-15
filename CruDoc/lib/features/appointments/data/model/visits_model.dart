@@ -102,6 +102,13 @@ class Visit {
   final double? latitude;
   final double? longitude;
 
+  /// Optional direct Google Maps link (e.g. a pasted share link or place
+  /// URL), supplied by hand instead of relying on [address] geocoding.
+  /// When present, this is what "open in maps" launches — it takes
+  /// priority over the coordinates/address-built search link. Null for
+  /// the common case, where the geocoded address is enough.
+  final String? mapsLink;
+
   final VisitStatus status;
 
   /// True once this visit has been soft-deleted (e.g. it was created by
@@ -137,6 +144,7 @@ class Visit {
     required this.updatedAt,
     this.latitude,
     this.longitude,
+    this.mapsLink,
     this.isDeleted = false,
     this.invoiceId,
     this.packageId,
@@ -180,6 +188,7 @@ class Visit {
       address: map['address'] as String? ?? '',
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
+      mapsLink: map['mapsLink'] as String?,
       status: VisitStatus.fromValue(map['status'] as String?),
       isDeleted: map['isDeleted'] as bool? ?? false,
       invoiceId: map['invoiceId'] as String?,
@@ -203,6 +212,7 @@ class Visit {
       'address': address,
       'latitude': latitude,
       'longitude': longitude,
+      'mapsLink': mapsLink,
       'status': status.value,
       'isDeleted': isDeleted,
       'invoiceId': invoiceId,
@@ -223,6 +233,7 @@ class Visit {
     String? address,
     double? latitude,
     double? longitude,
+    String? mapsLink,
     VisitStatus? status,
     bool? isDeleted,
     String? invoiceId,
@@ -242,6 +253,7 @@ class Visit {
       address: address ?? this.address,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
+      mapsLink: mapsLink ?? this.mapsLink,
       status: status ?? this.status,
       isDeleted: isDeleted ?? this.isDeleted,
       invoiceId: invoiceId ?? this.invoiceId,

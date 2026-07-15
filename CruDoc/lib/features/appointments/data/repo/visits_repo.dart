@@ -98,6 +98,7 @@ class VisitRepository {
       address: visit.address,
       latitude: coords.latitude,
       longitude: coords.longitude,
+      mapsLink: visit.mapsLink,
       status: visit.status,
       isDeleted: visit.isDeleted,
       invoiceId: visit.invoiceId,

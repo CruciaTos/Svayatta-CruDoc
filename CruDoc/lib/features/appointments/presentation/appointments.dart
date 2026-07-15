@@ -19,7 +19,7 @@ class Visit {
   final String address;
   final double? latitude;
   final double? longitude;
-  final String mapsQuery;
+  final String? mapsLink;
   const Visit({
     required this.patientName,
     required this.date,
@@ -29,7 +29,7 @@ class Visit {
     required this.address,
     this.latitude,
     this.longitude,
-    required this.mapsQuery,
+    this.mapsLink,
   });
 }
 
@@ -52,14 +52,14 @@ Widget _buildTextField(String label, TextEditingController controller,
   return TextField(
     controller: controller,
     onChanged: onChanged,
-    style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+    style: const TextStyle(color: Colors.black, fontSize: 17),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-      hintStyle: TextStyle(color: AppColors.textSecondary.withValues(alpha: 0.5)),
+      labelStyle: const TextStyle(color: Colors.black, fontSize: 16),
+      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
       filled: true,
-      fillColor: AppColors.cardSurfaceAlt,
+      fillColor: AppColors.cardSurface, // light cyan entry field
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
@@ -98,16 +98,16 @@ Widget _buildPickDateButton(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceAlt,
+        color: AppColors.cardSurface, // light cyan entry field
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today, color: AppColors.silver, size: 18),
+          const Icon(Icons.calendar_today, color: AppColors.silver, size: 20),
           const SizedBox(width: 10),
           Text(
             dateStr,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: const TextStyle(color: Colors.black, fontSize: 17),
           ),
         ],
       ),
@@ -142,16 +142,16 @@ Widget _buildPickTimeButton(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceAlt,
+        color: AppColors.cardSurface, // light cyan entry field
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time, color: AppColors.silver, size: 18),
+          const Icon(Icons.access_time, color: AppColors.silver, size: 20),
           const SizedBox(width: 10),
           Text(
             timeStr,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: const TextStyle(color: Colors.black, fontSize: 17),
           ),
         ],
       ),
@@ -164,11 +164,11 @@ Widget _buildDurationDropdown(
   const durations = ['15 min', '30 min', '45 min', '60 min', '90 min', '120 min'];
   return SizedBox(
     height: 48,
-    width: double.infinity,   // ← width constraint fixes the expand issue
+    width: double.infinity,
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceAlt,
+        color: AppColors.cardSurface, // light cyan entry field
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
@@ -177,7 +177,7 @@ Widget _buildDurationDropdown(
           isExpanded: true,
           menuMaxHeight: 200,
           dropdownColor: AppColors.cardSurface,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          style: const TextStyle(color: Colors.black, fontSize: 17),
           items: durations.map((d) {
             return DropdownMenuItem(value: d, child: Text(d));
           }).toList(),
@@ -213,7 +213,7 @@ class _VisitDraft {
   final TimeOfDay scheduledTime;
   final String duration;
   final String address;
-  final String mapsQuery;
+  final String? mapsLink;
   const _VisitDraft({
     required this.patient,
     required this.typedName,
@@ -221,7 +221,7 @@ class _VisitDraft {
     required this.scheduledTime,
     required this.duration,
     required this.address,
-    required this.mapsQuery,
+    this.mapsLink,
   });
 }
 
@@ -253,7 +253,6 @@ class _EventsScreenState extends State<EventsScreen> {
       time: '10:30 AM',
       duration: '45 min',
       address: '123 Oak Street, Springfield',
-      mapsQuery: '123+Oak+Street+Springfield',
     ),
     const Visit(
       patientName: 'Michael Brown',
@@ -262,7 +261,6 @@ class _EventsScreenState extends State<EventsScreen> {
       time: '02:00 PM',
       duration: '60 min',
       address: '456 Maple Ave, Shelbyville',
-      mapsQuery: '456+Maple+Ave+Shelbyville',
     ),
     const Visit(
       patientName: 'Sophia Lee',
@@ -271,7 +269,6 @@ class _EventsScreenState extends State<EventsScreen> {
       time: '09:30 AM',
       duration: '30 min',
       address: '789 Pine Road, Capital City',
-      mapsQuery: '789+Pine+Road+Capital+City',
     ),
   ];
 
@@ -307,9 +304,9 @@ class _EventsScreenState extends State<EventsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppColors.cardSurface,
+              backgroundColor: Color.fromARGB(255, 140, 188, 255), // form background blue
               title: const Text('Add Online Session',
-                  style: TextStyle(color: AppColors.textPrimary)),
+                  style: TextStyle(color: Colors.black, fontSize: 18)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -334,7 +331,7 @@ class _EventsScreenState extends State<EventsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel'),
+                  child: const Text('Cancel', style: TextStyle(color: Colors.black, fontSize: 17)),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -342,7 +339,7 @@ class _EventsScreenState extends State<EventsScreen> {
                       Navigator.pop(context, true);
                     }
                   },
-                  child: const Text('Add'),
+                  child: const Text('Add', style: TextStyle(fontSize: 17)),
                 ),
               ],
             );
@@ -424,7 +421,7 @@ class _EventsScreenState extends State<EventsScreen> {
       dayStr: dayStr,
       timeStr: timeStr,
       durationLabel: draft.duration,
-      mapsQuery: draft.mapsQuery,
+      mapsLink: draft.mapsLink,
     );
   }
 
@@ -437,7 +434,7 @@ class _EventsScreenState extends State<EventsScreen> {
     required String dayStr,
     required String timeStr,
     required String durationLabel,
-    required String mapsQuery,
+    String? mapsLink,
     bool acknowledgeOverlap = false,
   }) async {
     final now = DateTime.now();
@@ -447,6 +444,7 @@ class _EventsScreenState extends State<EventsScreen> {
       scheduledStart: scheduledStart,
       durationMinutes: durationMinutes,
       address: address,
+      mapsLink: mapsLink,
       status: vmodel.VisitStatus.scheduled,
       createdAt: now,
       updatedAt: now,
@@ -458,27 +456,23 @@ class _EventsScreenState extends State<EventsScreen> {
         visit,
         acknowledgeOverlap: acknowledgeOverlap,
       );
-      // The repository geocodes the address as part of createVisit and
-      // writes lat/lng straight to SQLite, so this is a fast local read —
-      // no extra network round trip — just to pull those coordinates back
-      // for the card we're about to render.
       savedVisit = await _visitRepository.getVisit(id);
     } on VisitOverlapWarning catch (e) {
       if (!mounted) return;
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: AppColors.cardSurface,
+          backgroundColor: Color.fromARGB(255, 140, 188, 255),  // form background blue
           title: const Text('Overlapping visit',
-              style: TextStyle(color: AppColors.textPrimary)),
+              style: TextStyle(color: Colors.black)),
           content: Text(
             'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
-            style: const TextStyle(color: AppColors.textSecondary),
+            style: const TextStyle(color: Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
+              child: const Text('Cancel', style: TextStyle(color: Colors.black)),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -497,7 +491,7 @@ class _EventsScreenState extends State<EventsScreen> {
           dayStr: dayStr,
           timeStr: timeStr,
           durationLabel: durationLabel,
-          mapsQuery: mapsQuery,
+          mapsLink: mapsLink,
           acknowledgeOverlap: true,
         );
       }
@@ -521,7 +515,7 @@ class _EventsScreenState extends State<EventsScreen> {
         address: address,
         latitude: savedVisit?.latitude,
         longitude: savedVisit?.longitude,
-        mapsQuery: mapsQuery,
+        mapsLink: savedVisit?.mapsLink ?? mapsLink,
       ));
     });
     ScaffoldMessenger.of(context).showSnackBar(
@@ -651,10 +645,8 @@ class _EventsScreenState extends State<EventsScreen> {
                       address: visit.address,
                       latitude: visit.latitude,
                       longitude: visit.longitude,
-                      mapsQuery: visit.mapsQuery,
-                      onMapTap: (query) => _launchUrl(
-                        'https://www.google.com/maps/search/?api=1&query=$query',
-                      ),
+                      mapsLink: visit.mapsLink,
+                      onMapTap: _launchUrl,
                     );
                   },
                 ),
@@ -667,7 +659,7 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 }
 
-// ---------- ADD VISIT DIALOG ----------
+// ---------- ADD VISIT DIALOG (Blue background, light cyan fields) ----------
 class _AddVisitDialog extends StatefulWidget {
   final PatientRepository patientRepository;
   const _AddVisitDialog({required this.patientRepository});
@@ -679,7 +671,7 @@ class _AddVisitDialog extends StatefulWidget {
 class _AddVisitDialogState extends State<_AddVisitDialog> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
-  final _mapsQueryController = TextEditingController();
+  final _mapsLinkController = TextEditingController();
 
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
@@ -688,13 +680,13 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
   Patient? _selectedPatient;
   List<Patient> _patientMatches = [];
   int _searchRequestId = 0;
-  bool _isSearching = false;   // so the user knows something is happening
+  bool _isSearching = false;
 
   @override
   void dispose() {
     _nameController.dispose();
     _addressController.dispose();
-    _mapsQueryController.dispose();
+    _mapsLinkController.dispose();
     super.dispose();
   }
 
@@ -713,7 +705,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
       return;
     }
 
-    setState(() => _isSearching = true);   // show a small indicator
+    setState(() => _isSearching = true);
 
     List<Patient> matches;
     try {
@@ -751,7 +743,9 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
         scheduledTime: _selectedTime,
         duration: _selectedDuration,
         address: _addressController.text.trim(),
-        mapsQuery: _mapsQueryController.text.trim(),
+        mapsLink: _mapsLinkController.text.trim().isEmpty
+            ? null
+            : _mapsLinkController.text.trim(),
       ),
     );
   }
@@ -761,9 +755,9 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
     final visiblePatientMatches = _patientMatches.take(5).toList(growable: false);
 
     return AlertDialog(
-      backgroundColor: AppColors.cardSurface,
-      title:
-          const Text('Add Visit', style: TextStyle(color: AppColors.textPrimary)),
+      backgroundColor: Color.fromARGB(255, 140, 188, 255),  // blue form background
+      title: const Text('Add Visit',
+          style: TextStyle(color: Colors.black, fontSize: 18)),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -788,7 +782,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                 margin: const EdgeInsets.only(top: 6),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurfaceAlt,
+                  color: AppColors.cardSurface, // light cyan
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -800,12 +794,12 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         title: Text(
                           visiblePatientMatches[i].fullName,
                           style: const TextStyle(
-                              color: AppColors.textPrimary, fontSize: 14),
+                              color: Colors.black, fontSize: 17),
                         ),
                         subtitle: Text(
                           visiblePatientMatches[i].phone,
                           style: const TextStyle(
-                              color: AppColors.textSecondary, fontSize: 12),
+                              color: Colors.black54, fontSize: 14),
                         ),
                         onTap: () => _selectPatient(visiblePatientMatches[i]),
                       ),
@@ -821,8 +815,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         child: Text(
                           'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
                           style: const TextStyle(
-                            color: AppColors.textSecondary,
-                            fontSize: 11,
+                            color: Colors.black54,
+                            fontSize: 13,
                           ),
                         ),
                       ),
@@ -837,8 +831,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                   'No matching patient — add them in Patient '
                   'Records first.',
                   style: TextStyle(
-                    color: AppColors.textSecondary.withValues(alpha: 0.8),
-                    fontSize: 12,
+                    color: Colors.black.withOpacity(0.7),
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -866,22 +860,25 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
               },
             ),
             const SizedBox(height: 12),
-            _buildTextField('Address', _addressController),
+            _buildTextField('Address', _addressController,
+                hint: 'The address is geocoded automatically'),
             const SizedBox(height: 12),
-            _buildTextField('Maps Query (e.g., 123+Main+St)',
-                _mapsQueryController,
-                hint: '123+Main+St'),
+            _buildTextField(
+              'Google Maps Link (optional)',
+              _mapsLinkController,
+              hint: 'https://maps.google.com/...',
+            ),
           ],
         ),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+          child: const Text('Cancel', style: TextStyle(color: Colors.black, fontSize: 17)),
         ),
         ElevatedButton(
           onPressed: _submit,
-          child: const Text('Add'),
+          child: const Text('Add', style: TextStyle(fontSize: 17)),
         ),
       ],
     );

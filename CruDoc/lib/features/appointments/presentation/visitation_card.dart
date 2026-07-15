@@ -4,6 +4,8 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
     show staticMapUrlFor;
 
+const String _defaultMapAsset = 'assets/images/default_map.png';
+
 class VisitCard extends StatelessWidget {
   final String patientName;
   final String date;
@@ -13,8 +15,8 @@ class VisitCard extends StatelessWidget {
   final String address;
   final double? latitude;
   final double? longitude;
-  final String mapsQuery;
-  final void Function(String query) onMapTap;
+  final String? mapsLink;
+  final void Function(String url) onMapTap;
 
   const VisitCard({
     super.key,
@@ -26,9 +28,24 @@ class VisitCard extends StatelessWidget {
     required this.address,
     this.latitude,
     this.longitude,
-    required this.mapsQuery,
+    this.mapsLink,
     required this.onMapTap,
   });
+
+  /// Resolves where "open in maps" should go.
+  String get _destinationUrl {
+    final link = mapsLink?.trim();
+    if (link != null && link.isNotEmpty) {
+      return (link.startsWith('http://') || link.startsWith('https://'))
+          ? link
+          : 'https://$link';
+    }
+    final query = (latitude != null && longitude != null)
+        ? '$latitude,$longitude'
+        : address;
+    return 'https://www.google.com/maps/search/?api=1'
+        '&query=${Uri.encodeComponent(query)}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -63,12 +80,12 @@ class VisitCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.black),   // ← icon black
+                const Icon(Icons.calendar_today, size: 16, color: Colors.black),
                 const SizedBox(width: 4),
                 Text(
                   '$date  •  $day',
                   style: const TextStyle(
-                      color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),   // ← text light
+                      color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),
                 ),
               ],
             ),
@@ -81,12 +98,12 @@ class VisitCard extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.black),   // ← icon black
+                const Icon(Icons.access_time, size: 16, color: Colors.black),
                 const SizedBox(width: 6),
                 Text(
                   '$time  •  $duration',
                   style: const TextStyle(
-                      color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),   // ← text light
+                      color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),
                 ),
               ],
             ),
@@ -100,13 +117,13 @@ class VisitCard extends StatelessWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.black),   // ← icon black
+                const Icon(Icons.location_on, size: 16, color: Colors.black),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     address,
                     style: const TextStyle(
-                        color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),   // ← text light
+                        color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -121,23 +138,30 @@ class VisitCard extends StatelessWidget {
             right: 4,
             bottom: 4,
             child: GestureDetector(
-              onTap: () => onMapTap(
-                (latitude != null && longitude != null)
-                    ? '$latitude,$longitude'
-                    : mapsQuery,
-              ),
-              child: Container(
-                height: 120,
-                clipBehavior: Clip.antiAlias,
-                decoration: BoxDecoration(
-                  color: AppColors.cardSurfaceAlt,
-                  borderRadius: BorderRadius.circular(28),
-                  border: Border.all(
-                    color: AppColors.divider,
-                    width: 1,
+              onTap: () => onMapTap(_destinationUrl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: SizedBox(
+                  height: 120,
+                  child: Stack(
+                    children: [
+                      // Map content (image or placeholder + overlay)
+                      _buildMapContent(),
+                      // Black border on top for crisp corners
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(28),
+                            border: Border.all(
+                              color: Colors.black,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                child: _buildMapPreview(),
               ),
             ),
           ),
@@ -146,7 +170,9 @@ class VisitCard extends StatelessWidget {
     );
   }
 
-  Widget _buildMapPreview() {
+  /// Returns the map preview content (image or fallback + overlay + texts)
+  /// without the border wrapper.
+  Widget _buildMapContent() {
     final mapImageUrl = staticMapUrlFor(latitude: latitude, longitude: longitude);
     if (mapImageUrl == null) {
       return _buildMapPlaceholder();
@@ -155,6 +181,7 @@ class VisitCard extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        // Map image
         CachedNetworkImage(
           imageUrl: mapImageUrl,
           fit: BoxFit.cover,
@@ -167,6 +194,31 @@ class VisitCard extends StatelessWidget {
           ),
           errorWidget: (context, url, error) => _buildMapPlaceholder(),
         ),
+
+        // 30% black overlay (behind the text)
+        Positioned.fill(
+          child: Container(color: Colors.black.withValues(alpha: 0.3)),
+        ),
+
+        // Centered "Tap to open maps" text
+        const Center(
+          child: Text(
+            'Tap to open maps',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              shadows: [
+                Shadow(
+                  blurRadius: 4,
+                  color: Colors.black54,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        // "Open in Google Maps" pill (bottom‑right)
         Positioned(
           right: 10,
           bottom: 8,
@@ -198,22 +250,40 @@ class VisitCard extends StatelessWidget {
   }
 
   Widget _buildMapPlaceholder() {
-    return Center(
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.map_outlined, color: AppColors.beige, size: 24),
-          const SizedBox(width: 10),
-          Text(
-            'Tap to open in Google Maps',
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Fallback image
+        Image.asset(
+          _defaultMapAsset,
+          fit: BoxFit.cover,
+          width: double.infinity,
+          height: double.infinity,
+        ),
+
+        // 30% black overlay
+        Positioned.fill(
+          child: Container(color: Colors.black.withValues(alpha: 0.3)),
+        ),
+
+        // Centered "Tap to open maps" text (same as above)
+        const Center(
+          child: Text(
+            'Tap to open maps',
             style: TextStyle(
-              color: AppColors.beige,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              shadows: [
+                Shadow(
+                  blurRadius: 4,
+                  color: Colors.black54,
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

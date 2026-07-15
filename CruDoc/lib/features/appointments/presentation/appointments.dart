@@ -9,6 +9,8 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
+const String _visitsHeadingFontFamily = 'PlusJakartaSans';
+
 // ---------- DATA MODELS ----------
 class Visit {
   final String patientName;
@@ -59,7 +61,7 @@ Widget _buildTextField(String label, TextEditingController controller,
       labelStyle: const TextStyle(color: Colors.black, fontSize: 16),
       hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
       filled: true,
-      fillColor: AppColors.cardSurface, // light cyan entry field
+      fillColor: AppColors.cardSurface,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
@@ -98,7 +100,7 @@ Widget _buildPickDateButton(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface, // light cyan entry field
+        color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -142,7 +144,7 @@ Widget _buildPickTimeButton(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface, // light cyan entry field
+        color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -168,7 +170,7 @@ Widget _buildDurationDropdown(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface, // light cyan entry field
+        color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: DropdownButtonHideUnderline(
@@ -304,9 +306,14 @@ class _EventsScreenState extends State<EventsScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: Color.fromARGB(255, 140, 188, 255), // form background blue
+              backgroundColor: const Color.fromARGB(255, 140, 188, 255),
               title: const Text('Add Online Session',
-                  style: TextStyle(color: Colors.black, fontSize: 18)),
+                  style: TextStyle(
+                    color: Colors.black,
+                    fontSize: 18,
+                    fontFamily: _visitsHeadingFontFamily,
+                    fontWeight: FontWeight.w300,   // Jakarta font weight 300
+                  )),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -462,9 +469,13 @@ class _EventsScreenState extends State<EventsScreen> {
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: Color.fromARGB(255, 140, 188, 255),  // form background blue
+          backgroundColor: const Color.fromARGB(255, 140, 188, 255),
           title: const Text('Overlapping visit',
-              style: TextStyle(color: Colors.black)),
+              style: TextStyle(
+                color: Colors.black,
+                fontFamily: _visitsHeadingFontFamily,
+                fontWeight: FontWeight.w300,   // Jakarta font weight 300
+              )),
           content: Text(
             'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
             style: const TextStyle(color: Colors.black87),
@@ -538,7 +549,8 @@ class _EventsScreenState extends State<EventsScreen> {
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w300,   // Jakarta font weight 300
+                  fontFamily: _visitsHeadingFontFamily,
                 ),
               ),
               const SizedBox(height: 24),
@@ -546,32 +558,26 @@ class _EventsScreenState extends State<EventsScreen> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
-                    'Upcoming Online Sessions',
+                    'Upcoming Webinars',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w300,   // Jakarta font weight 300
+                      fontFamily: _visitsHeadingFontFamily,
                     ),
                   ),
                   GestureDetector(
                     onTap: _addOnlineSession,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: AppColors.slateBlue,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, color: AppColors.textPrimary, size: 18),
-                          SizedBox(width: 4),
-                          Text('Add',
-                              style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600)),
-                        ],
+                      child: const Icon(
+                        Icons.add,
+                        color: AppColors.textPrimary,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -601,29 +607,23 @@ class _EventsScreenState extends State<EventsScreen> {
                     'Upcoming Visits',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w300,   // Jakarta font weight 300
+                      fontFamily: _visitsHeadingFontFamily,
                     ),
                   ),
                   GestureDetector(
                     onTap: _addVisit,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         color: AppColors.slateBlue,
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, color: AppColors.textPrimary, size: 18),
-                          SizedBox(width: 4),
-                          Text('Add',
-                              style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600)),
-                        ],
+                      child: const Icon(
+                        Icons.add,
+                        color: AppColors.textPrimary,
+                        size: 20,
                       ),
                     ),
                   ),
@@ -755,9 +755,14 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
     final visiblePatientMatches = _patientMatches.take(5).toList(growable: false);
 
     return AlertDialog(
-      backgroundColor: Color.fromARGB(255, 140, 188, 255),  // blue form background
+      backgroundColor: const Color.fromARGB(255, 140, 188, 255),
       title: const Text('Add Visit',
-          style: TextStyle(color: Colors.black, fontSize: 18)),
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontFamily: _visitsHeadingFontFamily,
+            fontWeight: FontWeight.w300,   // Jakarta font weight 300
+          )),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -782,7 +787,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                 margin: const EdgeInsets.only(top: 6),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurface, // light cyan
+                  color: AppColors.cardSurface,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -913,7 +918,8 @@ class _OnlineSessionCard extends StatelessWidget {
                   style: const TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 15,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w300,   // Jakarta font weight 300
+                    fontFamily: _visitsHeadingFontFamily,
                   ),
                 ),
                 const SizedBox(height: 4),

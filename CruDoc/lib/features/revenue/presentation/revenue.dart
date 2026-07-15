@@ -5,16 +5,9 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:intl/intl.dart';
 
+const String _revenueHeadingFontFamily = 'PlusJakartaSans';
+
 /// Revenue tracking screen.
-///
-/// Backed live by [RevenueRepository] instead of in-memory dummy lists.
-/// Reads flow through `watchRevenueEntries()` / `watchPendingPayments()` —
-/// streams off the local SQLite cache — and every write (miscellaneous
-/// income, a new pending payment, marking one as paid) goes through the
-/// repository, which persists to SQLite first and triggers a background
-/// sync to Firestore. Same local-first pattern as `PatientRepository` /
-/// `VisitRepository` elsewhere in the app, so this screen never talks to
-/// Firestore directly.
 class RevenueScreen extends StatefulWidget {
   const RevenueScreen({super.key, RevenueRepository? repository})
       : _repository = repository;
@@ -60,15 +53,10 @@ class _RevenueScreenState extends State<RevenueScreen> {
     return paid.isNotEmpty ? paid.first : null;
   }
 
-  /// Shared description/amount dialog used for both "Add Miscellaneous
-  /// Income" and "Add Pending Payment". [onSubmit] does the actual
-  /// repository write; the dialog stays open with an inline error on
-  /// failure (so the entered values aren't lost) and only pops on success.
   Future<void> _showEntryDialog({
     required String title,
     required String descHint,
-    required Future<void> Function(String description, double amount)
-        onSubmit,
+    required Future<void> Function(String description, double amount) onSubmit,
   }) async {
     final descController = TextEditingController();
     final amountController = TextEditingController();
@@ -116,12 +104,15 @@ class _RevenueScreenState extends State<RevenueScreen> {
             }
 
             return AlertDialog(
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24)),
               backgroundColor: AppColors.cardSurface,
               title: Text(title,
                   style: const TextStyle(
-                      color: AppColors.textPrimary, fontSize: 18)),
+                      color: AppColors.textPrimary,
+                      fontSize: 18,
+                      fontFamily: _revenueHeadingFontFamily,
+                      fontWeight: FontWeight.w300)),   // changed to w300
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -153,11 +144,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: 8),
-                    Text(
-                      errorText!,
-                      style:
-                          const TextStyle(color: Colors.redAccent, fontSize: 12),
-                    ),
+                    Text(errorText!,
+                        style: const TextStyle(
+                            color: Colors.redAccent, fontSize: 12)),
                   ],
                 ],
               ),
@@ -296,10 +285,10 @@ class _RevenueScreenState extends State<RevenueScreen> {
                               style: TextStyle(
                                   color: AppColors.textPrimary,
                                   fontSize: 22,
-                                  fontWeight: FontWeight.w700),
+                                  fontWeight: FontWeight.w300,   // changed to w300
+                                  fontFamily: _revenueHeadingFontFamily),
                             ),
                             const SizedBox(height: 16),
-                            // Last Paid card
                             if (lastPaid != null)
                               Container(
                                 width: double.infinity,
@@ -323,7 +312,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             style: const TextStyle(
                                                 color: AppColors.textPrimary,
                                                 fontSize: 16,
-                                                fontWeight: FontWeight.w600),
+                                                fontWeight: FontWeight.w300,   // changed to w300
+                                                fontFamily: _revenueHeadingFontFamily),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
@@ -347,35 +337,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                 ),
                               ),
                             const SizedBox(height: 16),
-                            // Total Revenue card
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 14, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: AppColors.cardSurface,
-                                borderRadius: BorderRadius.circular(24),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  const Text('Total Revenue',
-                                      style: TextStyle(
-                                          color: AppColors.textSecondary,
-                                          fontSize: 14)),
-                                  Text(
-                                    '₹${totalRevenue.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                        color: Color(0xFF4CAF50),
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            // Filter chips
+
+                            // ---- Filter chips ----
                             Row(
                               children: ['Weekly', 'Monthly', 'Yearly', 'All']
                                   .map((filter) {
@@ -406,9 +369,38 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                 );
                               }).toList(),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 16),
 
-                            // --- PENDING PAYMENTS SECTION ---
+                            // ---- INCOME title and value ----
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'INCOME',
+                                    style: TextStyle(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w300,   // changed to w300
+                                      fontFamily: _revenueHeadingFontFamily,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '₹${totalRevenue.toStringAsFixed(0)}',
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 48,
+                                      fontWeight: FontWeight.w300,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+
+                            // ---- PENDING PAYMENTS SECTION ----
                             if (pendingPayments.isNotEmpty) ...[
                               Row(
                                 mainAxisAlignment:
@@ -418,8 +410,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     'Pending Payments',
                                     style: TextStyle(
                                         color: AppColors.textSecondary,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w300,   // changed to w300
+                                        fontFamily: _revenueHeadingFontFamily),
                                   ),
                                   GestureDetector(
                                     onTap: _showAddPendingDialog,
@@ -429,7 +422,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                       decoration: BoxDecoration(
                                         color: AppColors.cardSurface,
                                         borderRadius:
-                                            BorderRadius.circular(12),
+                                            BorderRadius.circular(8),
                                       ),
                                       child: const Icon(Icons.add,
                                           size: 18, color: AppColors.beige),
@@ -439,21 +432,21 @@ class _RevenueScreenState extends State<RevenueScreen> {
                               ),
                               const SizedBox(height: 6),
                               SizedBox(
-                                height: 100,
+                                height: 170,
                                 child: ListView.builder(
                                   scrollDirection: Axis.horizontal,
                                   itemCount: pendingPayments.length,
                                   itemBuilder: (_, index) {
                                     final pending = pendingPayments[index];
                                     return Container(
-                                      width: 200,
+                                      width: 180,
                                       margin:
                                           const EdgeInsets.only(right: 8),
                                       padding: const EdgeInsets.all(12),
                                       decoration: BoxDecoration(
                                         color: AppColors.cardSurface,
                                         borderRadius:
-                                            BorderRadius.circular(16),
+                                            BorderRadius.circular(28),
                                         border: Border.all(
                                             color: Colors.amber
                                                 .withOpacity(0.4),
@@ -463,20 +456,17 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
+                                          // Top: ₹ amount and check icon
                                           Row(
                                             children: [
                                               Expanded(
                                                 child: Text(
-                                                  pending.description,
+                                                  '₹${pending.amount.toStringAsFixed(0)}',
                                                   style: const TextStyle(
-                                                      color: AppColors
-                                                          .textPrimary,
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w600),
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
+                                                    color: Colors.amber,
+                                                    fontSize: 24,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                               ),
                                               GestureDetector(
@@ -490,21 +480,26 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             ],
                                           ),
                                           const Spacer(),
+                                          // Bottom: description (heading-like)
                                           Text(
-                                            '₹${pending.amount.toStringAsFixed(0)}',
+                                            pending.description,
                                             style: const TextStyle(
-                                                color: Colors.amber,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.bold),
+                                              color: AppColors.textPrimary,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.w300,   // changed to w300
+                                              fontFamily: _revenueHeadingFontFamily,
+                                            ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             DateFormat.yMMMd()
                                                 .format(pending.date),
                                             style: const TextStyle(
-                                                color:
-                                                    AppColors.textSecondary,
-                                                fontSize: 11),
+                                              color: AppColors.textSecondary,
+                                              fontSize: 10,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -515,7 +510,6 @@ class _RevenueScreenState extends State<RevenueScreen> {
                               const SizedBox(height: 12),
                             ],
 
-                            // Add pending button if list is empty
                             if (pendingPayments.isEmpty)
                               GestureDetector(
                                 onTap: _showAddPendingDialog,
@@ -543,21 +537,41 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                 ),
                               ),
 
-                            // --- RECENT PAYMENTS SECTION LABEL ---
+                            // ---- RECENT PAYMENTS + Add Misc Income ----
                             Padding(
                               padding: const EdgeInsets.only(bottom: 8),
-                              child: Text(
-                                'Recent Payments',
-                                style: TextStyle(
-                                  color:
-                                      AppColors.textSecondary.withOpacity(0.85),
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'Recent Payments',
+                                    style: TextStyle(
+                                      color:
+                                          AppColors.textSecondary.withOpacity(0.85),
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w300,   // changed to w300
+                                      fontFamily: _revenueHeadingFontFamily,
+                                    ),
+                                  ),
+                                  GestureDetector(
+                                    onTap: _showAddMiscDialog,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.cardSurface,
+                                        borderRadius:
+                                            BorderRadius.circular(8),
+                                      ),
+                                      child: const Icon(Icons.add,
+                                          size: 18, color: AppColors.beige),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
 
-                            // Revenue entries list
                             Expanded(
                               child: filtered.isEmpty
                                   ? const Center(
@@ -643,11 +657,6 @@ class _RevenueScreenState extends State<RevenueScreen> {
                           ],
                         ),
                       ),
-              ),
-              floatingActionButton: FloatingActionButton(
-                backgroundColor: AppColors.beige,
-                onPressed: _showAddMiscDialog,
-                child: const Icon(Icons.add, color: AppColors.midnightBlue),
               ),
             );
           },

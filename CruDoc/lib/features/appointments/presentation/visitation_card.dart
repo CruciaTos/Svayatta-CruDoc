@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
     show staticMapUrlFor;
 
 const String _defaultMapAsset = 'assets/images/default_map.png';
+const String _visitsHeadingFontFamily = 'PlusJakartaSans';
 
 class VisitCard extends StatelessWidget {
   final String patientName;
@@ -69,6 +70,7 @@ class VisitCard extends StatelessWidget {
                 color: AppColors.textPrimary,
                 fontSize: 26,
                 fontWeight: FontWeight.w600,
+                fontFamily: _visitsHeadingFontFamily,
               ),
             ),
           ),

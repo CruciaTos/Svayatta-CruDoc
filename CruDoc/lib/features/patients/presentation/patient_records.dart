@@ -6,6 +6,8 @@ import 'package:doctor_management_app/features/patients/presentation/patient_det
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 
+const String _patientHeadingFontFamily = 'PlusJakartaSans';
+
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});
 
@@ -24,7 +26,8 @@ class PatientRecords extends StatelessWidget {
                 style: TextStyle(
                   color: AppColors.textPrimary,
                   fontSize: 22,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w300,
+                  fontFamily: _patientHeadingFontFamily,
                 ),
               ),
               const SizedBox(height: 8),
@@ -41,8 +44,9 @@ class PatientRecords extends StatelessWidget {
                     'All Patients',
                     style: TextStyle(
                       color: AppColors.textPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                      fontSize: 22,                     // now matches appointment section headings
+                      fontWeight: FontWeight.w300,
+                      fontFamily: _patientHeadingFontFamily,
                     ),
                   ),
                   GestureDetector(
@@ -349,7 +353,7 @@ class _PatientTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
-                const SizedBox(width: 5),       // 👈 reduced from 8 to 5
+                const SizedBox(width: 5),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -360,7 +364,7 @@ class _PatientTile extends StatelessWidget {
                         style: const TextStyle(
                           color: AppColors.textPrimary,
                           fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w600,    // patient names kept original
                         ),
                       ),
                       const SizedBox(height: 2),

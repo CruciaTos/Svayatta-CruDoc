@@ -5,6 +5,8 @@ import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_r
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 
+const String _headingFontFamily = 'PlusJakartaSans';
+
 class HomeDashboardScreen extends StatelessWidget {
   const HomeDashboardScreen({super.key});
 
@@ -78,6 +80,7 @@ class _TopBar extends StatelessWidget {
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
+                  fontFamily: _headingFontFamily,   // PlusJakartaSans
                 ),
               ),
               SizedBox(height: 2),

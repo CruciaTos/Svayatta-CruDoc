@@ -5,7 +5,6 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
     show staticMapUrlFor;
 
 const String _defaultMapAsset = 'assets/images/default_map.png';
-const String _visitsHeadingFontFamily = 'PlusJakartaSans';
 
 class VisitCard extends StatelessWidget {
   final String patientName;
@@ -33,7 +32,6 @@ class VisitCard extends StatelessWidget {
     required this.onMapTap,
   });
 
-  /// Resolves where "open in maps" should go.
   String get _destinationUrl {
     final link = mapsLink?.trim();
     if (link != null && link.isNotEmpty) {
@@ -70,7 +68,7 @@ class VisitCard extends StatelessWidget {
                 color: AppColors.textPrimary,
                 fontSize: 26,
                 fontWeight: FontWeight.w600,
-                fontFamily: _visitsHeadingFontFamily,
+                fontFamily: AppColors.headingFontFamily,
               ),
             ),
           ),
@@ -86,8 +84,7 @@ class VisitCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   '$date  •  $day',
-                  style: const TextStyle(
-                      color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),
+                  style: AppColors.bodyMeta,
                 ),
               ],
             ),
@@ -104,8 +101,7 @@ class VisitCard extends StatelessWidget {
                 const SizedBox(width: 6),
                 Text(
                   '$time  •  $duration',
-                  style: const TextStyle(
-                      color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),
+                  style: AppColors.bodyMeta,
                 ),
               ],
             ),
@@ -124,8 +120,7 @@ class VisitCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     address,
-                    style: const TextStyle(
-                        color: Color.fromARGB(255, 52, 52, 52), fontSize: 13),
+                    style: AppColors.bodyMeta,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -147,9 +142,7 @@ class VisitCard extends StatelessWidget {
                   height: 120,
                   child: Stack(
                     children: [
-                      // Map content (image or placeholder + overlay)
                       _buildMapContent(),
-                      // Black border on top for crisp corners
                       Positioned.fill(
                         child: Container(
                           decoration: BoxDecoration(
@@ -172,8 +165,6 @@ class VisitCard extends StatelessWidget {
     );
   }
 
-  /// Returns the map preview content (image or fallback + overlay + texts)
-  /// without the border wrapper.
   Widget _buildMapContent() {
     final mapImageUrl = staticMapUrlFor(latitude: latitude, longitude: longitude);
     if (mapImageUrl == null) {
@@ -183,7 +174,6 @@ class VisitCard extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Map image
         CachedNetworkImage(
           imageUrl: mapImageUrl,
           fit: BoxFit.cover,
@@ -196,13 +186,9 @@ class VisitCard extends StatelessWidget {
           ),
           errorWidget: (context, url, error) => _buildMapPlaceholder(),
         ),
-
-        // 30% black overlay (behind the text)
         Positioned.fill(
           child: Container(color: Colors.black.withValues(alpha: 0.3)),
         ),
-
-        // Centered "Tap to open maps" text
         const Center(
           child: Text(
             'Tap to open maps',
@@ -219,8 +205,6 @@ class VisitCard extends StatelessWidget {
             ),
           ),
         ),
-
-        // "Open in Google Maps" pill (bottom‑right)
         Positioned(
           right: 10,
           bottom: 8,
@@ -255,20 +239,15 @@ class VisitCard extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // Fallback image
         Image.asset(
           _defaultMapAsset,
           fit: BoxFit.cover,
           width: double.infinity,
           height: double.infinity,
         ),
-
-        // 30% black overlay
         Positioned.fill(
           child: Container(color: Colors.black.withValues(alpha: 0.3)),
         ),
-
-        // Centered "Tap to open maps" text (same as above)
         const Center(
           child: Text(
             'Tap to open maps',

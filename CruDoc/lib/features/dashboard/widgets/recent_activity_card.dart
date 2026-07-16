@@ -38,6 +38,7 @@ class RecentActivityCard extends StatelessWidget {
           const Text(
             'Recent Activity',
             style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               color: AppColors.textPrimary,
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -79,6 +80,7 @@ class _ActivityRow extends StatelessWidget {
             child: Text(
               item.text,
               style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
                 fontSize: 13,
               ),
@@ -88,6 +90,7 @@ class _ActivityRow extends StatelessWidget {
           Text(
             item.time,
             style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               color: AppColors.textSecondary,
               fontSize: 11.5,
             ),

@@ -5,8 +5,6 @@ import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_r
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 
-const String _headingFontFamily = 'PlusJakartaSans';
-
 class HomeDashboardScreen extends StatelessWidget {
   const HomeDashboardScreen({super.key});
 
@@ -80,13 +78,14 @@ class _TopBar extends StatelessWidget {
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  fontFamily: _headingFontFamily,   // PlusJakartaSans
+                  fontFamily: AppColors.headingFontFamily, // kept heading
                 ),
               ),
               SizedBox(height: 2),
               Text(
                 'Physiotherapist',
                 style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily, // added body font
                   color: AppColors.textSecondary,
                   fontSize: 13,
                 ),
@@ -110,8 +109,7 @@ class _RevenueSnapshotCard extends StatefulWidget {
 
 class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
   bool _isMonthly = true;
-  // Pre‑selected bar – default is current month, e.g. 'Jul'
-  String _selectedKey = 'Jul';   // for month view; will be updated on toggle
+  String _selectedKey = 'Jul';
 
   static const Map<String, double> _monthsHeights = {
     'Feb': 0.35, 'Mar': 0.55, 'Apr': 0.42,
@@ -136,7 +134,6 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
   void _onToggle(bool monthly) {
     setState(() {
       _isMonthly = monthly;
-      // When switching, select a sensible default instead of null
       _selectedKey = monthly ? 'Jul' : 'Thu';
     });
   }
@@ -149,7 +146,6 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
   }
 
   String _getSubtitle() {
-    // Since a bar is always selected, we show its label
     return _isMonthly ? _selectedKey : '${_selectedKey}day';
   }
 
@@ -183,6 +179,7 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
               const Text(
                 'Revenue',
                 style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily, // body
                   color: AppColors.textSecondary,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
@@ -204,6 +201,7 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
               Text(
                 amount,
                 style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily, // body
                   color: AppColors.textPrimary,
                   fontSize: 30,
                   fontWeight: FontWeight.w700,
@@ -216,6 +214,7 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
                 child: Text(
                   subtitle,
                   style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily, // body
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
@@ -237,6 +236,7 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
                     : AppColors.chartBarDim;
 
                 final labelStyle = TextStyle(
+                  fontFamily: AppColors.bodyFontFamily, // body
                   color: isSelected
                       ? AppColors.chartBarLight
                       : AppColors.textSecondary,
@@ -248,7 +248,6 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
                   child: GestureDetector(
                     onTap: () {
                       setState(() {
-                        // Tapping another bar moves the selection; tapping the same bar does nothing (keeps it active)
                         _selectedKey = entry.key;
                       });
                     },
@@ -300,6 +299,7 @@ class _RevenueSnapshotCardState extends State<_RevenueSnapshotCard> {
         child: Text(
           label,
           style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily, // body
             color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -391,7 +391,11 @@ class _StatCard extends StatelessWidget {
         children: [
           Text(
             label,
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily, // body
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -400,6 +404,7 @@ class _StatCard extends StatelessWidget {
               Text(
                 value,
                 style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily, // body
                   color: AppColors.textPrimary,
                   fontSize: 24,
                   fontWeight: FontWeight.w700,
@@ -411,6 +416,7 @@ class _StatCard extends StatelessWidget {
                 child: Text(
                   delta,
                   style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily, // body
                     color: deltaPositive
                         ? AppColors.positiveGreen
                         : Colors.redAccent.withOpacity(0.8),

@@ -9,8 +9,6 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
-const String _visitsHeadingFontFamily = 'PlusJakartaSans';
-
 // ---------- DATA MODELS ----------
 class Visit {
   final String patientName;
@@ -54,12 +52,12 @@ Widget _buildTextField(String label, TextEditingController controller,
   return TextField(
     controller: controller,
     onChanged: onChanged,
-    style: const TextStyle(color: Colors.black, fontSize: 17),
+    style: AppColors.bodyLarge,
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: const TextStyle(color: Colors.black, fontSize: 16),
-      hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+      labelStyle: AppColors.bodyMedium,
+      hintStyle: AppColors.bodySmall.copyWith(color: Colors.grey.shade600),
       filled: true,
       fillColor: AppColors.cardSurface,
       border: OutlineInputBorder(
@@ -109,7 +107,7 @@ Widget _buildPickDateButton(
           const SizedBox(width: 10),
           Text(
             dateStr,
-            style: const TextStyle(color: Colors.black, fontSize: 17),
+            style: AppColors.bodyLarge,
           ),
         ],
       ),
@@ -153,7 +151,7 @@ Widget _buildPickTimeButton(
           const SizedBox(width: 10),
           Text(
             timeStr,
-            style: const TextStyle(color: Colors.black, fontSize: 17),
+            style: AppColors.bodyLarge,
           ),
         ],
       ),
@@ -179,7 +177,7 @@ Widget _buildDurationDropdown(
           isExpanded: true,
           menuMaxHeight: 200,
           dropdownColor: AppColors.cardSurface,
-          style: const TextStyle(color: Colors.black, fontSize: 17),
+          style: AppColors.bodyLarge,
           items: durations.map((d) {
             return DropdownMenuItem(value: d, child: Text(d));
           }).toList(),
@@ -308,12 +306,7 @@ class _EventsScreenState extends State<EventsScreen> {
             return AlertDialog(
               backgroundColor: const Color.fromARGB(255, 140, 188, 255),
               title: const Text('Add Online Session',
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 18,
-                    fontFamily: _visitsHeadingFontFamily,
-                    fontWeight: FontWeight.w300,   // Jakarta font weight 300
-                  )),
+                  style: AppColors.sectionHeading),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -338,7 +331,7 @@ class _EventsScreenState extends State<EventsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.black, fontSize: 17)),
+                  child: const Text('Cancel', style: AppColors.bodyLarge),
                 ),
                 ElevatedButton(
                   onPressed: () {
@@ -470,20 +463,15 @@ class _EventsScreenState extends State<EventsScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: const Color.fromARGB(255, 140, 188, 255),
-          title: const Text('Overlapping visit',
-              style: TextStyle(
-                color: Colors.black,
-                fontFamily: _visitsHeadingFontFamily,
-                fontWeight: FontWeight.w300,   // Jakarta font weight 300
-              )),
+          title: const Text('Overlapping visit', style: AppColors.sectionHeading),
           content: Text(
             'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
-            style: const TextStyle(color: Colors.black87),
+            style: AppColors.bodyMedium.copyWith(color: Colors.black87),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel', style: TextStyle(color: Colors.black)),
+              child: const Text('Cancel', style: AppColors.bodyLarge),
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(dialogContext, true),
@@ -544,26 +532,18 @@ class _EventsScreenState extends State<EventsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Events',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w300,   // Jakarta font weight 300
-                  fontFamily: _visitsHeadingFontFamily,
-                ),
-              ),
-              const SizedBox(height: 24),
+              const Text('Events', style: AppColors.pageHeading),
+
+              // ---------- Upcoming Webinars section ----------
+              const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Upcoming Webinars',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w300,   // Jakarta font weight 300
-                      fontFamily: _visitsHeadingFontFamily,
+                    style: AppColors.pageHeading.copyWith(
+                      fontSize: 18,                     // smaller size
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   GestureDetector(
@@ -571,25 +551,25 @@ class _EventsScreenState extends State<EventsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: AppColors.slateBlue,
+                        color: AppColors.chartBarLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.add,
-                        color: AppColors.textPrimary,
+                        color: Colors.white,
                         size: 20,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               if (onlineSessions.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 20),
                   child: Text(
                     'No upcoming online sessions',
-                    style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                    style: AppColors.bodyMedium,
                   ),
                 )
               else
@@ -599,17 +579,17 @@ class _EventsScreenState extends State<EventsScreen> {
                     onTap: () => _launchUrl(session.link),
                   ),
                 ),
-              const SizedBox(height: 24),
+
+              // ---------- Upcoming Visits section ----------
+              const SizedBox(height: 28),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Upcoming Visits',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w300,   // Jakarta font weight 300
-                      fontFamily: _visitsHeadingFontFamily,
+                    style: AppColors.pageHeading.copyWith(
+                      fontSize: 18,                     // smaller size
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   GestureDetector(
@@ -617,19 +597,19 @@ class _EventsScreenState extends State<EventsScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
-                        color: AppColors.slateBlue,
+                        color: AppColors.chartBarLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(
                         Icons.add,
-                        color: AppColors.textPrimary,
+                        color: Colors.white,
                         size: 20,
                       ),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),
               Expanded(
                 child: ListView.builder(
                   physics: const ClampingScrollPhysics(),
@@ -756,13 +736,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
 
     return AlertDialog(
       backgroundColor: const Color.fromARGB(255, 140, 188, 255),
-      title: const Text('Add Visit',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 18,
-            fontFamily: _visitsHeadingFontFamily,
-            fontWeight: FontWeight.w300,   // Jakarta font weight 300
-          )),
+      title: const Text('Add Visit', style: AppColors.sectionHeading),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -798,13 +772,11 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         dense: true,
                         title: Text(
                           visiblePatientMatches[i].fullName,
-                          style: const TextStyle(
-                              color: Colors.black, fontSize: 17),
+                          style: AppColors.bodyLarge,
                         ),
                         subtitle: Text(
                           visiblePatientMatches[i].phone,
-                          style: const TextStyle(
-                              color: Colors.black54, fontSize: 14),
+                          style: AppColors.bodyMedium.copyWith(color: Colors.black54),
                         ),
                         onTap: () => _selectPatient(visiblePatientMatches[i]),
                       ),
@@ -819,10 +791,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                         child: Text(
                           'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
-                          style: const TextStyle(
-                            color: Colors.black54,
-                            fontSize: 13,
-                          ),
+                          style: AppColors.bodySmall.copyWith(color: Colors.black54),
                         ),
                       ),
                   ],
@@ -835,9 +804,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                 child: Text(
                   'No matching patient — add them in Patient '
                   'Records first.',
-                  style: TextStyle(
+                  style: AppColors.bodyMedium.copyWith(
                     color: Colors.black.withOpacity(0.7),
-                    fontSize: 14,
                   ),
                 ),
               ),
@@ -879,7 +847,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: TextStyle(color: Colors.black, fontSize: 17)),
+          child: const Text('Cancel', style: AppColors.bodyLarge),
         ),
         ElevatedButton(
           onPressed: _submit,
@@ -915,20 +883,12 @@ class _OnlineSessionCard extends StatelessWidget {
               children: [
                 Text(
                   session.title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w300,   // Jakarta font weight 300
-                    fontFamily: _visitsHeadingFontFamily,
-                  ),
+                  style: AppColors.sectionHeading.copyWith(fontSize: 15),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${session.date}  •  ${session.time}',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 13,
-                  ),
+                  style: AppColors.bodySmall,
                 ),
               ],
             ),

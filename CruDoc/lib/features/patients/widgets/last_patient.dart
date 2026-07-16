@@ -31,6 +31,7 @@ class LastPatientsCard extends StatelessWidget {
               const Text(
                 'Last Patient',
                 style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -45,6 +46,7 @@ class LastPatientsCard extends StatelessWidget {
                 child: const Text(
                   'Just now',
                   style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -64,6 +66,7 @@ class LastPatientsCard extends StatelessWidget {
                 child: const Text(
                   'E', // First letter of last patient (Emily Clark)
                   style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textPrimary,
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
@@ -79,6 +82,7 @@ class LastPatientsCard extends StatelessWidget {
                     const Text(
                       'Emily Clark',
                       style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textPrimary,
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -88,6 +92,7 @@ class LastPatientsCard extends StatelessWidget {
                     Text(
                       'Hypertension  •  Female, 32',
                       style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textSecondary.withOpacity(0.9),
                         fontSize: 14,
                       ),
@@ -101,6 +106,7 @@ class LastPatientsCard extends StatelessWidget {
                         const Text(
                           '2 hours ago',
                           style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
                             color: AppColors.textSecondary,
                             fontSize: 13,
                           ),
@@ -112,6 +118,7 @@ class LastPatientsCard extends StatelessWidget {
                         const Text(
                           '12 sessions',
                           style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
                             color: AppColors.textSecondary,
                             fontSize: 13,
                           ),

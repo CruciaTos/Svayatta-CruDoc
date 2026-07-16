@@ -63,6 +63,7 @@ class _ActionButton extends StatelessWidget {
               action.label,
               textAlign: TextAlign.center,
               style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textSecondary,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w500,

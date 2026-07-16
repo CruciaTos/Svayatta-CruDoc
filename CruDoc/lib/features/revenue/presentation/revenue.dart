@@ -5,8 +5,6 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:intl/intl.dart';
 
-const String _revenueHeadingFontFamily = 'PlusJakartaSans';
-
 /// Revenue tracking screen.
 class RevenueScreen extends StatefulWidget {
   const RevenueScreen({super.key, RevenueRepository? repository})
@@ -107,23 +105,23 @@ class _RevenueScreenState extends State<RevenueScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24)),
               backgroundColor: AppColors.cardSurface,
-              title: Text(title,
-                  style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontFamily: _revenueHeadingFontFamily,
-                      fontWeight: FontWeight.w300)),   // changed to w300
+              title: Text(title, style: AppColors.sectionHeading),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
                     controller: descController,
                     enabled: !isSaving,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       hintText: descHint,
-                      hintStyle:
-                          const TextStyle(color: AppColors.textSecondary),
+                      hintStyle: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                      ),
                       enabledBorder: const UnderlineInputBorder(
                           borderSide: BorderSide(color: AppColors.divider)),
                     ),
@@ -134,19 +132,30 @@ class _RevenueScreenState extends State<RevenueScreen> {
                     enabled: !isSaving,
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textPrimary,
+                    ),
                     decoration: const InputDecoration(
                       hintText: 'Amount',
-                      hintStyle: TextStyle(color: AppColors.textSecondary),
+                      hintStyle: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                      ),
                       enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(color: AppColors.divider)),
                     ),
                   ),
                   if (errorText != null) ...[
                     const SizedBox(height: 8),
-                    Text(errorText!,
-                        style: const TextStyle(
-                            color: Colors.redAccent, fontSize: 12)),
+                    Text(
+                      errorText!,
+                      style: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                      ),
+                    ),
                   ],
                 ],
               ),
@@ -154,8 +163,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                 TextButton(
                   onPressed:
                       isSaving ? null : () => Navigator.pop(dialogContext),
-                  child: const Text('Cancel',
-                      style: TextStyle(color: AppColors.silver)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.silver,
+                    ),
+                  ),
                 ),
                 TextButton(
                   onPressed: isSaving ? null : handleSubmit,
@@ -166,8 +180,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                           child: CircularProgressIndicator(
                               strokeWidth: 2, color: AppColors.beige),
                         )
-                      : const Text('Add',
-                          style: TextStyle(color: AppColors.beige)),
+                      : const Text(
+                          'Add',
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
+                            color: AppColors.beige,
+                          ),
+                        ),
                 ),
               ],
             );
@@ -282,11 +301,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                           children: [
                             const Text(
                               'Revenue',
-                              style: TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w300,   // changed to w300
-                                  fontFamily: _revenueHeadingFontFamily),
+                              style: AppColors.pageHeading,
                             ),
                             const SizedBox(height: 16),
                             if (lastPaid != null)
@@ -312,16 +327,18 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             style: const TextStyle(
                                                 color: AppColors.textPrimary,
                                                 fontSize: 16,
-                                                fontWeight: FontWeight.w300,   // changed to w300
-                                                fontFamily: _revenueHeadingFontFamily),
+                                                fontWeight: FontWeight.w300,
+                                                fontFamily:
+                                                    AppColors.headingFontFamily),
                                           ),
                                           const SizedBox(height: 4),
                                           Text(
                                             '${lastPaid.description} • ${DateFormat.yMMMd().format(lastPaid.date)}',
                                             style: const TextStyle(
-                                                color:
-                                                    AppColors.textSecondary,
-                                                fontSize: 13),
+                                              fontFamily: AppColors.bodyFontFamily,
+                                              color: AppColors.textSecondary,
+                                              fontSize: 13,
+                                            ),
                                           ),
                                         ],
                                       ),
@@ -359,11 +376,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     child: Text(
                                       filter,
                                       style: TextStyle(
-                                          color: isSelected
-                                              ? AppColors.midnightBlue
-                                              : AppColors.textSecondary,
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500),
+                                        fontFamily: AppColors.bodyFontFamily,
+                                        color: isSelected
+                                            ? AppColors.midnightBlue
+                                            : AppColors.textSecondary,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w500,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -372,65 +391,57 @@ class _RevenueScreenState extends State<RevenueScreen> {
                             const SizedBox(height: 16),
 
                             // ---- INCOME title and value ----
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const Text(
-                                    'INCOME',
-                                    style: TextStyle(
-                                      color: AppColors.textSecondary,
-                                      fontSize: 17,
-                                      fontWeight: FontWeight.w300,   // changed to w300
-                                      fontFamily: _revenueHeadingFontFamily,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    '₹${totalRevenue.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      color: Colors.black,
-                                      fontSize: 48,
-                                      fontWeight: FontWeight.w300,
-                                    ),
-                                  ),
-                                ],
+                            const SizedBox(height: 28),   // more breathing room above heading
+                            Text(
+                              'INCOME',
+                              style: AppColors.pageHeading.copyWith(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textSecondary, // keep original colour
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 8),    // tighter gap to amount below
+                            Text(
+                              '₹${totalRevenue.toStringAsFixed(0)}',
+                              style: const TextStyle(
+                                fontFamily: AppColors.bodyFontFamily,
+                                color: Colors.black,
+                                fontSize: 48,
+                                fontWeight: FontWeight.w300,
+                              ),
+                            ),
 
                             // ---- PENDING PAYMENTS SECTION ----
                             if (pendingPayments.isNotEmpty) ...[
+                              const SizedBox(height: 28),
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Pending Payments',
-                                    style: TextStyle(
-                                        color: AppColors.textSecondary,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w300,   // changed to w300
-                                        fontFamily: _revenueHeadingFontFamily),
+                                    style: AppColors.pageHeading.copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
                                   ),
                                   GestureDetector(
                                     onTap: _showAddPendingDialog,
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
+                                      padding: const EdgeInsets.all(4),
                                       decoration: BoxDecoration(
-                                        color: AppColors.cardSurface,
+                                        color: AppColors.chartBarLight,   // accent-blue fill
                                         borderRadius:
                                             BorderRadius.circular(8),
                                       ),
                                       child: const Icon(Icons.add,
-                                          size: 18, color: AppColors.beige),
+                                          size: 18, color: Colors.white), // white icon
                                     ),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 6),
+                              const SizedBox(height: 8),
                               SizedBox(
                                 height: 170,
                                 child: ListView.builder(
@@ -456,13 +467,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                         children: [
-                                          // Top: ₹ amount and check icon
                                           Row(
                                             children: [
                                               Expanded(
                                                 child: Text(
                                                   '₹${pending.amount.toStringAsFixed(0)}',
                                                   style: const TextStyle(
+                                                    fontFamily: AppColors.bodyFontFamily,
                                                     color: Colors.amber,
                                                     fontSize: 24,
                                                     fontWeight: FontWeight.bold,
@@ -480,14 +491,14 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             ],
                                           ),
                                           const Spacer(),
-                                          // Bottom: description (heading-like)
                                           Text(
                                             pending.description,
                                             style: const TextStyle(
                                               color: AppColors.textPrimary,
                                               fontSize: 24,
-                                              fontWeight: FontWeight.w300,   // changed to w300
-                                              fontFamily: _revenueHeadingFontFamily,
+                                              fontWeight: FontWeight.w300,
+                                              fontFamily:
+                                                  AppColors.headingFontFamily,
                                             ),
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
@@ -497,6 +508,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             DateFormat.yMMMd()
                                                 .format(pending.date),
                                             style: const TextStyle(
+                                              fontFamily: AppColors.bodyFontFamily,
                                               color: AppColors.textSecondary,
                                               fontSize: 10,
                                             ),
@@ -507,7 +519,6 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   },
                                 ),
                               ),
-                              const SizedBox(height: 12),
                             ],
 
                             if (pendingPayments.isEmpty)
@@ -524,62 +535,72 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   child: Row(
                                     mainAxisAlignment:
                                         MainAxisAlignment.center,
-                                    children: const [
-                                      Icon(Icons.add,
-                                          size: 18, color: AppColors.beige),
-                                      SizedBox(width: 6),
-                                      Text('Add Pending Payment',
-                                          style: TextStyle(
-                                              color: AppColors.textSecondary,
-                                              fontSize: 13)),
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.chartBarLight,
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: const Icon(Icons.add,
+                                            size: 18, color: Colors.white),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'Add Pending Payment',
+                                        style: TextStyle(
+                                          fontFamily: AppColors.bodyFontFamily,
+                                          color: AppColors.textSecondary,
+                                          fontSize: 13,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
                               ),
 
                             // ---- RECENT PAYMENTS + Add Misc Income ----
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'Recent Payments',
-                                    style: TextStyle(
-                                      color:
-                                          AppColors.textSecondary.withOpacity(0.85),
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w300,   // changed to w300
-                                      fontFamily: _revenueHeadingFontFamily,
-                                    ),
+                            const SizedBox(height: 28),
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  'Recent Payments',
+                                  style: AppColors.pageHeading.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textSecondary.withOpacity(0.85),
                                   ),
-                                  GestureDetector(
-                                    onTap: _showAddMiscDialog,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.cardSurface,
-                                        borderRadius:
-                                            BorderRadius.circular(8),
-                                      ),
-                                      child: const Icon(Icons.add,
-                                          size: 18, color: AppColors.beige),
+                                ),
+                                GestureDetector(
+                                  onTap: _showAddMiscDialog,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.chartBarLight,
+                                      borderRadius:
+                                          BorderRadius.circular(8),
                                     ),
+                                    child: const Icon(Icons.add,
+                                        size: 18, color: Colors.white),
                                   ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
+                            const SizedBox(height: 8),
 
                             Expanded(
                               child: filtered.isEmpty
                                   ? const Center(
                                       child: Text(
-                                          'No revenue entries for this period',
-                                          style: TextStyle(
-                                              color:
-                                                  AppColors.textSecondary)))
+                                        'No revenue entries for this period',
+                                        style: TextStyle(
+                                          fontFamily: AppColors.bodyFontFamily,
+                                          color: AppColors.textSecondary,
+                                        ),
+                                      ),
+                                    )
                                   : ListView.builder(
                                       physics:
                                           const ClampingScrollPhysics(),
@@ -620,34 +641,37 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                                       CrossAxisAlignment
                                                           .start,
                                                   children: [
-                                                    Text(entry.description,
-                                                        style: const TextStyle(
-                                                            color: AppColors
-                                                                .textPrimary,
-                                                            fontSize: 15,
-                                                            fontWeight:
-                                                                FontWeight
-                                                                    .w600)),
+                                                    Text(
+                                                      entry.description,
+                                                      style: const TextStyle(
+                                                        fontFamily: AppColors.bodyFontFamily,
+                                                        color: AppColors.textPrimary,
+                                                        fontSize: 15,
+                                                        fontWeight: FontWeight.w600,
+                                                      ),
+                                                    ),
                                                     const SizedBox(height: 4),
                                                     Text(
-                                                        DateFormat.yMMMd()
-                                                            .format(
-                                                                entry.date),
-                                                        style: const TextStyle(
-                                                            color: AppColors
-                                                                .textSecondary,
-                                                            fontSize: 13)),
+                                                      DateFormat.yMMMd()
+                                                          .format(entry.date),
+                                                      style: const TextStyle(
+                                                        fontFamily: AppColors.bodyFontFamily,
+                                                        color: AppColors.textSecondary,
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
                                                   ],
                                                 ),
                                               ),
                                               Text(
-                                                  '₹${entry.amount.toStringAsFixed(0)}',
-                                                  style: const TextStyle(
-                                                      color:
-                                                          Color(0xFF4CAF50),
-                                                      fontSize: 16,
-                                                      fontWeight:
-                                                          FontWeight.w600)),
+                                                '₹${entry.amount.toStringAsFixed(0)}',
+                                                style: const TextStyle(
+                                                  fontFamily: AppColors.bodyFontFamily,
+                                                  color: Color(0xFF4CAF50),
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         );

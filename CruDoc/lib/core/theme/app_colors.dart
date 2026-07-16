@@ -16,4 +16,57 @@ class AppColors {
   static const divider = Color(0x1FFFFFFF);
   static const textPrimary = Color.fromARGB(255, 0, 0, 0);
   static const textSecondary = Color.fromARGB(255, 0, 0, 0);
+
+  // ============================================================
+  // TYPOGRAPHY
+  // ============================================================
+
+  static const String headingFontFamily = 'PlusJakartaSans';
+
+  static const TextStyle pageHeading = TextStyle(
+    fontFamily: headingFontFamily,
+    fontSize: 22,
+    fontWeight: FontWeight.w300,
+    color: textPrimary,
+  );
+
+  static const TextStyle sectionHeading = TextStyle(
+    fontFamily: headingFontFamily,
+    fontSize: 18,
+    fontWeight: FontWeight.w300,
+    color: textPrimary,
+  );
+
+  static const String bodyFontFamily = 'PlusJakartaSans';
+
+  static const TextStyle bodyLarge = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontSize: 15,
+    fontWeight: FontWeight.w500,
+    color: textPrimary,
+  );
+
+  static const TextStyle bodyMedium = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontSize: 14,
+    fontWeight: FontWeight.w400,
+    color: textPrimary,
+  );
+
+  static const TextStyle bodySmall = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontSize: 12,
+    fontWeight: FontWeight.w400,
+    color: textSecondary,
+  );
+
+  /// Additional body style for metadata / secondary info that needs
+  /// a slightly larger size than [bodySmall].  e.g. visit date/time/address.
+  /// 13 / w400 / [textSecondary]
+  static const TextStyle bodyMeta = TextStyle(
+    fontFamily: bodyFontFamily,
+    fontSize: 13,
+    fontWeight: FontWeight.w400,
+    color: textSecondary,
+  );
 }

@@ -256,11 +256,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: const TextStyle(
-        color: AppColors.textSecondary,
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
+      style: AppColors.bodyMeta.copyWith(fontWeight: FontWeight.w600),
     );
   }
 }
@@ -293,7 +289,7 @@ class _FormField extends StatelessWidget {
           keyboardType: keyboardType,
           maxLines: maxLines,
           validator: validator,
-          style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+          style: AppColors.bodyMedium,
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.cardSurface,
@@ -361,12 +357,11 @@ class _GenderSelector extends StatelessWidget {
                 ),
                 child: Text(
                   option,
-                  style: TextStyle(
+                  style: AppColors.bodyMeta.copyWith(
+                    fontWeight: FontWeight.w600,
                     color: isSelected
                         ? AppColors.textPrimary
                         : AppColors.textSecondary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -411,11 +406,10 @@ class _DateOfBirthField extends StatelessWidget {
             const SizedBox(width: 10),
             Text(
               label,
-              style: TextStyle(
+              style: AppColors.bodyMedium.copyWith(
                 color: date == null
                     ? AppColors.textSecondary
                     : AppColors.textPrimary,
-                fontSize: 14,
               ),
             ),
           ],

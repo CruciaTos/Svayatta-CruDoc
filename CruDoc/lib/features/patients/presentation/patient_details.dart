@@ -147,6 +147,7 @@ class _TopBar extends StatelessWidget {
             child: Text(
               'Patient Record',
               style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
@@ -187,6 +188,7 @@ class _PatientHeader extends StatelessWidget {
         Text(
           name,
           style: const TextStyle(
+            fontFamily: AppColors.headingFontFamily,
             color: AppColors.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w700,
@@ -235,11 +237,7 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
+            style: AppColors.bodySmall.copyWith(fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -284,11 +282,11 @@ class _DoctorsNoteCard extends StatelessWidget {
                           children: [
                             Text(
                               "DOCTOR'S NOTE",
-                              style: TextStyle(
-                                color: _accentAmber.withOpacity(0.9),
+                              style: AppColors.bodySmall.copyWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.1,
+                                color: _accentAmber.withOpacity(0.9),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -296,11 +294,10 @@ class _DoctorsNoteCard extends StatelessWidget {
                               hasNote
                                   ? note!
                                   : 'No notes added for this patient yet.',
-                              style: TextStyle(
+                              style: AppColors.bodyMedium.copyWith(
                                 color: hasNote
                                     ? AppColors.textPrimary
                                     : AppColors.textSecondary.withOpacity(0.7),
-                                fontSize: 14,
                                 fontStyle: hasNote
                                     ? FontStyle.italic
                                     : FontStyle.normal,
@@ -397,6 +394,7 @@ class _StatCard extends StatelessWidget {
           Text(
             value,
             style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               color: AppColors.textPrimary,
               fontSize: 18,
               fontWeight: FontWeight.w700,
@@ -407,10 +405,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             label,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-            ),
+            style: AppColors.bodySmall,
           ),
         ],
       ),
@@ -427,11 +422,10 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: TextStyle(
-        color: AppColors.textSecondary.withOpacity(0.85),
-        fontSize: 12,
+      style: AppColors.bodySmall.copyWith(
         fontWeight: FontWeight.w700,
         letterSpacing: 1.1,
+        color: AppColors.textSecondary.withOpacity(0.85),
       ),
     );
   }
@@ -470,10 +464,7 @@ class _ContactCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   address,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                  ),
+                  style: AppColors.bodyMedium,
                 ),
               ),
             ],
@@ -532,20 +523,16 @@ class _MiniContactTile extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
-                fontSize: 11,
-              ),
+              style: AppColors.bodySmall.copyWith(fontSize: 11),
             ),
           ],
         ),
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
-            fontSize: 13,
+          style: AppColors.bodyMeta.copyWith(
             fontWeight: FontWeight.w500,
+            color: AppColors.textPrimary,
           ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
@@ -606,8 +593,11 @@ class _SessionHistorySectionState extends State<_SessionHistorySection> {
                 _expanded
                     ? 'Show less'
                     : 'View all ${widget.sessions.length} sessions',
-                style:
-                    const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),
@@ -699,28 +689,20 @@ class _SessionTimelineTile extends StatelessWidget {
                     children: [
                       Text(
                         date,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
-                          fontSize: 14,
+                        style: AppColors.bodyMedium.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         time,
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 12,
-                        ),
+                        style: AppColors.bodySmall,
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
                     reason,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
-                      fontSize: 13,
-                    ),
+                    style: AppColors.bodyMeta,
                   ),
                 ],
               ),

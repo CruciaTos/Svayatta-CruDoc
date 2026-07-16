@@ -43,6 +43,7 @@ class TodaysVisitsCard extends StatelessWidget {
               const Text(
                 "Today's Visits",
                 style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -51,6 +52,7 @@ class TodaysVisitsCard extends StatelessWidget {
               Text(
                 '${_visits.length} scheduled',
                 style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textSecondary,
                   fontSize: 12,
                 ),
@@ -63,7 +65,11 @@ class TodaysVisitsCard extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
                 'No visits scheduled for today.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
               ),
             )
           else
@@ -118,6 +124,7 @@ class _VisitRow extends StatelessWidget {
                 Text(
                   visit.patientName,
                   style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textPrimary,
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
@@ -127,6 +134,7 @@ class _VisitRow extends StatelessWidget {
                 Text(
                   isHome ? 'Home visit' : 'Online session',
                   style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textSecondary,
                     fontSize: 12,
                   ),
@@ -137,6 +145,7 @@ class _VisitRow extends StatelessWidget {
           Text(
             visit.time,
             style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               color: AppColors.silver,
               fontSize: 13,
               fontWeight: FontWeight.w500,

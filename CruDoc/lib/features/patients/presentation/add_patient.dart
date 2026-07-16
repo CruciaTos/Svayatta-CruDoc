@@ -118,6 +118,7 @@ class _AddPatientPageState extends State<AddPatientPage> {
                         : const Text(
                             'Save Patient',
                             style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
                               color: AppColors.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.w600,
@@ -155,6 +156,7 @@ class _TopBar extends StatelessWidget {
         const Text(
           'Add Patient',
           style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
             color: AppColors.textPrimary,
             fontSize: 18,
             fontWeight: FontWeight.w700,

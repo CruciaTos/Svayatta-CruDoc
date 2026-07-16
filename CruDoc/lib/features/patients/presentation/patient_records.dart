@@ -6,8 +6,6 @@ import 'package:doctor_management_app/features/patients/presentation/patient_det
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 
-const String _patientHeadingFontFamily = 'PlusJakartaSans';
-
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});
 
@@ -23,12 +21,7 @@ class PatientRecords extends StatelessWidget {
             children: [
               const Text(
                 'Patients Record',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w300,
-                  fontFamily: _patientHeadingFontFamily,
-                ),
+                style: AppColors.pageHeading,
               ),
               const SizedBox(height: 8),
               const _SearchBar(),
@@ -36,17 +29,16 @@ class PatientRecords extends StatelessWidget {
               const LastPatientsCard(),
               const SizedBox(height: 16),
               const UpcomingPatientCard(),
-              const SizedBox(height: 16),
+              // ------ "All Patients" section (same rhythm as other screens) ------
+              const SizedBox(height: 28),                         // more breathing room above heading
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'All Patients',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 22,                     // now matches appointment section headings
-                      fontWeight: FontWeight.w300,
-                      fontFamily: _patientHeadingFontFamily,
+                    style: AppColors.pageHeading.copyWith(
+                      fontSize: 18,                               // smaller, consistent
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   GestureDetector(
@@ -61,19 +53,19 @@ class PatientRecords extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: AppColors.slateBlue,
+                        color: AppColors.chartBarLight,           // accent-blue fill (matches + buttons)
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.add,
-                              color: AppColors.textPrimary, size: 18),
+                              color: Colors.white, size: 18),     // white icon
                           SizedBox(width: 4),
                           Text(
                             'Add',
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: Colors.white,                // white text
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -84,7 +76,7 @@ class PatientRecords extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 8),                           // tighter gap to list below
               const Expanded(
                 child: _PatientsList(),
               ),
@@ -116,11 +108,15 @@ class _SearchBar extends StatelessWidget {
           SizedBox(width: 8),
           Expanded(
             child: TextField(
-              style: TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              style: AppColors.bodyMedium,
               decoration: InputDecoration(
                 hintText: 'Search patient...',
-                hintStyle:
-                    TextStyle(color: AppColors.textSecondary, fontSize: 14),
+                hintStyle: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.textSecondary,
+                ),
                 border: InputBorder.none,
               ),
             ),
@@ -361,19 +357,15 @@ class _PatientTile extends StatelessWidget {
                     children: [
                       Text(
                         data.name,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: AppColors.bodyLarge.copyWith(
                           fontSize: 18,
-                          fontWeight: FontWeight.w600,    // patient names kept original
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${data.gender[0]}, ${data.age}  •  ${data.lastVisit}',
-                        style: const TextStyle(
-                          color: AppColors.textSecondary,
-                          fontSize: 11,
-                        ),
+                        style: AppColors.bodySmall.copyWith(fontSize: 11),
                       ),
                     ],
                   ),

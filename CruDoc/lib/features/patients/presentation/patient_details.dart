@@ -1,34 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
 const Color _accentAmber = Color(0xFFF2B84B);
 
 class PatientDetailsPage extends StatelessWidget {
-  final String name;
-  final int age;
-  final String gender;
-  final String condition;
-  final String address;
-  final String contact;
-  final String secondContact;
-  final int sessionsAttended;
-  final String lastVisit;
+  final Patient patient;
   final String? doctorsNote;
 
   const PatientDetailsPage({
     super.key,
-    required this.name,
-    required this.age,
-    required this.gender,
-    required this.condition,
-    required this.address,
-    required this.contact,
-    required this.secondContact,
-    required this.sessionsAttended,
-    required this.lastVisit,
+    required this.patient,
     this.doctorsNote,
   });
 
@@ -38,90 +23,82 @@ class PatientDetailsPage extends StatelessWidget {
       backgroundColor: Colors.transparent,
       body: ShellBackground(
         child: SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                const _TopBar(),
-                Expanded(
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-                    physics: const ClampingScrollPhysics(),
-                    children: [
-                      _PatientHeader(
-                        name: name,
-                        age: age,
-                        gender: gender,
-                        condition: condition,
-                      ),
-                      const SizedBox(height: 20),
-                      _DoctorsNoteCard(note: doctorsNote),
-                      const SizedBox(height: 24),
-                      _StatsRow(
-                        sessionsAttended: sessionsAttended,
-                        lastVisit: lastVisit,
-                      ),
-                      const SizedBox(height: 24),
-                      const _SectionLabel(text: 'CONTACT & LOCATION'),
-                      const SizedBox(height: 12),
-                      _ContactCard(
-                        address: address,
-                        contact: contact,
-                        secondContact: secondContact,
-                      ),
-                      const SizedBox(height: 24),
-                      const _SectionLabel(text: 'SESSION HISTORY'),
-                      const SizedBox(height: 12),
-                      const _SessionHistorySection(
-                        sessions: [
-                          _SessionData(
-                            date: 'June 20, 2026',
-                            time: '10:30 AM',
-                            reason: 'Post-op knee mobility session',
-                          ),
-                          _SessionData(
-                            date: 'June 13, 2026',
-                            time: '09:00 AM',
-                            reason: 'Therapeutic ultrasound & review',
-                          ),
-                          _SessionData(
-                            date: 'June 06, 2026',
-                            time: '11:00 AM',
-                            reason: 'Balance & gait re-assessment',
-                          ),
-                          _SessionData(
-                            date: 'May 29, 2026',
-                            time: '02:30 PM',
-                            reason: 'Soft tissue mobilisation',
-                          ),
-                          _SessionData(
-                            date: 'May 22, 2026',
-                            time: '08:00 AM',
-                            reason: 'Postural correction exercises',
-                          ),
-                          _SessionData(
-                            date: 'May 15, 2026',
-                            time: '02:00 PM',
-                            reason: 'Manual therapy — lower back',
-                          ),
-                          _SessionData(
-                            date: 'May 08, 2026',
-                            time: '04:00 PM',
-                            reason: 'Strength training — upper body',
-                          ),
-                          _SessionData(
-                            date: 'April 02, 2026',
-                            time: '09:00 AM',
-                            reason: 'Gait training & balance assessment',
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+          bottom: false,
+          child: Column(
+            children: [
+              const _TopBar(),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  physics: const ClampingScrollPhysics(),
+                  children: [
+                    _PatientHeader(patient: patient),
+                    const SizedBox(height: 20),
+                    _DoctorsNoteCard(note: doctorsNote),
+                    const SizedBox(height: 24),
+                    _StatsRow(
+                      // TODO: replace 0 with real session count when visits are available
+                      sessionsAttended: 0,
+                      lastVisit: _formatRelativeTime(patient.updatedAt),
+                    ),
+                    const SizedBox(height: 24),
+                    const _SectionLabel(text: 'CONTACT'),
+                    const SizedBox(height: 12),
+                    _ContactCard(phone: patient.phone),
+                    const SizedBox(height: 24),
+                    const _SectionLabel(text: 'SESSION HISTORY'),
+                    const SizedBox(height: 12),
+                    const _SessionHistorySection(
+                      sessions: [
+                        _SessionData(
+                          date: 'June 20, 2026',
+                          time: '10:30 AM',
+                          reason: 'Post-op knee mobility session',
+                        ),
+                        _SessionData(
+                          date: 'June 13, 2026',
+                          time: '09:00 AM',
+                          reason: 'Therapeutic ultrasound & review',
+                        ),
+                        _SessionData(
+                          date: 'June 06, 2026',
+                          time: '11:00 AM',
+                          reason: 'Balance & gait re-assessment',
+                        ),
+                        _SessionData(
+                          date: 'May 29, 2026',
+                          time: '02:30 PM',
+                          reason: 'Soft tissue mobilisation',
+                        ),
+                        _SessionData(
+                          date: 'May 22, 2026',
+                          time: '08:00 AM',
+                          reason: 'Postural correction exercises',
+                        ),
+                        _SessionData(
+                          date: 'May 15, 2026',
+                          time: '02:00 PM',
+                          reason: 'Manual therapy — lower back',
+                        ),
+                        _SessionData(
+                          date: 'May 08, 2026',
+                          time: '04:00 PM',
+                          reason: 'Strength training — upper body',
+                        ),
+                        _SessionData(
+                          date: 'April 02, 2026',
+                          time: '09:00 AM',
+                          reason: 'Gait training & balance assessment',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
       bottomNavigationBar: const _BottomActionBar(),
     );
   }
@@ -168,17 +145,8 @@ class _TopBar extends StatelessWidget {
 
 // ---------- Patient Header ----------
 class _PatientHeader extends StatelessWidget {
-  final String name;
-  final int age;
-  final String gender;
-  final String condition;
-
-  const _PatientHeader({
-    required this.name,
-    required this.age,
-    required this.gender,
-    required this.condition,
-  });
+  final Patient patient;
+  const _PatientHeader({required this.patient});
 
   @override
   Widget build(BuildContext context) {
@@ -186,7 +154,7 @@ class _PatientHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          name,
+          patient.fullName,
           style: const TextStyle(
             fontFamily: AppColors.headingFontFamily,
             color: AppColors.textPrimary,
@@ -203,12 +171,13 @@ class _PatientHeader extends StatelessWidget {
           children: [
             _InfoPill(
               icon: Icons.person_outline,
-              label: '$gender, $age yrs',
+              label: '${patient.gender}, ${patient.age} yrs',
             ),
-            _InfoPill(
-              icon: Icons.healing_outlined,
-              label: condition,
-            ),
+            if (patient.diagnosis.isNotEmpty)
+              _InfoPill(
+                icon: Icons.healing_outlined,
+                label: patient.diagnosis,
+              ),
           ],
         ),
       ],
@@ -433,15 +402,9 @@ class _SectionLabel extends StatelessWidget {
 
 // ---------- Contact Card ----------
 class _ContactCard extends StatelessWidget {
-  final String address;
-  final String contact;
-  final String secondContact;
+  final String phone;
 
-  const _ContactCard({
-    required this.address,
-    required this.contact,
-    required this.secondContact,
-  });
+  const _ContactCard({required this.phone});
 
   @override
   Widget build(BuildContext context) {
@@ -452,92 +415,18 @@ class _ContactCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.06)),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Icon(Icons.location_on_outlined,
-                  color: AppColors.silver, size: 18),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  address,
-                  style: AppColors.bodyMedium,
-                ),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 14),
-            child: Divider(
-              height: 1,
-              color: AppColors.textSecondary.withOpacity(0.15),
+          const Icon(Icons.call_outlined, color: AppColors.silver, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              phone.isNotEmpty ? phone : 'No phone number',
+              style: AppColors.bodyMedium,
             ),
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: _MiniContactTile(
-                  icon: Icons.call_outlined,
-                  label: 'Primary',
-                  value: contact,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _MiniContactTile(
-                  icon: Icons.phone_android_outlined,
-                  label: 'Secondary',
-                  value: secondContact,
-                ),
-              ),
-            ],
           ),
         ],
       ),
-    );
-  }
-}
-
-class _MiniContactTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _MiniContactTile({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 14, color: AppColors.silver),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: AppColors.bodySmall.copyWith(fontSize: 11),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: AppColors.bodyMeta.copyWith(
-            fontWeight: FontWeight.w500,
-            color: AppColors.textPrimary,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
     );
   }
 }
@@ -767,5 +656,30 @@ class _BottomActionBar extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------- Helper: relative time ----------
+String _formatRelativeTime(DateTime dateTime) {
+  final now = DateTime.now();
+  final difference = now.difference(dateTime);
+
+  if (difference.inSeconds < 60) {
+    return 'Just now';
+  } else if (difference.inMinutes < 60) {
+    final mins = difference.inMinutes;
+    return '$mins ${mins == 1 ? 'minute' : 'minutes'} ago';
+  } else if (difference.inHours < 24) {
+    final hours = difference.inHours;
+    return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+  } else if (difference.inDays < 30) {
+    final days = difference.inDays;
+    return '$days ${days == 1 ? 'day' : 'days'} ago';
+  } else if (difference.inDays < 365) {
+    final months = (difference.inDays / 30).floor();
+    return '$months ${months == 1 ? 'month' : 'months'} ago';
+  } else {
+    final years = (difference.inDays / 365).floor();
+    return '$years ${years == 1 ? 'year' : 'years'} ago';
   }
 }

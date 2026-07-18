@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/widgets/last_patient.dart';
 import 'package:doctor_management_app/features/patients/widgets/upcoming_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
-import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});
@@ -89,8 +91,27 @@ class PatientRecords extends StatelessWidget {
 }
 
 // ---------- SEARCH BAR ----------
-class _SearchBar extends StatelessWidget {
+class _SearchBar extends ConsumerStatefulWidget {
   const _SearchBar();
+
+  @override
+  ConsumerState<_SearchBar> createState() => _SearchBarState();
+}
+
+class _SearchBarState extends ConsumerState<_SearchBar> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -101,15 +122,20 @@ class _SearchBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
       ),
-      child: const Row(
+      child: Row(
         children: [
-          SizedBox(width: 12),
-          Icon(Icons.search, color: AppColors.silver, size: 20),
-          SizedBox(width: 8),
+          const SizedBox(width: 12),
+          const Icon(Icons.search, color: AppColors.silver, size: 20),
+          const SizedBox(width: 8),
           Expanded(
             child: TextField(
+              controller: _controller,
               style: AppColors.bodyMedium,
-              decoration: InputDecoration(
+              onChanged: (value) {
+                ref.read(searchQueryProvider.notifier).state = value;
+                setState(() {});
+              },
+              decoration: const InputDecoration(
                 hintText: 'Search patient...',
                 hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
@@ -121,201 +147,76 @@ class _SearchBar extends StatelessWidget {
               ),
             ),
           ),
+          if (_controller.text.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              color: AppColors.silver,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+              onPressed: () {
+                _controller.clear();
+                ref.read(searchQueryProvider.notifier).state = '';
+                setState(() {});
+              },
+            ),
+          const SizedBox(width: 8),
         ],
       ),
     );
   }
 }
 
-// ---------- PATIENTS LIST ----------
-class _PatientsList extends StatelessWidget {
+// ---------- PATIENTS LIST (real data, reactive) ----------
+class _PatientsList extends ConsumerWidget {
   const _PatientsList();
 
-  static const List<_PatientData> _patients = [
-    _PatientData(
-      name: 'Emily Clark',
-      age: 32,
-      gender: 'Female',
-      condition: 'Hypertension',
-      address: '123 Oak Street, Springfield',
-      contact: '+1 (555) 123-4567',
-      secondContact: '+1 (555) 987-6543',
-      sessionsAttended: 12,
-      lastVisit: '2 hours ago',
-    ),
-    _PatientData(
-      name: 'Michael Brown',
-      age: 45,
-      gender: 'Male',
-      condition: 'Diabetes Type 2',
-      address: '456 Maple Ave, Shelbyville',
-      contact: '+1 (555) 234-5678',
-      secondContact: '+1 (555) 876-5432',
-      sessionsAttended: 8,
-      lastVisit: '1 day ago',
-    ),
-    _PatientData(
-      name: 'Sophia Lee',
-      age: 29,
-      gender: 'Female',
-      condition: 'Asthma',
-      address: '789 Pine Road, Capital City',
-      contact: '+1 (555) 345-6789',
-      secondContact: '+1 (555) 765-4321',
-      sessionsAttended: 5,
-      lastVisit: '3 days ago',
-    ),
-    _PatientData(
-      name: 'James Wilson',
-      age: 56,
-      gender: 'Male',
-      condition: 'Arthritis',
-      address: '321 Elm St, Ogdenville',
-      contact: '+1 (555) 456-7890',
-      secondContact: '+1 (555) 654-3210',
-      sessionsAttended: 20,
-      lastVisit: '5 days ago',
-    ),
-    _PatientData(
-      name: 'Olivia Martinez',
-      age: 41,
-      gender: 'Female',
-      condition: 'Migraine',
-      address: '654 Cedar Lane, North Haverbrook',
-      contact: '+1 (555) 567-8901',
-      secondContact: '+1 (555) 543-2109',
-      sessionsAttended: 15,
-      lastVisit: '1 week ago',
-    ),
-    _PatientData(
-      name: 'Liam Johnson',
-      age: 27,
-      gender: 'Male',
-      condition: 'Allergies',
-      address: '987 Birch Blvd, Brockway',
-      contact: '+1 (555) 678-9012',
-      secondContact: '+1 (555) 432-1098',
-      sessionsAttended: 3,
-      lastVisit: '2 weeks ago',
-    ),
-    _PatientData(
-      name: 'Ava Thompson',
-      age: 38,
-      gender: 'Female',
-      condition: 'Thyroid Disorder',
-      address: '246 Spruce Way, Springfield',
-      contact: '+1 (555) 789-0123',
-      secondContact: '+1 (555) 321-0987',
-      sessionsAttended: 10,
-      lastVisit: '3 weeks ago',
-    ),
-    _PatientData(
-      name: 'Noah Garcia',
-      age: 62,
-      gender: 'Male',
-      condition: 'Heart Disease',
-      address: '135 Walnut Dr, Capital City',
-      contact: '+1 (555) 890-1234',
-      secondContact: '+1 (555) 210-9876',
-      sessionsAttended: 25,
-      lastVisit: '1 month ago',
-    ),
-    _PatientData(
-      name: 'Isabella Davis',
-      age: 33,
-      gender: 'Female',
-      condition: 'Anxiety',
-      address: '864 Chestnut Ct, Ogdenville',
-      contact: '+1 (555) 901-2345',
-      secondContact: '+1 (555) 109-8765',
-      sessionsAttended: 7,
-      lastVisit: '1 month ago',
-    ),
-    _PatientData(
-      name: 'Ethan Miller',
-      age: 48,
-      gender: 'Male',
-      condition: 'Back Pain',
-      address: '753 Ash Ave, Shelbyville',
-      contact: '+1 (555) 012-3456',
-      secondContact: '+1 (555) 098-7654',
-      sessionsAttended: 14,
-      lastVisit: '2 months ago',
-    ),
-    _PatientData(
-      name: 'Mia Rodriguez',
-      age: 25,
-      gender: 'Female',
-      condition: 'Eczema',
-      address: '951 Poplar St, North Haverbrook',
-      contact: '+1 (555) 123-4560',
-      secondContact: '+1 (555) 987-6540',
-      sessionsAttended: 2,
-      lastVisit: '2 months ago',
-    ),
-    _PatientData(
-      name: 'Alexander Moore',
-      age: 39,
-      gender: 'Male',
-      condition: 'Insomnia',
-      address: '357 Magnolia Rd, Brockway',
-      contact: '+1 (555) 234-5670',
-      secondContact: '+1 (555) 876-5430',
-      sessionsAttended: 9,
-      lastVisit: '3 months ago',
-    ),
-    _PatientData(
-      name: 'Charlotte Taylor',
-      age: 44,
-      gender: 'Female',
-      condition: 'Obesity',
-      address: '159 Dogwood Ln, Springfield',
-      contact: '+1 (555) 345-6780',
-      secondContact: '+1 (555) 765-4320',
-      sessionsAttended: 11,
-      lastVisit: '3 months ago',
-    ),
-    _PatientData(
-      name: 'Benjamin Anderson',
-      age: 51,
-      gender: 'Male',
-      condition: 'High Cholesterol',
-      address: '753 Fir Ave, Capital City',
-      contact: '+1 (555) 456-7891',
-      secondContact: '+1 (555) 654-3219',
-      sessionsAttended: 18,
-      lastVisit: '4 months ago',
-    ),
-    _PatientData(
-      name: 'Amelia Jackson',
-      age: 36,
-      gender: 'Female',
-      condition: 'Pregnancy (2nd trimester)',
-      address: '852 Redwood St, Ogdenville',
-      contact: '+1 (555) 567-8902',
-      secondContact: '+1 (555) 543-2108',
-      sessionsAttended: 4,
-      lastVisit: '5 months ago',
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context) {
-    return ListView.builder(
-      padding: EdgeInsets.zero,
-      physics: const ClampingScrollPhysics(),
-      itemExtent: 82.0,
-      itemCount: _patients.length,
-      itemBuilder: (context, index) =>
-          _PatientTile(data: _patients[index]),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final patientsAsync = ref.watch(filteredPatientsProvider);
+    final searchQuery = ref.watch(searchQueryProvider);
+
+    return patientsAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) => Center(
+        child: Text(
+          'Error loading patients: $error',
+          style: AppColors.bodyMedium,
+        ),
+      ),
+      data: (patients) {
+        if (patients.isEmpty) {
+          final message = searchQuery.isEmpty
+              ? 'No patients yet — tap Add to create one'
+              : 'No matches';
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                message,
+                style: AppColors.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        return ListView.builder(
+          padding: EdgeInsets.zero,
+          physics: const ClampingScrollPhysics(),
+          itemExtent: 82.0,
+          itemCount: patients.length,
+          itemBuilder: (context, index) =>
+              _PatientTile(patient: patients[index]),
+        );
+      },
     );
   }
 }
 
-// ---------- PATIENT TILE ----------
+// ---------- PATIENT TILE (real Patient model) ----------
 class _PatientTile extends StatelessWidget {
-  final _PatientData data;
-  const _PatientTile({required this.data});
+  final Patient patient;
+  const _PatientTile({required this.patient});
 
   @override
   Widget build(BuildContext context) {
@@ -330,17 +231,7 @@ class _PatientTile extends StatelessWidget {
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => PatientDetailsPage(
-                  name: data.name,
-                  age: data.age,
-                  gender: data.gender,
-                  condition: data.condition,
-                  address: data.address,
-                  contact: data.contact,
-                  secondContact: data.secondContact,
-                  sessionsAttended: data.sessionsAttended,
-                  lastVisit: data.lastVisit,
-                ),
+                builder: (_) => PatientDetailsPage(patient: patient),
               ),
             );
           },
@@ -356,7 +247,7 @@ class _PatientTile extends StatelessWidget {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        data.name,
+                        patient.fullName,
                         style: AppColors.bodyLarge.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
@@ -364,7 +255,7 @@ class _PatientTile extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '${data.gender[0]}, ${data.age}  •  ${data.lastVisit}',
+                        '${patient.gender.isNotEmpty ? patient.gender[0] : ''}, ${patient.age}  •  ${_formatRelativeTime(patient.updatedAt)}',
                         style: AppColors.bodySmall.copyWith(fontSize: 11),
                       ),
                     ],
@@ -380,27 +271,27 @@ class _PatientTile extends StatelessWidget {
   }
 }
 
-// ---------- DATA CLASS ----------
-class _PatientData {
-  final String name;
-  final int age;
-  final String gender;
-  final String condition;
-  final String address;
-  final String contact;
-  final String secondContact;
-  final int sessionsAttended;
-  final String lastVisit;
+// ---------- HELPER: relative time formatting ----------
+String _formatRelativeTime(DateTime dateTime) {
+  final now = DateTime.now();
+  final difference = now.difference(dateTime);
 
-  const _PatientData({
-    required this.name,
-    required this.age,
-    required this.gender,
-    required this.condition,
-    required this.address,
-    required this.contact,
-    required this.secondContact,
-    required this.sessionsAttended,
-    required this.lastVisit,
-  });
+  if (difference.inSeconds < 60) {
+    return 'Just now';
+  } else if (difference.inMinutes < 60) {
+    final mins = difference.inMinutes;
+    return '$mins ${mins == 1 ? 'minute' : 'minutes'} ago';
+  } else if (difference.inHours < 24) {
+    final hours = difference.inHours;
+    return '$hours ${hours == 1 ? 'hour' : 'hours'} ago';
+  } else if (difference.inDays < 30) {
+    final days = difference.inDays;
+    return '$days ${days == 1 ? 'day' : 'days'} ago';
+  } else if (difference.inDays < 365) {
+    final months = (difference.inDays / 30).floor();
+    return '$months ${months == 1 ? 'month' : 'months'} ago';
+  } else {
+    final years = (difference.inDays / 365).floor();
+    return '$years ${years == 1 ? 'year' : 'years'} ago';
+  }
 }

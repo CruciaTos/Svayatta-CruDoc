@@ -37,6 +37,18 @@ class Patient {
   /// Convenience getter for display purposes.
   String get fullName => '$firstName $lastName';
 
+  /// Current age in years, computed from [dateOfBirth].
+  int get age {
+    final today = DateTime.now();
+    var years = today.year - dateOfBirth.year;
+    final hasHadBirthdayThisYear =
+        today.month > dateOfBirth.month ||
+        (today.month == dateOfBirth.month && today.day >= dateOfBirth.day);
+
+    if (!hasHadBirthdayThisYear) years--;
+    return years < 0 ? 0 : years;
+  }
+
   /// Builds a [Patient] from a Firestore document snapshot.
   factory Patient.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? <String, dynamic>{};

@@ -30,6 +30,8 @@ class VisitLocalService {
       StreamController<List<Visit>>.broadcast();
   final Map<String, StreamController<List<Visit>>> _patientVisitControllers =
       <String, StreamController<List<Visit>>>{};
+  final StreamController<Map<String, Visit>> _lastVisitPerPatientController =
+      StreamController<Map<String, Visit>>.broadcast();
 
   Future<String> upsertVisit(
     Visit visit, {
@@ -111,6 +113,14 @@ class VisitLocalService {
     return controller.stream;
   }
 
+  /// Streams patientId -> their most recent visit that has already
+  /// occurred (scheduledStart <= now, non-deleted). Used to power
+  /// "last patient seen" summaries without an N+1 query per patient.
+  Stream<Map<String, Visit>> watchLastVisitPerPatient() {
+    Future<void>.microtask(_emitLastVisitPerPatient);
+    return _lastVisitPerPatientController.stream;
+  }
+
   Future<List<Visit>> findOverlapping({
     required DateTime start,
     required DateTime end,
@@ -155,12 +165,37 @@ class VisitLocalService {
 
   Future<void> _emitAll() async {
     await _emitUpcomingVisits();
+    await _emitLastVisitPerPatient();
     for (final key in _patientVisitControllers.keys) {
       final parsed = _parsePatientStreamKey(key);
       await _emitVisitsForPatient(
         parsed.patientId,
         includeDeleted: parsed.includeDeleted,
       );
+    }
+  }
+
+  Future<void> _emitLastVisitPerPatient() async {
+    if (_lastVisitPerPatientController.isClosed) return;
+
+    final db = await _databaseService.database;
+    final rows = await db.query(
+      'visits',
+      where: 'isActive = 1 AND isDeleted = 0 AND scheduledStart <= ?',
+      whereArgs: [_dateTimeToMillis(DateTime.now())],
+      orderBy: 'scheduledStart DESC',
+    );
+
+    final result = <String, Visit>{};
+    for (final row in rows) {
+      final visit = _fromRow(row);
+      // Rows are ordered most-recent-first, so the first time a patientId
+      // is seen here is already their latest past visit.
+      result.putIfAbsent(visit.patientId, () => visit);
+    }
+
+    if (!_lastVisitPerPatientController.isClosed) {
+      _lastVisitPerPatientController.add(result);
     }
   }
 

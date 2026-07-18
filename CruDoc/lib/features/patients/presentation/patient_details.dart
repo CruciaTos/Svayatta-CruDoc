@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
 const Color _accentAmber = Color(0xFFF2B84B);
 
-class PatientDetailsPage extends StatelessWidget {
+class PatientDetailsPage extends ConsumerWidget {
   final Patient patient;
   final String? doctorsNote;
 
@@ -18,7 +22,9 @@ class PatientDetailsPage extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visitsAsync = ref.watch(visitsForPatientProvider(patient.id));
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: ShellBackground(
@@ -36,10 +42,31 @@ class PatientDetailsPage extends StatelessWidget {
                     const SizedBox(height: 20),
                     _DoctorsNoteCard(note: doctorsNote),
                     const SizedBox(height: 24),
-                    _StatsRow(
-                      // TODO: replace 0 with real session count when visits are available
-                      sessionsAttended: 0,
-                      lastVisit: _formatRelativeTime(patient.updatedAt),
+                    visitsAsync.when(
+                      loading: () => const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(child: CircularProgressIndicator()),
+                      ),
+                      error: (error, stack) => Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          'Could not load visit history',
+                          style: AppColors.bodyMedium,
+                        ),
+                      ),
+                      data: (visits) {
+                        final completedCount = visits
+                            .where((v) => v.status == VisitStatus.completed)
+                            .length;
+                        final lastVisitLabel = visits.isEmpty
+                            ? 'No visits yet'
+                            : _formatRelativeTime(visits.first.scheduledStart);
+
+                        return _StatsRow(
+                          sessionsAttended: completedCount,
+                          lastVisit: lastVisitLabel,
+                        );
+                      },
                     ),
                     const SizedBox(height: 24),
                     const _SectionLabel(text: 'CONTACT'),
@@ -48,49 +75,33 @@ class PatientDetailsPage extends StatelessWidget {
                     const SizedBox(height: 24),
                     const _SectionLabel(text: 'SESSION HISTORY'),
                     const SizedBox(height: 12),
-                    const _SessionHistorySection(
-                      sessions: [
-                        _SessionData(
-                          date: 'June 20, 2026',
-                          time: '10:30 AM',
-                          reason: 'Post-op knee mobility session',
-                        ),
-                        _SessionData(
-                          date: 'June 13, 2026',
-                          time: '09:00 AM',
-                          reason: 'Therapeutic ultrasound & review',
-                        ),
-                        _SessionData(
-                          date: 'June 06, 2026',
-                          time: '11:00 AM',
-                          reason: 'Balance & gait re-assessment',
-                        ),
-                        _SessionData(
-                          date: 'May 29, 2026',
-                          time: '02:30 PM',
-                          reason: 'Soft tissue mobilisation',
-                        ),
-                        _SessionData(
-                          date: 'May 22, 2026',
-                          time: '08:00 AM',
-                          reason: 'Postural correction exercises',
-                        ),
-                        _SessionData(
-                          date: 'May 15, 2026',
-                          time: '02:00 PM',
-                          reason: 'Manual therapy — lower back',
-                        ),
-                        _SessionData(
-                          date: 'May 08, 2026',
-                          time: '04:00 PM',
-                          reason: 'Strength training — upper body',
-                        ),
-                        _SessionData(
-                          date: 'April 02, 2026',
-                          time: '09:00 AM',
-                          reason: 'Gait training & balance assessment',
-                        ),
-                      ],
+                    visitsAsync.when(
+                      loading: () => const SizedBox.shrink(),
+                      error: (error, stack) => const SizedBox.shrink(),
+                      data: (visits) {
+                        if (visits.isEmpty) {
+                          return Text(
+                            'No sessions recorded yet.',
+                            style: AppColors.bodyMedium,
+                          );
+                        }
+                        return _SessionHistorySection(
+                          sessions: visits.map((visit) {
+                            final hasTreatment =
+                                visit.treatmentType?.trim().isNotEmpty ??
+                                    false;
+                            return _SessionData(
+                              date: DateFormat.yMMMd()
+                                  .format(visit.scheduledStart),
+                              time:
+                                  DateFormat.jm().format(visit.scheduledStart),
+                              reason: hasTreatment
+                                  ? visit.treatmentType!
+                                  : '${_readableStatus(visit.status)} visit',
+                            );
+                          }).toList(),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -657,6 +668,14 @@ class _BottomActionBar extends StatelessWidget {
       ),
     );
   }
+}
+
+// ---------- Helper: readable status fallback (used when a visit has no
+// treatmentType set) ----------
+String _readableStatus(VisitStatus status) {
+  final raw = status.value;
+  if (raw.isEmpty) return raw;
+  return raw[0].toUpperCase() + raw.substring(1);
 }
 
 // ---------- Helper: relative time ----------

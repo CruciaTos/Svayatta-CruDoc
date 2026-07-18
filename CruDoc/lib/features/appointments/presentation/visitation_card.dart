@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
-    show staticMapUrlFor;
+    show staticMapUrlFor, VisitStatus;
 
 const String _defaultMapAsset = 'assets/images/default_map.png';
 
@@ -18,6 +18,13 @@ class VisitCard extends StatelessWidget {
   final String? mapsLink;
   final void Function(String url) onMapTap;
 
+  // --- Phase 3 additions ---
+  final VisitStatus status;
+  final VoidCallback? onTap;
+  final VoidCallback? onMarkCompleted;
+  final VoidCallback? onCancel;
+  final VoidCallback? onDelete;
+
   const VisitCard({
     super.key,
     required this.patientName,
@@ -30,6 +37,11 @@ class VisitCard extends StatelessWidget {
     this.longitude,
     this.mapsLink,
     required this.onMapTap,
+    required this.status,
+    this.onTap,
+    this.onMarkCompleted,
+    this.onCancel,
+    this.onDelete,
   });
 
   String get _destinationUrl {
@@ -48,123 +60,224 @@ class VisitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      height: 280,
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(36),
-      ),
-      child: Stack(
-        children: [
-          // --- Patient name (top‑left) ---
-          Positioned(
-            top: 12,
-            left: 12,
-            child: Text(
-              patientName,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 26,
-                fontWeight: FontWeight.w600,
-                fontFamily: AppColors.headingFontFamily,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        height: 280,
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: AppColors.cardSurface,
+          borderRadius: BorderRadius.circular(36),
+        ),
+        child: Stack(
+          children: [
+            // --- Patient name (top‑left) ---
+            Positioned(
+              top: 12,
+              left: 12,
+              right: 50, // room for popup menu
+              child: Text(
+                patientName,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: AppColors.headingFontFamily,
+                ),
               ),
             ),
-          ),
 
-          // --- Date & Day (below name) ---
-          Positioned(
-            top: 52,
-            left: 12,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.calendar_today, size: 16, color: Colors.black),
-                const SizedBox(width: 4),
-                Text(
-                  '$date  •  $day',
-                  style: AppColors.bodyMeta,
-                ),
-              ],
-            ),
-          ),
-
-          // --- Time & Duration (below date) ---
-          Positioned(
-            top: 76,
-            left: 12,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.access_time, size: 16, color: Colors.black),
-                const SizedBox(width: 6),
-                Text(
-                  '$time  •  $duration',
-                  style: AppColors.bodyMeta,
-                ),
-              ],
-            ),
-          ),
-
-          // --- Address (below time) ---
-          Positioned(
-            top: 100,
-            left: 12,
-            right: 12,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Icons.location_on, size: 16, color: Colors.black),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    address,
-                    style: AppColors.bodyMeta,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+            // --- Status badge & PopupMenuButton (top‑right) ---
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _statusColor(status),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      _statusLabel(status),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(width: 4),
+                  if (onMarkCompleted != null ||
+                      onCancel != null ||
+                      onDelete != null)
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.more_vert,
+                          color: AppColors.textSecondary, size: 20),
+                      color: AppColors.cardSurface,
+                      itemBuilder: (context) => [
+                        if (onMarkCompleted != null)
+                          const PopupMenuItem(
+                            value: 'complete',
+                            child: Text('Mark Completed'),
+                          ),
+                        if (onCancel != null)
+                          const PopupMenuItem(
+                            value: 'cancel',
+                            child: Text('Cancel Visit'),
+                          ),
+                        if (onDelete != null)
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: Text('Delete Visit'),
+                          ),
+                      ],
+                      onSelected: (value) {
+                        switch (value) {
+                          case 'complete':
+                            onMarkCompleted?.call();
+                            break;
+                          case 'cancel':
+                            onCancel?.call();
+                            break;
+                          case 'delete':
+                            onDelete?.call();
+                            break;
+                        }
+                      },
+                    ),
+                ],
+              ),
             ),
-          ),
 
-          // --- Map preview / open-in-maps button ---
-          Positioned(
-            left: 4,
-            right: 4,
-            bottom: 4,
-            child: GestureDetector(
-              onTap: () => onMapTap(_destinationUrl),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: SizedBox(
-                  height: 120,
-                  child: Stack(
-                    children: [
-                      _buildMapContent(),
-                      Positioned.fill(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(28),
-                            border: Border.all(
-                              color: Colors.black,
-                              width: 2,
+            // --- Date & Day (below name) ---
+            Positioned(
+              top: 52,
+              left: 12,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.calendar_today,
+                      size: 16, color: Colors.black),
+                  const SizedBox(width: 4),
+                  Text(
+                    '$date  •  $day',
+                    style: AppColors.bodyMeta,
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Time & Duration (below date) ---
+            Positioned(
+              top: 76,
+              left: 12,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.access_time,
+                      size: 16, color: Colors.black),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$time  •  $duration',
+                    style: AppColors.bodyMeta,
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Address (below time) ---
+            Positioned(
+              top: 100,
+              left: 12,
+              right: 12,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.location_on,
+                      size: 16, color: Colors.black),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      address,
+                      style: AppColors.bodyMeta,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // --- Map preview / open-in-maps button ---
+            Positioned(
+              left: 4,
+              right: 4,
+              bottom: 4,
+              child: GestureDetector(
+                onTap: () => onMapTap(_destinationUrl),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(28),
+                  child: SizedBox(
+                    height: 120,
+                    child: Stack(
+                      children: [
+                        _buildMapContent(),
+                        Positioned.fill(
+                          child: Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(28),
+                              border: Border.all(
+                                color: Colors.black,
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  // ---------- Status badge helpers ----------
+  Color _statusColor(VisitStatus status) {
+    switch (status) {
+      case VisitStatus.scheduled:
+        return Colors.blue;
+      case VisitStatus.completed:
+        return Colors.green;
+      case VisitStatus.cancelled:
+        return Colors.orange;
+      case VisitStatus.missed:
+        return Colors.red;
+    }
+  }
+
+  String _statusLabel(VisitStatus status) {
+    switch (status) {
+      case VisitStatus.scheduled:
+        return 'Scheduled';
+      case VisitStatus.completed:
+        return 'Completed';
+      case VisitStatus.cancelled:
+        return 'Cancelled';
+      case VisitStatus.missed:
+        return 'Missed';
+    }
+  }
+
+  // ---------- Map content (unchanged) ----------
   Widget _buildMapContent() {
     final mapImageUrl = staticMapUrlFor(latitude: latitude, longitude: longitude);
     if (mapImageUrl == null) {

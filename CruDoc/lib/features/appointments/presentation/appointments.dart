@@ -9,42 +9,12 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
-// ---------- DATA MODELS ----------
-class Visit {
-  final String patientName;
-  final String date;
-  final String day;
-  final String time;
-  final String duration;
-  final String address;
-  final double? latitude;
-  final double? longitude;
-  final String? mapsLink;
-  const Visit({
-    required this.patientName,
-    required this.date,
-    required this.day,
-    required this.time,
-    required this.duration,
-    required this.address,
-    this.latitude,
-    this.longitude,
-    this.mapsLink,
-  });
-}
+// Import the provider that exposes VisitWithPatient and the stream
+import 'package:doctor_management_app/features/appointments/providers/visits_providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class OnlineSession {
-  final String title;
-  final String date;
-  final String time;
-  final String link;
-  const OnlineSession({
-    required this.title,
-    required this.date,
-    required this.time,
-    required this.link,
-  });
-}
+// NEW import for VisitDetailsPage
+import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
 
 // ---------- SHARED DIALOG FORM HELPERS ----------
 Widget _buildTextField(String label, TextEditingController controller,
@@ -161,7 +131,14 @@ Widget _buildPickTimeButton(
 
 Widget _buildDurationDropdown(
     String currentValue, ValueChanged<String?> onChanged) {
-  const durations = ['15 min', '30 min', '45 min', '60 min', '90 min', '120 min'];
+  const durations = [
+    '15 min',
+    '30 min',
+    '45 min',
+    '60 min',
+    '90 min',
+    '120 min'
+  ];
   return SizedBox(
     height: 48,
     width: double.infinity,
@@ -192,15 +169,33 @@ Widget _buildDurationDropdown(
 // ---------- FORMAT HELPERS ----------
 String _monthName(int month) {
   const months = [
-    '', 'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    '',
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December'
   ];
   return months[month];
 }
 
 String _dayName(int weekday) {
   const days = [
-    '', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+    '',
+    'Monday',
+    'Tuesday',
+    'Wednesday',
+    'Thursday',
+    'Friday',
+    'Saturday',
+    'Sunday'
   ];
   return days[weekday];
 }
@@ -225,50 +220,38 @@ class _VisitDraft {
   });
 }
 
-// ---------- EVENTS SCREEN ----------
-class EventsScreen extends StatefulWidget {
-  const EventsScreen({super.key});
-  @override
-  State<EventsScreen> createState() => _EventsScreenState();
+// ---------- ONLINE SESSION DATA MODEL ----------
+class OnlineSession {
+  final String title;
+  final String date;
+  final String time;
+  final String link;
+  const OnlineSession({
+    required this.title,
+    required this.date,
+    required this.time,
+    required this.link,
+  });
 }
 
-class _EventsScreenState extends State<EventsScreen> {
+// ---------- EVENTS SCREEN ----------
+class EventsScreen extends ConsumerStatefulWidget {
+  const EventsScreen({super.key});
+  @override
+  ConsumerState<EventsScreen> createState() => _EventsScreenState();
+}
+
+class _EventsScreenState extends ConsumerState<EventsScreen> {
   final VisitRepository _visitRepository = VisitRepository();
   final PatientRepository _patientRepository = PatientRepository();
 
+  // Online sessions still use local state (no backend)
   List<OnlineSession> onlineSessions = [
     const OnlineSession(
       title: 'Monthly Webinar: Patient Care',
       date: 'July 18, 2026',
       time: '11:00 AM',
       link: 'https://meet.google.com/abc-defg-hij',
-    ),
-  ];
-
-  List<Visit> upcomingVisits = [
-    const Visit(
-      patientName: 'Emily Clark',
-      date: 'July 15, 2026',
-      day: 'Tuesday',
-      time: '10:30 AM',
-      duration: '45 min',
-      address: '123 Oak Street, Springfield',
-    ),
-    const Visit(
-      patientName: 'Michael Brown',
-      date: 'July 16, 2026',
-      day: 'Wednesday',
-      time: '02:00 PM',
-      duration: '60 min',
-      address: '456 Maple Ave, Shelbyville',
-    ),
-    const Visit(
-      patientName: 'Sophia Lee',
-      date: 'July 20, 2026',
-      day: 'Sunday',
-      time: '09:30 AM',
-      duration: '30 min',
-      address: '789 Pine Road, Capital City',
     ),
   ];
 
@@ -313,15 +296,15 @@ class _EventsScreenState extends State<EventsScreen> {
                   children: [
                     _buildTextField('Title', titleController),
                     const SizedBox(height: 12),
-                    _buildPickDateButton(context, selectedDate,
-                        (picked) {
-                          if (picked != null) setDialogState(() => selectedDate = picked);
-                        }),
+                    _buildPickDateButton(context, selectedDate, (picked) {
+                      if (picked != null)
+                        setDialogState(() => selectedDate = picked);
+                    }),
                     const SizedBox(height: 12),
-                    _buildPickTimeButton(context, selectedTime,
-                        (picked) {
-                          if (picked != null) setDialogState(() => selectedTime = picked);
-                        }),
+                    _buildPickTimeButton(context, selectedTime, (picked) {
+                      if (picked != null)
+                        setDialogState(() => selectedTime = picked);
+                    }),
                     const SizedBox(height: 12),
                     _buildTextField('Meeting Link (URL)', linkController,
                         hint: 'https://meet.google.com/...'),
@@ -335,7 +318,8 @@ class _EventsScreenState extends State<EventsScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () {
-                    if (titleController.text.isNotEmpty && linkController.text.isNotEmpty) {
+                    if (titleController.text.isNotEmpty &&
+                        linkController.text.isNotEmpty) {
                       Navigator.pop(context, true);
                     }
                   },
@@ -383,7 +367,8 @@ class _EventsScreenState extends State<EventsScreen> {
         includeArchived: false,
       );
       final exactMatches = matches
-          .where((p) => p.fullName.toLowerCase() == draft.typedName.toLowerCase())
+          .where(
+              (p) => p.fullName.toLowerCase() == draft.typedName.toLowerCase())
           .toList();
       if (exactMatches.length == 1) {
         patient = exactMatches.first;
@@ -450,20 +435,26 @@ class _EventsScreenState extends State<EventsScreen> {
       updatedAt: now,
     );
 
-    vmodel.Visit? savedVisit;
     try {
       final id = await _visitRepository.createVisit(
         visit,
         acknowledgeOverlap: acknowledgeOverlap,
       );
-      savedVisit = await _visitRepository.getVisit(id);
+      // The provider will auto-update the list – no manual setState needed.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Visit added successfully')),
+      );
     } on VisitOverlapWarning catch (e) {
       if (!mounted) return;
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           backgroundColor: const Color.fromARGB(255, 140, 188, 255),
-          title: const Text('Overlapping visit', style: AppColors.sectionHeading),
+          title: const Text(
+            'Overlapping visit',
+            style: AppColors.sectionHeading,
+          ),
           content: Text(
             'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
             style: AppColors.bodyMedium.copyWith(color: Colors.black87),
@@ -494,36 +485,65 @@ class _EventsScreenState extends State<EventsScreen> {
           acknowledgeOverlap: true,
         );
       }
-      return;
     } on VisitException catch (e) {
       _showError(e.message);
-      return;
     } catch (e) {
       _showError('Failed to save visit: $e');
-      return;
     }
+  }
 
-    if (!mounted) return;
-    setState(() {
-      upcomingVisits.add(Visit(
-        patientName: patient.fullName,
-        date: dateStr,
-        day: dayStr,
-        time: timeStr,
-        duration: durationLabel,
-        address: address,
-        latitude: savedVisit?.latitude,
-        longitude: savedVisit?.longitude,
-        mapsLink: savedVisit?.mapsLink ?? mapsLink,
-      ));
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Visit added successfully')),
+  // ---------- Phase 3: Quick actions ----------
+  Future<void> _markCompleted(String visitId) async {
+    try {
+      await _visitRepository.updateStatus(
+          visitId, vmodel.VisitStatus.completed);
+      ref.invalidate(visitsWithPatientsProvider);
+    } catch (e) {
+      _showError('Failed to mark completed: $e');
+    }
+  }
+
+  Future<void> _cancelVisit(String visitId) async {
+    try {
+      await _visitRepository.cancelVisit(visitId);
+      ref.invalidate(visitsWithPatientsProvider);
+    } catch (e) {
+      _showError('Failed to cancel: $e');
+    }
+  }
+
+  Future<void> _deleteVisit(String visitId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Visit'),
+        content: const Text('Are you sure you want to delete this visit?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
+    if (confirmed != true) return;
+    try {
+      await _visitRepository.softDeleteVisit(visitId);
+      ref.invalidate(visitsWithPatientsProvider);
+    } catch (e) {
+      _showError('Failed to delete: $e');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Watch the provider that gives us all visits with their patient data
+    final visitsAsync = ref.watch(visitsWithPatientsProvider);
+
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
@@ -542,7 +562,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   Text(
                     'Upcoming Webinars',
                     style: AppColors.pageHeading.copyWith(
-                      fontSize: 18,                     // smaller size
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -588,7 +608,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   Text(
                     'Upcoming Visits',
                     style: AppColors.pageHeading.copyWith(
-                      fontSize: 18,                     // smaller size
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -611,22 +631,116 @@ class _EventsScreenState extends State<EventsScreen> {
               ),
               const SizedBox(height: 8),
               Expanded(
-                child: ListView.builder(
-                  physics: const ClampingScrollPhysics(),
-                  itemCount: upcomingVisits.length,
-                  itemBuilder: (context, index) {
-                    final visit = upcomingVisits[index];
-                    return VisitCard(
-                      patientName: visit.patientName,
-                      date: visit.date,
-                      day: visit.day,
-                      time: visit.time,
-                      duration: visit.duration,
-                      address: visit.address,
-                      latitude: visit.latitude,
-                      longitude: visit.longitude,
-                      mapsLink: visit.mapsLink,
-                      onMapTap: _launchUrl,
+                child: visitsAsync.when(
+                  loading: () => const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.slateBlue,
+                    ),
+                  ),
+                  error: (error, stack) => Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline,
+                            color: Colors.red, size: 40),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Failed to load visits',
+                          style: AppColors.bodyLarge.copyWith(
+                            color: Colors.red,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          error.toString(),
+                          style: AppColors.bodySmall,
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton(
+                          onPressed: () =>
+                              ref.invalidate(visitsWithPatientsProvider),
+                          child: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  data: (visits) {
+                    final now = DateTime.now();
+                    // Filter: show visits that haven't ended yet AND have a valid patient
+                    final upcoming = visits
+                        .where((vw) =>
+                            vw.patient != null &&
+                            vw.visit.scheduledStart
+                                .add(Duration(
+                                    minutes: vw.visit.durationMinutes))
+                                .isAfter(now))
+                        .toList()
+                      ..sort((a, b) => a.visit.scheduledStart
+                          .compareTo(b.visit.scheduledStart));
+
+                    if (upcoming.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Icon(Icons.event_busy,
+                                color: AppColors.textSecondary, size: 48),
+                            SizedBox(height: 12),
+                            Text(
+                              'No upcoming visits',
+                              style: AppColors.bodyLarge,
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    return ListView.builder(
+                      physics: const ClampingScrollPhysics(),
+                      itemCount: upcoming.length,
+                      itemBuilder: (context, index) {
+                        final vw = upcoming[index];
+                        final visit = vw.visit;
+                        final patient = vw.patient!;
+
+                        // Format date strings for VisitCard
+                        final dateStr =
+                            '${visit.scheduledStart.day} ${_monthName(visit.scheduledStart.month)} ${visit.scheduledStart.year}';
+                        final dayStr =
+                            _dayName(visit.scheduledStart.weekday);
+                        final timeStr =
+                            '${visit.scheduledStart.hour.toString().padLeft(2, '0')}:${visit.scheduledStart.minute.toString().padLeft(2, '0')}';
+                        final durationLabel = '${visit.durationMinutes} min';
+
+                        return VisitCard(
+                          patientName: patient.fullName,
+                          date: dateStr,
+                          day: dayStr,
+                          time: timeStr,
+                          duration: durationLabel,
+                          address: visit.address,
+                          latitude: visit.latitude,
+                          longitude: visit.longitude,
+                          mapsLink: visit.mapsLink,
+                          onMapTap: _launchUrl,
+                          // --- Phase 3 additions ---
+                          status: visit.status,
+                          onTap: () {
+                            // Navigate to VisitDetailsPage with the VisitWithPatient data
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => VisitDetailsPage(initial: vw),
+                              ),
+                            );
+                          },
+                          onMarkCompleted:
+                              () => _markCompleted(visit.id),
+                          onCancel: () => _cancelVisit(visit.id),
+                          onDelete: () => _deleteVisit(visit.id),
+                        );
+                      },
                     );
                   },
                 ),
@@ -639,7 +753,7 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 }
 
-// ---------- ADD VISIT DIALOG (Blue background, light cyan fields) ----------
+// ---------- ADD VISIT DIALOG (address now optional) ----------
 class _AddVisitDialog extends StatefulWidget {
   final PatientRepository patientRepository;
   const _AddVisitDialog({required this.patientRepository});
@@ -709,9 +823,10 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
     });
   }
 
+  // ---------- MODIFIED: address no longer required ----------
   void _submit() {
-    if (_nameController.text.trim().isEmpty ||
-        _addressController.text.trim().isEmpty) {
+    // Only patient name is required
+    if (_nameController.text.trim().isEmpty) {
       return;
     }
     Navigator.pop(
@@ -722,7 +837,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
         scheduledDate: _selectedDate,
         scheduledTime: _selectedTime,
         duration: _selectedDuration,
-        address: _addressController.text.trim(),
+        address: _addressController.text.trim(), // may be empty
         mapsLink: _mapsLinkController.text.trim().isEmpty
             ? null
             : _mapsLinkController.text.trim(),
@@ -732,7 +847,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final visiblePatientMatches = _patientMatches.take(5).toList(growable: false);
+    final visiblePatientMatches =
+        _patientMatches.take(5).toList(growable: false);
 
     return AlertDialog(
       backgroundColor: const Color.fromARGB(255, 140, 188, 255),
@@ -767,7 +883,9 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    for (var i = 0; i < visiblePatientMatches.length; i++) ...[
+                    for (var i = 0;
+                        i < visiblePatientMatches.length;
+                        i++) ...[
                       ListTile(
                         dense: true,
                         title: Text(
@@ -776,22 +894,27 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         ),
                         subtitle: Text(
                           visiblePatientMatches[i].phone,
-                          style: AppColors.bodyMedium.copyWith(color: Colors.black54),
+                          style: AppColors.bodyMedium
+                              .copyWith(color: Colors.black54),
                         ),
-                        onTap: () => _selectPatient(visiblePatientMatches[i]),
+                        onTap: () =>
+                            _selectPatient(visiblePatientMatches[i]),
                       ),
                       if (i != visiblePatientMatches.length - 1)
                         Divider(
                           height: 1,
-                          color: AppColors.textSecondary.withValues(alpha: 0.12),
+                          color:
+                              AppColors.textSecondary.withValues(alpha: 0.12),
                         ),
                     ],
-                    if (_patientMatches.length > visiblePatientMatches.length)
+                    if (_patientMatches.length >
+                        visiblePatientMatches.length)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                         child: Text(
                           'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
-                          style: AppColors.bodySmall.copyWith(color: Colors.black54),
+                          style: AppColors.bodySmall
+                              .copyWith(color: Colors.black54),
                         ),
                       ),
                   ],
@@ -833,8 +956,12 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
               },
             ),
             const SizedBox(height: 12),
-            _buildTextField('Address', _addressController,
-                hint: 'The address is geocoded automatically'),
+            // Address now marked optional
+            _buildTextField(
+              'Address (optional)',
+              _addressController,
+              hint: 'Will be geocoded when maps API is connected',
+            ),
             const SizedBox(height: 12),
             _buildTextField(
               'Google Maps Link (optional)',

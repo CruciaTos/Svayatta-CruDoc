@@ -246,6 +246,13 @@ class VisitRepository {
     );
   }
 
+  /// Streams patientId -> their most recent visit that has already
+  /// occurred, refreshed automatically after every visit write. Powers
+  /// the "Last Patient" summary card without querying per-patient.
+  Stream<Map<String, Visit>> watchLastVisitPerPatient() {
+    return _localService.watchLastVisitPerPatient();
+  }
+
   /// Read-only overlap check for the UI to call live — e.g. as soon as
   /// the doctor picks a time — so it can show a warning *before* they
   /// even tap save. [createVisit] and [rescheduleVisit] re-run this

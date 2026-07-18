@@ -1,0 +1,258 @@
+diff --git a/CruDoc/lib/features/appointments/data/providers/appointments_provider.dart b/CruDoc/lib/features/appointments/data/providers/appointments_provider.dart
+deleted file mode 100644
+index 9a58f3d..0000000
+--- a/CruDoc/lib/features/appointments/data/providers/appointments_provider.dart
++++ /dev/null
+@@ -1,36 +0,0 @@
+-import 'package:flutter_riverpod/flutter_riverpod.dart';
+-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+-import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+-import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+-import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+-
+-/// A view-model that pairs a [Visit] with its resolved [Patient].
+-/// [patient] is nullable because a visit’s patient record might be deleted
+-/// later, but the visit itself should still be displayable.
+-class VisitWithPatient {
+-  final Visit visit;
+-  final Patient? patient;
+-  const VisitWithPatient({required this.visit, required this.patient});
+-}
+-
+-/// Live list of all upcoming (non‑deleted) visits, each enriched with its
+-/// matching [Patient] record.  Re-emits whenever visits or patients change.
+-final visitsWithPatientsProvider =
+-    StreamProvider<List<VisitWithPatient>>((ref) {
+-  final visitsStream = ref.watch(visitsStreamProvider);
+-  final patientsStream = ref.watch(patientsStreamProvider);
+-
+-  return visitsStream.asyncMap((visits) async {
+-    final patients = await patientsStream.first; // already loaded
+-    final patientMap = <String, Patient>{};
+-    for (final p in patients) {
+-      patientMap[p.id] = p;
+-    }
+-    return visits.map((v) {
+-      return VisitWithPatient(
+-        visit: v,
+-        patient: patientMap[v.patientId],
+-      );
+-    }).toList();
+-  });
+-});
+\ No newline at end of file
+diff --git a/CruDoc/lib/features/appointments/data/providers/visit_providers.dart b/CruDoc/lib/features/appointments/data/providers/visit_providers.dart
+index e4a98e6..41faa1f 100644
+--- a/CruDoc/lib/features/appointments/data/providers/visit_providers.dart
++++ b/CruDoc/lib/features/appointments/data/providers/visit_providers.dart
+@@ -2,9 +2,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ 
+ import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+ import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
++import 'package:doctor_management_app/features/patients/data/models/patient.dart';
++import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+ 
+ /// Shared Riverpod providers for visit data — mirrors the shape of
+ /// patients/data/providers/patient_providers.dart.
++///
++/// This is the single source of truth for visit-related providers. A
++/// second copy of these (`features/appointments/providers/visits_providers.dart`)
++/// and an orphaned third copy (`appointments_provider.dart`) used to
++/// exist alongside this file, each independently declaring their own
++/// `visitRepositoryProvider` — they've been merged into this file and
++/// deleted, since two `Provider<VisitRepository>` instances imported
++/// into the same file caused an ambiguous-import error.
+ final visitRepositoryProvider = Provider<VisitRepository>(
+   (ref) => VisitRepository(),
+ );
+@@ -26,4 +36,47 @@ final upcomingVisitsProvider = StreamProvider<List<Visit>>(
+ final visitsForPatientProvider = StreamProvider.family<List<Visit>, String>(
+   (ref, patientId) =>
+       ref.watch(visitRepositoryProvider).watchVisitsForPatient(patientId),
+-);
+\ No newline at end of file
++);
++
++/// A [Visit] paired with its resolved [Patient].
++///
++/// [Visit] only stores `patientId` — never the patient's name, phone,
++/// etc. — so the UI needs this join to render a card or details screen.
++/// [patient] is null if no matching patient could be found (e.g. it was
++/// deleted/archived after the visit was created).
++class VisitWithPatient {
++  final Visit visit;
++  final Patient? patient;
++  const VisitWithPatient({required this.visit, required this.patient});
++}
++
++/// Joins [upcomingVisitsProvider] with the patients feature's existing
++/// `patientsStreamProvider`, so screens never need to do their own
++/// patient lookups. Recomputes whenever either the visits list or the
++/// patients list changes.
++final visitsWithPatientsProvider =
++    Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
++  final visitsAsync = ref.watch(upcomingVisitsProvider);
++  final patientsAsync = ref.watch(patientsStreamProvider);
++
++  if (visitsAsync.isLoading || patientsAsync.isLoading) {
++    return const AsyncValue.loading();
++  }
++  if (visitsAsync.hasError) {
++    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
++  }
++  if (patientsAsync.hasError) {
++    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
++  }
++
++  final visits = visitsAsync.value!;
++  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
++
++  final combined = visits
++      .map(
++        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
++      )
++      .toList();
++
++  return AsyncValue.data(combined);
++});
+\ No newline at end of file
+diff --git a/CruDoc/lib/features/appointments/presentation/appointments.dart b/CruDoc/lib/features/appointments/presentation/appointments.dart
+index 983c268..dc73f86 100644
+--- a/CruDoc/lib/features/appointments/presentation/appointments.dart
++++ b/CruDoc/lib/features/appointments/presentation/appointments.dart
+@@ -10,7 +10,7 @@ import 'package:doctor_management_app/features/patients/data/repo/patient_reposi
+ import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+ 
+ // Import the provider that exposes VisitWithPatient and the stream
+-import 'package:doctor_management_app/features/appointments/providers/visits_providers.dart';
++import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ 
+ // NEW import for VisitDetailsPage
+diff --git a/CruDoc/lib/features/appointments/presentation/visit_details.dart b/CruDoc/lib/features/appointments/presentation/visit_details.dart
+index 6470a65..6e73e1d 100644
+--- a/CruDoc/lib/features/appointments/presentation/visit_details.dart
++++ b/CruDoc/lib/features/appointments/presentation/visit_details.dart
+@@ -7,9 +7,10 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
+ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+ import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+ import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+-// The providers
++// The providers — VisitWithPatient and visitsWithPatientsProvider now
++// live in this same file (previously a separate broken import pointed
++// at a directory instead of a file).
+ import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+-import 'package:doctor_management_app/features/appointments/data'; // <-- NEW
+ import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+ import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
+ 
+@@ -403,19 +404,17 @@ class VisitDetailsPage extends ConsumerWidget {
+       time.minute,
+     );
+ 
+-    // Build an updated Visit object (copyWith retains id, patientId, etc.)
+-    final updatedVisit = visit.copyWith(
+-      address: address,
+-      mapsLink: mapsLink,
+-      scheduledStart: scheduledStart,
+-      durationMinutes: durationMinutes,
+-      updatedAt: DateTime.now(),
+-    );
+-
+     final repo = ref.read(visitRepositoryProvider);
+     try {
+-      // updateVisit expects (String visitId, Visit updatedVisit)
+-      await repo.updateVisit(visit.id, updatedVisit);
++      // updateVisit expects (String visitId, Map<String, dynamic> data) —
++      // not a Visit object. repo.updateVisit sets updatedAt itself and
++      // re-geocodes only if the address actually changed.
++      await repo.updateVisit(visit.id, {
++        'address': address,
++        'mapsLink': mapsLink,
++        'scheduledStart': scheduledStart,
++        'durationMinutes': durationMinutes,
++      });
+       if (context.mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           const SnackBar(content: Text('Visit updated successfully')),
+diff --git a/CruDoc/lib/features/appointments/providers/visits_providers.dart b/CruDoc/lib/features/appointments/providers/visits_providers.dart
+deleted file mode 100644
+index a408c54..0000000
+--- a/CruDoc/lib/features/appointments/providers/visits_providers.dart
++++ /dev/null
+@@ -1,74 +0,0 @@
+-import 'package:flutter_riverpod/flutter_riverpod.dart';
+-
+-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+-import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
+-import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+-import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+-
+-/// Provides the single [VisitRepository] instance used across the
+-/// appointments/visitations feature. Mirrors [patientRepositoryProvider]
+-/// from the patients feature.
+-final visitRepositoryProvider = Provider<VisitRepository>(
+-  (ref) => VisitRepository(),
+-);
+-
+-/// Live stream of active upcoming visits, ordered by start time
+-/// ascending. Backed by SQLite via [VisitRepository.watchUpcomingVisits] —
+-/// emits a fresh list automatically whenever a visit is created, updated,
+-/// rescheduled, cancelled, or soft-deleted. The UI should watch this (or
+-/// [visitsWithPatientsProvider] below) instead of holding any local list.
+-final visitsStreamProvider = StreamProvider<List<Visit>>(
+-  (ref) => ref.watch(visitRepositoryProvider).watchUpcomingVisits(),
+-);
+-
+-/// A [Visit] paired with its resolved [Patient].
+-///
+-/// [Visit] only stores `patientId` — never the patient's name, phone,
+-/// etc. — so the UI needs this join to render a card or details screen.
+-/// [patient] is null if no matching patient could be found (e.g. it was
+-/// deleted/archived after the visit was created).
+-class VisitWithPatient {
+-  final Visit visit;
+-  final Patient? patient;
+-  const VisitWithPatient({required this.visit, required this.patient});
+-}
+-
+-/// Joins [visitsStreamProvider] with the patients feature's existing
+-/// `patientsStreamProvider`, so screens never need to do their own
+-/// patient lookups. Recomputes whenever either the visits list or the
+-/// patients list changes.
+-final visitsWithPatientsProvider =
+-    Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
+-  final visitsAsync = ref.watch(visitsStreamProvider);
+-  final patientsAsync = ref.watch(patientsStreamProvider);
+-
+-  if (visitsAsync.isLoading || patientsAsync.isLoading) {
+-    return const AsyncValue.loading();
+-  }
+-  if (visitsAsync.hasError) {
+-    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
+-  }
+-  if (patientsAsync.hasError) {
+-    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
+-  }
+-
+-  final visits = visitsAsync.value!;
+-  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
+-
+-  final combined = visits
+-      .map(
+-        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
+-      )
+-      .toList();
+-
+-  return AsyncValue.data(combined);
+-});
+-
+-/// Live visit history for a single patient, most recent first — intended
+-/// for [PatientDetailsPage]'s "Session History" section. `.family`
+-/// because each patient needs its own independent stream, keyed by
+-/// [patientId].
+-final visitsForPatientProvider = StreamProvider.family<List<Visit>, String>(
+-  (ref, patientId) =>
+-      ref.watch(visitRepositoryProvider).watchVisitsForPatient(patientId),
+-);
+\ No newline at end of file

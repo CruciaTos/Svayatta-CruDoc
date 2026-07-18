@@ -7,9 +7,10 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
-// The providers
+// The providers — VisitWithPatient and visitsWithPatientsProvider now
+// live in this same file (previously a separate broken import pointed
+// at a directory instead of a file).
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
-import 'package:doctor_management_app/features/appointments/data'; // <-- NEW
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
 
@@ -403,19 +404,17 @@ class VisitDetailsPage extends ConsumerWidget {
       time.minute,
     );
 
-    // Build an updated Visit object (copyWith retains id, patientId, etc.)
-    final updatedVisit = visit.copyWith(
-      address: address,
-      mapsLink: mapsLink,
-      scheduledStart: scheduledStart,
-      durationMinutes: durationMinutes,
-      updatedAt: DateTime.now(),
-    );
-
     final repo = ref.read(visitRepositoryProvider);
     try {
-      // updateVisit expects (String visitId, Visit updatedVisit)
-      await repo.updateVisit(visit.id, updatedVisit);
+      // updateVisit expects (String visitId, Map<String, dynamic> data) —
+      // not a Visit object. repo.updateVisit sets updatedAt itself and
+      // re-geocodes only if the address actually changed.
+      await repo.updateVisit(visit.id, {
+        'address': address,
+        'mapsLink': mapsLink,
+        'scheduledStart': scheduledStart,
+        'durationMinutes': durationMinutes,
+      });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Visit updated successfully')),

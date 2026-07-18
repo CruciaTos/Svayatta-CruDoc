@@ -10,7 +10,7 @@ import 'package:doctor_management_app/features/patients/data/repo/patient_reposi
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 // Import the provider that exposes VisitWithPatient and the stream
-import 'package:doctor_management_app/features/appointments/providers/visits_providers.dart';
+import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // NEW import for VisitDetailsPage

@@ -65,6 +65,11 @@ class VisitRepository {
   ///   [kMaxOverlappingVisits] simultaneous active visits — never
   ///   bypassable, regardless of [acknowledgeOverlap]. — currently
   ///   disabled, see above.
+  ///
+  /// Note: geocoding the address is best-effort and never throws — see
+  /// [_resolveCoords]. A visit always saves successfully regardless of
+  /// whether the address is blank, unresolvable, or the Maps API key
+  /// isn't configured yet.
   Future<String> createVisit(
     Visit visit, {
     bool acknowledgeOverlap = false,
@@ -78,15 +83,20 @@ class VisitRepository {
     //   acknowledgeOverlap: acknowledgeOverlap,
     // );
 
-    // Every new visit has a "new" address as far as this repository is
-    // concerned, so it always needs geocoding — unless the caller already
-    // supplied coordinates (e.g. re-creating a visit from data that was
-    // geocoded elsewhere). A failed geocode throws before anything is
-    // written, so a visit can never be saved with missing/invalid
-    // coordinates.
-    final coords = (visit.latitude != null && visit.longitude != null)
-        ? (latitude: visit.latitude!, longitude: visit.longitude!)
-        : await _geocodeAddress(visit.address);
+    // Geocoding is a nice-to-have (map preview / tap-to-navigate), not a
+    // requirement for saving a visit — the address field is optional.
+    // If the caller already supplied coordinates, use those. Otherwise,
+    // only attempt to geocode when an address was actually entered, and
+    // never let a geocoding failure (bad address, no network, or no
+    // real Google Maps API key configured yet — see kGoogleMapsApiKey)
+    // block the visit from being saved. On failure the visit is simply
+    // saved without coordinates; the map preview falls back to a
+    // placeholder image until a real address/API key is in place.
+    final coords = await _resolveCoords(
+      existingLatitude: visit.latitude,
+      existingLongitude: visit.longitude,
+      address: visit.address,
+    );
 
     final now = DateTime.now();
     final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
@@ -96,8 +106,8 @@ class VisitRepository {
       scheduledStart: visit.scheduledStart,
       durationMinutes: visit.durationMinutes,
       address: visit.address,
-      latitude: coords.latitude,
-      longitude: coords.longitude,
+      latitude: coords?.latitude,
+      longitude: coords?.longitude,
       mapsLink: visit.mapsLink,
       status: visit.status,
       isDeleted: visit.isDeleted,
@@ -125,10 +135,11 @@ class VisitRepository {
   /// If [data] contains an `address` key, it's compared against the
   /// visit's current stored address. Only a genuine change triggers a
   /// fresh Geocoding API call — re-saving the same address never
-  /// re-geocodes. A failed geocode throws [GeocodingException] before
-  /// any local write happens, so the visit's existing (valid)
-  /// coordinates are left untouched rather than overwritten with
-  /// nothing.
+  /// re-geocodes. Geocoding is best-effort: a blank new address or a
+  /// failed geocode never blocks the save — see [_resolveCoords]. On a
+  /// genuine address change that can't be geocoded, coordinates are
+  /// cleared (rather than left pointing at the old address) so the map
+  /// preview honestly falls back to a placeholder.
   ///
   /// Throws [VisitValidationException] if [data] contains a `status`
   /// key that isn't one of the predefined [VisitStatus] values — this
@@ -154,9 +165,13 @@ class VisitRepository {
           existing == null || existing.address.trim() != newAddress;
 
       if (addressChanged) {
-        final coords = await _geocodeAddress(newAddress);
-        localData['latitude'] = coords.latitude;
-        localData['longitude'] = coords.longitude;
+        final coords = await _resolveCoords(
+          existingLatitude: null,
+          existingLongitude: null,
+          address: newAddress,
+        );
+        localData['latitude'] = coords?.latitude;
+        localData['longitude'] = coords?.longitude;
       }
     }
 
@@ -276,12 +291,11 @@ class VisitRepository {
     if (visit.patientId.trim().isEmpty) {
       throw const VisitValidationException('A visit must have a patientId.');
     }
-    if (visit.address.trim().isEmpty) {
-      throw const VisitValidationException(
-        'A visit must have an address — this app covers offline/'
-        'in-person visits only.',
-      );
-    }
+    // Address is intentionally optional (matching _AddVisitDialog's
+    // "Address (optional)" field) — this app is still offline/in-person
+    // only, but a visit can be created before the address is nailed
+    // down, or with maps support not yet configured. Geocoding is
+    // handled separately as best-effort — see _resolveCoords.
     if (visit.durationMinutes < kMinVisitDurationMinutes ||
         visit.durationMinutes > kMaxVisitDurationMinutes) {
       throw VisitValidationException(
@@ -341,11 +355,42 @@ class VisitRepository {
     }
   }
 
+  /// Resolves the coordinates to save for a visit, without ever blocking
+  /// the save itself:
+  /// - If [existingLatitude]/[existingLongitude] are both already
+  ///   present, reuse them as-is (no network call).
+  /// - If [address] is blank (it's an optional field), there's nothing
+  ///   to geocode — returns `null`.
+  /// - Otherwise attempts [_geocodeAddress]. If that fails for any
+  ///   reason — bad/unrecognized address, no network, or no real Google
+  ///   Maps API key configured yet (`kGoogleMapsApiKey` still the
+  ///   placeholder) — the failure is swallowed and `null` is returned
+  ///   instead of propagating [GeocodingException]. The visit still
+  ///   saves; the map preview just falls back to a placeholder image
+  ///   until a resolvable address (and a real API key) are in place.
+  Future<({double latitude, double longitude})?> _resolveCoords({
+    required double? existingLatitude,
+    required double? existingLongitude,
+    required String address,
+  }) async {
+    if (existingLatitude != null && existingLongitude != null) {
+      return (latitude: existingLatitude, longitude: existingLongitude);
+    }
+    if (address.trim().isEmpty) return null;
+    try {
+      return await _geocodeAddress(address);
+    } on GeocodingException {
+      return null;
+    }
+  }
+
   /// Calls the Google Geocoding API to resolve [address] into
   /// coordinates. Never returns partial/invalid data — any failure
   /// (network error, non-200 response, unparseable body, "not found"
   /// status, or a missing lat/lng in the result) surfaces as a
-  /// [GeocodingException] instead.
+  /// [GeocodingException] instead. Callers that want a save to succeed
+  /// regardless of geocoding outcome should go through [_resolveCoords]
+  /// rather than calling this directly.
   Future<({double latitude, double longitude})> _geocodeAddress(
     String address,
   ) async {

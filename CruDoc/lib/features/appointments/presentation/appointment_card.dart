@@ -323,9 +323,9 @@ class _AppointmentCardState extends State<AppointmentCard> {
     if (d.inHours >= 1) {
       final hours = d.inHours;
       final minutes = d.inMinutes % 60;
-      return minutes > 0 ? '${hours}h ${minutes}m' : '${hours}h';
+      return minutes > 0 ? '${hours}h ${minutes}mins' : '${hours}hrs';
     }
-    return '${d.inMinutes}m';
+    return '${d.inMinutes}mins';
   }
 
   Color _statusColor(VisitStatus status) {

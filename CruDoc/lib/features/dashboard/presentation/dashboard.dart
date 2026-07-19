@@ -239,25 +239,32 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               QuickActionsRow(
                 onNewVisit: () => _navigateToTabOrExplain(
                   tabIndex: 4,
-                  unavailableTitle: 'New Visit',
+                  unavailableTitle: 'Visits',
                   unavailableMessage:
                       'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
                 ),
                 onNewInvoice: () => _navigateToTabOrExplain(
                   tabIndex: 2,
-                  unavailableTitle: 'New Invoice',
+                  unavailableTitle: 'Invoices',
                   unavailableMessage:
                       'Invoice creation is available from the invoice section.',
                 ),
                 onAddPatient: _openAddPatient,
                 onLogExpense: () => _showSectionInfo(
-                  title: 'Log Expense',
+                  title: 'Log',
                   message:
                       'Expense logging is not available yet. This section will help you record clinic expenses and compare them with revenue once implemented.',
                 ),
               ),
               const SizedBox(height: 20),
-              const TodaysVisitsCard(),
+              TodaysVisitsCard(
+                onViewAll: () => _navigateToTabOrExplain(
+                  tabIndex: 4,
+                  unavailableTitle: "Today's Visits",
+                  unavailableMessage:
+                      'Visitations and appointments live in the Events section.',
+                ),
+              ),
               const SizedBox(height: 16),
               RecentActivityCard(
                 onViewAll: () => _showSectionInfo(

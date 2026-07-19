@@ -1,31 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
+    as vmodel;
+import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
 
-enum VisitMode { home, online }
+/// Dashboard card showing today's scheduled visits — both home
+/// visitations and clinic appointments combined, chronological order.
+///
+/// Backed by [todaysVisitsWithPatientsProvider], which is deliberately
+/// its own stream rather than reusing the "upcoming visits" stream the
+/// Events screen tabs use — see [VisitLocalService.watchTodaysVisits]
+/// for why (the shell keeps every tab alive at once).
+class TodaysVisitsCard extends ConsumerWidget {
+  const TodaysVisitsCard({super.key, this.onViewAll});
 
-class TodaysVisitsCard extends StatelessWidget {
-  const TodaysVisitsCard({super.key});
-
-  static const List<_TodayVisit> _visits = [
-    _TodayVisit(
-      patientName: 'Anjali Verma',
-      time: '10:30 AM',
-      mode: VisitMode.home,
-    ),
-    _TodayVisit(
-      patientName: 'Rohan Deshpande',
-      time: '1:00 PM',
-      mode: VisitMode.online,
-    ),
-    _TodayVisit(
-      patientName: 'Meera Kulkarni',
-      time: '5:30 PM',
-      mode: VisitMode.home,
-    ),
-  ];
+  /// Navigates to the Events (Visitations/Appointments) screen.
+  final VoidCallback? onViewAll;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visitsAsync = ref.watch(todaysVisitsWithPatientsProvider);
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -40,22 +38,122 @@ class TodaysVisitsCard extends StatelessWidget {
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                "Today's Visits",
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700,
+      child: visitsAsync.when(
+        loading: () => _CardShell(
+          count: null,
+          onViewAll: onViewAll,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.slateBlue,
                 ),
               ),
-              Container(
+            ),
+          ),
+        ),
+        error: (error, stack) => _CardShell(
+          count: null,
+          onViewAll: onViewAll,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'Could not load today\'s visits.',
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+        data: (visits) {
+          // Matches the Events screen's own convention (see
+          // _buildVisitsList): a visit whose patient couldn't be
+          // resolved (e.g. deleted/archived after the visit was made)
+          // isn't rendered.
+          final resolved = visits.where((vw) => vw.patient != null).toList();
+
+          return _CardShell(
+            count: resolved.length,
+            onViewAll: onViewAll,
+            child: resolved.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'No visits scheduled for today.',
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (var i = 0; i < resolved.length; i++) ...[
+                        _VisitRow(
+                          visitWithPatient: resolved[i],
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  VisitDetailsPage(initial: resolved[i]),
+                            ),
+                          ),
+                        ),
+                        if (i != resolved.length - 1)
+                          const Divider(
+                            height: 24,
+                            color: Color(0xFFDDE6F0),
+                          ),
+                      ],
+                    ],
+                  ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Shared header ("Today's Visits" + count badge) wrapped around
+/// whichever body (loading/error/list) the parent passes in.
+class _CardShell extends StatelessWidget {
+  final int? count;
+  final VoidCallback? onViewAll;
+  final Widget child;
+
+  const _CardShell({
+    required this.count,
+    required this.onViewAll,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Today's Visits",
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            GestureDetector(
+              onTap: onViewAll,
+              child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 6,
@@ -65,7 +163,7 @@ class TodaysVisitsCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
-                  '${_visits.length} scheduled',
+                  count == null ? '—' : '$count scheduled',
                   style: const TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
                     color: Colors.white,
@@ -74,113 +172,88 @@ class TodaysVisitsCard extends StatelessWidget {
                   ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          if (_visits.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                'No visits scheduled for today.',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
-            )
-          else
-            Column(
-              children: _visits
-                  .map((visit) => Column(
-                        children: [
-                          _VisitRow(visit: visit),
-                          if (visit != _visits.last) const Divider(
-                            height: 24,
-                            color: Color(0xFFDDE6F0),
-                          ),
-                        ],
-                      ))
-                  .toList(),
             ),
-        ],
-      ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        child,
+      ],
     );
   }
 }
 
-class _TodayVisit {
-  final String patientName;
-  final String time;
-  final VisitMode mode;
-
-  const _TodayVisit({
-    required this.patientName,
-    required this.time,
-    required this.mode,
-  });
-}
-
 class _VisitRow extends StatelessWidget {
-  final _TodayVisit visit;
-  const _VisitRow({required this.visit});
+  final VisitWithPatient visitWithPatient;
+  final VoidCallback onTap;
+
+  const _VisitRow({required this.visitWithPatient, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final isHome = visit.mode == VisitMode.home;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 7),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              color: AppColors.cardSurfaceAlt,
-              borderRadius: BorderRadius.circular(12),
+    final visit = visitWithPatient.visit;
+    final patient = visitWithPatient.patient!;
+    final isHome = visit.visitType == vmodel.VisitType.home;
+    final timeLabel = DateFormat('h:mm a').format(visit.scheduledStart);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceAlt,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isHome ? Icons.home_outlined : Icons.local_hospital_outlined,
+                color: AppColors.beige,
+                size: 18,
+              ),
             ),
-            child: Icon(
-              isHome ? Icons.home_outlined : Icons.videocam_outlined,
-              color: AppColors.beige,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  visit.patientName,
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient.fullName,
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  isHome ? 'Home visit' : 'Online session',
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                  const SizedBox(height: 2),
+                  Text(
+                    isHome ? 'Home visitation' : 'Clinic appointment',
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          Text(
-            visit.time,
-            style: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              color: AppColors.silver,
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
+            Text(
+              timeLabel,
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.silver,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

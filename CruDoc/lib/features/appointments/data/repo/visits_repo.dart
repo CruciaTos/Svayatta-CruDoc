@@ -268,6 +268,13 @@ class VisitRepository {
     return _localService.watchUpcomingVisits(from: from);
   }
 
+  /// Streams today's scheduled visits — both clinic appointments and
+  /// home visitations combined, chronological order. Powers the
+  /// dashboard's "Today's Visits" card.
+  Stream<List<Visit>> watchTodaysVisits() {
+    return _localService.watchTodaysVisits();
+  }
+
   /// Streams a single patient's visit history, most recent first.
   Stream<List<Visit>> watchVisitsForPatient(
     String patientId, {

@@ -30,6 +30,14 @@ final upcomingVisitsProvider = StreamProvider<List<Visit>>(
   (ref) => ref.watch(visitRepositoryProvider).watchUpcomingVisits(),
 );
 
+/// Streams today's scheduled visits (clinic + home combined), soonest
+/// first. Backed by its own stream — see
+/// [VisitLocalService.watchTodaysVisits] — so it stays correct even
+/// while [upcomingVisitsProvider] is live at the same time on another tab.
+final todaysVisitsProvider = StreamProvider<List<Visit>>(
+  (ref) => ref.watch(visitRepositoryProvider).watchTodaysVisits(),
+);
+
 /// Streams a single patient's visit history, most recent first. Family
 /// parameter is the patientId. Used by the patient details screen (real
 /// session history + stats) and by the Last Patient card (session count).
@@ -57,6 +65,35 @@ class VisitWithPatient {
 final visitsWithPatientsProvider =
     Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
   final visitsAsync = ref.watch(upcomingVisitsProvider);
+  final patientsAsync = ref.watch(patientsStreamProvider);
+
+  if (visitsAsync.isLoading || patientsAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+  if (visitsAsync.hasError) {
+    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
+  }
+  if (patientsAsync.hasError) {
+    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
+  }
+
+  final visits = visitsAsync.value!;
+  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
+
+  final combined = visits
+      .map(
+        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
+      )
+      .toList();
+
+  return AsyncValue.data(combined);
+});
+
+/// Joins [todaysVisitsProvider] with patient data — the dashboard's
+/// "Today's Visits" card equivalent of [visitsWithPatientsProvider].
+final todaysVisitsWithPatientsProvider =
+    Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
+  final visitsAsync = ref.watch(todaysVisitsProvider);
   final patientsAsync = ref.watch(patientsStreamProvider);
 
   if (visitsAsync.isLoading || patientsAsync.isLoading) {

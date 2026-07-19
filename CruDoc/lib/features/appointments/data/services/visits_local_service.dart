@@ -28,6 +28,18 @@ class VisitLocalService {
   final LocalDatabaseService _databaseService;
   final StreamController<List<Visit>> _upcomingVisitsController =
       StreamController<List<Visit>>.broadcast();
+  // Deliberately a separate controller from [_upcomingVisitsController]
+  // rather than a parameterised `from` on that stream: the shell keeps
+  // every tab's screen alive at once (see Shell's PageView), so the
+  // dashboard's "today" query and the Events screen's "upcoming" query
+  // can be live simultaneously. [_upcomingVisitsController] is single
+  // and shared — a second concurrent `from` would just overwrite the
+  // other listener's data on every re-emit. This controller always
+  // recomputes "today" fresh from [DateTime.now()] at emit time (see
+  // [_emitTodaysVisits]) rather than caching a start/end pair, so it
+  // can't go stale if the app is left open across midnight.
+  final StreamController<List<Visit>> _todaysVisitsController =
+      StreamController<List<Visit>>.broadcast();
   final Map<String, StreamController<List<Visit>>> _patientVisitControllers =
       <String, StreamController<List<Visit>>>{};
   final StreamController<Map<String, Visit>> _lastVisitPerPatientController =
@@ -98,6 +110,15 @@ class VisitLocalService {
     return _upcomingVisitsController.stream;
   }
 
+  /// Streams non-deleted, scheduled visits (both clinic appointments and
+  /// home visitations) whose [Visit.scheduledStart] falls on today's
+  /// calendar date — past, ongoing, or still upcoming today. Powers the
+  /// dashboard's "Today's Visits" card.
+  Stream<List<Visit>> watchTodaysVisits() {
+    Future<void>.microtask(_emitTodaysVisits);
+    return _todaysVisitsController.stream;
+  }
+
   Stream<List<Visit>> watchVisitsForPatient(
     String patientId, {
     bool includeDeleted = false,
@@ -165,6 +186,7 @@ class VisitLocalService {
 
   Future<void> _emitAll() async {
     await _emitUpcomingVisits();
+    await _emitTodaysVisits();
     await _emitLastVisitPerPatient();
     for (final key in _patientVisitControllers.keys) {
       final parsed = _parsePatientStreamKey(key);
@@ -213,6 +235,30 @@ class VisitLocalService {
     );
     if (!_upcomingVisitsController.isClosed) {
       _upcomingVisitsController.add(rows.map(_fromRow).toList());
+    }
+  }
+
+  Future<void> _emitTodaysVisits() async {
+    if (_todaysVisitsController.isClosed) return;
+
+    final now = DateTime.now();
+    final startOfDay = DateTime(now.year, now.month, now.day);
+    final startOfNextDay = startOfDay.add(const Duration(days: 1));
+
+    final db = await _databaseService.database;
+    final rows = await db.query(
+      'visits',
+      where: 'isActive = 1 AND isDeleted = 0 AND status = ? '
+          'AND scheduledStart >= ? AND scheduledStart < ?',
+      whereArgs: [
+        VisitStatus.scheduled.value,
+        _dateTimeToMillis(startOfDay),
+        _dateTimeToMillis(startOfNextDay),
+      ],
+      orderBy: 'scheduledStart ASC',
+    );
+    if (!_todaysVisitsController.isClosed) {
+      _todaysVisitsController.add(rows.map(_fromRow).toList());
     }
   }
 

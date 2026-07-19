@@ -17,9 +17,9 @@ class QuickActionsRow extends StatelessWidget {
 
   static const List<_QuickAction> _actions = [
     _QuickAction(icon: Icons.calendar_today_outlined, label: 'New Visit'),
-    _QuickAction(icon: Icons.description_outlined, label: 'New Invoice'),
-    _QuickAction(icon: Icons.person_add, label: 'Add Patient'),
-    _QuickAction(icon: Icons.remove_circle_outline, label: 'Log Expense'),
+    _QuickAction(icon: Icons.description_outlined, label: 'Invoice'),
+    _QuickAction(icon: Icons.person_add, label: 'Patient'),
+    _QuickAction(icon: Icons.remove_circle_outline, label: 'Logs'),
   ];
 
   @override
@@ -34,6 +34,7 @@ class QuickActionsRow extends StatelessWidget {
               .map(
                 (action) => SizedBox(
                   width: itemWidth.clamp(74.0, 120.0),
+                  height: 80,                         // ← EVEN SMALLER
                   child: _ActionButton(
                     action: action,
                     onTap: _tapHandlerFor(action.label),
@@ -50,11 +51,11 @@ class QuickActionsRow extends StatelessWidget {
     switch (label) {
       case 'New Visit':
         return onNewVisit;
-      case 'New Invoice':
+      case 'Invoice':
         return onNewInvoice;
-      case 'Add Patient':
+      case 'Patient':
         return onAddPatient;
-      case 'Log Expense':
+      case 'Logs':
         return onLogExpense;
     }
     return null;
@@ -79,7 +80,9 @@ class _ActionButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+        width: double.infinity,
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),  // tighter padding
         decoration: BoxDecoration(
           color: AppColors.cardSurface,
           borderRadius: BorderRadius.circular(20),
@@ -93,24 +96,27 @@ class _ActionButton extends StatelessWidget {
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 44,
-              height: 44,
+              width: 36,                              // smaller icon container
+              height: 36,
               decoration: BoxDecoration(
                 color: AppColors.chartBarLight,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(action.icon, color: Colors.white, size: 22),
+              child: Icon(action.icon, color: Colors.white, size: 18),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Text(
               action.label,
               textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
-                fontSize: 12,
+                fontSize: 11,                       // slightly smaller text
                 fontWeight: FontWeight.w600,
               ),
             ),

@@ -239,7 +239,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               QuickActionsRow(
                 onNewVisit: () => _navigateToTabOrExplain(
                   tabIndex: 4,
-                  unavailableTitle: 'New Visit',
+                  unavailableTitle: 'New Visitor',
                   unavailableMessage:
                       'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
                 ),

@@ -5,6 +5,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
@@ -91,6 +92,7 @@ class PatientDetailsPage extends ConsumerWidget {
                                 visit.treatmentType?.trim().isNotEmpty ??
                                     false;
                             return _SessionData(
+                              visit: visit,
                               date: DateFormat.yMMMd()
                                   .format(visit.scheduledStart),
                               time:
@@ -100,6 +102,7 @@ class PatientDetailsPage extends ConsumerWidget {
                                   : '${_readableStatus(visit.status)} visit',
                             );
                           }).toList(),
+                          patient: patient,
                         );
                       },
                     ),
@@ -444,10 +447,12 @@ class _ContactCard extends StatelessWidget {
 
 // ---------- Session History ----------
 class _SessionData {
+  final Visit visit;
   final String date;
   final String time;
   final String reason;
   const _SessionData({
+    required this.visit,
     required this.date,
     required this.time,
     required this.reason,
@@ -456,7 +461,8 @@ class _SessionData {
 
 class _SessionHistorySection extends StatefulWidget {
   final List<_SessionData> sessions;
-  const _SessionHistorySection({required this.sessions});
+  final Patient patient;
+  const _SessionHistorySection({required this.sessions, required this.patient});
 
   @override
   State<_SessionHistorySection> createState() =>
@@ -477,7 +483,7 @@ class _SessionHistorySectionState extends State<_SessionHistorySection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SessionTimeline(sessions: visible),
+        _SessionTimeline(sessions: visible, patient: widget.patient),
         if (canCollapse)
           Padding(
             padding: const EdgeInsets.only(top: 2, bottom: 4),
@@ -508,7 +514,8 @@ class _SessionHistorySectionState extends State<_SessionHistorySection> {
 
 class _SessionTimeline extends StatelessWidget {
   final List<_SessionData> sessions;
-  const _SessionTimeline({required this.sessions});
+  final Patient patient;
+  const _SessionTimeline({required this.sessions, required this.patient});
 
   @override
   Widget build(BuildContext context) {
@@ -517,10 +524,12 @@ class _SessionTimeline extends StatelessWidget {
         final session = sessions[index];
         final isLast = index == sessions.length - 1;
         return _SessionTimelineTile(
+          visit: session.visit,
           date: session.date,
           time: session.time,
           reason: session.reason,
           isLast: isLast,
+          patient: patient,
         );
       }),
     );
@@ -528,12 +537,16 @@ class _SessionTimeline extends StatelessWidget {
 }
 
 class _SessionTimelineTile extends StatelessWidget {
+  final Visit visit;
+  final Patient patient;
   final String date;
   final String time;
   final String reason;
   final bool isLast;
 
   const _SessionTimelineTile({
+    required this.visit,
+    required this.patient,
     required this.date,
     required this.time,
     required this.reason,
@@ -542,73 +555,85 @@ class _SessionTimelineTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Column(
-            children: [
-              Container(
-                width: 10,
-                height: 10,
-                margin: const EdgeInsets.only(top: 4),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: _accentBlue,
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.6),
-                    width: 2,
-                  ),
-                ),
-              ),
-              if (!isLast)
-                Expanded(
-                  child: Container(
-                    width: 2,
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: AppColors.textSecondary.withValues(alpha: 0.2),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 14),
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.cardSurface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        date,
-                        style: AppColors.bodyMedium.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        time,
-                        style: AppColors.bodySmall,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    reason,
-                    style: AppColors.bodyMeta,
-                  ),
-                ],
-              ),
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => VisitDetailsPage(
+              initial: VisitWithPatient(visit: visit, patient: patient),
             ),
           ),
-        ],
+        );
+      },
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Column(
+              children: [
+                Container(
+                  width: 10,
+                  height: 10,
+                  margin: const EdgeInsets.only(top: 4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: _accentBlue,
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.6),
+                      width: 2,
+                    ),
+                  ),
+                ),
+                if (!isLast)
+                  Expanded(
+                    child: Container(
+                      width: 2,
+                      margin: const EdgeInsets.symmetric(vertical: 4),
+                      color: AppColors.textSecondary.withValues(alpha: 0.2),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.cardSurface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          date,
+                          style: AppColors.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Text(
+                          time,
+                          style: AppColors.bodySmall,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      reason,
+                      style: AppColors.bodyMeta,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

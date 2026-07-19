@@ -5,6 +5,8 @@ import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_r
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
+import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -49,28 +51,76 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   final String _specialty = ''; // TODO: fetch from user session
 
   // ---- Revenue card state (lifted up) ----
+  final RevenueRepository _revenueRepository = RevenueRepository();
   bool _isMonthly = true;
   int _selectedBarIndex = 0; // will be updated when data is available
 
-  // Replace these empty lists with data fetched from your repository
-  final List<BarData> _weeklyBars = [];
-  final List<BarData> _monthlyBars = [];
+  List<BarData> _buildWeeklyBars(List<RevenueEntry> entries) {
+    final today = DateTime.now();
+    final startOfWeek = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 6));
 
-  // Derived values
-  String get _currentAmount {
-    final bars = _isMonthly ? _monthlyBars : _weeklyBars;
-    if (bars.isEmpty || _selectedBarIndex >= bars.length) return '₹0';
-    final bar = bars[_selectedBarIndex];
-    return bar.revenueAmount != null ? '₹${bar.revenueAmount}' : '₹0';
+    final dailyAmounts = List.generate(7, (index) {
+      final day = startOfWeek.add(Duration(days: index));
+      final amount = entries
+          .where((entry) => _isSameDate(entry.date, day))
+          .fold<double>(0, (sum, entry) => sum + entry.amount);
+      return MapEntry(day, amount);
+    });
+
+    final maxAmount = dailyAmounts.fold<double>(0, (maxValue, entry) {
+      return entry.value > maxValue ? entry.value : maxValue;
+    });
+
+    return dailyAmounts.map((entry) {
+      final amount = entry.value;
+      return BarData(
+        label: _shortWeekday(entry.key.weekday),
+        heightFactor: maxAmount > 0 ? (amount / maxAmount) : 0.12,
+        revenueAmount: amount.toInt(),
+      );
+    }).toList();
   }
 
-  String get _currentSubtitle {
-    final bars = _isMonthly ? _monthlyBars : _weeklyBars;
-    if (bars.isEmpty || _selectedBarIndex >= bars.length) return '';
-    return bars[_selectedBarIndex].label;
+  List<BarData> _buildMonthlyBars(List<RevenueEntry> entries) {
+    final today = DateTime.now();
+    final months = List.generate(6, (index) {
+      final monthDate = DateTime(today.year, today.month - 5 + index, 1);
+      final amount = entries.fold<double>(0, (sum, entry) {
+        if (entry.date.year == monthDate.year && entry.date.month == monthDate.month) {
+          return sum + entry.amount;
+        }
+        return sum;
+      });
+      return MapEntry(monthDate, amount);
+    });
+
+    final maxAmount = months.fold<double>(0, (maxValue, entry) {
+      return entry.value > maxValue ? entry.value : maxValue;
+    });
+
+    return months.map((entry) {
+      final amount = entry.value;
+      return BarData(
+        label: _shortMonth(entry.key.month),
+        heightFactor: maxAmount > 0 ? (amount / maxAmount) : 0.12,
+        revenueAmount: amount.toInt(),
+      );
+    }).toList();
   }
 
-  List<BarData> get _currentBars => _isMonthly ? _monthlyBars : _weeklyBars;
+  String _shortMonth(int month) {
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return labels[month - 1];
+  }
+
+  bool _isSameDate(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  String _shortWeekday(int weekday) {
+    const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return labels[weekday - 1];
+  }
 
   void _openAddPatient() {
     Navigator.push(
@@ -146,22 +196,41 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 },
               ),
               const SizedBox(height: 24),
-              _RevenueSnapshotCard(
-                isMonthly: _isMonthly,
-                bars: _currentBars,
-                selectedBarIndex: _selectedBarIndex,
-                amount: _currentAmount,
-                subtitle: _currentSubtitle,
-                onToggle: (monthly) {
-                  setState(() {
-                    _isMonthly = monthly;
-                    _selectedBarIndex = 0; // reset selection on toggle
-                  });
-                },
-                onBarSelected: (index) {
-                  setState(() {
-                    _selectedBarIndex = index;
-                  });
+              StreamBuilder<List<RevenueEntry>>(
+                stream: _revenueRepository.watchRevenueEntries(),
+                builder: (context, snapshot) {
+                  final entries = snapshot.data ?? const <RevenueEntry>[];
+                  final bars = _isMonthly
+                      ? _buildMonthlyBars(entries)
+                      : _buildWeeklyBars(entries);
+                  final currentIndex = bars.isEmpty
+                      ? -1
+                      : _selectedBarIndex.clamp(0, bars.length - 1);
+                  final amount = currentIndex < 0
+                      ? '₹0'
+                      : '₹${bars[currentIndex].revenueAmount ?? 0}';
+                  final subtitle = currentIndex < 0
+                      ? ''
+                      : bars[currentIndex].label;
+
+                  return _RevenueSnapshotCard(
+                    isMonthly: _isMonthly,
+                    bars: bars,
+                    selectedBarIndex: currentIndex < 0 ? 0 : currentIndex,
+                    amount: amount,
+                    subtitle: subtitle,
+                    onToggle: (monthly) {
+                      setState(() {
+                        _isMonthly = monthly;
+                        _selectedBarIndex = 0; // reset selection on toggle
+                      });
+                    },
+                    onBarSelected: (index) {
+                      setState(() {
+                        _selectedBarIndex = index;
+                      });
+                    },
+                  );
                 },
               ),
               const SizedBox(height: 16),

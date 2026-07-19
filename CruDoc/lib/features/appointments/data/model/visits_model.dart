@@ -66,6 +66,34 @@ enum VisitStatus {
   }
 }
 
+/// Where a visit takes place: at the clinic, or at the patient's home.
+///
+/// Deliberately an enum for the same reason as [VisitStatus] — it keeps
+/// an invalid booking type from ever being written from within the app.
+/// Defaults to [VisitType.clinic] wherever a value isn't explicitly
+/// supplied (see [Visit]'s constructor and [VisitType.fromValue]), since
+/// that was this app's only supported booking type before this field
+/// existed.
+enum VisitType {
+  clinic,
+  home;
+
+  /// The exact string stored in Firestore/SQLite for this type.
+  String get value => name;
+
+  /// Parses a raw stored string into a [VisitType]. Falls back to
+  /// [VisitType.clinic] for anything unrecognized (missing field, legacy
+  /// data predating this field, or a manual Firestore console edit)
+  /// rather than throwing, so one corrupted document can't crash an
+  /// entire visit list.
+  static VisitType fromValue(String? raw) {
+    return VisitType.values.firstWhere(
+      (type) => type.value == raw,
+      orElse: () => VisitType.clinic,
+    );
+  }
+}
+
 /// Core Visit (appointment) data model.
 ///
 /// Represents a single in-person / home-visit appointment stored in the
@@ -109,6 +137,11 @@ class Visit {
   /// the common case, where the geocoded address is enough.
   final String? mapsLink;
 
+  /// Where this visit takes place — at the clinic, or at the patient's
+  /// home. Defaults to [VisitType.clinic] (see the constructor) for any
+  /// visit created before this field existed.
+  final VisitType visitType;
+
   final VisitStatus status;
 
   /// True once this visit has been soft-deleted (e.g. it was created by
@@ -145,6 +178,7 @@ class Visit {
     this.latitude,
     this.longitude,
     this.mapsLink,
+    this.visitType = VisitType.clinic,
     this.isDeleted = false,
     this.invoiceId,
     this.packageId,
@@ -189,6 +223,7 @@ class Visit {
       latitude: (map['latitude'] as num?)?.toDouble(),
       longitude: (map['longitude'] as num?)?.toDouble(),
       mapsLink: map['mapsLink'] as String?,
+      visitType: VisitType.fromValue(map['visitType'] as String?),
       status: VisitStatus.fromValue(map['status'] as String?),
       isDeleted: map['isDeleted'] as bool? ?? false,
       invoiceId: map['invoiceId'] as String?,
@@ -213,6 +248,7 @@ class Visit {
       'latitude': latitude,
       'longitude': longitude,
       'mapsLink': mapsLink,
+      'visitType': visitType.value,
       'status': status.value,
       'isDeleted': isDeleted,
       'invoiceId': invoiceId,
@@ -234,6 +270,7 @@ class Visit {
     double? latitude,
     double? longitude,
     String? mapsLink,
+    VisitType? visitType,
     VisitStatus? status,
     bool? isDeleted,
     String? invoiceId,
@@ -254,6 +291,7 @@ class Visit {
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
       mapsLink: mapsLink ?? this.mapsLink,
+      visitType: visitType ?? this.visitType,
       status: status ?? this.status,
       isDeleted: isDeleted ?? this.isDeleted,
       invoiceId: invoiceId ?? this.invoiceId,

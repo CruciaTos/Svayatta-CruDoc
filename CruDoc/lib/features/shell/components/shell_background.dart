@@ -20,8 +20,8 @@ class ShellBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color.fromARGB(255, 108, 162, 255),
-            Color.fromARGB(255, 143, 210, 255),
+            Color.fromARGB(255, 186, 226, 255),
+            Color.fromARGB(255, 184, 221, 255),
           ],
         ),
       ),

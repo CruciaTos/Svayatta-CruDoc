@@ -109,6 +109,7 @@ class VisitRepository {
       latitude: coords?.latitude,
       longitude: coords?.longitude,
       mapsLink: visit.mapsLink,
+      visitType: visit.visitType,
       status: visit.status,
       isDeleted: visit.isDeleted,
       invoiceId: visit.invoiceId,
@@ -152,6 +153,16 @@ class VisitRepository {
       if (raw is! String || !validValues.contains(raw)) {
         throw VisitValidationException(
           'Invalid status "$raw". Must be one of: ${validValues.join(', ')}.',
+        );
+      }
+    }
+
+    if (data.containsKey('visitType')) {
+      final raw = data['visitType'];
+      final validValues = VisitType.values.map((t) => t.value).toSet();
+      if (raw is! String || !validValues.contains(raw)) {
+        throw VisitValidationException(
+          'Invalid visitType "$raw". Must be one of: ${validValues.join(', ')}.',
         );
       }
     }
@@ -224,6 +235,13 @@ class VisitRepository {
   /// a visit between states, so a free-text status can never slip in.
   Future<void> updateStatus(String visitId, VisitStatus status) {
     return updateVisit(visitId, {'status': status.value});
+  }
+
+  /// Updates only the [VisitType] — lets a booking be reclassified
+  /// between clinic and home visitation after the fact without touching
+  /// any other field.
+  Future<void> updateVisitType(String visitId, VisitType visitType) {
+    return updateVisit(visitId, {'visitType': visitType.value});
   }
 
   /// Marks a visit as cancelled. A real, legitimate cancellation

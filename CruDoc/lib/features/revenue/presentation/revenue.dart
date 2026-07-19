@@ -364,150 +364,159 @@ class _RevenueScreenState extends State<RevenueScreen> {
 
             return Scaffold(
               backgroundColor: Colors.transparent,
-              body: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFFBEE9FF), Color(0xFFE6F7FF)],
-                  ),
-                ),
-                child: SafeArea(
-                  child: stillLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: AppColors.beige,
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: <Widget>[
-                              Row(
-                                children: <Widget>[
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Text(
-                                          'Revenue',
-                                          style: AppColors.pageHeading.copyWith(
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.w700,
-                                          ),
+              body: SafeArea(
+                child: stillLoading
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.beige,
+                        ),
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            // Title and description.
+                            Row(
+                              children: <Widget>[
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: <Widget>[
+                                      Text(
+                                        'Revenue',
+                                        style: AppColors.pageHeading.copyWith(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.w700,
                                         ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          'Track income, pending payments and recent collections with clarity.',
-                                          style: TextStyle(
-                                            fontFamily:
-                                                AppColors.bodyFontFamily,
-                                            fontSize: 14,
-                                            height: 1.4,
-                                            color: AppColors.textSecondary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                      ),
+                                      
+                                        
+                                    
+                                    ],
                                   ),
-                                  FilledButton.icon(
-                                    onPressed: _showAddMiscDialog,
-                                    icon: const Icon(Icons.add_rounded, size: 18),
-                                    label: const Text('Add income'),
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 12,
-                                      ),
-                                      backgroundColor:
-                                          AppColors.chartBarLight,
-                                      foregroundColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                    ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 18),
+                            // Gradient summary card with vertically centered content.
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(20),
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF1E78FF),
+                                    Color(0xFF5BA6FF)
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(28),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x33000000),
+                                    blurRadius: 16,
+                                    offset: Offset(0, 8),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 18),
-                              Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(20),
-                                decoration: BoxDecoration(
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF1E78FF),
-                                      Color(0xFF5BA6FF)
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: <Widget>[
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            Text(
+                                              'Total income',
+                                              style: TextStyle(
+                                                fontFamily:
+                                                    AppColors.bodyFontFamily,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                                color: Colors.white70,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              '₹${totalRevenue.toStringAsFixed(0)}',
+                                              style: const TextStyle(
+                                                fontFamily:
+                                                    AppColors.bodyFontFamily,
+                                                fontSize: 32,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.18,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(18),
+                                        ),
+                                        child: const Icon(
+                                          Icons.account_balance_wallet_rounded,
+                                          color: Colors.white,
+                                          size: 24,
+                                        ),
+                                      ),
                                     ],
                                   ),
-                                  borderRadius: BorderRadius.circular(28),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x33000000),
-                                      blurRadius: 16,
-                                      offset: Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: <Widget>[
-                                    Row(
-                                      children: <Widget>[
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: <Widget>[
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.16,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
+                                          child: Row(
                                             children: <Widget>[
-                                              Text(
-                                                'Total income',
-                                                style: TextStyle(
-                                                  fontFamily:
-                                                      AppColors.bodyFontFamily,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white70,
-                                                ),
+                                              const Icon(
+                                                Icons.calendar_month_rounded,
+                                                color: Colors.white,
+                                                size: 16,
                                               ),
-                                              const SizedBox(height: 6),
+                                              const SizedBox(width: 8),
                                               Text(
-                                                '₹${totalRevenue.toStringAsFixed(0)}',
+                                                _selectedFilter,
                                                 style: const TextStyle(
                                                   fontFamily:
                                                       AppColors.bodyFontFamily,
-                                                  fontSize: 32,
-                                                  fontWeight: FontWeight.w700,
                                                   color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight:
+                                                      FontWeight.w600,
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        Container(
-                                          padding: const EdgeInsets.all(12),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.18,
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(18),
-                                          ),
-                                          child: const Icon(
-                                            Icons.account_balance_wallet_rounded,
-                                            color: Colors.white,
-                                            size: 24,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Row(
-                                      children: <Widget>[
+                                      ),
+                                      const SizedBox(width: 12),
+                                      if (lastPaid != null)
                                         Expanded(
                                           child: Container(
-                                            padding: const EdgeInsets.symmetric(
+                                            padding:
+                                                const EdgeInsets.symmetric(
                                               horizontal: 12,
                                               vertical: 10,
                                             ),
@@ -518,21 +527,30 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                               borderRadius:
                                                   BorderRadius.circular(16),
                                             ),
-                                            child: Row(
+                                            child: Column(
+                                              crossAxisAlignment:
+                                                  CrossAxisAlignment.start,
                                               children: <Widget>[
-                                                const Icon(
-                                                  Icons.calendar_month_rounded,
-                                                  color: Colors.white,
-                                                  size: 16,
-                                                ),
-                                                const SizedBox(width: 8),
                                                 Text(
-                                                  _selectedFilter,
+                                                  'Last paid',
+                                                  style: TextStyle(
+                                                    fontFamily:
+                                                        AppColors.bodyFontFamily,
+                                                    fontSize: 11,
+                                                    color: Colors.white70,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 2),
+                                                Text(
+                                                  '${lastPaid.payer ?? 'Unknown'} • ${DateFormat.yMMMd().format(lastPaid.date)}',
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
                                                   style: const TextStyle(
                                                     fontFamily:
                                                         AppColors.bodyFontFamily,
+                                                    fontSize: 12,
                                                     color: Colors.white,
-                                                    fontSize: 13,
                                                     fontWeight:
                                                         FontWeight.w600,
                                                   ),
@@ -541,162 +559,282 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             ),
                                           ),
                                         ),
-                                        const SizedBox(width: 12),
-                                        if (lastPaid != null)
-                                          Expanded(
-                                            child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 10,
-                                              ),
-                                              decoration: BoxDecoration(
-                                                color: Colors.white.withValues(
-                                                  alpha: 0.16,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(16),
-                                              ),
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: <Widget>[
-                                                  Text(
-                                                    'Last paid',
-                                                    style: TextStyle(
-                                                      fontFamily:
-                                                          AppColors.bodyFontFamily,
-                                                      fontSize: 11,
-                                                      color: Colors.white70,
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    '${lastPaid.payer ?? 'Unknown'} • ${DateFormat.yMMMd().format(lastPaid.date)}',
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontFamily:
-                                                          AppColors.bodyFontFamily,
-                                                      fontSize: 12,
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w600,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Text(
-                                'Time filter',
-                                style: AppColors.pageHeading.copyWith(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.textPrimary,
-                                ),
-                              ),
-                              const SizedBox(height: 8),
-                              SingleChildScrollView(
-                                scrollDirection: Axis.horizontal,
-                                child: Row(
-                                  children: ['Weekly', 'Monthly', 'Yearly', 'All']
-                                      .map((filter) {
-                                    final isSelected = filter == _selectedFilter;
-                                    return Padding(
-                                      padding: const EdgeInsets.only(right: 8),
-                                      child: ChoiceChip(
-                                        label: Text(
-                                          filter,
-                                          style: TextStyle(
-                                            fontFamily:
-                                                AppColors.bodyFontFamily,
-                                            color: isSelected
-                                                ? AppColors.midnightBlue
-                                                : AppColors.textSecondary,
-                                            fontWeight: isSelected
-                                                ? FontWeight.w700
-                                                : FontWeight.w500,
-                                          ),
-                                        ),
-                                        selected: isSelected,
-                                        onSelected: (_) => setState(
-                                          () => _selectedFilter = filter,
-                                        ),
-                                        selectedColor: AppColors.beige,
-                                        backgroundColor: AppColors.cardSurface,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(28),
-                                        ),
-                                        elevation: isSelected ? 2 : 0,
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-                              const SizedBox(height: 24),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: <Widget>[
-                                  Text(
-                                    'Pending payments',
-                                    style: AppColors.pageHeading.copyWith(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: _showAddPendingDialog,
-                                    icon: const Icon(Icons.add_rounded, size: 18),
-                                    label: const Text('Add'),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor:
-                                          AppColors.chartBarLight,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                    ),
+                                    ],
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 10),
-                              if (pendingPayments.isEmpty)
-                                GestureDetector(
-                                  onTap: _showAddPendingDialog,
-                                  child: Container(
-                                    width: double.infinity,
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.cardSurface,
-                                      borderRadius: BorderRadius.circular(24),
-                                      border: Border.all(
-                                        color: AppColors.chartBarDim.withValues(
-                                          alpha: 0.3,
+                            ),
+                            // Reduced gap between income card and Pending payments section
+                            const SizedBox(height: 8),
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  'Pending payments',
+                                  style: AppColors.pageHeading.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _showAddPendingDialog,
+                                  icon: const Icon(Icons.add_rounded, size: 18),
+                                  label: const Text('Add'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor:
+                                        AppColors.chartBarLight,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            if (pendingPayments.isEmpty)
+                              GestureDetector(
+                                onTap: _showAddPendingDialog,
+                                child: Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.cardSurface,
+                                    borderRadius: BorderRadius.circular(24),
+                                    border: Border.all(
+                                      color: AppColors.chartBarDim.withValues(
+                                        alpha: 0.3,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: <Widget>[
+                                      Container(
+                                        padding: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.chartBarLight,
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        child: const Icon(
+                                          Icons.hourglass_empty_rounded,
+                                          color: Colors.white,
+                                          size: 18,
                                         ),
                                       ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: <Widget>[
+                                            const Text(
+                                              'No pending items',
+                                              style: TextStyle(
+                                                fontFamily:
+                                                    AppColors.bodyFontFamily,
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              'Create a pending payment card to follow upcoming collections.',
+                                              style: TextStyle(
+                                                fontFamily:
+                                                    AppColors.bodyFontFamily,
+                                                fontSize: 12,
+                                                color: AppColors.textSecondary,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            else
+                              SizedBox(
+                                height: 170,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: pendingPayments.length,
+                                  itemBuilder: (_, index) {
+                                    final pending = pendingPayments[index];
+                                    return Container(
+                                      width: 190,
+                                      margin: const EdgeInsets.only(right: 10),
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.cardSurface,
+                                        borderRadius: BorderRadius.circular(24),
+                                        border: Border.all(
+                                          color: Colors.amber.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                          width: 1,
+                                        ),
+                                        boxShadow: const [
+                                          BoxShadow(
+                                            color: Colors.black12,
+                                            blurRadius: 8,
+                                            offset: Offset(0, 3),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: <Widget>[
+                                          Row(
+                                            children: <Widget>[
+                                              Expanded(
+                                                child: Text(
+                                                  '₹${pending.amount.toStringAsFixed(0)}',
+                                                  style: const TextStyle(
+                                                    fontFamily: AppColors
+                                                        .bodyFontFamily,
+                                                    color: Colors.amber,
+                                                    fontSize: 23,
+                                                    fontWeight:
+                                                        FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                              GestureDetector(
+                                                onTap: () =>
+                                                    _markAsPaid(pending),
+                                                child: const Icon(
+                                                  Icons.check_circle_outline,
+                                                  size: 20,
+                                                  color: Color(0xFF4CAF50),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const Spacer(),
+                                          Text(
+                                            pending.description,
+                                            style: const TextStyle(
+                                              color: AppColors.textPrimary,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                              fontFamily:
+                                                  AppColors.headingFontFamily,
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text(
+                                            DateFormat.yMMMd()
+                                                .format(pending.date),
+                                            style: const TextStyle(
+                                              fontFamily:
+                                                  AppColors.bodyFontFamily,
+                                              color: AppColors.textSecondary,
+                                              fontSize: 12,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                              children: <Widget>[
+                                Text(
+                                  'Recent payments',
+                                  style: AppColors.pageHeading.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  onPressed: _showAddMiscDialog,
+                                  icon: const Icon(Icons.add_rounded, size: 18),
+                                  label: const Text('Add'),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor:
+                                        AppColors.chartBarLight,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            if (filtered.isEmpty)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(18),
+                                decoration: BoxDecoration(
+                                  color: AppColors.cardSurface,
+                                  borderRadius: BorderRadius.circular(24),
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    'No revenue entries for this period',
+                                    style: TextStyle(
+                                      fontFamily: AppColors.bodyFontFamily,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              )
+                            else
+                              ListView.separated(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                itemCount: filtered.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 8),
+                                itemBuilder: (context, index) {
+                                  final entry = filtered[index];
+                                  IconData icon;
+                                  switch (entry.type) {
+                                    case RevenueType.visit:
+                                      icon = Icons.medical_services;
+                                      break;
+                                    case RevenueType.online:
+                                      icon = Icons.videocam;
+                                      break;
+                                    case RevenueType.miscellaneous:
+                                      icon = Icons.miscellaneous_services;
+                                      break;
+                                  }
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.cardSurface,
+                                      borderRadius: BorderRadius.circular(22),
+                                      boxShadow: const [
+                                        BoxShadow(
+                                          color: Colors.black12,
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
                                     ),
                                     child: Row(
                                       children: <Widget>[
-                                        Container(
-                                          padding: const EdgeInsets.all(8),
-                                          decoration: BoxDecoration(
-                                            color: AppColors.chartBarLight,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                          ),
-                                          child: const Icon(
-                                            Icons.hourglass_empty_rounded,
+                                        CircleAvatar(
+                                          radius: 22,
+                                          backgroundColor: AppColors.chartBarDim,
+                                          child: Icon(
+                                            icon,
                                             color: Colors.white,
                                             size: 18,
                                           ),
@@ -707,264 +845,48 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.start,
                                             children: <Widget>[
-                                              const Text(
-                                                'No pending items',
-                                                style: TextStyle(
+                                              Text(
+                                                entry.description,
+                                                style: const TextStyle(
                                                   fontFamily:
                                                       AppColors.bodyFontFamily,
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w700,
                                                   color: AppColors.textPrimary,
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w700,
                                                 ),
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                'Create a pending payment card to follow upcoming collections.',
-                                                style: TextStyle(
+                                                DateFormat.yMMMd()
+                                                    .format(entry.date),
+                                                style: const TextStyle(
                                                   fontFamily:
                                                       AppColors.bodyFontFamily,
-                                                  fontSize: 12,
                                                   color: AppColors.textSecondary,
+                                                  fontSize: 13,
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
+                                        Text(
+                                          '₹${entry.amount.toStringAsFixed(0)}',
+                                          style: const TextStyle(
+                                            fontFamily:
+                                                AppColors.bodyFontFamily,
+                                            color: Color(0xFF2E7D32),
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
                                       ],
                                     ),
-                                  ),
-                                )
-                              else
-                                SizedBox(
-                                  height: 170,
-                                  child: ListView.builder(
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: pendingPayments.length,
-                                    itemBuilder: (_, index) {
-                                      final pending = pendingPayments[index];
-                                      return Container(
-                                        width: 190,
-                                        margin: const EdgeInsets.only(right: 10),
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.cardSurface,
-                                          borderRadius: BorderRadius.circular(24),
-                                          border: Border.all(
-                                            color: Colors.amber.withValues(
-                                              alpha: 0.35,
-                                            ),
-                                            width: 1,
-                                          ),
-                                          boxShadow: const [
-                                            BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 8,
-                                              offset: Offset(0, 3),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            Row(
-                                              children: <Widget>[
-                                                Expanded(
-                                                  child: Text(
-                                                    '₹${pending.amount.toStringAsFixed(0)}',
-                                                    style: const TextStyle(
-                                                      fontFamily: AppColors
-                                                          .bodyFontFamily,
-                                                      color: Colors.amber,
-                                                      fontSize: 23,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                    ),
-                                                  ),
-                                                ),
-                                                GestureDetector(
-                                                  onTap: () =>
-                                                      _markAsPaid(pending),
-                                                  child: const Icon(
-                                                    Icons.check_circle_outline,
-                                                    size: 20,
-                                                    color: Color(0xFF4CAF50),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            const Spacer(),
-                                            Text(
-                                              pending.description,
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w600,
-                                                fontFamily:
-                                                    AppColors.headingFontFamily,
-                                              ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              DateFormat.yMMMd()
-                                                  .format(pending.date),
-                                              style: const TextStyle(
-                                                fontFamily:
-                                                    AppColors.bodyFontFamily,
-                                                color: AppColors.textSecondary,
-                                                fontSize: 12,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      );
-                                    },
-                                  ),
-                                ),
-                              const SizedBox(height: 24),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: <Widget>[
-                                  Text(
-                                    'Recent payments',
-                                    style: AppColors.pageHeading.copyWith(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.textPrimary,
-                                    ),
-                                  ),
-                                  TextButton.icon(
-                                    onPressed: _showAddMiscDialog,
-                                    icon: const Icon(Icons.add_rounded, size: 18),
-                                    label: const Text('Add'),
-                                    style: TextButton.styleFrom(
-                                      foregroundColor:
-                                          AppColors.chartBarLight,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 10,
-                                        vertical: 6,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                  );
+                                },
                               ),
-                              const SizedBox(height: 10),
-                              if (filtered.isEmpty)
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(18),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.cardSurface,
-                                    borderRadius: BorderRadius.circular(24),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      'No revenue entries for this period',
-                                      style: TextStyle(
-                                        fontFamily: AppColors.bodyFontFamily,
-                                        color: AppColors.textSecondary,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              else
-                                ListView.separated(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  itemCount: filtered.length,
-                                  separatorBuilder: (_, __) =>
-                                      const SizedBox(height: 8),
-                                  itemBuilder: (context, index) {
-                                    final entry = filtered[index];
-                                    IconData icon;
-                                    switch (entry.type) {
-                                      case RevenueType.visit:
-                                        icon = Icons.medical_services;
-                                        break;
-                                      case RevenueType.online:
-                                        icon = Icons.videocam;
-                                        break;
-                                      case RevenueType.miscellaneous:
-                                        icon = Icons.miscellaneous_services;
-                                        break;
-                                    }
-
-                                    return Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.cardSurface,
-                                        borderRadius: BorderRadius.circular(22),
-                                        boxShadow: const [
-                                          BoxShadow(
-                                            color: Colors.black12,
-                                            blurRadius: 8,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Row(
-                                        children: <Widget>[
-                                          CircleAvatar(
-                                            radius: 22,
-                                            backgroundColor: AppColors.chartBarDim,
-                                            child: Icon(
-                                              icon,
-                                              color: Colors.white,
-                                              size: 18,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: <Widget>[
-                                                Text(
-                                                  entry.description,
-                                                  style: const TextStyle(
-                                                    fontFamily:
-                                                        AppColors.bodyFontFamily,
-                                                    color: AppColors.textPrimary,
-                                                    fontSize: 15,
-                                                    fontWeight: FontWeight.w700,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  DateFormat.yMMMd()
-                                                      .format(entry.date),
-                                                  style: const TextStyle(
-                                                    fontFamily:
-                                                        AppColors.bodyFontFamily,
-                                                    color: AppColors.textSecondary,
-                                                    fontSize: 13,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          Text(
-                                            '₹${entry.amount.toStringAsFixed(0)}',
-                                            style: const TextStyle(
-                                              fontFamily:
-                                                  AppColors.bodyFontFamily,
-                                              color: Color(0xFF2E7D32),
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
+                          ],
                         ),
-                ),
+                      ),
               ),
             );
           },

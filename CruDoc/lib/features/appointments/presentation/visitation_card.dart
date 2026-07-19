@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
-    show staticMapUrlFor, VisitStatus;
+    show staticMapUrlFor, VisitStatus, VisitType;
 
 const String _defaultMapAsset = 'assets/images/default_map.png';
 
@@ -20,6 +20,7 @@ class VisitCard extends StatelessWidget {
 
   // --- Phase 3 additions ---
   final VisitStatus status;
+  final VisitType visitType;
   final VoidCallback? onTap;
   final VoidCallback? onMarkCompleted;
   final VoidCallback? onCancel;
@@ -38,6 +39,7 @@ class VisitCard extends StatelessWidget {
     this.mapsLink,
     required this.onMapTap,
     required this.status,
+    required this.visitType,
     this.onTap,
     this.onMarkCompleted,
     this.onCancel,
@@ -95,6 +97,19 @@ class VisitCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: _visitTypeColor(visitType),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _visitTypeIcon(visitType),
+                      color: Colors.white,
+                      size: 13,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
@@ -248,6 +263,25 @@ class VisitCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // ---------- Visit type badge helpers ----------
+  Color _visitTypeColor(VisitType visitType) {
+    switch (visitType) {
+      case VisitType.clinic:
+        return AppColors.slateBlue;
+      case VisitType.home:
+        return AppColors.positiveGreen;
+    }
+  }
+
+  IconData _visitTypeIcon(VisitType visitType) {
+    switch (visitType) {
+      case VisitType.clinic:
+        return Icons.local_hospital;
+      case VisitType.home:
+        return Icons.home;
+    }
   }
 
   // ---------- Status badge helpers ----------

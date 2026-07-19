@@ -252,6 +252,7 @@ class VisitLocalService {
       'address': visit.address,
       'latitude': visit.latitude,
       'longitude': visit.longitude,
+      'visitType': visit.visitType.value,
       'status': visit.status.value,
       'isDeleted': visit.isDeleted ? 1 : 0,
       'isActive': pendingDelete ? 0 : 1,
@@ -301,6 +302,7 @@ class VisitLocalService {
           break;
         case 'patientId':
         case 'address':
+        case 'visitType':
         case 'status':
         case 'invoiceId':
         case 'packageId':
@@ -324,6 +326,7 @@ class VisitLocalService {
       address: row['address'] as String? ?? '',
       latitude: (row['latitude'] as num?)?.toDouble(),
       longitude: (row['longitude'] as num?)?.toDouble(),
+      visitType: VisitType.fromValue(row['visitType'] as String?),
       status: VisitStatus.fromValue(row['status'] as String?),
       isDeleted: row['isDeleted'] == 1,
       invoiceId: row['invoiceId'] as String?,

@@ -209,6 +209,7 @@ class _VisitDraft {
   final String duration;
   final String address;
   final String? mapsLink;
+  final vmodel.VisitType visitType;   // merged: added visitType field
   const _VisitDraft({
     required this.patient,
     required this.typedName,
@@ -217,6 +218,7 @@ class _VisitDraft {
     required this.duration,
     required this.address,
     this.mapsLink,
+    required this.visitType,          // merged: required
   });
 }
 
@@ -241,9 +243,23 @@ class EventsScreen extends ConsumerStatefulWidget {
   ConsumerState<EventsScreen> createState() => _EventsScreenState();
 }
 
-class _EventsScreenState extends ConsumerState<EventsScreen> {
+class _EventsScreenState extends ConsumerState<EventsScreen>
+    with SingleTickerProviderStateMixin {
   final VisitRepository _visitRepository = VisitRepository();
   final PatientRepository _patientRepository = PatientRepository();
+
+  // Drives the swipeable "Visitations" / "Appointments" category cards
+  // (Instagram Posts/Reels/Tagged-style) below the online sessions list.
+  late final TabController _categoryTabController = TabController(
+    length: 2,
+    vsync: this,
+  );
+
+  @override
+  void dispose() {
+    _categoryTabController.dispose();
+    super.dispose();
+  }
 
   // Online sessions still use local state (no backend)
   List<OnlineSession> onlineSessions = [
@@ -409,6 +425,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
       timeStr: timeStr,
       durationLabel: draft.duration,
       mapsLink: draft.mapsLink,
+      visitType: draft.visitType,   // merged: pass visit type
     );
   }
 
@@ -422,6 +439,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
     required String timeStr,
     required String durationLabel,
     String? mapsLink,
+    required vmodel.VisitType visitType,   // merged: required param
     bool acknowledgeOverlap = false,
   }) async {
     final now = DateTime.now();
@@ -432,6 +450,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
       durationMinutes: durationMinutes,
       address: address,
       mapsLink: mapsLink,
+      visitType: visitType,              // merged: set visit type
       status: vmodel.VisitStatus.scheduled,
       createdAt: now,
       updatedAt: now,
@@ -484,6 +503,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
           timeStr: timeStr,
           durationLabel: durationLabel,
           mapsLink: mapsLink,
+          visitType: visitType,       // merged: recurse with same type
           acknowledgeOverlap: true,
         );
       }
@@ -602,16 +622,37 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                   ),
                 ),
 
-              // ---------- Upcoming Visits section ----------
+              // ---------- Visitations / Appointments (swipeable, like
+              // Instagram's Posts/Reels/Tagged profile tabs) ----------
               const SizedBox(height: 28),
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Text(
-                    'Upcoming Visits',
-                    style: AppColors.pageHeading.copyWith(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: TabBar(
+                      controller: _categoryTabController,
+                      isScrollable: true,
+                      tabAlignment: TabAlignment.start,
+                      dividerColor: Colors.transparent,
+                      indicatorSize: TabBarIndicatorSize.label,
+                      indicatorColor: AppColors.chartBarLight,
+                      indicatorWeight: 3,
+                      labelPadding: const EdgeInsets.only(right: 20),
+                      labelColor: AppColors.textPrimary,
+                      unselectedLabelColor:
+                          AppColors.textSecondary.withValues(alpha: 0.5),
+                      labelStyle: AppColors.pageHeading.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      unselectedLabelStyle: AppColors.pageHeading.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      tabs: const [
+                        Tab(text: 'Visitations'),
+                        Tab(text: 'Appointments'),
+                      ],
                     ),
                   ),
                   GestureDetector(
@@ -633,118 +674,20 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
               ),
               const SizedBox(height: 8),
               Expanded(
-                child: visitsAsync.when(
-                  loading: () => const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.slateBlue,
+                child: TabBarView(
+                  controller: _categoryTabController,
+                  children: [
+                    // "Visitations" = home visits.
+                    _buildVisitsList(
+                      visitsAsync,
+                      filterType: vmodel.VisitType.home,
                     ),
-                  ),
-                  error: (error, stack) => Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.error_outline,
-                            color: Colors.red, size: 40),
-                        const SizedBox(height: 12),
-                        Text(
-                          'Failed to load visits',
-                          style: AppColors.bodyLarge.copyWith(
-                            color: Colors.red,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          error.toString(),
-                          style: AppColors.bodySmall,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 12),
-                        ElevatedButton(
-                          onPressed: () =>
-                              ref.invalidate(visitsWithPatientsProvider),
-                          child: const Text('Retry'),
-                        ),
-                      ],
+                    // "Appointments" = clinic bookings.
+                    _buildVisitsList(
+                      visitsAsync,
+                      filterType: vmodel.VisitType.clinic,
                     ),
-                  ),
-                  data: (visits) {
-                    final now = DateTime.now();
-                    // Filter: show visits that haven't ended yet AND have a valid patient
-                    final upcoming = visits
-                        .where((vw) =>
-                            vw.patient != null &&
-                            vw.visit.scheduledStart
-                                .add(Duration(
-                                    minutes: vw.visit.durationMinutes))
-                                .isAfter(now))
-                        .toList()
-                      ..sort((a, b) => a.visit.scheduledStart
-                          .compareTo(b.visit.scheduledStart));
-
-                    if (upcoming.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.event_busy,
-                                color: AppColors.textSecondary, size: 48),
-                            SizedBox(height: 12),
-                            Text(
-                              'No upcoming visits',
-                              style: AppColors.bodyLarge,
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: upcoming.length,
-                      itemBuilder: (context, index) {
-                        final vw = upcoming[index];
-                        final visit = vw.visit;
-                        final patient = vw.patient!;
-
-                        // Format date strings for VisitCard
-                        final dateStr =
-                            '${visit.scheduledStart.day} ${_monthName(visit.scheduledStart.month)} ${visit.scheduledStart.year}';
-                        final dayStr =
-                            _dayName(visit.scheduledStart.weekday);
-                        final timeStr =
-                            '${visit.scheduledStart.hour.toString().padLeft(2, '0')}:${visit.scheduledStart.minute.toString().padLeft(2, '0')}';
-                        final durationLabel = '${visit.durationMinutes} min';
-
-                        return VisitCard(
-                          patientName: patient.fullName,
-                          date: dateStr,
-                          day: dayStr,
-                          time: timeStr,
-                          duration: durationLabel,
-                          address: visit.address,
-                          latitude: visit.latitude,
-                          longitude: visit.longitude,
-                          mapsLink: visit.mapsLink,
-                          onMapTap: _launchUrl,
-                          // --- Phase 3 additions ---
-                          status: visit.status,
-                          onTap: () {
-                            // Navigate to VisitDetailsPage with the VisitWithPatient data
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => VisitDetailsPage(initial: vw),
-                              ),
-                            );
-                          },
-                          onMarkCompleted:
-                              () => _markCompleted(visit.id),
-                          onCancel: () => _cancelVisit(visit.id),
-                          onDelete: () => _deleteVisit(visit.id),
-                        );
-                      },
-                    );
-                  },
+                  ],
                 ),
               ),
             ],
@@ -753,9 +696,132 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
       ),
     );
   }
+
+  /// Builds one swipeable tab's content: the same loading/error/data
+  /// handling the old single "Upcoming Visits" list used, just filtered
+  /// down to [filterType] (clinic vs. home) so "Visitations" and
+  /// "Appointments" each show their own slice of the same underlying
+  /// [visitsWithPatientsProvider] stream.
+  Widget _buildVisitsList(
+    AsyncValue<List<VisitWithPatient>> visitsAsync, {
+    required vmodel.VisitType filterType,
+  }) {
+    return visitsAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(
+          color: AppColors.slateBlue,
+        ),
+      ),
+      error: (error, stack) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: Colors.red, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load visits',
+              style: AppColors.bodyLarge.copyWith(
+                color: Colors.red,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              error.toString(),
+              style: AppColors.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () => ref.invalidate(visitsWithPatientsProvider),
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+      data: (visits) {
+        final now = DateTime.now();
+        // Filter: matching category, not yet ended, and has a valid patient.
+        final upcoming = visits
+            .where((vw) =>
+                vw.patient != null &&
+                vw.visit.visitType == filterType &&
+                vw.visit.scheduledStart
+                    .add(Duration(minutes: vw.visit.durationMinutes))
+                    .isAfter(now))
+            .toList()
+          ..sort((a, b) =>
+              a.visit.scheduledStart.compareTo(b.visit.scheduledStart));
+
+        if (upcoming.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.event_busy,
+                    color: AppColors.textSecondary, size: 48),
+                const SizedBox(height: 12),
+                Text(
+                  filterType == vmodel.VisitType.home
+                      ? 'No upcoming home visitations'
+                      : 'No upcoming clinic appointments',
+                  style: AppColors.bodyLarge,
+                ),
+              ],
+            ),
+          );
+        }
+
+        return ListView.builder(
+          physics: const ClampingScrollPhysics(),
+          itemCount: upcoming.length,
+          itemBuilder: (context, index) {
+            final vw = upcoming[index];
+            final visit = vw.visit;
+            final patient = vw.patient!;
+
+            // Format date strings for VisitCard
+            final dateStr =
+                '${visit.scheduledStart.day} ${_monthName(visit.scheduledStart.month)} ${visit.scheduledStart.year}';
+            final dayStr = _dayName(visit.scheduledStart.weekday);
+            final timeStr =
+                '${visit.scheduledStart.hour.toString().padLeft(2, '0')}:${visit.scheduledStart.minute.toString().padLeft(2, '0')}';
+            final durationLabel = '${visit.durationMinutes} min';
+
+            return VisitCard(
+              patientName: patient.fullName,
+              date: dateStr,
+              day: dayStr,
+              time: timeStr,
+              duration: durationLabel,
+              address: visit.address,
+              latitude: visit.latitude,
+              longitude: visit.longitude,
+              mapsLink: visit.mapsLink,
+              onMapTap: _launchUrl,
+              // --- Phase 3 additions ---
+              status: visit.status,
+              visitType: visit.visitType,       // merged: pass visit type to card
+              onTap: () {
+                // Navigate to VisitDetailsPage with the VisitWithPatient data
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => VisitDetailsPage(initial: vw),
+                  ),
+                );
+              },
+              onMarkCompleted: () => _markCompleted(visit.id),
+              onCancel: () => _cancelVisit(visit.id),
+              onDelete: () => _deleteVisit(visit.id),
+            );
+          },
+        );
+      },
+    );
+  }
 }
 
-// ---------- ADD VISIT DIALOG (address now optional) ----------
+// ---------- ADD VISIT DIALOG (address now optional, visit type toggle) ----------
 class _AddVisitDialog extends StatefulWidget {
   final PatientRepository patientRepository;
   const _AddVisitDialog({required this.patientRepository});
@@ -772,6 +838,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
   String _selectedDuration = '30 min';
+  vmodel.VisitType _selectedType = vmodel.VisitType.clinic;   // merged: new toggle state
 
   Patient? _selectedPatient;
   List<Patient> _patientMatches = [];
@@ -843,6 +910,47 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
         mapsLink: _mapsLinkController.text.trim().isEmpty
             ? null
             : _mapsLinkController.text.trim(),
+        visitType: _selectedType,     // merged: pass selected type
+      ),
+    );
+  }
+
+  // ---------- Clinic Booking / Home Visitation toggle ----------
+  Widget _buildVisitTypeToggle() {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: vmodel.VisitType.values.map((type) {
+          final selected = type == _selectedType;
+          return Expanded(
+            child: GestureDetector(
+              onTap: () => setState(() => _selectedType = type),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  color:
+                      selected ? AppColors.chartBarLight : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  type == vmodel.VisitType.clinic
+                      ? 'Clinic Booking'
+                      : 'Home Visitation',
+                  style: AppColors.bodyMedium.copyWith(
+                    color: selected ? Colors.white : Colors.black87,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -859,6 +967,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            _buildVisitTypeToggle(),     // merged: show toggle at top
+            const SizedBox(height: 12),
             _buildTextField(
               'Patient Name',
               _nameController,
@@ -958,11 +1068,17 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
               },
             ),
             const SizedBox(height: 12),
-            // Address now marked optional
+            // Address stays optional either way — only the label/hint
+            // flexes with the booking type.
             _buildTextField(
-              'Address (optional)',
+              _selectedType == vmodel.VisitType.home
+                  ? 'Home Address'
+                  : 'Clinic Address (optional)',
               _addressController,
-              hint: 'Will be geocoded when maps API is connected',
+              hint: _selectedType == vmodel.VisitType.home
+                  ? "Patient's home address — will be geocoded when maps "
+                      'API is connected'
+                  : 'Will be geocoded when maps API is connected',
             ),
             const SizedBox(height: 12),
             _buildTextField(

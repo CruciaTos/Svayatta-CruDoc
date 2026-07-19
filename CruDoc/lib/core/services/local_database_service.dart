@@ -128,6 +128,7 @@ class LocalDatabaseService extends ChangeNotifier {
         address TEXT NOT NULL DEFAULT '',
         latitude REAL,
         longitude REAL,
+        mapsLink TEXT,
         visitType TEXT NOT NULL DEFAULT 'clinic'
           CHECK (visitType IN ('clinic', 'home')),
         status TEXT NOT NULL DEFAULT 'scheduled'
@@ -322,6 +323,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'address': "address TEXT NOT NULL DEFAULT ''",
     'latitude': 'latitude REAL',
     'longitude': 'longitude REAL',
+    'mapsLink': 'mapsLink TEXT',
     'visitType': "visitType TEXT NOT NULL DEFAULT 'clinic'",
     'status': "status TEXT NOT NULL DEFAULT 'scheduled'",
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',

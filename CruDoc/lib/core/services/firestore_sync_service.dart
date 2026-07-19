@@ -24,12 +24,28 @@ class FirestoreSyncService {
   bool _isSyncing = false;
   bool _isStarted = false;
 
+  /// Non-visit collections where the Firestore collection name matches
+  /// the SQLite table name 1-to-1.
   static const List<String> _collections = [
     'patients',
-    'visits',
     'revenue_entries',
     'pending_payments',
   ];
+
+  /// Visit-specific Firestore collections.
+  ///
+  /// Both map into the single `visits` SQLite table.
+  /// Key = Firestore collection name; value = the `visitType` value that
+  /// every document in that collection carries.
+  ///
+  /// On **upload**: a pending `visits` row is routed to `appointments`
+  ///   when its `visitType` is `'clinic'`, or `visitations` when `'home'`.
+  /// On **download**: the collection name tells us which `visitType` to
+  ///   stamp on the incoming SQLite row — the stored field is the fallback.
+  static const Map<String, String> _visitFirestoreToType = {
+    'appointments': 'clinic',
+    'visitations': 'home',
+  };
 
   Future<void> start() async {
     if (_isStarted) return;
@@ -72,6 +88,7 @@ class FirestoreSyncService {
   Future<void> _uploadPendingRows() async {
     final db = await _databaseService.database;
 
+    // ── non-visit collections (SQLite table == Firestore collection) ────────
     for (final collection in _collections) {
       final rows = await db.query(
         collection,
@@ -103,9 +120,58 @@ class FirestoreSyncService {
       await batch.commit();
       await _markRowsSynced(collection, uploadedIds);
     }
+
+    // ── visits table → appointments / visitations Firestore collections ──────
+    await _uploadPendingVisits(db);
+  }
+
+  /// Uploads pending rows from the `visits` SQLite table, routing each row
+  /// to the correct Firestore collection based on its `visitType`:
+  ///   `'clinic'`  →  `appointments`
+  ///   `'home'`    →  `visitations`
+  ///
+  /// Soft-deletes are broadcast to **both** collections so a document is
+  /// cleaned up even if its type changed between creation and deletion.
+  Future<void> _uploadPendingVisits(Database db) async {
+    final rows = await db.query(
+      'visits',
+      where: 'syncStatus = ?',
+      whereArgs: ['pending'],
+    );
+    if (rows.isEmpty) return;
+
+    final batch = _firestore.batch();
+    final uploadedIds = <String>[];
+
+    for (final row in rows) {
+      final id = row['id'] as String;
+      final visitType = row['visitType'] as String? ?? 'clinic';
+      final targetCollection =
+          visitType == 'home' ? 'visitations' : 'appointments';
+      final pendingDelete = row['pendingDelete'] == 1;
+
+      if (pendingDelete) {
+        // Delete from both collections to handle type-changes that occurred
+        // before this sync run — keeps orphaned documents from building up.
+        batch.delete(_firestore.collection('appointments').doc(id));
+        batch.delete(_firestore.collection('visitations').doc(id));
+      } else {
+        final ref = _firestore.collection(targetCollection).doc(id);
+        batch.set(
+          ref,
+          _firestoreDataFor(targetCollection, row),
+          SetOptions(merge: true),
+        );
+      }
+      uploadedIds.add(id);
+    }
+
+    await batch.commit();
+    await _markRowsSynced('visits', uploadedIds);
   }
 
   Future<void> _downloadChangedRows() async {
+    // ── non-visit collections ────────────────────────────────────────────────
     for (final collection in _collections) {
       final lastSyncTime = await _lastSyncTime(collection);
       final snapshot = await _firestore
@@ -130,6 +196,41 @@ class FirestoreSyncService {
         await _setLastSyncTime(collection, newestSyncTime);
       }
     }
+
+    // ── visit Firestore collections → visits SQLite table ────────────────────
+    // `appointments` and `visitations` both land in the `visits` table.
+    // The sync-state key is the Firestore collection name so each collection
+    // tracks its own high-water mark independently.
+    for (final firestoreCollection in _visitFirestoreToType.keys) {
+      final lastSyncTime = await _lastSyncTime(firestoreCollection);
+      final snapshot = await _firestore
+          .collection(firestoreCollection)
+          .where(
+            'updatedAt',
+            isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
+          )
+          .get();
+
+      var newestSyncTime = lastSyncTime;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final updatedAtMillis = _timestampToMillis(data['updatedAt']);
+        if (updatedAtMillis > newestSyncTime) {
+          newestSyncTime = updatedAtMillis;
+        }
+        // Write into `visits`, not into a table named by the Firestore collection.
+        await _upsertDownloadedRow(
+          firestoreCollection,
+          doc.id,
+          data,
+          sqliteTable: 'visits',
+        );
+      }
+
+      if (newestSyncTime > lastSyncTime) {
+        await _setLastSyncTime(firestoreCollection, newestSyncTime);
+      }
+    }
   }
 
   Map<String, dynamic> _firestoreDataFor(
@@ -151,7 +252,12 @@ class FirestoreSyncService {
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
-      case 'visits':
+      // appointments (VisitType.clinic) and visitations (VisitType.home) share
+      // the same document shape. visitType is stored in the document so the
+      // collection a document lives in can always be verified, and mapsLink is
+      // now included so the map preview survives a full re-download.
+      case 'appointments':
+      case 'visitations':
         return {
           'patientId': row['patientId'] as String? ?? '',
           'scheduledStart': _timestampFromMillis(row['scheduledStart']),
@@ -159,6 +265,8 @@ class FirestoreSyncService {
           'address': row['address'] as String? ?? '',
           'latitude': (row['latitude'] as num?)?.toDouble(),
           'longitude': (row['longitude'] as num?)?.toDouble(),
+          'mapsLink': row['mapsLink'] as String?,
+          'visitType': row['visitType'] as String? ?? 'clinic',
           'status': row['status'] as String? ?? 'scheduled',
           'isDeleted': row['isDeleted'] == 1,
           'isActive': row['isActive'] == 1,
@@ -198,15 +306,24 @@ class FirestoreSyncService {
     }
   }
 
+  /// Inserts or replaces a downloaded Firestore document into SQLite.
+  ///
+  /// [firestoreCollection] drives the data mapping (which fields to extract
+  /// and how to coerce types). [sqliteTable] is the actual table to write to;
+  /// when omitted it defaults to [firestoreCollection]. Pass `sqliteTable:
+  /// 'visits'` when downloading from `appointments` or `visitations` so both
+  /// Firestore collections land in the single `visits` SQLite table.
   Future<void> _upsertDownloadedRow(
-    String collection,
+    String firestoreCollection,
     String id,
-    Map<String, dynamic> data,
-  ) async {
+    Map<String, dynamic> data, {
+    String? sqliteTable,
+  }) async {
     final db = await _databaseService.database;
+    final table = sqliteTable ?? firestoreCollection;
     await db.insert(
-      collection,
-      _sqliteRowFor(collection, id, data),
+      table,
+      _sqliteRowFor(firestoreCollection, id, data),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -236,7 +353,12 @@ class FirestoreSyncService {
           'pendingDelete': 0,
           'lastSyncedAt': now,
         };
-      case 'visits':
+      // appointments → visits table with visitType = 'clinic'
+      // visitations  → visits table with visitType = 'home'
+      // visitType is authoritative from the collection name, not the document
+      // field, so a misfiled document is corrected on download.
+      case 'appointments':
+      case 'visitations':
         return {
           'id': id,
           'patientId': data['patientId'] as String? ?? '',
@@ -248,6 +370,10 @@ class FirestoreSyncService {
           'address': data['address'] as String? ?? '',
           'latitude': (data['latitude'] as num?)?.toDouble(),
           'longitude': (data['longitude'] as num?)?.toDouble(),
+          'mapsLink': data['mapsLink'] as String?,
+          // Derive visitType from which collection this document came from,
+          // overriding whatever the document field says.
+          'visitType': _visitFirestoreToType[collection]!,
           'status': data['status'] as String? ?? 'scheduled',
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

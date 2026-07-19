@@ -17,10 +17,19 @@ class InitialFirestoreMigrationService {
 
   static const List<String> _collections = [
     'patients',
-    'visits',
+    'appointments', // VisitType.clinic  → visits SQLite table
+    'visitations',  // VisitType.home    → visits SQLite table
     'revenue_entries',
     'pending_payments',
   ];
+
+  /// The Firestore collections that map into the `visits` SQLite table.
+  /// Their `visitType` value is derived from the collection name, not from
+  /// the stored document field, to keep data consistent across devices.
+  static const Map<String, String> _visitFirestoreToType = {
+    'appointments': 'clinic',
+    'visitations': 'home',
+  };
 
   Future<void> runIfNeeded() async {
     for (final collection in _collections) {
@@ -38,6 +47,12 @@ class InitialFirestoreMigrationService {
     final snapshot = await _firestore.collection(collection).get();
     var newestUpdatedAt = 0;
 
+    // Visit Firestore collections (appointments, visitations) both land in
+    // the `visits` SQLite table; every other collection maps 1-to-1.
+    final sqliteTable = _visitFirestoreToType.containsKey(collection)
+        ? 'visits'
+        : collection;
+
     for (final doc in snapshot.docs) {
       final data = doc.data();
       final row = _sqliteRowFor(collection, doc.id, data);
@@ -46,7 +61,7 @@ class InitialFirestoreMigrationService {
 
       final db = await _databaseService.database;
       await db.insert(
-        collection,
+        sqliteTable,
         row,
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -119,7 +134,12 @@ class InitialFirestoreMigrationService {
           'pendingDelete': 0,
           'lastSyncedAt': now,
         };
-      case 'visits':
+      // appointments → visits table with visitType = 'clinic'
+      // visitations  → visits table with visitType = 'home'
+      // visitType is set from the collection name (authoritative), not the
+      // document field, so misfiled documents are self-correcting on load.
+      case 'appointments':
+      case 'visitations':
         return {
           'id': id,
           'patientId': data['patientId'] as String? ?? '',
@@ -131,6 +151,8 @@ class InitialFirestoreMigrationService {
           'address': data['address'] as String? ?? '',
           'latitude': (data['latitude'] as num?)?.toDouble(),
           'longitude': (data['longitude'] as num?)?.toDouble(),
+          'mapsLink': data['mapsLink'] as String?,
+          'visitType': _visitFirestoreToType[collection]!,
           'status': data['status'] as String? ?? 'scheduled',
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

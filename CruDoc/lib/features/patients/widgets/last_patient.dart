@@ -75,7 +75,7 @@ class _LastPatientContent extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.silver.withOpacity(0.15),
+                  color: AppColors.silver.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -96,7 +96,7 @@ class _LastPatientContent extends ConsumerWidget {
             children: [
               CircleAvatar(
                 radius: 28,
-                backgroundColor: AppColors.silver.withOpacity(0.2),
+                backgroundColor: AppColors.silver.withValues(alpha: 0.2),
                 child: Text(
                   initial,
                   style: const TextStyle(
@@ -130,7 +130,7 @@ class _LastPatientContent extends ConsumerWidget {
                           : '${patient.gender}, ${patient.age}',
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        color: AppColors.textSecondary.withOpacity(0.9),
+                        color: AppColors.textSecondary.withValues(alpha: 0.9),
                         fontSize: 14,
                       ),
                       maxLines: 1,
@@ -191,7 +191,7 @@ class _CardShell extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

@@ -52,7 +52,7 @@ class UpcomingPatientCard extends ConsumerWidget {
               Text(
                 patient.diagnosis.isNotEmpty ? patient.diagnosis : patient.gender,
                 style: TextStyle(
-                  color: AppColors.textSecondary.withOpacity(0.9),
+                  color: AppColors.textSecondary.withValues(alpha: 0.9),
                   fontSize: 13,
                 ),
                 maxLines: 1,
@@ -67,7 +67,7 @@ class UpcomingPatientCard extends ConsumerWidget {
                   Text(
                     _formatUpcoming(visit.scheduledStart),
                     style: TextStyle(
-                      color: AppColors.textSecondary.withOpacity(0.9),
+                      color: AppColors.textSecondary.withValues(alpha: 0.9),
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                     ),
@@ -99,7 +99,7 @@ class _CardShell extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),

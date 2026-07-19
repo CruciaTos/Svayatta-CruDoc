@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 
@@ -51,7 +50,7 @@ class _LinePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppColors.silver.withOpacity(0.08) // very subtle
+      ..color = AppColors.silver.withValues(alpha: 0.08) // very subtle
       ..strokeWidth = 0.6;
 
     final spacing = 40.0; // distance between lines

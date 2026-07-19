@@ -13,17 +13,20 @@ class QuickActionsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: _actions
-          .map(
-            (action) => Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 4),
-                child: _ActionButton(action: action),
-              ),
-            ),
-          )
-          .toList(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 36) / 4;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: _actions
+              .map((action) => SizedBox(
+                    width: itemWidth.clamp(74.0, 120.0),
+                    child: _ActionButton(action: action),
+                  ))
+              .toList(),
+        );
+      },
     );
   }
 }
@@ -41,32 +44,46 @@ class _ActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(20),
       onTap: () {
-        // Placeholder — will route to the real flow once go_router lands.
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${action.label} — coming soon')),
         );
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
         decoration: BoxDecoration(
           color: AppColors.cardSurface,
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 8),
+            ),
+          ],
         ),
         child: Column(
           children: [
-            Icon(action.icon, color: AppColors.beige, size: 20),
-            const SizedBox(height: 6),
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.chartBarLight,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Icon(action.icon, color: Colors.white, size: 22),
+            ),
+            const SizedBox(height: 12),
             Text(
               action.label,
               textAlign: TextAlign.center,
               style: const TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textSecondary,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w500,
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],

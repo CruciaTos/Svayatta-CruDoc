@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class InvoiceCreateScreen extends StatelessWidget {
-  const InvoiceCreateScreen({Key? key}) : super(key: key);
+  const InvoiceCreateScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

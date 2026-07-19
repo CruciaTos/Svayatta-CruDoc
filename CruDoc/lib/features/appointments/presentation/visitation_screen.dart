@@ -297,13 +297,15 @@ class _EventsScreenState extends ConsumerState<EventsScreen> {
                     _buildTextField('Title', titleController),
                     const SizedBox(height: 12),
                     _buildPickDateButton(context, selectedDate, (picked) {
-                      if (picked != null)
+                      if (picked != null) {
                         setDialogState(() => selectedDate = picked);
+                      }
                     }),
                     const SizedBox(height: 12),
                     _buildPickTimeButton(context, selectedTime, (picked) {
-                      if (picked != null)
+                      if (picked != null) {
                         setDialogState(() => selectedTime = picked);
+                      }
                     }),
                     const SizedBox(height: 12),
                     _buildTextField('Meeting Link (URL)', linkController,
@@ -928,7 +930,7 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                   'No matching patient — add them in Patient '
                   'Records first.',
                   style: AppColors.bodyMedium.copyWith(
-                    color: Colors.black.withOpacity(0.7),
+                    color: Colors.black.withValues(alpha: 0.7),
                   ),
                 ),
               ),

@@ -206,9 +206,9 @@ class _InfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.08),
+        color: Colors.white.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.12)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -240,7 +240,7 @@ class _DoctorsNoteCard extends StatelessWidget {
         width: double.infinity,
         decoration: BoxDecoration(
           color: AppColors.cardSurface,
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: IntrinsicHeight(
           child: Row(
@@ -266,7 +266,7 @@ class _DoctorsNoteCard extends StatelessWidget {
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 1.1,
-                                color: _accentAmber.withOpacity(0.9),
+                                color: _accentAmber.withValues(alpha: 0.9),
                               ),
                             ),
                             const SizedBox(height: 6),
@@ -277,7 +277,7 @@ class _DoctorsNoteCard extends StatelessWidget {
                               style: AppColors.bodyMedium.copyWith(
                                 color: hasNote
                                     ? AppColors.textPrimary
-                                    : AppColors.textSecondary.withOpacity(0.7),
+                                    : AppColors.textSecondary.withValues(alpha: 0.7),
                                 fontStyle: hasNote
                                     ? FontStyle.italic
                                     : FontStyle.normal,
@@ -357,7 +357,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +365,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: accent.withOpacity(0.15),
+              color: accent.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: accent, size: 18),
@@ -405,7 +405,7 @@ class _SectionLabel extends StatelessWidget {
       style: AppColors.bodySmall.copyWith(
         fontWeight: FontWeight.w700,
         letterSpacing: 1.1,
-        color: AppColors.textSecondary.withOpacity(0.85),
+        color: AppColors.textSecondary.withValues(alpha: 0.85),
       ),
     );
   }
@@ -424,7 +424,7 @@ class _ContactCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.06)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
       ),
       child: Row(
         children: [
@@ -556,7 +556,7 @@ class _SessionTimelineTile extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: _accentBlue,
                   border: Border.all(
-                    color: Colors.white.withOpacity(0.6),
+                    color: Colors.white.withValues(alpha: 0.6),
                     width: 2,
                   ),
                 ),
@@ -566,7 +566,7 @@ class _SessionTimelineTile extends StatelessWidget {
                   child: Container(
                     width: 2,
                     margin: const EdgeInsets.symmetric(vertical: 4),
-                    color: AppColors.textSecondary.withOpacity(0.2),
+                    color: AppColors.textSecondary.withValues(alpha: 0.2),
                   ),
                 ),
             ],
@@ -579,7 +579,7 @@ class _SessionTimelineTile extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.cardSurface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withOpacity(0.06)),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -625,7 +625,7 @@ class _BottomActionBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         border: Border(
-          top: BorderSide(color: Colors.white.withOpacity(0.08)),
+          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
       ),
       child: SafeArea(
@@ -639,7 +639,7 @@ class _BottomActionBar extends StatelessWidget {
                 label: const Text('Add Note'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.textPrimary,
-                  side: BorderSide(color: Colors.white.withOpacity(0.2)),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),

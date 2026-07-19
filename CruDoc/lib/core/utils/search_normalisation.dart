@@ -2,6 +2,7 @@
 /// input against stored records (patients today; anything else that needs
 /// case/format-insensitive search later). Kept dependency-free and pure
 /// so they're trivially testable and reusable outside the patients feature.
+library;
 
 /// Lowercases and trims [value] for case-insensitive comparisons.
 ///

@@ -28,11 +28,17 @@ class TodaysVisitsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -45,21 +51,32 @@ class TodaysVisitsCard extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
-                '${_visits.length} scheduled',
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                  fontSize: 12,
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.chartBarLight,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  '${_visits.length} scheduled',
+                  style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 16),
           if (_visits.isEmpty)
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
@@ -73,7 +90,19 @@ class TodaysVisitsCard extends StatelessWidget {
               ),
             )
           else
-            ..._visits.map((v) => _VisitRow(visit: v)),
+            Column(
+              children: _visits
+                  .map((visit) => Column(
+                        children: [
+                          _VisitRow(visit: visit),
+                          if (visit != _visits.last) const Divider(
+                            height: 24,
+                            color: Color(0xFFDDE6F0),
+                          ),
+                        ],
+                      ))
+                  .toList(),
+            ),
         ],
       ),
     );

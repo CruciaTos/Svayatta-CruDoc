@@ -42,16 +42,16 @@ class HomeDashboardScreen extends StatefulWidget {
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ---- Doctor info (replace with real data from provider/bloc) ----
-  String _doctorName = '';        // TODO: fetch from user session
-  String _specialty = '';        // TODO: fetch from user session
+  final String _doctorName = '';        // TODO: fetch from user session
+  final String _specialty = '';        // TODO: fetch from user session
 
   // ---- Revenue card state (lifted up) ----
   bool _isMonthly = true;
   int _selectedBarIndex = 0;     // will be updated when data is available
 
   // Replace these empty lists with data fetched from your repository
-  List<BarData> _weeklyBars = [];
-  List<BarData> _monthlyBars = [];
+  final List<BarData> _weeklyBars = [];
+  final List<BarData> _monthlyBars = [];
 
   // Derived values
   String get _currentAmount {
@@ -141,47 +141,64 @@ class _TopBar extends StatelessWidget {
     required this.doctorName,
     required this.specialty,
     this.onProfileTap,
-    this.onNotificationTap,
-  });
+  }) : onNotificationTap = null;
 
   @override
   Widget build(BuildContext context) {
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         GestureDetector(
           onTap: onProfileTap,
           child: Container(
-            width: 46,
-            height: 46,
+            width: 54,
+            height: 54,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: AppColors.slateBlue, width: 1.5),
-            ),
-            child: ClipOval(
-              child: Container(
-                color: AppColors.cardSurfaceAlt,
-                child: const Icon(Icons.person, color: AppColors.silver, size: 26),
+              gradient: const LinearGradient(
+                colors: [Color(0xFF3A85FF), Color(0xFF6BC9FF)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  blurRadius: 16,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Center(
+              child: Icon(Icons.person, color: Colors.white, size: 28),
             ),
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 14),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                doctorName.isNotEmpty ? doctorName : '---',
+                'Good afternoon',
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                doctorName.isNotEmpty ? doctorName : 'Dr. ---',
                 style: const TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
                   fontFamily: AppColors.headingFontFamily,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                specialty.isNotEmpty ? specialty : '---',
+                specialty.isNotEmpty ? specialty : 'Your dashboard overview',
                 style: const TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textSecondary,
@@ -193,8 +210,17 @@ class _TopBar extends StatelessWidget {
         ),
         GestureDetector(
           onTap: onNotificationTap,
-          child: const Icon(Icons.notifications_none,
-              color: AppColors.silver, size: 24),
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.cardSurface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.divider),
+            ),
+            child: const Icon(Icons.notifications_none,
+                color: AppColors.slateBlue, size: 22),
+          ),
         ),
       ],
     );
@@ -223,22 +249,20 @@ class _RevenueSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Handle empty data gracefully
     final bool isEmpty = bars.isEmpty;
     final int safeSelectedIndex =
         isEmpty ? -1 : selectedBarIndex.clamp(0, bars.length - 1);
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
-            blurRadius: 20,
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
             offset: const Offset(0, 10),
           ),
         ],
@@ -247,62 +271,69 @@ class _RevenueSnapshotCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
-                'Revenue',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Revenue',
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      amount,
+                      style: const TextStyle(
+                        fontFamily: AppColors.headingFontFamily,
+                        color: AppColors.textPrimary,
+                        fontSize: 38,
+                        fontWeight: FontWeight.w800,
+                        height: 1.0,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle.isNotEmpty ? subtitle : 'No period selected',
+                      style: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
                 ),
               ),
               Row(
                 children: [
-                  _buildToggleChip('Week', !isMonthly),
-                  const SizedBox(width: 6),
-                  _buildToggleChip('Month', isMonthly),
+                  _StatusPill(label: 'Week', active: !isMonthly, onTap: () {
+                    if (isMonthly) onToggle(false);
+                  }),
+                  const SizedBox(width: 8),
+                  _StatusPill(label: 'Month', active: isMonthly, onTap: () {
+                    if (!isMonthly) onToggle(true);
+                  }),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amount,
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  height: 1.0,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 20),
-          // Bar chart (handles empty state)
-          SizedBox(
+          Container(
             height: 130,
+            decoration: BoxDecoration(
+              color: AppColors.cardSurfaceAlt,
+              borderRadius: BorderRadius.circular(22),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             child: isEmpty
                 ? const Center(
                     child: Text(
-                      'No data',
+                      'No data yet',
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textSecondary,
@@ -313,40 +344,42 @@ class _RevenueSnapshotCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: List.generate(bars.length, (index) {
                       final bar = bars[index];
-                      final isSelected = index == safeSelectedIndex;
-
+                      final bool isSelected = index == safeSelectedIndex;
                       final barColor = isSelected
                           ? AppColors.chartBarLight
                           : AppColors.chartBarDim;
-
-                      final labelStyle = TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: isSelected
-                            ? AppColors.chartBarLight
-                            : AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.normal,
-                      );
+                      final labelColor = isSelected
+                          ? AppColors.chartBarLight
+                          : AppColors.textSecondary;
 
                       return Expanded(
                         child: GestureDetector(
                           onTap: () => onBarSelected(index),
                           child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
+                            padding: const EdgeInsets.symmetric(horizontal: 6),
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
                                 AnimatedContainer(
-                                  duration: const Duration(milliseconds: 250),
-                                  height: 96 * bar.heightFactor,
+                                  duration: const Duration(milliseconds: 260),
+                                  height: (bars[index].heightFactor * 96).clamp(24.0, 96.0),
                                   decoration: BoxDecoration(
                                     color: barColor,
-                                    borderRadius: BorderRadius.circular(6),
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(bar.label, style: labelStyle),
+                                const SizedBox(height: 10),
+                                Text(
+                                  bar.label,
+                                  style: TextStyle(
+                                    fontFamily: AppColors.bodyFontFamily,
+                                    color: labelColor,
+                                    fontSize: 11,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -360,28 +393,36 @@ class _RevenueSnapshotCard extends StatelessWidget {
     );
   }
 
-  Widget _buildToggleChip(String label, bool isActive) {
+}
+
+class _StatusPill extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _StatusPill({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () {
-        if (label == 'Month' && !isMonthly) {
-          onToggle(true);
-        } else if (label == 'Week' && isMonthly) {
-          onToggle(false);
-        }
-      },
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.slateBlue : AppColors.cardSurfaceAlt,
-          borderRadius: BorderRadius.circular(12),
+          color: active ? AppColors.chartBarLight : AppColors.cardSurfaceAlt,
+          borderRadius: BorderRadius.circular(16),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontFamily: AppColors.bodyFontFamily,
-            color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+            color: active ? Colors.white : AppColors.textSecondary,
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),
@@ -483,7 +524,7 @@ class _StatCard extends StatelessWidget {
                     fontFamily: AppColors.bodyFontFamily,
                     color: stat.deltaPositive
                         ? AppColors.positiveGreen
-                        : Colors.redAccent.withOpacity(0.8),
+                        : Colors.redAccent.withValues(alpha: 0.8),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),

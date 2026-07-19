@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 
 class QuickActionsRow extends StatelessWidget {
-  const QuickActionsRow({super.key});
+  const QuickActionsRow({
+    super.key,
+    this.onNewVisit,
+    this.onNewInvoice,
+    this.onAddPatient,
+    this.onLogExpense,
+  });
+
+  final VoidCallback? onNewVisit;
+  final VoidCallback? onNewInvoice;
+  final VoidCallback? onAddPatient;
+  final VoidCallback? onLogExpense;
 
   static const List<_QuickAction> _actions = [
     _QuickAction(icon: Icons.calendar_today_outlined, label: 'New Visit'),
@@ -20,14 +31,33 @@ class QuickActionsRow extends StatelessWidget {
           spacing: 12,
           runSpacing: 12,
           children: _actions
-              .map((action) => SizedBox(
-                    width: itemWidth.clamp(74.0, 120.0),
-                    child: _ActionButton(action: action),
-                  ))
+              .map(
+                (action) => SizedBox(
+                  width: itemWidth.clamp(74.0, 120.0),
+                  child: _ActionButton(
+                    action: action,
+                    onTap: _tapHandlerFor(action.label),
+                  ),
+                ),
+              )
               .toList(),
         );
       },
     );
+  }
+
+  VoidCallback? _tapHandlerFor(String label) {
+    switch (label) {
+      case 'New Visit':
+        return onNewVisit;
+      case 'New Invoice':
+        return onNewInvoice;
+      case 'Add Patient':
+        return onAddPatient;
+      case 'Log Expense':
+        return onLogExpense;
+    }
+    return null;
   }
 }
 
@@ -39,17 +69,15 @@ class _QuickAction {
 
 class _ActionButton extends StatelessWidget {
   final _QuickAction action;
-  const _ActionButton({required this.action});
+  final VoidCallback? onTap;
+
+  const _ActionButton({required this.action, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${action.label} — coming soon')),
-        );
-      },
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
         decoration: BoxDecoration(

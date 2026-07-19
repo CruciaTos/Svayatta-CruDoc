@@ -3,13 +3,14 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
+import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 
 // ---------- Data Models ----------
 class BarData {
   final String label;
   final double heightFactor; // 0.0 to 1.0
-  final int? revenueAmount;  // optional for tooltip / amount display
+  final int? revenueAmount; // optional for tooltip / amount display
 
   const BarData({
     required this.label,
@@ -34,7 +35,9 @@ class StatItem {
 
 // ---------- Home Dashboard Screen (Stateful for local UI state) ----------
 class HomeDashboardScreen extends StatefulWidget {
-  const HomeDashboardScreen({super.key});
+  const HomeDashboardScreen({super.key, this.onNavigateToTab});
+
+  final ValueChanged<int>? onNavigateToTab;
 
   @override
   State<HomeDashboardScreen> createState() => _HomeDashboardScreenState();
@@ -42,12 +45,12 @@ class HomeDashboardScreen extends StatefulWidget {
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ---- Doctor info (replace with real data from provider/bloc) ----
-  final String _doctorName = '';        // TODO: fetch from user session
-  final String _specialty = '';        // TODO: fetch from user session
+  final String _doctorName = ''; // TODO: fetch from user session
+  final String _specialty = ''; // TODO: fetch from user session
 
   // ---- Revenue card state (lifted up) ----
   bool _isMonthly = true;
-  int _selectedBarIndex = 0;     // will be updated when data is available
+  int _selectedBarIndex = 0; // will be updated when data is available
 
   // Replace these empty lists with data fetched from your repository
   final List<BarData> _weeklyBars = [];
@@ -68,6 +71,53 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   List<BarData> get _currentBars => _isMonthly ? _monthlyBars : _weeklyBars;
+
+  void _openAddPatient() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const AddPatientPage()),
+    );
+  }
+
+  void _showSectionInfo({required String title, required String message}) {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.cardSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          title,
+          style: AppColors.sectionHeading.copyWith(
+            color: AppColors.textPrimary,
+          ),
+        ),
+        content: Text(
+          message,
+          style: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Okay'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToTabOrExplain({
+    required int tabIndex,
+    required String unavailableTitle,
+    required String unavailableMessage,
+  }) {
+    final navigate = widget.onNavigateToTab;
+    if (navigate != null) {
+      navigate(tabIndex);
+      return;
+    }
+
+    _showSectionInfo(title: unavailableTitle, message: unavailableMessage);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,11 +167,36 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               const SizedBox(height: 16),
               _StatsGrid(stats: stats),
               const SizedBox(height: 20),
-              const QuickActionsRow(),
+              QuickActionsRow(
+                onNewVisit: () => _navigateToTabOrExplain(
+                  tabIndex: 4,
+                  unavailableTitle: 'New Visit',
+                  unavailableMessage:
+                      'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
+                ),
+                onNewInvoice: () => _navigateToTabOrExplain(
+                  tabIndex: 2,
+                  unavailableTitle: 'New Invoice',
+                  unavailableMessage:
+                      'Invoice creation is available from the invoice section.',
+                ),
+                onAddPatient: _openAddPatient,
+                onLogExpense: () => _showSectionInfo(
+                  title: 'Log Expense',
+                  message:
+                      'Expense logging is not available yet. This section will help you record clinic expenses and compare them with revenue once implemented.',
+                ),
+              ),
               const SizedBox(height: 20),
               const TodaysVisitsCard(),
               const SizedBox(height: 16),
-              const RecentActivityCard(),
+              RecentActivityCard(
+                onViewAll: () => _showSectionInfo(
+                  title: 'Recent Activity',
+                  message:
+                      'A full activity timeline is not available yet. Recent patient, invoice, visit, and revenue updates will appear here when the activity section is added.',
+                ),
+              ),
             ],
           ),
         ),
@@ -159,7 +234,11 @@ class _TopBar extends StatelessWidget {
             child: ClipOval(
               child: Container(
                 color: AppColors.cardSurfaceAlt,
-                child: const Icon(Icons.person, color: AppColors.silver, size: 26),
+                child: const Icon(
+                  Icons.person,
+                  color: AppColors.silver,
+                  size: 26,
+                ),
               ),
             ),
           ),
@@ -192,8 +271,11 @@ class _TopBar extends StatelessWidget {
         ),
         GestureDetector(
           onTap: onNotificationTap,
-          child: const Icon(Icons.notifications_none,
-              color: AppColors.silver, size: 24),
+          child: const Icon(
+            Icons.notifications_none,
+            color: AppColors.silver,
+            size: 24,
+          ),
         ),
       ],
     );
@@ -224,8 +306,9 @@ class _RevenueSnapshotCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // Handle empty data gracefully
     final bool isEmpty = bars.isEmpty;
-    final int safeSelectedIndex =
-        isEmpty ? -1 : selectedBarIndex.clamp(0, bars.length - 1);
+    final int safeSelectedIndex = isEmpty
+        ? -1
+        : selectedBarIndex.clamp(0, bars.length - 1);
 
     return Container(
       width: double.infinity,
@@ -324,8 +407,9 @@ class _RevenueSnapshotCard extends StatelessWidget {
                             ? AppColors.chartBarLight
                             : AppColors.textSecondary,
                         fontSize: 11,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.normal,
                       );
 
                       return Expanded(

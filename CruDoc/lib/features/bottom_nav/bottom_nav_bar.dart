@@ -17,10 +17,10 @@ class BottomNavBar extends StatelessWidget {
 
   static const _icons = [
     Icons.grid_view_rounded,
-    Icons.check_circle_outline_rounded,
+    Icons.groups_rounded,
     Icons.description_outlined,
+    Icons.payments_outlined,
     Icons.calendar_today_outlined,
-    Icons.person_outline_rounded,
   ];
 
   @override
@@ -33,7 +33,7 @@ class BottomNavBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
             // Container background uses vivid blue with low opacity
-            color:  Color.fromARGB(255, 220, 250, 255),
+            color: Color.fromARGB(255, 220, 250, 255),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
               color: chartBarLight.withValues(alpha: 0.3), // vivid blue border
@@ -48,7 +48,9 @@ class BottomNavBar extends StatelessWidget {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     // Active background = solid vivid blue
                     color: isActive ? chartBarLight : Colors.transparent,

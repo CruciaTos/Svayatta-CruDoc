@@ -8,7 +8,6 @@ import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
 import 'package:doctor_management_app/features/invoice/presentation/invoice_create_screen.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
 
-
 class Shell extends StatefulWidget {
   const Shell({super.key});
 
@@ -20,17 +19,22 @@ class _ShellState extends State<Shell> {
   int _currentIndex = 0;
   final PageController _pageController = PageController();
 
-  final List<Widget> _screens = const [
-    HomeDashboardScreen(),
-    PatientRecords(),
-    InvoiceCreateScreen(),
-    RevenueScreen(),
-    EventsScreen(),
-      // Placeholder for the fifth screen
-  ];
+  late final List<Widget> _screens;
 
   // Height of the nav bar (including margins/padding) – we'll use this to pad the content
-  static const double navBarHeight = 78.0;   // adjust to match your bar
+  static const double navBarHeight = 78.0; // adjust to match your bar
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      HomeDashboardScreen(onNavigateToTab: _onNavTap),
+      const PatientRecords(),
+      const InvoiceCreateScreen(),
+      const RevenueScreen(),
+      const EventsScreen(),
+    ];
+  }
 
   @override
   void dispose() {
@@ -39,6 +43,7 @@ class _ShellState extends State<Shell> {
   }
 
   void _onNavTap(int index) {
+    if (index < 0 || index >= _screens.length) return;
     _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 300),
@@ -58,11 +63,14 @@ class _ShellState extends State<Shell> {
               controller: _pageController,
               onPageChanged: (index) => setState(() => _currentIndex = index),
               children: _screens
-                  .map((screen) => Padding(
-                        padding: EdgeInsets.only(
-                            bottom: navBarHeight),   // make room for the overlay
-                        child: screen,
-                      ))
+                  .map(
+                    (screen) => Padding(
+                      padding: EdgeInsets.only(
+                        bottom: navBarHeight,
+                      ), // make room for the overlay
+                      child: screen,
+                    ),
+                  )
                   .toList(),
             ),
           ),
@@ -71,10 +79,7 @@ class _ShellState extends State<Shell> {
             left: 20,
             right: 20,
             bottom: 12,
-            child: BottomNavBar(
-              selectedIndex: _currentIndex,
-              onTap: _onNavTap,
-            ),
+            child: BottomNavBar(selectedIndex: _currentIndex, onTap: _onNavTap),
           ),
         ],
       ),

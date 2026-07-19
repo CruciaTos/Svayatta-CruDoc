@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 
 class RecentActivityCard extends StatelessWidget {
-  const RecentActivityCard({super.key});
+  const RecentActivityCard({super.key, this.onViewAll});
+
+  final VoidCallback? onViewAll;
 
   static const List<_ActivityItem> _items = [
     _ActivityItem(
@@ -53,13 +55,16 @@ class RecentActivityCard extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              Text(
-                'View all',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.chartBarLight,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
+              GestureDetector(
+                onTap: onViewAll,
+                child: Text(
+                  'View all',
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: AppColors.chartBarLight,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -67,16 +72,15 @@ class RecentActivityCard extends StatelessWidget {
           const SizedBox(height: 14),
           Column(
             children: _items
-                .map((item) => Column(
-                      children: [
-                        _ActivityRow(item: item),
-                        if (item != _items.last)
-                          const Divider(
-                            height: 24,
-                            color: Color(0xFFDDE6F0),
-                          ),
-                      ],
-                    ))
+                .map(
+                  (item) => Column(
+                    children: [
+                      _ActivityRow(item: item),
+                      if (item != _items.last)
+                        const Divider(height: 24, color: Color(0xFFDDE6F0)),
+                    ],
+                  ),
+                )
                 .toList(),
           ),
         ],

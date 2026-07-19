@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_card.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_card.dart';
 
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
@@ -561,6 +562,134 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
     }
   }
 
+  /// Opens a date + time picker pre-filled with the visit's current
+  /// schedule, then hands off to [_performReschedule]. Used by both the
+  /// "Visitations" and "Appointments" cards — rescheduling isn't
+  /// specific to either booking type, it's just moving [Visit.scheduledStart].
+  Future<void> _rescheduleVisit(String visitId) async {
+    final existing = await _visitRepository.getVisit(visitId);
+    if (!mounted) return;
+    if (existing == null) {
+      _showError('Could not find this visit.');
+      return;
+    }
+
+    DateTime selectedDate = existing.scheduledStart;
+    TimeOfDay selectedTime = TimeOfDay.fromDateTime(existing.scheduledStart);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 140, 188, 255),
+              title:
+                  const Text('Reschedule', style: AppColors.sectionHeading),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _buildPickDateButton(context, selectedDate, (picked) {
+                      if (picked != null) {
+                        setDialogState(() => selectedDate = picked);
+                      }
+                    }),
+                    const SizedBox(height: 12),
+                    _buildPickTimeButton(context, selectedTime, (picked) {
+                      if (picked != null) {
+                        setDialogState(() => selectedTime = picked);
+                      }
+                    }),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancel', style: AppColors.bodyLarge),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Reschedule'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+    if (!mounted) return;
+
+    final newStart = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
+      selectedTime.hour,
+      selectedTime.minute,
+    );
+
+    await _performReschedule(visitId, newStart);
+  }
+
+  /// Calls [VisitRepository.rescheduleVisit], and — matching how
+  /// [_saveVisit] handles a fresh booking — shows an overlap-confirm
+  /// dialog and retries with `acknowledgeOverlap: true` if the doctor
+  /// confirms, rather than silently blocking the reschedule.
+  Future<void> _performReschedule(
+    String visitId,
+    DateTime newStart, {
+    bool acknowledgeOverlap = false,
+  }) async {
+    try {
+      await _visitRepository.rescheduleVisit(
+        visitId,
+        newStart: newStart,
+        acknowledgeOverlap: acknowledgeOverlap,
+      );
+      if (!mounted) return;
+      ref.invalidate(visitsWithPatientsProvider);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Rescheduled successfully')),
+      );
+    } on VisitOverlapWarning catch (e) {
+      if (!mounted) return;
+      final proceed = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color.fromARGB(255, 140, 188, 255),
+          title: const Text(
+            'Overlapping visit',
+            style: AppColors.sectionHeading,
+          ),
+          content: Text(
+            'This overlaps ${e.conflicts.length} existing visit(s) at this time. Reschedule anyway?',
+            style: AppColors.bodyMedium.copyWith(color: Colors.black87),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel', style: AppColors.bodyLarge),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Reschedule Anyway'),
+            ),
+          ],
+        ),
+      );
+      if (proceed == true) {
+        await _performReschedule(visitId, newStart, acknowledgeOverlap: true);
+      }
+    } on VisitException catch (e) {
+      _showError(e.message);
+    } catch (e) {
+      _showError('Failed to reschedule: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // Watch the provider that gives us all visits with their patient data
@@ -779,13 +908,45 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
             final visit = vw.visit;
             final patient = vw.patient!;
 
-            // Format date strings for VisitCard
+            // Format date strings for display
             final dateStr =
                 '${visit.scheduledStart.day} ${_monthName(visit.scheduledStart.month)} ${visit.scheduledStart.year}';
             final dayStr = _dayName(visit.scheduledStart.weekday);
             final timeStr =
                 '${visit.scheduledStart.hour.toString().padLeft(2, '0')}:${visit.scheduledStart.minute.toString().padLeft(2, '0')}';
             final durationLabel = '${visit.durationMinutes} min';
+
+            // "Appointments" (clinic bookings) get their own card: no
+            // map (there's nowhere to navigate to — it's always at the
+            // clinic), but clinical patient context plus a live
+            // countdown instead. "Visitations" (home visits) keep the
+            // original VisitCard with its address/map preview.
+            if (filterType == vmodel.VisitType.clinic) {
+              return AppointmentCard(
+                patientName: patient.fullName,
+                age: patient.age,
+                gender: patient.gender,
+                condition: patient.diagnosis,
+                date: dateStr,
+                day: dayStr,
+                time: timeStr,
+                scheduledStart: visit.scheduledStart,
+                scheduledEnd: visit.scheduledEnd,
+                status: visit.status,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => VisitDetailsPage(initial: vw),
+                    ),
+                  );
+                },
+                onReschedule: () => _rescheduleVisit(visit.id),
+                onMarkCompleted: () => _markCompleted(visit.id),
+                onCancel: () => _cancelVisit(visit.id),
+                onDelete: () => _deleteVisit(visit.id),
+              );
+            }
 
             return VisitCard(
               patientName: patient.fullName,
@@ -800,7 +961,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
               onMapTap: _launchUrl,
               // --- Phase 3 additions ---
               status: visit.status,
-              visitType: visit.visitType,       // merged: pass visit type to card
+              visitType: visit.visitType,
               onTap: () {
                 // Navigate to VisitDetailsPage with the VisitWithPatient data
                 Navigator.push(
@@ -810,6 +971,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
                   ),
                 );
               },
+              onReschedule: () => _rescheduleVisit(visit.id),
               onMarkCompleted: () => _markCompleted(visit.id),
               onCancel: () => _cancelVisit(visit.id),
               onDelete: () => _deleteVisit(visit.id),

@@ -22,6 +22,7 @@ class VisitCard extends StatelessWidget {
   final VisitStatus status;
   final VisitType visitType;
   final VoidCallback? onTap;
+  final VoidCallback? onReschedule;
   final VoidCallback? onMarkCompleted;
   final VoidCallback? onCancel;
   final VoidCallback? onDelete;
@@ -41,6 +42,7 @@ class VisitCard extends StatelessWidget {
     required this.status,
     required this.visitType,
     this.onTap,
+    this.onReschedule,
     this.onMarkCompleted,
     this.onCancel,
     this.onDelete,
@@ -127,7 +129,8 @@ class VisitCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 4),
-                  if (onMarkCompleted != null ||
+                  if (onReschedule != null ||
+                      onMarkCompleted != null ||
                       onCancel != null ||
                       onDelete != null)
                     PopupMenuButton<String>(
@@ -135,6 +138,11 @@ class VisitCard extends StatelessWidget {
                           color: AppColors.textSecondary, size: 20),
                       color: AppColors.cardSurface,
                       itemBuilder: (context) => [
+                        if (onReschedule != null)
+                          const PopupMenuItem(
+                            value: 'reschedule',
+                            child: Text('Reschedule'),
+                          ),
                         if (onMarkCompleted != null)
                           const PopupMenuItem(
                             value: 'complete',
@@ -153,6 +161,9 @@ class VisitCard extends StatelessWidget {
                       ],
                       onSelected: (value) {
                         switch (value) {
+                          case 'reschedule':
+                            onReschedule?.call();
+                            break;
                           case 'complete':
                             onMarkCompleted?.call();
                             break;

@@ -36,7 +36,7 @@ class BottomNavBar extends StatelessWidget {
             color:  Color.fromARGB(255, 220, 250, 255),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
-              color: chartBarLight.withOpacity(0.3), // vivid blue border
+              color: chartBarLight.withValues(alpha: 0.3), // vivid blue border
             ),
           ),
           child: Row(

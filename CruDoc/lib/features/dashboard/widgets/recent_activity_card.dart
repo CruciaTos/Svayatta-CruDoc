@@ -26,26 +26,59 @@ class RecentActivityCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.divider),
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Recent Activity',
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              color: AppColors.textPrimary,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Recent Activity',
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Text(
+                'View all',
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.chartBarLight,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
-          ..._items.map((item) => _ActivityRow(item: item)),
+          const SizedBox(height: 14),
+          Column(
+            children: _items
+                .map((item) => Column(
+                      children: [
+                        _ActivityRow(item: item),
+                        if (item != _items.last)
+                          const Divider(
+                            height: 24,
+                            color: Color(0xFFDDE6F0),
+                          ),
+                      ],
+                    ))
+                .toList(),
+          ),
         ],
       ),
     );

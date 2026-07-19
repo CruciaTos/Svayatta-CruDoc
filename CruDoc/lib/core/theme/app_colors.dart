@@ -75,5 +75,5 @@ class AppColors {
 }
 
 extension ColorValueExtensions on Color {
-  Color withValues({required double alpha}) => withOpacity(alpha);
+  Color withValues({required double alpha}) => withValues(alpha: alpha);
 }

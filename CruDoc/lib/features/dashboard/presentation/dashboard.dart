@@ -42,16 +42,16 @@ class HomeDashboardScreen extends StatefulWidget {
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ---- Doctor info (replace with real data from provider/bloc) ----
-  String _doctorName = '';        // TODO: fetch from user session
-  String _specialty = '';        // TODO: fetch from user session
+  final String _doctorName = '';        // TODO: fetch from user session
+  final String _specialty = '';        // TODO: fetch from user session
 
   // ---- Revenue card state (lifted up) ----
   bool _isMonthly = true;
   int _selectedBarIndex = 0;     // will be updated when data is available
 
   // Replace these empty lists with data fetched from your repository
-  List<BarData> _weeklyBars = [];
-  List<BarData> _monthlyBars = [];
+  final List<BarData> _weeklyBars = [];
+  final List<BarData> _monthlyBars = [];
 
   // Derived values
   String get _currentAmount {
@@ -141,8 +141,7 @@ class _TopBar extends StatelessWidget {
     required this.doctorName,
     required this.specialty,
     this.onProfileTap,
-    this.onNotificationTap,
-  });
+  }) : onNotificationTap = null;
 
   @override
   Widget build(BuildContext context) {
@@ -237,7 +236,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
         border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.25),
+            color: Colors.black.withValues(alpha: 0.25),
             blurRadius: 20,
             offset: const Offset(0, 10),
           ),
@@ -483,7 +482,7 @@ class _StatCard extends StatelessWidget {
                     fontFamily: AppColors.bodyFontFamily,
                     color: stat.deltaPositive
                         ? AppColors.positiveGreen
-                        : Colors.redAccent.withOpacity(0.8),
+                        : Colors.redAccent.withValues(alpha: 0.8),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w500,
                   ),

@@ -20,7 +20,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
   late final RevenueRepository _repository =
       widget._repository ?? RevenueRepository();
 
-  String _selectedFilter = 'Weekly';
+  final String _selectedFilter = 'Weekly';
 
   List<RevenueEntry> _filterEntries(List<RevenueEntry> entries) {
     final now = DateTime.now();
@@ -798,7 +798,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                 shrinkWrap: true,
                                 physics: const NeverScrollableScrollPhysics(),
                                 itemCount: filtered.length,
-                                separatorBuilder: (_, __) =>
+                                separatorBuilder: (_, _) =>
                                     const SizedBox(height: 8),
                                 itemBuilder: (context, index) {
                                   final entry = filtered[index];

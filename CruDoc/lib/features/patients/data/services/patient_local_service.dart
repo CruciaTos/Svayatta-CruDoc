@@ -132,6 +132,9 @@ class PatientLocalService {
 
     for (final row in rows) {
       final patient = _fromRow(row);
+
+
+      
       if (results.containsKey(patient.id)) continue;
 
       final nameMatch = normalizeForSearch(

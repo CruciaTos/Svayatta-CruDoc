@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:doctor_management_app/features/appointments/presentation/visitation_card.dart';
-import 'package:doctor_management_app/features/appointments/presentation/appointment_card.dart';
+import 'package:doctor_management_app/features/appointments/widgets/visitation_card.dart';
+import 'package:doctor_management_app/features/appointments/widgets/appointment_card.dart';
 
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
@@ -801,7 +801,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              // CHANGED: pushed the card list further down (was height: 8)
+              const SizedBox(height: 24),
               Expanded(
                 child: TabBarView(
                   controller: _categoryTabController,
@@ -902,6 +903,12 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
 
         return ListView.builder(
           physics: const ClampingScrollPhysics(),
+          // Horizontal inset so the two tabs' lists don't sit flush
+          // against each other at the swipe boundary — without this,
+          // dragging between "Visitations" and "Appointments" shows
+          // the outgoing tab's last card touching the incoming tab's
+          // first card with no gap.
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           itemCount: upcoming.length,
           itemBuilder: (context, index) {
             final vw = upcoming[index];

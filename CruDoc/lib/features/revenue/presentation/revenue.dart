@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
+import 'package:doctor_management_app/features/revenue/widgets/expense_tile.dart';
 import 'package:intl/intl.dart';
 
 /// Revenue tracking screen.
@@ -86,17 +88,26 @@ class _RevenueScreenState extends State<RevenueScreen> {
   Future<void> _showEntryDialog({
     required String title,
     required String descHint,
-    required Future<void> Function(String description, double amount, TransactionKind kind) onSubmit,
+    required Future<void> Function(
+      String description,
+      double amount,
+      TransactionKind kind,
+      DateTime date,
+      String? payer,
+    ) onSubmit,
     TransactionKind initialKind = TransactionKind.income,
     bool includeKindSelector = false,
+    bool includePayerField = false,
   }) async {
     final descController = TextEditingController();
     final amountController = TextEditingController();
+    final payerController = TextEditingController();
 
     await showDialog<void>(
       context: context,
       builder: (_) {
         TransactionKind selectedKind = initialKind;
+        DateTime selectedDate = DateTime.now();
         bool isSaving = false;
         String? errorText;
 
@@ -120,8 +131,16 @@ class _RevenueScreenState extends State<RevenueScreen> {
                 errorText = null;
               });
 
+              final payerText = payerController.text.trim();
+
               try {
-                await onSubmit(desc, amount, selectedKind);
+                await onSubmit(
+                  desc,
+                  amount,
+                  selectedKind,
+                  selectedDate,
+                  payerText.isEmpty ? null : payerText,
+                );
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               } on RevenueException catch (e) {
                 setDialogState(() {
@@ -209,6 +228,48 @@ class _RevenueScreenState extends State<RevenueScreen> {
                     ),
                     const SizedBox(height: 16),
                   ],
+                  if (includePayerField) ...[
+                    Text(
+                      selectedKind == TransactionKind.expense
+                          ? 'Paid To'
+                          : 'Received From',
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: payerController,
+                      enabled: !isSaving,
+                      style: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textPrimary,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: selectedKind == TransactionKind.expense
+                            ? 'e.g. "Staff salary — Priya" (optional)'
+                            : 'e.g. "Patient name" (optional)',
+                        hintStyle: const TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          color: AppColors.textSecondary,
+                        ),
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Text(
                     'Description',
                     style: TextStyle(
@@ -279,6 +340,61 @@ class _RevenueScreenState extends State<RevenueScreen> {
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Date',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(16),
+                    onTap: isSaving
+                        ? null
+                        : () async {
+                            final picked = await showDatePicker(
+                              context: dialogContext,
+                              initialDate: selectedDate,
+                              firstDate: DateTime(2000),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setDialogState(() => selectedDate = picked);
+                            }
+                          },
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.calendar_today,
+                            size: 18,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            DateFormat('d MMM yyyy').format(selectedDate),
+                            style: const TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -353,6 +469,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
 
     descController.dispose();
     amountController.dispose();
+    payerController.dispose();
   }
 
   Future<void> _showAddTransactionDialog() {
@@ -360,16 +477,18 @@ class _RevenueScreenState extends State<RevenueScreen> {
       title: 'Add Transaction',
       descHint: 'Description',
       includeKindSelector: true,
-      onSubmit: (desc, amount, kind) async {
+      includePayerField: true,
+      onSubmit: (desc, amount, kind, date, payer) async {
         final now = DateTime.now();
         await _repository.createRevenueEntry(
           RevenueEntry(
             id: '',
-            date: now,
+            date: date,
             description: desc,
             amount: amount,
             type: RevenueType.miscellaneous,
             kind: kind,
+            payer: payer,
             createdAt: now,
             updatedAt: now,
           ),
@@ -393,12 +512,12 @@ class _RevenueScreenState extends State<RevenueScreen> {
       title: 'Add Pending Payment',
       descHint: 'Description (e.g. "Lab test")',
       includeKindSelector: false,
-      onSubmit: (desc, amount, _) async {
+      onSubmit: (desc, amount, _, date, _) async {
         final now = DateTime.now();
         await _repository.createPendingPayment(
           PendingPayment(
             id: '',
-            date: now,
+            date: date,
             description: desc,
             amount: amount,
             createdAt: now,
@@ -956,101 +1075,16 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     const SizedBox(height: 8),
                                 itemBuilder: (context, index) {
                                   final entry = filtered[index];
-                                  final isExpense = entry.kind == TransactionKind.expense;
-
-                                  IconData icon;
-                                  Color avatarBackground;
-                                  Color iconColor;
-                                  if (isExpense) {
-                                    icon = Icons.money_off;
-                                    avatarBackground = AppColors.negativeRed.withValues(alpha: 0.15);
-                                    iconColor = AppColors.negativeRed;
-                                  } else {
-                                    switch (entry.type) {
-                                      case RevenueType.visit:
-                                        icon = Icons.medical_services;
-                                        break;
-                                      case RevenueType.online:
-                                        icon = Icons.videocam;
-                                        break;
-                                      case RevenueType.miscellaneous:
-                                        icon = Icons.miscellaneous_services;
-                                        break;
-                                    }
-                                    avatarBackground = AppColors.chartBarDim;
-                                    iconColor = Colors.white;
-                                  }
-
-                                  final amountColor = isExpense
-                                      ? AppColors.negativeRed
-                                      : const Color(0xFF2E7D32);
-                                  final amountPrefix = isExpense ? '−' : '+';
-
-                                  return Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.cardSurface,
-                                      borderRadius: BorderRadius.circular(22),
-                                      boxShadow: const [
-                                        BoxShadow(
-                                          color: Colors.black12,
-                                          blurRadius: 8,
-                                          offset: Offset(0, 2),
+                                  return TransactionTile(
+                                    entry: entry,
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) =>
+                                            TransactionDetailsPage(
+                                          entry: entry,
                                         ),
-                                      ],
-                                    ),
-                                    child: Row(
-                                      children: <Widget>[
-                                        CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: avatarBackground,
-                                          child: Icon(
-                                            icon,
-                                            color: iconColor,
-                                            size: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: <Widget>[
-                                              Text(
-                                                entry.description,
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      AppColors.bodyFontFamily,
-                                                  color: AppColors.textPrimary,
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                              ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                DateFormat.yMMMd()
-                                                    .format(entry.date),
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      AppColors.bodyFontFamily,
-                                                  color: AppColors.textSecondary,
-                                                  fontSize: 13,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        Text(
-                                          '$amountPrefix₹${entry.amount.toStringAsFixed(0)}',
-                                          style: TextStyle(
-                                            fontFamily:
-                                                AppColors.bodyFontFamily,
-                                            color: amountColor,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ],
+                                      ),
                                     ),
                                   );
                                 },

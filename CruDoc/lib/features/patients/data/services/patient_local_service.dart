@@ -128,7 +128,7 @@ class PatientLocalService {
 
     final normalizedQuery = normalizeForSearch(query);
     final normalizedPhoneQuery = normalizePhoneDigits(query);
-    final canMatchPhone = normalizedPhoneQuery.length >= 3;
+    final canMatchPhone = normalizedPhoneQuery.length >= 1;
 
     for (final row in rows) {
       final patient = _fromRow(row);

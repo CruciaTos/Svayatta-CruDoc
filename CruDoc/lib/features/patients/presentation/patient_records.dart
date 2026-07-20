@@ -136,7 +136,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                 setState(() {});
               },
               decoration: const InputDecoration(
-                hintText: 'Search patient...',
+                hintText: 'Search by name, phone, diagnosis...',
                 hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 14,

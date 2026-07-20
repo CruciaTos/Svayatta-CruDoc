@@ -25,7 +25,7 @@ final filteredPatientsProvider = Provider<AsyncValue<List<Patient>>>((ref) {
 
   final normalizedQuery = normalizeForSearch(query);
   final normalizedPhoneQuery = normalizePhoneDigits(query);
-  final canMatchPhone = normalizedPhoneQuery.length >= 3;
+  final canMatchPhone = normalizedPhoneQuery.length >= 1;
 
   return patientsAsync.whenData((patients) {
     return patients.where((patient) {
@@ -35,8 +35,11 @@ final filteredPatientsProvider = Provider<AsyncValue<List<Patient>>>((ref) {
       final phoneMatch =
           canMatchPhone &&
           normalizePhoneDigits(patient.phone).contains(normalizedPhoneQuery);
+      final diagnosisMatch = normalizeForSearch(
+        patient.diagnosisDisplay,
+      ).contains(normalizedQuery);
 
-      return nameMatch || phoneMatch;
+      return nameMatch || phoneMatch || diagnosisMatch;
     }).toList();
   });
 });

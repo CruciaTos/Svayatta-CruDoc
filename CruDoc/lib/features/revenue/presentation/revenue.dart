@@ -20,13 +20,33 @@ class _RevenueScreenState extends State<RevenueScreen> {
   late final RevenueRepository _repository =
       widget._repository ?? RevenueRepository();
 
+  static const List<String> _filterOptions = [
+    'Today',
+    'Weekly',
+    'Monthly',
+    'Yearly',
+    'Lifetime',
+  ];
+
   String _selectedFilter = 'Weekly';
   TransactionKind? _kindFilter = null; // null = show all
+  double _chevronAngle = 0.0; // for animated rotation
+
+  void _cycleFilter() {
+    setState(() {
+      final idx = _filterOptions.indexOf(_selectedFilter);
+      _selectedFilter = _filterOptions[(idx + 1) % _filterOptions.length];
+      _chevronAngle += 0.5; // rotate 180° on each tap
+    });
+  }
 
   List<RevenueEntry> _filterEntries(List<RevenueEntry> entries) {
     final now = DateTime.now();
     DateTime startDate;
     switch (_selectedFilter) {
+      case 'Today':
+        startDate = DateTime(now.year, now.month, now.day);
+        break;
       case 'Weekly':
         startDate = now.subtract(const Duration(days: 7));
         break;
@@ -35,6 +55,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
         break;
       case 'Yearly':
         startDate = DateTime(now.year, 1, 1);
+        break;
+      case 'Lifetime':
+        startDate = DateTime(2000); // shows all entries
         break;
       default:
         startDate = DateTime(2000);
@@ -469,7 +492,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                               ],
                             ),
                             const SizedBox(height: 18),
-                            // Gradient summary card – income only, as decided
+                            // Gradient summary card – net revenue (income − expenses)
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(20),
@@ -501,7 +524,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                               CrossAxisAlignment.start,
                                           children: <Widget>[
                                             Text(
-                                              'Total income',
+                                              'Net revenue',
                                               style: TextStyle(
                                                 fontFamily:
                                                     AppColors.bodyFontFamily,
@@ -512,7 +535,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              '₹${totalIncome.toStringAsFixed(0)}',
+                                              '₹${net.toStringAsFixed(0)}',
                                               style: const TextStyle(
                                                 fontFamily:
                                                     AppColors.bodyFontFamily,
@@ -542,87 +565,80 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 16),
+                                  // Pills with limited size (content-based, not expanded)
                                   Row(
                                     children: <Widget>[
-                                      // Time filter chip (already existing)
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.16,
-                                            ),
+                                      // Time filter pill – tappable with animation
+                                      Flexible(
+                                        child: Material(
+                                          color: Colors.transparent,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          child: InkWell(
+                                            onTap: _cycleFilter,
                                             borderRadius:
                                                 BorderRadius.circular(16),
-                                          ),
-                                          child: Row(
-                                            children: <Widget>[
-                                              const Icon(
-                                                Icons.calendar_month_rounded,
-                                                color: Colors.white,
-                                                size: 16,
+                                            splashColor: Colors.white
+                                                .withValues(alpha: 0.3),
+                                            highlightColor: Colors.white
+                                                .withValues(alpha: 0.1),
+                                            child: Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                horizontal: 12,
+                                                vertical: 10,
                                               ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                _selectedFilter,
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      AppColors.bodyFontFamily,
-                                                  color: Colors.white,
-                                                  fontSize: 13,
-                                                  fontWeight:
-                                                      FontWeight.w600,
-                                                ),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white
+                                                    .withValues(alpha: 0.16),
+                                                borderRadius:
+                                                    BorderRadius.circular(16),
                                               ),
-                                            ],
+                                              child: Row(
+                                                mainAxisSize:
+                                                    MainAxisSize.min,
+                                                children: <Widget>[
+                                                  const Icon(
+                                                    Icons
+                                                        .calendar_month_rounded,
+                                                    color: Colors.white,
+                                                    size: 16,
+                                                  ),
+                                                  const SizedBox(width: 6),
+                                                  Text(
+                                                    _selectedFilter,
+                                                    style: const TextStyle(
+                                                      fontFamily: AppColors
+                                                          .bodyFontFamily,
+                                                      color: Colors.white,
+                                                      fontSize: 13,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 4),
+                                                  AnimatedRotation(
+                                                    turns: _chevronAngle,
+                                                    duration:
+                                                        const Duration(
+                                                            milliseconds:
+                                                                300),
+                                                    child: const Icon(
+                                                      Icons.arrow_drop_down,
+                                                      color: Colors.white70,
+                                                      size: 18,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
                                           ),
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      // Expenses compact chip
-                                      Expanded(
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.16,
-                                            ),
-                                            borderRadius:
-                                                BorderRadius.circular(16),
-                                          ),
-                                          child: Row(
-                                            children: <Widget>[
-                                              const Icon(
-                                                Icons.trending_down_rounded,
-                                                color: Colors.white70,
-                                                size: 16,
-                                              ),
-                                              const SizedBox(width: 8),
-                                              Text(
-                                                'Expenses ₹${totalExpenses.toStringAsFixed(0)}',
-                                                style: const TextStyle(
-                                                  fontFamily:
-                                                      AppColors.bodyFontFamily,
-                                                  color: Colors.white,
-                                                  fontSize: 12,
-                                                  fontWeight:
-                                                      FontWeight.w600,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      // Last paid chip (keep or remove? I kept it, but now there are three chips. Should be fine)
+                                      // Last paid pill – limited to content (if available)
                                       if (lastPaid != null)
-                                        Expanded(
+                                        Flexible(
                                           child: Container(
                                             padding:
                                                 const EdgeInsets.symmetric(
@@ -637,6 +653,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                                   BorderRadius.circular(16),
                                             ),
                                             child: Column(
+                                              mainAxisSize: MainAxisSize.min,
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: <Widget>[
@@ -669,39 +686,6 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                           ),
                                         ),
                                     ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            // Net row below the card
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12, bottom: 4),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                                    color: AppColors.textSecondary,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Net',
-                                    style: TextStyle(
-                                      fontFamily: AppColors.bodyFontFamily,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    '₹${net >= 0 ? '+' : ''}${net.toStringAsFixed(0)}',
-                                    style: TextStyle(
-                                      fontFamily: AppColors.bodyFontFamily,
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                      color: net >= 0 ? const Color(0xFF2E7D32) : AppColors.negativeRed,
-                                    ),
                                   ),
                                 ],
                               ),
@@ -1111,6 +1095,7 @@ class _KindFilterChip extends StatelessWidget {
         ),
       ),
       selected: selected,
+      showCheckmark: false,
       onSelected: (_) => onSelected(),
       backgroundColor: AppColors.cardSurface,
       selectedColor: effectiveSelectedColor,

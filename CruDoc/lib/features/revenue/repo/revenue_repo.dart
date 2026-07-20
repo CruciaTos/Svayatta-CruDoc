@@ -36,6 +36,7 @@ class RevenueRepository {
       description: entry.description,
       amount: entry.amount,
       type: entry.type,
+      kind: entry.kind, 
       payer: entry.payer,
       patientId: entry.patientId,
       visitId: entry.visitId,

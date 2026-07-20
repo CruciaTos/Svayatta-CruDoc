@@ -55,21 +55,38 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   bool _isMonthly = true;
   int _selectedBarIndex = -1; // use current month/day if not yet selected
 
+  /// Builds bars for the current week view with fixed Mon‑Sun labels.
+  /// Each bar shows the revenue of the **most recent occurrence** of that weekday.
   List<BarData> _buildWeeklyBars(List<RevenueEntry> entries) {
     final today = DateTime.now();
-    final startOfWeek = DateTime(today.year, today.month, today.day).subtract(const Duration(days: 6));
+    final todayMidnight = DateTime(today.year, today.month, today.day);
+    final currentWeekday = today.weekday; // 1 = Monday, 7 = Sunday
 
     final dailyAmounts = List.generate(7, (index) {
-      final day = startOfWeek.add(Duration(days: index));
+      final weekday = index + 1; // 1 = Mon ... 7 = Sun
+
+      // Find the most recent date with this weekday <= today
+      DateTime targetDate;
+      if (weekday == currentWeekday) {
+        targetDate = todayMidnight; // today
+      } else if (weekday < currentWeekday) {
+        // earlier this week
+        final diff = currentWeekday - weekday;
+        targetDate = todayMidnight.subtract(Duration(days: diff));
+      } else {
+        // weekday > currentWeekday → from last week
+        final diff = currentWeekday + (7 - weekday);
+        targetDate = todayMidnight.subtract(Duration(days: diff));
+      }
+
       final amount = entries
-          .where((entry) => _isSameDate(entry.date, day))
+          .where((entry) => _isSameDate(entry.date, targetDate))
           .fold<double>(0, (sum, entry) => sum + entry.amount);
-      return MapEntry(day, amount);
+      return MapEntry(targetDate, amount);
     });
 
-    final maxAmount = dailyAmounts.fold<double>(0, (maxValue, entry) {
-      return entry.value > maxValue ? entry.value : maxValue;
-    });
+    final maxAmount = dailyAmounts.fold<double>(
+        0, (maxValue, entry) => entry.value > maxValue ? entry.value : maxValue);
 
     return dailyAmounts.map((entry) {
       final amount = entry.value;
@@ -127,10 +144,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     if (_isMonthly) {
       return bars.length - 1;
     }
-    final today = DateTime.now();
-    final todayLabel = _shortWeekday(today.weekday);
-    final index = bars.indexWhere((bar) => bar.label == todayLabel);
-    return index >= 0 ? index : bars.length - 1;
+    // In weekly mode, today's bar is always at index (today.weekday - 1)
+    return DateTime.now().weekday - 1;
   }
 
   void _openAddPatient() {
@@ -371,7 +386,7 @@ class _TopBar extends StatelessWidget {
   }
 }
 
-// ---------- REVENUE SNAPSHOT CARD (no internal dummy data) ----------
+// ---------- REVENUE SNAPSHOT CARD (with pill indicator for today/week & active month) ----------
 class _RevenueSnapshotCard extends StatelessWidget {
   final bool isMonthly;
   final List<BarData> bars;
@@ -393,11 +408,13 @@ class _RevenueSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Handle empty data gracefully
     final bool isEmpty = bars.isEmpty;
     final int safeSelectedIndex = isEmpty
         ? -1
         : selectedBarIndex.clamp(0, bars.length - 1);
+
+    // Today's bar index for weekly view, current month index for monthly view
+    final int todayIndex = DateTime.now().weekday - 1; // 0 = Monday, 6 = Sunday
 
     return Container(
       width: double.infinity,
@@ -486,6 +503,11 @@ class _RevenueSnapshotCard extends StatelessWidget {
                       final bar = bars[index];
                       final isSelected = index == safeSelectedIndex;
 
+                      // Determine if this bar should show the pill
+                      final bool showPill = isMonthly
+                          ? (index == bars.length - 1)   // rightmost month is current
+                          : (index == todayIndex);        // today's weekday
+
                       final barColor = isSelected
                           ? AppColors.chartBarLight
                           : AppColors.chartBarDim;
@@ -518,7 +540,39 @@ class _RevenueSnapshotCard extends StatelessWidget {
                                   ),
                                 ),
                                 const SizedBox(height: 8),
-                                Text(bar.label, style: labelStyle),
+                                // Pill indicator for the relevant bar (today or current month)
+                                if (showPill)
+                                  Transform.translate(
+                                    offset: const Offset(0, 3), // fine‑tune vertical alignment
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(vertical: 2),
+                                      alignment: Alignment.center,
+                                      decoration: BoxDecoration(
+                                        // Solid blue when this bar is also selected
+                                        color: isSelected
+                                            ? AppColors.chartBarLight
+                                            : null,
+                                        border: Border.all(
+                                          color: AppColors.chartBarLight.withOpacity(0.6),
+                                          width: 1.2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        bar.label,
+                                        style: labelStyle.copyWith(
+                                          // White text when selected (on solid blue), otherwise secondary
+                                          color: isSelected
+                                              ? Colors.white
+                                              : AppColors.textSecondary,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  Text(bar.label, style: labelStyle),
                               ],
                             ),
                           ),

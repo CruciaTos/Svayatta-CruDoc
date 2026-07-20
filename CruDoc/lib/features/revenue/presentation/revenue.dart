@@ -79,11 +79,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
     return filtered;
   }
 
-  RevenueEntry? _lastPaidEntry(List<RevenueEntry> entries) {
-    final paid = entries.where((e) => e.payer != null).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
-    return paid.isNotEmpty ? paid.first : null;
-  }
+  // ‑‑‑ REMOVED _lastPaidEntry method ‑‑‑
 
   Future<void> _showEntryDialog({
     required String title,
@@ -166,7 +162,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: AppColors.sectionHeading.copyWith(fontSize: 20)),
+                  Text(title,
+                      style:
+                          AppColors.sectionHeading.copyWith(fontSize: 20)),
                   const SizedBox(height: 4),
                   Text(
                     'Use a short description and the exact amount to save quickly.',
@@ -215,7 +213,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
                           ? AppColors.positiveGreen
                           : AppColors.negativeRed,
                       color: AppColors.textSecondary,
-                      constraints: const BoxConstraints(minWidth: 100, minHeight: 42),
+                      constraints: const BoxConstraints(
+                          minWidth: 100, minHeight: 42),
                       textStyle: const TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         fontSize: 14,
@@ -575,7 +574,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                 .fold<double>(0, (sum, e) => sum + e.amount);
             final net = totalIncome - totalExpenses;
 
-            final lastPaid = _lastPaidEntry(allEntries);
+            // ‑‑‑ REMOVED lastPaid computation ‑‑‑
 
             return Scaffold(
               backgroundColor: Colors.transparent,
@@ -684,7 +683,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     ],
                                   ),
                                   const SizedBox(height: 16),
-                                  // Pills with limited size (content-based, not expanded)
+                                  // Pills row – only time filter, last paid removed
                                   Row(
                                     children: <Widget>[
                                       // Time filter pill – tappable with animation
@@ -754,56 +753,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                           ),
                                         ),
                                       ),
-                                      const SizedBox(width: 12),
-                                      // Last paid pill – limited to content (if available)
-                                      if (lastPaid != null)
-                                        Flexible(
-                                          child: Container(
-                                            padding:
-                                                const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 10,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white.withValues(
-                                                alpha: 0.16,
-                                              ),
-                                              borderRadius:
-                                                  BorderRadius.circular(16),
-                                            ),
-                                            child: Column(
-                                              mainAxisSize: MainAxisSize.min,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: <Widget>[
-                                                Text(
-                                                  'Last paid',
-                                                  style: TextStyle(
-                                                    fontFamily:
-                                                        AppColors.bodyFontFamily,
-                                                    fontSize: 11,
-                                                    color: Colors.white70,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 2),
-                                                Text(
-                                                  '${lastPaid.payer ?? 'Unknown'} • ${DateFormat.yMMMd().format(lastPaid.date)}',
-                                                  maxLines: 1,
-                                                  overflow:
-                                                      TextOverflow.ellipsis,
-                                                  style: const TextStyle(
-                                                    fontFamily:
-                                                        AppColors.bodyFontFamily,
-                                                    fontSize: 12,
-                                                    color: Colors.white,
-                                                    fontWeight:
-                                                        FontWeight.w600,
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ),
+                                      // ‑‑‑ REMOVED last paid pill ‑‑‑
                                     ],
                                   ),
                                 ],
@@ -1000,21 +950,26 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   _KindFilterChip(
                                     label: 'All',
                                     selected: _kindFilter == null,
-                                    onSelected: () => setState(() => _kindFilter = null),
+                                    onSelected: () =>
+                                        setState(() => _kindFilter = null),
                                   ),
                                   const SizedBox(width: 8),
                                   _KindFilterChip(
                                     label: 'Income',
-                                    selected: _kindFilter == TransactionKind.income,
+                                    selected:
+                                        _kindFilter == TransactionKind.income,
                                     selectedColor: AppColors.positiveGreen,
-                                    onSelected: () => setState(() => _kindFilter = TransactionKind.income),
+                                    onSelected: () => setState(() =>
+                                        _kindFilter = TransactionKind.income),
                                   ),
                                   const SizedBox(width: 8),
                                   _KindFilterChip(
                                     label: 'Expense',
-                                    selected: _kindFilter == TransactionKind.expense,
+                                    selected:
+                                        _kindFilter == TransactionKind.expense,
                                     selectedColor: AppColors.negativeRed,
-                                    onSelected: () => setState(() => _kindFilter = TransactionKind.expense),
+                                    onSelected: () => setState(() =>
+                                        _kindFilter = TransactionKind.expense),
                                   ),
                                 ],
                               ),
@@ -1134,7 +1089,9 @@ class _KindFilterChip extends StatelessWidget {
       backgroundColor: AppColors.cardSurface,
       selectedColor: effectiveSelectedColor,
       side: BorderSide(
-        color: selected ? effectiveSelectedColor : AppColors.silver.withValues(alpha: 0.4),
+        color: selected
+            ? effectiveSelectedColor
+            : AppColors.silver.withValues(alpha: 0.4),
         width: 1,
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

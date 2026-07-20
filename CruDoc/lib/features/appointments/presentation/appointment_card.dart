@@ -83,7 +83,8 @@ class _AppointmentCardState extends State<AppointmentCard> {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final isOngoing = !now.isBefore(widget.scheduledStart) &&
+    final isOngoing =
+        !now.isBefore(widget.scheduledStart) &&
         now.isBefore(widget.scheduledEnd);
     final countdownLabel = isOngoing
         ? 'Ongoing now'
@@ -93,8 +94,8 @@ class _AppointmentCardState extends State<AppointmentCard> {
       onTap: widget.onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        height: 260,
-        padding: const EdgeInsets.all(8),
+        height: 220,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.cardSurface,
           borderRadius: BorderRadius.circular(36),
@@ -110,8 +111,8 @@ class _AppointmentCardState extends State<AppointmentCard> {
                 widget.patientName,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                   fontFamily: AppColors.headingFontFamily,
                 ),
               ),
@@ -126,7 +127,9 @@ class _AppointmentCardState extends State<AppointmentCard> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _statusColor(widget.status),
                       borderRadius: BorderRadius.circular(12),
@@ -146,8 +149,11 @@ class _AppointmentCardState extends State<AppointmentCard> {
                       widget.onCancel != null ||
                       widget.onDelete != null)
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert,
-                          color: AppColors.textSecondary, size: 20),
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
                       color: AppColors.cardSurface,
                       itemBuilder: (context) => [
                         if (widget.onReschedule != null)
@@ -200,8 +206,11 @@ class _AppointmentCardState extends State<AppointmentCard> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.person_outline,
-                      size: 16, color: Colors.black),
+                  const Icon(
+                    Icons.person_outline,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '${widget.age} yrs  •  ${widget.gender}',
@@ -219,8 +228,11 @@ class _AppointmentCardState extends State<AppointmentCard> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.medical_information_outlined,
-                      size: 16, color: Colors.black),
+                  const Icon(
+                    Icons.medical_information_outlined,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -244,15 +256,22 @@ class _AppointmentCardState extends State<AppointmentCard> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.calendar_today,
-                      size: 16, color: Colors.black),
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     '${widget.date}  •  ${widget.day}',
                     style: AppColors.bodyMeta,
                   ),
                   const SizedBox(width: 10),
-                  const Icon(Icons.access_time, size: 16, color: Colors.black),
+                  const Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 4),
                   Text(widget.time, style: AppColors.bodyMeta),
                 ],
@@ -268,13 +287,13 @@ class _AppointmentCardState extends State<AppointmentCard> {
               right: 4,
               bottom: 4,
               child: Container(
-                height: 96,
+                height: 80,
                 decoration: BoxDecoration(
                   color: AppColors.slateBlue.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: AppColors.slateBlue,
-                    width: 1.5,
+                    color: AppColors.slateBlue.withValues(alpha: 0.6),
+                    width: 1,
                   ),
                 ),
                 alignment: Alignment.center,
@@ -285,7 +304,7 @@ class _AppointmentCardState extends State<AppointmentCard> {
                       countdownLabel,
                       style: const TextStyle(
                         color: AppColors.slateBlue,
-                        fontSize: 32,
+                        fontSize: 24,
                         fontWeight: FontWeight.w800,
                         fontFamily: AppColors.headingFontFamily,
                       ),
@@ -296,7 +315,7 @@ class _AppointmentCardState extends State<AppointmentCard> {
                         'until appointment',
                         style: AppColors.bodySmall.copyWith(
                           color: AppColors.slateBlue,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],

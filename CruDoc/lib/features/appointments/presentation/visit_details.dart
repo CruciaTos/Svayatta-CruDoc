@@ -54,8 +54,12 @@ VisitWithPatient? _findById(List<VisitWithPatient> list, String id) {
 }
 
 // ---------- Reusable form helpers ----------
-Widget _buildTextField(String label, TextEditingController controller,
-    {String? hint, ValueChanged<String>? onChanged}) {
+Widget _buildTextField(
+  String label,
+  TextEditingController controller, {
+  String? hint,
+  ValueChanged<String>? onChanged,
+}) {
   return TextField(
     controller: controller,
     onChanged: onChanged,
@@ -71,14 +75,16 @@ Widget _buildTextField(String label, TextEditingController controller,
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide.none,
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
     ),
   );
 }
 
 Widget _buildPickDateButton(
-    BuildContext context, DateTime date, ValueChanged<DateTime?> onPicked) {
+  BuildContext context,
+  DateTime date,
+  ValueChanged<DateTime?> onPicked,
+) {
   final dateStr = DateFormat('d MMM yyyy').format(date);
   return InkWell(
     onTap: () async {
@@ -107,17 +113,22 @@ Widget _buildPickDateButton(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(children: [
-        const Icon(Icons.calendar_today, color: AppColors.silver, size: 20),
-        const SizedBox(width: 10),
-        Text(dateStr, style: AppColors.bodyLarge),
-      ]),
+      child: Row(
+        children: [
+          const Icon(Icons.calendar_today, color: AppColors.silver, size: 20),
+          const SizedBox(width: 10),
+          Text(dateStr, style: AppColors.bodyLarge),
+        ],
+      ),
     ),
   );
 }
 
 Widget _buildPickTimeButton(
-    BuildContext context, TimeOfDay time, ValueChanged<TimeOfDay?> onPicked) {
+  BuildContext context,
+  TimeOfDay time,
+  ValueChanged<TimeOfDay?> onPicked,
+) {
   return InkWell(
     onTap: () async {
       final picked = await showTimePicker(
@@ -143,24 +154,28 @@ Widget _buildPickTimeButton(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(children: [
-        const Icon(Icons.access_time, color: AppColors.silver, size: 20),
-        const SizedBox(width: 10),
-        Text(time.format(context), style: AppColors.bodyLarge),
-      ]),
+      child: Row(
+        children: [
+          const Icon(Icons.access_time, color: AppColors.silver, size: 20),
+          const SizedBox(width: 10),
+          Text(time.format(context), style: AppColors.bodyLarge),
+        ],
+      ),
     ),
   );
 }
 
 Widget _buildDurationDropdown(
-    String currentValue, ValueChanged<String?> onChanged) {
+  String currentValue,
+  ValueChanged<String?> onChanged,
+) {
   const durations = [
     '15 min',
     '30 min',
     '45 min',
     '60 min',
     '90 min',
-    '120 min'
+    '120 min',
   ];
   return SizedBox(
     height: 48,
@@ -208,10 +223,10 @@ class _EditVisitDialogState extends State<_EditVisitDialog> {
   @override
   void initState() {
     super.initState();
-    _addressController =
-        TextEditingController(text: widget.visit.address);
-    _mapsLinkController =
-        TextEditingController(text: widget.visit.mapsLink ?? '');
+    _addressController = TextEditingController(text: widget.visit.address);
+    _mapsLinkController = TextEditingController(
+      text: widget.visit.mapsLink ?? '',
+    );
     _selectedDate = widget.visit.scheduledStart;
     _selectedTime = TimeOfDay.fromDateTime(widget.visit.scheduledStart);
     final mins = widget.visit.durationMinutes;
@@ -302,7 +317,8 @@ class VisitDetailsPage extends ConsumerWidget {
     final visit = current.visit;
     final patient = current.patient;
 
-    final hasNotes = (visit.treatmentType?.trim().isNotEmpty ?? false) ||
+    final hasNotes =
+        (visit.treatmentType?.trim().isNotEmpty ?? false) ||
         (visit.therapistNotes?.trim().isNotEmpty ?? false);
 
     return Scaffold(
@@ -318,28 +334,30 @@ class VisitDetailsPage extends ConsumerWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new,
-                          color: AppColors.textPrimary, size: 20),
+                      icon: const Icon(
+                        Icons.arrow_back_ios_new,
+                        color: AppColors.textPrimary,
+                        size: 20,
+                      ),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const SizedBox(width: 2),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Visit Details',
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          color: AppColors.textPrimary,
-                          fontSize: 16,
+                        style: AppColors.pageHeading.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.edit_note,
-                          color: AppColors.textPrimary, size: 22),
+                      icon: const Icon(
+                        Icons.edit_note,
+                        color: AppColors.textPrimary,
+                        size: 22,
+                      ),
                       tooltip: 'Edit visit',
-                      onPressed: () =>
-                          _showEditDialog(context, ref, visit),
+                      onPressed: () => _showEditDialog(context, ref, visit),
                     ),
                   ],
                 ),
@@ -381,7 +399,10 @@ class VisitDetailsPage extends ConsumerWidget {
   }
 
   Future<void> _showEditDialog(
-      BuildContext context, WidgetRef ref, Visit visit) async {
+    BuildContext context,
+    WidgetRef ref,
+    Visit visit,
+  ) async {
     final result = await showDialog<Map<String, dynamic>?>(
       context: context,
       builder: (_) => _EditVisitDialog(visit: visit),
@@ -422,16 +443,15 @@ class VisitDetailsPage extends ConsumerWidget {
       }
     } on VisitException catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } catch (_) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Something went wrong')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Something went wrong')));
       }
     }
   }
@@ -454,9 +474,8 @@ class _VisitHeader extends StatelessWidget {
       children: [
         Text(
           patient?.fullName ?? 'Unknown patient',
-          style: const TextStyle(
+          style: AppColors.bodyLarge.copyWith(
             fontFamily: AppColors.headingFontFamily,
-            color: AppColors.textPrimary,
             fontSize: 20,
             fontWeight: FontWeight.w700,
           ),
@@ -469,13 +488,11 @@ class _VisitHeader extends StatelessWidget {
           runSpacing: 8,
           children: [
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: statusColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20),
-                border:
-                    Border.all(color: statusColor.withValues(alpha: 0.4)),
+                border: Border.all(color: statusColor.withValues(alpha: 0.4)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
@@ -521,9 +538,11 @@ class _InfoPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: AppColors.cardSurfaceAlt.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(
+          color: AppColors.cardSurfaceAlt.withValues(alpha: 0.10),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -532,8 +551,7 @@ class _InfoPill extends StatelessWidget {
           const SizedBox(width: 5),
           Text(
             label,
-            style:
-                AppColors.bodySmall.copyWith(fontWeight: FontWeight.w500),
+            style: AppColors.bodySmall.copyWith(fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -564,8 +582,9 @@ class _ScheduleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final dateStr =
-        DateFormat('EEEE, MMM d, yyyy').format(visit.scheduledStart);
+    final dateStr = DateFormat(
+      'EEEE, MMM d, yyyy',
+    ).format(visit.scheduledStart);
     final timeStr =
         '${DateFormat('h:mm a').format(visit.scheduledStart)} – '
         '${DateFormat('h:mm a').format(visit.scheduledEnd)}';
@@ -582,31 +601,29 @@ class _ScheduleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.calendar_today,
-                  size: 16, color: AppColors.silver),
+              const Icon(
+                Icons.calendar_today,
+                size: 16,
+                color: AppColors.silver,
+              ),
               const SizedBox(width: 10),
-              Expanded(
-                  child: Text(dateStr, style: AppColors.bodyMedium)),
+              Expanded(child: Text(dateStr, style: AppColors.bodyMedium)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.access_time,
-                  size: 16, color: AppColors.silver),
+              const Icon(Icons.access_time, size: 16, color: AppColors.silver),
               const SizedBox(width: 10),
-              Expanded(
-                  child: Text(timeStr, style: AppColors.bodyMedium)),
+              Expanded(child: Text(timeStr, style: AppColors.bodyMedium)),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.timelapse,
-                  size: 16, color: AppColors.silver),
+              const Icon(Icons.timelapse, size: 16, color: AppColors.silver),
               const SizedBox(width: 10),
-              Text('${visit.durationMinutes} min',
-                  style: AppColors.bodyMedium),
+              Text('${visit.durationMinutes} min', style: AppColors.bodyMedium),
             ],
           ),
         ],
@@ -647,8 +664,8 @@ class _LocationCard extends StatelessWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content:
-                  Text('Unable to open link. Please try again.')),
+            content: Text('Unable to open link. Please try again.'),
+          ),
         );
       }
     }
@@ -669,8 +686,11 @@ class _LocationCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.location_on_outlined,
-                  size: 16, color: AppColors.silver),
+              const Icon(
+                Icons.location_on_outlined,
+                size: 16,
+                color: AppColors.silver,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -691,8 +711,7 @@ class _LocationCard extends StatelessWidget {
               label: const Text('Open in Google Maps'),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.textPrimary,
-                side: BorderSide(
-                    color: Colors.white.withValues(alpha: 0.2)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -724,14 +743,18 @@ class _PatientCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.person_off_outlined,
-                color: AppColors.silver, size: 18),
+            const Icon(
+              Icons.person_off_outlined,
+              color: AppColors.silver,
+              size: 18,
+            ),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Patient record not found — it may have been removed.',
-                style: AppColors.bodyMedium
-                    .copyWith(color: AppColors.textSecondary),
+                style: AppColors.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
               ),
             ),
           ],
@@ -743,9 +766,7 @@ class _PatientCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(
-          builder: (_) => PatientDetailsPage(patient: patient),
-        ),
+        MaterialPageRoute(builder: (_) => PatientDetailsPage(patient: patient)),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -756,8 +777,7 @@ class _PatientCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            const Icon(Icons.person_outline,
-                color: AppColors.silver, size: 18),
+            const Icon(Icons.person_outline, color: AppColors.silver, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
@@ -765,8 +785,9 @@ class _PatientCard extends StatelessWidget {
                 children: [
                   Text(
                     patient.fullName,
-                    style: AppColors.bodyMedium
-                        .copyWith(fontWeight: FontWeight.w600),
+                    style: AppColors.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -778,8 +799,7 @@ class _PatientCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
-                color: AppColors.silver, size: 20),
+            const Icon(Icons.chevron_right, color: AppColors.silver, size: 20),
           ],
         ),
       ),
@@ -809,16 +829,11 @@ class _TreatmentNotesCard extends StatelessWidget {
           if (hasType) ...[
             Text(
               visit.treatmentType!,
-              style: AppColors.bodyMedium
-                  .copyWith(fontWeight: FontWeight.w600),
+              style: AppColors.bodyMedium.copyWith(fontWeight: FontWeight.w600),
             ),
             if (hasNotes) const SizedBox(height: 8),
           ],
-          if (hasNotes)
-            Text(
-              visit.therapistNotes!,
-              style: AppColors.bodyMeta,
-            ),
+          if (hasNotes) Text(visit.therapistNotes!, style: AppColors.bodyMeta),
         ],
       ),
     );
@@ -831,8 +846,7 @@ class _BottomActionBar extends ConsumerStatefulWidget {
   const _BottomActionBar({required this.visit});
 
   @override
-  ConsumerState<_BottomActionBar> createState() =>
-      _BottomActionBarState();
+  ConsumerState<_BottomActionBar> createState() => _BottomActionBarState();
 }
 
 class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
@@ -847,21 +861,21 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(successMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
       if (popOnSuccess) Navigator.pop(context);
     } on VisitException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content:
-                Text('Something went wrong. Please try again.')),
+          content: Text('Something went wrong. Please try again.'),
+        ),
       );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -884,8 +898,7 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete',
-                style: TextStyle(color: _accentRed)),
+            child: const Text('Delete', style: TextStyle(color: _accentRed)),
           ),
         ],
       ),
@@ -913,9 +926,9 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
         onPressed: _busy
             ? null
             : () => _run(
-                  () => repo.cancelVisit(widget.visit.id),
-                  successMessage: 'Visit cancelled.',
-                ),
+                () => repo.cancelVisit(widget.visit.id),
+                successMessage: 'Visit cancelled.',
+              ),
         icon: const Icon(Icons.event_busy, size: 18),
         label: const Text('Cancel Visit'),
         style: OutlinedButton.styleFrom(
@@ -923,19 +936,17 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
           side: BorderSide(color: _accentRed.withValues(alpha: 0.4)),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       rightButton = ElevatedButton.icon(
         onPressed: _busy
             ? null
             : () => _run(
-                  () => repo.updateStatus(
-                    widget.visit.id,
-                    VisitStatus.completed,
-                  ),
-                  successMessage: 'Marked as completed.',
-                ),
+                () => repo.updateStatus(widget.visit.id, VisitStatus.completed),
+                successMessage: 'Marked as completed.',
+              ),
         icon: const Icon(Icons.check_circle_outline, size: 18),
         label: const Text('Mark Completed'),
         style: ElevatedButton.styleFrom(
@@ -943,7 +954,8 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     } else {
@@ -956,19 +968,17 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
           side: BorderSide(color: _accentRed.withValues(alpha: 0.4)),
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
       rightButton = ElevatedButton.icon(
         onPressed: _busy
             ? null
             : () => _run(
-                  () => repo.updateStatus(
-                    widget.visit.id,
-                    VisitStatus.scheduled,
-                  ),
-                  successMessage: 'Reopened as scheduled.',
-                ),
+                () => repo.updateStatus(widget.visit.id, VisitStatus.scheduled),
+                successMessage: 'Reopened as scheduled.',
+              ),
         icon: const Icon(Icons.event_repeat, size: 18),
         label: const Text('Reopen'),
         style: ElevatedButton.styleFrom(
@@ -976,7 +986,8 @@ class _BottomActionBarState extends ConsumerState<_BottomActionBar> {
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14),
           shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12)),
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       );
     }

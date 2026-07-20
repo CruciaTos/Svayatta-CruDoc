@@ -75,5 +75,14 @@ class AppColors {
 }
 
 extension ColorValueExtensions on Color {
-  Color withValues({required double alpha}) => withValues(alpha: alpha);
+  /// Returns this color with the provided alpha (0.0 - 1.0).
+  /// Implemented with `Color.fromRGBO` to avoid precision loss and
+  /// to provide a safe replacement for the incorrect recursive stub.
+  Color withValues({required double alpha}) {
+    final double a = alpha.clamp(0.0, 1.0);
+    final int r = (this.r * 255.0).round();
+    final int g = (this.g * 255.0).round();
+    final int b = (this.b * 255.0).round();
+    return Color.fromRGBO(r, g, b, a);
+  }
 }

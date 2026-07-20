@@ -53,7 +53,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   // ---- Revenue card state (lifted up) ----
   final RevenueRepository _revenueRepository = RevenueRepository();
   bool _isMonthly = true;
-  int _selectedBarIndex = 0; // will be updated when data is available
+  int _selectedBarIndex = -1; // use current month/day if not yet selected
 
   List<BarData> _buildWeeklyBars(List<RevenueEntry> entries) {
     final today = DateTime.now();
@@ -120,6 +120,17 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   String _shortWeekday(int weekday) {
     const labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return labels[weekday - 1];
+  }
+
+  int _defaultSelectedBarIndex(List<BarData> bars) {
+    if (bars.isEmpty) return 0;
+    if (_isMonthly) {
+      return bars.length - 1;
+    }
+    final today = DateTime.now();
+    final todayLabel = _shortWeekday(today.weekday);
+    final index = bars.indexWhere((bar) => bar.label == todayLabel);
+    return index >= 0 ? index : bars.length - 1;
   }
 
   void _openAddPatient() {
@@ -205,7 +216,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       : _buildWeeklyBars(entries);
                   final currentIndex = bars.isEmpty
                       ? -1
-                      : _selectedBarIndex.clamp(0, bars.length - 1);
+                      : (_selectedBarIndex >= 0
+                          ? _selectedBarIndex.clamp(0, bars.length - 1)
+                          : _defaultSelectedBarIndex(bars));
                   final amount = currentIndex < 0
                       ? '₹0'
                       : '₹${bars[currentIndex].revenueAmount ?? 0}';

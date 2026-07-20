@@ -68,8 +68,8 @@ class VisitCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
-        height: 280,
-        padding: const EdgeInsets.all(8),
+        height: 240,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: AppColors.cardSurface,
           borderRadius: BorderRadius.circular(36),
@@ -85,8 +85,8 @@ class VisitCard extends StatelessWidget {
                 patientName,
                 style: const TextStyle(
                   color: AppColors.textPrimary,
-                  fontSize: 26,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w700,
                   fontFamily: AppColors.headingFontFamily,
                 ),
               ),
@@ -114,7 +114,9 @@ class VisitCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: _statusColor(status),
                       borderRadius: BorderRadius.circular(12),
@@ -134,8 +136,11 @@ class VisitCard extends StatelessWidget {
                       onCancel != null ||
                       onDelete != null)
                     PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert,
-                          color: AppColors.textSecondary, size: 20),
+                      icon: const Icon(
+                        Icons.more_vert,
+                        color: AppColors.textSecondary,
+                        size: 20,
+                      ),
                       color: AppColors.cardSurface,
                       itemBuilder: (context) => [
                         if (onReschedule != null)
@@ -187,13 +192,13 @@ class VisitCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.calendar_today,
-                      size: 16, color: Colors.black),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$date  •  $day',
-                    style: AppColors.bodyMeta,
+                  const Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: AppColors.textSecondary,
                   ),
+                  const SizedBox(width: 4),
+                  Text('$date  •  $day', style: AppColors.bodyMeta),
                 ],
               ),
             ),
@@ -205,13 +210,13 @@ class VisitCard extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.access_time,
-                      size: 16, color: Colors.black),
-                  const SizedBox(width: 6),
-                  Text(
-                    '$time  •  $duration',
-                    style: AppColors.bodyMeta,
+                  const Icon(
+                    Icons.access_time,
+                    size: 16,
+                    color: AppColors.textSecondary,
                   ),
+                  const SizedBox(width: 6),
+                  Text('$time  •  $duration', style: AppColors.bodyMeta),
                 ],
               ),
             ),
@@ -224,8 +229,11 @@ class VisitCard extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.location_on,
-                      size: 16, color: Colors.black),
+                  const Icon(
+                    Icons.location_on,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
@@ -241,25 +249,27 @@ class VisitCard extends StatelessWidget {
 
             // --- Map preview / open-in-maps button ---
             Positioned(
-              left: 4,
-              right: 4,
-              bottom: 4,
+              left: 6,
+              right: 6,
+              bottom: 6,
               child: GestureDetector(
                 onTap: () => onMapTap(_destinationUrl),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(28),
+                  borderRadius: BorderRadius.circular(20),
                   child: SizedBox(
-                    height: 120,
+                    height: 110,
                     child: Stack(
                       children: [
                         _buildMapContent(),
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(28),
+                              borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: Colors.black,
-                                width: 2,
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.45,
+                                ),
+                                width: 1,
                               ),
                             ),
                           ),
@@ -324,7 +334,10 @@ class VisitCard extends StatelessWidget {
 
   // ---------- Map content (unchanged) ----------
   Widget _buildMapContent() {
-    final mapImageUrl = staticMapUrlFor(latitude: latitude, longitude: longitude);
+    final mapImageUrl = staticMapUrlFor(
+      latitude: latitude,
+      longitude: longitude,
+    );
     if (mapImageUrl == null) {
       return _buildMapPlaceholder();
     }
@@ -354,12 +367,7 @@ class VisitCard extends StatelessWidget {
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              shadows: [
-                Shadow(
-                  blurRadius: 4,
-                  color: Colors.black54,
-                ),
-              ],
+              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
             ),
           ),
         ),
@@ -413,12 +421,7 @@ class VisitCard extends StatelessWidget {
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              shadows: [
-                Shadow(
-                  blurRadius: 4,
-                  color: Colors.black54,
-                ),
-              ],
+              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
             ),
           ),
         ),

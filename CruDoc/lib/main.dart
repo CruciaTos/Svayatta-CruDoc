@@ -8,6 +8,7 @@ import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
+import 'core/theme/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,7 +31,20 @@ class MoodyDashboardApp extends StatelessWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        // Ensure the app uses the project's chosen font and base text styles
+        fontFamily: AppColors.bodyFontFamily,
+        primaryColor: AppColors.accentBlue,
+        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.accentBlue),
+        textTheme: TextTheme(
+          displayLarge: AppColors.pageHeading,
+          headlineSmall: AppColors.sectionHeading,
+          bodyLarge: AppColors.bodyLarge,
+          bodyMedium: AppColors.bodyMedium,
+          bodySmall: AppColors.bodySmall,
+        ),
+      ),
       routerConfig: appRouter,
     );
   }

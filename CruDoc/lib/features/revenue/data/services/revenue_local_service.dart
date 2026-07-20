@@ -268,6 +268,7 @@ class RevenueLocalService {
       'description': entry.description,
       'amount': entry.amount,
       'type': entry.type.value,
+      'kind': entry.kind.value,
       'payer': entry.payer,
       'patientId': entry.patientId,
       'visitId': entry.visitId,
@@ -316,6 +317,11 @@ class RevenueLocalService {
               ? (entry.value as RevenueType).value
               : entry.value;
           break;
+        case 'kind':
+          row[entry.key] = entry.value is TransactionKind
+              ? (entry.value as TransactionKind).value
+              : entry.value;
+          break;
       }
     }
     return row;
@@ -328,6 +334,7 @@ class RevenueLocalService {
       description: row['description'] as String? ?? '',
       amount: (row['amount'] as num?)?.toDouble() ?? 0,
       type: RevenueType.fromValue(row['type'] as String?),
+      kind: TransactionKind.fromValue(row['kind'] as String?),
       payer: row['payer'] as String?,
       patientId: row['patientId'] as String?,
       visitId: row['visitId'] as String?,

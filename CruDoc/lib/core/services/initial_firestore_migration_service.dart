@@ -176,6 +176,7 @@ class InitialFirestoreMigrationService {
           'description': data['description'] as String? ?? '',
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'type': data['type'] as String? ?? 'miscellaneous',
+          'kind': data['kind'] as String? ?? 'income',
           'payer': data['payer'] as String?,
           'patientId': data['patientId'] as String?,
           'visitId': data['visitId'] as String?,

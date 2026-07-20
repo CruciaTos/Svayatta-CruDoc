@@ -162,6 +162,7 @@ class LocalDatabaseService extends ChangeNotifier {
         amount REAL NOT NULL DEFAULT 0,
         type TEXT NOT NULL DEFAULT 'miscellaneous'
           CHECK (type IN ('visit', 'online', 'miscellaneous')),
+        kind TEXT NOT NULL DEFAULT 'income',
         payer TEXT,
         patientId TEXT,
         visitId TEXT,
@@ -259,6 +260,10 @@ class LocalDatabaseService extends ChangeNotifier {
       ON revenue_entries (type)
     ''');
     await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_entries_kind
+      ON revenue_entries (kind)
+    ''');
+    await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_revenue_entries_sync_pending
       ON revenue_entries (syncStatus, pendingDelete)
     ''');
@@ -349,6 +354,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'description': "description TEXT NOT NULL DEFAULT ''",
     'amount': 'amount REAL NOT NULL DEFAULT 0',
     'type': "type TEXT NOT NULL DEFAULT 'miscellaneous'",
+    'kind': "kind TEXT NOT NULL DEFAULT 'income'",
     'payer': 'payer TEXT',
     'patientId': 'patientId TEXT',
     'visitId': 'visitId TEXT',

@@ -27,6 +27,29 @@ enum RevenueType {
   }
 }
 
+/// Whether a [RevenueEntry] represents money coming in or going out.
+///
+/// Same shape as [RevenueType] — an enum with a string value and a
+/// defensive `fromValue` that falls back to [TransactionKind.income]
+/// for missing or unrecognised data, so one bad Firestore document
+/// can’t crash the revenue list.
+enum TransactionKind {
+  income,
+  expense;
+
+  /// The exact string stored in Firestore for this kind.
+  String get value => name;
+
+  /// Parses a raw Firestore string into a [TransactionKind]. Falls back
+  /// to [TransactionKind.income] for anything unrecognized.
+  static TransactionKind fromValue(String? raw) {
+    return TransactionKind.values.firstWhere(
+      (kind) => kind.value == raw,
+      orElse: () => TransactionKind.income,
+    );
+  }
+}
+
 /// Core Revenue Entry data model.
 ///
 /// Represents a single recorded payment stored in the `revenue_entries`
@@ -66,6 +89,11 @@ class RevenueEntry {
   /// history is fully preserved.
   final bool isDeleted;
 
+  /// Whether this entry is income (money in) or expense (money out).
+  /// Defaults to [TransactionKind.income] so every existing call site
+  /// remains non‑breaking.
+  final TransactionKind kind;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -81,6 +109,7 @@ class RevenueEntry {
     this.patientId,
     this.visitId,
     this.isDeleted = false,
+    this.kind = TransactionKind.income,
   });
 
   /// Builds a [RevenueEntry] from a Firestore document snapshot.
@@ -102,6 +131,7 @@ class RevenueEntry {
       description: map['description'] as String? ?? '',
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       type: RevenueType.fromValue(map['type'] as String?),
+      kind: TransactionKind.fromValue(map['kind'] as String?),
       payer: map['payer'] as String?,
       patientId: map['patientId'] as String?,
       visitId: map['visitId'] as String?,
@@ -119,6 +149,7 @@ class RevenueEntry {
       'description': description,
       'amount': amount,
       'type': type.value,
+      'kind': kind.value,
       'payer': payer,
       'patientId': patientId,
       'visitId': visitId,
@@ -137,6 +168,7 @@ class RevenueEntry {
     String? patientId,
     String? visitId,
     bool? isDeleted,
+    TransactionKind? kind,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -150,6 +182,7 @@ class RevenueEntry {
       patientId: patientId ?? this.patientId,
       visitId: visitId ?? this.visitId,
       isDeleted: isDeleted ?? this.isDeleted,
+      kind: kind ?? this.kind,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

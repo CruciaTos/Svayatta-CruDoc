@@ -20,7 +20,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
   late final RevenueRepository _repository =
       widget._repository ?? RevenueRepository();
 
-  final String _selectedFilter = 'Weekly';
+  String _selectedFilter = 'Weekly';
+  TransactionKind? _kindFilter = null; // null = show all
 
   List<RevenueEntry> _filterEntries(List<RevenueEntry> entries) {
     final now = DateTime.now();
@@ -38,11 +39,19 @@ class _RevenueScreenState extends State<RevenueScreen> {
       default:
         startDate = DateTime(2000);
     }
-    return entries
+
+    var filtered = entries
         .where((e) =>
             e.date.isAfter(startDate) || e.date.isAtSameMomentAs(startDate))
-        .toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+        .toList();
+
+    // Apply kind filter if set
+    if (_kindFilter != null) {
+      filtered = filtered.where((e) => e.kind == _kindFilter).toList();
+    }
+
+    filtered.sort((a, b) => b.date.compareTo(a.date));
+    return filtered;
   }
 
   RevenueEntry? _lastPaidEntry(List<RevenueEntry> entries) {
@@ -54,7 +63,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
   Future<void> _showEntryDialog({
     required String title,
     required String descHint,
-    required Future<void> Function(String description, double amount) onSubmit,
+    required Future<void> Function(String description, double amount, TransactionKind kind) onSubmit,
+    TransactionKind initialKind = TransactionKind.income,
+    bool includeKindSelector = false,
   }) async {
     final descController = TextEditingController();
     final amountController = TextEditingController();
@@ -62,6 +73,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
     await showDialog<void>(
       context: context,
       builder: (_) {
+        TransactionKind selectedKind = initialKind;
         bool isSaving = false;
         String? errorText;
 
@@ -86,7 +98,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
               });
 
               try {
-                await onSubmit(desc, amount);
+                await onSubmit(desc, amount, selectedKind);
                 if (dialogContext.mounted) Navigator.pop(dialogContext);
               } on RevenueException catch (e) {
                 setDialogState(() {
@@ -130,6 +142,50 @@ class _RevenueScreenState extends State<RevenueScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 16),
+                  if (includeKindSelector) ...[
+                    Text(
+                      'Type',
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    ToggleButtons(
+                      isSelected: [
+                        selectedKind == TransactionKind.income,
+                        selectedKind == TransactionKind.expense,
+                      ],
+                      onPressed: isSaving
+                          ? null
+                          : (index) {
+                              setDialogState(() {
+                                selectedKind = index == 0
+                                    ? TransactionKind.income
+                                    : TransactionKind.expense;
+                              });
+                            },
+                      borderRadius: BorderRadius.circular(16),
+                      selectedColor: Colors.white,
+                      fillColor: selectedKind == TransactionKind.income
+                          ? AppColors.positiveGreen
+                          : AppColors.negativeRed,
+                      color: AppColors.textSecondary,
+                      constraints: const BoxConstraints(minWidth: 100, minHeight: 42),
+                      textStyle: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      children: const [
+                        Text('Income'),
+                        Text('Expense'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                   Text(
                     'Description',
                     style: TextStyle(
@@ -276,26 +332,34 @@ class _RevenueScreenState extends State<RevenueScreen> {
     amountController.dispose();
   }
 
-  Future<void> _showAddMiscDialog() {
+  Future<void> _showAddTransactionDialog() {
     return _showEntryDialog(
-      title: 'Add Miscellaneous Income',
+      title: 'Add Transaction',
       descHint: 'Description',
-      onSubmit: (desc, amount) async {
+      includeKindSelector: true,
+      onSubmit: (desc, amount, kind) async {
         final now = DateTime.now();
         await _repository.createRevenueEntry(
           RevenueEntry(
             id: '',
             date: now,
-            description: 'Misc: $desc',
+            description: desc,
             amount: amount,
             type: RevenueType.miscellaneous,
+            kind: kind,
             createdAt: now,
             updatedAt: now,
           ),
         );
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Income recorded')),
+          SnackBar(
+            content: Text(
+              kind == TransactionKind.income
+                  ? 'Income recorded'
+                  : 'Expense recorded',
+            ),
+          ),
         );
       },
     );
@@ -305,7 +369,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
     return _showEntryDialog(
       title: 'Add Pending Payment',
       descHint: 'Description (e.g. "Lab test")',
-      onSubmit: (desc, amount) async {
+      includeKindSelector: false,
+      onSubmit: (desc, amount, _) async {
         final now = DateTime.now();
         await _repository.createPendingPayment(
           PendingPayment(
@@ -358,8 +423,16 @@ class _RevenueScreenState extends State<RevenueScreen> {
             final pendingPayments =
                 pendingSnapshot.data ?? const <PendingPayment>[];
             final filtered = _filterEntries(allEntries);
-            final totalRevenue =
-                filtered.fold<double>(0, (sum, e) => sum + e.amount);
+
+            // Split totals
+            final totalIncome = filtered
+                .where((e) => e.kind == TransactionKind.income)
+                .fold<double>(0, (sum, e) => sum + e.amount);
+            final totalExpenses = filtered
+                .where((e) => e.kind == TransactionKind.expense)
+                .fold<double>(0, (sum, e) => sum + e.amount);
+            final net = totalIncome - totalExpenses;
+
             final lastPaid = _lastPaidEntry(allEntries);
 
             return Scaffold(
@@ -376,7 +449,6 @@ class _RevenueScreenState extends State<RevenueScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            // Title and description.
                             Row(
                               children: <Widget>[
                                 Expanded(
@@ -391,16 +463,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                                      
-                                        
-                                    
                                     ],
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 18),
-                            // Gradient summary card with vertically centered content.
+                            // Gradient summary card – income only, as decided
                             Container(
                               width: double.infinity,
                               padding: const EdgeInsets.all(20),
@@ -443,7 +512,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             ),
                                             const SizedBox(height: 6),
                                             Text(
-                                              '₹${totalRevenue.toStringAsFixed(0)}',
+                                              '₹${totalIncome.toStringAsFixed(0)}',
                                               style: const TextStyle(
                                                 fontFamily:
                                                     AppColors.bodyFontFamily,
@@ -475,6 +544,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   const SizedBox(height: 16),
                                   Row(
                                     children: <Widget>[
+                                      // Time filter chip (already existing)
                                       Expanded(
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -512,6 +582,45 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                         ),
                                       ),
                                       const SizedBox(width: 12),
+                                      // Expenses compact chip
+                                      Expanded(
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.16,
+                                            ),
+                                            borderRadius:
+                                                BorderRadius.circular(16),
+                                          ),
+                                          child: Row(
+                                            children: <Widget>[
+                                              const Icon(
+                                                Icons.trending_down_rounded,
+                                                color: Colors.white70,
+                                                size: 16,
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                'Expenses ₹${totalExpenses.toStringAsFixed(0)}',
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      AppColors.bodyFontFamily,
+                                                  color: Colors.white,
+                                                  fontSize: 12,
+                                                  fontWeight:
+                                                      FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      // Last paid chip (keep or remove? I kept it, but now there are three chips. Should be fine)
                                       if (lastPaid != null)
                                         Expanded(
                                           child: Container(
@@ -564,8 +673,41 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                 ],
                               ),
                             ),
-                            // Reduced gap between income card and Pending payments section
+                            // Net row below the card
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12, bottom: 4),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                                    color: AppColors.textSecondary,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    'Net',
+                                    style: TextStyle(
+                                      fontFamily: AppColors.bodyFontFamily,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.textSecondary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    '₹${net >= 0 ? '+' : ''}${net.toStringAsFixed(0)}',
+                                    style: TextStyle(
+                                      fontFamily: AppColors.bodyFontFamily,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: net >= 0 ? const Color(0xFF2E7D32) : AppColors.negativeRed,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                             const SizedBox(height: 8),
+                            // Pending payments section unchanged
                             Row(
                               mainAxisAlignment:
                                   MainAxisAlignment.spaceBetween,
@@ -746,13 +888,41 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   },
                                 ),
                               ),
-                            const SizedBox(height: 4),
+                            const SizedBox(height: 8),
+                            // Kind filter chips
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                children: [
+                                  _KindFilterChip(
+                                    label: 'All',
+                                    selected: _kindFilter == null,
+                                    onSelected: () => setState(() => _kindFilter = null),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _KindFilterChip(
+                                    label: 'Income',
+                                    selected: _kindFilter == TransactionKind.income,
+                                    selectedColor: AppColors.positiveGreen,
+                                    onSelected: () => setState(() => _kindFilter = TransactionKind.income),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  _KindFilterChip(
+                                    label: 'Expense',
+                                    selected: _kindFilter == TransactionKind.expense,
+                                    selectedColor: AppColors.negativeRed,
+                                    onSelected: () => setState(() => _kindFilter = TransactionKind.expense),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            // Recent transactions header + list
                             Row(
                               mainAxisAlignment:
                                   MainAxisAlignment.spaceBetween,
                               children: <Widget>[
                                 Text(
-                                  'Recent payments',
+                                  'Recent transactions',
                                   style: AppColors.pageHeading.copyWith(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
@@ -760,7 +930,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   ),
                                 ),
                                 TextButton.icon(
-                                  onPressed: _showAddMiscDialog,
+                                  onPressed: _showAddTransactionDialog,
                                   icon: const Icon(Icons.add_rounded, size: 18),
                                   label: const Text('Add'),
                                   style: TextButton.styleFrom(
@@ -785,7 +955,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    'No revenue entries for this period',
+                                    'No transactions for this period',
                                     style: TextStyle(
                                       fontFamily: AppColors.bodyFontFamily,
                                       color: AppColors.textSecondary,
@@ -802,18 +972,35 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     const SizedBox(height: 8),
                                 itemBuilder: (context, index) {
                                   final entry = filtered[index];
+                                  final isExpense = entry.kind == TransactionKind.expense;
+
                                   IconData icon;
-                                  switch (entry.type) {
-                                    case RevenueType.visit:
-                                      icon = Icons.medical_services;
-                                      break;
-                                    case RevenueType.online:
-                                      icon = Icons.videocam;
-                                      break;
-                                    case RevenueType.miscellaneous:
-                                      icon = Icons.miscellaneous_services;
-                                      break;
+                                  Color avatarBackground;
+                                  Color iconColor;
+                                  if (isExpense) {
+                                    icon = Icons.money_off;
+                                    avatarBackground = AppColors.negativeRed.withValues(alpha: 0.15);
+                                    iconColor = AppColors.negativeRed;
+                                  } else {
+                                    switch (entry.type) {
+                                      case RevenueType.visit:
+                                        icon = Icons.medical_services;
+                                        break;
+                                      case RevenueType.online:
+                                        icon = Icons.videocam;
+                                        break;
+                                      case RevenueType.miscellaneous:
+                                        icon = Icons.miscellaneous_services;
+                                        break;
+                                    }
+                                    avatarBackground = AppColors.chartBarDim;
+                                    iconColor = Colors.white;
                                   }
+
+                                  final amountColor = isExpense
+                                      ? AppColors.negativeRed
+                                      : const Color(0xFF2E7D32);
+                                  final amountPrefix = isExpense ? '−' : '+';
 
                                   return Container(
                                     padding: const EdgeInsets.all(12),
@@ -832,10 +1019,10 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                       children: <Widget>[
                                         CircleAvatar(
                                           radius: 22,
-                                          backgroundColor: AppColors.chartBarDim,
+                                          backgroundColor: avatarBackground,
                                           child: Icon(
                                             icon,
-                                            color: Colors.white,
+                                            color: iconColor,
                                             size: 18,
                                           ),
                                         ),
@@ -870,11 +1057,11 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                           ),
                                         ),
                                         Text(
-                                          '₹${entry.amount.toStringAsFixed(0)}',
-                                          style: const TextStyle(
+                                          '$amountPrefix₹${entry.amount.toStringAsFixed(0)}',
+                                          style: TextStyle(
                                             fontFamily:
                                                 AppColors.bodyFontFamily,
-                                            color: Color(0xFF2E7D32),
+                                            color: amountColor,
                                             fontSize: 16,
                                             fontWeight: FontWeight.w700,
                                           ),
@@ -892,6 +1079,48 @@ class _RevenueScreenState extends State<RevenueScreen> {
           },
         );
       },
+    );
+  }
+}
+
+/// Simple filter chip styled for the revenue screen.
+class _KindFilterChip extends StatelessWidget {
+  const _KindFilterChip({
+    required this.label,
+    required this.selected,
+    this.selectedColor,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final Color? selectedColor;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveSelectedColor = selectedColor ?? AppColors.chartBarLight;
+    return ChoiceChip(
+      label: Text(
+        label,
+        style: TextStyle(
+          fontFamily: AppColors.bodyFontFamily,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: selected ? Colors.white : AppColors.textSecondary,
+        ),
+      ),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      backgroundColor: AppColors.cardSurface,
+      selectedColor: effectiveSelectedColor,
+      side: BorderSide(
+        color: selected ? effectiveSelectedColor : AppColors.silver.withValues(alpha: 0.4),
+        width: 1,
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
     );
   }
 }

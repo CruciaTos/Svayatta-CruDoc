@@ -62,6 +62,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final todayMidnight = DateTime(today.year, today.month, today.day);
     final currentWeekday = today.weekday; // 1 = Monday, 7 = Sunday
 
+    // Only consider income entries for the chart
+    final incomeEntries = entries
+        .where((e) => e.kind == TransactionKind.income)
+        .toList();
+
     final dailyAmounts = List.generate(7, (index) {
       final weekday = index + 1; // 1 = Mon ... 7 = Sun
 
@@ -79,7 +84,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
         targetDate = todayMidnight.subtract(Duration(days: diff));
       }
 
-      final amount = entries
+      final amount = incomeEntries
           .where((entry) => _isSameDate(entry.date, targetDate))
           .fold<double>(0, (sum, entry) => sum + entry.amount);
       return MapEntry(targetDate, amount);
@@ -100,9 +105,14 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   List<BarData> _buildMonthlyBars(List<RevenueEntry> entries) {
     final today = DateTime.now();
+    // Only income entries for the chart
+    final incomeEntries = entries
+        .where((e) => e.kind == TransactionKind.income)
+        .toList();
+
     final months = List.generate(6, (index) {
       final monthDate = DateTime(today.year, today.month - 5 + index, 1);
-      final amount = entries.fold<double>(0, (sum, entry) {
+      final amount = incomeEntries.fold<double>(0, (sum, entry) {
         if (entry.date.year == monthDate.year && entry.date.month == monthDate.month) {
           return sum + entry.amount;
         }

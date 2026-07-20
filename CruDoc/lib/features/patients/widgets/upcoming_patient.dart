@@ -84,7 +84,7 @@ class UpcomingPatientCard extends ConsumerWidget {
         final mapUrl = _mapUrlFor(visit);
 
         // ---------------------------------------------------------------
-        //  Card UI – NO visit type label, age/gender moves up for clinic
+        //  Card UI – unchanged content, inside a taller shell
         // ---------------------------------------------------------------
         return _Shell(
           child: InkWell(
@@ -107,22 +107,19 @@ class UpcomingPatientCard extends ConsumerWidget {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        // For clinic visits: age/gender/diagnosis directly below name
                         if (isClinic) ...[
                           const SizedBox(height: 4),
                           Text(
                             '${patient.age} yrs  •  ${patient.gender}'
-                            '${patient.diagnosis.isNotEmpty ? '  •  ${patient.diagnosis}' : ''}',
+                            '${patient.diagnosis.isNotEmpty ? '  •  ${patient.diagnosisDisplay}' : ''}',
                             style: AppColors.bodySmall,
                           ),
                         ],
                         const SizedBox(height: 8),
-                        // Day + time with AM/PM
                         Text(
                           '$dayStr  •  $timeStr',
                           style: AppColors.bodyMeta,
                         ),
-                        // Home visit details (address etc.) remain below day/time
                         if (!isClinic) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -188,7 +185,7 @@ class UpcomingPatientCard extends ConsumerWidget {
   }
 }
 
-// ---------- Shared shell ----------
+// ---------- Taller shell (only height increased) ----------
 class _Shell extends StatelessWidget {
   final Widget child;
   const _Shell({required this.child});
@@ -197,8 +194,8 @@ class _Shell extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 80),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      constraints: const BoxConstraints(minHeight: 130),   // increased from 80 → 130
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), // original padding kept
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(24),

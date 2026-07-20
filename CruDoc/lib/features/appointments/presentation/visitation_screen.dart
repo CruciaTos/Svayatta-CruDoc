@@ -926,7 +926,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
                 patientName: patient.fullName,
                 age: patient.age,
                 gender: patient.gender,
-                condition: patient.diagnosis,
+                condition: patient.diagnosisDisplay,
                 date: dateStr,
                 day: dayStr,
                 time: timeStr,

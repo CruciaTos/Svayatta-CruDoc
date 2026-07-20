@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 /// Data collected by [PatientForm], handed back to the caller on submit.
 ///
@@ -13,7 +14,7 @@ class PatientFormResult {
   final String phone;
   final String gender;
   final DateTime dateOfBirth;
-  final String diagnosis;
+  final List<String> diagnosis;
   final double packageBalance;
 
   const PatientFormResult({
@@ -43,7 +44,7 @@ class PatientForm extends StatefulWidget {
     this.initialPhone,
     this.initialGender,
     this.initialDateOfBirth,
-    this.initialDiagnosis,
+    this.initialDiagnoses,
     this.initialPackageBalance,
   });
 
@@ -59,7 +60,10 @@ class PatientForm extends StatefulWidget {
   final String? initialPhone;
   final String? initialGender;
   final DateTime? initialDateOfBirth;
-  final String? initialDiagnosis;
+
+  /// Pre-fills the diagnosis fields (e.g. for a future edit flow).
+  /// Capped at [Patient.maxDiagnoses] entries.
+  final List<String>? initialDiagnoses;
   final double? initialPackageBalance;
 
   @override
@@ -68,11 +72,12 @@ class PatientForm extends StatefulWidget {
 
 class PatientFormState extends State<PatientForm> {
   static const _genderOptions = ['Male', 'Female', 'Other'];
+  static const _maxDiagnoses = Patient.maxDiagnoses;
 
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
   late final TextEditingController _phoneController;
-  late final TextEditingController _diagnosisController;
+  late List<TextEditingController> _diagnosisControllers;
   late final TextEditingController _packageBalanceController;
 
   late String _gender;
@@ -86,8 +91,15 @@ class PatientFormState extends State<PatientForm> {
     _lastNameController =
         TextEditingController(text: widget.initialLastName ?? '');
     _phoneController = TextEditingController(text: widget.initialPhone ?? '');
-    _diagnosisController =
-        TextEditingController(text: widget.initialDiagnosis ?? '');
+
+    final initialDiagnoses = widget.initialDiagnoses;
+    _diagnosisControllers = (initialDiagnoses == null || initialDiagnoses.isEmpty)
+        ? [TextEditingController()]
+        : initialDiagnoses
+            .take(_maxDiagnoses)
+            .map((diagnosis) => TextEditingController(text: diagnosis))
+            .toList();
+
     _packageBalanceController = TextEditingController(
       text: widget.initialPackageBalance != null
           ? widget.initialPackageBalance!.toStringAsFixed(0)
@@ -102,9 +114,26 @@ class PatientFormState extends State<PatientForm> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
-    _diagnosisController.dispose();
+    for (final controller in _diagnosisControllers) {
+      controller.dispose();
+    }
     _packageBalanceController.dispose();
     super.dispose();
+  }
+
+  void _addDiagnosisField() {
+    if (_diagnosisControllers.length >= _maxDiagnoses) return;
+    setState(() => _diagnosisControllers.add(TextEditingController()));
+  }
+
+  void _removeDiagnosisField(int index) {
+    setState(() {
+      final removed = _diagnosisControllers.removeAt(index);
+      removed.dispose();
+      if (_diagnosisControllers.isEmpty) {
+        _diagnosisControllers.add(TextEditingController());
+      }
+    });
   }
 
   /// Validates the form and, if valid, invokes [PatientForm.onSubmit]
@@ -120,6 +149,19 @@ class PatientFormState extends State<PatientForm> {
       return false;
     }
 
+    final diagnoses = _diagnosisControllers
+        .map((controller) => controller.text.trim())
+        .where((text) => text.isNotEmpty)
+        .take(_maxDiagnoses)
+        .toList();
+
+    if (diagnoses.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter at least one diagnosis')),
+      );
+      return false;
+    }
+
     widget.onSubmit(
       PatientFormResult(
         firstName: _firstNameController.text.trim(),
@@ -127,7 +169,7 @@ class PatientFormState extends State<PatientForm> {
         phone: _phoneController.text.trim(),
         gender: _gender,
         dateOfBirth: _dateOfBirth!,
-        diagnosis: _diagnosisController.text.trim(),
+        diagnosis: diagnoses,
         packageBalance:
             double.tryParse(_packageBalanceController.text.trim()) ?? 0.0,
       ),
@@ -219,14 +261,28 @@ class PatientFormState extends State<PatientForm> {
             onTap: _pickDateOfBirth,
           ),
           const SizedBox(height: 16),
-          _FormField(
-            label: 'Diagnosis',
-            controller: _diagnosisController,
-            maxLines: 3,
-            validator: (value) => (value == null || value.trim().isEmpty)
-                ? 'Required'
-                : null,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const _SectionLabel(text: 'Diagnosis'),
+              Text(
+                '${_diagnosisControllers.length}/$_maxDiagnoses',
+                style: AppColors.bodySmall,
+              ),
+            ],
           ),
+          const SizedBox(height: 8),
+          for (var i = 0; i < _diagnosisControllers.length; i++)
+            _DiagnosisFieldRow(
+              index: i,
+              controller: _diagnosisControllers[i],
+              canRemove: _diagnosisControllers.length > 1,
+              onRemove: () => _removeDiagnosisField(i),
+            ),
+          if (_diagnosisControllers.length < _maxDiagnoses) ...[
+            const SizedBox(height: 4),
+            _AddDiagnosisButton(onTap: _addDiagnosisField),
+          ],
           const SizedBox(height: 16),
           _FormField(
             label: 'Package Balance',
@@ -314,6 +370,120 @@ class _FormField extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ---------- DIAGNOSIS FIELD ROW ----------
+// One of up to Patient.maxDiagnoses diagnosis inputs. Every row beyond the
+// first shows a remove button so the doctor can back out an entry they
+// added by mistake.
+class _DiagnosisFieldRow extends StatelessWidget {
+  final int index;
+  final TextEditingController controller;
+  final bool canRemove;
+  final VoidCallback onRemove;
+
+  const _DiagnosisFieldRow({
+    required this.index,
+    required this.controller,
+    required this.canRemove,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: TextFormField(
+              controller: controller,
+              style: AppColors.bodyMedium,
+              decoration: InputDecoration(
+                hintText: 'Diagnosis ${index + 1}',
+                hintStyle: AppColors.bodyMedium.copyWith(
+                  color: AppColors.textSecondary.withValues(alpha: 0.6),
+                ),
+                filled: true,
+                fillColor: AppColors.cardSurface,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.divider),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.slateBlue),
+                ),
+              ),
+            ),
+          ),
+          if (canRemove) ...[
+            const SizedBox(width: 8),
+            InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onRemove,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardSurface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.divider),
+                ),
+                child: const Icon(
+                  Icons.close,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------- ADD DIAGNOSIS BUTTON ----------
+class _AddDiagnosisButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _AddDiagnosisButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.slateBlue.withValues(alpha: 0.5)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add, size: 16, color: AppColors.slateBlue),
+            const SizedBox(width: 6),
+            Text(
+              'Add another diagnosis',
+              style: AppColors.bodyMeta.copyWith(
+                color: AppColors.slateBlue,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

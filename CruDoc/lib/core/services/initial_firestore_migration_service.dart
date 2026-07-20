@@ -125,6 +125,7 @@ class InitialFirestoreMigrationService {
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
           'diagnosis': data['diagnosis'] as String? ?? '',
+          'notes': data['notes'] as String? ?? '',
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,

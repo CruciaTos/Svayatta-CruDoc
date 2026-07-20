@@ -35,6 +35,7 @@ class PatientRepository {
       gender: patient.gender,
       dateOfBirth: patient.dateOfBirth,
       diagnosis: patient.diagnosis,
+      notes: patient.notes,
       packageBalance: patient.packageBalance,
       isArchived: patient.isArchived,
       createdAt: now,
@@ -63,6 +64,11 @@ class PatientRepository {
 
     await _localService.updatePatient(patientId, localData);
     unawaited(_syncService.triggerPostWriteSync());
+  }
+
+  /// Saves the doctor's free-form note for a patient.
+  Future<void> updateDoctorsNote(String patientId, String note) {
+    return updatePatient(patientId, {'notes': note.trim()});
   }
 
   /// Soft-deletes a patient locally, then mirrors the existing Firestore delete.

@@ -41,6 +41,7 @@ class _AddPatientPageState extends State<AddPatientPage> {
       gender: result.gender,
       dateOfBirth: result.dateOfBirth,
       diagnosis: result.diagnosis,
+      notes: '',
       packageBalance: result.packageBalance,
       isArchived: false,
       createdAt: now,

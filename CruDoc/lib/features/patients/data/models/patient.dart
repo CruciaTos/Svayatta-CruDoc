@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Core Patient data model.
@@ -14,11 +16,21 @@ class Patient {
   final String phone;
   final String gender;
   final DateTime dateOfBirth;
-  final String diagnosis;
+
+  /// Up to [maxDiagnoses] distinct diagnoses for this patient.
+  final List<String> diagnosis;
+
+  /// Free-form clinical note the doctor can attach to this patient,
+  /// edited from the patient details screen.
+  final String notes;
+
   final double packageBalance;
   final bool isArchived;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// A patient may have at most this many diagnoses recorded.
+  static const int maxDiagnoses = 4;
 
   const Patient({
     required this.id,
@@ -28,6 +40,7 @@ class Patient {
     required this.gender,
     required this.dateOfBirth,
     required this.diagnosis,
+    this.notes = '',
     required this.packageBalance,
     required this.isArchived,
     required this.createdAt,
@@ -36,6 +49,10 @@ class Patient {
 
   /// Convenience getter for display purposes.
   String get fullName => '$firstName $lastName';
+
+  /// Comma-separated diagnoses, for single-line UI contexts (list rows,
+  /// cards) that don't have room to render one pill per diagnosis.
+  String get diagnosisDisplay => diagnosis.join(', ');
 
   /// Current age in years, computed from [dateOfBirth].
   int get age {
@@ -64,7 +81,8 @@ class Patient {
       phone: map['phone'] as String? ?? '',
       gender: map['gender'] as String? ?? '',
       dateOfBirth: _timestampToDate(map['dateOfBirth']),
-      diagnosis: map['diagnosis'] as String? ?? '',
+      diagnosis: diagnosisFromStored(map['diagnosis']),
+      notes: map['notes'] as String? ?? '',
       packageBalance: (map['packageBalance'] as num?)?.toDouble() ?? 0.0,
       isArchived: map['isArchived'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
@@ -81,7 +99,8 @@ class Patient {
       'phone': phone,
       'gender': gender,
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
-      'diagnosis': diagnosis,
+      'diagnosis': diagnosisToStored(diagnosis),
+      'notes': notes,
       'packageBalance': packageBalance,
       'isArchived': isArchived,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -95,7 +114,8 @@ class Patient {
     String? phone,
     String? gender,
     DateTime? dateOfBirth,
-    String? diagnosis,
+    List<String>? diagnosis,
+    String? notes,
     double? packageBalance,
     bool? isArchived,
     DateTime? createdAt,
@@ -109,6 +129,7 @@ class Patient {
       gender: gender ?? this.gender,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       diagnosis: diagnosis ?? this.diagnosis,
+      notes: notes ?? this.notes,
       packageBalance: packageBalance ?? this.packageBalance,
       isArchived: isArchived ?? this.isArchived,
       createdAt: createdAt ?? this.createdAt,
@@ -120,5 +141,56 @@ class Patient {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return DateTime.now();
+  }
+
+  /// Serializes a diagnosis list into the single TEXT value stored in the
+  /// `diagnosis` column/field (SQLite + Firestore both keep this as a
+  /// plain string, so no schema change was needed to support multiple
+  /// diagnoses). Encoded as JSON rather than a delimiter-joined string so
+  /// a diagnosis containing punctuation can't be mis-split on read.
+  /// Trims blanks and caps at [maxDiagnoses].
+  static String diagnosisToStored(List<String> diagnoses) {
+    final cleaned = diagnoses
+        .map((d) => d.trim())
+        .where((d) => d.isNotEmpty)
+        .take(maxDiagnoses)
+        .toList();
+    return jsonEncode(cleaned);
+  }
+
+  /// Parses the stored `diagnosis` value back into a list. Also accepts a
+  /// plain (pre-existing) string or a native list, so patients written
+  /// before this field supported multiple diagnoses still load correctly.
+  static List<String> diagnosisFromStored(Object? value) {
+    if (value == null) return const [];
+
+    if (value is List) {
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .take(maxDiagnoses)
+          .toList();
+    }
+
+    final raw = (value as String? ?? '').trim();
+    if (raw.isEmpty) return const [];
+
+    if (raw.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(raw);
+        if (decoded is List) {
+          return decoded
+              .map((e) => e.toString().trim())
+              .where((e) => e.isNotEmpty)
+              .take(maxDiagnoses)
+              .toList();
+        }
+      } catch (_) {
+        // Not actually JSON — fall through and treat as a legacy
+        // single-diagnosis string below.
+      }
+    }
+
+    return [raw];
   }
 }

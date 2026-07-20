@@ -20,24 +20,33 @@ class LastPatientsCard extends ConsumerWidget {
       ),
       error: (error, stack) => const _CardShell(
         child: Center(
-          child: Text('Could not load last patient', style: AppColors.bodyMedium),
+          child: Text(
+            'Could not load last patient',
+            style: AppColors.bodyMedium,
+          ),
         ),
       ),
       data: (result) {
         if (result == null) {
           return const _CardShell(
             child: Center(
-              child: Text('No visits recorded yet', style: AppColors.bodyMedium),
+              child: Text(
+                'No visits recorded yet',
+                style: AppColors.bodyMedium,
+              ),
             ),
           );
         }
-        return _LastPatientContent(patient: result.patient, visit: result.visit);
+        return _LastPatientContent(
+          patient: result.patient,
+          visit: result.visit,
+        );
       },
     );
   }
 }
 
-// ---------- Real content, once we have a patient + their last visit ----------
+// ---------- Compact content ----------
 class _LastPatientContent extends ConsumerWidget {
   final Patient patient;
   final Visit visit;
@@ -56,6 +65,7 @@ class _LastPatientContent extends ConsumerWidget {
         : '?';
 
     return _CardShell(
+      padding: const EdgeInsets.all(14),               // reduced from 20
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -68,12 +78,12 @@ class _LastPatientContent extends ConsumerWidget {
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textPrimary,
-                  fontSize: 16,
+                  fontSize: 14,                         // was 16
                   fontWeight: FontWeight.w600,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.silver.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(20),
@@ -83,31 +93,31 @@ class _LastPatientContent extends ConsumerWidget {
                   style: const TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textSecondary,
-                    fontSize: 12,
+                    fontSize: 11,                       // was 12
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),                   // reduced from 20
           // Patient Info Row
           Row(
             children: [
               CircleAvatar(
-                radius: 28,
+                radius: 24,                             // was 28
                 backgroundColor: AppColors.silver.withValues(alpha: 0.2),
                 child: Text(
                   initial,
                   style: const TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textPrimary,
-                    fontSize: 22,
+                    fontSize: 18,                       // was 22
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 12),                // reduced from 16
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,52 +127,22 @@ class _LastPatientContent extends ConsumerWidget {
                       style: const TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textPrimary,
-                        fontSize: 17,
+                        fontSize: 15,                   // was 17
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),          // reduced from 4
                     Text(
-                      patient.diagnosis.isNotEmpty
-                          ? '${patient.diagnosis}  •  ${patient.gender}, ${patient.age}'
-                          : '${patient.gender}, ${patient.age}',
+                      _buildSubtitle(patient, sessionsCount),
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textSecondary.withValues(alpha: 0.9),
-                        fontSize: 14,
+                        fontSize: 12,                   // was 14
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.access_time,
-                            size: 16, color: AppColors.silver),
-                        const SizedBox(width: 4),
-                        Text(
-                          _formatRelativeTime(visit.scheduledStart),
-                          style: const TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        const Icon(Icons.calendar_today,
-                            size: 16, color: AppColors.silver),
-                        const SizedBox(width: 4),
-                        Text(
-                          '$sessionsCount ${sessionsCount == 1 ? 'session' : 'sessions'}',
-                          style: const TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            color: AppColors.textSecondary,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
@@ -173,18 +153,33 @@ class _LastPatientContent extends ConsumerWidget {
       ),
     );
   }
+
+  // Builds the subtitle line: diagnosis, gender, age, and session count.
+  String _buildSubtitle(Patient patient, int sessionsCount) {
+    final String diagnosisPart =
+        patient.diagnosis.isNotEmpty ? '${patient.diagnosisDisplay}  •  ' : '';
+    final String genderAge = '${patient.gender}, ${patient.age}';
+    final String sessionsPart =
+        '  •  $sessionsCount ${sessionsCount == 1 ? 'session' : 'sessions'}';
+    return '$diagnosisPart$genderAge$sessionsPart';
+  }
 }
 
-// ---------- Shared card chrome (loading / empty / real all use this) ----------
+// ---------- Shared card chrome ----------
 class _CardShell extends StatelessWidget {
   final Widget child;
-  const _CardShell({required this.child});
+  final EdgeInsetsGeometry padding; // allow custom padding
+
+  const _CardShell({
+    required this.child,
+    this.padding = const EdgeInsets.all(14), // default smaller
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: padding,
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(24),
@@ -202,7 +197,7 @@ class _CardShell extends StatelessWidget {
   }
 }
 
-// ---------- Helper: relative time formatting ----------
+// ---------- Helper: relative time formatting (unchanged) ----------
 String _formatRelativeTime(DateTime dateTime) {
   final now = DateTime.now();
   final difference = now.difference(dateTime);

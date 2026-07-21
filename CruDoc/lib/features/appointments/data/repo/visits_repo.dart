@@ -14,9 +14,16 @@ import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 
 /// Standard fee recorded when an appointment ([VisitType.clinic]) is
 /// marked [VisitStatus.completed] — see [VisitRepository.updateStatus].
-/// Visitations ([VisitType.home]) don't use this yet; their payment
-/// handling isn't built out.
+/// Visitations ([VisitType.home]) don't use this; see
+/// [kVisitationPendingPaymentAmount] instead.
 const double kAppointmentCompletionFee = 500.0;
+
+/// Default amount pre-filled on the `PendingPayment` created when a
+/// [VisitType.home] visitation is marked [VisitStatus.completed] — see
+/// [VisitRepository.updateStatus]. Purely a starting value: it's
+/// editable afterwards from the Pending Payment's details sheet, and
+/// that edited amount is what's actually recorded once it's marked paid.
+const double kVisitationPendingPaymentAmount = 500.0;
 
 /// Clean API the presentation layer talks to for anything visit-related.
 ///
@@ -257,9 +264,14 @@ class VisitRepository {
   ///   already paid, so re-completing a visit (e.g. Completed ->
   ///   Reopen -> Completed again) never creates a duplicate revenue
   ///   entry.
-  /// - Visitations ([VisitType.home]): left exactly as-is — no payment
-  ///   handling yet, so the visit stays unpaid ("Payment Pending" in
-  ///   the UI) until that's built.
+  /// - Visitations ([VisitType.home]): left unpaid (so the session
+  ///   shows "Payment Pending" in the UI) and a linked [PendingPayment]
+  ///   is created instead, at [kVisitationPendingPaymentAmount] —
+  ///   editable from its details sheet — for the doctor to collect
+  ///   later. See [RevenueRepository.markPendingPaymentAsPaid] and
+  ///   [markVisitationPaymentPaid] for what happens once it's paid.
+  ///   Skipped if a pending payment already exists for this visit, so
+  ///   re-completing it never creates a duplicate.
   ///
   /// No separate write is needed to add this to the patient's Session
   /// History — that section renders live from this patient's [Visit]
@@ -272,32 +284,88 @@ class VisitRepository {
 
     if (status != VisitStatus.completed) return;
     if (before == null) return;
-    if (before.visitType != VisitType.clinic) return;
     if (before.isPaid) return;
 
-    await updateVisit(visitId, {
-      'isPaid': true,
-      'amountCharged': kAppointmentCompletionFee,
-    });
+    if (before.visitType == VisitType.clinic) {
+      await updateVisit(visitId, {
+        'isPaid': true,
+        'amountCharged': kAppointmentCompletionFee,
+      });
 
-    final patient = await _patientRepository.getPatient(before.patientId);
-    final now = DateTime.now();
+      final patient = await _patientRepository.getPatient(before.patientId);
+      final now = DateTime.now();
 
-    await _revenueRepository.createRevenueEntry(
-      RevenueEntry(
-        id: '',
-        date: before.scheduledStart,
-        description: 'Payment received for Appointment',
-        amount: kAppointmentCompletionFee,
-        type: RevenueType.visit,
-        kind: TransactionKind.income,
-        payer: patient?.fullName,
-        patientId: before.patientId,
-        visitId: before.id,
-        createdAt: now,
-        updatedAt: now,
-      ),
+      await _revenueRepository.createRevenueEntry(
+        RevenueEntry(
+          id: '',
+          date: before.scheduledStart,
+          description: 'Payment received for Appointment',
+          amount: kAppointmentCompletionFee,
+          type: RevenueType.visit,
+          kind: TransactionKind.income,
+          payer: patient?.fullName,
+          patientId: before.patientId,
+          visitId: before.id,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      return;
+    }
+
+    if (before.visitType == VisitType.home) {
+      final existingPending = await _revenueRepository
+          .getPendingPaymentForVisit(before.id);
+      if (existingPending != null) return;
+
+      final patient = await _patientRepository.getPatient(before.patientId);
+      final now = DateTime.now();
+
+      await _revenueRepository.createPendingPayment(
+        PendingPayment(
+          id: '',
+          date: before.scheduledStart,
+          description: 'Payment Received for Visitation',
+          amount: kVisitationPendingPaymentAmount,
+          payer: patient?.fullName,
+          patientId: before.patientId,
+          visitId: before.id,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+    }
+  }
+
+  /// Settles the pending payment linked to a completed visitation:
+  /// delegates to [RevenueRepository.markPendingPaymentAsPaid] (flips
+  /// `PendingPayment.isPaid` and creates the matching income
+  /// [RevenueEntry] using its current — possibly edited — amount,
+  /// description, and date), then updates this visit's own
+  /// [Visit.isPaid]/[Visit.amountCharged] to match, so the linked
+  /// session in Session History flips from "Payment Pending" to "Paid"
+  /// in the same step.
+  ///
+  /// Safe to call for a pending payment with no linked visit (e.g. a
+  /// manually-added, standalone pending payment) — the visit-side
+  /// update is simply skipped.
+  Future<String> markVisitationPaymentPaid(String pendingPaymentId) async {
+    final pending = await _revenueRepository.getPendingPayment(
+      pendingPaymentId,
     );
+
+    final entryId = await _revenueRepository.markPendingPaymentAsPaid(
+      pendingPaymentId,
+    );
+
+    if (pending?.visitId != null) {
+      await updateVisit(pending!.visitId!, {
+        'isPaid': true,
+        'amountCharged': pending.amount,
+      });
+    }
+
+    return entryId;
   }
 
   /// Updates only the [VisitType] — lets a booking be reclassified

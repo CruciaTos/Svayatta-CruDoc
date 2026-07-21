@@ -114,6 +114,10 @@ class RevenueRepository {
       description: payment.description,
       amount: payment.amount,
       isPaid: false,
+      payer: payment.payer,
+      patientId: payment.patientId,
+      visitId: payment.visitId,
+      notes: payment.notes,
       createdAt: now,
       updatedAt: now,
     );
@@ -123,12 +127,56 @@ class RevenueRepository {
     return id;
   }
 
+  /// Updates arbitrary fields on an existing pending payment — e.g. from
+  /// its details sheet, which lets the amount, description, notes, and
+  /// date be edited. `payer`/`patientId`/`visitId` are never passed
+  /// here: they're set once at creation and stay in sync with the
+  /// patient/visit that generated the payment, exactly like
+  /// [PendingPayment.payer] documents. `updatedAt` is stamped
+  /// automatically regardless of what's passed here.
+  Future<void> updatePendingPayment(
+    String paymentId,
+    Map<String, dynamic> data,
+  ) async {
+    if (data.containsKey('description')) {
+      final description = data['description'] as String? ?? '';
+      if (description.trim().isEmpty) {
+        throw const RevenueValidationException(
+          'A pending payment must have a description.',
+        );
+      }
+    }
+    if (data.containsKey('amount')) {
+      final amount = (data['amount'] as num?)?.toDouble() ?? 0;
+      if (amount <= 0) {
+        throw const RevenueValidationException(
+          'A pending payment amount must be greater than zero.',
+        );
+      }
+    }
+
+    final localData = Map<String, dynamic>.from(data)
+      ..['updatedAt'] = DateTime.now();
+
+    await _localService.updatePendingPayment(paymentId, localData);
+    unawaited(_syncService.triggerPostWriteSync());
+  }
+
   /// Marks a pending payment as collected: flips `PendingPayment.isPaid`
-  /// and creates the matching [RevenueEntry] (type
-  /// [RevenueType.miscellaneous], description prefixed `"Paid: "`) in one
-  /// step. The pending payment document itself is never deleted — only
-  /// marked paid — so what was owed and when it was settled stays in
-  /// the history.
+  /// and creates the matching [RevenueEntry] in one step, carrying over
+  /// the pending payment's current — possibly edited — amount,
+  /// description, date, payer, patientId, and visitId. Tagged
+  /// [RevenueType.visit] when it's linked to a visit (e.g. a completed
+  /// visitation), or [RevenueType.miscellaneous] otherwise (e.g. a
+  /// manually-added, standalone pending payment like a lab test). The
+  /// pending payment document itself is never deleted — only marked
+  /// paid — so what was owed and when it was settled stays in the
+  /// history.
+  ///
+  /// This only settles the pending payment and revenue ledger. If it's
+  /// linked to a visit, prefer `VisitRepository.markVisitationPaymentPaid`
+  /// instead, which also flips that visit's own paid status so its
+  /// Session History entry stays in sync.
   ///
   /// Throws [PendingPaymentNotFoundException] if [pendingPaymentId]
   /// doesn't resolve to an existing, still-unpaid pending payment.
@@ -147,10 +195,15 @@ class RevenueRepository {
     final entryId = await createRevenueEntry(
       RevenueEntry(
         id: '',
-        date: now,
-        description: 'Paid: ${pending.description}',
+        date: pending.date,
+        description: pending.description,
         amount: pending.amount,
-        type: RevenueType.miscellaneous,
+        type: pending.visitId != null
+            ? RevenueType.visit
+            : RevenueType.miscellaneous,
+        payer: pending.payer,
+        patientId: pending.patientId,
+        visitId: pending.visitId,
         createdAt: now,
         updatedAt: now,
       ),
@@ -162,6 +215,14 @@ class RevenueRepository {
   /// Fetches a single pending payment by id.
   Future<PendingPayment?> getPendingPayment(String paymentId) {
     return _localService.getPendingPayment(paymentId);
+  }
+
+  /// Fetches the pending payment linked to [visitId], if one exists —
+  /// used by `VisitRepository.updateStatus` so completing the same
+  /// visitation twice (e.g. Completed -> Reopen -> Completed) never
+  /// creates a duplicate pending payment.
+  Future<PendingPayment?> getPendingPaymentForVisit(String visitId) {
+    return _localService.getPendingPaymentForVisit(visitId);
   }
 
   /// Streams the live list of still-unpaid pending payments, most

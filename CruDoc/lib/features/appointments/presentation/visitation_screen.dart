@@ -458,7 +458,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
     );
 
     try {
-      final id = await _visitRepository.createVisit(
+      await _visitRepository.createVisit(
         visit,
         acknowledgeOverlap: acknowledgeOverlap,
       );

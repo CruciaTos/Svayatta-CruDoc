@@ -30,6 +30,8 @@ class FirestoreSyncService {
     'patients',
     'revenue_entries',
     'pending_payments',
+    'medicines',
+    'stock_transactions',
   ];
 
   /// Visit-specific Firestore collections.
@@ -303,6 +305,43 @@ class FirestoreSyncService {
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
+      case 'medicines':
+        return {
+          'doctorId': row['doctorId'] as String? ?? '',
+          'name': row['name'] as String? ?? '',
+          'category': row['category'] as String? ?? '',
+          'unit': row['unit'] as String? ?? '',
+          'currentStock': (row['currentStock'] as num?)?.toInt() ?? 0,
+          'reorderThreshold': (row['reorderThreshold'] as num?)?.toInt() ?? 10,
+          'unitPrice': (row['unitPrice'] as num?)?.toDouble(),
+          'supplierName': row['supplierName'] as String?,
+          'batchNumber': row['batchNumber'] as String?,
+          'expiryDate': row['expiryDate'] == null
+              ? null
+              : _timestampFromMillis(row['expiryDate']),
+          'lowStockNotifiedAt': row['lowStockNotifiedAt'] == null
+              ? null
+              : _timestampFromMillis(row['lowStockNotifiedAt']),
+          'expiryNotifiedAt': row['expiryNotifiedAt'] == null
+              ? null
+              : _timestampFromMillis(row['expiryNotifiedAt']),
+          'isActive': row['isActive'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+      case 'stock_transactions':
+        return {
+          'medicineId': row['medicineId'] as String? ?? '',
+          'doctorId': row['doctorId'] as String? ?? '',
+          'type': row['type'] as String? ?? 'restock',
+          'quantity': (row['quantity'] as num?)?.toInt() ?? 0,
+          'resultingStock': (row['resultingStock'] as num?)?.toInt() ?? 0,
+          'note': row['note'] as String?,
+          'linkedVisitId': row['linkedVisitId'] as String?,
+          'isActive': row['isActive'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
       default:
         throw ArgumentError('Unsupported sync collection: $collection');
     }
@@ -419,6 +458,52 @@ class FirestoreSyncService {
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
           'isActive': 1,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
+      case 'medicines':
+        return {
+          'id': id,
+          'doctorId': data['doctorId'] as String? ?? '',
+          'name': data['name'] as String? ?? '',
+          'category': data['category'] as String? ?? '',
+          'unit': data['unit'] as String? ?? '',
+          'currentStock': (data['currentStock'] as num?)?.toInt() ?? 0,
+          'reorderThreshold':
+              (data['reorderThreshold'] as num?)?.toInt() ?? 10,
+          'unitPrice': (data['unitPrice'] as num?)?.toDouble(),
+          'supplierName': data['supplierName'] as String?,
+          'batchNumber': data['batchNumber'] as String?,
+          'expiryDate': data['expiryDate'] == null
+              ? null
+              : _timestampToMillis(data['expiryDate'], fallback: now),
+          'lowStockNotifiedAt': data['lowStockNotifiedAt'] == null
+              ? null
+              : _timestampToMillis(data['lowStockNotifiedAt'], fallback: now),
+          'expiryNotifiedAt': data['expiryNotifiedAt'] == null
+              ? null
+              : _timestampToMillis(data['expiryNotifiedAt'], fallback: now),
+          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
+      case 'stock_transactions':
+        return {
+          'id': id,
+          'medicineId': data['medicineId'] as String? ?? '',
+          'doctorId': data['doctorId'] as String? ?? '',
+          'type': data['type'] as String? ?? 'restock',
+          'quantity': (data['quantity'] as num?)?.toInt() ?? 0,
+          'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,
+          'note': data['note'] as String?,
+          'linkedVisitId': data['linkedVisitId'] as String?,
+          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',

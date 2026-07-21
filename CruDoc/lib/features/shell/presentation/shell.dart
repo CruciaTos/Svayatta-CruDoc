@@ -5,7 +5,8 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard.
 import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
 import 'package:doctor_management_app/features/revenue/presentation/revenue.dart';
 import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
-import 'package:doctor_management_app/features/invoice/presentation/invoice_create_screen.dart';
+import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
+import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
 
 class Shell extends StatefulWidget {
@@ -30,7 +31,7 @@ class _ShellState extends State<Shell> {
     _screens = [
       HomeDashboardScreen(onNavigateToTab: _onNavTap),
       const PatientRecords(),
-      const InvoiceCreateScreen(),
+      const InventoryListScreen(),
       const RevenueScreen(),
       const EventsScreen(),
     ];
@@ -53,35 +54,41 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          // ---- Background gradient + animated lines + PageView ----
-          ShellBackground(
-            child: PageView(
-              controller: _pageController,
-              onPageChanged: (index) => setState(() => _currentIndex = index),
-              children: _screens
-                  .map(
-                    (screen) => Padding(
-                      padding: EdgeInsets.only(
-                        bottom: navBarHeight,
-                      ), // make room for the overlay
-                      child: screen,
-                    ),
-                  )
-                  .toList(),
+    return InventoryAlertListener(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            // ---- Background gradient + animated lines + PageView ----
+            ShellBackground(
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) =>
+                    setState(() => _currentIndex = index),
+                children: _screens
+                    .map(
+                      (screen) => Padding(
+                        padding: EdgeInsets.only(
+                          bottom: navBarHeight,
+                        ), // make room for the overlay
+                        child: screen,
+                      ),
+                    )
+                    .toList(),
+              ),
             ),
-          ),
-          // ---- Floating navigation bar ----
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 12,
-            child: BottomNavBar(selectedIndex: _currentIndex, onTap: _onNavTap),
-          ),
-        ],
+            // ---- Floating navigation bar ----
+            Positioned(
+              left: 20,
+              right: 20,
+              bottom: 12,
+              child: BottomNavBar(
+                selectedIndex: _currentIndex,
+                onTap: _onNavTap,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

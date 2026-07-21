@@ -7,6 +7,8 @@ import 'package:doctor_management_app/features/patients/presentation/add_patient
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
+import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
+import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -165,6 +167,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     );
   }
 
+  void _openAddMedicine() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const InventoryListScreen(autoOpenAddForm: true),
+      ),
+    );
+  }
+
   void _showSectionInfo({required String title, required String message}) {
     showDialog<void>(
       context: context,
@@ -231,7 +242,16 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
+              LowStockBanner(
+                onTap: () => _navigateToTabOrExplain(
+                  tabIndex: 2,
+                  unavailableTitle: 'Inventory',
+                  unavailableMessage:
+                      'Low-stock and expiring medicines are listed in the Inventory section.',
+                ),
+              ),
+              const SizedBox(height: 8),
               StreamBuilder<List<RevenueEntry>>(
                 stream: _revenueRepository.watchRevenueEntries(),
                 builder: (context, snapshot) {
@@ -281,12 +301,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   unavailableMessage:
                       'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
                 ),
-                onNewInvoice: () => _navigateToTabOrExplain(
-                  tabIndex: 2,
-                  unavailableTitle: 'Invoices',
-                  unavailableMessage:
-                      'Invoice creation is available from the invoice section.',
-                ),
+                onAddInventoryItem: _openAddMedicine,
                 onAddPatient: _openAddPatient,
                 onLogExpense: () => _showSectionInfo(
                   title: 'Log',
@@ -308,7 +323,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 onViewAll: () => _showSectionInfo(
                   title: 'Recent Activity',
                   message:
-                      'A full activity timeline is not available yet. Recent patient, invoice, visit, and revenue updates will appear here when the activity section is added.',
+                      'A full activity timeline is not available yet. Recent patient, inventory, visit, and revenue updates will appear here when the activity section is added.',
                 ),
               ),
             ],

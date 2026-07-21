@@ -335,7 +335,7 @@ class _IntroPanel extends StatelessWidget {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Manage patients, visits, invoices, and revenue from one smooth workspace.',
+                    'Manage patients, visits, inventory, and revenue from one smooth workspace.',
                     style: TextStyle(
                       color: Color(0xC7FFFFFF),
                       fontFamily: AppColors.bodyFontFamily,

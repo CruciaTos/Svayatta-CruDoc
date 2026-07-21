@@ -1,0 +1,3480 @@
+diff --git a/CruDoc/lib/core/errors/inventory_exceptions.dart b/CruDoc/lib/core/errors/inventory_exceptions.dart
+new file mode 100644
+index 0000000..bb2c70a
+--- /dev/null
++++ b/CruDoc/lib/core/errors/inventory_exceptions.dart
+@@ -0,0 +1,31 @@
++/// Thrown by [InventoryRepository] when a medicine fails basic validation
++/// (e.g. an empty name or a negative reorder threshold). Kept as a
++/// distinct, typed exception so calling UI code can catch it specifically
++/// and show a friendly message, instead of parsing a generic error.
++class MedicineValidationException implements Exception {
++  final String message;
++  const MedicineValidationException(this.message);
++
++  @override
++  String toString() => message;
++}
++
++/// Thrown when an operation references a medicine id that doesn't exist
++/// (or isn't active) in the local store.
++class MedicineNotFoundException implements Exception {
++  final String message;
++  const MedicineNotFoundException(this.message);
++
++  @override
++  String toString() => message;
++}
++
++/// Thrown when a `dispense` or `expired_writeoff` stock transaction would
++/// take a medicine's `currentStock` below zero.
++class InsufficientStockException implements Exception {
++  final String message;
++  const InsufficientStockException(this.message);
++
++  @override
++  String toString() => message;
++}
+diff --git a/CruDoc/lib/core/services/firestore_sync_service.dart b/CruDoc/lib/core/services/firestore_sync_service.dart
+index e7ebe25..7ab7589 100644
+--- a/CruDoc/lib/core/services/firestore_sync_service.dart
++++ b/CruDoc/lib/core/services/firestore_sync_service.dart
+@@ -30,6 +30,8 @@ class FirestoreSyncService {
+     'patients',
+     'revenue_entries',
+     'pending_payments',
++    'medicines',
++    'stock_transactions',
+   ];
+ 
+   /// Visit-specific Firestore collections.
+@@ -302,6 +304,43 @@ class FirestoreSyncService {
+           'createdAt': _timestampFromMillis(row['createdAt']),
+           'updatedAt': FieldValue.serverTimestamp(),
+         };
++      case 'medicines':
++        return {
++          'doctorId': row['doctorId'] as String? ?? '',
++          'name': row['name'] as String? ?? '',
++          'category': row['category'] as String? ?? '',
++          'unit': row['unit'] as String? ?? '',
++          'currentStock': (row['currentStock'] as num?)?.toInt() ?? 0,
++          'reorderThreshold': (row['reorderThreshold'] as num?)?.toInt() ?? 10,
++          'unitPrice': (row['unitPrice'] as num?)?.toDouble(),
++          'supplierName': row['supplierName'] as String?,
++          'batchNumber': row['batchNumber'] as String?,
++          'expiryDate': row['expiryDate'] == null
++              ? null
++              : _timestampFromMillis(row['expiryDate']),
++          'lowStockNotifiedAt': row['lowStockNotifiedAt'] == null
++              ? null
++              : _timestampFromMillis(row['lowStockNotifiedAt']),
++          'expiryNotifiedAt': row['expiryNotifiedAt'] == null
++              ? null
++              : _timestampFromMillis(row['expiryNotifiedAt']),
++          'isActive': row['isActive'] == 1,
++          'createdAt': _timestampFromMillis(row['createdAt']),
++          'updatedAt': FieldValue.serverTimestamp(),
++        };
++      case 'stock_transactions':
++        return {
++          'medicineId': row['medicineId'] as String? ?? '',
++          'doctorId': row['doctorId'] as String? ?? '',
++          'type': row['type'] as String? ?? 'restock',
++          'quantity': (row['quantity'] as num?)?.toInt() ?? 0,
++          'resultingStock': (row['resultingStock'] as num?)?.toInt() ?? 0,
++          'note': row['note'] as String?,
++          'linkedVisitId': row['linkedVisitId'] as String?,
++          'isActive': row['isActive'] == 1,
++          'createdAt': _timestampFromMillis(row['createdAt']),
++          'updatedAt': FieldValue.serverTimestamp(),
++        };
+       default:
+         throw ArgumentError('Unsupported sync collection: $collection');
+     }
+@@ -423,6 +462,52 @@ class FirestoreSyncService {
+           'pendingDelete': 0,
+           'lastSyncedAt': now,
+         };
++      case 'medicines':
++        return {
++          'id': id,
++          'doctorId': data['doctorId'] as String? ?? '',
++          'name': data['name'] as String? ?? '',
++          'category': data['category'] as String? ?? '',
++          'unit': data['unit'] as String? ?? '',
++          'currentStock': (data['currentStock'] as num?)?.toInt() ?? 0,
++          'reorderThreshold':
++              (data['reorderThreshold'] as num?)?.toInt() ?? 10,
++          'unitPrice': (data['unitPrice'] as num?)?.toDouble(),
++          'supplierName': data['supplierName'] as String?,
++          'batchNumber': data['batchNumber'] as String?,
++          'expiryDate': data['expiryDate'] == null
++              ? null
++              : _timestampToMillis(data['expiryDate'], fallback: now),
++          'lowStockNotifiedAt': data['lowStockNotifiedAt'] == null
++              ? null
++              : _timestampToMillis(data['lowStockNotifiedAt'], fallback: now),
++          'expiryNotifiedAt': data['expiryNotifiedAt'] == null
++              ? null
++              : _timestampToMillis(data['expiryNotifiedAt'], fallback: now),
++          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
++          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
++          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
++          'syncStatus': 'synced',
++          'pendingDelete': 0,
++          'lastSyncedAt': now,
++        };
++      case 'stock_transactions':
++        return {
++          'id': id,
++          'medicineId': data['medicineId'] as String? ?? '',
++          'doctorId': data['doctorId'] as String? ?? '',
++          'type': data['type'] as String? ?? 'restock',
++          'quantity': (data['quantity'] as num?)?.toInt() ?? 0,
++          'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,
++          'note': data['note'] as String?,
++          'linkedVisitId': data['linkedVisitId'] as String?,
++          'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
++          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
++          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
++          'syncStatus': 'synced',
++          'pendingDelete': 0,
++          'lastSyncedAt': now,
++        };
+       default:
+         throw ArgumentError('Unsupported sync collection: $collection');
+     }
+diff --git a/CruDoc/lib/core/services/local_database_service.dart b/CruDoc/lib/core/services/local_database_service.dart
+index b3032a0..d250ddf 100644
+--- a/CruDoc/lib/core/services/local_database_service.dart
++++ b/CruDoc/lib/core/services/local_database_service.dart
+@@ -57,6 +57,8 @@ class LocalDatabaseService extends ChangeNotifier {
+       await _createVisitsTable(txn);
+       await _createRevenueEntriesTable(txn);
+       await _createPendingPaymentsTable(txn);
++      await _createMedicinesTable(txn);
++      await _createStockTransactionsTable(txn);
+       await _createSyncStateTable(txn);
+       await _createIndexes(txn);
+     });
+@@ -71,6 +73,8 @@ class LocalDatabaseService extends ChangeNotifier {
+       await _createVisitsTable(txn);
+       await _createRevenueEntriesTable(txn);
+       await _createPendingPaymentsTable(txn);
++      await _createMedicinesTable(txn);
++      await _createStockTransactionsTable(txn);
+       await _createSyncStateTable(txn);
+ 
+       await _ensureColumns(txn, table: 'patients', columns: _patientsColumns);
+@@ -85,6 +89,16 @@ class LocalDatabaseService extends ChangeNotifier {
+         table: 'pending_payments',
+         columns: _pendingPaymentsColumns,
+       );
++      await _ensureColumns(
++        txn,
++        table: 'medicines',
++        columns: _medicinesColumns,
++      );
++      await _ensureColumns(
++        txn,
++        table: 'stock_transactions',
++        columns: _stockTransactionsColumns,
++      );
+       await _ensureColumns(
+         txn,
+         table: 'sync_state',
+@@ -196,6 +210,57 @@ class LocalDatabaseService extends ChangeNotifier {
+     ''');
+   }
+ 
++  Future<void> _createMedicinesTable(DatabaseExecutor db) async {
++    await db.execute('''
++      CREATE TABLE IF NOT EXISTS medicines (
++        id TEXT PRIMARY KEY,
++        doctorId TEXT NOT NULL DEFAULT '',
++        name TEXT NOT NULL DEFAULT '',
++        category TEXT NOT NULL DEFAULT '',
++        unit TEXT NOT NULL DEFAULT '',
++        currentStock INTEGER NOT NULL DEFAULT 0,
++        reorderThreshold INTEGER NOT NULL DEFAULT 10,
++        unitPrice REAL,
++        supplierName TEXT,
++        batchNumber TEXT,
++        expiryDate INTEGER,
++        lowStockNotifiedAt INTEGER,
++        expiryNotifiedAt INTEGER,
++        isActive INTEGER NOT NULL DEFAULT 1,
++        createdAt INTEGER NOT NULL,
++        updatedAt INTEGER NOT NULL,
++        syncStatus TEXT NOT NULL DEFAULT 'synced'
++          CHECK (syncStatus IN ('synced', 'pending')),
++        pendingDelete INTEGER NOT NULL DEFAULT 0,
++        lastSyncedAt INTEGER
++      )
++    ''');
++  }
++
++  Future<void> _createStockTransactionsTable(DatabaseExecutor db) async {
++    await db.execute('''
++      CREATE TABLE IF NOT EXISTS stock_transactions (
++        id TEXT PRIMARY KEY,
++        medicineId TEXT NOT NULL,
++        doctorId TEXT NOT NULL DEFAULT '',
++        type TEXT NOT NULL DEFAULT 'restock'
++          CHECK (type IN ('restock', 'dispense', 'adjustment', 'expired_writeoff')),
++        quantity INTEGER NOT NULL DEFAULT 0,
++        resultingStock INTEGER NOT NULL DEFAULT 0,
++        note TEXT,
++        linkedVisitId TEXT,
++        isActive INTEGER NOT NULL DEFAULT 1,
++        createdAt INTEGER NOT NULL,
++        updatedAt INTEGER NOT NULL,
++        syncStatus TEXT NOT NULL DEFAULT 'synced'
++          CHECK (syncStatus IN ('synced', 'pending')),
++        pendingDelete INTEGER NOT NULL DEFAULT 0,
++        lastSyncedAt INTEGER,
++        FOREIGN KEY (medicineId) REFERENCES medicines (id) ON DELETE RESTRICT
++      )
++    ''');
++  }
++
+   Future<void> _createSyncStateTable(DatabaseExecutor db) async {
+     await db.execute('''
+       CREATE TABLE IF NOT EXISTS sync_state (
+@@ -279,6 +344,36 @@ class LocalDatabaseService extends ChangeNotifier {
+       CREATE INDEX IF NOT EXISTS idx_pending_payments_updated_at
+       ON pending_payments (updatedAt)
+     ''');
++
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_medicines_active_name
++      ON medicines (isActive, name)
++    ''');
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_medicines_category
++      ON medicines (category)
++    ''');
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_medicines_sync_pending
++      ON medicines (syncStatus, pendingDelete)
++    ''');
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_medicines_updated_at
++      ON medicines (updatedAt)
++    ''');
++
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_stock_transactions_medicine_history
++      ON stock_transactions (medicineId, createdAt DESC)
++    ''');
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_stock_transactions_sync_pending
++      ON stock_transactions (syncStatus, pendingDelete)
++    ''');
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_stock_transactions_updated_at
++      ON stock_transactions (updatedAt)
++    ''');
+   }
+ 
+   Future<void> _ensureColumns(
+@@ -375,6 +470,45 @@ class LocalDatabaseService extends ChangeNotifier {
+     'lastSyncedAt': 'lastSyncedAt INTEGER',
+   };
+ 
++  static const Map<String, String> _medicinesColumns = {
++    'id': 'id TEXT PRIMARY KEY',
++    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
++    'name': "name TEXT NOT NULL DEFAULT ''",
++    'category': "category TEXT NOT NULL DEFAULT ''",
++    'unit': "unit TEXT NOT NULL DEFAULT ''",
++    'currentStock': 'currentStock INTEGER NOT NULL DEFAULT 0',
++    'reorderThreshold': 'reorderThreshold INTEGER NOT NULL DEFAULT 10',
++    'unitPrice': 'unitPrice REAL',
++    'supplierName': 'supplierName TEXT',
++    'batchNumber': 'batchNumber TEXT',
++    'expiryDate': 'expiryDate INTEGER',
++    'lowStockNotifiedAt': 'lowStockNotifiedAt INTEGER',
++    'expiryNotifiedAt': 'expiryNotifiedAt INTEGER',
++    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
++    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
++    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
++    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
++    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
++    'lastSyncedAt': 'lastSyncedAt INTEGER',
++  };
++
++  static const Map<String, String> _stockTransactionsColumns = {
++    'id': 'id TEXT PRIMARY KEY',
++    'medicineId': "medicineId TEXT NOT NULL DEFAULT ''",
++    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
++    'type': "type TEXT NOT NULL DEFAULT 'restock'",
++    'quantity': 'quantity INTEGER NOT NULL DEFAULT 0',
++    'resultingStock': 'resultingStock INTEGER NOT NULL DEFAULT 0',
++    'note': 'note TEXT',
++    'linkedVisitId': 'linkedVisitId TEXT',
++    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
++    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
++    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
++    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
++    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
++    'lastSyncedAt': 'lastSyncedAt INTEGER',
++  };
++
+   static const Map<String, String> _syncStateColumns = {
+     'collectionName': 'collectionName TEXT PRIMARY KEY',
+     'lastSyncTime': 'lastSyncTime INTEGER NOT NULL DEFAULT 0',
+diff --git a/CruDoc/lib/features/auth/presentation/auth_screen.dart b/CruDoc/lib/features/auth/presentation/auth_screen.dart
+index 3209b30..5544c4c 100644
+--- a/CruDoc/lib/features/auth/presentation/auth_screen.dart
++++ b/CruDoc/lib/features/auth/presentation/auth_screen.dart
+@@ -335,7 +335,7 @@ class _IntroPanel extends StatelessWidget {
+                   ),
+                   SizedBox(height: 8),
+                   Text(
+-                    'Manage patients, visits, invoices, and revenue from one smooth workspace.',
++                    'Manage patients, visits, inventory, and revenue from one smooth workspace.',
+                     style: TextStyle(
+                       color: Color(0xC7FFFFFF),
+                       fontFamily: AppColors.bodyFontFamily,
+diff --git a/CruDoc/lib/features/bottom_nav/bottom_nav_bar.dart b/CruDoc/lib/features/bottom_nav/bottom_nav_bar.dart
+index f3a4b66..7f94838 100644
+--- a/CruDoc/lib/features/bottom_nav/bottom_nav_bar.dart
++++ b/CruDoc/lib/features/bottom_nav/bottom_nav_bar.dart
+@@ -1,11 +1,17 @@
+ import 'dart:ui'; // required for ImageFilter
+ import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
+ 
+ // Vivid blue used for both container tint and active background
+ const Color chartBarLight = Color.fromARGB(255, 30, 120, 255);
+ 
+-class BottomNavBar extends StatelessWidget {
++/// Tab index of the Inventory screen — used to attach the low-stock badge
++/// to the right icon.
++const int _inventoryTabIndex = 2;
++
++class BottomNavBar extends ConsumerWidget {
+   final int selectedIndex;
+   final ValueChanged<int> onTap;
+ 
+@@ -18,13 +24,27 @@ class BottomNavBar extends StatelessWidget {
+   static const _icons = [
+     Icons.grid_view_rounded,
+     Icons.groups_rounded,
+-    Icons.description_outlined,
++    Icons.inventory_2_outlined,
++    Icons.payments_outlined,
++    Icons.calendar_today_outlined,
++  ];
++
++  static const _activeIcons = [
++    Icons.grid_view_rounded,
++    Icons.groups_rounded,
++    Icons.inventory_2,
+     Icons.payments_outlined,
+     Icons.calendar_today_outlined,
+   ];
+ 
+   @override
+-  Widget build(BuildContext context) {
++  Widget build(BuildContext context, WidgetRef ref) {
++    final lowStockCount =
++        ref.watch(lowStockMedicinesProvider).valueOrNull?.length ?? 0;
++    final expiringCount =
++        ref.watch(expiringMedicinesProvider).valueOrNull?.length ?? 0;
++    final inventoryBadgeCount = lowStockCount + expiringCount;
++
+     return ClipRRect(
+       borderRadius: BorderRadius.circular(28),
+       child: BackdropFilter(
+@@ -43,6 +63,8 @@ class BottomNavBar extends StatelessWidget {
+             mainAxisAlignment: MainAxisAlignment.spaceAround,
+             children: List.generate(_icons.length, (index) {
+               final isActive = index == selectedIndex;
++              final badgeCount =
++                  index == _inventoryTabIndex ? inventoryBadgeCount : 0;
+               return GestureDetector(
+                 onTap: () => onTap(index),
+                 child: AnimatedContainer(
+@@ -56,11 +78,41 @@ class BottomNavBar extends StatelessWidget {
+                     color: isActive ? chartBarLight : Colors.transparent,
+                     borderRadius: BorderRadius.circular(20),
+                   ),
+-                  child: Icon(
+-                    _icons[index],
+-                    size: 22,
+-                    // White on active, silver when inactive
+-                    color: isActive ? Colors.white : AppColors.silver,
++                  child: Stack(
++                    clipBehavior: Clip.none,
++                    children: [
++                      Icon(
++                        isActive ? _activeIcons[index] : _icons[index],
++                        size: 22,
++                        // White on active, silver when inactive
++                        color: isActive ? Colors.white : AppColors.silver,
++                      ),
++                      if (badgeCount > 0)
++                        Positioned(
++                          right: -6,
++                          top: -6,
++                          child: Container(
++                            padding: const EdgeInsets.all(3),
++                            constraints: const BoxConstraints(
++                              minWidth: 16,
++                              minHeight: 16,
++                            ),
++                            decoration: const BoxDecoration(
++                              color: Colors.redAccent,
++                              shape: BoxShape.circle,
++                            ),
++                            child: Text(
++                              badgeCount > 9 ? '9+' : '$badgeCount',
++                              textAlign: TextAlign.center,
++                              style: const TextStyle(
++                                color: Colors.white,
++                                fontSize: 9,
++                                fontWeight: FontWeight.w700,
++                              ),
++                            ),
++                          ),
++                        ),
++                    ],
+                   ),
+                 ),
+               );
+diff --git a/CruDoc/lib/features/dashboard/presentation/dashboard.dart b/CruDoc/lib/features/dashboard/presentation/dashboard.dart
+index 341a5bb..6ab21ad 100644
+--- a/CruDoc/lib/features/dashboard/presentation/dashboard.dart
++++ b/CruDoc/lib/features/dashboard/presentation/dashboard.dart
+@@ -7,6 +7,8 @@ import 'package:doctor_management_app/features/patients/presentation/add_patient
+ import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
+ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+ import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
++import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
++import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
+ 
+ // ---------- Data Models ----------
+ class BarData {
+@@ -155,6 +157,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+     );
+   }
+ 
++  void _openAddMedicine() {
++    Navigator.push(
++      context,
++      MaterialPageRoute(
++        builder: (_) => const InventoryListScreen(autoOpenAddForm: true),
++      ),
++    );
++  }
++
+   void _showSectionInfo({required String title, required String message}) {
+     showDialog<void>(
+       context: context,
+@@ -221,7 +232,16 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+                   );
+                 },
+               ),
+-              const SizedBox(height: 24),
++              const SizedBox(height: 16),
++              LowStockBanner(
++                onTap: () => _navigateToTabOrExplain(
++                  tabIndex: 2,
++                  unavailableTitle: 'Inventory',
++                  unavailableMessage:
++                      'Low-stock and expiring medicines are listed in the Inventory section.',
++                ),
++              ),
++              const SizedBox(height: 8),
+               StreamBuilder<List<RevenueEntry>>(
+                 stream: _revenueRepository.watchRevenueEntries(),
+                 builder: (context, snapshot) {
+@@ -271,12 +291,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+                   unavailableMessage:
+                       'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
+                 ),
+-                onNewInvoice: () => _navigateToTabOrExplain(
+-                  tabIndex: 2,
+-                  unavailableTitle: 'Invoices',
+-                  unavailableMessage:
+-                      'Invoice creation is available from the invoice section.',
+-                ),
++                onAddInventoryItem: _openAddMedicine,
+                 onAddPatient: _openAddPatient,
+                 onLogExpense: () => _showSectionInfo(
+                   title: 'Log',
+@@ -298,7 +313,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
+                 onViewAll: () => _showSectionInfo(
+                   title: 'Recent Activity',
+                   message:
+-                      'A full activity timeline is not available yet. Recent patient, invoice, visit, and revenue updates will appear here when the activity section is added.',
++                      'A full activity timeline is not available yet. Recent patient, inventory, visit, and revenue updates will appear here when the activity section is added.',
+                 ),
+               ),
+             ],
+diff --git a/CruDoc/lib/features/dashboard/widgets/low_stock_banner.dart b/CruDoc/lib/features/dashboard/widgets/low_stock_banner.dart
+new file mode 100644
+index 0000000..e96df5a
+--- /dev/null
++++ b/CruDoc/lib/features/dashboard/widgets/low_stock_banner.dart
+@@ -0,0 +1,90 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
++
++/// Dismissible low-stock / expiring-soon alert banner shown at the top of
++/// the Dashboard, in the same rounded-card surface language as the other
++/// dashboard cards.
++///
++/// Purely presentational — dismissing it just hides the banner for this
++/// session; it reappears next launch as long as the underlying counts are
++/// still non-zero. The actual "don't alert twice" dedup for the reactive
++/// snackbar/badge lives in [InventoryAlertListener] via
++/// `lowStockNotifiedAt` / `expiryNotifiedAt`.
++class LowStockBanner extends ConsumerStatefulWidget {
++  const LowStockBanner({super.key, this.onTap});
++
++  final VoidCallback? onTap;
++
++  @override
++  ConsumerState<LowStockBanner> createState() => _LowStockBannerState();
++}
++
++class _LowStockBannerState extends ConsumerState<LowStockBanner> {
++  bool _dismissed = false;
++
++  @override
++  Widget build(BuildContext context) {
++    if (_dismissed) return const SizedBox.shrink();
++
++    final lowStockAsync = ref.watch(lowStockMedicinesProvider);
++    final expiringAsync = ref.watch(expiringMedicinesProvider);
++
++    final lowStockCount = lowStockAsync.valueOrNull?.length ?? 0;
++    final expiringCount = expiringAsync.valueOrNull?.length ?? 0;
++    final total = lowStockCount + expiringCount;
++
++    if (total == 0) return const SizedBox.shrink();
++
++    final parts = <String>[
++      if (lowStockCount > 0)
++        '$lowStockCount medicine${lowStockCount == 1 ? '' : 's'} low on stock',
++      if (expiringCount > 0)
++        '$expiringCount expiring soon',
++    ];
++
++    return Padding(
++      padding: const EdgeInsets.only(bottom: 16),
++      child: Material(
++        color: Colors.transparent,
++        child: InkWell(
++          borderRadius: BorderRadius.circular(20),
++          onTap: widget.onTap,
++          child: Container(
++            width: double.infinity,
++            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
++            decoration: BoxDecoration(
++              color: AppColors.cardSurface,
++              borderRadius: BorderRadius.circular(20),
++              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
++            ),
++            child: Row(
++              children: [
++                const Icon(
++                  Icons.warning_amber_rounded,
++                  color: Colors.redAccent,
++                  size: 22,
++                ),
++                const SizedBox(width: 10),
++                Expanded(
++                  child: Text(
++                    parts.join(' • '),
++                    style: AppColors.bodyMedium.copyWith(
++                      fontWeight: FontWeight.w600,
++                    ),
++                  ),
++                ),
++                GestureDetector(
++                  onTap: () => setState(() => _dismissed = true),
++                  child: const Icon(Icons.close, size: 18, color: AppColors.silver),
++                ),
++              ],
++            ),
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/CruDoc/lib/features/dashboard/widgets/quick_actions_row.dart b/CruDoc/lib/features/dashboard/widgets/quick_actions_row.dart
+index 7729067..fdbb731 100644
+--- a/CruDoc/lib/features/dashboard/widgets/quick_actions_row.dart
++++ b/CruDoc/lib/features/dashboard/widgets/quick_actions_row.dart
+@@ -5,19 +5,19 @@ class QuickActionsRow extends StatelessWidget {
+   const QuickActionsRow({
+     super.key,
+     this.onNewVisit,
+-    this.onNewInvoice,
++    this.onAddInventoryItem,
+     this.onAddPatient,
+     this.onLogExpense,
+   });
+ 
+   final VoidCallback? onNewVisit;
+-  final VoidCallback? onNewInvoice;
++  final VoidCallback? onAddInventoryItem;
+   final VoidCallback? onAddPatient;
+   final VoidCallback? onLogExpense;
+ 
+   static const List<_QuickAction> _actions = [
+     _QuickAction(icon: Icons.calendar_today_outlined, label: 'New Visit'),
+-    _QuickAction(icon: Icons.description_outlined, label: 'Invoice'),
++    _QuickAction(icon: Icons.inventory_2_outlined, label: 'Inventory'),
+     _QuickAction(icon: Icons.person_add, label: 'Patient'),
+     _QuickAction(icon: Icons.remove_circle_outline, label: 'Logs'),
+   ];
+@@ -51,8 +51,8 @@ class QuickActionsRow extends StatelessWidget {
+     switch (label) {
+       case 'New Visit':
+         return onNewVisit;
+-      case 'Invoice':
+-        return onNewInvoice;
++      case 'Inventory':
++        return onAddInventoryItem;
+       case 'Patient':
+         return onAddPatient;
+       case 'Logs':
+diff --git a/CruDoc/lib/features/dashboard/widgets/recent_activity_card.dart b/CruDoc/lib/features/dashboard/widgets/recent_activity_card.dart
+index f551541..5871a8b 100644
+--- a/CruDoc/lib/features/dashboard/widgets/recent_activity_card.dart
++++ b/CruDoc/lib/features/dashboard/widgets/recent_activity_card.dart
+@@ -8,8 +8,8 @@ class RecentActivityCard extends StatelessWidget {
+ 
+   static const List<_ActivityItem> _items = [
+     _ActivityItem(
+-      icon: Icons.check_circle_outline,
+-      text: 'Invoice INV-2026-0007 marked as paid',
++      icon: Icons.inventory_2_outlined,
++      text: 'Restocked Amoxicillin 500mg — +50 units',
+       time: '2h ago',
+     ),
+     _ActivityItem(
+diff --git a/CruDoc/lib/features/inventory/data/models/medicine_model.dart b/CruDoc/lib/features/inventory/data/models/medicine_model.dart
+new file mode 100644
+index 0000000..105f6fa
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/data/models/medicine_model.dart
+@@ -0,0 +1,165 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++/// Core Medicine data model.
++///
++/// Represents a single medicine document stored in the `medicines`
++/// Firestore collection and mirrored in the local `medicines` SQLite
++/// table. Kept as a plain, hand-written model (no freezed/json_serializable)
++/// to match [Patient] and the rest of the app's current simplicity.
++class MedicineModel {
++  final String id;
++  final String doctorId;
++  final String name;
++  final String category;
++  final String unit;
++  final int currentStock;
++  final int reorderThreshold;
++  final double? unitPrice;
++  final String? supplierName;
++  final String? batchNumber;
++  final DateTime? expiryDate;
++
++  /// Dedup flags so the low-stock/expiry alert only fires once per crossing
++  /// instead of refiring on every rebuild.
++  final DateTime? lowStockNotifiedAt;
++  final DateTime? expiryNotifiedAt;
++
++  final bool isActive;
++  final DateTime createdAt;
++  final DateTime updatedAt;
++
++  const MedicineModel({
++    required this.id,
++    this.doctorId = '',
++    required this.name,
++    this.category = '',
++    required this.unit,
++    this.currentStock = 0,
++    this.reorderThreshold = 10,
++    this.unitPrice,
++    this.supplierName,
++    this.batchNumber,
++    this.expiryDate,
++    this.lowStockNotifiedAt,
++    this.expiryNotifiedAt,
++    this.isActive = true,
++    required this.createdAt,
++    required this.updatedAt,
++  });
++
++  /// True once stock has dropped to (or below) the doctor-configured
++  /// reorder threshold.
++  bool get isLowStock => currentStock <= reorderThreshold;
++
++  /// True when this medicine has a known expiry date within the next
++  /// 30 days (including already-expired stock).
++  bool get isExpiringSoon =>
++      expiryDate != null && expiryDate!.difference(DateTime.now()).inDays <= 30;
++
++  factory MedicineModel.fromFirestore(
++    DocumentSnapshot<Map<String, dynamic>> doc,
++  ) {
++    final data = doc.data() ?? <String, dynamic>{};
++    return MedicineModel.fromJson(data, id: doc.id);
++  }
++
++  /// Builds a [MedicineModel] from a raw map (Firestore payload or a
++  /// SQLite-shaped map with matching keys).
++  factory MedicineModel.fromJson(Map<String, dynamic> map, {String? id}) {
++    return MedicineModel(
++      id: id ?? map['id'] as String? ?? '',
++      doctorId: map['doctorId'] as String? ?? '',
++      name: map['name'] as String? ?? '',
++      category: map['category'] as String? ?? '',
++      unit: map['unit'] as String? ?? '',
++      currentStock: (map['currentStock'] as num?)?.toInt() ?? 0,
++      reorderThreshold: (map['reorderThreshold'] as num?)?.toInt() ?? 10,
++      unitPrice: (map['unitPrice'] as num?)?.toDouble(),
++      supplierName: map['supplierName'] as String?,
++      batchNumber: map['batchNumber'] as String?,
++      expiryDate: _toDate(map['expiryDate']),
++      lowStockNotifiedAt: _toDate(map['lowStockNotifiedAt']),
++      expiryNotifiedAt: _toDate(map['expiryNotifiedAt']),
++      isActive: map['isActive'] as bool? ?? true,
++      createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
++      updatedAt: _toDate(map['updatedAt']) ?? DateTime.now(),
++    );
++  }
++
++  /// Converts this [MedicineModel] into a Firestore-writable map. The
++  /// document id is not included, since it is the document key.
++  Map<String, dynamic> toJson() {
++    return {
++      'doctorId': doctorId,
++      'name': name,
++      'category': category,
++      'unit': unit,
++      'currentStock': currentStock,
++      'reorderThreshold': reorderThreshold,
++      'unitPrice': unitPrice,
++      'supplierName': supplierName,
++      'batchNumber': batchNumber,
++      'expiryDate': expiryDate != null ? Timestamp.fromDate(expiryDate!) : null,
++      'lowStockNotifiedAt': lowStockNotifiedAt != null
++          ? Timestamp.fromDate(lowStockNotifiedAt!)
++          : null,
++      'expiryNotifiedAt': expiryNotifiedAt != null
++          ? Timestamp.fromDate(expiryNotifiedAt!)
++          : null,
++      'isActive': isActive,
++      'createdAt': Timestamp.fromDate(createdAt),
++      'updatedAt': Timestamp.fromDate(updatedAt),
++    };
++  }
++
++  MedicineModel copyWith({
++    String? doctorId,
++    String? name,
++    String? category,
++    String? unit,
++    int? currentStock,
++    int? reorderThreshold,
++    double? unitPrice,
++    String? supplierName,
++    String? batchNumber,
++    DateTime? expiryDate,
++    bool clearExpiryDate = false,
++    DateTime? lowStockNotifiedAt,
++    bool clearLowStockNotifiedAt = false,
++    DateTime? expiryNotifiedAt,
++    bool clearExpiryNotifiedAt = false,
++    bool? isActive,
++    DateTime? updatedAt,
++  }) {
++    return MedicineModel(
++      id: id,
++      doctorId: doctorId ?? this.doctorId,
++      name: name ?? this.name,
++      category: category ?? this.category,
++      unit: unit ?? this.unit,
++      currentStock: currentStock ?? this.currentStock,
++      reorderThreshold: reorderThreshold ?? this.reorderThreshold,
++      unitPrice: unitPrice ?? this.unitPrice,
++      supplierName: supplierName ?? this.supplierName,
++      batchNumber: batchNumber ?? this.batchNumber,
++      expiryDate: clearExpiryDate ? null : (expiryDate ?? this.expiryDate),
++      lowStockNotifiedAt: clearLowStockNotifiedAt
++          ? null
++          : (lowStockNotifiedAt ?? this.lowStockNotifiedAt),
++      expiryNotifiedAt: clearExpiryNotifiedAt
++          ? null
++          : (expiryNotifiedAt ?? this.expiryNotifiedAt),
++      isActive: isActive ?? this.isActive,
++      createdAt: createdAt,
++      updatedAt: updatedAt ?? this.updatedAt,
++    );
++  }
++
++  static DateTime? _toDate(dynamic value) {
++    if (value == null) return null;
++    if (value is Timestamp) return value.toDate();
++    if (value is DateTime) return value;
++    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt());
++    return null;
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/data/models/stock_transaction_model.dart b/CruDoc/lib/features/inventory/data/models/stock_transaction_model.dart
+new file mode 100644
+index 0000000..219adf9
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/data/models/stock_transaction_model.dart
+@@ -0,0 +1,124 @@
++import 'package:cloud_firestore/cloud_firestore.dart';
++
++/// The kind of movement a [StockTransactionModel] represents.
++enum StockTransactionType {
++  restock,
++  dispense,
++  adjustment,
++  expiredWriteoff;
++
++  /// Storage value used in both SQLite and Firestore (snake_case, matching
++  /// the spec's `expired_writeoff` wire value).
++  String get stored {
++    switch (this) {
++      case StockTransactionType.restock:
++        return 'restock';
++      case StockTransactionType.dispense:
++        return 'dispense';
++      case StockTransactionType.adjustment:
++        return 'adjustment';
++      case StockTransactionType.expiredWriteoff:
++        return 'expired_writeoff';
++    }
++  }
++
++  static StockTransactionType fromStored(String? value) {
++    switch (value) {
++      case 'dispense':
++        return StockTransactionType.dispense;
++      case 'adjustment':
++        return StockTransactionType.adjustment;
++      case 'expired_writeoff':
++        return StockTransactionType.expiredWriteoff;
++      case 'restock':
++      default:
++        return StockTransactionType.restock;
++    }
++  }
++
++  /// Whether this transaction type increases (`true`) or decreases
++  /// (`false`) `currentStock` when applied. `adjustment` can go either way
++  /// and is handled by [StockTransactionModel.signedQuantity] using the
++  /// signed quantity passed in by the caller instead.
++  bool get increasesStock => this == StockTransactionType.restock;
++}
++
++/// A single stock movement for a medicine — a restock, a dispense to a
++/// patient, a manual adjustment, or a write-off of expired stock.
++///
++/// Mirrors the `stock_transactions` SQLite table / Firestore collection.
++class StockTransactionModel {
++  final String id;
++  final String medicineId;
++  final String doctorId;
++  final StockTransactionType type;
++
++  /// Always stored as a positive count; the sign of its effect on
++  /// `currentStock` is implied by [type] (see [InventoryLocalService]).
++  final int quantity;
++
++  /// Snapshot of the medicine's `currentStock` immediately after this
++  /// transaction was applied, kept for audit-trail display.
++  final int resultingStock;
++
++  final String? note;
++  final String? linkedVisitId;
++  final DateTime createdAt;
++
++  const StockTransactionModel({
++    required this.id,
++    required this.medicineId,
++    this.doctorId = '',
++    required this.type,
++    required this.quantity,
++    required this.resultingStock,
++    this.note,
++    this.linkedVisitId,
++    required this.createdAt,
++  });
++
++  factory StockTransactionModel.fromFirestore(
++    DocumentSnapshot<Map<String, dynamic>> doc,
++  ) {
++    final data = doc.data() ?? <String, dynamic>{};
++    return StockTransactionModel.fromJson(data, id: doc.id);
++  }
++
++  factory StockTransactionModel.fromJson(
++    Map<String, dynamic> map, {
++    String? id,
++  }) {
++    return StockTransactionModel(
++      id: id ?? map['id'] as String? ?? '',
++      medicineId: map['medicineId'] as String? ?? '',
++      doctorId: map['doctorId'] as String? ?? '',
++      type: StockTransactionType.fromStored(map['type'] as String?),
++      quantity: (map['quantity'] as num?)?.toInt() ?? 0,
++      resultingStock: (map['resultingStock'] as num?)?.toInt() ?? 0,
++      note: map['note'] as String?,
++      linkedVisitId: map['linkedVisitId'] as String?,
++      createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
++    );
++  }
++
++  Map<String, dynamic> toJson() {
++    return {
++      'medicineId': medicineId,
++      'doctorId': doctorId,
++      'type': type.stored,
++      'quantity': quantity,
++      'resultingStock': resultingStock,
++      'note': note,
++      'linkedVisitId': linkedVisitId,
++      'createdAt': Timestamp.fromDate(createdAt),
++    };
++  }
++
++  static DateTime? _toDate(dynamic value) {
++    if (value == null) return null;
++    if (value is Timestamp) return value.toDate();
++    if (value is DateTime) return value;
++    if (value is num) return DateTime.fromMillisecondsSinceEpoch(value.toInt());
++    return null;
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/data/providers/inventory_providers.dart b/CruDoc/lib/features/inventory/data/providers/inventory_providers.dart
+new file mode 100644
+index 0000000..fb13537
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/data/providers/inventory_providers.dart
+@@ -0,0 +1,47 @@
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
++import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
++
++final inventoryRepositoryProvider = Provider<InventoryRepository>(
++  (ref) => InventoryRepository(),
++);
++
++/// Streams every active medicine for the current doctor.
++final medicinesStreamProvider = StreamProvider<List<MedicineModel>>(
++  (ref) => ref.watch(inventoryRepositoryProvider).watchMedicines(),
++);
++
++/// Medicines whose `currentStock` has crossed at/under their configured
++/// `reorderThreshold`.
++final lowStockMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>((
++  ref,
++) {
++  final medicinesAsync = ref.watch(medicinesStreamProvider);
++  return medicinesAsync.whenData(
++    (medicines) => medicines.where((m) => m.isLowStock).toList(),
++  );
++});
++
++/// Medicines within 30 days of (or past) their expiry date.
++final expiringMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>((
++  ref,
++) {
++  final medicinesAsync = ref.watch(medicinesStreamProvider);
++  return medicinesAsync.whenData(
++    (medicines) => medicines.where((m) => m.isExpiringSoon).toList(),
++  );
++});
++
++/// Family provider for a single medicine's transaction history, newest
++/// first.
++final medicineTransactionsProvider =
++    FutureProvider.family<List<StockTransactionModel>, String>((
++      ref,
++      medicineId,
++    ) {
++      return ref
++          .watch(inventoryRepositoryProvider)
++          .getTransactionsForMedicine(medicineId);
++    });
+diff --git a/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart b/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart
+new file mode 100644
+index 0000000..6452c3f
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart
+@@ -0,0 +1,171 @@
++import 'dart:async';
++
++import 'package:uuid/uuid.dart';
++
++import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
++import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
++import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
++
++/// Clean API the presentation layer talks to for anything inventory-related.
++///
++/// Reads and writes go through SQLite. Writes are marked pending locally and
++/// the central sync engine is triggered in the background. Mirrors
++/// [PatientRepository]'s offline-first pattern.
++class InventoryRepository {
++  InventoryRepository({
++    InventoryLocalService? localService,
++    FirestoreSyncService? syncService,
++  }) : _localService = localService ?? InventoryLocalService(),
++       _syncService = syncService ?? FirestoreSyncService.instance;
++
++  final InventoryLocalService _localService;
++  final FirestoreSyncService _syncService;
++
++  /// Creates a new medicine and returns the newly assigned id.
++  Future<String> createMedicine(MedicineModel medicine) async {
++    _validate(medicine);
++
++    final now = DateTime.now();
++    final id = medicine.id.trim().isEmpty ? const Uuid().v4() : medicine.id;
++    final medicineWithId = MedicineModel(
++      id: id,
++      doctorId: medicine.doctorId,
++      name: medicine.name.trim(),
++      category: medicine.category.trim(),
++      unit: medicine.unit.trim(),
++      currentStock: medicine.currentStock,
++      reorderThreshold: medicine.reorderThreshold,
++      unitPrice: medicine.unitPrice,
++      supplierName: medicine.supplierName,
++      batchNumber: medicine.batchNumber,
++      expiryDate: medicine.expiryDate,
++      isActive: true,
++      createdAt: now,
++      updatedAt: now,
++    );
++
++    await _localService.upsertMedicine(medicineWithId);
++    unawaited(_syncService.triggerPostWriteSync());
++    return id;
++  }
++
++  /// Updates an existing medicine's fields.
++  Future<void> updateMedicine(
++    String medicineId,
++    Map<String, dynamic> data,
++  ) async {
++    if (data.containsKey('name')) {
++      final name = data['name'] as String? ?? '';
++      if (name.trim().isEmpty) {
++        throw const MedicineValidationException(
++          'Medicine name cannot be empty.',
++        );
++      }
++    }
++    if (data.containsKey('reorderThreshold')) {
++      final threshold = (data['reorderThreshold'] as num?) ?? 0;
++      if (threshold < 0) {
++        throw const MedicineValidationException(
++          'Reorder threshold cannot be negative.',
++        );
++      }
++    }
++
++    final localData = Map<String, dynamic>.from(data)
++      ..['updatedAt'] = DateTime.now();
++
++    await _localService.updateMedicine(medicineId, localData);
++    unawaited(_syncService.triggerPostWriteSync());
++  }
++
++  /// Soft-deletes a medicine locally, then mirrors the delete to Firestore.
++  Future<void> deleteMedicine(String medicineId) async {
++    await _localService.softDeleteMedicine(medicineId);
++    unawaited(_syncService.triggerPostWriteSync());
++  }
++
++  /// Fetches a single medicine by id.
++  Future<MedicineModel?> getMedicine(String medicineId) {
++    return _localService.getMedicine(medicineId);
++  }
++
++  /// Streams the live list of active medicines.
++  Stream<List<MedicineModel>> watchMedicines() {
++    return _localService.watchMedicines();
++  }
++
++  /// Records a restock/dispense/adjustment/write-off transaction and
++  /// applies it to the medicine's current stock atomically.
++  Future<StockTransactionModel> recordTransaction({
++    required String medicineId,
++    required StockTransactionType type,
++    required int quantity,
++    String? note,
++    String? linkedVisitId,
++    String doctorId = '',
++  }) async {
++    if (quantity <= 0) {
++      throw const MedicineValidationException('Quantity must be positive.');
++    }
++
++    final transaction = StockTransactionModel(
++      id: const Uuid().v4(),
++      medicineId: medicineId,
++      doctorId: doctorId,
++      type: type,
++      quantity: quantity,
++      resultingStock: 0, // recalculated inside the local service's txn
++      note: note,
++      linkedVisitId: linkedVisitId,
++      createdAt: DateTime.now(),
++    );
++
++    final recorded = await _localService.recordTransaction(transaction);
++    unawaited(_syncService.triggerPostWriteSync());
++    return recorded;
++  }
++
++  /// Streams the full transaction history for a single medicine, newest
++  /// first.
++  Future<List<StockTransactionModel>> getTransactionsForMedicine(
++    String medicineId,
++  ) {
++    return _localService.getTransactionsForMedicine(medicineId);
++  }
++
++  /// Stamps `lowStockNotifiedAt` on a medicine so the low-stock alert
++  /// doesn't refire on every rebuild. Does not trigger a new sync-worthy
++  /// "pending" bump beyond the normal update path.
++  Future<void> markLowStockNotified(String medicineId) {
++    return updateMedicine(medicineId, {
++      'lowStockNotifiedAt': DateTime.now(),
++    });
++  }
++
++  /// Stamps `expiryNotifiedAt` on a medicine so the expiry alert doesn't
++  /// refire on every rebuild.
++  Future<void> markExpiryNotified(String medicineId) {
++    return updateMedicine(medicineId, {'expiryNotifiedAt': DateTime.now()});
++  }
++
++  void _validate(MedicineModel medicine) {
++    if (medicine.name.trim().isEmpty) {
++      throw const MedicineValidationException('Medicine name cannot be empty.');
++    }
++    if (medicine.unit.trim().isEmpty) {
++      throw const MedicineValidationException('Unit cannot be empty.');
++    }
++    if (medicine.reorderThreshold < 0) {
++      throw const MedicineValidationException(
++        'Reorder threshold cannot be negative.',
++      );
++    }
++    if (medicine.currentStock < 0) {
++      throw const MedicineValidationException(
++        'Current stock cannot be negative.',
++      );
++    }
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart b/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart
+new file mode 100644
+index 0000000..0ae6a78
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart
+@@ -0,0 +1,385 @@
++import 'dart:async';
++
++import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
++import 'package:doctor_management_app/core/services/local_database_service.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
++import 'package:sqflite/sqflite.dart';
++
++/// SQLite-backed inventory data source.
++///
++/// Mirrors [PatientLocalService]: repositories read/write SQLite directly
++/// for instant, offline-first UI updates, while [FirestoreSyncService]
++/// picks up `syncStatus = 'pending'` rows in the background.
++class InventoryLocalService {
++  factory InventoryLocalService({LocalDatabaseService? databaseService}) {
++    if (databaseService != null) {
++      return InventoryLocalService._(databaseService);
++    }
++    return instance;
++  }
++
++  InventoryLocalService._(this._databaseService);
++
++  static final InventoryLocalService instance = InventoryLocalService._(
++    LocalDatabaseService.instance,
++  );
++
++  InventoryLocalService.withDatabase(this._databaseService);
++
++  final LocalDatabaseService _databaseService;
++  final StreamController<List<MedicineModel>> _medicinesController =
++      StreamController<List<MedicineModel>>.broadcast();
++
++  // ---------------------------------------------------------------------
++  // Medicines CRUD
++  // ---------------------------------------------------------------------
++
++  Future<String> upsertMedicine(
++    MedicineModel medicine, {
++    String syncStatus = 'pending',
++    bool pendingDelete = false,
++    int? lastSyncedAt,
++  }) async {
++    final db = await _databaseService.database;
++    await db.insert(
++      'medicines',
++      _medicineToRow(
++        medicine,
++        syncStatus: syncStatus,
++        pendingDelete: pendingDelete,
++        lastSyncedAt: lastSyncedAt,
++      ),
++      conflictAlgorithm: ConflictAlgorithm.replace,
++    );
++    await _emitMedicines();
++    return medicine.id;
++  }
++
++  Future<void> updateMedicine(
++    String medicineId,
++    Map<String, dynamic> data, {
++    String syncStatus = 'pending',
++    bool? pendingDelete,
++    int? lastSyncedAt,
++  }) async {
++    final db = await _databaseService.database;
++    final row = _updateDataToRow(data)
++      ..['syncStatus'] = syncStatus
++      ..['updatedAt'] = _dateTimeToMillis(
++        data['updatedAt'] is DateTime
++            ? data['updatedAt'] as DateTime
++            : DateTime.now(),
++      );
++
++    if (pendingDelete != null) {
++      row['pendingDelete'] = pendingDelete ? 1 : 0;
++    }
++    if (lastSyncedAt != null) {
++      row['lastSyncedAt'] = lastSyncedAt;
++    }
++
++    await db.update(
++      'medicines',
++      row,
++      where: 'id = ?',
++      whereArgs: [medicineId],
++    );
++    await _emitMedicines();
++  }
++
++  Future<void> softDeleteMedicine(String medicineId) async {
++    await updateMedicine(medicineId, {
++      'isActive': false,
++      'updatedAt': DateTime.now(),
++    }, pendingDelete: true);
++  }
++
++  Future<MedicineModel?> getMedicine(String medicineId) async {
++    final db = await _databaseService.database;
++    final rows = await db.query(
++      'medicines',
++      where: 'id = ? AND isActive = 1',
++      whereArgs: [medicineId],
++      limit: 1,
++    );
++    if (rows.isEmpty) return null;
++    return _medicineFromRow(rows.first);
++  }
++
++  Stream<List<MedicineModel>> watchMedicines() {
++    Future<void>.microtask(_emitMedicines);
++    return _medicinesController.stream;
++  }
++
++  // ---------------------------------------------------------------------
++  // Stock transactions
++  // ---------------------------------------------------------------------
++
++  /// Inserts [transaction] and atomically updates the parent medicine's
++  /// `currentStock` in the same DB transaction, recalculating
++  /// `resultingStock` from the medicine's *current* value read inside the
++  /// transaction (not whatever the caller stamped on the model), so
++  /// concurrent writes can't desync the audit trail.
++  Future<StockTransactionModel> recordTransaction(
++    StockTransactionModel transaction,
++  ) async {
++    final db = await _databaseService.database;
++    final now = DateTime.now();
++
++    late final StockTransactionModel recorded;
++
++    await db.transaction((txn) async {
++      final medicineRows = await txn.query(
++        'medicines',
++        where: 'id = ? AND isActive = 1',
++        whereArgs: [transaction.medicineId],
++        limit: 1,
++      );
++      if (medicineRows.isEmpty) {
++        throw MedicineNotFoundException(
++          'Medicine ${transaction.medicineId} was not found.',
++        );
++      }
++
++      final currentStock =
++          (medicineRows.first['currentStock'] as num?)?.toInt() ?? 0;
++      final delta = _signedQuantity(transaction.type, transaction.quantity);
++      final newStock = currentStock + delta;
++
++      if (newStock < 0) {
++        throw InsufficientStockException(
++          'Not enough stock: only $currentStock unit(s) available.',
++        );
++      }
++
++      recorded = StockTransactionModel(
++        id: transaction.id,
++        medicineId: transaction.medicineId,
++        doctorId: transaction.doctorId,
++        type: transaction.type,
++        quantity: transaction.quantity,
++        resultingStock: newStock,
++        note: transaction.note,
++        linkedVisitId: transaction.linkedVisitId,
++        createdAt: transaction.createdAt,
++      );
++
++      await txn.insert(
++        'stock_transactions',
++        _transactionToRow(recorded),
++        conflictAlgorithm: ConflictAlgorithm.replace,
++      );
++
++      await txn.update(
++        'medicines',
++        {
++          'currentStock': newStock,
++          'syncStatus': 'pending',
++          'updatedAt': _dateTimeToMillis(now),
++        },
++        where: 'id = ?',
++        whereArgs: [transaction.medicineId],
++      );
++    });
++
++    await _emitMedicines();
++    return recorded;
++  }
++
++  Future<List<StockTransactionModel>> getTransactionsForMedicine(
++    String medicineId,
++  ) async {
++    final db = await _databaseService.database;
++    final rows = await db.query(
++      'stock_transactions',
++      where: 'medicineId = ? AND isActive = 1',
++      whereArgs: [medicineId],
++      orderBy: 'createdAt DESC',
++    );
++    return rows.map(_transactionFromRow).toList();
++  }
++
++  /// Positive when [type] increases stock, negative when it decreases it.
++  /// `adjustment` and `expired_writeoff` both decrease stock; only
++  /// `restock` increases it.
++  int _signedQuantity(StockTransactionType type, int quantity) {
++    final magnitude = quantity.abs();
++    switch (type) {
++      case StockTransactionType.restock:
++        return magnitude;
++      case StockTransactionType.dispense:
++      case StockTransactionType.adjustment:
++      case StockTransactionType.expiredWriteoff:
++        return -magnitude;
++    }
++  }
++
++  Future<void> _emitMedicines() async {
++    if (_medicinesController.isClosed) return;
++
++    final db = await _databaseService.database;
++    final rows = await db.query(
++      'medicines',
++      where: 'isActive = 1',
++      orderBy: 'name ASC',
++    );
++    if (!_medicinesController.isClosed) {
++      _medicinesController.add(rows.map(_medicineFromRow).toList());
++    }
++  }
++
++  // ---------------------------------------------------------------------
++  // Row <-> model mapping
++  // ---------------------------------------------------------------------
++
++  Map<String, dynamic> _medicineToRow(
++    MedicineModel medicine, {
++    required String syncStatus,
++    required bool pendingDelete,
++    int? lastSyncedAt,
++  }) {
++    return {
++      'id': medicine.id,
++      'doctorId': medicine.doctorId,
++      'name': medicine.name,
++      'category': medicine.category,
++      'unit': medicine.unit,
++      'currentStock': medicine.currentStock,
++      'reorderThreshold': medicine.reorderThreshold,
++      'unitPrice': medicine.unitPrice,
++      'supplierName': medicine.supplierName,
++      'batchNumber': medicine.batchNumber,
++      'expiryDate': medicine.expiryDate == null
++          ? null
++          : _dateTimeToMillis(medicine.expiryDate!),
++      'lowStockNotifiedAt': medicine.lowStockNotifiedAt == null
++          ? null
++          : _dateTimeToMillis(medicine.lowStockNotifiedAt!),
++      'expiryNotifiedAt': medicine.expiryNotifiedAt == null
++          ? null
++          : _dateTimeToMillis(medicine.expiryNotifiedAt!),
++      'isActive': pendingDelete ? 0 : (medicine.isActive ? 1 : 0),
++      'createdAt': _dateTimeToMillis(medicine.createdAt),
++      'updatedAt': _dateTimeToMillis(medicine.updatedAt),
++      'syncStatus': syncStatus,
++      'pendingDelete': pendingDelete ? 1 : 0,
++      'lastSyncedAt': lastSyncedAt,
++    };
++  }
++
++  Map<String, dynamic> _updateDataToRow(Map<String, dynamic> data) {
++    final row = <String, dynamic>{};
++    for (final entry in data.entries) {
++      switch (entry.key) {
++        case 'createdAt':
++        case 'updatedAt':
++        case 'expiryDate':
++        case 'lowStockNotifiedAt':
++        case 'expiryNotifiedAt':
++          if (entry.value == null) {
++            row[entry.key] = null;
++          } else if (entry.value is DateTime) {
++            row[entry.key] = _dateTimeToMillis(entry.value as DateTime);
++          } else if (entry.value is int) {
++            row[entry.key] = entry.value;
++          }
++          break;
++        case 'isActive':
++          if (entry.value is bool) {
++            row[entry.key] = entry.value as bool ? 1 : 0;
++          } else if (entry.value is int) {
++            row[entry.key] = entry.value;
++          }
++          break;
++        case 'name':
++        case 'category':
++        case 'unit':
++        case 'supplierName':
++        case 'batchNumber':
++        case 'doctorId':
++          row[entry.key] = entry.value;
++          break;
++        case 'currentStock':
++        case 'reorderThreshold':
++          row[entry.key] = (entry.value as num).toInt();
++          break;
++        case 'unitPrice':
++          row[entry.key] = entry.value == null
++              ? null
++              : (entry.value as num).toDouble();
++          break;
++      }
++    }
++    return row;
++  }
++
++  MedicineModel _medicineFromRow(Map<String, Object?> row) {
++    return MedicineModel(
++      id: row['id'] as String,
++      doctorId: row['doctorId'] as String? ?? '',
++      name: row['name'] as String? ?? '',
++      category: row['category'] as String? ?? '',
++      unit: row['unit'] as String? ?? '',
++      currentStock: (row['currentStock'] as num?)?.toInt() ?? 0,
++      reorderThreshold: (row['reorderThreshold'] as num?)?.toInt() ?? 10,
++      unitPrice: (row['unitPrice'] as num?)?.toDouble(),
++      supplierName: row['supplierName'] as String?,
++      batchNumber: row['batchNumber'] as String?,
++      expiryDate: _millisToDateTimeOrNull(row['expiryDate']),
++      lowStockNotifiedAt: _millisToDateTimeOrNull(row['lowStockNotifiedAt']),
++      expiryNotifiedAt: _millisToDateTimeOrNull(row['expiryNotifiedAt']),
++      isActive: row['isActive'] == 1,
++      createdAt: _millisToDateTime(row['createdAt']),
++      updatedAt: _millisToDateTime(row['updatedAt']),
++    );
++  }
++
++  Map<String, dynamic> _transactionToRow(StockTransactionModel transaction) {
++    return {
++      'id': transaction.id,
++      'medicineId': transaction.medicineId,
++      'doctorId': transaction.doctorId,
++      'type': transaction.type.stored,
++      'quantity': transaction.quantity,
++      'resultingStock': transaction.resultingStock,
++      'note': transaction.note,
++      'linkedVisitId': transaction.linkedVisitId,
++      'isActive': 1,
++      'createdAt': _dateTimeToMillis(transaction.createdAt),
++      'updatedAt': _dateTimeToMillis(transaction.createdAt),
++      'syncStatus': 'pending',
++      'pendingDelete': 0,
++      'lastSyncedAt': null,
++    };
++  }
++
++  StockTransactionModel _transactionFromRow(Map<String, Object?> row) {
++    return StockTransactionModel(
++      id: row['id'] as String,
++      medicineId: row['medicineId'] as String? ?? '',
++      doctorId: row['doctorId'] as String? ?? '',
++      type: StockTransactionType.fromStored(row['type'] as String?),
++      quantity: (row['quantity'] as num?)?.toInt() ?? 0,
++      resultingStock: (row['resultingStock'] as num?)?.toInt() ?? 0,
++      note: row['note'] as String?,
++      linkedVisitId: row['linkedVisitId'] as String?,
++      createdAt: _millisToDateTime(row['createdAt']),
++    );
++  }
++
++  int _dateTimeToMillis(DateTime value) => value.millisecondsSinceEpoch;
++
++  DateTime _millisToDateTime(Object? value) {
++    if (value is int) return DateTime.fromMillisecondsSinceEpoch(value);
++    if (value is num) {
++      return DateTime.fromMillisecondsSinceEpoch(value.toInt());
++    }
++    return DateTime.now();
++  }
++
++  DateTime? _millisToDateTimeOrNull(Object? value) {
++    if (value == null) return null;
++    return _millisToDateTime(value);
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/presentation/add_edit_medicine_form.dart b/CruDoc/lib/features/inventory/presentation/add_edit_medicine_form.dart
+new file mode 100644
+index 0000000..684022b
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/presentation/add_edit_medicine_form.dart
+@@ -0,0 +1,472 @@
++import 'package:flutter/material.dart';
++
++import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
++import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
++
++/// Shows the Add/Edit Medicine dialog. Pass [medicine] to edit an existing
++/// one; omit it to create a new medicine.
++Future<void> showAddEditMedicineForm(
++  BuildContext context, {
++  MedicineModel? medicine,
++  InventoryRepository? repository,
++}) {
++  return showDialog<void>(
++    context: context,
++    builder: (_) => AddEditMedicineForm(
++      medicine: medicine,
++      repository: repository,
++    ),
++  );
++}
++
++/// Modal dialog for creating or editing a medicine, styled in the same
++/// rounded-card / filled-field language as [RevenueScreen]'s entry dialog.
++class AddEditMedicineForm extends StatefulWidget {
++  const AddEditMedicineForm({super.key, this.medicine, this.repository});
++
++  final MedicineModel? medicine;
++  final InventoryRepository? repository;
++
++  @override
++  State<AddEditMedicineForm> createState() => _AddEditMedicineFormState();
++}
++
++class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
++  final _formKey = GlobalKey<FormState>();
++  late final InventoryRepository _repository =
++      widget.repository ?? InventoryRepository();
++
++  late final _nameController = TextEditingController(
++    text: widget.medicine?.name ?? '',
++  );
++  late final _categoryController = TextEditingController(
++    text: widget.medicine?.category ?? '',
++  );
++  late final _unitController = TextEditingController(
++    text: widget.medicine?.unit ?? '',
++  );
++  late final _stockController = TextEditingController(
++    text: widget.medicine != null ? '${widget.medicine!.currentStock}' : '0',
++  );
++  late final _thresholdController = TextEditingController(
++    text: widget.medicine != null
++        ? '${widget.medicine!.reorderThreshold}'
++        : '10',
++  );
++  late final _priceController = TextEditingController(
++    text: widget.medicine?.unitPrice?.toString() ?? '',
++  );
++  late final _supplierController = TextEditingController(
++    text: widget.medicine?.supplierName ?? '',
++  );
++  late final _batchController = TextEditingController(
++    text: widget.medicine?.batchNumber ?? '',
++  );
++
++  DateTime? _expiryDate;
++  bool _isSaving = false;
++  String? _errorText;
++
++  bool get _isEditing => widget.medicine != null;
++
++  @override
++  void initState() {
++    super.initState();
++    _expiryDate = widget.medicine?.expiryDate;
++  }
++
++  @override
++  void dispose() {
++    _nameController.dispose();
++    _categoryController.dispose();
++    _unitController.dispose();
++    _stockController.dispose();
++    _thresholdController.dispose();
++    _priceController.dispose();
++    _supplierController.dispose();
++    _batchController.dispose();
++    super.dispose();
++  }
++
++  Future<void> _pickExpiryDate() async {
++    final now = DateTime.now();
++    final picked = await showDatePicker(
++      context: context,
++      initialDate: _expiryDate ?? now,
++      firstDate: DateTime(now.year - 1),
++      lastDate: DateTime(now.year + 10),
++      builder: (context, child) {
++        return Theme(
++          data: Theme.of(context).copyWith(
++            colorScheme: const ColorScheme.dark(
++              primary: AppColors.slateBlue,
++              onPrimary: AppColors.textPrimary,
++              surface: AppColors.cardSurface,
++              onSurface: AppColors.textPrimary,
++            ),
++          ),
++          child: child!,
++        );
++      },
++    );
++    if (picked != null) setState(() => _expiryDate = picked);
++  }
++
++  Future<void> _handleSubmit() async {
++    if (!_formKey.currentState!.validate()) return;
++
++    setState(() {
++      _isSaving = true;
++      _errorText = null;
++    });
++
++    final name = _nameController.text.trim();
++    final category = _categoryController.text.trim();
++    final unit = _unitController.text.trim();
++    final stock = int.tryParse(_stockController.text.trim()) ?? 0;
++    final threshold = int.tryParse(_thresholdController.text.trim()) ?? 10;
++    final price = _priceController.text.trim().isEmpty
++        ? null
++        : double.tryParse(_priceController.text.trim());
++    final supplier = _supplierController.text.trim();
++    final batch = _batchController.text.trim();
++
++    try {
++      if (_isEditing) {
++        await _repository.updateMedicine(widget.medicine!.id, {
++          'name': name,
++          'category': category,
++          'unit': unit,
++          'currentStock': stock,
++          'reorderThreshold': threshold,
++          'unitPrice': price,
++          'supplierName': supplier.isEmpty ? null : supplier,
++          'batchNumber': batch.isEmpty ? null : batch,
++          'expiryDate': _expiryDate,
++        });
++      } else {
++        final now = DateTime.now();
++        await _repository.createMedicine(
++          MedicineModel(
++            id: '',
++            name: name,
++            category: category,
++            unit: unit,
++            currentStock: stock,
++            reorderThreshold: threshold,
++            unitPrice: price,
++            supplierName: supplier.isEmpty ? null : supplier,
++            batchNumber: batch.isEmpty ? null : batch,
++            expiryDate: _expiryDate,
++            createdAt: now,
++            updatedAt: now,
++          ),
++        );
++      }
++
++      if (mounted) Navigator.pop(context);
++    } on MedicineValidationException catch (e) {
++      setState(() {
++        _isSaving = false;
++        _errorText = e.message;
++      });
++    } catch (e) {
++      setState(() {
++        _isSaving = false;
++        _errorText = 'Failed to save: $e';
++      });
++    }
++  }
++
++  InputDecoration _decoration(String hint) {
++    return InputDecoration(
++      hintText: hint,
++      hintStyle: const TextStyle(
++        fontFamily: AppColors.bodyFontFamily,
++        color: AppColors.textSecondary,
++      ),
++      filled: true,
++      fillColor: Colors.white,
++      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
++      border: OutlineInputBorder(
++        borderRadius: BorderRadius.circular(16),
++        borderSide: BorderSide.none,
++      ),
++    );
++  }
++
++  Widget _label(String text) => Text(
++    text,
++    style: const TextStyle(
++      fontFamily: AppColors.bodyFontFamily,
++      fontSize: 13,
++      fontWeight: FontWeight.w600,
++      color: AppColors.textPrimary,
++    ),
++  );
++
++  @override
++  Widget build(BuildContext context) {
++    return AlertDialog(
++      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
++      backgroundColor: AppColors.cardSurface,
++      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
++      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
++      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
++      title: Text(
++        _isEditing ? 'Edit Medicine' : 'Add Medicine',
++        style: AppColors.sectionHeading.copyWith(fontSize: 20),
++      ),
++      content: SizedBox(
++        width: 360,
++        child: SingleChildScrollView(
++          child: Form(
++            key: _formKey,
++            child: Column(
++              mainAxisSize: MainAxisSize.min,
++              crossAxisAlignment: CrossAxisAlignment.start,
++              children: [
++                const SizedBox(height: 16),
++                _label('Name'),
++                const SizedBox(height: 8),
++                TextFormField(
++                  controller: _nameController,
++                  enabled: !_isSaving,
++                  style: AppColors.bodyMedium,
++                  decoration: _decoration('e.g. Amoxicillin 500mg'),
++                  validator: (v) =>
++                      (v == null || v.trim().isEmpty) ? 'Required' : null,
++                ),
++                const SizedBox(height: 14),
++                Row(
++                  children: [
++                    Expanded(
++                      child: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          _label('Category'),
++                          const SizedBox(height: 8),
++                          TextFormField(
++                            controller: _categoryController,
++                            enabled: !_isSaving,
++                            style: AppColors.bodyMedium,
++                            decoration: _decoration('Antibiotic'),
++                          ),
++                        ],
++                      ),
++                    ),
++                    const SizedBox(width: 12),
++                    Expanded(
++                      child: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          _label('Unit'),
++                          const SizedBox(height: 8),
++                          TextFormField(
++                            controller: _unitController,
++                            enabled: !_isSaving,
++                            style: AppColors.bodyMedium,
++                            decoration: _decoration('tablet, vial...'),
++                            validator: (v) => (v == null || v.trim().isEmpty)
++                                ? 'Required'
++                                : null,
++                          ),
++                        ],
++                      ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 14),
++                Row(
++                  children: [
++                    Expanded(
++                      child: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          _label('Current Stock'),
++                          const SizedBox(height: 8),
++                          TextFormField(
++                            controller: _stockController,
++                            enabled: !_isSaving,
++                            keyboardType: TextInputType.number,
++                            style: AppColors.bodyMedium,
++                            decoration: _decoration('0'),
++                            validator: (v) =>
++                                int.tryParse(v?.trim() ?? '') == null
++                                ? 'Enter a whole number'
++                                : null,
++                          ),
++                        ],
++                      ),
++                    ),
++                    const SizedBox(width: 12),
++                    Expanded(
++                      child: Column(
++                        crossAxisAlignment: CrossAxisAlignment.start,
++                        children: [
++                          _label('Reorder Threshold'),
++                          const SizedBox(height: 8),
++                          TextFormField(
++                            controller: _thresholdController,
++                            enabled: !_isSaving,
++                            keyboardType: TextInputType.number,
++                            style: AppColors.bodyMedium,
++                            decoration: _decoration('10'),
++                            validator: (v) {
++                              final n = int.tryParse(v?.trim() ?? '');
++                              if (n == null) return 'Enter a whole number';
++                              if (n < 0) return 'Cannot be negative';
++                              return null;
++                            },
++                          ),
++                        ],
++                      ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 14),
++                _label('Unit Price (optional)'),
++                const SizedBox(height: 8),
++                TextFormField(
++                  controller: _priceController,
++                  enabled: !_isSaving,
++                  keyboardType: const TextInputType.numberWithOptions(
++                    decimal: true,
++                  ),
++                  style: AppColors.bodyMedium,
++                  decoration: _decoration('₹0.00'),
++                  validator: (v) {
++                    final trimmed = v?.trim() ?? '';
++                    if (trimmed.isEmpty) return null;
++                    return double.tryParse(trimmed) == null
++                        ? 'Enter a valid amount'
++                        : null;
++                  },
++                ),
++                const SizedBox(height: 14),
++                _label('Supplier (optional)'),
++                const SizedBox(height: 8),
++                TextFormField(
++                  controller: _supplierController,
++                  enabled: !_isSaving,
++                  style: AppColors.bodyMedium,
++                  decoration: _decoration('Supplier name'),
++                ),
++                const SizedBox(height: 14),
++                _label('Batch Number (optional)'),
++                const SizedBox(height: 8),
++                TextFormField(
++                  controller: _batchController,
++                  enabled: !_isSaving,
++                  style: AppColors.bodyMedium,
++                  decoration: _decoration('Batch / lot number'),
++                ),
++                const SizedBox(height: 14),
++                _label('Expiry Date (optional)'),
++                const SizedBox(height: 8),
++                InkWell(
++                  onTap: _isSaving ? null : _pickExpiryDate,
++                  borderRadius: BorderRadius.circular(16),
++                  child: InputDecorator(
++                    decoration: _decoration('Select a date'),
++                    child: Row(
++                      children: [
++                        Expanded(
++                          child: Text(
++                            _expiryDate == null
++                                ? 'Select a date'
++                                : '${_expiryDate!.day}/${_expiryDate!.month}/${_expiryDate!.year}',
++                            style: AppColors.bodyMedium.copyWith(
++                              color: _expiryDate == null
++                                  ? AppColors.textSecondary
++                                  : AppColors.textPrimary,
++                            ),
++                          ),
++                        ),
++                        if (_expiryDate != null)
++                          GestureDetector(
++                            onTap: _isSaving
++                                ? null
++                                : () => setState(() => _expiryDate = null),
++                            child: const Icon(
++                              Icons.close,
++                              size: 18,
++                              color: AppColors.silver,
++                            ),
++                          ),
++                      ],
++                    ),
++                  ),
++                ),
++                if (_errorText != null) ...[
++                  const SizedBox(height: 12),
++                  Row(
++                    children: [
++                      const Icon(
++                        Icons.error_outline,
++                        color: Colors.redAccent,
++                        size: 16,
++                      ),
++                      const SizedBox(width: 6),
++                      Expanded(
++                        child: Text(
++                          _errorText!,
++                          style: const TextStyle(
++                            fontFamily: AppColors.bodyFontFamily,
++                            color: Colors.redAccent,
++                            fontSize: 12,
++                          ),
++                        ),
++                      ),
++                    ],
++                  ),
++                ],
++              ],
++            ),
++          ),
++        ),
++      ),
++      actions: [
++        TextButton(
++          onPressed: _isSaving ? null : () => Navigator.pop(context),
++          child: const Text(
++            'Cancel',
++            style: TextStyle(
++              fontFamily: AppColors.bodyFontFamily,
++              color: AppColors.slateBlue,
++            ),
++          ),
++        ),
++        FilledButton(
++          onPressed: _isSaving ? null : _handleSubmit,
++          style: FilledButton.styleFrom(
++            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
++            backgroundColor: AppColors.chartBarLight,
++            foregroundColor: Colors.white,
++            shape: RoundedRectangleBorder(
++              borderRadius: BorderRadius.circular(16),
++            ),
++          ),
++          child: _isSaving
++              ? const SizedBox(
++                  width: 16,
++                  height: 16,
++                  child: CircularProgressIndicator(
++                    strokeWidth: 2,
++                    color: Colors.white,
++                  ),
++                )
++              : const Text(
++                  'Save',
++                  style: TextStyle(
++                    fontFamily: AppColors.bodyFontFamily,
++                    fontWeight: FontWeight.w600,
++                  ),
++                ),
++        ),
++      ],
++    );
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/presentation/inventory_alert_listener.dart b/CruDoc/lib/features/inventory/presentation/inventory_alert_listener.dart
+new file mode 100644
+index 0000000..47e1acd
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/presentation/inventory_alert_listener.dart
+@@ -0,0 +1,116 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
++
++/// Wraps [child] with a reactive watcher (not a polling job) for the
++/// low-stock and expiring-soon medicine lists.
++///
++/// When a medicine *newly* enters either list — compared against the
++/// previous snapshot, not just "list is non-empty" — and its
++/// `lowStockNotifiedAt` / `expiryNotifiedAt` dedup flag is still unset,
++/// this shows an in-app snackbar and stamps that flag via
++/// [InventoryRepository.markLowStockNotified] /
++/// [InventoryRepository.markExpiryNotified] so the alert doesn't refire on
++/// every rebuild.
++///
++/// Mount this once, above [BottomNavBar] and the tab [PageView], so it
++/// keeps listening regardless of which tab is active.
++class InventoryAlertListener extends ConsumerStatefulWidget {
++  const InventoryAlertListener({super.key, required this.child});
++
++  final Widget child;
++
++  @override
++  ConsumerState<InventoryAlertListener> createState() =>
++      _InventoryAlertListenerState();
++}
++
++class _InventoryAlertListenerState
++    extends ConsumerState<InventoryAlertListener> {
++  Set<String> _previousLowStockIds = {};
++  Set<String> _previousExpiringIds = {};
++  bool _isFirstLowStockEmission = true;
++  bool _isFirstExpiringEmission = true;
++
++  @override
++  Widget build(BuildContext context) {
++    ref.listen<AsyncValue<List<MedicineModel>>>(lowStockMedicinesProvider, (
++      previous,
++      next,
++    ) {
++      final medicines = next.valueOrNull;
++      if (medicines == null) return;
++      final isFirst = _isFirstLowStockEmission;
++      _isFirstLowStockEmission = false;
++      _handleNewAlerts(
++        medicines: medicines,
++        previousIds: _previousLowStockIds,
++        skip: isFirst,
++        alreadyNotified: (m) => m.lowStockNotifiedAt != null,
++        message: (m) =>
++            '${m.name} is low on stock (${m.currentStock} ${m.unit} left).',
++        markNotified: (m) =>
++            ref.read(inventoryRepositoryProvider).markLowStockNotified(m.id),
++      );
++      _previousLowStockIds = medicines.map((m) => m.id).toSet();
++    });
++
++    ref.listen<AsyncValue<List<MedicineModel>>>(expiringMedicinesProvider, (
++      previous,
++      next,
++    ) {
++      final medicines = next.valueOrNull;
++      if (medicines == null) return;
++      final isFirst = _isFirstExpiringEmission;
++      _isFirstExpiringEmission = false;
++      _handleNewAlerts(
++        medicines: medicines,
++        previousIds: _previousExpiringIds,
++        skip: isFirst,
++        alreadyNotified: (m) => m.expiryNotifiedAt != null,
++        message: (m) => '${m.name} is expiring soon.',
++        markNotified: (m) =>
++            ref.read(inventoryRepositoryProvider).markExpiryNotified(m.id),
++      );
++      _previousExpiringIds = medicines.map((m) => m.id).toSet();
++    });
++
++    return widget.child;
++  }
++
++  void _handleNewAlerts({
++    required List<MedicineModel> medicines,
++    required Set<String> previousIds,
++    required bool skip,
++    required bool Function(MedicineModel) alreadyNotified,
++    required String Function(MedicineModel) message,
++    required Future<void> Function(MedicineModel) markNotified,
++  }) {
++    // Don't spam alerts for everything that's already low/expiring the
++    // first time this listener mounts (e.g. app restart) — only alert on
++    // medicines that newly cross the threshold while the app is open.
++    if (skip) return;
++
++    final newlyEntered = medicines.where(
++      (m) => !previousIds.contains(m.id) && !alreadyNotified(m),
++    );
++
++    for (final medicine in newlyEntered) {
++      final messenger = ScaffoldMessenger.maybeOf(context);
++      messenger?.showSnackBar(
++        SnackBar(
++          content: Text(
++            message(medicine),
++            style: const TextStyle(fontFamily: AppColors.bodyFontFamily),
++          ),
++          backgroundColor: AppColors.charcoalGray,
++          behavior: SnackBarBehavior.floating,
++        ),
++      );
++      markNotified(medicine);
++    }
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/presentation/inventory_list_screen.dart b/CruDoc/lib/features/inventory/presentation/inventory_list_screen.dart
+new file mode 100644
+index 0000000..92f4dda
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/presentation/inventory_list_screen.dart
+@@ -0,0 +1,442 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
++import 'package:doctor_management_app/features/inventory/presentation/add_edit_medicine_form.dart';
++import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
++import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
++
++enum _InventoryFilter { all, lowStock, expiring }
++
++/// The Inventory tab screen — search, filter, and list every active
++/// medicine, with a FAB to add a new one.
++class InventoryListScreen extends ConsumerStatefulWidget {
++  const InventoryListScreen({super.key, this.autoOpenAddForm = false});
++
++  /// When true, the Add Medicine form opens automatically once this screen
++  /// mounts — used by the dashboard's "Add Inventory Item" quick action so
++  /// it can push straight into the add flow, matching how the dashboard
++  /// pushes [AddPatientPage] for "Patient".
++  final bool autoOpenAddForm;
++
++  @override
++  ConsumerState<InventoryListScreen> createState() =>
++      _InventoryListScreenState();
++}
++
++class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
++  final _searchController = TextEditingController();
++  String _query = '';
++  _InventoryFilter _filter = _InventoryFilter.all;
++  String? _category;
++
++  @override
++  void initState() {
++    super.initState();
++    if (widget.autoOpenAddForm) {
++      WidgetsBinding.instance.addPostFrameCallback((_) {
++        if (mounted) showAddEditMedicineForm(context);
++      });
++    }
++  }
++
++  @override
++  void dispose() {
++    _searchController.dispose();
++    super.dispose();
++  }
++
++  List<MedicineModel> _applyFilters(List<MedicineModel> medicines) {
++    var result = medicines;
++
++    switch (_filter) {
++      case _InventoryFilter.lowStock:
++        result = result.where((m) => m.isLowStock).toList();
++        break;
++      case _InventoryFilter.expiring:
++        result = result.where((m) => m.isExpiringSoon).toList();
++        break;
++      case _InventoryFilter.all:
++        break;
++    }
++
++    if (_category != null) {
++      result = result.where((m) => m.category == _category).toList();
++    }
++
++    final query = _query.trim().toLowerCase();
++    if (query.isNotEmpty) {
++      result = result
++          .where((m) => m.name.toLowerCase().contains(query))
++          .toList();
++    }
++
++    return result;
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final medicinesAsync = ref.watch(medicinesStreamProvider);
++
++    return Scaffold(
++      backgroundColor: Colors.transparent,
++      floatingActionButton: FloatingActionButton(
++        backgroundColor: AppColors.chartBarLight,
++        foregroundColor: Colors.white,
++        onPressed: () => showAddEditMedicineForm(context),
++        child: const Icon(Icons.add),
++      ),
++      body: SafeArea(
++        child: Padding(
++          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.start,
++            children: [
++              const Text('Inventory', style: AppColors.pageHeading),
++              const SizedBox(height: 8),
++              _SearchBar(
++                controller: _searchController,
++                onChanged: (value) => setState(() => _query = value),
++              ),
++              const SizedBox(height: 12),
++              medicinesAsync.when(
++                loading: () => const SizedBox.shrink(),
++                error: (_, __) => const SizedBox.shrink(),
++                data: (medicines) => _FilterRow(
++                  selected: _filter,
++                  category: _category,
++                  categories: medicines
++                      .map((m) => m.category)
++                      .where((c) => c.trim().isNotEmpty)
++                      .toSet()
++                      .toList()
++                    ..sort(),
++                  onSelected: (filter) => setState(() => _filter = filter),
++                  onCategorySelected: (category) =>
++                      setState(() => _category = category),
++                ),
++              ),
++              const SizedBox(height: 12),
++              Expanded(
++                child: medicinesAsync.when(
++                  loading: () =>
++                      const Center(child: CircularProgressIndicator()),
++                  error: (error, _) => Center(
++                    child: Text(
++                      'Error loading inventory: $error',
++                      style: AppColors.bodyMedium,
++                    ),
++                  ),
++                  data: (medicines) {
++                    final filtered = _applyFilters(medicines);
++                    if (filtered.isEmpty) {
++                      final message = medicines.isEmpty
++                          ? 'No medicines yet — tap + to add one'
++                          : 'No matches';
++                      return Center(
++                        child: Padding(
++                          padding: const EdgeInsets.all(24),
++                          child: Text(
++                            message,
++                            style: AppColors.bodyMedium,
++                            textAlign: TextAlign.center,
++                          ),
++                        ),
++                      );
++                    }
++                    return ListView.builder(
++                      padding: const EdgeInsets.only(bottom: 80),
++                      physics: const ClampingScrollPhysics(),
++                      itemCount: filtered.length,
++                      itemBuilder: (context, index) =>
++                          _MedicineTile(medicine: filtered[index]),
++                    );
++                  },
++                ),
++              ),
++            ],
++          ),
++        ),
++      ),
++    );
++  }
++}
++
++// ---------- SEARCH BAR ----------
++class _SearchBar extends StatelessWidget {
++  const _SearchBar({required this.controller, required this.onChanged});
++
++  final TextEditingController controller;
++  final ValueChanged<String> onChanged;
++
++  @override
++  Widget build(BuildContext context) {
++    return Container(
++      height: 44,
++      decoration: BoxDecoration(
++        color: AppColors.cardSurface,
++        borderRadius: BorderRadius.circular(12),
++        border: Border.all(color: AppColors.divider),
++      ),
++      child: Row(
++        children: [
++          const SizedBox(width: 12),
++          const Icon(Icons.search, color: AppColors.silver, size: 20),
++          const SizedBox(width: 8),
++          Expanded(
++            child: TextField(
++              controller: controller,
++              style: AppColors.bodyMedium,
++              onChanged: onChanged,
++              decoration: const InputDecoration(
++                hintText: 'Search medicines...',
++                hintStyle: TextStyle(
++                  fontFamily: AppColors.bodyFontFamily,
++                  fontSize: 14,
++                  fontWeight: FontWeight.w400,
++                  color: AppColors.textSecondary,
++                ),
++                border: InputBorder.none,
++              ),
++            ),
++          ),
++          if (controller.text.isNotEmpty)
++            IconButton(
++              icon: const Icon(Icons.close, size: 18),
++              color: AppColors.silver,
++              padding: EdgeInsets.zero,
++              constraints: const BoxConstraints(),
++              onPressed: () {
++                controller.clear();
++                onChanged('');
++              },
++            ),
++          const SizedBox(width: 8),
++        ],
++      ),
++    );
++  }
++}
++
++// ---------- FILTER CHIPS ----------
++class _FilterRow extends StatelessWidget {
++  const _FilterRow({
++    required this.selected,
++    required this.category,
++    required this.categories,
++    required this.onSelected,
++    required this.onCategorySelected,
++  });
++
++  final _InventoryFilter selected;
++  final String? category;
++  final List<String> categories;
++  final ValueChanged<_InventoryFilter> onSelected;
++  final ValueChanged<String?> onCategorySelected;
++
++  @override
++  Widget build(BuildContext context) {
++    return SingleChildScrollView(
++      scrollDirection: Axis.horizontal,
++      child: Row(
++        children: [
++          _FilterChip(
++            label: 'All',
++            selected: selected == _InventoryFilter.all,
++            onTap: () => onSelected(_InventoryFilter.all),
++          ),
++          const SizedBox(width: 8),
++          _FilterChip(
++            label: 'Low Stock',
++            selected: selected == _InventoryFilter.lowStock,
++            onTap: () => onSelected(_InventoryFilter.lowStock),
++          ),
++          const SizedBox(width: 8),
++          _FilterChip(
++            label: 'Expiring Soon',
++            selected: selected == _InventoryFilter.expiring,
++            onTap: () => onSelected(_InventoryFilter.expiring),
++          ),
++          if (categories.isNotEmpty) ...[
++            const SizedBox(width: 8),
++            Container(width: 1, height: 20, color: AppColors.divider),
++            const SizedBox(width: 8),
++            for (final c in categories) ...[
++              _FilterChip(
++                label: c,
++                selected: category == c,
++                onTap: () => onCategorySelected(category == c ? null : c),
++              ),
++              const SizedBox(width: 8),
++            ],
++          ],
++        ],
++      ),
++    );
++  }
++}
++
++class _FilterChip extends StatelessWidget {
++  const _FilterChip({
++    required this.label,
++    required this.selected,
++    required this.onTap,
++  });
++
++  final String label;
++  final bool selected;
++  final VoidCallback onTap;
++
++  @override
++  Widget build(BuildContext context) {
++    return GestureDetector(
++      onTap: onTap,
++      child: AnimatedContainer(
++        duration: const Duration(milliseconds: 150),
++        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
++        decoration: BoxDecoration(
++          color: selected ? AppColors.chartBarLight : AppColors.cardSurface,
++          borderRadius: BorderRadius.circular(20),
++          border: Border.all(
++            color: selected ? AppColors.chartBarLight : AppColors.divider,
++          ),
++        ),
++        child: Text(
++          label,
++          style: TextStyle(
++            fontFamily: AppColors.bodyFontFamily,
++            fontSize: 12,
++            fontWeight: FontWeight.w600,
++            color: selected ? Colors.white : AppColors.textPrimary,
++          ),
++        ),
++      ),
++    );
++  }
++}
++
++// ---------- MEDICINE TILE ----------
++class _MedicineTile extends StatelessWidget {
++  const _MedicineTile({required this.medicine});
++
++  final MedicineModel medicine;
++
++  Color _stockColor() {
++    if (medicine.currentStock <= medicine.reorderThreshold) {
++      return Colors.redAccent;
++    }
++    if (medicine.currentStock <= medicine.reorderThreshold * 1.5) {
++      return const Color(0xFFCC8B00); // amber
++    }
++    return AppColors.positiveGreen;
++  }
++
++  String? _expiryLabel() {
++    final expiry = medicine.expiryDate;
++    if (expiry == null) return null;
++    final days = expiry.difference(DateTime.now()).inDays;
++    if (days < 0) return 'Expired';
++    if (days == 0) return 'Expires today';
++    if (days <= 30) return 'Expires in $days d';
++    return null;
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final expiryLabel = _expiryLabel();
++
++    return Padding(
++      padding: const EdgeInsets.only(bottom: 8),
++      child: Material(
++        color: AppColors.cardSurface,
++        borderRadius: BorderRadius.circular(20),
++        child: InkWell(
++          borderRadius: BorderRadius.circular(20),
++          onTap: () {
++            Navigator.push(
++              context,
++              MaterialPageRoute(
++                builder: (_) => MedicineDetailScreen(medicine: medicine),
++              ),
++            );
++          },
++          child: Container(
++            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
++            child: Row(
++              children: [
++                Container(
++                  width: 8,
++                  height: 44,
++                  decoration: BoxDecoration(
++                    color: _stockColor(),
++                    borderRadius: BorderRadius.circular(4),
++                  ),
++                ),
++                const SizedBox(width: 12),
++                Expanded(
++                  child: Column(
++                    crossAxisAlignment: CrossAxisAlignment.start,
++                    children: [
++                      Text(
++                        medicine.name,
++                        style: AppColors.bodyLarge.copyWith(
++                          fontSize: 16,
++                          fontWeight: FontWeight.w600,
++                        ),
++                      ),
++                      const SizedBox(height: 2),
++                      Text(
++                        '${medicine.currentStock} / ${medicine.reorderThreshold} ${medicine.unit}'
++                        '${medicine.category.isNotEmpty ? ' • ${medicine.category}' : ''}',
++                        style: AppColors.bodySmall,
++                      ),
++                      if (expiryLabel != null) ...[
++                        const SizedBox(height: 2),
++                        Text(
++                          expiryLabel,
++                          style: AppColors.bodySmall.copyWith(
++                            color: Colors.redAccent,
++                            fontWeight: FontWeight.w600,
++                          ),
++                        ),
++                      ],
++                    ],
++                  ),
++                ),
++                PopupMenuButton<String>(
++                  icon: const Icon(
++                    Icons.more_vert,
++                    color: AppColors.silver,
++                    size: 20,
++                  ),
++                  shape: RoundedRectangleBorder(
++                    borderRadius: BorderRadius.circular(14),
++                  ),
++                  onSelected: (value) {
++                    switch (value) {
++                      case 'adjust':
++                        showStockAdjustmentDialog(context, medicine: medicine);
++                        break;
++                      case 'edit':
++                        showAddEditMedicineForm(context, medicine: medicine);
++                        break;
++                    }
++                  },
++                  itemBuilder: (context) => const [
++                    PopupMenuItem(
++                      value: 'adjust',
++                      child: Text('Restock / Dispense'),
++                    ),
++                    PopupMenuItem(value: 'edit', child: Text('Edit')),
++                  ],
++                ),
++              ],
++            ),
++          ),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/presentation/medicine_detail_screen.dart b/CruDoc/lib/features/inventory/presentation/medicine_detail_screen.dart
+new file mode 100644
+index 0000000..f3ef4df
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/presentation/medicine_detail_screen.dart
+@@ -0,0 +1,359 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
++import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
++import 'package:doctor_management_app/features/inventory/presentation/add_edit_medicine_form.dart';
++import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
++import 'package:doctor_management_app/features/shell/components/shell_background.dart';
++
++/// Full detail view for a single medicine: current stock, expiry, and the
++/// complete transaction history, newest first.
++class MedicineDetailScreen extends ConsumerWidget {
++  const MedicineDetailScreen({super.key, required this.medicine});
++
++  final MedicineModel medicine;
++
++  @override
++  Widget build(BuildContext context, WidgetRef ref) {
++    final transactionsAsync = ref.watch(
++      medicineTransactionsProvider(medicine.id),
++    );
++
++    return Scaffold(
++      backgroundColor: Colors.transparent,
++      body: ShellBackground(
++        child: SafeArea(
++          child: Padding(
++            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
++            child: Column(
++              crossAxisAlignment: CrossAxisAlignment.start,
++              children: [
++                _TopBar(
++                  title: medicine.name,
++                  onEdit: () =>
++                      showAddEditMedicineForm(context, medicine: medicine),
++                ),
++                const SizedBox(height: 16),
++                _SummaryCard(medicine: medicine),
++                const SizedBox(height: 16),
++                Row(
++                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                  children: [
++                    Text(
++                      'Transaction History',
++                      style: AppColors.pageHeading.copyWith(
++                        fontSize: 18,
++                        fontWeight: FontWeight.w600,
++                      ),
++                    ),
++                    GestureDetector(
++                      onTap: () =>
++                          showStockAdjustmentDialog(context, medicine: medicine),
++                      child: Container(
++                        padding: const EdgeInsets.symmetric(
++                          horizontal: 10,
++                          vertical: 6,
++                        ),
++                        decoration: BoxDecoration(
++                          color: AppColors.chartBarLight,
++                          borderRadius: BorderRadius.circular(8),
++                        ),
++                        child: const Row(
++                          mainAxisSize: MainAxisSize.min,
++                          children: [
++                            Icon(Icons.swap_vert, color: Colors.white, size: 18),
++                            SizedBox(width: 4),
++                            Text(
++                              'Adjust',
++                              style: TextStyle(
++                                color: Colors.white,
++                                fontSize: 13,
++                                fontWeight: FontWeight.w600,
++                              ),
++                            ),
++                          ],
++                        ),
++                      ),
++                    ),
++                  ],
++                ),
++                const SizedBox(height: 8),
++                Expanded(
++                  child: transactionsAsync.when(
++                    loading: () =>
++                        const Center(child: CircularProgressIndicator()),
++                    error: (error, _) => Center(
++                      child: Text(
++                        'Error loading history: $error',
++                        style: AppColors.bodyMedium,
++                      ),
++                    ),
++                    data: (transactions) {
++                      if (transactions.isEmpty) {
++                        return Center(
++                          child: Text(
++                            'No transactions yet — tap Adjust to log one',
++                            style: AppColors.bodyMedium,
++                            textAlign: TextAlign.center,
++                          ),
++                        );
++                      }
++                      return ListView.builder(
++                        padding: EdgeInsets.zero,
++                        physics: const ClampingScrollPhysics(),
++                        itemCount: transactions.length,
++                        itemBuilder: (context, index) =>
++                            _TransactionTile(transaction: transactions[index]),
++                      );
++                    },
++                  ),
++                ),
++              ],
++            ),
++          ),
++        ),
++      ),
++    );
++  }
++}
++
++class _TopBar extends StatelessWidget {
++  const _TopBar({required this.title, required this.onEdit});
++
++  final String title;
++  final VoidCallback onEdit;
++
++  @override
++  Widget build(BuildContext context) {
++    return Row(
++      children: [
++        IconButton(
++          icon: const Icon(
++            Icons.arrow_back_ios_new,
++            color: AppColors.textPrimary,
++            size: 20,
++          ),
++          padding: EdgeInsets.zero,
++          constraints: const BoxConstraints(),
++          onPressed: () => Navigator.pop(context),
++        ),
++        const SizedBox(width: 10),
++        Expanded(
++          child: Text(
++            title,
++            style: const TextStyle(
++              fontFamily: AppColors.bodyFontFamily,
++              color: AppColors.textPrimary,
++              fontSize: 18,
++              fontWeight: FontWeight.w700,
++            ),
++            overflow: TextOverflow.ellipsis,
++          ),
++        ),
++        IconButton(
++          icon: const Icon(Icons.edit_outlined, color: AppColors.textPrimary),
++          onPressed: onEdit,
++        ),
++      ],
++    );
++  }
++}
++
++class _SummaryCard extends StatelessWidget {
++  const _SummaryCard({required this.medicine});
++
++  final MedicineModel medicine;
++
++  @override
++  Widget build(BuildContext context) {
++    final expiry = medicine.expiryDate;
++    return Container(
++      width: double.infinity,
++      padding: const EdgeInsets.all(18),
++      decoration: BoxDecoration(
++        color: AppColors.cardSurface,
++        borderRadius: BorderRadius.circular(24),
++        boxShadow: [
++          BoxShadow(
++            color: Colors.black.withValues(alpha: 0.05),
++            blurRadius: 14,
++            offset: const Offset(0, 8),
++          ),
++        ],
++      ),
++      child: Column(
++        crossAxisAlignment: CrossAxisAlignment.start,
++        children: [
++          Row(
++            children: [
++              Expanded(
++                child: _StatColumn(
++                  label: 'Current Stock',
++                  value: '${medicine.currentStock} ${medicine.unit}',
++                  valueColor: medicine.isLowStock
++                      ? Colors.redAccent
++                      : AppColors.positiveGreen,
++                ),
++              ),
++              Expanded(
++                child: _StatColumn(
++                  label: 'Reorder At',
++                  value: '${medicine.reorderThreshold} ${medicine.unit}',
++                ),
++              ),
++            ],
++          ),
++          const SizedBox(height: 14),
++          const Divider(height: 1, color: Color(0xFFDDE6F0)),
++          const SizedBox(height: 14),
++          Row(
++            children: [
++              Expanded(
++                child: _StatColumn(
++                  label: 'Category',
++                  value: medicine.category.isEmpty ? '—' : medicine.category,
++                ),
++              ),
++              Expanded(
++                child: _StatColumn(
++                  label: 'Expiry',
++                  value: expiry == null
++                      ? '—'
++                      : '${expiry.day}/${expiry.month}/${expiry.year}',
++                  valueColor: medicine.isExpiringSoon ? Colors.redAccent : null,
++                ),
++              ),
++            ],
++          ),
++          if (medicine.supplierName != null || medicine.batchNumber != null) ...[
++            const SizedBox(height: 14),
++            const Divider(height: 1, color: Color(0xFFDDE6F0)),
++            const SizedBox(height: 14),
++            Row(
++              children: [
++                Expanded(
++                  child: _StatColumn(
++                    label: 'Supplier',
++                    value: medicine.supplierName ?? '—',
++                  ),
++                ),
++                Expanded(
++                  child: _StatColumn(
++                    label: 'Batch',
++                    value: medicine.batchNumber ?? '—',
++                  ),
++                ),
++              ],
++            ),
++          ],
++        ],
++      ),
++    );
++  }
++}
++
++class _StatColumn extends StatelessWidget {
++  const _StatColumn({required this.label, required this.value, this.valueColor});
++
++  final String label;
++  final String value;
++  final Color? valueColor;
++
++  @override
++  Widget build(BuildContext context) {
++    return Column(
++      crossAxisAlignment: CrossAxisAlignment.start,
++      children: [
++        Text(label, style: AppColors.bodySmall),
++        const SizedBox(height: 4),
++        Text(
++          value,
++          style: AppColors.bodyLarge.copyWith(
++            fontSize: 16,
++            fontWeight: FontWeight.w700,
++            color: valueColor ?? AppColors.textPrimary,
++          ),
++        ),
++      ],
++    );
++  }
++}
++
++class _TransactionTile extends StatelessWidget {
++  const _TransactionTile({required this.transaction});
++
++  final StockTransactionModel transaction;
++
++  IconData _icon() {
++    switch (transaction.type) {
++      case StockTransactionType.restock:
++        return Icons.add_circle_outline;
++      case StockTransactionType.dispense:
++        return Icons.remove_circle_outline;
++      case StockTransactionType.adjustment:
++        return Icons.tune;
++      case StockTransactionType.expiredWriteoff:
++        return Icons.delete_outline;
++    }
++  }
++
++  String _label() {
++    switch (transaction.type) {
++      case StockTransactionType.restock:
++        return 'Restocked';
++      case StockTransactionType.dispense:
++        return 'Dispensed';
++      case StockTransactionType.adjustment:
++        return 'Adjusted';
++      case StockTransactionType.expiredWriteoff:
++        return 'Written off (expired)';
++    }
++  }
++
++  bool get _isIncrease => transaction.type == StockTransactionType.restock;
++
++  @override
++  Widget build(BuildContext context) {
++    final dt = transaction.createdAt;
++    final timeLabel = '${dt.day}/${dt.month}/${dt.year}';
++
++    return Padding(
++      padding: const EdgeInsets.only(bottom: 8),
++      child: Container(
++        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
++        decoration: BoxDecoration(
++          color: AppColors.cardSurface,
++          borderRadius: BorderRadius.circular(16),
++        ),
++        child: Row(
++          children: [
++            Icon(_icon(), color: AppColors.silver, size: 18),
++            const SizedBox(width: 10),
++            Expanded(
++              child: Column(
++                crossAxisAlignment: CrossAxisAlignment.start,
++                children: [
++                  Text(
++                    '${_label()} • ${_isIncrease ? '+' : '-'}${transaction.quantity}',
++                    style: AppColors.bodyMedium.copyWith(
++                      fontWeight: FontWeight.w600,
++                    ),
++                  ),
++                  if (transaction.note != null && transaction.note!.isNotEmpty)
++                    Text(transaction.note!, style: AppColors.bodySmall),
++                  Text(
++                    'Stock after: ${transaction.resultingStock} · $timeLabel',
++                    style: AppColors.bodySmall,
++                  ),
++                ],
++              ),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++}
+diff --git a/CruDoc/lib/features/inventory/presentation/stock_adjustment_dialog.dart b/CruDoc/lib/features/inventory/presentation/stock_adjustment_dialog.dart
+new file mode 100644
+index 0000000..693ee67
+--- /dev/null
++++ b/CruDoc/lib/features/inventory/presentation/stock_adjustment_dialog.dart
+@@ -0,0 +1,329 @@
++import 'package:flutter/material.dart';
++import 'package:flutter_riverpod/flutter_riverpod.dart';
++
++import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
++import 'package:doctor_management_app/core/theme/app_colors.dart';
++import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
++import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
++import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
++import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
++
++/// Shows the quick restock/dispense dialog for [medicine].
++Future<void> showStockAdjustmentDialog(
++  BuildContext context, {
++  required MedicineModel medicine,
++  InventoryRepository? repository,
++}) {
++  return showDialog<void>(
++    context: context,
++    builder: (_) => StockAdjustmentDialog(
++      medicine: medicine,
++      repository: repository,
++    ),
++  );
++}
++
++/// Quick-action dialog for logging a restock or dispense transaction
++/// against a single medicine.
++class StockAdjustmentDialog extends ConsumerStatefulWidget {
++  const StockAdjustmentDialog({
++    super.key,
++    required this.medicine,
++    this.repository,
++  });
++
++  final MedicineModel medicine;
++  final InventoryRepository? repository;
++
++  @override
++  ConsumerState<StockAdjustmentDialog> createState() =>
++      _StockAdjustmentDialogState();
++}
++
++class _StockAdjustmentDialogState
++    extends ConsumerState<StockAdjustmentDialog> {
++  late final InventoryRepository _repository =
++      widget.repository ?? InventoryRepository();
++
++  final _quantityController = TextEditingController();
++  final _noteController = TextEditingController();
++
++  StockTransactionType _type = StockTransactionType.restock;
++  bool _isSaving = false;
++  String? _errorText;
++
++  @override
++  void dispose() {
++    _quantityController.dispose();
++    _noteController.dispose();
++    super.dispose();
++  }
++
++  Future<void> _handleSubmit() async {
++    final quantity = int.tryParse(_quantityController.text.trim());
++    if (quantity == null || quantity <= 0) {
++      setState(() => _errorText = 'Enter a valid quantity.');
++      return;
++    }
++
++    setState(() {
++      _isSaving = true;
++      _errorText = null;
++    });
++
++    try {
++      await _repository.recordTransaction(
++        medicineId: widget.medicine.id,
++        type: _type,
++        quantity: quantity,
++        note: _noteController.text.trim().isEmpty
++            ? null
++            : _noteController.text.trim(),
++      );
++      ref.invalidate(medicineTransactionsProvider(widget.medicine.id));
++      if (mounted) Navigator.pop(context);
++    } on InsufficientStockException catch (e) {
++      setState(() {
++        _isSaving = false;
++        _errorText = e.message;
++      });
++    } on MedicineValidationException catch (e) {
++      setState(() {
++        _isSaving = false;
++        _errorText = e.message;
++      });
++    } catch (e) {
++      setState(() {
++        _isSaving = false;
++        _errorText = 'Failed to save: $e';
++      });
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return AlertDialog(
++      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
++      backgroundColor: AppColors.cardSurface,
++      titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
++      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
++      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
++      title: Text(
++        'Adjust Stock — ${widget.medicine.name}',
++        style: AppColors.sectionHeading.copyWith(fontSize: 18),
++      ),
++      content: SizedBox(
++        width: 340,
++        child: Column(
++          mainAxisSize: MainAxisSize.min,
++          crossAxisAlignment: CrossAxisAlignment.start,
++          children: [
++            const SizedBox(height: 16),
++            Row(
++              children: [
++                Expanded(
++                  child: _TypeChip(
++                    label: 'Restock',
++                    icon: Icons.add_circle_outline,
++                    selected: _type == StockTransactionType.restock,
++                    onTap: () => setState(
++                      () => _type = StockTransactionType.restock,
++                    ),
++                  ),
++                ),
++                const SizedBox(width: 12),
++                Expanded(
++                  child: _TypeChip(
++                    label: 'Dispense',
++                    icon: Icons.remove_circle_outline,
++                    selected: _type == StockTransactionType.dispense,
++                    onTap: () => setState(
++                      () => _type = StockTransactionType.dispense,
++                    ),
++                  ),
++                ),
++              ],
++            ),
++            const SizedBox(height: 16),
++            Text(
++              'Quantity',
++              style: const TextStyle(
++                fontFamily: AppColors.bodyFontFamily,
++                fontSize: 13,
++                fontWeight: FontWeight.w600,
++                color: AppColors.textPrimary,
++              ),
++            ),
++            const SizedBox(height: 8),
++            TextField(
++              controller: _quantityController,
++              enabled: !_isSaving,
++              keyboardType: TextInputType.number,
++              style: AppColors.bodyMedium,
++              decoration: InputDecoration(
++                hintText: 'e.g. 20',
++                hintStyle: const TextStyle(
++                  fontFamily: AppColors.bodyFontFamily,
++                  color: AppColors.textSecondary,
++                ),
++                filled: true,
++                fillColor: Colors.white,
++                contentPadding: const EdgeInsets.symmetric(
++                  horizontal: 16,
++                  vertical: 14,
++                ),
++                border: OutlineInputBorder(
++                  borderRadius: BorderRadius.circular(16),
++                  borderSide: BorderSide.none,
++                ),
++              ),
++            ),
++            const SizedBox(height: 16),
++            const Text(
++              'Note (optional)',
++              style: TextStyle(
++                fontFamily: AppColors.bodyFontFamily,
++                fontSize: 13,
++                fontWeight: FontWeight.w600,
++                color: AppColors.textPrimary,
++              ),
++            ),
++            const SizedBox(height: 8),
++            TextField(
++              controller: _noteController,
++              enabled: !_isSaving,
++              style: AppColors.bodyMedium,
++              decoration: InputDecoration(
++                hintText: 'e.g. Dispensed to patient visit',
++                hintStyle: const TextStyle(
++                  fontFamily: AppColors.bodyFontFamily,
++                  color: AppColors.textSecondary,
++                ),
++                filled: true,
++                fillColor: Colors.white,
++                contentPadding: const EdgeInsets.symmetric(
++                  horizontal: 16,
++                  vertical: 14,
++                ),
++                border: OutlineInputBorder(
++                  borderRadius: BorderRadius.circular(16),
++                  borderSide: BorderSide.none,
++                ),
++              ),
++            ),
++            if (_errorText != null) ...[
++              const SizedBox(height: 12),
++              Row(
++                children: [
++                  const Icon(Icons.error_outline,
++                      color: Colors.redAccent, size: 16),
++                  const SizedBox(width: 6),
++                  Expanded(
++                    child: Text(
++                      _errorText!,
++                      style: const TextStyle(
++                        fontFamily: AppColors.bodyFontFamily,
++                        color: Colors.redAccent,
++                        fontSize: 12,
++                      ),
++                    ),
++                  ),
++                ],
++              ),
++            ],
++          ],
++        ),
++      ),
++      actions: [
++        TextButton(
++          onPressed: _isSaving ? null : () => Navigator.pop(context),
++          child: const Text(
++            'Cancel',
++            style: TextStyle(
++              fontFamily: AppColors.bodyFontFamily,
++              color: AppColors.slateBlue,
++            ),
++          ),
++        ),
++        FilledButton(
++          onPressed: _isSaving ? null : _handleSubmit,
++          style: FilledButton.styleFrom(
++            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
++            backgroundColor: AppColors.chartBarLight,
++            foregroundColor: Colors.white,
++            shape: RoundedRectangleBorder(
++              borderRadius: BorderRadius.circular(16),
++            ),
++          ),
++          child: _isSaving
++              ? const SizedBox(
++                  width: 16,
++                  height: 16,
++                  child: CircularProgressIndicator(
++                    strokeWidth: 2,
++                    color: Colors.white,
++                  ),
++                )
++              : const Text(
++                  'Save',
++                  style: TextStyle(
++                    fontFamily: AppColors.bodyFontFamily,
++                    fontWeight: FontWeight.w600,
++                  ),
++                ),
++        ),
++      ],
++    );
++  }
++}
++
++class _TypeChip extends StatelessWidget {
++  const _TypeChip({
++    required this.label,
++    required this.icon,
++    required this.selected,
++    required this.onTap,
++  });
++
++  final String label;
++  final IconData icon;
++  final bool selected;
++  final VoidCallback onTap;
++
++  @override
++  Widget build(BuildContext context) {
++    return GestureDetector(
++      onTap: onTap,
++      child: AnimatedContainer(
++        duration: const Duration(milliseconds: 150),
++        padding: const EdgeInsets.symmetric(vertical: 12),
++        decoration: BoxDecoration(
++          color: selected ? AppColors.chartBarLight : Colors.white,
++          borderRadius: BorderRadius.circular(14),
++          border: Border.all(
++            color: selected ? AppColors.chartBarLight : AppColors.divider,
++          ),
++        ),
++        child: Column(
++          children: [
++            Icon(
++              icon,
++              size: 20,
++              color: selected ? Colors.white : AppColors.textPrimary,
++            ),
++            const SizedBox(height: 4),
++            Text(
++              label,
++              style: TextStyle(
++                fontFamily: AppColors.bodyFontFamily,
++                fontSize: 12,
++                fontWeight: FontWeight.w600,
++                color: selected ? Colors.white : AppColors.textPrimary,
++              ),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++}
+diff --git a/CruDoc/lib/features/invoice/presentation/invoice_create_screen.dart b/CruDoc/lib/features/invoice/presentation/invoice_create_screen.dart
+deleted file mode 100644
+index bd5f2e8..0000000
+--- a/CruDoc/lib/features/invoice/presentation/invoice_create_screen.dart
++++ /dev/null
+@@ -1,28 +0,0 @@
+-import 'package:flutter/material.dart';
+-
+-class InvoiceCreateScreen extends StatelessWidget {
+-  const InvoiceCreateScreen({super.key});
+-
+-  @override
+-  Widget build(BuildContext context) {
+-    return Scaffold(
+-      backgroundColor: Colors.transparent,
+-      appBar: AppBar(
+-        backgroundColor: Colors.transparent,
+-        title: const Text('Create Invoice'),
+-      ),
+-      body: const Center(
+-        child: Text(
+-          'Invoice creation coming soon',
+-          style: TextStyle(fontSize: 18, color: Colors.white70),
+-        ),
+-      ),
+-    );
+-  }
+-}
+-
+-
+-
+-
+-
+-
+diff --git a/CruDoc/lib/features/invoice/presentation/invoice_detail_screen.dart b/CruDoc/lib/features/invoice/presentation/invoice_detail_screen.dart
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/CruDoc/lib/features/invoice/presentation/invoice_list_screen.dart b/CruDoc/lib/features/invoice/presentation/invoice_list_screen.dart
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/CruDoc/lib/features/invoice/presentation/invoice_preview_screen.dart b/CruDoc/lib/features/invoice/presentation/invoice_preview_screen.dart
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/CruDoc/lib/features/invoice/widgets/invoice_tile.dart b/CruDoc/lib/features/invoice/widgets/invoice_tile.dart
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/CruDoc/lib/features/invoice/widgets/patient_visit_picker.dart b/CruDoc/lib/features/invoice/widgets/patient_visit_picker.dart
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/CruDoc/lib/features/shell/presentation/shell.dart b/CruDoc/lib/features/shell/presentation/shell.dart
+index f555f8c..aaec89b 100644
+--- a/CruDoc/lib/features/shell/presentation/shell.dart
++++ b/CruDoc/lib/features/shell/presentation/shell.dart
+@@ -5,7 +5,8 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard.
+ import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
+ import 'package:doctor_management_app/features/revenue/presentation/revenue.dart';
+ import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
+-import 'package:doctor_management_app/features/invoice/presentation/invoice_create_screen.dart';
++import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
++import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
+ import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
+ 
+ class Shell extends StatefulWidget {
+@@ -30,7 +31,7 @@ class _ShellState extends State<Shell> {
+     _screens = [
+       HomeDashboardScreen(onNavigateToTab: _onNavTap),
+       const PatientRecords(),
+-      const InvoiceCreateScreen(),
++      const InventoryListScreen(),
+       const RevenueScreen(),
+       const EventsScreen(),
+     ];
+@@ -53,35 +54,41 @@ class _ShellState extends State<Shell> {
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return Scaffold(
+-      backgroundColor: Colors.transparent,
+-      body: Stack(
+-        children: [
+-          // ---- Background gradient + animated lines + PageView ----
+-          ShellBackground(
+-            child: PageView(
+-              controller: _pageController,
+-              onPageChanged: (index) => setState(() => _currentIndex = index),
+-              children: _screens
+-                  .map(
+-                    (screen) => Padding(
+-                      padding: EdgeInsets.only(
+-                        bottom: navBarHeight,
+-                      ), // make room for the overlay
+-                      child: screen,
+-                    ),
+-                  )
+-                  .toList(),
++    return InventoryAlertListener(
++      child: Scaffold(
++        backgroundColor: Colors.transparent,
++        body: Stack(
++          children: [
++            // ---- Background gradient + animated lines + PageView ----
++            ShellBackground(
++              child: PageView(
++                controller: _pageController,
++                onPageChanged: (index) =>
++                    setState(() => _currentIndex = index),
++                children: _screens
++                    .map(
++                      (screen) => Padding(
++                        padding: EdgeInsets.only(
++                          bottom: navBarHeight,
++                        ), // make room for the overlay
++                        child: screen,
++                      ),
++                    )
++                    .toList(),
++              ),
+             ),
+-          ),
+-          // ---- Floating navigation bar ----
+-          Positioned(
+-            left: 20,
+-            right: 20,
+-            bottom: 12,
+-            child: BottomNavBar(selectedIndex: _currentIndex, onTap: _onNavTap),
+-          ),
+-        ],
++            // ---- Floating navigation bar ----
++            Positioned(
++              left: 20,
++              right: 20,
++              bottom: 12,
++              child: BottomNavBar(
++                selectedIndex: _currentIndex,
++                onTap: _onNavTap,
++              ),
++            ),
++          ],
++        ),
+       ),
+     );
+   }

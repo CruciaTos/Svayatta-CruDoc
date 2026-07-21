@@ -8,8 +8,8 @@ class RecentActivityCard extends StatelessWidget {
 
   static const List<_ActivityItem> _items = [
     _ActivityItem(
-      icon: Icons.check_circle_outline,
-      text: 'Invoice INV-2026-0007 marked as paid',
+      icon: Icons.inventory_2_outlined,
+      text: 'Restocked Amoxicillin 500mg — +50 units',
       time: '2h ago',
     ),
     _ActivityItem(

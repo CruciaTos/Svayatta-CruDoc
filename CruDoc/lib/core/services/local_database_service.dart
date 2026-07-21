@@ -57,6 +57,8 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createVisitsTable(txn);
       await _createRevenueEntriesTable(txn);
       await _createPendingPaymentsTable(txn);
+      await _createMedicinesTable(txn);
+      await _createStockTransactionsTable(txn);
       await _createSyncStateTable(txn);
       await _createIndexes(txn);
     });
@@ -71,6 +73,8 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createVisitsTable(txn);
       await _createRevenueEntriesTable(txn);
       await _createPendingPaymentsTable(txn);
+      await _createMedicinesTable(txn);
+      await _createStockTransactionsTable(txn);
       await _createSyncStateTable(txn);
 
       await _ensureColumns(txn, table: 'patients', columns: _patientsColumns);
@@ -84,6 +88,16 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'pending_payments',
         columns: _pendingPaymentsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'medicines',
+        columns: _medicinesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'stock_transactions',
+        columns: _stockTransactionsColumns,
       );
       await _ensureColumns(
         txn,
@@ -197,6 +211,57 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
+  Future<void> _createMedicinesTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS medicines (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT '',
+        unit TEXT NOT NULL DEFAULT '',
+        currentStock INTEGER NOT NULL DEFAULT 0,
+        reorderThreshold INTEGER NOT NULL DEFAULT 10,
+        unitPrice REAL,
+        supplierName TEXT,
+        batchNumber TEXT,
+        expiryDate INTEGER,
+        lowStockNotifiedAt INTEGER,
+        expiryNotifiedAt INTEGER,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  Future<void> _createStockTransactionsTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS stock_transactions (
+        id TEXT PRIMARY KEY,
+        medicineId TEXT NOT NULL,
+        doctorId TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT 'restock'
+          CHECK (type IN ('restock', 'dispense', 'adjustment', 'expired_writeoff')),
+        quantity INTEGER NOT NULL DEFAULT 0,
+        resultingStock INTEGER NOT NULL DEFAULT 0,
+        note TEXT,
+        linkedVisitId TEXT,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER,
+        FOREIGN KEY (medicineId) REFERENCES medicines (id) ON DELETE RESTRICT
+      )
+    ''');
+  }
+
   Future<void> _createSyncStateTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS sync_state (
@@ -283,6 +348,36 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_pending_payments_updated_at
       ON pending_payments (updatedAt)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_medicines_active_name
+      ON medicines (isActive, name)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_medicines_category
+      ON medicines (category)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_medicines_sync_pending
+      ON medicines (syncStatus, pendingDelete)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_medicines_updated_at
+      ON medicines (updatedAt)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_stock_transactions_medicine_history
+      ON stock_transactions (medicineId, createdAt DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_stock_transactions_sync_pending
+      ON stock_transactions (syncStatus, pendingDelete)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_stock_transactions_updated_at
+      ON stock_transactions (updatedAt)
     ''');
   }
 
@@ -373,6 +468,45 @@ class LocalDatabaseService extends ChangeNotifier {
     'description': "description TEXT NOT NULL DEFAULT ''",
     'amount': 'amount REAL NOT NULL DEFAULT 0',
     'isPaid': 'isPaid INTEGER NOT NULL DEFAULT 0',
+    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  static const Map<String, String> _medicinesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'name': "name TEXT NOT NULL DEFAULT ''",
+    'category': "category TEXT NOT NULL DEFAULT ''",
+    'unit': "unit TEXT NOT NULL DEFAULT ''",
+    'currentStock': 'currentStock INTEGER NOT NULL DEFAULT 0',
+    'reorderThreshold': 'reorderThreshold INTEGER NOT NULL DEFAULT 10',
+    'unitPrice': 'unitPrice REAL',
+    'supplierName': 'supplierName TEXT',
+    'batchNumber': 'batchNumber TEXT',
+    'expiryDate': 'expiryDate INTEGER',
+    'lowStockNotifiedAt': 'lowStockNotifiedAt INTEGER',
+    'expiryNotifiedAt': 'expiryNotifiedAt INTEGER',
+    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  static const Map<String, String> _stockTransactionsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'medicineId': "medicineId TEXT NOT NULL DEFAULT ''",
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'type': "type TEXT NOT NULL DEFAULT 'restock'",
+    'quantity': 'quantity INTEGER NOT NULL DEFAULT 0',
+    'resultingStock': 'resultingStock INTEGER NOT NULL DEFAULT 0',
+    'note': 'note TEXT',
+    'linkedVisitId': 'linkedVisitId TEXT',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',

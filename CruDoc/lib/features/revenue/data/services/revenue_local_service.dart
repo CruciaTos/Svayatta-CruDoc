@@ -356,6 +356,10 @@ class RevenueLocalService {
       'description': payment.description,
       'amount': payment.amount,
       'isPaid': payment.isPaid ? 1 : 0,
+      'payer': payment.payer,
+      'patientId': payment.patientId,
+      'visitId': payment.visitId,
+      'notes': payment.notes,
       'isActive': pendingDelete ? 0 : 1,
       'createdAt': _dateTimeToMillis(payment.createdAt),
       'updatedAt': _dateTimeToMillis(payment.updatedAt),
@@ -390,6 +394,10 @@ class RevenueLocalService {
           }
           break;
         case 'description':
+        case 'payer':
+        case 'patientId':
+        case 'visitId':
+        case 'notes':
           row[entry.key] = entry.value;
           break;
       }
@@ -404,9 +412,31 @@ class RevenueLocalService {
       description: row['description'] as String? ?? '',
       amount: (row['amount'] as num?)?.toDouble() ?? 0,
       isPaid: row['isPaid'] == 1,
+      payer: row['payer'] as String?,
+      patientId: row['patientId'] as String?,
+      visitId: row['visitId'] as String?,
+      notes: row['notes'] as String?,
       createdAt: _millisToDateTime(row['createdAt']),
       updatedAt: _millisToDateTime(row['updatedAt']),
     );
+  }
+
+  /// Fetches the pending payment linked to [visitId], if one exists —
+  /// regardless of whether it's already been marked paid. Used by
+  /// `RevenueRepository.getPendingPaymentForVisit` so
+  /// `VisitRepository.updateStatus` can tell whether a visitation
+  /// already has a pending payment before creating another one.
+  Future<PendingPayment?> getPendingPaymentForVisit(String visitId) async {
+    final db = await _databaseService.database;
+    final rows = await db.query(
+      'pending_payments',
+      where: 'visitId = ? AND isActive = 1',
+      whereArgs: [visitId],
+      orderBy: 'createdAt DESC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return _pendingPaymentFromRow(rows.first);
   }
 
   int _dateTimeToMillis(DateTime value) => value.millisecondsSinceEpoch;

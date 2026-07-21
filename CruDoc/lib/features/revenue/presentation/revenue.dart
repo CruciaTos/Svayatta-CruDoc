@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
+import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
@@ -21,6 +22,7 @@ class RevenueScreen extends StatefulWidget {
 class _RevenueScreenState extends State<RevenueScreen> {
   late final RevenueRepository _repository =
       widget._repository ?? RevenueRepository();
+  late final VisitRepository _visitRepository = VisitRepository();
 
   static const List<String> _filterOptions = [
     'Today',
@@ -118,9 +120,29 @@ class _RevenueScreenState extends State<RevenueScreen> {
     );
   }
 
+  Future<void> _openPendingPaymentDetails(PendingPayment pending) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      backgroundColor: AppColors.cardSurface,
+      builder: (_) => _PendingPaymentDetailsSheet(pending: pending),
+    );
+  }
+
+  /// Settles [pending] via `VisitRepository.markVisitationPaymentPaid`
+  /// rather than calling `RevenueRepository.markPendingPaymentAsPaid`
+  /// directly — that single call marks the pending payment paid,
+  /// creates the matching revenue entry, *and* (when this pending
+  /// payment is linked to a visitation) flips that visit's own paid
+  /// status so its Session History entry stays in sync. Safe to call
+  /// for a standalone pending payment with no linked visit too.
   Future<void> _markAsPaid(PendingPayment pending) async {
     try {
-      await _repository.markPendingPaymentAsPaid(pending.id);
+      await _visitRepository.markVisitationPaymentPaid(pending.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Marked "${pending.description}" as paid')),
@@ -445,82 +467,89 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                     itemCount: pendingPayments.length,
                                     itemBuilder: (_, index) {
                                       final pending = pendingPayments[index];
-                                      return Container(
-                                        width: 190,
-                                        margin: const EdgeInsets.only(right: 10),
-                                        padding: const EdgeInsets.all(14),
-                                        decoration: BoxDecoration(
-                                          color: AppColors.cardSurface,
-                                          borderRadius: BorderRadius.circular(24),
-                                          border: Border.all(
-                                            color: Colors.amber.withValues(
-                                              alpha: 0.35,
+                                      return GestureDetector(
+                                        onTap: () =>
+                                            _openPendingPaymentDetails(pending),
+                                        child: Container(
+                                          width: 190,
+                                          margin:
+                                              const EdgeInsets.only(right: 10),
+                                          padding: const EdgeInsets.all(14),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.cardSurface,
+                                            borderRadius:
+                                                BorderRadius.circular(24),
+                                            border: Border.all(
+                                              color: Colors.amber.withValues(
+                                                alpha: 0.35,
+                                              ),
+                                              width: 1,
                                             ),
-                                            width: 1,
+                                            boxShadow: const [
+                                              BoxShadow(
+                                                color: Colors.black12,
+                                                blurRadius: 8,
+                                                offset: Offset(0, 3),
+                                              ),
+                                            ],
                                           ),
-                                          boxShadow: const [
-                                            BoxShadow(
-                                              color: Colors.black12,
-                                              blurRadius: 8,
-                                              offset: Offset(0, 3),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: <Widget>[
-                                            Row(
-                                              children: <Widget>[
-                                                Expanded(
-                                                  child: Text(
-                                                    '₹${pending.amount.toStringAsFixed(0)}',
-                                                    style: const TextStyle(
-                                                      fontFamily: AppColors
-                                                          .bodyFontFamily,
-                                                      color: Colors.amber,
-                                                      fontSize: 23,
-                                                      fontWeight:
-                                                          FontWeight.w700,
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: <Widget>[
+                                              Row(
+                                                children: <Widget>[
+                                                  Expanded(
+                                                    child: Text(
+                                                      '₹${pending.amount.toStringAsFixed(0)}',
+                                                      style: const TextStyle(
+                                                        fontFamily: AppColors
+                                                            .bodyFontFamily,
+                                                        color: Colors.amber,
+                                                        fontSize: 23,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
                                                     ),
                                                   ),
-                                                ),
-                                                GestureDetector(
-                                                  onTap: () =>
-                                                      _markAsPaid(pending),
-                                                  child: const Icon(
-                                                    Icons.check_circle_outline,
-                                                    size: 20,
-                                                    color: Color(0xFF4CAF50),
+                                                  GestureDetector(
+                                                    onTap: () =>
+                                                        _markAsPaid(pending),
+                                                    child: const Icon(
+                                                      Icons.check_circle_outline,
+                                                      size: 20,
+                                                      color: Color(0xFF4CAF50),
+                                                    ),
                                                   ),
+                                                ],
+                                              ),
+                                              const Spacer(),
+                                              Text(
+                                                pending.description,
+                                                style: const TextStyle(
+                                                  color: AppColors.textPrimary,
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w600,
+                                                  fontFamily: AppColors
+                                                      .headingFontFamily,
                                                 ),
-                                              ],
-                                            ),
-                                            const Spacer(),
-                                            Text(
-                                              pending.description,
-                                              style: const TextStyle(
-                                                color: AppColors.textPrimary,
-                                                fontSize: 15,
-                                                fontWeight: FontWeight.w600,
-                                                fontFamily:
-                                                    AppColors.headingFontFamily,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                            ),
-                                            const SizedBox(height: 4),
-                                            Text(
-                                              DateFormat.yMMMd()
-                                                  .format(pending.date),
-                                              style: const TextStyle(
-                                                fontFamily:
-                                                    AppColors.bodyFontFamily,
-                                                color: AppColors.textSecondary,
-                                                fontSize: 12,
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                DateFormat.yMMMd()
+                                                    .format(pending.date),
+                                                style: const TextStyle(
+                                                  fontFamily:
+                                                      AppColors.bodyFontFamily,
+                                                  color:
+                                                      AppColors.textSecondary,
+                                                  fontSize: 12,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       );
                                     },
@@ -1140,6 +1169,436 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                         )
                       : const Text(
                           'Save',
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// NEW: Pending Payment details / edit bottom sheet — opened by
+// tapping a Pending Payment card. Patient Name is read-only;
+// Amount, Description, Notes, and Date are editable and saved back
+// to the same pending payment record via
+// RevenueRepository.updatePendingPayment. Marking as paid stays a
+// separate action (the check-circle icon on the card), which now
+// goes through VisitRepository.markVisitationPaymentPaid.
+// ────────────────────────────────────────────────────────────
+class _PendingPaymentDetailsSheet extends StatefulWidget {
+  const _PendingPaymentDetailsSheet({required this.pending});
+
+  final PendingPayment pending;
+
+  @override
+  State<_PendingPaymentDetailsSheet> createState() =>
+      _PendingPaymentDetailsSheetState();
+}
+
+class _PendingPaymentDetailsSheetState
+    extends State<_PendingPaymentDetailsSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _descController;
+  late final TextEditingController _amountController;
+  late final TextEditingController _notesController;
+  late DateTime _selectedDate;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _descController = TextEditingController(text: widget.pending.description);
+    _amountController = TextEditingController(
+      text: _formatAmountForEditing(widget.pending.amount),
+    );
+    _notesController = TextEditingController(text: widget.pending.notes ?? '');
+    _selectedDate = widget.pending.date;
+  }
+
+  @override
+  void dispose() {
+    _descController.dispose();
+    _amountController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  String _formatAmountForEditing(double amount) {
+    // Avoid a trailing ".0" for whole numbers while still preserving
+    // paise/cents the doctor may have entered (e.g. 499.50).
+    return amount == amount.roundToDouble()
+        ? amount.toStringAsFixed(0)
+        : amount.toString();
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final initial = _selectedDate.isAfter(now) ? now : _selectedDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2000),
+      lastDate: now,
+    );
+    if (picked != null) {
+      setState(() => _selectedDate = picked);
+    }
+  }
+
+  Future<void> _handleSave() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isSaving = true);
+
+    final desc = _descController.text.trim();
+    final amount = double.parse(_amountController.text.trim());
+    final notes = _notesController.text.trim();
+
+    try {
+      final repo = RevenueRepository();
+      await repo.updatePendingPayment(widget.pending.id, {
+        'description': desc,
+        'amount': amount,
+        'notes': notes.isEmpty ? null : notes,
+        'date': _selectedDate,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pending payment updated')),
+      );
+      Navigator.pop(context);
+    } on RevenueException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e, stack) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+      debugPrint('Error in _PendingPaymentDetailsSheet: $e\n$stack');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final patientName = widget.pending.payer?.trim();
+    final hasPatientName = patientName != null && patientName.isNotEmpty;
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 24,
+        right: 24,
+        top: 16,
+        bottom: 24 + bottomInset,
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.silver.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              'Pending Payment',
+              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Review and edit the details before collecting payment.',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.4,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Patient Name (read-only)
+            if (hasPatientName) ...[
+              Text(
+                'Patient Name',
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              TextFormField(
+                initialValue: patientName,
+                enabled: false,
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textPrimary,
+                ),
+                decoration: InputDecoration(
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.6),
+                  suffixIcon: const Icon(
+                    Icons.lock_outline,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+
+            // Description
+            Text(
+              'Description',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _descController,
+              enabled: !_isSaving,
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: 'e.g. "Payment Received for Visitation"',
+                hintStyle: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter a description';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Amount
+            Text(
+              'Amount',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _amountController,
+              enabled: !_isSaving,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: '₹0.00',
+                hintStyle: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter an amount';
+                }
+                final amount = double.tryParse(value.trim());
+                if (amount == null || amount <= 0) {
+                  return 'Enter a valid positive amount';
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: 16),
+
+            // Notes
+            Text(
+              'Notes',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _notesController,
+              enabled: !_isSaving,
+              minLines: 2,
+              maxLines: 4,
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textPrimary,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Add any additional notes (optional)',
+                hintStyle: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // Date picker
+            Text(
+              'Date',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 8),
+            InkWell(
+              borderRadius: BorderRadius.circular(16),
+              onTap: _isSaving ? null : _pickDate,
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today,
+                      size: 18,
+                      color: AppColors.textSecondary,
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      DateFormat('d MMM yyyy').format(_selectedDate),
+                      style: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // Action buttons
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.slateBlue,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                FilledButton(
+                  onPressed: _isSaving ? null : _handleSave,
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 14,
+                    ),
+                    backgroundColor: AppColors.chartBarLight,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Save Changes',
                           style: TextStyle(
                             fontFamily: AppColors.bodyFontFamily,
                             fontWeight: FontWeight.w600,

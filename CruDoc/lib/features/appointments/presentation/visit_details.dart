@@ -381,6 +381,10 @@ class VisitDetailsPage extends ConsumerWidget {
                     const _SectionLabel(text: 'PATIENT'),
                     const SizedBox(height: 12),
                     _PatientCard(patient: patient),
+                    const SizedBox(height: 24),
+                    const _SectionLabel(text: 'PAYMENT'),
+                    const SizedBox(height: 12),
+                    _PaymentCard(visit: visit),
                     if (hasNotes) ...[
                       const SizedBox(height: 24),
                       const _SectionLabel(text: 'TREATMENT NOTES'),
@@ -802,6 +806,123 @@ class _PatientCard extends StatelessWidget {
             const Icon(Icons.chevron_right, color: AppColors.silver, size: 20),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ---------- Payment Card ----------
+class _PaymentCard extends ConsumerStatefulWidget {
+  final Visit visit;
+  const _PaymentCard({required this.visit});
+
+  @override
+  ConsumerState<_PaymentCard> createState() => _PaymentCardState();
+}
+
+class _PaymentCardState extends ConsumerState<_PaymentCard> {
+  bool _busy = false;
+
+  Future<void> _openRecordPaymentDialog() async {
+    final controller = TextEditingController();
+    final amount = await showDialog<double>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Record Payment'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: const InputDecoration(
+            prefixText: '₹ ',
+            hintText: 'Amount charged for this session',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () =>
+                Navigator.pop(ctx, double.tryParse(controller.text.trim())),
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (amount == null || amount <= 0 || !mounted) return;
+
+    setState(() => _busy = true);
+    try {
+      final repo = ref.read(visitRepositoryProvider);
+      await repo.recordPayment(widget.visit.id, amount: amount);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Payment recorded.')));
+    } on VisitException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Something went wrong. Please try again.'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final visit = widget.visit;
+    final isPaid = visit.isPaid;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isPaid ? Icons.check_circle_outline : Icons.error_outline,
+            color: isPaid ? _accentTeal : _accentAmber,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isPaid ? 'Paid' : 'Payment pending',
+                  style: AppColors.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (isPaid && visit.amountCharged != null)
+                  Text(
+                    '₹${visit.amountCharged!.toStringAsFixed(0)} recorded',
+                    style: AppColors.bodySmall,
+                  ),
+              ],
+            ),
+          ),
+          if (!isPaid)
+            TextButton(
+              onPressed: _busy ? null : _openRecordPaymentDialog,
+              child: const Text('Record Payment'),
+            ),
+        ],
       ),
     );
   }

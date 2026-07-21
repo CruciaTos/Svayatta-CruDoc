@@ -144,6 +144,20 @@ class Visit {
 
   final VisitStatus status;
 
+  /// True once this specific session has been paid for. Distinct from
+  /// [status] — a visit can be [VisitStatus.completed] and still unpaid,
+  /// or paid in advance while still [VisitStatus.scheduled]. Flipped by
+  /// `VisitRepository.recordPayment`, which also creates the matching
+  /// `RevenueEntry` in the same step — never set directly via
+  /// `VisitRepository.updateVisit`.
+  final bool isPaid;
+
+  /// The amount charged for this session, set at the same time as
+  /// [isPaid] by `VisitRepository.recordPayment`. Null until a payment
+  /// has been recorded — never a stand-in zero, so "unpaid" and "paid
+  /// ₹0" are never confused.
+  final double? amountCharged;
+
   /// True once this visit has been soft-deleted (e.g. it was created by
   /// mistake). Distinct from `status == cancelled`, which represents a
   /// real appointment that was legitimately called off. A soft-deleted
@@ -179,6 +193,8 @@ class Visit {
     this.longitude,
     this.mapsLink,
     this.visitType = VisitType.clinic,
+    this.isPaid = false,
+    this.amountCharged,
     this.isDeleted = false,
     this.invoiceId,
     this.packageId,
@@ -225,6 +241,8 @@ class Visit {
       mapsLink: map['mapsLink'] as String?,
       visitType: VisitType.fromValue(map['visitType'] as String?),
       status: VisitStatus.fromValue(map['status'] as String?),
+      isPaid: map['isPaid'] as bool? ?? false,
+      amountCharged: (map['amountCharged'] as num?)?.toDouble(),
       isDeleted: map['isDeleted'] as bool? ?? false,
       invoiceId: map['invoiceId'] as String?,
       packageId: map['packageId'] as String?,
@@ -250,6 +268,8 @@ class Visit {
       'mapsLink': mapsLink,
       'visitType': visitType.value,
       'status': status.value,
+      'isPaid': isPaid,
+      'amountCharged': amountCharged,
       'isDeleted': isDeleted,
       'invoiceId': invoiceId,
       'packageId': packageId,
@@ -272,6 +292,8 @@ class Visit {
     String? mapsLink,
     VisitType? visitType,
     VisitStatus? status,
+    bool? isPaid,
+    double? amountCharged,
     bool? isDeleted,
     String? invoiceId,
     String? packageId,
@@ -293,6 +315,8 @@ class Visit {
       mapsLink: mapsLink ?? this.mapsLink,
       visitType: visitType ?? this.visitType,
       status: status ?? this.status,
+      isPaid: isPaid ?? this.isPaid,
+      amountCharged: amountCharged ?? this.amountCharged,
       isDeleted: isDeleted ?? this.isDeleted,
       invoiceId: invoiceId ?? this.invoiceId,
       packageId: packageId ?? this.packageId,

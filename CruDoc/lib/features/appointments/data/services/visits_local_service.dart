@@ -301,6 +301,8 @@ class VisitLocalService {
       'mapsLink': visit.mapsLink,
       'visitType': visit.visitType.value,
       'status': visit.status.value,
+      'isPaid': visit.isPaid ? 1 : 0,
+      'amountCharged': visit.amountCharged,
       'isDeleted': visit.isDeleted ? 1 : 0,
       'isActive': pendingDelete ? 0 : 1,
       'invoiceId': visit.invoiceId,
@@ -335,12 +337,14 @@ class VisitLocalService {
           break;
         case 'latitude':
         case 'longitude':
+        case 'amountCharged':
           row[entry.key] = entry.value == null
               ? null
               : (entry.value as num).toDouble();
           break;
         case 'isDeleted':
         case 'isActive':
+        case 'isPaid':
           if (entry.value is bool) {
             row[entry.key] = entry.value as bool ? 1 : 0;
           } else if (entry.value is int) {
@@ -376,6 +380,8 @@ class VisitLocalService {
       longitude: (row['longitude'] as num?)?.toDouble(),
       visitType: VisitType.fromValue(row['visitType'] as String?),
       status: VisitStatus.fromValue(row['status'] as String?),
+      isPaid: row['isPaid'] == 1,
+      amountCharged: (row['amountCharged'] as num?)?.toDouble(),
       isDeleted: row['isDeleted'] == 1,
       mapsLink: row['mapsLink'] as String?,
       invoiceId: row['invoiceId'] as String?,

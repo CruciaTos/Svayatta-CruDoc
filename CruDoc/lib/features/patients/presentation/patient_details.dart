@@ -816,15 +816,57 @@ class _SessionTimelineTile extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 6),
-                    Text(
-                      reason,
-                      style: AppColors.bodyMeta,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            reason,
+                            style: AppColors.bodyMeta,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        _PaymentChip(visit: visit),
+                      ],
                     ),
                   ],
                 ),
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- Payment status chip (paid / pending), shown on each
+// session tile in _SessionTimelineTile ----------
+class _PaymentChip extends StatelessWidget {
+  final Visit visit;
+  const _PaymentChip({required this.visit});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = visit.isPaid;
+    final color = isPaid ? _accentTeal : _accentAmber;
+    final label = isPaid && visit.amountCharged != null
+        ? 'Paid ₹${visit.amountCharged!.toStringAsFixed(0)}'
+        : (isPaid ? 'Paid' : 'Unpaid');
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: AppColors.bodyFontFamily,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          color: color,
         ),
       ),
     );

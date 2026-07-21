@@ -148,6 +148,8 @@ class LocalDatabaseService extends ChangeNotifier {
           CHECK (visitType IN ('clinic', 'home')),
         status TEXT NOT NULL DEFAULT 'scheduled'
           CHECK (status IN ('scheduled', 'completed', 'cancelled', 'missed')),
+        isPaid INTEGER NOT NULL DEFAULT 0,
+        amountCharged REAL,
         isDeleted INTEGER NOT NULL DEFAULT 0,
         isActive INTEGER NOT NULL DEFAULT 1,
         invoiceId TEXT,
@@ -428,6 +430,8 @@ class LocalDatabaseService extends ChangeNotifier {
     'mapsLink': 'mapsLink TEXT',
     'visitType': "visitType TEXT NOT NULL DEFAULT 'clinic'",
     'status': "status TEXT NOT NULL DEFAULT 'scheduled'",
+    'isPaid': 'isPaid INTEGER NOT NULL DEFAULT 0',
+    'amountCharged': 'amountCharged REAL',
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
     'invoiceId': 'invoiceId TEXT',

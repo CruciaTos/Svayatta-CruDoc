@@ -271,6 +271,8 @@ class FirestoreSyncService {
           'mapsLink': row['mapsLink'] as String?,
           'visitType': row['visitType'] as String? ?? 'clinic',
           'status': row['status'] as String? ?? 'scheduled',
+          'isPaid': row['isPaid'] == 1,
+          'amountCharged': (row['amountCharged'] as num?)?.toDouble(),
           'isDeleted': row['isDeleted'] == 1,
           'isActive': row['isActive'] == 1,
           'invoiceId': row['invoiceId'] as String?,
@@ -417,6 +419,8 @@ class FirestoreSyncService {
           // overriding whatever the document field says.
           'visitType': _visitFirestoreToType[collection]!,
           'status': data['status'] as String? ?? 'scheduled',
+          'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
+          'amountCharged': (data['amountCharged'] as num?)?.toDouble(),
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
           'invoiceId': data['invoiceId'] as String?,

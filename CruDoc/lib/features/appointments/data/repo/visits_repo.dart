@@ -9,6 +9,8 @@ import 'package:doctor_management_app/features/patients/data/repo/patient_reposi
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 
 /// Clean API the presentation layer talks to for anything visit-related.
 ///
@@ -22,13 +24,16 @@ class VisitRepository {
     VisitLocalService? localService,
     FirestoreSyncService? syncService,
     PatientRepository? patientRepository,
+    RevenueRepository? revenueRepository,
   }) : _localService = localService ?? VisitLocalService(),
        _syncService = syncService ?? FirestoreSyncService.instance,
-       _patientRepository = patientRepository ?? PatientRepository();
+       _patientRepository = patientRepository ?? PatientRepository(),
+       _revenueRepository = revenueRepository ?? RevenueRepository();
 
   final VisitLocalService _localService;
   final FirestoreSyncService _syncService;
   final PatientRepository _patientRepository;
+  final RevenueRepository _revenueRepository;
 
   /// Creates a new visit for an existing patient.
   ///
@@ -111,6 +116,8 @@ class VisitRepository {
       mapsLink: visit.mapsLink,
       visitType: visit.visitType,
       status: visit.status,
+      isPaid: visit.isPaid,
+      amountCharged: visit.amountCharged,
       isDeleted: visit.isDeleted,
       invoiceId: visit.invoiceId,
       packageId: visit.packageId,
@@ -257,6 +264,72 @@ class VisitRepository {
   /// every default query — so history is fully preserved.
   Future<void> softDeleteVisit(String visitId) {
     return updateVisit(visitId, {'isDeleted': true});
+  }
+
+  /// Records payment for a session: stamps `Visit.isPaid`/
+  /// `Visit.amountCharged`, then creates the matching [RevenueEntry]
+  /// ([RevenueType.visit], linked back via `patientId`/`visitId`) in the
+  /// same step. Mirrors `RevenueRepository.markPendingPaymentAsPaid`'s
+  /// "flip the flag + create the ledger entry together" shape, so a
+  /// visit is never left paid-on-the-visit-record but missing from the
+  /// revenue list, or vice versa.
+  ///
+  /// Looks up the patient's name for [RevenueEntry.payer] so the
+  /// revenue list reads naturally without a separate join at read time.
+  /// Falls back to a generic description if the patient record is
+  /// missing (e.g. deleted after the visit) rather than blocking the
+  /// payment from being recorded.
+  ///
+  /// Deliberately independent of [VisitStatus] — a session can be paid
+  /// in advance while still [VisitStatus.scheduled], or marked
+  /// completed and settled later, so this never requires the visit to
+  /// already be completed.
+  ///
+  /// Throws [VisitValidationException] if [visitId] doesn't resolve to
+  /// an existing visit, if it's already marked paid (call
+  /// `RevenueRepository.softDeleteRevenueEntry` on the linked entry and
+  /// revisit this method if a correction is genuinely needed — there is
+  /// no bypass here), or if [amount] isn't greater than zero.
+  Future<String> recordPayment(String visitId, {required double amount}) async {
+    final visit = await _localService.getVisit(visitId);
+    if (visit == null) {
+      throw VisitValidationException('No visit found with id "$visitId".');
+    }
+    if (visit.isPaid) {
+      throw const VisitValidationException(
+        'This visit is already marked as paid.',
+      );
+    }
+    if (amount <= 0) {
+      throw const VisitValidationException(
+        'Payment amount must be greater than zero.',
+      );
+    }
+
+    final patient = await _patientRepository.getPatient(visit.patientId);
+    final now = DateTime.now();
+
+    await updateVisit(visitId, {
+      'isPaid': true,
+      'amountCharged': amount,
+    });
+
+    return _revenueRepository.createRevenueEntry(
+      RevenueEntry(
+        id: '',
+        date: now,
+        description: patient != null
+            ? 'Session with ${patient.fullName}'
+            : 'Session payment',
+        amount: amount,
+        type: RevenueType.visit,
+        payer: patient?.fullName,
+        patientId: visit.patientId,
+        visitId: visit.id,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   /// Fetches a single visit by id, or null if it doesn't exist.

@@ -25,7 +25,7 @@ final filteredPatientsProvider = Provider<AsyncValue<List<Patient>>>((ref) {
 
   final normalizedQuery = normalizeForSearch(query);
   final normalizedPhoneQuery = normalizePhoneDigits(query);
-  final canMatchPhone = normalizedPhoneQuery.length >= 1;
+  final canMatchPhone = normalizedPhoneQuery.isNotEmpty;
 
   return patientsAsync.whenData((patients) {
     return patients.where((patient) {

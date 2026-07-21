@@ -329,9 +329,8 @@ class _FormField extends StatelessWidget {
     required this.label,
     required this.controller,
     this.keyboardType,
-    this.maxLines = 1,
     this.validator,
-  });
+  }) : maxLines = 1;
 
   @override
   Widget build(BuildContext context) {

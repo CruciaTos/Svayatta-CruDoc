@@ -851,7 +851,7 @@ class _PaymentChip extends StatelessWidget {
     final color = isPaid ? _accentTeal : _accentAmber;
     final label = isPaid && visit.amountCharged != null
         ? 'Paid ₹${visit.amountCharged!.toStringAsFixed(0)}'
-        : (isPaid ? 'Paid' : 'Unpaid');
+        : (isPaid ? 'Paid' : 'Payment Pending');
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),

@@ -12,6 +12,12 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 
+/// Standard fee recorded when an appointment ([VisitType.clinic]) is
+/// marked [VisitStatus.completed] — see [VisitRepository.updateStatus].
+/// Visitations ([VisitType.home]) don't use this yet; their payment
+/// handling isn't built out.
+const double kAppointmentCompletionFee = 500.0;
+
 /// Clean API the presentation layer talks to for anything visit-related.
 ///
 /// Reads and writes go through SQLite. Writes are marked pending locally and
@@ -240,8 +246,58 @@ class VisitRepository {
 
   /// Updates only the [VisitStatus] — the enum is the only way to move
   /// a visit between states, so a free-text status can never slip in.
-  Future<void> updateStatus(String visitId, VisitStatus status) {
-    return updateVisit(visitId, {'status': status.value});
+  ///
+  /// Marking a visit [VisitStatus.completed] also runs that type's
+  /// completion workflow:
+  /// - Appointments ([VisitType.clinic]): stamped [Visit.isPaid] at the
+  ///   standard [kAppointmentCompletionFee] rate and a matching
+  ///   [RevenueEntry] ([RevenueType.visit], income) is created in the
+  ///   same step — same "flip the flag + create the ledger entry
+  ///   together" shape as [recordPayment]. Skipped if the visit is
+  ///   already paid, so re-completing a visit (e.g. Completed ->
+  ///   Reopen -> Completed again) never creates a duplicate revenue
+  ///   entry.
+  /// - Visitations ([VisitType.home]): left exactly as-is — no payment
+  ///   handling yet, so the visit stays unpaid ("Payment Pending" in
+  ///   the UI) until that's built.
+  ///
+  /// No separate write is needed to add this to the patient's Session
+  /// History — that section renders live from this patient's [Visit]
+  /// documents, so the completed visit (and its payment status) shows
+  /// up there automatically.
+  Future<void> updateStatus(String visitId, VisitStatus status) async {
+    final before = await _localService.getVisit(visitId);
+
+    await updateVisit(visitId, {'status': status.value});
+
+    if (status != VisitStatus.completed) return;
+    if (before == null) return;
+    if (before.visitType != VisitType.clinic) return;
+    if (before.isPaid) return;
+
+    await updateVisit(visitId, {
+      'isPaid': true,
+      'amountCharged': kAppointmentCompletionFee,
+    });
+
+    final patient = await _patientRepository.getPatient(before.patientId);
+    final now = DateTime.now();
+
+    await _revenueRepository.createRevenueEntry(
+      RevenueEntry(
+        id: '',
+        date: before.scheduledStart,
+        description: 'Payment received for Appointment',
+        amount: kAppointmentCompletionFee,
+        type: RevenueType.visit,
+        kind: TransactionKind.income,
+        payer: patient?.fullName,
+        patientId: before.patientId,
+        visitId: before.id,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   /// Updates only the [VisitType] — lets a booking be reclassified

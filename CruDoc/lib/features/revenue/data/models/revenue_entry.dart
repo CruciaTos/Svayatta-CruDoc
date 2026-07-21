@@ -217,6 +217,25 @@ class PendingPayment {
   /// is never removed from Firestore.
   final bool isPaid;
 
+  /// Display name of who owes this, e.g. a patient's full name. Same
+  /// free-text convention as [RevenueEntry.payer]. Set once when a
+  /// pending payment is created for a patient — never edited from the
+  /// UI, since it's meant to stay in sync with [patientId].
+  final String? payer;
+
+  /// Links this pending payment back to the patient/visit that
+  /// generated it (e.g. a completed home visitation), so the
+  /// corresponding session in that patient's Session History can be
+  /// updated in step when this is eventually marked paid. Both null
+  /// for a manually-added pending payment with no patient/visit behind
+  /// it (e.g. a standalone lab test).
+  final String? patientId;
+  final String? visitId;
+
+  /// Optional free-text notes, editable from the pending payment's
+  /// details sheet — e.g. a reason the amount was adjusted.
+  final String? notes;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -228,6 +247,10 @@ class PendingPayment {
     required this.createdAt,
     required this.updatedAt,
     this.isPaid = false,
+    this.payer,
+    this.patientId,
+    this.visitId,
+    this.notes,
   });
 
   /// Builds a [PendingPayment] from a Firestore document snapshot.
@@ -249,6 +272,10 @@ class PendingPayment {
       description: map['description'] as String? ?? '',
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
       isPaid: map['isPaid'] as bool? ?? false,
+      payer: map['payer'] as String?,
+      patientId: map['patientId'] as String?,
+      visitId: map['visitId'] as String?,
+      notes: map['notes'] as String?,
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
     );
@@ -262,6 +289,10 @@ class PendingPayment {
       'description': description,
       'amount': amount,
       'isPaid': isPaid,
+      'payer': payer,
+      'patientId': patientId,
+      'visitId': visitId,
+      'notes': notes,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -272,6 +303,10 @@ class PendingPayment {
     String? description,
     double? amount,
     bool? isPaid,
+    String? payer,
+    String? patientId,
+    String? visitId,
+    String? notes,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -281,6 +316,10 @@ class PendingPayment {
       description: description ?? this.description,
       amount: amount ?? this.amount,
       isPaid: isPaid ?? this.isPaid,
+      payer: payer ?? this.payer,
+      patientId: patientId ?? this.patientId,
+      visitId: visitId ?? this.visitId,
+      notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

@@ -319,13 +319,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              RecentActivityCard(
-                onViewAll: () => _showSectionInfo(
-                  title: 'Recent Activity',
-                  message:
-                      'A full activity timeline is not available yet. Recent patient, inventory, visit, and revenue updates will appear here when the activity section is added.',
-                ),
-              ),
+              const RecentActivityCard(),
             ],
           ),
         ),

@@ -135,6 +135,12 @@ class InventoryRepository {
     return _localService.getTransactionsForMedicine(medicineId);
   }
 
+  /// Streams the most recent stock transactions across every medicine,
+  /// newest first. Powers the dashboard's "Recent Activity" card.
+  Stream<List<StockTransactionModel>> watchRecentTransactions() {
+    return _localService.watchRecentTransactions();
+  }
+
   /// Stamps `lowStockNotifiedAt` on a medicine so the low-stock alert
   /// doesn't refire on every rebuild. Does not trigger a new sync-worthy
   /// "pending" bump beyond the normal update path.

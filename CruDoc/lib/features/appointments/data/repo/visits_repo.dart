@@ -490,6 +490,12 @@ class VisitRepository {
     return _localService.watchLastVisitPerPatient();
   }
 
+  /// Streams the most recently created/updated visits (any status),
+  /// newest first. Powers the dashboard's "Recent Activity" card.
+  Stream<List<Visit>> watchRecentVisits() {
+    return _localService.watchRecentVisits();
+  }
+
   /// Read-only overlap check for the UI to call live — e.g. as soon as
   /// the doctor picks a time — so it can show a warning *before* they
   /// even tap save. [createVisit] and [rescheduleVisit] re-run this

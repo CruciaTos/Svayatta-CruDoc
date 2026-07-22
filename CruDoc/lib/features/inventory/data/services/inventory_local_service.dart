@@ -6,6 +6,11 @@ import 'package:doctor_management_app/features/inventory/data/models/medicine_mo
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:sqflite/sqflite.dart';
 
+/// Cap for [InventoryLocalService.watchRecentTransactions] — enough to
+/// feed the dashboard's activity card after it's merged with patient/
+/// visit/revenue activity and truncated further.
+const int kRecentTransactionsLimit = 50;
+
 /// SQLite-backed inventory data source.
 ///
 /// Mirrors [PatientLocalService]: repositories read/write SQLite directly
@@ -30,6 +35,12 @@ class InventoryLocalService {
   final LocalDatabaseService _databaseService;
   final StreamController<List<MedicineModel>> _medicinesController =
       StreamController<List<MedicineModel>>.broadcast();
+  // Backs [watchRecentTransactions] — unlike [getTransactionsForMedicine],
+  // this spans every medicine, most recent first, for the dashboard's
+  // "Recent Activity" feed.
+  final StreamController<List<StockTransactionModel>>
+  _recentTransactionsController =
+      StreamController<List<StockTransactionModel>>.broadcast();
 
   // ---------------------------------------------------------------------
   // Medicines CRUD
@@ -112,6 +123,16 @@ class InventoryLocalService {
     return _medicinesController.stream;
   }
 
+  /// Streams the most recent stock transactions across every medicine,
+  /// newest first, capped at [kRecentTransactionsLimit]. Powers the
+  /// dashboard's "Recent Activity" card — [getTransactionsForMedicine]
+  /// only covers a single medicine, which isn't enough for a feed that
+  /// spans the whole inventory.
+  Stream<List<StockTransactionModel>> watchRecentTransactions() {
+    Future<void>.microtask(_emitRecentTransactions);
+    return _recentTransactionsController.stream;
+  }
+
   // ---------------------------------------------------------------------
   // Stock transactions
   // ---------------------------------------------------------------------
@@ -184,6 +205,7 @@ class InventoryLocalService {
     });
 
     await _emitMedicines();
+    await _emitRecentTransactions();
     return recorded;
   }
 
@@ -226,6 +248,21 @@ class InventoryLocalService {
     );
     if (!_medicinesController.isClosed) {
       _medicinesController.add(rows.map(_medicineFromRow).toList());
+    }
+  }
+
+  Future<void> _emitRecentTransactions() async {
+    if (_recentTransactionsController.isClosed) return;
+
+    final db = await _databaseService.database;
+    final rows = await db.query(
+      'stock_transactions',
+      where: 'isActive = 1',
+      orderBy: 'createdAt DESC',
+      limit: kRecentTransactionsLimit,
+    );
+    if (!_recentTransactionsController.isClosed) {
+      _recentTransactionsController.add(rows.map(_transactionFromRow).toList());
     }
   }
 

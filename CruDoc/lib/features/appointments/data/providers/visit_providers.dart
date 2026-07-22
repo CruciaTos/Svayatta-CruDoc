@@ -38,6 +38,12 @@ final todaysVisitsProvider = StreamProvider<List<Visit>>(
   (ref) => ref.watch(visitRepositoryProvider).watchTodaysVisits(),
 );
 
+/// Streams the most recently created/updated visits (any status),
+/// newest first. Feeds the dashboard's "Recent Activity" card.
+final recentVisitsProvider = StreamProvider<List<Visit>>(
+  (ref) => ref.watch(visitRepositoryProvider).watchRecentVisits(),
+);
+
 /// Streams a single patient's visit history, most recent first. Family
 /// parameter is the patientId. Used by the patient details screen (real
 /// session history + stats) and by the Last Patient card (session count).

@@ -4,6 +4,11 @@ import 'package:doctor_management_app/core/services/local_database_service.dart'
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:sqflite/sqflite.dart';
 
+/// Cap for [VisitLocalService.watchRecentVisits] — enough to feed the
+/// dashboard's activity card after it's merged with patient/inventory/
+/// revenue activity and truncated further.
+const int kRecentVisitsLimit = 50;
+
 /// SQLite-backed visit data source.
 ///
 /// Repositories read from this service in Phase 2. Writes are stored locally
@@ -44,6 +49,13 @@ class VisitLocalService {
       <String, StreamController<List<Visit>>>{};
   final StreamController<Map<String, Visit>> _lastVisitPerPatientController =
       StreamController<Map<String, Visit>>.broadcast();
+  // Backs [watchRecentVisits] — the dashboard's "Recent Activity" feed.
+  // Unlike [_upcomingVisitsController]/[_todaysVisitsController] (which
+  // filter to `status = scheduled`), this returns every non-deleted visit
+  // regardless of status, most-recently-touched first, so a visit just
+  // marked completed/cancelled/missed shows up immediately.
+  final StreamController<List<Visit>> _recentVisitsController =
+      StreamController<List<Visit>>.broadcast();
 
   Future<String> upsertVisit(
     Visit visit, {
@@ -142,6 +154,14 @@ class VisitLocalService {
     return _lastVisitPerPatientController.stream;
   }
 
+  /// Streams the most recently created/updated non-deleted visits
+  /// (any status), newest `updatedAt` first, capped at
+  /// [kRecentVisitsLimit]. Powers the dashboard's "Recent Activity" card.
+  Stream<List<Visit>> watchRecentVisits() {
+    Future<void>.microtask(_emitRecentVisits);
+    return _recentVisitsController.stream;
+  }
+
   Future<List<Visit>> findOverlapping({
     required DateTime start,
     required DateTime end,
@@ -188,6 +208,7 @@ class VisitLocalService {
     await _emitUpcomingVisits();
     await _emitTodaysVisits();
     await _emitLastVisitPerPatient();
+    await _emitRecentVisits();
     for (final key in _patientVisitControllers.keys) {
       final parsed = _parsePatientStreamKey(key);
       await _emitVisitsForPatient(
@@ -218,6 +239,21 @@ class VisitLocalService {
 
     if (!_lastVisitPerPatientController.isClosed) {
       _lastVisitPerPatientController.add(result);
+    }
+  }
+
+  Future<void> _emitRecentVisits() async {
+    if (_recentVisitsController.isClosed) return;
+
+    final db = await _databaseService.database;
+    final rows = await db.query(
+      'visits',
+      where: 'isActive = 1 AND isDeleted = 0',
+      orderBy: 'updatedAt DESC',
+      limit: kRecentVisitsLimit,
+    );
+    if (!_recentVisitsController.isClosed) {
+      _recentVisitsController.add(rows.map(_fromRow).toList());
     }
   }
 

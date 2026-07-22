@@ -13,6 +13,13 @@ final medicinesStreamProvider = StreamProvider<List<MedicineModel>>(
   (ref) => ref.watch(inventoryRepositoryProvider).watchMedicines(),
 );
 
+/// Streams the most recent stock transactions across every medicine,
+/// newest first. Feeds the dashboard's "Recent Activity" card.
+final recentStockTransactionsProvider =
+    StreamProvider<List<StockTransactionModel>>(
+      (ref) => ref.watch(inventoryRepositoryProvider).watchRecentTransactions(),
+    );
+
 /// Medicines whose `currentStock` has crossed at/under their configured
 /// `reorderThreshold`.
 final lowStockMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>((

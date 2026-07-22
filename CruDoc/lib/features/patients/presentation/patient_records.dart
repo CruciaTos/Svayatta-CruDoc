@@ -45,11 +45,7 @@ class PatientRecords extends StatelessWidget {
                   ),
                   GestureDetector(
                     onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AddPatientPage()),
-                      );
+                      showAddPatientSheet(context);
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(

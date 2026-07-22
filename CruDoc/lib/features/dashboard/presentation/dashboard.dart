@@ -161,10 +161,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   void _openAddPatient() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const AddPatientPage()),
-    );
+    showAddPatientSheet(context);
   }
 
   void _openAddMedicine() {

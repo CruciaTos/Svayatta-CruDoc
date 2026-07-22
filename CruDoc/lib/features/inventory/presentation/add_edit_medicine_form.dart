@@ -12,8 +12,14 @@ Future<void> showAddEditMedicineForm(
   MedicineModel? medicine,
   InventoryRepository? repository,
 }) {
-  return showDialog<void>(
+  return showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: AppColors.cardSurface,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
     builder: (_) => AddEditMedicineForm(
       medicine: medicine,
       repository: repository,

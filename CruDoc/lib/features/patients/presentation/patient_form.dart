@@ -187,10 +187,10 @@ class PatientFormState extends State<PatientForm> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
+            colorScheme: const ColorScheme.light(
               primary: AppColors.slateBlue,
-              onPrimary: AppColors.textPrimary,
-              surface: AppColors.cardSurface,
+              onPrimary: Colors.white,
+              surface: Colors.white,
               onSurface: AppColors.textPrimary,
             ),
           ),
@@ -347,20 +347,20 @@ class _FormField extends StatelessWidget {
           style: AppColors.bodyMedium,
           decoration: InputDecoration(
             filled: true,
-            fillColor: AppColors.cardSurface,
+            fillColor: Colors.white.withValues(alpha: 0.75),
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.divider),
+              borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.slateBlue),
+              borderSide: const BorderSide(color: AppColors.slateBlue, width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -407,20 +407,20 @@ class _DiagnosisFieldRow extends StatelessWidget {
                   color: AppColors.textSecondary.withValues(alpha: 0.6),
                 ),
                 filled: true,
-                fillColor: AppColors.cardSurface,
+                fillColor: Colors.white.withValues(alpha: 0.75),
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.divider),
+                  borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.slateBlue),
+                  borderSide: const BorderSide(color: AppColors.slateBlue, width: 1.5),
                 ),
               ),
             ),
@@ -433,9 +433,9 @@ class _DiagnosisFieldRow extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
+                  color: Colors.white.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.divider),
+                  border: Border.all(color: AppColors.slateBlue.withValues(alpha: 0.2)),
                 ),
                 child: const Icon(
                   Icons.close,
@@ -518,10 +518,12 @@ class _GenderSelector extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.slateBlue
-                      : AppColors.cardSurface,
+                      : Colors.white.withValues(alpha: 0.75),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isSelected ? AppColors.slateBlue : AppColors.divider,
+                    color: isSelected
+                        ? AppColors.slateBlue
+                        : AppColors.slateBlue.withValues(alpha: 0.2),
                   ),
                 ),
                 child: Text(
@@ -529,7 +531,7 @@ class _GenderSelector extends StatelessWidget {
                   style: AppColors.bodyMeta.copyWith(
                     fontWeight: FontWeight.w600,
                     color: isSelected
-                        ? AppColors.textPrimary
+                        ? Colors.white
                         : AppColors.textSecondary,
                   ),
                 ),
@@ -564,14 +566,14 @@ class _DateOfBirthField extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.cardSurface,
+          color: Colors.white.withValues(alpha: 0.75),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.divider),
+          border: Border.all(color: AppColors.slateBlue.withValues(alpha: 0.2)),
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_outlined,
-                color: AppColors.silver, size: 18),
+            Icon(Icons.calendar_today_outlined,
+                color: AppColors.slateBlue.withValues(alpha: 0.7), size: 18),
             const SizedBox(width: 10),
             Text(
               label,

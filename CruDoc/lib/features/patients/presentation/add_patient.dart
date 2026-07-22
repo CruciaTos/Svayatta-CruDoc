@@ -5,6 +5,24 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/features/shell/components/animated_background.dart';
+
+Future<void> showAddPatientSheet(
+  BuildContext context, {
+  PatientRepository? repository,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    // Transparent so ShellBackground's gradient shows through the rounded clip
+    backgroundColor: Colors.transparent,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => AddPatientSheet(repository: repository),
+  );
+}
 
 /// Screen that lets the doctor add a new patient.
 ///
@@ -18,6 +36,188 @@ class AddPatientPage extends StatefulWidget {
 
   @override
   State<AddPatientPage> createState() => _AddPatientPageState();
+}
+
+class AddPatientSheet extends StatefulWidget {
+  const AddPatientSheet({super.key, PatientRepository? repository})
+      : _repository = repository;
+
+  final PatientRepository? _repository;
+
+  @override
+  State<AddPatientSheet> createState() => _AddPatientSheetState();
+}
+
+class _AddPatientSheetState extends State<AddPatientSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _formStateKey = GlobalKey<PatientFormState>();
+
+  late final PatientRepository _repository =
+      widget._repository ?? PatientRepository();
+
+  bool _isSaving = false;
+
+  Future<void> _handleSubmit(PatientFormResult result) async {
+    setState(() => _isSaving = true);
+
+    final now = DateTime.now();
+    final patient = Patient(
+      id: '',
+      firstName: result.firstName,
+      lastName: result.lastName,
+      phone: result.phone,
+      gender: result.gender,
+      dateOfBirth: result.dateOfBirth,
+      diagnosis: result.diagnosis,
+      notes: '',
+      packageBalance: result.packageBalance,
+      isArchived: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    try {
+      await _repository.createPatient(patient);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient added successfully')),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save patient: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _onSavePressed() {
+    _formStateKey.currentState?.submit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+      child: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color.fromARGB(255, 163, 216, 254),
+              Color.fromARGB(255, 159, 214, 253),
+            ],
+          ),
+        ),
+        child: AnimatedBackground(
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.9,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Drag handle — use slateBlue tinted to match app palette
+                      Container(
+                        width: 44,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: AppColors.slateBlue.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              color: AppColors.textPrimary,
+                              size: 20,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Add Patient',
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Flexible(
+                        child: SingleChildScrollView(
+                          physics: const ClampingScrollPhysics(),
+                          child: PatientForm(
+                            key: _formStateKey,
+                            formKey: _formKey,
+                            onSubmit: _handleSubmit,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _onSavePressed,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.slateBlue,
+                            disabledBackgroundColor:
+                                AppColors.slateBlue.withValues(alpha: 0.5),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  width: 22,
+                                  height: 22,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.4,
+                                    color: Colors.white,
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Patient',
+                                  style: TextStyle(
+                                    fontFamily: AppColors.bodyFontFamily,
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _AddPatientPageState extends State<AddPatientPage> {

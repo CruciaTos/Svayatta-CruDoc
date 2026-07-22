@@ -1,25 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:go_router/go_router.dart';
+
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final displayName = user?.displayName ?? 'Doctor';
+    final email = user?.email ?? '—';
+    final phone = user?.phoneNumber ?? '—';
+
+    // Determine provider for the "Joined" label
+    final providerIds =
+        user?.providerData.map((info) => info.providerId).toList() ?? [];
+    String authMethod = 'Email';
+    if (providerIds.contains('google.com')) {
+      authMethod = 'Google';
+    } else if (providerIds.contains('phone')) {
+      authMethod = 'Phone';
+    }
+
     return Scaffold(
       backgroundColor: Colors.transparent,
-      body: Container(
-        // Use the same gradient or solid black as your patient details page
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2C3E50),
-              Color(0xFFAED6F1),
-            ],
-          ),
-        ),
+      body: ShellBackground(
         child: SafeArea(
           child: Column(
             children: [
@@ -29,13 +38,17 @@ class ProfileScreen extends StatelessWidget {
                 child: Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.arrow_back_ios_new, color: AppColors.textPrimary, size: 20),
+                      icon: const Icon(Icons.arrow_back_ios_new,
+                          color: AppColors.textPrimary, size: 20),
                       onPressed: () => Navigator.pop(context),
                     ),
                     const Expanded(
                       child: Text(
                         'Profile',
-                        style: TextStyle(color: AppColors.textPrimary, fontSize: 16, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                            color: AppColors.textPrimary,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600),
                       ),
                     ),
                     const SizedBox(width: 48), // balance the back arrow
@@ -52,17 +65,33 @@ class ProfileScreen extends StatelessWidget {
                   border: Border.all(color: AppColors.slateBlue, width: 3),
                   color: AppColors.cardSurfaceAlt,
                 ),
-                child: const Icon(Icons.person, color: AppColors.silver, size: 60),
+                child: user?.photoURL != null
+                    ? ClipOval(
+                        child: Image.network(
+                          user!.photoURL!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => const Icon(
+                              Icons.person,
+                              color: AppColors.silver,
+                              size: 60),
+                        ),
+                      )
+                    : const Icon(Icons.person,
+                        color: AppColors.silver, size: 60),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Dr. Rutuja Nilgunkar',
-                style: TextStyle(color: AppColors.textPrimary, fontSize: 22, fontWeight: FontWeight.w700),
+              Text(
+                displayName,
+                style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
-              const Text(
-                'Physiotherapist',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 15),
+              Text(
+                'Signed in via $authMethod',
+                style: const TextStyle(
+                    color: AppColors.textSecondary, fontSize: 15),
               ),
               const SizedBox(height: 32),
               // Profile info cards
@@ -70,58 +99,42 @@ class ProfileScreen extends StatelessWidget {
                 child: ListView(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   children: [
+                    if (email != '—')
+                      _ProfileCard(
+                        icon: Icons.email_outlined,
+                        title: 'Email',
+                        subtitle: email,
+                      ),
+                    if (email != '—') const SizedBox(height: 12),
+                    if (phone != '—')
+                      _ProfileCard(
+                        icon: Icons.phone_outlined,
+                        title: 'Phone',
+                        subtitle: phone,
+                      ),
+                    if (phone != '—') const SizedBox(height: 12),
                     _ProfileCard(
-                      icon: Icons.email_outlined,
-                      title: 'Email',
-                      subtitle: 'rutuja.nilgunkar@example.com',
-                    ),
-                    const SizedBox(height: 12),
-                    _ProfileCard(
-                      icon: Icons.phone_outlined,
-                      title: 'Phone',
-                      subtitle: '+91 98765 43210',
-                    ),
-                    const SizedBox(height: 12),
-                    _ProfileCard(
-                      icon: Icons.calendar_today_outlined,
-                      title: 'Joined',
-                      subtitle: 'January 2022',
+                      icon: Icons.shield_outlined,
+                      title: 'Auth Provider',
+                      subtitle: authMethod,
                     ),
                     const SizedBox(height: 28),
-                    // Action buttons
+                    // Log Out button — functional
                     OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.edit_outlined, size: 18),
-                      label: const Text('Edit Profile'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () {},
-                      icon: const Icon(Icons.settings_outlined, size: 18),
-                      label: const Text('Settings'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    OutlinedButton.icon(
-                      onPressed: () {},
+                      onPressed: () async {
+                        final authService = AuthService();
+                        await authService.signOut();
+                        if (!context.mounted) return;
+                        context.go('/auth');
+                      },
                       icon: const Icon(Icons.logout, size: 18),
                       label: const Text('Log Out'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: Colors.redAccent,
                         side: const BorderSide(color: Colors.redAccent),
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
                   ],
@@ -140,7 +153,8 @@ class _ProfileCard extends StatelessWidget {
   final String title;
   final String subtitle;
 
-  const _ProfileCard({required this.icon, required this.title, required this.subtitle});
+  const _ProfileCard(
+      {required this.icon, required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
@@ -155,13 +169,21 @@ class _ProfileCard extends StatelessWidget {
         children: [
           Icon(icon, color: AppColors.silver, size: 22),
           const SizedBox(width: 14),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(color: AppColors.textSecondary, fontSize: 12)),
-              const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(color: AppColors.textPrimary, fontSize: 15, fontWeight: FontWeight.w500)),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        color: AppColors.textSecondary, fontSize: 12)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: const TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500)),
+              ],
+            ),
           ),
         ],
       ),

@@ -1,6 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -16,8 +19,20 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   late final AnimationController _backgroundController;
   late final AnimationController _contentController;
 
-  int _currentPage = 1;
+  final AuthService _authService = AuthService();
+
+  int _currentPage = 1; // start on login page
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  // Controllers for form fields
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _nameController = TextEditingController();
+
+  // Demo credentials
+  static const _demoEmail = 'doctor@crudoc.com';
+  static const _demoPassword = 'demo1234';
 
   @override
   void initState() {
@@ -31,6 +46,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       vsync: this,
       duration: const Duration(milliseconds: 680),
     )..forward();
+
+    // Pre-fill demo email on login page
+    _emailController.text = _demoEmail;
   }
 
   @override
@@ -38,6 +56,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     _pageController.dispose();
     _backgroundController.dispose();
     _contentController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _nameController.dispose();
     super.dispose();
   }
 
@@ -50,6 +71,130 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   void _enterApp() => context.go('/dashboard');
+
+  // ---------- Email / Password Login ----------
+
+  Future<void> _handleEmailLogin() async {
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Please enter email and password');
+      return;
+    }
+
+    // Demo credentials bypass — no Firebase needed
+    if (email == _demoEmail && password == _demoPassword) {
+      _enterApp();
+      return;
+    }
+
+    // Real Firebase email/password auth
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      if (!mounted) return;
+      _enterApp();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      _showError(e.message ?? 'Login failed');
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Login failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ---------- Email / Password Signup ----------
+
+  Future<void> _handleEmailSignup() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (email.isEmpty || password.isEmpty) {
+      _showError('Please fill in all fields');
+      return;
+    }
+
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+      // Set display name if provided
+      if (name.isNotEmpty) {
+        await credential.user?.updateDisplayName(name);
+      }
+      if (!mounted) return;
+      _enterApp();
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      _showError(e.message ?? 'Signup failed');
+    } catch (e) {
+      if (!mounted) return;
+      _showError('Signup failed: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ---------- Google Sign-In ----------
+
+  Future<void> _handleGoogleSignIn() async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      await _authService.signInWithGoogle();
+      if (!mounted) return;
+      _enterApp();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e.toString();
+      if (!msg.contains('cancelled')) {
+        _showError('Google sign-in failed');
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  // ---------- Phone Sign-In ----------
+
+  Future<void> _handlePhoneSignIn() async {
+    if (_isLoading) return;
+
+    final result = await showPhoneAuthSheet(
+      context,
+      authService: _authService,
+    );
+
+    if (result != null && mounted) {
+      _enterApp();
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -68,73 +213,51 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                 ),
               ),
               SafeArea(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final bool isWide = constraints.maxWidth > 720;
-                    final authPages = [
-                      _IntroPanel(
-                        progress: _backgroundController.value,
-                        onLogin: () => _goToPage(1),
-                        onSignup: () => _goToPage(2),
-                      ),
-                      _AuthFormPanel(
-                        progress: _backgroundController.value,
-                        mode: _AuthMode.login,
-                        obscurePassword: _obscurePassword,
-                        onBack: () => _goToPage(0),
-                        onObscureToggle: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                        onPrimary: _enterApp,
-                        onSecondary: () => _goToPage(2),
-                      ),
-                      _AuthFormPanel(
-                        progress: _backgroundController.value,
-                        mode: _AuthMode.signup,
-                        obscurePassword: _obscurePassword,
-                        onBack: () => _goToPage(1),
-                        onObscureToggle: () => setState(
-                          () => _obscurePassword = !_obscurePassword,
-                        ),
-                        onPrimary: _enterApp,
-                        onSecondary: () => _goToPage(1),
-                      ),
-                    ];
-
-                    if (!isWide) {
-                      return PageView(
-                        controller: _pageController,
-                        onPageChanged: _handlePageChanged,
-                        children: authPages,
-                      );
-                    }
-
-                    return Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: isWide ? 980 : 430,
-                          maxHeight: 860,
-                        ),
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: isWide ? 28 : 18,
-                            vertical: 18,
-                          ),
-                          child: _WideAuthPreview(
-                            controller: _pageController,
-                            backgroundProgress: _backgroundController.value,
-                            obscurePassword: _obscurePassword,
-                            onObscureToggle: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                            onPageChanged: _handlePageChanged,
-                            onSwitchPage: _goToPage,
-                            onEnterApp: _enterApp,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                child: PageView(
+                  controller: _pageController,
+                  onPageChanged: _handlePageChanged,
+                  children: [
+                    // Page 0: Intro
+                    _IntroPanel(
+                      progress: _backgroundController.value,
+                      onLogin: () => _goToPage(1),
+                      onSignup: () => _goToPage(2),
+                    ),
+                    // Page 1: Login
+                    _AuthFormPanel(
+                      progress: _backgroundController.value,
+                      mode: _AuthMode.login,
+                      obscurePassword: _obscurePassword,
+                      isLoading: _isLoading,
+                      emailController: _emailController,
+                      passwordController: _passwordController,
+                      nameController: _nameController,
+                      onBack: () => _goToPage(0),
+                      onObscureToggle: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      onPrimary: _handleEmailLogin,
+                      onSecondary: () => _goToPage(2),
+                      onGoogleSignIn: _handleGoogleSignIn,
+                      onPhoneSignIn: _handlePhoneSignIn,
+                    ),
+                    // Page 2: Signup
+                    _AuthFormPanel(
+                      progress: _backgroundController.value,
+                      mode: _AuthMode.signup,
+                      obscurePassword: _obscurePassword,
+                      isLoading: _isLoading,
+                      emailController: _emailController,
+                      passwordController: _passwordController,
+                      nameController: _nameController,
+                      onBack: () => _goToPage(1),
+                      onObscureToggle: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
+                      onPrimary: _handleEmailSignup,
+                      onSecondary: () => _goToPage(1),
+                      onGoogleSignIn: _handleGoogleSignIn,
+                      onPhoneSignIn: _handlePhoneSignIn,
+                    ),
+                  ],
                 ),
               ),
               Positioned(
@@ -162,118 +285,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 }
 
-class _WideAuthPreview extends StatelessWidget {
-  const _WideAuthPreview({
-    required this.controller,
-    required this.backgroundProgress,
-    required this.obscurePassword,
-    required this.onObscureToggle,
-    required this.onPageChanged,
-    required this.onSwitchPage,
-    required this.onEnterApp,
-  });
-
-  final PageController controller;
-  final double backgroundProgress;
-  final bool obscurePassword;
-  final VoidCallback onObscureToggle;
-  final ValueChanged<int> onPageChanged;
-  final ValueChanged<int> onSwitchPage;
-  final VoidCallback onEnterApp;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _PhoneFrame(
-            child: _IntroPanel(
-              progress: backgroundProgress,
-              onLogin: () => onSwitchPage(1),
-              onSignup: () => onSwitchPage(2),
-            ),
-          ),
-        ),
-        const SizedBox(width: 28),
-        Expanded(
-          child: _PhoneFrame(
-            child: PageView(
-              controller: controller,
-              onPageChanged: onPageChanged,
-              children: [
-                _IntroPanel(
-                  progress: backgroundProgress,
-                  onLogin: () => onSwitchPage(1),
-                  onSignup: () => onSwitchPage(2),
-                ),
-                _AuthFormPanel(
-                  progress: backgroundProgress,
-                  mode: _AuthMode.login,
-                  obscurePassword: obscurePassword,
-                  onBack: () => onSwitchPage(0),
-                  onObscureToggle: onObscureToggle,
-                  onPrimary: onEnterApp,
-                  onSecondary: () => onSwitchPage(2),
-                ),
-                _AuthFormPanel(
-                  progress: backgroundProgress,
-                  mode: _AuthMode.signup,
-                  obscurePassword: obscurePassword,
-                  onBack: () => onSwitchPage(1),
-                  onObscureToggle: onObscureToggle,
-                  onPrimary: onEnterApp,
-                  onSecondary: () => onSwitchPage(1),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 28),
-        Expanded(
-          child: _PhoneFrame(
-            child: _AuthFormPanel(
-              progress: backgroundProgress,
-              mode: _AuthMode.signup,
-              obscurePassword: obscurePassword,
-              onBack: () => onSwitchPage(1),
-              onObscureToggle: onObscureToggle,
-              onPrimary: onEnterApp,
-              onSecondary: () => onSwitchPage(1),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PhoneFrame extends StatelessWidget {
-  const _PhoneFrame({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 0.49,
-      child: Container(
-        padding: const EdgeInsets.all(4),
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.26),
-              blurRadius: 24,
-              offset: const Offset(0, 16),
-            ),
-          ],
-        ),
-        child: ClipRRect(borderRadius: BorderRadius.circular(24), child: child),
-      ),
-    );
-  }
-}
+// ==================== INTRO PANEL ====================
 
 class _IntroPanel extends StatelessWidget {
   const _IntroPanel({
@@ -358,26 +370,42 @@ class _IntroPanel extends StatelessWidget {
   }
 }
 
+// ==================== AUTH MODE ====================
+
 enum _AuthMode { login, signup }
+
+// ==================== AUTH FORM PANEL ====================
 
 class _AuthFormPanel extends StatelessWidget {
   const _AuthFormPanel({
     required this.progress,
     required this.mode,
     required this.obscurePassword,
+    required this.isLoading,
+    required this.emailController,
+    required this.passwordController,
+    required this.nameController,
     required this.onBack,
     required this.onObscureToggle,
     required this.onPrimary,
     required this.onSecondary,
+    required this.onGoogleSignIn,
+    required this.onPhoneSignIn,
   });
 
   final double progress;
   final _AuthMode mode;
   final bool obscurePassword;
+  final bool isLoading;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final TextEditingController nameController;
   final VoidCallback onBack;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final VoidCallback onSecondary;
+  final VoidCallback onGoogleSignIn;
+  final VoidCallback onPhoneSignIn;
 
   bool get _isLogin => mode == _AuthMode.login;
 
@@ -385,9 +413,10 @@ class _AuthFormPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return _AnimatedPanel(
       progress: progress,
-      whiteWaveHeight: 0.47,
+      whiteWaveHeight: 0.32,
       child: Stack(
         children: [
+          // Back button
           Positioned(
             top: 18,
             left: 14,
@@ -400,10 +429,11 @@ class _AuthFormPanel extends StatelessWidget {
               ),
             ),
           ),
+          // Title
           Positioned(
             left: 24,
             right: 24,
-            top: 92,
+            top: 56,
             child: TweenAnimationBuilder<double>(
               key: ValueKey(mode),
               tween: Tween(begin: 0, end: 1),
@@ -430,9 +460,10 @@ class _AuthFormPanel extends StatelessWidget {
               ),
             ),
           ),
+          // Form at bottom
           Align(
             alignment: Alignment.bottomCenter,
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 420),
@@ -454,9 +485,15 @@ class _AuthFormPanel extends StatelessWidget {
                   key: ValueKey(mode),
                   mode: mode,
                   obscurePassword: obscurePassword,
+                  isLoading: isLoading,
+                  emailController: emailController,
+                  passwordController: passwordController,
+                  nameController: nameController,
                   onObscureToggle: onObscureToggle,
                   onPrimary: onPrimary,
                   onSecondary: onSecondary,
+                  onGoogleSignIn: onGoogleSignIn,
+                  onPhoneSignIn: onPhoneSignIn,
                 ),
               ),
             ),
@@ -467,21 +504,35 @@ class _AuthFormPanel extends StatelessWidget {
   }
 }
 
+// ==================== AUTH FORM (email/password + social) ====================
+
 class _AuthForm extends StatelessWidget {
   const _AuthForm({
     super.key,
     required this.mode,
     required this.obscurePassword,
+    required this.isLoading,
+    required this.emailController,
+    required this.passwordController,
+    required this.nameController,
     required this.onObscureToggle,
     required this.onPrimary,
     required this.onSecondary,
+    required this.onGoogleSignIn,
+    required this.onPhoneSignIn,
   });
 
   final _AuthMode mode;
   final bool obscurePassword;
+  final bool isLoading;
+  final TextEditingController emailController;
+  final TextEditingController passwordController;
+  final TextEditingController nameController;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final VoidCallback onSecondary;
+  final VoidCallback onGoogleSignIn;
+  final VoidCallback onPhoneSignIn;
 
   bool get _isLogin => mode == _AuthMode.login;
 
@@ -490,14 +541,20 @@ class _AuthForm extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // Name field (signup only)
         if (!_isLogin) ...[
-          const _AuthTextField(icon: Icons.person_rounded, hintText: 'Name'),
-          const SizedBox(height: 10),
+          _AuthTextField(
+            icon: Icons.person_rounded,
+            hintText: 'Name',
+            controller: nameController,
+          ),
+          const SizedBox(height: 8),
         ],
+        // Email field
         _AuthTextField(
           icon: Icons.email_rounded,
           hintText: 'Email',
-          initialValue: _isLogin ? 'doctor@crudoc.com' : null,
+          controller: emailController,
           trailing: _isLogin
               ? const Icon(
                   Icons.check_rounded,
@@ -506,10 +563,12 @@ class _AuthForm extends StatelessWidget {
                 )
               : null,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
+        // Password field
         _AuthTextField(
           icon: Icons.lock_rounded,
           hintText: 'Password',
+          controller: passwordController,
           obscureText: obscurePassword,
           trailing: IconButton(
             onPressed: onObscureToggle,
@@ -525,37 +584,49 @@ class _AuthForm extends StatelessWidget {
           ),
         ),
         if (_isLogin) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF0A7BFF),
-                padding: EdgeInsets.zero,
-                minimumSize: const Size(10, 26),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: const Text(
-                'Forgot password?',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                ),
+            child: Text(
+              'Demo: demo1234',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: const Color(0xFF0A7BFF).withValues(alpha: 0.6),
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
         ] else
-          const SizedBox(height: 18),
-        _AuthButton(
+          const SizedBox(height: 10),
+        const SizedBox(height: 4),
+
+        // Primary action button (Log in / Sign up)
+        _PrimaryButton(
           label: _isLogin ? 'Log in' : 'Sign up',
-          filled: true,
+          isLoading: isLoading,
           onPressed: onPrimary,
         ),
         const SizedBox(height: 10),
         const _DividerLabel(),
         const SizedBox(height: 10),
+
+        // Social sign-in buttons
+        _SocialButton(
+          icon: Icons.g_mobiledata_rounded,
+          label: 'Continue with Google',
+          onPressed: onGoogleSignIn,
+        ),
+        const SizedBox(height: 6),
+        _SocialButton(
+          icon: Icons.phone_rounded,
+          label: 'Sign in with Phone',
+          outlined: true,
+          onPressed: onPhoneSignIn,
+        ),
+        const SizedBox(height: 10),
+
+        // Switch between login / signup
         _AuthButton(
           label: _isLogin ? 'Sign up' : 'Log in',
           filled: false,
@@ -567,25 +638,27 @@ class _AuthForm extends StatelessWidget {
   }
 }
 
+// ==================== REUSABLE WIDGETS ====================
+
 class _AuthTextField extends StatelessWidget {
   const _AuthTextField({
     required this.icon,
     required this.hintText,
-    this.initialValue,
+    this.controller,
     this.obscureText = false,
     this.trailing,
   });
 
   final IconData icon;
   final String hintText;
-  final String? initialValue;
+  final TextEditingController? controller;
   final bool obscureText;
   final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
-      initialValue: initialValue,
+      controller: controller,
       obscureText: obscureText,
       cursorColor: const Color(0xFF0A7BFF),
       style: const TextStyle(
@@ -619,6 +692,116 @@ class _AuthTextField extends StatelessWidget {
   }
 }
 
+class _PrimaryButton extends StatelessWidget {
+  const _PrimaryButton({
+    required this.label,
+    required this.isLoading,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool isLoading;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 40,
+      child: ElevatedButton(
+        onPressed: isLoading ? null : onPressed,
+        style: ElevatedButton.styleFrom(
+          elevation: 4,
+          shadowColor: const Color(0xFF0A7BFF).withValues(alpha: 0.22),
+          backgroundColor: const Color(0xFF0A7BFF),
+          disabledBackgroundColor:
+              const Color(0xFF0A7BFF).withValues(alpha: 0.6),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+        ),
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: Colors.white,
+                ),
+              )
+            : Text(
+                label,
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+      ),
+    );
+  }
+}
+
+class _SocialButton extends StatelessWidget {
+  const _SocialButton({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+    this.outlined = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool outlined;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 38,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          backgroundColor:
+              outlined ? Colors.transparent : Colors.white,
+          foregroundColor:
+              outlined ? const Color(0xFF9A9A9A) : const Color(0xFF4A4A4A),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: BorderSide(
+              color: outlined
+                  ? const Color(0xFFDADADA).withValues(alpha: 0.9)
+                  : const Color(0xFFE8E8E8),
+              width: 1.2,
+            ),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              label,
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: outlined
+                    ? const Color(0xFF9A9A9A)
+                    : const Color(0xFF4A4A4A),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _AuthButton extends StatelessWidget {
   const _AuthButton({
     required this.label,
@@ -637,8 +820,8 @@ class _AuthButton extends StatelessWidget {
     final Color foreground = filled
         ? Colors.white
         : darkText
-        ? const Color(0xFF9A9A9A)
-        : const Color(0xFF0A7BFF);
+            ? const Color(0xFF9A9A9A)
+            : const Color(0xFF0A7BFF);
 
     return SizedBox(
       width: double.infinity,
@@ -700,6 +883,8 @@ class _DividerLabel extends StatelessWidget {
   }
 }
 
+// ==================== ANIMATED PANEL ====================
+
 class _AnimatedPanel extends StatelessWidget {
   const _AnimatedPanel({
     required this.progress,
@@ -738,6 +923,8 @@ class _AnimatedPanel extends StatelessWidget {
   }
 }
 
+// ==================== PAGE DOTS ====================
+
 class _PageDots extends StatelessWidget {
   const _PageDots({
     required this.count,
@@ -772,6 +959,8 @@ class _PageDots extends StatelessWidget {
     );
   }
 }
+
+// ==================== PAINTERS ====================
 
 class _WaterPanelPainter extends CustomPainter {
   _WaterPanelPainter({required this.progress, required this.whiteWaveHeight});

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
@@ -48,9 +49,10 @@ class HomeDashboardScreen extends StatefulWidget {
 }
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
-  // ---- Doctor info (replace with real data from provider/bloc) ----
-  final String _doctorName = ''; // TODO: fetch from user session
-  final String _specialty = ''; // TODO: fetch from user session
+  // ---- Doctor info from Firebase Auth ----
+  String get _doctorName =>
+      FirebaseAuth.instance.currentUser?.displayName ?? '';
+  String get _specialty => ''; // TODO: fetch from Firestore user profile
 
   // ---- Revenue card state (lifted up) ----
   final RevenueRepository _revenueRepository = RevenueRepository();

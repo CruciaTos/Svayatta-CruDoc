@@ -56,6 +56,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   final RevenueRepository _revenueRepository = RevenueRepository();
   bool _isMonthly = true;
   int _selectedBarIndex = -1; // use current month/day if not yet selected
+  bool _hideRevenue = true; // eye-toggle to mask the revenue section (hidden by default)
 
   /// Builds bars for the current week view with fixed Mon‑Sun labels.
   /// Each bar shows the revenue of the **most recent occurrence** of that weekday.
@@ -274,6 +275,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                     selectedBarIndex: currentIndex < 0 ? 0 : currentIndex,
                     amount: amount,
                     subtitle: subtitle,
+                    hideRevenue: _hideRevenue,
+                    onHideToggle: () {
+                      setState(() => _hideRevenue = !_hideRevenue);
+                    },
                     onToggle: (monthly) {
                       setState(() {
                         _isMonthly = monthly;
@@ -409,6 +414,8 @@ class _RevenueSnapshotCard extends StatelessWidget {
   final int selectedBarIndex;
   final String amount;
   final String subtitle;
+  final bool hideRevenue;
+  final VoidCallback onHideToggle;
   final ValueChanged<bool> onToggle;
   final ValueChanged<int> onBarSelected;
 
@@ -418,6 +425,8 @@ class _RevenueSnapshotCard extends StatelessWidget {
     required this.selectedBarIndex,
     required this.amount,
     required this.subtitle,
+    required this.hideRevenue,
+    required this.onHideToggle,
     required this.onToggle,
     required this.onBarSelected,
   });
@@ -450,153 +459,183 @@ class _RevenueSnapshotCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ---- Header row: "Revenue" label + eye icon + Week/Month chips ----
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Revenue',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
               Row(
                 children: [
-                  _buildToggleChip('Week', !isMonthly),
+                  const Text(
+                    'Revenue',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textSecondary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  _buildToggleChip('Month', isMonthly),
+                  // Eye toggle button
+                  GestureDetector(
+                    onTap: onHideToggle,
+                    child: Icon(
+                      hideRevenue ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      size: 17,
+                      color: AppColors.slateBlue.withOpacity(0.7),
+                    ),
+                  ),
                 ],
               ),
+              // Week / Month chips — only shown when not hidden
+              if (!hideRevenue)
+                Row(
+                  children: [
+                    _buildToggleChip('Week', !isMonthly),
+                    const SizedBox(width: 6),
+                    _buildToggleChip('Month', isMonthly),
+                  ],
+                ),
             ],
           ),
           const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                amount,
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  height: 1.0,
-                ),
+          // ---- Amount + subtitle (hidden when eye is off) ----
+          if (hideRevenue)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Row(
+                children: [
+                  Text(
+                    '₹ ••••••',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textPrimary.withOpacity(0.35),
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 2,
+                      height: 1.0,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 10),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  subtitle,
+            )
+          else
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  amount,
                   style: const TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textSecondary,
-                    fontSize: 12,
+                    color: AppColors.textPrimary,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w700,
+                    height: 1.0,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          // Bar chart (handles empty state)
-          SizedBox(
-            height: 130,
-            child: isEmpty
-                ? const Center(
-                    child: Text(
-                      'No data',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: AppColors.textSecondary,
-                      ),
+                const SizedBox(width: 10),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
                     ),
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: List.generate(bars.length, (index) {
-                      final bar = bars[index];
-                      final isSelected = index == safeSelectedIndex;
+                  ),
+                ),
+              ],
+            ),
+          // ---- Bar chart — hidden when revenue is masked ----
+          if (!hideRevenue) ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 130,
+              child: isEmpty
+                  ? const Center(
+                      child: Text(
+                        'No data',
+                        style: TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    )
+                  : Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: List.generate(bars.length, (index) {
+                        final bar = bars[index];
+                        final isSelected = index == safeSelectedIndex;
 
-                      // Determine if this bar should show the pill
-                      final bool showPill = isMonthly
-                          ? (index == bars.length - 1)   // rightmost month is current
-                          : (index == todayIndex);        // today's weekday
+                        final bool showPill = isMonthly
+                            ? (index == bars.length - 1)
+                            : (index == todayIndex);
 
-                      final barColor = isSelected
-                          ? AppColors.chartBarLight
-                          : AppColors.chartBarDim;
-
-                      final labelStyle = TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: isSelected
+                        final barColor = isSelected
                             ? AppColors.chartBarLight
-                            : AppColors.textSecondary,
-                        fontSize: 11,
-                        fontWeight: isSelected
-                            ? FontWeight.w700
-                            : FontWeight.normal,
-                      );
+                            : AppColors.chartBarDim;
 
-                      return Expanded(
-                        child: GestureDetector(
-                          onTap: () => onBarSelected(index),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 5),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 250),
-                                  height: 96 * bar.heightFactor,
-                                  decoration: BoxDecoration(
-                                    color: barColor,
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                // Pill indicator for the relevant bar (today or current month)
-                                if (showPill)
-                                  Transform.translate(
-                                    offset: const Offset(0, 3), // fine‑tune vertical alignment
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(vertical: 2),
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                        // Solid blue when this bar is also selected
-                                        color: isSelected
-                                            ? AppColors.chartBarLight
-                                            : null,
-                                        border: Border.all(
-                                          color: AppColors.chartBarLight.withOpacity(0.6),
-                                          width: 1.2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                      child: Text(
-                                        bar.label,
-                                        style: labelStyle.copyWith(
-                                          // White text when selected (on solid blue), otherwise secondary
-                                          color: isSelected
-                                              ? Colors.white
-                                              : AppColors.textSecondary,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                        final labelStyle = TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          color: isSelected
+                              ? AppColors.chartBarLight
+                              : AppColors.textSecondary,
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                        );
+
+                        return Expanded(
+                          child: GestureDetector(
+                            onTap: () => onBarSelected(index),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 250),
+                                    height: 96 * bar.heightFactor,
+                                    decoration: BoxDecoration(
+                                      color: barColor,
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
-                                  )
-                                else
-                                  Text(bar.label, style: labelStyle),
-                              ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  if (showPill)
+                                    Transform.translate(
+                                      offset: const Offset(0, 3),
+                                      child: Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: isSelected ? AppColors.chartBarLight : null,
+                                          border: Border.all(
+                                            color: AppColors.chartBarLight.withOpacity(0.6),
+                                            width: 1.2,
+                                          ),
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                        child: Text(
+                                          bar.label,
+                                          style: labelStyle.copyWith(
+                                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    )
+                                  else
+                                    Text(bar.label, style: labelStyle),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
-                  ),
-          ),
+                        );
+                      }),
+                    ),
+            ),
+          ],
         ],
       ),
     );
@@ -611,17 +650,27 @@ class _RevenueSnapshotCard extends StatelessWidget {
           onToggle(false);
         }
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.slateBlue : AppColors.cardSurfaceAlt,
+          // Active: slateBlue fill; inactive: white at 70% (matches form fields on gradient bg)
+          color: isActive
+              ? AppColors.slateBlue
+              : Colors.white.withOpacity(0.70),
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isActive
+                ? AppColors.slateBlue
+                : AppColors.slateBlue.withOpacity(0.20),
+            width: 1,
+          ),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontFamily: AppColors.bodyFontFamily,
-            color: isActive ? AppColors.textPrimary : AppColors.textSecondary,
+            color: isActive ? Colors.white : AppColors.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w600,
           ),

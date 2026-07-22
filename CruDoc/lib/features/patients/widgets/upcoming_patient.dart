@@ -8,7 +8,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
     as vmodel;
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart'
     show VisitWithPatient;
-import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
+import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 
 /// "Upcoming" summary card for the Patient Records screen.
 ///
@@ -71,13 +71,9 @@ class UpcomingPatientCard extends ConsumerWidget {
         final countdownText = _formatCountdown(timeUntil);
 
         void openDetails() {
-          Navigator.push(
+          showSessionDetailsSheet(
             context,
-            MaterialPageRoute(
-              builder: (_) => VisitDetailsPage(
-                initial: VisitWithPatient(visit: visit, patient: patient),
-              ),
-            ),
+            VisitWithPatient(visit: visit, patient: patient),
           );
         }
 

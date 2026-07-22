@@ -5,7 +5,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
-import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
+import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
@@ -749,13 +749,9 @@ class _SessionTimelineTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        Navigator.push(
+        showSessionDetailsSheet(
           context,
-          MaterialPageRoute(
-            builder: (_) => VisitDetailsPage(
-              initial: VisitWithPatient(visit: visit, patient: patient),
-            ),
-          ),
+          VisitWithPatient(visit: visit, patient: patient),
         );
       },
       child: IntrinsicHeight(

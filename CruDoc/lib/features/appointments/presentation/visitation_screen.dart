@@ -14,8 +14,9 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-// NEW import for VisitDetailsPage
-import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
+// Bottom sheet used for session details (replaces the old full-page
+// VisitDetailsPage push below).
+import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 
 // ---------- SHARED DIALOG FORM HELPERS ----------
 Widget _buildTextField(String label, TextEditingController controller,
@@ -940,14 +941,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
                 scheduledStart: visit.scheduledStart,
                 scheduledEnd: visit.scheduledEnd,
                 status: visit.status,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => VisitDetailsPage(initial: vw),
-                    ),
-                  );
-                },
+                onTap: () => showSessionDetailsSheet(context, vw),
                 onReschedule: () => _rescheduleVisit(visit.id),
                 onMarkCompleted: () => _markCompleted(visit.id),
                 onCancel: () => _cancelVisit(visit.id),
@@ -969,15 +963,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
               // --- Phase 3 additions ---
               status: visit.status,
               visitType: visit.visitType,
-              onTap: () {
-                // Navigate to VisitDetailsPage with the VisitWithPatient data
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => VisitDetailsPage(initial: vw),
-                  ),
-                );
-              },
+              onTap: () => showSessionDetailsSheet(context, vw),
               onReschedule: () => _rescheduleVisit(visit.id),
               onMarkCompleted: () => _markCompleted(visit.id),
               onCancel: () => _cancelVisit(visit.id),

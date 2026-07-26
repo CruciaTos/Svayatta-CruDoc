@@ -1,4 +1,7 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
@@ -74,6 +77,9 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
   DateTime? _expiryDate;
   bool _isSaving = false;
   String? _errorText;
+  XFile? _receiptImage;
+
+  static final _imagePicker = ImagePicker();
 
   bool get _isEditing => widget.medicine != null;
 
@@ -118,6 +124,205 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
       },
     );
     if (picked != null) setState(() => _expiryDate = picked);
+  }
+
+  Future<void> _showReceiptSourcePicker() async {
+    if (_isSaving) return;
+
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+    await _pickReceiptImage(source);
+  }
+
+  Future<void> _pickReceiptImage(ImageSource source) async {
+    try {
+      final image = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (image == null || !mounted) return;
+
+      setState(() => _receiptImage = image);
+      await _scanReceiptWithOcr(image);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _errorText = 'Could not attach receipt: $e');
+    }
+  }
+
+  /// Placeholder for OCR integration — wire your model here to auto-fill fields.
+  Future<void> _scanReceiptWithOcr(XFile image) async {
+    // TODO(OCR): Parse [image] and populate name, category, unit, stock,
+    // price, supplier, batch, and expiry fields below.
+    await Future<void>.value();
+  }
+
+  Widget _buildReceiptUploadSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Medicine Receipt'),
+        const SizedBox(height: 4),
+        Text(
+          'Attach a receipt photo — OCR will auto-fill the form below',
+          style: AppColors.bodyMedium.copyWith(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (_receiptImage == null)
+          Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            child: InkWell(
+              onTap: _showReceiptSourcePicker,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: AppColors.chartBarDim.withValues(alpha: 0.45),
+                    width: 1.5,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.receipt_long_outlined,
+                      size: 36,
+                      color: AppColors.chartBarLight.withValues(alpha: 0.85),
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Tap to attach receipt',
+                      style: AppColors.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Camera or gallery',
+                      style: AppColors.bodyMedium.copyWith(
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ClipRRect(
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(16),
+                  ),
+                  child: AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.file(
+                      File(_receiptImage!.path),
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.beige,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.document_scanner_outlined,
+                              size: 14,
+                              color: AppColors.chartBarLight.withValues(
+                                alpha: 0.9,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'OCR scan — coming soon',
+                              style: AppColors.bodyMedium.copyWith(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.slateBlue,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: _isSaving
+                            ? null
+                            : () => setState(() => _receiptImage = null),
+                        icon: const Icon(Icons.close, size: 20),
+                        color: AppColors.textSecondary,
+                        tooltip: 'Remove receipt',
+                      ),
+                      IconButton(
+                        onPressed: _isSaving ? null : _showReceiptSourcePicker,
+                        icon: const Icon(Icons.swap_horiz, size: 20),
+                        color: AppColors.chartBarLight,
+                        tooltip: 'Replace receipt',
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 14),
+      ],
+    );
   }
 
   Future<void> _handleSubmit() async {
@@ -235,6 +440,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
+                if (!_isEditing) _buildReceiptUploadSection(),
                 _label('Name'),
                 const SizedBox(height: 8),
                 TextFormField(

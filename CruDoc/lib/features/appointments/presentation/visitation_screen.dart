@@ -18,25 +18,97 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // VisitDetailsPage push below).
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 
-// ---------- SHARED DIALOG FORM HELPERS ----------
+// ---------- SHARED BOTTOM-SHEET FORM HELPERS ----------
+Widget _buildSheetHandle() {
+  return Center(
+    child: Container(
+      width: 44,
+      height: 5,
+      margin: const EdgeInsets.only(bottom: 20),
+      decoration: BoxDecoration(
+        color: AppColors.silver.withValues(alpha: 0.6),
+        borderRadius: BorderRadius.circular(999),
+      ),
+    ),
+  );
+}
+
+Widget _buildSheetActions({
+  required BuildContext context,
+  required VoidCallback onCancel,
+  required VoidCallback onSubmit,
+  required String submitLabel,
+  bool isSaving = false,
+}) {
+  return Row(
+    mainAxisAlignment: MainAxisAlignment.end,
+    children: [
+      TextButton(
+        onPressed: isSaving ? null : onCancel,
+        child: const Text(
+          'Cancel',
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: AppColors.slateBlue,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      const SizedBox(width: 8),
+      FilledButton(
+        onPressed: isSaving ? null : onSubmit,
+        style: FilledButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+          backgroundColor: AppColors.chartBarLight,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
+        ),
+        child: Text(
+          submitLabel,
+          style: const TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
 Widget _buildTextField(String label, TextEditingController controller,
     {String? hint, ValueChanged<String>? onChanged}) {
   return TextField(
     controller: controller,
     onChanged: onChanged,
-    style: AppColors.bodyLarge,
+    style: AppColors.bodyMedium,
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: AppColors.bodyMedium,
-      hintStyle: AppColors.bodySmall.copyWith(color: Colors.grey.shade600),
+      labelStyle: AppColors.bodyMedium.copyWith(
+        color: AppColors.textSecondary,
+        fontWeight: FontWeight.w600,
+      ),
+      hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
       filled: true,
-      fillColor: AppColors.cardSurface,
+      fillColor: Colors.white,
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(
+          color: AppColors.chartBarLight,
+          width: 1.5,
+        ),
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     ),
   );
 }
@@ -68,19 +140,23 @@ Widget _buildPickDateButton(
       onPicked(picked);
     },
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today, color: AppColors.silver, size: 20),
+          const Icon(Icons.calendar_today_outlined,
+              color: AppColors.chartBarLight, size: 18),
           const SizedBox(width: 10),
-          Text(
-            dateStr,
-            style: AppColors.bodyLarge,
+          Expanded(
+            child: Text(
+              dateStr,
+              style: AppColors.bodyMedium,
+            ),
           ),
+          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         ],
       ),
     ),
@@ -112,19 +188,22 @@ Widget _buildPickTimeButton(
       onPicked(picked);
     },
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(8),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time, color: AppColors.silver, size: 20),
+          const Icon(Icons.access_time, color: AppColors.chartBarLight, size: 18),
           const SizedBox(width: 10),
-          Text(
-            timeStr,
-            style: AppColors.bodyLarge,
+          Expanded(
+            child: Text(
+              timeStr,
+              style: AppColors.bodyMedium,
+            ),
           ),
+          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         ],
       ),
     ),
@@ -141,28 +220,24 @@ Widget _buildDurationDropdown(
     '90 min',
     '120 min'
   ];
-  return SizedBox(
-    height: 48,
-    width: double.infinity,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: currentValue,
-          isExpanded: true,
-          menuMaxHeight: 200,
-          dropdownColor: AppColors.cardSurface,
-          style: AppColors.bodyLarge,
-          items: durations.map((d) {
-            return DropdownMenuItem(value: d, child: Text(d));
-          }).toList(),
-          onChanged: onChanged,
-          icon: const Icon(Icons.arrow_drop_down, color: AppColors.silver),
-        ),
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: currentValue,
+        isExpanded: true,
+        menuMaxHeight: 200,
+        dropdownColor: Colors.white,
+        style: AppColors.bodyMedium,
+        items: durations.map((d) {
+          return DropdownMenuItem(value: d, child: Text(d));
+        }).toList(),
+        onChanged: onChanged,
+        icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
       ),
     ),
   );
@@ -294,84 +369,42 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
   }
 
   Future<void> _addOnlineSession() async {
-    final titleController = TextEditingController();
-    final linkController = TextEditingController();
-    DateTime selectedDate = DateTime.now().add(const Duration(days: 7));
-    TimeOfDay selectedTime = const TimeOfDay(hour: 10, minute: 0);
-
-    final result = await showDialog<bool>(
+    final draft = await showModalBottomSheet<_OnlineSessionDraft>(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              backgroundColor: const Color.fromARGB(255, 140, 188, 255),
-              title: const Text('Add Online Session',
-                  style: AppColors.sectionHeading),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _buildTextField('Title', titleController),
-                    const SizedBox(height: 12),
-                    _buildPickDateButton(context, selectedDate, (picked) {
-                      if (picked != null) {
-                        setDialogState(() => selectedDate = picked);
-                      }
-                    }),
-                    const SizedBox(height: 12),
-                    _buildPickTimeButton(context, selectedTime, (picked) {
-                      if (picked != null) {
-                        setDialogState(() => selectedTime = picked);
-                      }
-                    }),
-                    const SizedBox(height: 12),
-                    _buildTextField('Meeting Link (URL)', linkController,
-                        hint: 'https://meet.google.com/...'),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Cancel', style: AppColors.bodyLarge),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (titleController.text.isNotEmpty &&
-                        linkController.text.isNotEmpty) {
-                      Navigator.pop(context, true);
-                    }
-                  },
-                  child: const Text('Add', style: TextStyle(fontSize: 17)),
-                ),
-              ],
-            );
-          },
-        );
-      },
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (_) => const _AddOnlineSessionSheet(),
     );
 
-    if (result == true) {
-      if (!mounted) return;
-      final dateStr =
-          '${selectedDate.day} ${_monthName(selectedDate.month)} ${selectedDate.year}';
-      final timeStr = selectedTime.format(context);
-      setState(() {
-        onlineSessions.add(OnlineSession(
-          title: titleController.text.trim(),
-          date: dateStr,
-          time: timeStr,
-          link: linkController.text.trim(),
-        ));
-      });
-    }
+    if (draft == null || !mounted) return;
+
+    final dateStr =
+        '${draft.date.day} ${_monthName(draft.date.month)} ${draft.date.year}';
+    final timeStr = draft.time.format(context);
+    setState(() {
+      onlineSessions.add(OnlineSession(
+        title: draft.title,
+        date: dateStr,
+        time: timeStr,
+        link: draft.link,
+      ));
+    });
   }
 
   Future<void> _addVisit() async {
-    final draft = await showDialog<_VisitDraft>(
+    final draft = await showModalBottomSheet<_VisitDraft>(
       context: context,
-      builder: (context) => _AddVisitDialog(
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (context) => _AddVisitSheet(
         patientRepository: _patientRepository,
       ),
     );
@@ -976,16 +1009,114 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
   }
 }
 
-// ---------- ADD VISIT DIALOG (address now optional, visit type toggle) ----------
-class _AddVisitDialog extends StatefulWidget {
-  final PatientRepository patientRepository;
-  const _AddVisitDialog({required this.patientRepository});
+// ---------- ADD ONLINE SESSION SHEET ----------
+class _OnlineSessionDraft {
+  final String title;
+  final DateTime date;
+  final TimeOfDay time;
+  final String link;
 
-  @override
-  State<_AddVisitDialog> createState() => _AddVisitDialogState();
+  const _OnlineSessionDraft({
+    required this.title,
+    required this.date,
+    required this.time,
+    required this.link,
+  });
 }
 
-class _AddVisitDialogState extends State<_AddVisitDialog> {
+class _AddOnlineSessionSheet extends StatefulWidget {
+  const _AddOnlineSessionSheet();
+
+  @override
+  State<_AddOnlineSessionSheet> createState() => _AddOnlineSessionSheetState();
+}
+
+class _AddOnlineSessionSheetState extends State<_AddOnlineSessionSheet> {
+  final _titleController = TextEditingController();
+  final _linkController = TextEditingController();
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
+  TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _linkController.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final title = _titleController.text.trim();
+    final link = _linkController.text.trim();
+    if (title.isEmpty || link.isEmpty) return;
+
+    Navigator.pop(
+      context,
+      _OnlineSessionDraft(
+        title: title,
+        date: _selectedDate,
+        time: _selectedTime,
+        link: link,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSheetHandle(),
+            Text(
+              'Add Online Session',
+              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 16),
+            _buildTextField('Title', _titleController),
+            const SizedBox(height: 12),
+            _buildPickDateButton(context, _selectedDate, (picked) {
+              if (picked != null) setState(() => _selectedDate = picked);
+            }),
+            const SizedBox(height: 12),
+            _buildPickTimeButton(context, _selectedTime, (picked) {
+              if (picked != null) setState(() => _selectedTime = picked);
+            }),
+            const SizedBox(height: 12),
+            _buildTextField(
+              'Meeting Link (URL)',
+              _linkController,
+              hint: 'https://meet.google.com/...',
+            ),
+            const SizedBox(height: 20),
+            _buildSheetActions(
+              context: context,
+              onCancel: () => Navigator.pop(context),
+              onSubmit: _submit,
+              submitLabel: 'Add',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- ADD VISIT SHEET ----------
+class _AddVisitSheet extends StatefulWidget {
+  final PatientRepository patientRepository;
+  const _AddVisitSheet({required this.patientRepository});
+
+  @override
+  State<_AddVisitSheet> createState() => _AddVisitSheetState();
+}
+
+class _AddVisitSheetState extends State<_AddVisitSheet> {
   final _nameController = TextEditingController();
   final _addressController = TextEditingController();
   final _mapsLinkController = TextEditingController();
@@ -1075,8 +1206,8 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: vmodel.VisitType.values.map((type) {
@@ -1115,14 +1246,23 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
     final visiblePatientMatches =
         _patientMatches.take(5).toList(growable: false);
 
-    return AlertDialog(
-      backgroundColor: const Color.fromARGB(255, 140, 188, 255),
-      title: const Text('Add Visit', style: AppColors.sectionHeading),
-      content: SingleChildScrollView(
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildVisitTypeToggle(),     // merged: show toggle at top
+            _buildSheetHandle(),
+            Text(
+              'Add Visit',
+              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 16),
+            _buildVisitTypeToggle(),
             const SizedBox(height: 12),
             _buildTextField(
               'Patient Name',
@@ -1144,8 +1284,11 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                 margin: const EdgeInsets.only(top: 6),
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: AppColors.cardSurface,
-                  borderRadius: BorderRadius.circular(8),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.chartBarDim.withValues(alpha: 0.22),
+                  ),
                 ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -1157,12 +1300,13 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         dense: true,
                         title: Text(
                           visiblePatientMatches[i].fullName,
-                          style: AppColors.bodyLarge,
+                          style: AppColors.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         subtitle: Text(
                           visiblePatientMatches[i].phone,
-                          style: AppColors.bodyMedium
-                              .copyWith(color: Colors.black54),
+                          style: AppColors.bodySmall,
                         ),
                         onTap: () =>
                             _selectPatient(visiblePatientMatches[i]),
@@ -1180,8 +1324,9 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                         child: Text(
                           'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
-                          style: AppColors.bodySmall
-                              .copyWith(color: Colors.black54),
+                          style: AppColors.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                         ),
                       ),
                   ],
@@ -1192,10 +1337,9 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
               Padding(
                 padding: const EdgeInsets.only(top: 6, left: 4),
                 child: Text(
-                  'No matching patient — add them in Patient '
-                  'Records first.',
+                  'No matching patient — add them in Patient Records first.',
                   style: AppColors.bodyMedium.copyWith(
-                    color: Colors.black.withValues(alpha: 0.7),
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -1223,17 +1367,14 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
               },
             ),
             const SizedBox(height: 12),
-            // Address stays optional either way — only the label/hint
-            // flexes with the booking type.
             _buildTextField(
               _selectedType == vmodel.VisitType.home
                   ? 'Home Address'
                   : 'Clinic Address (optional)',
               _addressController,
               hint: _selectedType == vmodel.VisitType.home
-                  ? "Patient's home address — will be geocoded when maps "
-                      'API is connected'
-                  : 'Will be geocoded when maps API is connected',
+                  ? "Patient's home address"
+                  : 'Clinic address',
             ),
             const SizedBox(height: 12),
             _buildTextField(
@@ -1241,19 +1382,16 @@ class _AddVisitDialogState extends State<_AddVisitDialog> {
               _mapsLinkController,
               hint: 'https://maps.google.com/...',
             ),
+            const SizedBox(height: 20),
+            _buildSheetActions(
+              context: context,
+              onCancel: () => Navigator.pop(context),
+              onSubmit: _submit,
+              submitLabel: 'Add',
+            ),
           ],
         ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel', style: AppColors.bodyLarge),
-        ),
-        ElevatedButton(
-          onPressed: _submit,
-          child: const Text('Add', style: TextStyle(fontSize: 17)),
-        ),
-      ],
     );
   }
 }

@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>26.2 — The AI Engineer Marathon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500;8..60,600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --asphalt:#14171D;
+  --asphalt-2:#191D25;
+  --panel:#20242E;
+  --panel-2:#262B36;
+  --line:rgba(244,239,228,0.09);
+  --line-strong:rgba(244,239,228,0.16);
+  --chalk:#F4EFE4;
+  --chalk-dim:#9BA1AD;
+  --chalk-faint:#6b7280;
+  --bib:#FF5A3C;
+  --bib-strong:#FF7A57;
+  --bib-dim:rgba(255,90,60,0.14);
+  --finish:#FFC53D;
+  --finish-dim:rgba(255,197,61,0.14);
+  --danger:#FF5A3C;
+  --font-display:'Bebas Neue', sans-serif;
+  --font-head:'Space Grotesk', sans-serif;
+  --font-body:'Source Serif 4', Georgia, serif;
+  --font-mono:'JetBrains Mono', monospace;
+  --radius:14px;
+  --radius-sm:8px;
+  --sidebar-w:296px;
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--asphalt);
+  color:var(--chalk);
+  font-family:var(--font-head);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+a{color:inherit;}
+button{font-family:inherit;cursor:pointer;}
+::selection{background:var(--bib);color:#14171D;}
+::-webkit-scrollbar{width:10px;height:10px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:#33394a;border-radius:8px;}
+::-webkit-scrollbar-thumb:hover{background:#454c62;}
+
+:focus-visible{outline:2px solid var(--finish);outline-offset:2px;border-radius:4px;}
+
+/* ============ LAYOUT ============ */
+#app{display:flex;min-height:100vh;}
+
+.sidebar{
+  width:var(--sidebar-w);
+  flex:0 0 auto;
+  background:var(--asphalt-2);
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  height:100vh;position:sticky;top:0;
+  overflow-y:auto;
+  z-index:40;
+}
+.sidebar-brand{
+  padding:22px 20px 14px;
+  border-bottom:1px solid var(--line);
+}
+.brand-row{display:flex;align-items:baseline;gap:8px;}
+.brand-num{font-family:var(--font-display);font-size:34px;line-height:1;color:var(--bib);letter-spacing:0.5px;}
+.brand-name{font-family:var(--font-head);font-weight:700;font-size:14px;letter-spacing:1.5px;text-transform:uppercase;color:var(--chalk);}
+.brand-sub{margin-top:4px;font-size:11.5px;color:var(--chalk-dim);letter-spacing:0.3px;}
+
+.sidebar-progress{padding:14px 20px;border-bottom:1px solid var(--line);}
+.sp-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;}
+.sp-label{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--chalk-dim);}
+.sp-value{font-family:var(--font-mono);font-size:12px;color:var(--finish);}
+.track-bar{height:6px;border-radius:6px;background:#2a2f3b;overflow:hidden;position:relative;}
+.track-bar-fill{height:100%;background:linear-gradient(90deg,var(--bib),var(--finish));border-radius:6px;transition:width .5s ease;}
+
+.sidebar-nav{flex:1;padding:8px 10px 20px;}
+.nav-quicklinks{padding:6px 10px 12px;border-bottom:1px solid var(--line);margin-bottom:8px;}
+.nav-link{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;border-radius:var(--radius-sm);
+  font-size:13.5px;color:var(--chalk-dim);text-decoration:none;
+  background:transparent;border:none;width:100%;text-align:left;
+}
+.nav-link:hover{background:var(--panel);color:var(--chalk);}
+.nav-link.active{background:var(--bib-dim);color:var(--bib-strong);font-weight:600;}
+.nav-link .ic{width:16px;text-align:center;opacity:.85;font-size:13px;}
+
+.phase-group{margin-bottom:2px;}
+.phase-head{
+  display:flex;align-items:center;gap:10px;width:100%;
+  padding:10px 10px;border:none;background:transparent;border-radius:var(--radius-sm);
+  color:var(--chalk);text-align:left;
+}
+.phase-head:hover{background:var(--panel);}
+.phase-head .pnum{
+  font-family:var(--font-mono);font-size:10.5px;color:var(--asphalt);
+  background:var(--chalk-dim);width:20px;height:20px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.phase-head.done .pnum{background:var(--finish);}
+.phase-head .ptitle{flex:1;font-size:13px;font-weight:600;}
+.phase-head .pmile{font-family:var(--font-mono);font-size:9.5px;color:var(--chalk-faint);}
+.phase-head .chev{font-size:10px;color:var(--chalk-faint);transition:transform .2s;}
+.phase-group.open .chev{transform:rotate(90deg);}
+.phase-topics{max-height:0;overflow:hidden;transition:max-height .25s ease;padding-left:8px;}
+.phase-group.open .phase-topics{max-height:2000px;}
+.topic-group-label{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--chalk-faint);padding:8px 10px 3px;}
+.topic-link{
+  display:flex;align-items:center;gap:8px;
+  padding:6.5px 10px 6.5px 30px;border-radius:var(--radius-sm);
+  font-size:12.7px;color:var(--chalk-dim);text-decoration:none;border:none;background:transparent;width:100%;text-align:left;
+}
+.topic-link:hover{background:var(--panel);color:var(--chalk);}
+.topic-link.active{background:var(--bib-dim);color:var(--bib-strong);}
+.topic-check{width:13px;height:13px;border-radius:4px;border:1.5px solid var(--chalk-faint);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:9px;}
+.topic-check.done{background:var(--finish);border-color:var(--finish);color:var(--asphalt);}
+.topic-link .flag{margin-left:auto;font-size:10px;color:var(--finish);opacity:.8;}
+.topic-link .bookmark-dot{margin-left:auto;font-size:10px;color:var(--bib);}
+
+.main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.topbar{
+  position:sticky;top:0;z-index:30;
+  background:rgba(20,23,29,0.9);backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--line);
+  padding:12px 28px;display:flex;align-items:center;gap:16px;
+}
+.menu-btn{display:none;background:none;border:1px solid var(--line-strong);color:var(--chalk);border-radius:8px;width:36px;height:36px;font-size:16px;}
+.search-box{
+  flex:1;max-width:420px;display:flex;align-items:center;gap:8px;
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;padding:8px 12px;
+}
+.search-box input{background:none;border:none;color:var(--chalk);font-family:var(--font-head);font-size:13.5px;width:100%;outline:none;}
+.search-box input::placeholder{color:var(--chalk-faint);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.streak-pill{
+  display:flex;align-items:center;gap:6px;background:var(--finish-dim);color:var(--finish);
+  padding:6px 12px;border-radius:20px;font-family:var(--font-mono);font-size:12px;font-weight:600;
+}
+
+.content{flex:1;padding:32px 40px 80px;max-width:1180px;width:100%;margin:0 auto;}
+@media (max-width:900px){
+  .content{padding:20px 18px 60px;}
+  .topbar{padding:10px 16px;}
+}
+
+/* ============ SEARCH RESULTS ============ */
+.search-results{position:fixed;inset:0;background:rgba(10,11,15,0.7);z-index:100;display:flex;align-items:flex-start;justify-content:center;padding:80px 20px;}
+.search-panel{background:var(--panel);border:1px solid var(--line-strong);border-radius:var(--radius);width:100%;max-width:640px;max-height:70vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+.search-panel-head{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid var(--line);}
+.search-panel-head input{flex:1;background:none;border:none;color:var(--chalk);font-family:var(--font-head);font-size:16px;outline:none;}
+.search-result-item{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);}
+.search-result-item:hover{background:var(--panel-2);cursor:pointer;}
+.search-result-item .srt{font-weight:600;font-size:13.5px;}
+.search-result-item .srp{margin-left:auto;font-size:10.5px;color:var(--chalk-faint);font-family:var(--font-mono);}
+
+/* ============ HERO / MARATHON TRACK ============ */
+.hero{
+  background:linear-gradient(180deg,#1B1F27 0%,#171B22 100%);
+  border:1px solid var(--line);border-radius:20px;
+  padding:28px 28px 8px;margin-bottom:28px;position:relative;overflow:hidden;
+}
+.hero-top{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:6px;}
+.hero-eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--bib-strong);font-weight:700;}
+.hero-title{font-family:var(--font-display);font-size:44px;line-height:1;margin:6px 0 4px;letter-spacing:.5px;}
+.hero-sub{color:var(--chalk-dim);font-size:13.5px;max-width:520px;}
+.hero-stats{display:flex;gap:22px;flex-wrap:wrap;}
+.hstat{text-align:right;}
+.hstat .hv{font-family:var(--font-mono);font-size:22px;color:var(--finish);font-weight:600;}
+.hstat .hl{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--chalk-faint);}
+
+.track-wrap{margin-top:10px;position:relative;}
+.track-svg{width:100%;height:auto;display:block;}
+.mile-label{font-family:var(--font-mono);font-size:10px;fill:var(--chalk-faint);}
+.mile-label.done{fill:var(--finish);}
+.mile-tag{font-family:var(--font-head);font-size:9.5px;fill:var(--chalk-dim);font-weight:600;}
+
+.hero-legend{display:flex;gap:18px;padding:10px 4px 18px;flex-wrap:wrap;}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--chalk-dim);}
+.legend-dot{width:9px;height:9px;border-radius:50%;}
+
+/* ============ DASHBOARD GRID ============ */
+.dash-grid{display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:28px;}
+@media (max-width:900px){.dash-grid{grid-template-columns:1fr;}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px;}
+.card-title{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--chalk);margin:0 0 14px;display:flex;align-items:center;gap:8px;}
+.continue-row{display:flex;align-items:center;gap:14px;padding:12px;border-radius:var(--radius-sm);background:var(--asphalt-2);border:1px solid var(--line);margin-bottom:10px;}
+.continue-row .ctitle{font-weight:600;font-size:14px;}
+.continue-row .cphase{font-size:11px;color:var(--chalk-dim);}
+.btn{
+  display:inline-flex;align-items:center;gap:6px;justify-content:center;
+  padding:9px 16px;border-radius:9px;border:none;font-family:var(--font-head);font-weight:600;font-size:12.5px;
+  letter-spacing:.3px;
+}
+.btn-primary{background:var(--bib);color:#1a0d08;}
+.btn-primary:hover{background:var(--bib-strong);}
+.btn-ghost{background:var(--panel-2);color:var(--chalk);border:1px solid var(--line-strong);}
+.btn-ghost:hover{border-color:var(--chalk-dim);}
+.btn-gold{background:var(--finish);color:#241a02;}
+.btn-sm{padding:6px 11px;font-size:11px;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+
+.leg-row{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);}
+.leg-row:last-child{border-bottom:none;}
+.leg-badge{font-family:var(--font-mono);font-size:10px;width:22px;height:22px;border-radius:50%;background:var(--panel-2);display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.leg-badge.done{background:var(--finish);color:#241a02;}
+.leg-name{flex:1;font-size:12.5px;}
+.leg-pct{font-family:var(--font-mono);font-size:11px;color:var(--chalk-dim);}
+
+/* ============ PHASE PAGE ============ */
+.breadcrumb{font-size:11.5px;color:var(--chalk-faint);margin-bottom:10px;font-family:var(--font-mono);}
+.breadcrumb a{color:var(--chalk-dim);text-decoration:none;}
+.breadcrumb a:hover{color:var(--bib-strong);}
+.phase-header{margin-bottom:24px;}
+.phase-header .peyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--bib-strong);font-weight:700;}
+.phase-header h1{font-family:var(--font-display);font-size:40px;margin:6px 0;letter-spacing:.5px;}
+.phase-header p{color:var(--chalk-dim);font-size:14px;max-width:640px;line-height:1.6;}
+.topic-table{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;}
+.tt-group-label{background:var(--asphalt-2);padding:10px 18px;font-size:10.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--chalk-dim);font-weight:700;}
+.tt-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-top:1px solid var(--line);background:var(--panel);}
+.tt-row:hover{background:var(--panel-2);cursor:pointer;}
+.tt-check{width:20px;height:20px;border-radius:6px;border:1.5px solid var(--chalk-faint);flex:0 0 auto;display:flex;align-items:center;justify-content:center;}
+.tt-check.done{background:var(--finish);border-color:var(--finish);color:#241a02;}
+.tt-title{flex:1;font-size:14px;font-weight:600;}
+.tt-flag{font-size:10px;padding:3px 8px;border-radius:20px;background:var(--bib-dim);color:var(--bib-strong);font-weight:700;letter-spacing:.3px;}
+.tt-flag.stub{background:var(--panel-2);color:var(--chalk-faint);}
+.tt-arrow{color:var(--chalk-faint);}
+
+.takeaway-box{background:var(--asphalt-2);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-top:24px;}
+.takeaway-box h3{margin:0 0 10px;font-size:14px;}
+.takeaway-box ul{margin:0;padding-left:18px;color:var(--chalk-dim);font-size:13.5px;line-height:1.9;}
+.next-phase-cta{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(90deg,rgba(255,90,60,.1),rgba(255,197,61,.08));border:1px solid var(--line-strong);border-radius:var(--radius);padding:18px 22px;margin-top:20px;}
+
+/* ============ TOPIC PAGE ============ */
+.topic-header{margin-bottom:8px;}
+.topic-header .teyebrow{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--bib-strong);font-weight:700;}
+.topic-header h1{font-family:var(--font-display);font-size:42px;margin:4px 0 10px;letter-spacing:.4px;line-height:1;}
+.topic-actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0 30px;padding-bottom:22px;border-bottom:1px solid var(--line);}
+.icon-btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--line-strong);color:var(--chalk-dim);padding:8px 14px;border-radius:9px;font-size:12px;font-weight:600;}
+.icon-btn:hover{color:var(--chalk);border-color:var(--chalk-dim);}
+.icon-btn.on{background:var(--finish-dim);color:var(--finish);border-color:transparent;}
+.icon-btn.bm-on{background:var(--bib-dim);color:var(--bib-strong);border-color:transparent;}
+
+.tsec{margin-bottom:34px;}
+.tsec-head{display:flex;align-items:baseline;gap:10px;margin-bottom:12px;}
+.tsec-num{font-family:var(--font-mono);font-size:12px;color:var(--finish);}
+.tsec-head h2{font-family:var(--font-head);font-size:19px;margin:0;letter-spacing:.2px;}
+.tsec-body{font-family:var(--font-body);font-size:16px;line-height:1.75;color:#E4E0D6;}
+.tsec-body p{margin:0 0 12px;}
+.tsec-body ul,.tsec-body ol{padding-left:22px;line-height:1.85;}
+.tsec-body li{margin-bottom:6px;}
+.tsec-body strong{color:var(--finish);font-weight:600;}
+.concept-block{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--bib);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:14px 18px;margin-bottom:12px;}
+.concept-block h4{margin:0 0 6px;font-family:var(--font-head);font-size:14px;color:var(--chalk);}
+.concept-block p{margin:0;font-size:14.5px;color:var(--chalk-dim);font-family:var(--font-body);line-height:1.7;}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media (max-width:700px){.two-col{grid-template-columns:1fr;}}
+.pill-list{list-style:none;margin:0;padding:0;}
+.pill-list li{display:flex;gap:8px;padding:8px 0;font-size:14px;color:var(--chalk-dim);border-bottom:1px solid var(--line);}
+.pill-list.adv li::before{content:"+";color:var(--finish);font-weight:700;}
+.pill-list.lim li::before{content:"–";color:var(--bib-strong);font-weight:700;}
+.pill-list.mist li::before{content:"!";color:var(--bib-strong);font-weight:700;}
+
+.viz-suggest{display:flex;gap:10px;flex-wrap:wrap;}
+.viz-chip{background:var(--panel-2);border:1px dashed var(--line-strong);border-radius:20px;padding:7px 14px;font-size:12px;color:var(--chalk-dim);display:flex;align-items:center;gap:6px;}
+
+.iq-block{margin-bottom:16px;}
+.iq-level{font-size:10.5px;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;color:var(--finish);margin-bottom:8px;}
+.iq-item{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;}
+.iq-q{padding:12px 16px;font-weight:600;font-size:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;}
+.iq-q:hover{background:var(--panel-2);cursor:pointer;}
+.iq-a{padding:0 16px;max-height:0;overflow:hidden;transition:max-height .2s ease;font-family:var(--font-body);font-size:14.5px;color:var(--chalk-dim);line-height:1.7;}
+.iq-item.open .iq-a{max-height:400px;padding:0 16px 14px;}
+.iq-chevron{color:var(--chalk-faint);font-size:11px;flex:0 0 auto;}
+
+.resource-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media (max-width:800px){.resource-grid{grid-template-columns:1fr;}}
+.res-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px;}
+.res-card .rlvl{font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--bib-strong);font-weight:700;margin-bottom:6px;}
+.res-card .rname{font-weight:600;font-size:13.5px;margin-bottom:3px;}
+.res-card .rby{font-size:11.5px;color:var(--chalk-faint);}
+
+.read-list{list-style:none;margin:0;padding:0;}
+.read-list li{display:flex;gap:10px;align-items:baseline;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;}
+.read-list .rtag{font-family:var(--font-mono);font-size:9.5px;color:var(--finish);flex:0 0 92px;text-transform:uppercase;letter-spacing:.5px;}
+.read-list a{color:var(--chalk);text-decoration:none;border-bottom:1px solid var(--line-strong);}
+.read-list a:hover{color:var(--bib-strong);border-color:var(--bib-strong);}
+
+.repo-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;margin-bottom:12px;}
+.repo-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;}
+.repo-name{font-family:var(--font-mono);font-weight:600;font-size:14px;}
+.repo-name a{color:var(--chalk);text-decoration:none;}
+.repo-name a:hover{color:var(--bib-strong);}
+.repo-diff{font-size:9.5px;text-transform:uppercase;letter-spacing:.8px;padding:3px 9px;border-radius:20px;font-weight:700;}
+.repo-diff.Beginner{background:var(--finish-dim);color:var(--finish);}
+.repo-diff.Intermediate{background:var(--bib-dim);color:var(--bib-strong);}
+.repo-diff.Advanced{background:rgba(244,239,228,.1);color:var(--chalk-dim);}
+.repo-card p{margin:5px 0;font-size:13.5px;color:var(--chalk-dim);line-height:1.6;}
+.repo-card .rlabel{color:var(--chalk-faint);font-size:11px;text-transform:uppercase;letter-spacing:.5px;margin-right:6px;}
+
+.exercise-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);}
+.exercise-item:last-child{border-bottom:none;}
+.exercise-num{font-family:var(--font-mono);color:var(--finish);font-size:13px;flex:0 0 auto;}
+
+/* ============ QUIZ ============ */
+.quiz-box{background:var(--asphalt-2);border:1px solid var(--line-strong);border-radius:var(--radius);padding:22px;}
+.quiz-progress{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+.quiz-progress .qp-text{font-family:var(--font-mono);font-size:11.5px;color:var(--chalk-dim);}
+.qbar{height:5px;background:#2a2f3b;border-radius:6px;flex:1;margin:0 14px;overflow:hidden;}
+.qbar-fill{height:100%;background:var(--bib);transition:width .3s;}
+.quiz-q{font-size:16px;font-weight:600;margin-bottom:16px;line-height:1.5;}
+.quiz-opts{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.quiz-opt{text-align:left;background:var(--panel);border:1.5px solid var(--line-strong);color:var(--chalk);padding:12px 14px;border-radius:9px;font-size:14px;font-family:var(--font-body);}
+.quiz-opt:hover:not(:disabled){border-color:var(--chalk-dim);}
+.quiz-opt.correct{background:rgba(255,197,61,.14);border-color:var(--finish);color:var(--finish);}
+.quiz-opt.wrong{background:rgba(255,90,60,.14);border-color:var(--bib);color:var(--bib-strong);}
+.quiz-opt:disabled{cursor:default;}
+.quiz-explain{background:var(--panel);border-left:3px solid var(--finish);padding:12px 16px;border-radius:0 8px 8px 0;font-size:13.5px;color:var(--chalk-dim);margin-bottom:16px;line-height:1.6;}
+.quiz-result{text-align:center;padding:30px 10px;}
+.quiz-result .qr-score{font-family:var(--font-display);font-size:56px;color:var(--finish);line-height:1;}
+.quiz-result .qr-label{color:var(--chalk-dim);font-size:13px;margin-top:6px;}
+
+/* ============ FLASHCARDS ============ */
+.fc-stage{display:flex;flex-direction:column;align-items:center;gap:20px;padding:20px 0;}
+.fc-card{width:100%;max-width:480px;height:260px;perspective:1200px;}
+.fc-inner{position:relative;width:100%;height:100%;transition:transform .5s;transform-style:preserve-3d;cursor:pointer;}
+.fc-card.flipped .fc-inner{transform:rotateY(180deg);}
+.fc-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:16px;border:1px solid var(--line-strong);display:flex;align-items:center;justify-content:center;text-align:center;padding:28px;font-size:18px;line-height:1.5;}
+.fc-front{background:var(--panel);}
+.fc-back{background:var(--bib-dim);transform:rotateY(180deg);color:var(--chalk);font-family:var(--font-body);font-size:16px;}
+.fc-tag{position:absolute;top:14px;left:16px;font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--chalk-faint);}
+.fc-controls{display:flex;gap:10px;}
+
+/* ============ EMPTY / STUB ============ */
+.stub-box{background:var(--panel);border:1px dashed var(--line-strong);border-radius:var(--radius);padding:22px;margin-top:6px;}
+.stub-desc{font-family:var(--font-body);font-size:16px;line-height:1.7;color:#E4E0D6;margin-bottom:16px;}
+.stub-resource{font-size:13px;color:var(--chalk-dim);margin-bottom:16px;}
+.stub-resource strong{color:var(--chalk);}
+
+/* ============ MASTERS ============ */
+.master-track{border-left:2px solid var(--line-strong);padding-left:22px;margin-left:8px;}
+.master-item{position:relative;padding-bottom:26px;}
+.master-item::before{content:"";position:absolute;left:-27px;top:4px;width:11px;height:11px;border-radius:50%;background:var(--finish);border:2px solid var(--asphalt);}
+.master-source{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:var(--bib-strong);font-weight:700;margin-bottom:6px;}
+.master-item h3{margin:0 0 6px;font-size:16px;}
+.master-meta{display:flex;gap:14px;font-family:var(--font-mono);font-size:11px;color:var(--chalk-faint);margin-bottom:8px;flex-wrap:wrap;}
+.master-item p{font-family:var(--font-body);font-size:14.5px;color:var(--chalk-dim);line-height:1.7;margin:0 0 6px;}
+
+/* ============ TOASTS ============ */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:10px;max-width:320px;}
+.toast{
+  background:var(--panel);border:1px solid var(--finish);border-radius:12px;padding:14px 16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.4);
+  animation:toast-in .35s ease;
+}
+.toast .tt1{font-weight:700;font-size:13.5px;color:var(--finish);margin-bottom:2px;}
+.toast .tt2{font-size:12px;color:var(--chalk-dim);}
+@keyframes toast-in{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.toast.leaving{animation:toast-out .3s ease forwards;}
+@keyframes toast-out{to{opacity:0;transform:translateX(20px);}}
+
+/* ============ MISC ============ */
+.empty-state{text-align:center;padding:60px 20px;color:var(--chalk-dim);}
+.empty-state .es-icon{font-size:40px;margin-bottom:14px;}
+.notes-area{width:100%;background:var(--panel);border:1px solid var(--line-strong);border-radius:10px;padding:12px 14px;color:var(--chalk);font-family:var(--font-body);font-size:14px;line-height:1.6;resize:vertical;min-height:90px;}
+.notes-area:focus{outline:none;border-color:var(--bib);}
+.save-hint{font-size:10.5px;color:var(--chalk-faint);margin-top:6px;font-family:var(--font-mono);}
+.section-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.badge-count{font-family:var(--font-mono);font-size:11px;color:var(--chalk-dim);background:var(--panel-2);padding:4px 10px;border-radius:20px;}
+
+.runner-run{animation:runner-bob 0.6s ease-in-out infinite alternate;}
+@keyframes runner-bob{from{transform:translateY(0);}to{transform:translateY(-3px);}}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:0.001ms !important;animation-iteration-count:1 !important;transition-duration:0.001ms !important;}
+}
+
+@media (max-width:900px){
+  .sidebar{position:fixed;left:-320px;top:0;bottom:0;transition:left .25s ease;box-shadow:20px 0 40px rgba(0,0,0,.4);}
+  .sidebar.open{left:0;}
+  .menu-btn{display:flex;align-items:center;justify-content:center;}
+  .hero-title{font-size:32px;}
+  .resource-grid{grid-template-columns:1fr;}
+  .dash-grid{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+<script>
+/* ================================================================
+   26.2 — THE AI ENGINEER MARATHON
+   A gamified, interactive AI Engineering learning platform.
+   ================================================================ */
+
+const TOTAL_MILES = 26.2;
+
+const ROADMAP = [
+  { id:'p1', num:1, title:'Strengthen the Foundations', tag:'Foundations',
+    blurb:'Every marathoner starts with base miles. Before models and math get interesting, your hands need to be fast in Python and comfortable with the tools data actually lives in.',
+    groups:[
+      { group:'Python', topics:[
+        {id:'adv-python', title:'Advanced Python', cat:'python'},
+        {id:'oop', title:'OOP', cat:'python'},
+        {id:'file-handling', title:'File Handling', cat:'python'},
+        {id:'iterators', title:'Iterators', cat:'python'},
+        {id:'generators', title:'Generators', cat:'python'},
+        {id:'decorators', title:'Decorators', cat:'python'},
+        {id:'context-managers', title:'Context Managers', cat:'python'},
+      ]},
+      { group:'Data Tooling', topics:[
+        {id:'numpy', title:'NumPy', cat:'data'},
+        {id:'pandas', title:'Pandas', cat:'data'},
+        {id:'dataviz', title:'Data Visualization', cat:'data'},
+        {id:'apis', title:'APIs', cat:'data'},
+        {id:'json', title:'JSON', cat:'data'},
+      ]},
+      { group:'Basic Mathematics', topics:[
+        {id:'linear-algebra', title:'Linear Algebra', cat:'math'},
+        {id:'probability', title:'Probability', cat:'math'},
+        {id:'statistics', title:'Statistics', cat:'math'},
+        {id:'calculus', title:'Calculus (Intuition)', cat:'math'},
+        {id:'gradient-descent', title:'Gradient Descent (Basic Intuition)', cat:'math'},
+      ]},
+    ]},
+  { id:'p2', num:2, title:'Machine Learning', tag:'Classical ML',
+    blurb:'The first real leg. You learn how machines find patterns in data before you ever touch a neural network — and most production ML at most companies still lives here.',
+    groups:[
+      { group:'Core Concepts', topics:[
+        {id:'supervised-learning', title:'Supervised Learning', cat:'ml-concept'},
+        {id:'unsupervised-learning', title:'Unsupervised Learning', cat:'ml-concept'},
+        {id:'regression', title:'Regression', cat:'ml-concept'},
+        {id:'classification', title:'Classification', cat:'ml-concept'},
+        {id:'clustering', title:'Clustering', cat:'ml-concept'},
+        {id:'feature-engineering', title:'Feature Engineering', cat:'ml-concept'},
+        {id:'model-evaluation', title:'Model Evaluation', cat:'ml-concept'},
+        {id:'cross-validation', title:'Cross Validation', cat:'ml-concept'},
+        {id:'hyperparameter-tuning', title:'Hyperparameter Tuning', cat:'ml-concept'},
+      ]},
+      { group:'Algorithms', topics:[
+        {id:'linear-regression', title:'Linear Regression', cat:'ml-algo'},
+        {id:'logistic-regression', title:'Logistic Regression', cat:'ml-algo'},
+        {id:'decision-trees', title:'Decision Trees', cat:'ml-algo'},
+        {id:'random-forest', title:'Random Forest', cat:'ml-algo'},
+        {id:'xgboost-algo', title:'XGBoost', cat:'ml-algo'},
+        {id:'svm', title:'Support Vector Machine', cat:'ml-algo'},
+        {id:'kmeans', title:'K-Means', cat:'ml-algo'},
+        {id:'pca', title:'PCA', cat:'ml-algo'},
+      ]},
+      { group:'Libraries', topics:[
+        {id:'scikit-learn', title:'Scikit-Learn', cat:'ml-lib'},
+        {id:'xgboost-lib', title:'XGBoost (Library)', cat:'ml-lib'},
+      ]},
+    ]},
+  { id:'p3', num:3, title:'Deep Learning', tag:'Neural Nets',
+    blurb:'Where the roadmap starts to feel like modern AI. You learn how networks actually learn — backprop, gradients, and the architectures that power vision and language.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'neural-networks', title:'Neural Networks', cat:'dl'},
+        {id:'backpropagation', title:'Backpropagation', cat:'dl'},
+        {id:'activation-functions', title:'Activation Functions', cat:'dl'},
+        {id:'loss-functions', title:'Loss Functions', cat:'dl'},
+        {id:'cnn', title:'CNN', cat:'dl'},
+        {id:'rnn', title:'RNN', cat:'dl'},
+        {id:'lstm', title:'LSTM', cat:'dl'},
+        {id:'transformers-intro', title:'Transformers (Introduction)', cat:'dl'},
+      ]},
+      { group:'Frameworks', topics:[
+        {id:'pytorch', title:'PyTorch', cat:'dl-framework'},
+        {id:'tensorflow', title:'TensorFlow (Basic)', cat:'dl-framework'},
+      ]},
+    ]},
+  { id:'p4', num:4, title:'Large Language Models', tag:'LLMs',
+    blurb:'The longest, most important leg of the race. Everything the current AI industry is built on: attention, tokenization, fine-tuning, RAG, agents, and the tools around them.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'transformer-architecture', title:'Transformer Architecture', cat:'llm'},
+        {id:'attention', title:'Attention', cat:'llm'},
+        {id:'tokenization', title:'Tokenization', cat:'llm'},
+        {id:'embeddings', title:'Embeddings', cat:'llm'},
+        {id:'context-window', title:'Context Window', cat:'llm'},
+        {id:'prompt-engineering', title:'Prompt Engineering', cat:'llm'},
+        {id:'fine-tuning', title:'Fine Tuning', cat:'llm'},
+        {id:'lora', title:'LoRA', cat:'llm'},
+        {id:'qlora', title:'QLoRA', cat:'llm'},
+        {id:'quantization', title:'Quantization', cat:'llm'},
+        {id:'rag', title:'Retrieval Augmented Generation', cat:'llm'},
+        {id:'function-calling', title:'Function Calling', cat:'llm'},
+        {id:'ai-agents-intro', title:'AI Agents (Introduction)', cat:'llm'},
+        {id:'mcp', title:'Model Context Protocol', cat:'llm'},
+        {id:'vector-databases', title:'Vector Databases (Concept)', cat:'llm'},
+      ]},
+      { group:'Frameworks', topics:[
+        {id:'huggingface', title:'Hugging Face', cat:'llm-framework'},
+        {id:'ollama', title:'Ollama', cat:'llm-framework'},
+        {id:'langchain', title:'LangChain', cat:'llm-framework'},
+        {id:'llamaindex', title:'LlamaIndex', cat:'llm-framework'},
+      ]},
+      { group:'APIs', topics:[
+        {id:'openai-api', title:'OpenAI API', cat:'llm-api'},
+        {id:'gemini-api', title:'Gemini API', cat:'llm-api'},
+        {id:'anthropic-api', title:'Anthropic API', cat:'llm-api'},
+      ]},
+      { group:'Vector Databases', topics:[
+        {id:'chroma', title:'Chroma', cat:'vectordb'},
+        {id:'pinecone', title:'Pinecone', cat:'vectordb'},
+        {id:'weaviate', title:'Weaviate', cat:'vectordb'},
+        {id:'qdrant', title:'Qdrant', cat:'vectordb'},
+      ]},
+    ]},
+  { id:'p5', num:5, title:'Computer Vision', tag:'Vision',
+    blurb:'Teaching machines to see. From classic OpenCV pipelines to modern foundation models that detect, segment, and read the visual world.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'opencv', title:'OpenCV', cat:'cv-topic'},
+        {id:'yolo-topic', title:'YOLO', cat:'cv-topic'},
+        {id:'segmentation', title:'Segmentation', cat:'cv-topic'},
+        {id:'ocr', title:'OCR', cat:'cv-topic'},
+        {id:'pose-estimation', title:'Pose Estimation', cat:'cv-topic'},
+        {id:'object-tracking', title:'Object Tracking', cat:'cv-topic'},
+      ]},
+      { group:'Models', topics:[
+        {id:'yolo-model', title:'YOLO (as a pretrained model)', cat:'cv-model'},
+        {id:'sam', title:'SAM', cat:'cv-model'},
+        {id:'clip', title:'CLIP', cat:'cv-model'},
+        {id:'florence', title:'Florence', cat:'cv-model'},
+        {id:'paddleocr', title:'PaddleOCR', cat:'cv-model'},
+      ]},
+    ]},
+  { id:'p6', num:6, title:'Generative AI', tag:'GenAI',
+    blurb:'Models that create instead of just classify — pixels, video, and audio synthesized from noise and text.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'diffusion-models', title:'Diffusion Models', cat:'genai'},
+        {id:'stable-diffusion', title:'Stable Diffusion', cat:'genai'},
+        {id:'flux', title:'FLUX', cat:'genai'},
+        {id:'image-generation', title:'Image Generation', cat:'genai'},
+        {id:'video-generation', title:'Video Generation', cat:'genai'},
+        {id:'audio-models', title:'Audio Models', cat:'genai'},
+        {id:'speech-recognition', title:'Speech Recognition', cat:'genai'},
+        {id:'text-to-speech', title:'Text to Speech', cat:'genai'},
+      ]},
+    ]},
+  { id:'p7', num:7, title:'AI Engineering', tag:'Engineering',
+    blurb:'Turning a notebook into a product. Serving, containerizing, and exposing models like real software.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'fastapi', title:'FastAPI', cat:'engineering'},
+        {id:'flask', title:'Flask', cat:'engineering'},
+        {id:'docker', title:'Docker', cat:'engineering'},
+        {id:'kubernetes', title:'Kubernetes', cat:'engineering'},
+        {id:'nginx', title:'Nginx', cat:'engineering'},
+      ]},
+    ]},
+  { id:'p8', num:8, title:'AI Agents', tag:'Agents',
+    blurb:'LLMs that act, not just answer — planning, calling tools, remembering state, and operating browsers or workflows on your behalf.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'multi-agent-systems', title:'Multi Agent Systems', cat:'agents'},
+        {id:'planning', title:'Planning', cat:'agents'},
+        {id:'tool-calling', title:'Tool Calling', cat:'agents'},
+        {id:'memory', title:'Memory', cat:'agents'},
+        {id:'browser-automation', title:'Browser Automation', cat:'agents'},
+        {id:'workflow-automation', title:'Workflow Automation', cat:'agents'},
+      ]},
+      { group:'Frameworks', topics:[
+        {id:'langgraph', title:'LangGraph', cat:'agents-framework'},
+        {id:'crewai', title:'CrewAI', cat:'agents-framework'},
+        {id:'autogen', title:'AutoGen', cat:'agents-framework'},
+        {id:'openai-agents-sdk', title:'OpenAI Agents SDK', cat:'agents-framework'},
+      ]},
+    ]},
+  { id:'p9', num:9, title:'MLOps', tag:'MLOps',
+    blurb:'Keeping models alive after launch day — tracking, versioning, monitoring, and catching drift before your users do.',
+    groups:[
+      { group:'Topics', topics:[
+        {id:'experiment-tracking', title:'Experiment Tracking', cat:'mlops'},
+        {id:'model-versioning', title:'Model Versioning', cat:'mlops'},
+        {id:'ci-cd', title:'CI/CD', cat:'mlops'},
+        {id:'model-monitoring', title:'Model Monitoring', cat:'mlops'},
+        {id:'drift-detection', title:'Drift Detection', cat:'mlops'},
+        {id:'feature-stores', title:'Feature Stores', cat:'mlops'},
+      ]},
+      { group:'Tools', topics:[
+        {id:'mlflow', title:'MLflow', cat:'mlops-tool'},
+        {id:'wandb', title:'Weights & Biases', cat:'mlops-tool'},
+        {id:'dvc', title:'DVC', cat:'mlops-tool'},
+        {id:'airflow', title:'Airflow', cat:'mlops-tool'},
+        {id:'prefect', title:'Prefect', cat:'mlops-tool'},
+      ]},
+    ]},
+  { id:'p10', num:10, title:'Build Real AI Products', tag:'Capstone',
+    blurb:'The finish line. Nine real product briefs to build end-to-end so your portfolio proves you can ship, not just study.',
+    groups:[
+      { group:'Capstone Products', topics:[
+        {id:'ai-crm', title:'AI CRM', cat:'product'},
+        {id:'ai-doctor-assistant', title:'AI Doctor Assistant', cat:'product'},
+        {id:'ai-tutor', title:'AI Tutor', cat:'product'},
+        {id:'ai-resume-analyzer', title:'AI Resume Analyzer', cat:'product'},
+        {id:'ai-finance-assistant', title:'AI Finance Assistant', cat:'product'},
+        {id:'ai-legal-assistant', title:'AI Legal Assistant', cat:'product'},
+        {id:'ai-document-processing', title:'AI Document Processing', cat:'product'},
+        {id:'ai-meeting-notes', title:'AI Meeting Notes', cat:'product'},
+        {id:'ai-voice-receptionist', title:'AI Voice Receptionist', cat:'product'},
+      ]},
+    ]},
+];
+
+// Flat index of every topic -> {topic, phase, group}
+const TOPIC_INDEX = {};
+ROADMAP.forEach(phase=>{
+  phase.groups.forEach(g=>{
+    g.topics.forEach(t=>{
+      TOPIC_INDEX[t.id] = {topic:t, phase, group:g.group};
+    });
+  });
+});
+const ALL_TOPIC_IDS = Object.keys(TOPIC_INDEX);
+const TOTAL_TOPICS = ALL_TOPIC_IDS.length;
+
+// One-line, topic-specific briefings for every topic that doesn't (yet) have a
+// full flagship lesson. Every topic in the roadmap is real and navigable —
+// these are the "quick reference" version; the 15 FLAGSHIP topics below get
+// the complete 17-section treatment the spec calls for.
+const STUBS = {
+  'adv-python':{d:"Deeper Python idioms — unpacking, comprehensions, args/kwargs, closures — that make the rest of the roadmap's code readable and fast to write."},
+  'oop':{d:"Classes, inheritance, and composition — how Python organizes state and behavior into reusable objects, and where most ML codebases borrow their structure."},
+  'file-handling':{d:"Reading, writing, and streaming files safely — the unglamorous skill behind every dataset loader and logging pipeline you'll build."},
+  'iterators':{d:"The protocol (__iter__ / __next__) that lets Python loop over anything — the foundation generators and most data pipelines are built on."},
+  'generators':{d:"Lazy, memory-efficient sequences built with yield — how you stream huge datasets through a pipeline without loading them all into RAM."},
+  'context-managers':{d:"The with statement and __enter__/__exit__ — how Python guarantees cleanup for files, DB connections, and GPU memory even when errors happen."},
+  'numpy':{d:"Vectorized array math in C-speed — the substrate every ML and DL library in Python is quietly built on top of."},
+  'pandas':{d:"The DataFrame — how real-world tabular data gets cleaned, joined, grouped, and reshaped before it ever reaches a model."},
+  'dataviz':{d:"Turning arrays and DataFrames into plots — the difference between eyeballing a distribution and trusting a model blindly."},
+  'apis':{d:"How programs talk to programs over HTTP — the skill that lets you call OpenAI, Stripe, or your own model server from code."},
+  'json':{d:"The universal data-interchange format — how API responses, configs, and LLM function-call arguments get structured and parsed."},
+  'linear-algebra':{d:"Vectors, matrices, and dot products — the language every neural network layer, embedding, and attention score is written in."},
+  'probability':{d:"Modeling uncertainty with distributions — the backbone of loss functions, sampling, and how a language model decides its next token."},
+  'statistics':{d:"Summarizing and testing data — means, variance, confidence, significance — the toolkit for trusting, or doubting, a result."},
+  'calculus':{d:"Derivatives and slopes, taught for intuition rather than proofs — the 'which way is downhill' math behind every training loop."},
+  'supervised-learning':{d:"Learning a mapping from labeled examples — the paradigm behind most production ML, from spam filters to fraud detection."},
+  'unsupervised-learning':{d:"Finding structure in data with no labels at all — clustering, dimensionality reduction, and anomaly detection."},
+  'regression':{d:"Predicting a continuous number — price, demand, temperature — and the family of models built to do it."},
+  'classification':{d:"Predicting a category — spam or not, fraud or not — the other half of supervised learning."},
+  'clustering':{d:"Grouping similar points together without being told the groups in advance — customer segments, topic groups, anomalies."},
+  'feature-engineering':{d:"Turning raw data into signals a model can actually use — often the highest-leverage work in a classical ML project."},
+  'model-evaluation':{d:"Knowing whether a model is actually good — accuracy, precision, recall, F1, ROC-AUC — and when each one lies to you."},
+  'cross-validation':{d:"Testing a model on data it hasn't seen, repeatedly, so your evaluation isn't just one lucky split."},
+  'hyperparameter-tuning':{d:"Searching for the settings — learning rate, depth, regularization — that make a model perform best, systematically instead of by guesswork."},
+  'logistic-regression':{d:"The default first classifier — a linear model wrapped in a sigmoid to output probabilities, and the gateway to understanding neural-net output layers."},
+  'decision-trees':{d:"A model that learns a flowchart of yes/no questions — interpretable, fast, and the building block of Random Forest and XGBoost."},
+  'xgboost-algo':{d:"Gradient-boosted decision trees, tuned for speed and regularization — the algorithm that still dominates tabular-data leaderboards."},
+  'svm':{d:"A classifier that finds the widest possible margin between classes — powerful on small, high-dimensional datasets."},
+  'kmeans':{d:"The classic clustering algorithm: assign points to the nearest of k centroids, update the centroids, repeat until stable."},
+  'pca':{d:"Dimensionality reduction that finds the axes of maximum variance — how you compress 100 features into the 2 or 3 that matter most."},
+  'scikit-learn':{d:"Python's standard classical-ML toolkit — a consistent fit/predict API across dozens of algorithms."},
+  'xgboost-lib':{d:"The production-grade library implementing gradient boosting — still a default choice for tabular data at most companies."},
+  'neural-networks':{d:"Layers of weighted connections that learn nonlinear functions from data — the core building block everything from Phase 3 onward sits on top of."},
+  'activation-functions':{d:"The nonlinear functions — ReLU, sigmoid, GELU — placed between layers that let networks learn more than straight lines."},
+  'loss-functions':{d:"The single number a network is trying to minimize — and how choosing the wrong one quietly sabotages training."},
+  'rnn':{d:"Networks that loop over sequences, carrying a hidden state forward — the pre-Transformer answer to language and time-series data."},
+  'lstm':{d:"A gated version of the RNN designed to remember information over long sequences without its gradients vanishing."},
+  'transformers-intro':{d:"A first look at the architecture that replaced RNNs for sequence modeling. Full depth — attention, tokenization, embeddings — arrives in Phase 4."},
+  'pytorch':{d:"The dominant deep learning framework in research, and increasingly production — dynamic graphs, tensors, and automatic differentiation."},
+  'tensorflow':{d:"Google's deep learning framework — production-hardened serving and mobile deployment via TF Lite."},
+  'transformer-architecture':{d:"The encoder/decoder blocks, residual connections, and layer norms that assemble attention into GPT, BERT, and everything since."},
+  'embeddings':{d:"Dense vectors that place words, sentences, or images in a space where distance means similarity — the substrate RAG search is built on."},
+  'context-window':{d:"The maximum number of tokens a model can attend to at once — why it exists, how it's extended, and what happens when you exceed it."},
+  'prompt-engineering':{d:"Structuring instructions and examples so an LLM reliably does what you want, without changing a single weight."},
+  'fine-tuning':{d:"Continuing to train a pretrained model on your own data so it specializes — full-parameter, not just prompting."},
+  'lora':{d:"Low-Rank Adaptation — fine-tuning by training small added matrices instead of the whole model, cutting memory cost dramatically."},
+  'qlora':{d:"LoRA combined with a quantized base model — how you fine-tune a large model on a single consumer GPU."},
+  'quantization':{d:"Shrinking a model's weights to lower precision — 8-bit, 4-bit — to cut memory and speed up inference with minimal accuracy loss."},
+  'function-calling':{d:"Letting a model output structured, schema-valid calls to your own functions instead of just prose — the seed of agentic behavior."},
+  'ai-agents-intro':{d:"A first look at LLMs that plan, call tools, and act in loops. Full depth arrives in Phase 8."},
+  'mcp':{d:"Model Context Protocol — an open standard for connecting LLMs to tools and data sources through one consistent interface instead of a custom integration per app."},
+  'vector-databases':{d:"Why similarity search needs its own kind of database, and the approximate-nearest-neighbor indexes that make searching millions of embeddings fast."},
+  'huggingface':{d:"The hub and libraries (transformers, datasets) that made pretrained models and datasets a one-line download."},
+  'ollama':{d:"A tool for running open-weight LLMs locally behind a simple CLI and API — no cloud key required."},
+  'langchain':{d:"A framework for chaining LLM calls, tools, memory, and retrieval into applications — one of the earliest and most widely adopted."},
+  'llamaindex':{d:"A framework focused specifically on connecting LLMs to your own data for retrieval and querying."},
+  'openai-api':{d:"The API surface for GPT models — chat completions, function calling, embeddings, and structured outputs."},
+  'gemini-api':{d:"Google's API for the Gemini model family, with native multimodal input and a large context window."},
+  'anthropic-api':{d:"The API surface for Claude models — messages, tool use, and extended context, with strong safety tooling built in."},
+  'chroma':{d:"A lightweight, open-source embedding database popular for local RAG prototypes."},
+  'pinecone':{d:"A managed, fully hosted vector database built for production-scale similarity search."},
+  'weaviate':{d:"An open-source vector database with built-in hybrid keyword-plus-vector search."},
+  'qdrant':{d:"A fast, open-source vector database written in Rust, popular for filtered similarity search."},
+  'opencv':{d:"The classic computer-vision library — image transforms, filters, and geometry, still under the hood of many modern pipelines."},
+  'segmentation':{d:"Classifying every pixel of an image, not just drawing a box — semantic, instance, and panoptic segmentation."},
+  'ocr':{d:"Extracting machine-readable text from images and scanned documents."},
+  'pose-estimation':{d:"Locating a skeleton of keypoints — joints — on a body in an image or video, the basis of motion capture and fitness apps."},
+  'object-tracking':{d:"Following the same detected object across video frames, giving it a persistent identity over time."},
+  'yolo-model':{d:"See the full YOLO lesson under Topics above — here, YOLO is used as a drop-in pretrained detector rather than trained from scratch."},
+  'sam':{d:"Segment Anything Model — a foundation model that segments any object in an image from a point, box, or text prompt, no retraining needed."},
+  'clip':{d:"A model trained to match images and text in a shared embedding space — the backbone behind most text-to-image search and guidance."},
+  'florence':{d:"A vision foundation model unifying detection, captioning, and OCR-style tasks under one architecture."},
+  'paddleocr':{d:"A popular open-source OCR toolkit with strong multilingual text detection and recognition."},
+  'stable-diffusion':{d:"The open-weight diffusion model that put high-quality text-to-image generation on consumer GPUs."},
+  'flux':{d:"A newer, high-fidelity text-to-image diffusion model family known for prompt adherence and image quality."},
+  'image-generation':{d:"The end-to-end task of producing pixels from a prompt — sampling strategies, guidance scale, and the tradeoff between speed and fidelity."},
+  'video-generation':{d:"Extending generative models across time — the added challenge of keeping frames temporally consistent."},
+  'audio-models':{d:"Generative and analytical models for sound — music generation, source separation, and audio classification."},
+  'speech-recognition':{d:"Converting spoken audio into text (ASR) — the technology behind transcription and voice interfaces."},
+  'text-to-speech':{d:"Converting text into natural-sounding spoken audio — the other half of a voice interface."},
+  'flask':{d:"A minimal Python web framework — simple, unopinionated, and still common for lightweight model-serving endpoints."},
+  'docker':{d:"Packaging an application and everything it needs into a portable container — how 'it works on my machine' becomes true everywhere."},
+  'kubernetes':{d:"Orchestrating many containers across many machines — scaling, restarting, and load-balancing your services automatically."},
+  'nginx':{d:"A web server and reverse proxy that routes traffic, terminates SSL, and load-balances requests in front of your API."},
+  'multi-agent-systems':{d:"Several LLM agents with different roles collaborating, or debating, to solve a task no single prompt handles well."},
+  'planning':{d:"How an agent breaks a goal into ordered steps before acting — the difference between reacting and actually strategizing."},
+  'memory':{d:"How an agent persists information across steps or sessions — short-term scratchpads versus long-term retrieval-backed memory."},
+  'browser-automation':{d:"Letting an agent click, type, and navigate real web pages — the mechanism behind computer-use and web agents."},
+  'workflow-automation':{d:"Chaining deterministic steps and LLM decisions into a repeatable pipeline — where agents meet traditional automation tools."},
+  'langgraph':{d:"A framework for building agents as explicit graphs of steps and conditional edges — more control than a single prompt loop."},
+  'crewai':{d:"A framework for orchestrating multiple role-based agents — a 'crew' — that collaborate on a task."},
+  'autogen':{d:"Microsoft's framework for building multi-agent conversations where agents can call tools and each other."},
+  'openai-agents-sdk':{d:"OpenAI's lightweight SDK for building agents with tools, handoffs, and guardrails in a few lines of code."},
+  'model-versioning':{d:"Treating trained models like code — tagging, storing, and rolling back specific versions as data and architectures change."},
+  'ci-cd':{d:"Continuous integration and deployment applied to ML — automatically testing and shipping model and pipeline changes."},
+  'model-monitoring':{d:"Watching a deployed model's inputs, outputs, and performance in production so you find problems before users report them."},
+  'drift-detection':{d:"Detecting when production data no longer resembles training data — the silent cause of a model quietly getting worse."},
+  'feature-stores':{d:"A central, versioned repository of features so training and serving pipelines compute them identically."},
+  'mlflow':{d:"An open-source platform for tracking experiments, packaging models, and managing the model lifecycle."},
+  'wandb':{d:"Weights & Biases — a hosted platform for experiment tracking, visualization, and collaborative ML reporting."},
+  'dvc':{d:"Data Version Control — Git-like versioning for datasets and models too large to store directly in Git."},
+  'airflow':{d:"A workflow orchestrator for scheduling and monitoring complex, dependency-based data and ML pipelines."},
+  'prefect':{d:"A modern, Python-first workflow orchestrator, often positioned as a lighter-weight alternative to Airflow."},
+  'ai-crm':{d:"A CRM that drafts follow-ups, summarizes calls, and scores leads automatically using an LLM layered over customer data."},
+  'ai-doctor-assistant':{d:"A clinical assistant that summarizes patient history and suggests differentials — a strong, high-stakes case study in guardrails and disclaimers."},
+  'ai-tutor':{d:"A personalized tutor that adapts explanations and quizzes to a learner's level — essentially a smaller version of this app."},
+  'ai-finance-assistant':{d:"An assistant that parses statements, categorizes spending, and answers questions about a user's own financial data."},
+  'ai-legal-assistant':{d:"A tool that summarizes contracts and flags unusual clauses — a strong test of RAG accuracy and appropriate hedging."},
+  'ai-document-processing':{d:"A pipeline that extracts structured fields from unstructured documents — invoices, forms — using OCR plus an LLM."},
+  'ai-meeting-notes':{d:"An app that transcribes a meeting, then automatically summarizes decisions and action items."},
+  'ai-voice-receptionist':{d:"A voice agent that answers calls, books appointments, and routes requests — combining speech recognition, an LLM, and text-to-speech into one loop."},
+};
+
+// Per-category "start here" resources, used on stub topic pages.
+const CATEGORY_RESOURCES = {
+  'python':"Official Python docs (docs.python.org) · Corey Schafer's Python OOP & advanced-topics series · freeCodeCamp's Python course",
+  'data':"NumPy & Pandas official docs (numpy.org, pandas.pydata.org) · Keith Galli's Pandas tutorials",
+  'math':"3Blue1Brown's 'Essence of Linear Algebra' & 'Essence of Calculus' · StatQuest for probability & statistics",
+  'ml-concept':"StatQuest with Josh Starmer · the Scikit-Learn User Guide",
+  'ml-algo':"StatQuest algorithm walkthroughs · Scikit-Learn docs · DeepLearning.AI's Machine Learning Specialization",
+  'ml-lib':"The library's official docs · Kaggle Learn micro-courses",
+  'dl':"3Blue1Brown's Neural Networks series · Andrej Karpathy's 'Neural Networks: Zero to Hero' · Stanford CS231n",
+  'dl-framework':"The framework's official docs and tutorials (pytorch.org, tensorflow.org)",
+  'llm':"Andrej Karpathy's LLM videos · the Hugging Face NLP Course · Stanford CS224N",
+  'llm-framework':"The framework's official documentation and example repos",
+  'llm-api':"The provider's official API docs and quickstart guide",
+  'vectordb':"The database's official docs and quickstart",
+  'cv-topic':"freeCodeCamp's OpenCV course · the library's official docs",
+  'cv-model':"The model's official GitHub repo and paper",
+  'genai':"Hugging Face's Diffusers course · official model cards",
+  'engineering':"The framework's official docs · freeCodeCamp's backend courses",
+  'agents':"DeepLearning.AI's short courses on agents · the relevant framework's docs",
+  'agents-framework':"Official framework docs and example repos",
+  'mlops':"The tool's official docs · Made With ML's MLOps course",
+  'mlops-tool':"The tool's official docs and quickstart",
+  'product':"Study similar open-source clones on GitHub, plus the official docs for whichever AI provider API you use",
+};
+
+// Achievement toast phrases — cycled through on topic/quiz/phase completion.
+const ACHIEVEMENTS = [
+  {t:"You did it, Dumbo! 🐘", s:"Topic in the bag. Onward."},
+  {t:"Well done, meathead! 💪", s:"That's another one down."},
+  {t:"Split recorded.", s:"You're basically Karpathy now. Basically."},
+  {t:"Nice one, champ.", s:"Next checkpoint's waiting."},
+  {t:"That's a wrap!", s:"Hydrate, stretch, keep moving."},
+  {t:"Legend behavior.", s:"On to the next mile."},
+  {t:"Chip time locked in.", s:"Don't stop now."},
+  {t:"You absolute unit.", s:"Topic: conquered."},
+  {t:"Certified topic-slayer.", s:"The finish line felt that."},
+  {t:"Big brain energy detected.", s:"Keep running!"},
+];
+const PHASE_DONE_TOASTS = [
+  {t:"LEG COMPLETE 🏁", s:"That's a full phase in the books. Meathead move."},
+  {t:"CHECKPOINT CLEARED 🏁", s:"Dumbo, you just finished an entire phase."},
+];
+
+// ================================================================
+// FLAGSHIP TOPICS — full 17-section deep dives (one per phase, 15 total)
+// ================================================================
+const FLAGSHIP = {};
+
+FLAGSHIP['decorators'] = {
+  intro:"A decorator is a function that takes another function and returns a new function that usually wraps the original, adding behavior before or after it runs — without touching the original function's code. In Python it's written with the @ symbol placed directly above a function definition.",
+  why:"Some behavior — logging, timing, caching, checking permissions, retrying on failure — needs to happen around dozens of unrelated functions. Copy-pasting that logic into every function is repetitive and error-prone. Decorators let you write that logic once and attach it declaratively wherever it's needed.",
+  concepts:[
+    {h:"Functions are first-class objects", p:"In Python, functions can be passed as arguments, returned from other functions, and assigned to variables just like numbers or strings. This is the entire reason decorators are possible."},
+    {h:"A closure remembers its scope", p:"When you define a function inside another function, the inner function keeps access to the outer function's variables even after the outer function has returned. Decorators rely on this to hold onto the original function."},
+    {h:"@ is just syntactic sugar", p:"Writing @my_decorator above def foo(): ... is exactly equivalent to writing foo = my_decorator(foo) right after the function is defined. Nothing magical happens — it's a plain function call."},
+    {h:"Decorator factories (decorators with arguments)", p:"When you want @retry(times=3), you need an extra layer: an outer function that takes the arguments and returns the actual decorator, which then returns the wrapper."},
+    {h:"functools.wraps", p:"Without it, the wrapped function loses its original name, docstring, and signature — which breaks introspection, debugging tools, and auto-generated API docs. wraps() copies that metadata back onto the wrapper."},
+    {h:"Stacking order", p:"Multiple decorators apply bottom-up when defining, but execute outside-in when calling: @a\\n@b\\ndef f(): is f = a(b(f)), so b's wrapper runs first, then a's."},
+  ],
+  visual:["Function-wrapping diagram (box inside a box)","Call-stack animation showing the wrapper calling the original","Before/after code diff showing @syntax vs. the plain function-reassignment it expands to"],
+  math:null,
+  realworld:["Web frameworks like Flask and FastAPI use decorators to register URL routes (@app.get('/users'))","Python's built-ins @staticmethod, @classmethod, and @property are decorators","functools.lru_cache decorates a function to memoize its results automatically","Retry and timeout logic in production services is almost always implemented as a decorator","Authentication checks in web APIs are frequently applied as a single @require_login decorator"],
+  advantages:["Cross-cutting logic is written once and reused anywhere","Keeps the decorated function focused on a single responsibility","Declarative — the @ syntax reads as documentation of what a function does","Composable — several decorators can stack to combine behaviors"],
+  limitations:["Can obscure the real call stack, making stack traces harder to read","Stacking order is easy to get backwards and silently changes behavior","Overuse makes code feel 'magic' and harder for newcomers to trace","Wrapping functions with different signatures requires generic *args/**kwargs boilerplate"],
+  mistakes:["Forgetting @functools.wraps and silently breaking introspection and docs","Writing a decorator that only works on functions with zero arguments","Confusing a plain decorator with a decorator factory (missing or extra parentheses)","Storing state in a mutable default argument shared across every call","Assuming the decorator body runs on every call — the outer function body actually runs once, at definition time"],
+  interview:{
+    beginner:[
+      {q:"What is a decorator in Python, in one sentence?", a:"A function that takes a function and returns a (usually wrapping) function, letting you add behavior around it without editing its source."},
+      {q:"What does @my_decorator above a function actually do under the hood?", a:"It's shorthand for foo = my_decorator(foo) — a normal function call and reassignment, executed once when the module is loaded."},
+    ],
+    intermediate:[
+      {q:"Why do we use functools.wraps inside a decorator?", a:"It copies the original function's __name__, __doc__, and other metadata onto the wrapper, so tools that inspect the function (debuggers, docs generators, other decorators) still see the right information."},
+      {q:"How would you write a decorator that takes its own arguments, like @retry(times=3)?", a:"Add an extra outer layer: a function that accepts the arguments and returns the actual decorator function, which in turn returns the wrapper."},
+    ],
+    advanced:[
+      {q:"How do you write a decorator that works both as @cache and @cache(maxsize=10)?", a:"Check whether the single positional argument received is callable. If it is, you were called without parentheses — decorate directly. If not, return a decorator that captures the given arguments."},
+      {q:"Two decorators are stacked on one function. Which one's 'before' logic runs first when the function is called?", a:"The one closest to the function definition (the bottom one) wraps first and therefore executes its logic first when the call happens, even though the top one is listed first in the source."},
+    ],
+  },
+  exercises:["Write a @timer decorator that prints how long the wrapped function took to execute.","Write a @count_calls decorator that tracks and prints how many times a function has been called.","Write a decorator factory @repeat(n) that calls the wrapped function n times in a row.","Take a decorator that's missing functools.wraps and fix it, then prove the fix by printing help(wrapped_function)."],
+  libraries:[{name:"functools", desc:"Standard library module with wraps, lru_cache, and singledispatch — the tools you'll reach for constantly when writing decorators."},{name:"contextlib", desc:"Related pattern for the 'wrap some code' idea, but for the with statement instead of function calls."},{name:"Flask / FastAPI", desc:"Both frameworks use decorators as their primary API for registering routes — excellent real code to read."}],
+  youtube:[{level:"Beginner", name:"Python Decorators tutorial", by:"Corey Schafer"},{level:"Intermediate", name:"Decorator design patterns in Python", by:"ArjanCodes"},{level:"Advanced", name:"A conference talk on advanced decorator and metaprogramming patterns", by:"PyCon talks (search 'PyCon decorators')"}],
+  reading:[{tag:"Docs", name:"Python docs — Function Definitions & PEP 318", url:"https://docs.python.org/3/glossary.html#term-decorator"},{tag:"Blog", name:"Real Python — Primer on Python Decorators", url:"https://realpython.com/primer-on-python-decorators/"},{tag:"Docs", name:"functools — official reference", url:"https://docs.python.org/3/library/functools.html"}],
+  repos:[
+    {name:"pallets/flask", url:"https://github.com/pallets/flask", difficulty:"Intermediate", learn:"How @app.route registers view functions into a URL map.", why:"One of the cleanest, most widely-read decorator-driven APIs in the Python ecosystem.", start:"flask/app.py — search for the route() method."},
+    {name:"pallets/click", url:"https://github.com/pallets/click", difficulty:"Intermediate", learn:"How @click.command() and @click.option() build a CLI purely through decorators.", why:"A great second example of decorators used for declarative configuration, not just wrapping.", start:"click/decorators.py"},
+    {name:"python/cpython", url:"https://github.com/python/cpython", difficulty:"Advanced", learn:"How functools.wraps, lru_cache, and property are actually implemented.", why:"It's the ground truth — the standard library you already use every day.", start:"Lib/functools.py"},
+  ],
+  quiz:[
+    {q:"What does @my_decorator\\ndef foo(): ... actually translate to?", options:["foo = my_decorator(foo)","foo() = my_decorator","my_decorator.foo()","foo = my_decorator"], answer:0, explain:"@ is pure syntactic sugar for calling the decorator with the function and reassigning the name."},
+    {q:"Why is functools.wraps used inside a decorator's wrapper function?", options:["To make the function run faster","To preserve the original function's name and docstring","To allow the decorator to accept arguments","To prevent the function from being called twice"], answer:1, explain:"Without it, introspection tools see the generic wrapper's metadata instead of the original function's."},
+    {q:"What Python feature makes decorators possible in the first place?", options:["Multiple inheritance","Functions being first-class objects","The global keyword","List comprehensions"], answer:1, explain:"Because functions can be passed around and returned like any other value, one function can wrap another."},
+    {q:"To write @retry(times=3), what extra layer do you need compared to a plain decorator?", options:["A metaclass","An outer function that accepts the arguments and returns the actual decorator","A global variable","Nothing extra is needed"], answer:1, explain:"Decorators-with-arguments require a decorator factory: an extra function layer that captures the arguments first."},
+    {q:"Given @a\\n@b\\ndef f(): ..., which decorator's wrapper executes its 'before' logic first when f() is called?", options:["a","b","Both run simultaneously","Undefined behavior"], answer:1, explain:"b wraps f first (closest to the definition), so b's wrapper is the innermost call and runs its pre-logic first."},
+    {q:"What's a realistic symptom of forgetting functools.wraps?", options:["The function throws a syntax error","help(my_func) shows 'wrapper' instead of the real function's docstring","The program crashes on import","The decorator silently does nothing"], answer:1, explain:"The wrapper's own name/doc replace the original's unless wraps() restores them — a subtle, easy-to-miss bug."},
+    {q:"Which built-in Python feature is itself implemented as a decorator?", options:["print()", "@property", "for loops", "The global keyword"], answer:1, explain:"@property, @staticmethod, and @classmethod are all decorators built into the language."},
+    {q:"What does functools.lru_cache do when applied as a decorator?", options:["Logs every call to a file","Automatically retries failed calls","Memoizes return values so repeated calls with the same arguments skip re-computation","Converts a function into a class"], answer:2, explain:"lru_cache stores past results keyed by arguments, trading memory for speed on repeated calls."},
+    {q:"A decorator wraps a function but doesn't use *args, **kwargs in its wrapper. What breaks?", options:["Nothing, it always works","It can only wrap functions that take exactly the arguments the wrapper hard-codes","It runs twice as fast","It becomes a class"], answer:1, explain:"Without *args/**kwargs, the wrapper can't forward arbitrary arguments through to the original function."},
+    {q:"When does the outer body of a decorator function actually execute?", options:["Every time the decorated function is called","Once, when the module defining the decorated function is loaded","Only when explicitly imported twice","Never, unless called manually"], answer:1, explain:"Decoration happens once at definition time; only the inner wrapper function runs on every call."},
+  ],
+  summary:"Decorators are just functions that wrap other functions, made possible because Python treats functions as first-class values and closures remember their enclosing scope. The @ syntax is sugar for reassigning a name to the decorator's return value. Use functools.wraps to keep metadata intact, remember that stacked decorators execute outside-in, and reach for a decorator whenever you find yourself about to copy-paste the same 'before and after' logic into multiple functions.",
+  flashcards:[
+    {front:"What does @decorator syntax expand to?", back:"foo = decorator(foo) — a plain function call and reassignment."},
+    {front:"Why does a decorator need functools.wraps?", back:"To preserve the wrapped function's __name__ and __doc__ for introspection and debugging."},
+    {front:"What's a 'decorator factory'?", back:"An extra outer function layer needed so a decorator can accept its own arguments, e.g. @retry(times=3)."},
+    {front:"In @a\\n@b\\ndef f(): ..., which wrapper is innermost?", back:"b — it wraps f first, so its logic runs first when f() is called."},
+    {front:"What Python property makes decorators possible?", back:"Functions are first-class objects — they can be passed around and returned like any other value."},
+    {front:"Name two built-in decorators in Python.", back:"@staticmethod, @classmethod, and @property (any two)."},
+  ],
+};
+
+FLAGSHIP['gradient-descent'] = {
+  intro:"Gradient descent is the algorithm that actually does the 'learning' in machine learning: it repeatedly nudges a model's parameters in the direction that reduces error, a little at a time, until the error stops improving.",
+  why:"Most models have far too many parameters — millions for a small neural network — to solve for the 'best' values with a neat formula. Gradient descent turns training into a search problem: start somewhere, and iteratively walk downhill on the error surface until you land somewhere good.",
+  concepts:[
+    {h:"The loss surface", p:"Picture every possible set of parameter values as a point on a landscape, and the model's error at that point as the landscape's height. Training means finding a low point in that landscape."},
+    {h:"The gradient points uphill", p:"At any point on that landscape, the gradient (a vector of partial derivatives) points in the direction of steepest increase. Gradient descent simply moves in the opposite direction — steepest decrease."},
+    {h:"The learning rate", p:"A number that scales how big each step is. Too large and you overshoot the valley and bounce around; too small and training crawls and can get stuck."},
+    {h:"Batch, stochastic, and mini-batch variants", p:"Full-batch computes the gradient using the entire dataset per step (accurate but slow); stochastic uses one example at a time (fast but noisy); mini-batch — what almost everyone actually uses — splits the difference."},
+    {h:"Local minima, saddle points, and why it still works", p:"In high-dimensional spaces (like real neural networks), true bad local minima are rarer than intuition from 2D pictures suggests; saddle points and plateaus are the more common practical obstacle."},
+    {h:"Momentum and adaptive optimizers", p:"Plain gradient descent can zig-zag in narrow valleys. Momentum smooths the path by remembering previous steps; adaptive optimizers like Adam additionally adjust the effective learning rate per parameter."},
+  ],
+  visual:["2D 'ball rolling downhill on a bowl-shaped surface' animation","3D loss-surface with a path tracing the optimizer's steps","Side-by-side comparison of a too-large, too-small, and well-tuned learning rate on the same surface","Contour-plot animation comparing plain SGD vs. momentum vs. Adam trajectories"],
+  math:"For a parameter w and loss L, one step of gradient descent is: w_new = w_old − learning_rate × (∂L/∂w). That's the entire algorithm. ∂L/∂w just answers 'if I nudge w up slightly, does the loss go up or down, and by how much' — gradient descent subtracts that direction, scaled by the learning rate, so the loss decreases. Everything else (momentum, Adam, learning-rate schedules) is a refinement of this one line.",
+  realworld:["Training every neural network — from a two-layer classifier to GPT-scale language models — uses some flavor of gradient descent","Linear and logistic regression are commonly fit with gradient descent when the dataset is too large for a closed-form solution","Recommendation systems tune embedding vectors via gradient descent on a ranking loss","Fine-tuning an LLM with LoRA is still, underneath, gradient descent on a small set of parameters"],
+  advantages:["Works for essentially any differentiable model, no matter how many parameters","Scales to enormous datasets via the mini-batch variant","Simple to implement and reason about at its core","The same core algorithm, with minor tweaks, powers everything from linear regression to trillion-parameter models"],
+  limitations:["Sensitive to the learning rate — a poor choice can prevent convergence entirely","Can get stuck on plateaus or saddle points, slowing training substantially","Requires the loss function to be differentiable","Doesn't guarantee finding the global minimum, only a locally good one"],
+  mistakes:["Setting the learning rate far too high and watching loss explode to NaN","Forgetting to shuffle data between epochs, which can bias mini-batch gradients","Not normalizing/scaling input features, which distorts the loss surface and slows convergence","Confusing the learning rate with the batch size when debugging slow training","Assuming loss going down always means the model is improving on data it hasn't seen (that's a generalization question, not an optimization one)"],
+  interview:{
+    beginner:[
+      {q:"In one sentence, what does gradient descent do?", a:"It repeatedly adjusts a model's parameters in the direction that most reduces the loss, a small step at a time."},
+      {q:"What happens if the learning rate is set too high?", a:"Steps overshoot the minimum, and the loss can oscillate wildly or diverge instead of decreasing."},
+    ],
+    intermediate:[
+      {q:"What's the practical difference between batch, stochastic, and mini-batch gradient descent?", a:"Batch uses the whole dataset per step (accurate, slow); stochastic uses one sample (fast, noisy); mini-batch uses a small subset, balancing speed and stability — it's what's used in practice."},
+      {q:"Why does momentum help gradient descent converge faster in narrow valleys?", a:"It accumulates a moving average of past gradients, which dampens oscillation across the narrow direction while reinforcing consistent movement along the valley's length."},
+    ],
+    advanced:[
+      {q:"Why do modern deep networks rarely get stuck in bad local minima, despite having non-convex loss surfaces?", a:"In very high-dimensional parameter spaces, points that are minima in every direction simultaneously are statistically rare; saddle points, where the surface goes up in some directions and down in others, are far more common, and optimizers can usually escape them."},
+      {q:"How does Adam differ from plain SGD with momentum?", a:"Adam keeps a per-parameter moving average of both the gradient (first moment) and the squared gradient (second moment), effectively giving each parameter its own adaptive learning rate, whereas SGD with momentum uses one global learning rate for all parameters."},
+    ],
+  },
+  exercises:["Implement gradient descent from scratch in NumPy to fit y = mx + b to a small synthetic dataset.","Plot the loss curve for three different learning rates on the same problem and compare convergence.","Implement mini-batch gradient descent and compare its loss curve noise to full-batch on the same data.","Add momentum to your from-scratch implementation and observe the effect on a narrow, elongated loss surface."],
+  libraries:[{name:"NumPy", desc:"Perfect for implementing gradient descent by hand to build real intuition before relying on a framework."},{name:"PyTorch / TensorFlow autograd", desc:"Automatically compute gradients of arbitrarily complex functions — what makes training deep networks practical."},{name:"scikit-learn's SGDClassifier/SGDRegressor", desc:"A production-ready implementation for classical models."}],
+  youtube:[{level:"Beginner", name:"Gradient Descent, Step-by-Step", by:"StatQuest"},{level:"Intermediate", name:"Gradient descent, how neural networks learn", by:"3Blue1Brown (Neural Networks series, chapter 2)"},{level:"Advanced", name:"Why Momentum Really Works", by:"Distill-style visual essays (search 'Distill.pub momentum')"}],
+  reading:[{tag:"Article", name:"Sebastian Ruder — An overview of gradient descent optimization algorithms", url:"https://www.ruder.io/optimizing-gradient-descent/"},{tag:"Docs", name:"PyTorch docs — torch.optim", url:"https://docs.pytorch.org/docs/stable/optim.html"},{tag:"Paper", name:"Kingma & Ba — Adam: A Method for Stochastic Optimization", url:"https://arxiv.org/abs/1412.6980"}],
+  repos:[
+    {name:"karpathy/micrograd", url:"https://github.com/karpathy/micrograd", difficulty:"Beginner", learn:"A tiny autograd engine (under 150 lines) that shows exactly how gradients are computed and used to update weights.", why:"Built by Andrej Karpathy specifically to teach this concept with nothing hidden.", start:"micrograd/engine.py — the Value class."},
+    {name:"pytorch/pytorch", url:"https://github.com/pytorch/pytorch", difficulty:"Advanced", learn:"How a production-grade autograd engine and optimizer library (torch.optim) is actually implemented.", why:"The industry-standard implementation, battle-tested at enormous scale.", start:"torch/optim/sgd.py, then torch/optim/adam.py"},
+  ],
+  quiz:[
+    {q:"What does the gradient of the loss function tell you at a given point?", options:["The current value of the loss", "The direction of steepest increase of the loss", "The best learning rate to use", "The number of parameters in the model"], answer:1, explain:"Gradient descent moves opposite to this direction, since we want to decrease the loss."},
+    {q:"What is the role of the learning rate?", options:["It sets how many epochs to train for", "It scales the size of each parameter update step", "It determines the number of layers in the model", "It chooses which loss function to use"], answer:1, explain:"The learning rate multiplies the gradient to determine how far each step moves."},
+    {q:"Which variant computes the gradient using the entire training set for every single update?", options:["Stochastic gradient descent", "Mini-batch gradient descent", "Batch gradient descent", "Momentum descent"], answer:2, explain:"Batch gradient descent is the most accurate per-step but the slowest, since it processes all data before updating once."},
+    {q:"What problem does momentum primarily address?", options:["Overfitting", "Zig-zagging and slow progress in narrow valleys", "Vanishing gradients specifically in RNNs", "The need to normalize input data"], answer:1, explain:"Momentum smooths the update direction using a running average of past gradients, dampening oscillation."},
+    {q:"A learning rate that's much too high typically causes what?", options:["Training converges faster than usual", "Loss oscillates or diverges instead of decreasing", "The model automatically switches optimizers", "Nothing — learning rate doesn't affect stability"], answer:1, explain:"Overshooting the minimum repeatedly can cause the loss to grow instead of shrink."},
+    {q:"What does Adam add on top of plain momentum-based SGD?", options:["A per-parameter adaptive learning rate based on squared gradients", "A guarantee of finding the global minimum", "The elimination of the learning rate entirely", "Automatic feature engineering"], answer:0, explain:"Adam tracks both the mean and variance of past gradients per parameter to adapt each parameter's effective step size."},
+    {q:"In high-dimensional deep learning loss surfaces, which obstacle is more commonly cited as slowing training than 'bad' local minima?", options:["Saddle points and plateaus", "Too few parameters", "Lack of available GPUs", "Overly small datasets"], answer:0, explain:"True local minima that are minima in every dimension are rare in high dimensions; saddle points are far more common."},
+    {q:"Why is mini-batch gradient descent the most common choice in practice?", options:["It requires no learning rate", "It balances the computational efficiency of stochastic updates with the stability of batch updates", "It's the only variant that works on GPUs", "It removes the need for a loss function"], answer:1, explain:"Mini-batches process a manageable chunk of data per step, giving a good tradeoff between speed and gradient stability."},
+    {q:"What does one basic gradient descent update equation look like?", options:["w_new = w_old + learning_rate × loss", "w_new = w_old − learning_rate × gradient", "w_new = gradient / learning_rate", "w_new = w_old × loss"], answer:1, explain:"Subtracting the scaled gradient moves the parameter toward lower loss."},
+    {q:"Why should input features typically be scaled or normalized before training with gradient descent?", options:["It's required by Python syntax", "Unscaled features distort the loss surface and can slow or destabilize convergence", "It changes the model architecture", "It removes the need for a learning rate"], answer:1, explain:"Features on very different scales create elongated, poorly-conditioned loss surfaces that are harder to descend efficiently."},
+  ],
+  summary:"Gradient descent updates parameters by repeatedly stepping opposite the gradient of the loss, scaled by a learning rate. Mini-batch is the practical default; momentum and adaptive optimizers like Adam refine the basic step to converge faster and more reliably. Nearly everything else in deep learning training — architectures, loss functions, learning-rate schedules — exists to shape or stabilize this one simple downhill walk.",
+  flashcards:[
+    {front:"Core gradient descent update rule?", back:"w_new = w_old − learning_rate × gradient of loss with respect to w."},
+    {front:"What does the gradient point toward?", back:"The direction of steepest increase in the loss — descent moves the opposite way."},
+    {front:"Batch vs. stochastic vs. mini-batch?", back:"Batch = whole dataset per step (slow, stable). Stochastic = one sample (fast, noisy). Mini-batch = small subset (the practical default)."},
+    {front:"What does momentum fix?", back:"Zig-zagging in narrow valleys, by smoothing updates with a running average of past gradients."},
+    {front:"What's special about Adam?", back:"It gives each parameter its own adaptive learning rate based on tracked gradient mean and variance."},
+    {front:"Learning rate too high vs. too low?", back:"Too high: overshoot, oscillate, or diverge. Too low: painfully slow convergence, risk of getting stuck."},
+  ],
+};
+
+FLAGSHIP['linear-regression'] = {
+  intro:"Linear regression predicts a continuous number as a weighted sum of input features plus a bias term. It's the simplest possible model — and nearly every fancier regression technique, including the output layer of a neural network doing regression, is a generalization of it.",
+  why:"Before you can judge whether a complex model is worth its cost, you need a simple baseline that answers 'how does this outcome change as these inputs change' with a straight line. It's often shockingly competitive, and it's the model whose behavior is easiest to explain to a non-technical stakeholder.",
+  concepts:[
+    {h:"The model equation", p:"ŷ = w₁x₁ + w₂x₂ + ... + wₙxₙ + b. Each weight tells you how much the prediction moves for a one-unit change in that feature, holding the others constant."},
+    {h:"Minimizing squared error", p:"Training means choosing weights that minimize the mean squared difference between predictions and actual values. Squaring is deliberate: it's differentiable everywhere and penalizes large misses more than small ones."},
+    {h:"Two ways to fit it", p:"The Normal Equation solves for the optimal weights directly with linear algebra in one shot. Gradient descent gets there iteratively. The closed-form solution is exact but becomes computationally expensive as the number of features grows large; gradient descent scales better."},
+    {h:"Core assumptions", p:"Linear regression implicitly assumes the relationship is actually linear, that residuals have roughly constant variance (homoscedasticity), and that features aren't too correlated with each other (multicollinearity). Violating these doesn't crash the model — it just makes its coefficients and confidence unreliable."},
+    {h:"Regularization: Ridge and Lasso", p:"Adding a penalty on the size of the weights (L2 for Ridge, L1 for Lasso) prevents the model from fitting noise. Lasso's penalty can push some weights exactly to zero, effectively performing feature selection."},
+  ],
+  visual:["Scatter plot with the best-fit line overlaid","Residual plot (predicted vs. error) to spot non-linearity","3D bowl-shaped loss surface for two weights, with gradient descent's path traced across it","Ridge vs. Lasso coefficient shrinkage compared side by side as the penalty strength increases"],
+  math:"The loss is Mean Squared Error: L = (1/n)·Σ(yᵢ − ŷᵢ)². Setting the derivative of L with respect to each weight to zero and solving algebraically gives the Normal Equation, a direct formula for the optimal weights. That's the same landing spot gradient descent reaches by walking downhill instead — just two different routes to the same minimum.",
+  realworld:["Estimating how price affects demand in economics and pricing teams","Forecasting a continuous KPI (revenue, latency, churn rate) from a handful of known drivers","Estimating the size of an effect in an A/B test","Serving as an instantly-trainable baseline before justifying a more expensive model"],
+  advantages:["Coefficients are directly interpretable — you can literally say what each feature is 'worth'","Extremely fast to train, even at large scale","Low variance, which makes it a strong, stable baseline","Has an exact closed-form solution when the data allows it"],
+  limitations:["Assumes the underlying relationship is linear, and underfits when it isn't","Sensitive to outliers, which can drag the fitted line disproportionately","Coefficients become unstable when input features are highly correlated","Doesn't capture feature interactions unless you engineer them explicitly"],
+  mistakes:["Not scaling features before applying Ridge or Lasso, which makes the penalty unfair across features","Skipping the residual plot and missing an obvious non-linear pattern","Reading a coefficient's sign or size as proof of causation rather than correlation","Ignoring multicollinearity and then over-interpreting individual coefficients that are actually unstable"],
+  interview:{
+    beginner:[
+      {q:"What relationship does linear regression assume between inputs and the output?", a:"A linear one — the output is modeled as a weighted sum of the inputs plus a constant."},
+      {q:"What loss function does ordinary linear regression minimize?", a:"Mean squared error — the average of the squared differences between predicted and actual values."},
+    ],
+    intermediate:[
+      {q:"What's the practical difference between Ridge and Lasso regularization?", a:"Ridge (L2) shrinks all coefficients smoothly toward zero without eliminating them; Lasso (L1) can push some coefficients exactly to zero, effectively performing feature selection."},
+      {q:"Why would you prefer gradient descent over the Normal Equation on a very large dataset?", a:"The Normal Equation requires inverting a matrix whose cost grows roughly cubically with the number of features, which becomes impractical at scale; gradient descent's cost per step scales much better."},
+    ],
+    advanced:[
+      {q:"How does multicollinearity affect coefficient estimates, and how would you detect it?", a:"It inflates the variance of coefficient estimates, making them unstable and hard to interpret individually, even if overall predictions are fine. It's commonly detected using the Variance Inflation Factor (VIF)."},
+      {q:"Why does minimizing squared error, rather than absolute error, make the mean the optimal constant prediction for a set of points?", a:"The derivative of the sum of squared errors with respect to a constant prediction is linear and its root is exactly the mean; absolute error's derivative is a constant sign function whose root is the median instead."},
+    ],
+  },
+  exercises:["Implement ordinary least squares using the Normal Equation directly in NumPy.","Implement the same fit using gradient descent and confirm you converge to the same weights.","Add L2 regularization to your gradient descent implementation and observe how the weights shrink as you increase the penalty.","Plot residuals for a real dataset and describe what pattern, if any, suggests the linear assumption is violated."],
+  libraries:[{name:"scikit-learn", desc:"LinearRegression, Ridge, and Lasso give production-ready implementations with a consistent API."},{name:"statsmodels", desc:"Adds classical statistical inference — p-values, confidence intervals — on top of regression, useful when you need to reason about significance, not just prediction."},{name:"NumPy", desc:"Best tool for implementing the Normal Equation and gradient descent by hand to build real intuition."}],
+  youtube:[{level:"Beginner", name:"Linear Regression, Clearly Explained", by:"StatQuest"},{level:"Intermediate", name:"Regularization Part 1: Ridge Regression", by:"StatQuest"},{level:"Advanced", name:"Linear regression derivation and the Normal Equation", by:"DeepLearning.AI Machine Learning Specialization (Andrew Ng)"}],
+  reading:[{tag:"Docs", name:"scikit-learn — Linear Models user guide", url:"https://scikit-learn.org/stable/modules/linear_model.html"},{tag:"Book", name:"An Introduction to Statistical Learning — Ch. 3, Linear Regression (free PDF)", url:"https://www.statlearning.com/"},{tag:"Docs", name:"statsmodels — OLS regression results", url:"https://www.statsmodels.org/stable/regression.html"}],
+  repos:[
+    {name:"scikit-learn/scikit-learn", url:"https://github.com/scikit-learn/scikit-learn", difficulty:"Beginner", learn:"How a production LinearRegression, Ridge, and Lasso are implemented behind a simple fit/predict API.", why:"It's the library most of the industry actually uses; reading real, tested source code beats reading a textbook formula.", start:"sklearn/linear_model/_base.py, then _ridge.py"},
+    {name:"statsmodels/statsmodels", url:"https://github.com/statsmodels/statsmodels", difficulty:"Intermediate", learn:"How statistical inference — standard errors, p-values, confidence intervals — is layered on top of the same core regression.", why:"Shows the 'statistics' side of linear regression that ML-focused libraries usually skip.", start:"statsmodels/regression/linear_model.py"},
+  ],
+  quiz:[
+    {q:"What does linear regression predict?", options:["A category label", "A continuous numeric value", "A probability distribution over classes", "A cluster assignment"], answer:1, explain:"Linear regression is a regression method — its output is a continuous number, not a class."},
+    {q:"What loss does ordinary least squares minimize?", options:["Cross-entropy", "Mean squared error", "Hinge loss", "KL divergence"], answer:1, explain:"OLS specifically minimizes the sum (equivalently, mean) of squared residuals."},
+    {q:"What does the Normal Equation provide that gradient descent does not?", options:["A guaranteed-faster solution on any dataset size", "An exact, closed-form solution in one step", "Automatic feature selection", "A way to avoid overfitting entirely"], answer:1, explain:"The Normal Equation directly computes the optimal weights algebraically, without iterating."},
+    {q:"Which regularization method can shrink coefficients exactly to zero?", options:["Ridge (L2)", "Lasso (L1)", "Both equally", "Neither"], answer:1, explain:"Lasso's L1 penalty has a geometry that can zero out coefficients entirely, unlike Ridge's smooth L2 shrinkage."},
+    {q:"What problem does high multicollinearity cause?", options:["The model can no longer make predictions at all", "Individual coefficient estimates become unstable and hard to interpret", "Training time increases exponentially", "The loss function becomes non-differentiable"], answer:1, explain:"Highly correlated features make it hard for the model to attribute effect to any one of them reliably."},
+    {q:"Why is squared error used instead of absolute error in standard linear regression?", options:["It's computationally impossible to use absolute error", "Squared error is differentiable everywhere and penalizes large errors more", "Absolute error always gives a worse fit", "Squared error ignores outliers"], answer:1, explain:"Smooth differentiability makes optimization straightforward, and squaring amplifies the cost of large misses."},
+    {q:"A residual plot shows a clear curved pattern instead of random scatter. What does this suggest?", options:["The model is perfectly fit", "The linear assumption may not hold for this data", "The learning rate is too high", "The data needs more rows"], answer:1, explain:"Structured patterns in residuals typically indicate the true relationship isn't linear."},
+    {q:"What does a linear regression coefficient represent?", options:["The correlation between two features", "How much the prediction changes for a one-unit increase in that feature, holding others constant", "The percentage of variance explained", "The probability of the positive class"], answer:1, explain:"That's the standard interpretation of a linear regression weight."},
+    {q:"Why might you prefer gradient descent over the Normal Equation for a dataset with 500,000 features?", options:["Gradient descent always gives a more accurate answer", "The Normal Equation's matrix inversion becomes computationally very expensive at that scale", "The Normal Equation only works for classification", "There is no meaningful difference"], answer:1, explain:"Matrix inversion cost grows roughly cubically with feature count, making it impractical at very high dimensions."},
+    {q:"What does R² (the coefficient of determination) roughly measure?", options:["The learning rate used during training", "The proportion of variance in the output explained by the model", "The number of features used", "The p-value of the regression"], answer:1, explain:"R² summarizes how much of the outcome's variability the model accounts for, from 0 to 1 (can be negative for a poor fit)."},
+  ],
+  summary:"Linear regression fits a weighted sum of features to predict a continuous outcome by minimizing mean squared error, either exactly via the Normal Equation or iteratively via gradient descent. Its coefficients are directly interpretable, but the model assumes linearity and is sensitive to outliers and multicollinearity. Ridge and Lasso add a penalty on coefficient size to control overfitting, with Lasso capable of true feature selection.",
+  flashcards:[
+    {front:"Linear regression model equation?", back:"ŷ = w₁x₁ + w₂x₂ + ... + wₙxₙ + b"},
+    {front:"What loss does OLS minimize?", back:"Mean squared error between predictions and actual values."},
+    {front:"Ridge vs. Lasso?", back:"Ridge (L2) shrinks coefficients smoothly; Lasso (L1) can zero coefficients out entirely, acting as feature selection."},
+    {front:"Why avoid the Normal Equation with huge feature counts?", back:"Matrix inversion cost grows roughly cubically with the number of features."},
+    {front:"What does a residual plot with a curved pattern suggest?", back:"The linear assumption likely doesn't hold for this data."},
+    {front:"What does multicollinearity do to coefficients?", back:"Makes individual coefficient estimates unstable and hard to interpret, even if predictions stay fine."},
+  ],
+};
+
+FLAGSHIP['random-forest'] = {
+  intro:"A Random Forest is an ensemble of many decision trees, each trained on a randomly resampled slice of the data and a randomly restricted set of features, whose predictions are combined — by vote for classification, by average for regression — into one final answer.",
+  why:"A single decision tree grown deep enough to fit its training data well is almost always overfit and wildly sensitive to small changes in the data. Random Forest's insight is that averaging many trees that are individually noisy but only weakly correlated with each other cancels out much of that noise while keeping the trees' ability to model complex, non-linear patterns.",
+  concepts:[
+    {h:"Bagging (bootstrap aggregating)", p:"Each tree is trained on a random sample of the training rows, drawn with replacement, so every tree sees a slightly different dataset of the same size."},
+    {h:"Feature randomness at each split", p:"When choosing how to split a node, each tree only considers a random subset of the available features, not all of them. This decorrelates the trees further — without it, if one feature is very predictive, every tree would split on it first and end up looking alike."},
+    {h:"Aggregating predictions", p:"For classification, each tree votes for a class and the majority wins. For regression, the forest's prediction is simply the average of all the trees' predictions."},
+    {h:"Out-of-bag (OOB) error", p:"Because each tree only trains on roughly 63% of the rows (a property of sampling with replacement), the remaining ~37% acts as a free, built-in validation set for that tree — giving you a validation estimate without setting aside a separate test split."},
+    {h:"Feature importance", p:"Random Forest can report how much each feature reduces impurity on average across all trees and splits, giving a quick, if imperfect, ranking of which inputs matter most."},
+    {h:"Why averaging reduces variance", p:"A single tree has low bias but high variance — it fits its specific training data closely, including noise. Averaging many such trees, if they're not too correlated with each other, keeps the low bias but sharply reduces the variance."},
+  ],
+  visual:["A 'forest of trees' diagram voting on a single prediction","Bootstrap sampling animation showing different trees seeing different rows","Decision boundary comparison: one tree (jagged, overfit) vs. a forest (smoother, more stable)","Feature importance bar chart"],
+  math:"If you average n predictions that each have variance σ² and are correlated with each other by ρ, the variance of the average is ρσ² + (1−ρ)σ²/n. As you add more trees, the second term shrinks toward zero — but only the first term, driven by correlation between trees, sets the floor. That's exactly why Random Forest goes out of its way to decorrelate trees with bootstrap sampling and random feature subsets: it's directly lowering ρ, which is what makes more trees keep helping.",
+  realworld:["A strong, low-effort baseline in Kaggle tabular data competitions","Credit scoring and fraud detection models that need robustness to messy, real-world data","Feature importance rankings used for exploratory data analysis before building a more complex model","Baseline risk-scoring models in healthcare and insurance"],
+  advantages:["Much more resistant to overfitting than a single deep decision tree","Captures non-linear relationships and feature interactions automatically","Requires little feature scaling or preprocessing","Comes with a free, built-in validation signal via OOB error","Provides feature importance rankings essentially for free"],
+  limitations:["Far less interpretable than a single decision tree — you can't easily 'read' a forest","Can become slow and memory-heavy with a very large number of trees or deep trees","Tends to underperform linear models on very high-dimensional, sparse data like raw text","Extrapolates poorly to inputs well outside the range seen during training"],
+  mistakes:["Leaving default hyperparameters (like n_estimators or max_depth) untouched and assuming they're near-optimal","Treating feature importance scores as proof of a causal relationship","Using Random Forest for tasks that require extrapolation, like forecasting far beyond the training data's range","Running a separate cross-validation when the OOB score was already available for free"],
+  interview:{
+    beginner:[
+      {q:"What is bagging, and how does Random Forest use it?", a:"Bagging (bootstrap aggregating) trains multiple models, each on a random sample of the data drawn with replacement, then combines their predictions. Random Forest applies this idea specifically to decision trees."},
+      {q:"Why does averaging predictions from many trees reduce overfitting compared to a single deep tree?", a:"A single deep tree has high variance — it fits noise in its specific training data. Averaging many such trees, as long as they aren't too similar to each other, cancels out much of that individual noise."},
+    ],
+    intermediate:[
+      {q:"What's the key structural difference between bagging in Random Forest and boosting in XGBoost?", a:"Bagging trains trees independently and in parallel, mainly to reduce variance. Boosting trains trees sequentially, with each new tree specifically targeting the errors of the previous ones, mainly to reduce bias."},
+      {q:"How is feature importance typically computed in a Random Forest?", a:"By measuring how much each feature reduces impurity (e.g. Gini impurity) on average, across every split where it's used, across every tree in the forest."},
+    ],
+    advanced:[
+      {q:"Why does Random Forest randomly restrict which features are considered at each split, on top of bootstrapping rows?", a:"Without it, if one or two features are much more predictive than the rest, nearly every tree would split on those same features first, making the trees highly correlated with each other — which caps how much variance averaging can remove."},
+      {q:"What is out-of-bag error, and why can it substitute for a separate cross-validation step?", a:"Because each tree is trained on a bootstrap sample covering roughly 63% of the rows, the remaining ~37% were never seen by that tree and can be used to evaluate it — aggregating these out-of-bag evaluations across all trees gives an unbiased validation estimate without holding out a separate dataset."},
+    ],
+  },
+  exercises:["Train a RandomForestClassifier on a tabular dataset and compare its accuracy to a single DecisionTreeClassifier.","Plot the feature importances from a trained forest as a bar chart.","Compare the model's OOB score to a held-out validation set score and confirm they roughly agree.","Grid-search over n_estimators and max_depth and plot how validation accuracy changes with each."],
+  libraries:[{name:"scikit-learn", desc:"RandomForestClassifier and RandomForestRegressor — the standard, well-optimized implementation most practitioners reach for first."},{name:"XGBoost / LightGBM", desc:"Boosted-tree alternatives worth comparing against a Random Forest baseline on the same dataset."}],
+  youtube:[{level:"Beginner", name:"Random Forests, Part 1: Building, Using and Evaluating", by:"StatQuest"},{level:"Intermediate", name:"Random Forests, Part 2: Missing Data and Clustering", by:"StatQuest"},{level:"Advanced", name:"Gradient Boost, explained (for contrast with bagging)", by:"StatQuest"}],
+  reading:[{tag:"Docs", name:"scikit-learn — Ensemble methods (Random Forests)", url:"https://scikit-learn.org/stable/modules/ensemble.html#random-forests"},{tag:"Paper", name:"Breiman, L. (2001). Random Forests. Machine Learning, 45(1), 5–32.", url:null},{tag:"Blog", name:"Towards Data Science — an intuitive explanation of bagging vs. boosting", url:null}],
+  repos:[
+    {name:"scikit-learn/scikit-learn", url:"https://github.com/scikit-learn/scikit-learn", difficulty:"Beginner", learn:"How bootstrap sampling, feature subsampling, and prediction aggregation are implemented in a production forest.", why:"The reference implementation nearly everyone uses in practice.", start:"sklearn/ensemble/_forest.py"},
+    {name:"dmlc/xgboost", url:"https://github.com/dmlc/xgboost", difficulty:"Advanced", learn:"How a boosted-tree ensemble differs structurally from a bagged one — useful to read right after Random Forest to see the contrast.", why:"XGBoost is the algorithm Random Forest is most often compared and benchmarked against in practice.", start:"The official docs' 'Introduction to Boosted Trees' page, then the source."},
+  ],
+  quiz:[
+    {q:"What does 'bagging' stand for and what does it do?", options:["Boosting Aggregated Gradients — trains trees sequentially", "Bootstrap Aggregating — trains models on random samples of data and combines them", "Batch Gradient descent — a training optimizer", "Binary Aggregation — combines only two models"], answer:1, explain:"Bagging trains multiple models on bootstrap-resampled data and aggregates their outputs."},
+    {q:"How does a Random Forest decide on a final prediction for classification?", options:["It uses only the single best-performing tree", "Each tree votes and the majority class wins", "It averages the tree depths", "It picks the first tree's answer"], answer:1, explain:"Majority voting across all trees is standard for classification tasks."},
+    {q:"Besides bootstrapping rows, what else does Random Forest randomize?", options:["The loss function used", "Which subset of features is considered at each split", "The number of classes in the dataset", "The order of the output labels"], answer:1, explain:"Restricting the feature subset per split decorrelates the trees further."},
+    {q:"What is out-of-bag (OOB) error?", options:["The error measured only on the training data a tree did see", "A validation estimate computed from the ~37% of data each tree didn't see during its bootstrap sample", "The error rate before hyperparameter tuning", "A measure of how unbalanced the classes are"], answer:1, explain:"OOB error uses the rows left out of each tree's bootstrap sample as free validation data."},
+    {q:"Compared to a single decision tree, what does a Random Forest primarily reduce?", options:["Bias", "Variance", "Both bias and variance to zero", "Training time"], answer:1, explain:"Averaging many decorrelated, low-bias/high-variance trees mainly reduces variance, not bias."},
+    {q:"What is the key structural difference between bagging (Random Forest) and boosting (XGBoost)?", options:["Bagging trains trees sequentially; boosting trains them in parallel", "Bagging trains trees independently in parallel; boosting trains them sequentially, each correcting prior errors", "They are mathematically identical", "Boosting doesn't use decision trees"], answer:1, explain:"This is the core distinction: independent parallel trees (bagging) vs. sequential error-correcting trees (boosting)."},
+    {q:"How is feature importance typically derived from a trained Random Forest?", options:["By counting how often a feature appears in the dataset", "By measuring the average impurity reduction a feature contributes across all splits and trees", "By asking a human expert to rank features", "It cannot be computed for Random Forests"], answer:1, explain:"Impurity-based feature importance aggregates each feature's contribution to reducing impurity across the whole forest."},
+    {q:"Why might Random Forest underperform a linear model on very high-dimensional, sparse text data?", options:["Random Forest cannot process numeric data", "Tree-based splits are less efficient at exploiting extremely sparse, high-dimensional structure than linear models", "Random Forest always overfits on text", "It is mathematically impossible to run"], answer:1, explain:"Linear models tend to handle very sparse, high-dimensional feature spaces (like bag-of-words text) more efficiently."},
+    {q:"What happens to individual decision trees inside a forest if there's no feature randomness at splits, and one feature is highly predictive?", options:["The trees become more diverse", "Most trees split on that same dominant feature first, making the trees highly correlated with each other", "The forest automatically removes that feature", "Training becomes impossible"], answer:1, explain:"Without feature randomness, dominant features cause similar trees, which limits how much variance the ensemble can remove."},
+    {q:"Which of these is a known limitation of Random Forest?", options:["It cannot handle non-linear relationships", "It extrapolates poorly to inputs well outside the training data's range", "It requires heavy feature scaling to function at all", "It only works for regression, not classification"], answer:1, explain:"Because trees split based on ranges seen in training data, they can't meaningfully predict beyond that range."},
+  ],
+  summary:"Random Forest combines many decision trees, each trained on a bootstrap sample of the data with a randomly restricted set of features per split, and aggregates their predictions by vote or average. This decorrelates the trees, so averaging their predictions sharply reduces variance without adding much bias, producing a model that's far more robust to overfitting than any single tree — at the cost of interpretability.",
+  flashcards:[
+    {front:"What does bagging mean?", back:"Bootstrap Aggregating — training multiple models on random samples (with replacement) of the data and combining their outputs."},
+    {front:"Two sources of randomness in a Random Forest?", back:"Bootstrapped rows per tree, and a random subset of features considered at each split."},
+    {front:"What is OOB error?", back:"A free validation estimate from the ~37% of rows each tree never saw during its bootstrap sample."},
+    {front:"Random Forest mainly reduces bias or variance?", back:"Variance — individual trees are low-bias/high-variance, and averaging decorrelated trees cancels much of that variance."},
+    {front:"Bagging vs. boosting — key difference?", back:"Bagging trains trees independently in parallel; boosting trains them sequentially, each one correcting the previous trees' errors."},
+    {front:"How is feature importance derived?", back:"From the average impurity reduction a feature contributes across all splits and all trees in the forest."},
+  ],
+};
+
+FLAGSHIP['backpropagation'] = {
+  intro:"Backpropagation is the algorithm that efficiently computes the gradient of a network's loss with respect to every single weight, by applying the chain rule backward through the network, layer by layer — telling gradient descent exactly which direction to nudge each weight.",
+  why:"A modern network can have millions or billions of weights. Naively estimating each weight's effect on the loss by perturbing it individually and re-running the whole network would take millions of forward passes per training step. Backpropagation computes every single gradient in roughly the same time as one forward pass, which is the only reason training deep networks is computationally feasible at all.",
+  concepts:[
+    {h:"The forward pass", p:"Data flows through the network layer by layer, producing activations at each step, ending in a prediction and a loss value that measures how wrong that prediction was."},
+    {h:"The chain rule, applied repeatedly", p:"The derivative of the loss with respect to an early weight is the product of local derivatives along the path connecting that weight to the loss. Backprop is nothing more than the chain rule applied systematically, layer by layer."},
+    {h:"The backward pass", p:"Starting at the loss and working backward, each layer computes the gradient of the loss with respect to its own inputs using the gradient it received from the layer after it — reusing already-computed values instead of recomputing from scratch, which is what makes it efficient."},
+    {h:"The computational graph", p:"Think of the entire network as a graph of mathematical operations. Backpropagation is exactly reverse-mode automatic differentiation applied to that graph — this is precisely what PyTorch's autograd and TensorFlow's GradientTape do automatically."},
+    {h:"Vanishing and exploding gradients", p:"Because gradients are products of many local derivatives multiplied together across layers, they can shrink toward zero or blow up as they propagate backward through many layers — a major reason activation function choice, normalization layers, and residual connections matter so much in deep architectures."},
+  ],
+  visual:["A computational graph with forward arrows (data) and backward arrows (gradients) drawn in a different color","A 2-layer network diagram showing the chain-rule product explicitly, term by term","An animation of gradients shrinking or growing as they flow backward through many stacked layers"],
+  math:"For a simple chain input → hidden → output → loss, the gradient of the loss with respect to the input weight is: (∂loss/∂weight) = (∂loss/∂output) × (∂output/∂hidden) × (∂hidden/∂weight). Each factor is a 'local' derivative that's easy to compute on its own; backprop's contribution is simply multiplying these local derivatives together in the right order, reusing each one exactly once as it propagates backward through the whole network.",
+  realworld:["Every deep learning model in production — image classifiers, LLMs, diffusion models, speech models — is trained using backpropagation under the hood","Framework autograd engines (PyTorch, TensorFlow, JAX) exist specifically to automate this so practitioners never hand-derive gradients","Debugging a model that isn't learning often comes down to diagnosing a vanishing or exploding gradient problem inside its backward pass"],
+  advantages:["Computationally efficient — computes all gradients in roughly the cost of one extra forward pass, regardless of parameter count","General-purpose — works for any differentiable computation graph, not just a specific architecture","The single algorithmic breakthrough that made training deep networks practical, enabling the entire modern deep learning era"],
+  limitations:["Requires every operation in the computation graph to be differentiable (or worked around, e.g. straight-through estimators)","Prone to vanishing or exploding gradients in naively deep networks without architectural safeguards","Requires storing intermediate activations from the forward pass in memory to reuse during the backward pass","Inherently sequential backward through layers, which limits how much of it can be parallelized across depth"],
+  mistakes:["Forgetting to zero out accumulated gradients between training steps in frameworks like PyTorch, where gradients accumulate by default","Conflating backpropagation (computing gradients) with gradient descent (using those gradients to update weights) — they are two distinct steps in the same loop","Trying to backpropagate through a non-differentiable operation (like argmax) without a workaround such as a straight-through estimator","Assuming a stalled loss means backprop is 'broken' rather than checking for a vanishing-gradient or learning-rate issue first"],
+  interview:{
+    beginner:[
+      {q:"What problem does backpropagation actually solve?", a:"It efficiently computes the gradient of the loss with respect to every weight in the network, using far less computation than perturbing each weight individually."},
+      {q:"What's the difference between backpropagation and gradient descent?", a:"Backpropagation computes the gradients; gradient descent uses those gradients to actually update the weights. They're two separate steps that run together every training iteration."},
+    ],
+    intermediate:[
+      {q:"What role does the chain rule play in backpropagation?", a:"It lets you compute the gradient of the loss with respect to an early weight as the product of local derivatives along the path from that weight to the loss, computed and reused layer by layer instead of from scratch."},
+      {q:"What is a computational graph, and how does it relate to backpropagation?", a:"It's a graph representation of every operation performed during the forward pass. Backpropagation is reverse-mode automatic differentiation applied to that graph — walking it backward from the loss to compute every gradient."},
+    ],
+    advanced:[
+      {q:"What causes vanishing gradients, and how do modern architectures address it?", a:"Repeatedly multiplying many small local derivatives together as the gradient flows backward through many layers shrinks it toward zero. Residual (skip) connections give gradients a more direct path backward, and gating mechanisms in architectures like LSTM control what information is preserved, both mitigating the effect."},
+      {q:"How does an autograd engine like PyTorch's build and traverse a computation graph automatically?", a:"It records every differentiable operation performed on tensors during the forward pass as nodes in a graph, along with each operation's local derivative rule. Calling .backward() then walks that graph in reverse topological order, applying the chain rule at each node to accumulate gradients back to the original inputs."},
+    ],
+  },
+  exercises:["Implement backpropagation by hand with NumPy for a tiny 2-layer network — no autograd allowed.","Verify your hand-computed gradients against PyTorch's autograd using .backward() on the same network.","Implement a numerical gradient check (finite differences) to validate your manual backprop implementation.","Train a deep plain MLP with sigmoid activations vs. one with ReLU activations and compare how quickly gradients vanish in each."],
+  libraries:[{name:"PyTorch autograd", desc:"Automatically builds the computation graph and computes gradients via .backward() — the standard tool in practice."},{name:"micrograd", desc:"Andrej Karpathy's minimal teaching autograd engine — read the whole implementation in an afternoon."},{name:"NumPy", desc:"Best for implementing backprop by hand once, to genuinely understand what autograd is doing for you."}],
+  youtube:[{level:"Beginner", name:"What is Backpropagation Really Doing?", by:"3Blue1Brown (Neural Networks series, chapter 3)"},{level:"Intermediate", name:"The spelled-out intro to neural networks and backpropagation: building micrograd", by:"Andrej Karpathy"},{level:"Advanced", name:"Backpropagation and architectures lecture", by:"Stanford CS231n"}],
+  reading:[{tag:"Blog", name:"Christopher Olah — Calculus on Computational Graphs: Backpropagation", url:"https://colah.github.io/posts/2015-08-Backprop/"},{tag:"Docs", name:"PyTorch — Autograd mechanics", url:"https://docs.pytorch.org/docs/stable/notes/autograd.html"},{tag:"Paper", name:"Rumelhart, Hinton & Williams (1986). Learning representations by back-propagating errors.", url:null}],
+  repos:[
+    {name:"karpathy/micrograd", url:"https://github.com/karpathy/micrograd", difficulty:"Beginner", learn:"A complete, tiny autograd engine implementing forward and backward passes from first principles.", why:"Built explicitly to teach this exact concept, with nothing hidden behind a framework.", start:"micrograd/engine.py — read the Value class's backward() methods."},
+    {name:"karpathy/nn-zero-to-hero", url:"https://github.com/karpathy/nn-zero-to-hero", difficulty:"Intermediate", learn:"The companion code to Karpathy's full 'Zero to Hero' video series, building up from micrograd to a working GPT.", why:"Bridges the gap between toy backprop and real modern architectures, step by step.", start:"The lectures/ notebooks, in order."},
+    {name:"pytorch/pytorch", url:"https://github.com/pytorch/pytorch", difficulty:"Advanced", learn:"How a production-grade, highly optimized autograd engine is actually implemented at scale.", why:"The real system powering most deep learning training in the industry today.", start:"torch/autograd/ — start with the README in that directory."},
+  ],
+  quiz:[
+    {q:"What does backpropagation compute?", options:["The final prediction of the network", "The gradient of the loss with respect to every weight", "The optimal learning rate", "The number of layers needed"], answer:1, explain:"Backprop's entire job is producing gradients that gradient descent then uses to update weights."},
+    {q:"What mathematical rule underlies backpropagation?", options:["The chain rule", "The product rule of integration", "Bayes' theorem", "The pigeonhole principle"], answer:0, explain:"Backprop is a systematic, efficient application of the chain rule across every layer of the network."},
+    {q:"Why is backpropagation dramatically more efficient than perturbing each weight individually?", options:["It skips layers with small weights", "It reuses computed gradients from later layers instead of recomputing from scratch for every weight", "It only works on small networks", "It avoids using the chain rule"], answer:1, explain:"Reusing intermediate gradient computations backward through the graph is what gives it its efficiency."},
+    {q:"What is a computational graph, in the context of backpropagation?", options:["A graph of training loss over time", "A representation of every operation performed during the forward pass, used to compute gradients backward", "A diagram of the dataset's class distribution", "A visualization of the learning rate schedule"], answer:1, explain:"Backprop is reverse-mode automatic differentiation applied directly to this graph."},
+    {q:"What typically causes vanishing gradients in deep networks?", options:["Using too large a batch size", "Repeated multiplication of many small local derivatives as the gradient flows backward through layers", "Using too few training examples", "Choosing the wrong loss function"], answer:1, explain:"When each layer's local derivative is small, multiplying many of them together shrinks the gradient toward zero."},
+    {q:"How do residual (skip) connections help with vanishing gradients?", options:["They increase the learning rate automatically", "They give gradients a more direct path backward through the network", "They remove the need for backpropagation entirely", "They reduce the number of layers"], answer:1, explain:"A skip connection lets gradients flow around a block of layers, avoiding repeated multiplication through every one of them."},
+    {q:"What is the relationship between backpropagation and gradient descent?", options:["They are the same algorithm with different names", "Backpropagation computes gradients; gradient descent uses those gradients to update weights", "Gradient descent computes gradients; backpropagation updates weights", "They are unrelated"], answer:1, explain:"They are two distinct, complementary steps that run together in every training iteration."},
+    {q:"What does an autograd engine like PyTorch's actually automate?", options:["Choosing the model architecture", "Recording the forward computation graph and applying the chain rule backward through it automatically", "Selecting the dataset", "Tuning the learning rate"], answer:1, explain:"Calling .backward() traverses the recorded graph in reverse, applying the chain rule at each step."},
+    {q:"What must be stored in memory during the forward pass to make the backward pass possible?", options:["The final loss value only", "Intermediate activations at each layer", "Only the initial input", "Nothing needs to be stored"], answer:1, explain:"Many backward-pass gradient computations depend on the activations computed during the forward pass."},
+    {q:"A common bug in PyTorch training loops is forgetting to do what before calling .backward() again?", options:["Reload the dataset", "Zero out the previously accumulated gradients", "Re-initialize the model weights", "Change the loss function"], answer:1, explain:"PyTorch accumulates gradients by default, so forgetting optimizer.zero_grad() mixes gradients across steps."},
+  ],
+  summary:"Backpropagation applies the chain rule systematically, layer by layer, to compute the gradient of the loss with respect to every weight in a network — reusing intermediate results so the entire computation costs roughly one extra forward pass, no matter how many parameters the network has. This efficiency is precisely what makes training deep networks with millions or billions of parameters computationally feasible, and it's automated today by autograd engines like PyTorch's.",
+  flashcards:[
+    {front:"What does backpropagation compute?", back:"The gradient of the loss with respect to every weight in the network."},
+    {front:"What mathematical rule powers backprop?", back:"The chain rule, applied systematically layer by layer, backward from the loss."},
+    {front:"Backprop vs. gradient descent?", back:"Backprop computes gradients; gradient descent uses them to update the weights. Two separate steps."},
+    {front:"What is a computational graph?", back:"A graph of every operation performed during the forward pass, which backprop traverses in reverse to compute gradients."},
+    {front:"What typically causes vanishing gradients?", back:"Repeated multiplication of many small local derivatives as the gradient propagates backward through many layers."},
+    {front:"How do residual connections help?", back:"They give the gradient a shortcut path backward, reducing how many layers it must be multiplied through."},
+  ],
+};
+
+FLAGSHIP['cnn'] = {
+  intro:"A Convolutional Neural Network (CNN) builds its layers around the convolution operation: a small learnable filter slides across an image, computing local dot products, so the network can recognize patterns like edges and shapes wherever they appear in the image — not just in one fixed location.",
+  why:"A plain fully-connected layer treats every pixel as an independent, position-specific input. On even a small image that requires an enormous number of parameters, and worse, it doesn't share what it learns — an edge detector learned for the top-left corner tells the network nothing about the same edge appearing in the bottom-right. Convolution solves both problems at once: the same small filter is reused across every position, giving far fewer parameters and translation invariance for free.",
+  concepts:[
+    {h:"Filters (kernels)", p:"A small grid of learnable weights — commonly 3×3 — that slides across the input, computing a dot product with the local patch it covers at each position, producing a 'feature map' that lights up wherever the pattern the filter has learned appears."},
+    {h:"Weight sharing", p:"The same filter's weights are reused at every spatial position instead of learning a separate weight per pixel. This is what makes CNNs so much more parameter-efficient than fully-connected layers on images."},
+    {h:"Stride and padding", p:"Stride controls how far the filter moves between applications (larger stride = smaller, coarser output). Padding adds a border of zeros around the input so the output size can be controlled, including kept equal to the input size."},
+    {h:"Pooling", p:"A downsampling step (commonly max-pooling) that shrinks feature maps by keeping only the strongest activation in each small region, reducing computation and giving a degree of robustness to small shifts in the input."},
+    {h:"Feature hierarchy", p:"Early convolutional layers tend to learn simple patterns — edges, colors, textures. Deeper layers combine these into increasingly complex, abstract patterns — parts, shapes, and eventually whole objects."},
+    {h:"Receptive field", p:"The region of the original input image that a given neuron's output actually depends on. It's small in early layers and grows with each additional convolutional and pooling layer, letting deep neurons 'see' broader context."},
+  ],
+  visual:["An animated filter sliding across an image grid, computing a dot product at each position","Visualized feature maps at increasing depth — showing edges, then textures, then object parts","A pooling operation diagram, showing a 2×2 max-pool collapsing four values into one","A receptive-field growth diagram across stacked convolutional layers"],
+  math:"At each position, a convolution computes a weighted sum: output = Σ (filter weight × corresponding input pixel), summed over the whole filter window, for every color channel, then usually passed through a non-linear activation. That's the entire operation — the same small formula, applied at every location across the image and across many filters in parallel, is what forms a full convolutional layer.",
+  realworld:["Image classification, from simple digit recognition to large-scale photo categorization","Backbones inside object detectors like YOLO, which use CNN feature extraction before predicting boxes","Medical imaging diagnosis — reading X-rays, MRIs, and scans for abnormalities","Facial recognition and biometric verification systems","Perception stacks in self-driving cars, detecting lanes, signs, and obstacles"],
+  advantages:["Far fewer parameters than an equivalent fully-connected network on image data","Naturally translation-invariant — a learned pattern is recognized anywhere it appears in the image","Learns a hierarchy of features automatically, from simple edges to complex objects","Well-suited to any data with local, grid-like spatial structure, not just photographs"],
+  limitations:["Less naturally suited to non-grid data like text or graphs, which lack the same spatial structure","Building genuinely global context still requires stacking many layers or deliberately large receptive fields; Vision Transformers now often outperform CNNs on very large-scale image datasets","Can be sensitive to changes in scale or orientation not seen during training, without data augmentation","Computationally intensive at high input resolutions"],
+  mistakes:["Miscalculating the output feature map size and getting a shape mismatch later in the network","Pooling too aggressively, too early, and discarding spatial detail the task actually needed","Normalizing input images differently between training and inference","Fine-tuning a network pretrained on natural photos directly on a very different visual domain (e.g. medical scans) without adjusting for the distribution shift"],
+  interview:{
+    beginner:[
+      {q:"What problem does a convolutional layer solve that a fully-connected layer handles poorly on images?", a:"It drastically reduces the number of parameters by sharing the same filter weights across every spatial position, and it gives the network translation invariance — recognizing a pattern no matter where it appears in the image."},
+      {q:"What does pooling do inside a CNN?", a:"It downsamples feature maps, typically by keeping only the maximum value in each small region, reducing computation and adding some robustness to small shifts in the input."},
+    ],
+    intermediate:[
+      {q:"What is weight sharing in a CNN, and why does it matter?", a:"The same filter's weights are applied at every position in the image, instead of learning a unique weight per pixel-position. It matters because it massively reduces parameter count and lets a pattern learned in one part of the image be recognized everywhere else too."},
+      {q:"How does the receptive field grow as you stack more convolutional layers?", a:"Each additional convolutional (or pooling) layer lets a neuron in the next layer 'see' a slightly larger region of the original input, since its inputs already summarized a local neighborhood from the layer before — so receptive field compounds with depth."},
+    ],
+    advanced:[
+      {q:"What inductive bias does a CNN have that a Vision Transformer lacks, and what's the tradeoff?", a:"CNNs build in the assumption that nearby pixels are related (locality) and that patterns are useful anywhere in the image (translation invariance) directly into their architecture. Vision Transformers make far fewer such assumptions and instead learn relationships between all patches via attention — which needs more data to learn well, but can outperform CNNs once enough data is available."},
+      {q:"How do stride and padding affect a convolutional layer's output size, and how would you calculate it?", a:"Output size = floor((input_size − kernel_size + 2×padding) / stride) + 1. Larger stride shrinks the output faster; padding can be chosen so the output matches the input size ('same' padding) or is allowed to shrink ('valid' padding)."},
+    ],
+  },
+  exercises:["Build a small CNN in PyTorch to classify MNIST digits and train it to over 98% accuracy.","Visualize the learned filters of the first convolutional layer after training and describe what patterns they detect.","Given a kernel size, stride, and padding, compute the output feature map size by hand, then verify it in code.","Compare parameter count and accuracy between your CNN and an equivalent fully-connected network on the same task."],
+  libraries:[{name:"PyTorch (torch.nn.Conv2d)", desc:"The standard way to define convolutional layers in modern research and production code."},{name:"torchvision", desc:"Pretrained CNN architectures (ResNet, VGG, EfficientNet) and standard image datasets, ready to use."},{name:"TensorFlow/Keras (Conv2D)", desc:"An equally common alternative API for building and training CNNs."}],
+  youtube:[{level:"Beginner", name:"But What Is a Convolution?", by:"3Blue1Brown"},{level:"Intermediate", name:"Convolutional Neural Networks lecture", by:"DeepLearning.AI (Deep Learning Specialization)"},{level:"Advanced", name:"CNN architectures lecture", by:"Stanford CS231n"}],
+  reading:[{tag:"Docs", name:"PyTorch — Conv2d reference", url:"https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv2d.html"},{tag:"Article", name:"CS231n course notes — Convolutional Networks", url:"https://cs231n.github.io/convolutional-networks/"},{tag:"Paper", name:"Krizhevsky, Sutskever & Hinton (2012). ImageNet Classification with Deep Convolutional Neural Networks (AlexNet).", url:null}],
+  repos:[
+    {name:"pytorch/vision", url:"https://github.com/pytorch/vision", difficulty:"Beginner", learn:"Reference implementations of major CNN architectures (ResNet, VGG, EfficientNet) alongside pretrained weights and datasets.", why:"The standard companion library to PyTorch for anything vision-related.", start:"torchvision/models/resnet.py"},
+    {name:"karpathy/convnetjs", url:"https://github.com/karpathy/convnetjs", difficulty:"Beginner", learn:"A CNN implemented entirely in JavaScript with live, in-browser training visualizations.", why:"Watching filters and feature maps update live builds intuition faster than reading static diagrams.", start:"The demo pages linked from the repo's README."},
+  ],
+  quiz:[
+    {q:"What is the main advantage of weight sharing in a convolutional layer?", options:["It increases the number of parameters for better accuracy", "It drastically reduces parameters and lets a learned pattern be recognized anywhere in the image", "It removes the need for a loss function", "It only works for grayscale images"], answer:1, explain:"The same filter is reused at every position, cutting parameters and providing translation invariance."},
+    {q:"What does a pooling layer typically do?", options:["Increases the spatial resolution of feature maps", "Downsamples feature maps, commonly by keeping the maximum value in each region", "Adds more color channels", "Converts the image to grayscale"], answer:1, explain:"Max-pooling is the most common form, reducing spatial size and computation."},
+    {q:"What tends to be true about what early convolutional layers learn, compared to deeper ones?", options:["Early layers learn whole objects; deep layers learn edges", "Early layers tend to learn simple patterns like edges and textures; deeper layers combine these into complex shapes and objects", "All layers learn identical features", "Layer depth has no effect on what's learned"], answer:1, explain:"This is the classic feature hierarchy observed across trained CNNs."},
+    {q:"What is the receptive field of a neuron in a CNN?", options:["The number of filters in that layer", "The region of the original input image that neuron's output depends on", "The learning rate used to train that layer", "The size of the training dataset"], answer:1, explain:"Receptive field grows with network depth as each layer summarizes a larger neighborhood of the input."},
+    {q:"How does increasing the stride of a convolution affect the output size?", options:["It has no effect on output size", "It increases the output size", "It decreases the output size, since the filter moves further between applications", "It only affects the number of channels"], answer:2, explain:"A larger stride means fewer filter positions fit across the input, producing a smaller output feature map."},
+    {q:"Why might a fully-connected layer be impractical as the first layer processing a large image directly?", options:["Fully-connected layers cannot process numbers", "It would require an enormous number of parameters, one per pixel-to-neuron connection, without any weight sharing", "Fully-connected layers only work for text", "There is no real disadvantage"], answer:1, explain:"Without shared weights, connecting every pixel to every neuron in the next layer produces an infeasible parameter count on real images."},
+    {q:"What is a key inductive bias built into CNNs that Vision Transformers largely lack?", options:["A preference for locality and translation invariance", "A requirement for labeled data", "An assumption that images must be square", "A built-in language understanding capability"], answer:0, explain:"CNNs assume nearby pixels are related and patterns matter regardless of position; ViTs learn such structure from data instead."},
+    {q:"What does 'same' padding typically aim to achieve?", options:["Doubling the output size", "Keeping the output feature map the same spatial size as the input", "Removing the need for a filter", "Converting the input to a 1D vector"], answer:1, explain:"'Same' padding adds enough border pixels so the output width/height match the input's."},
+    {q:"Which of these is a realistic limitation of CNNs?", options:["They cannot be used for classification tasks", "They can be sensitive to scale or orientation changes not seen during training unless augmented", "They require no training data at all", "They cannot process color images"], answer:1, explain:"Without augmentation covering such variation, learned filters may not generalize to unseen scales or orientations."},
+    {q:"What best describes the core convolution computation at a single output position?", options:["A random sampling of pixels", "A weighted sum (dot product) between the filter's weights and the corresponding local patch of the input", "Sorting the pixel values in that region", "Averaging the entire image"], answer:1, explain:"Convolution at each position is exactly a dot product between filter weights and the local input patch, usually followed by a non-linearity."},
+  ],
+  summary:"A CNN builds its layers around convolution — small, learnable filters slid across an image, computing local dot products and sharing their weights across every position. This drastically cuts parameter count compared to a fully-connected layer and gives translation invariance for free. Stacking convolution and pooling layers builds a feature hierarchy, from simple edges in early layers to complex object parts in deeper ones, with the receptive field growing along the way.",
+  flashcards:[
+    {front:"What is weight sharing in a CNN?", back:"The same filter's weights are reused at every spatial position, instead of learning a unique weight per pixel."},
+    {front:"What does pooling do?", back:"Downsamples feature maps, typically by keeping the max value in each small region, reducing computation."},
+    {front:"What is the receptive field?", back:"The region of the original input a given neuron's output depends on; it grows with network depth."},
+    {front:"Feature hierarchy in a CNN?", back:"Early layers learn simple patterns (edges, textures); deeper layers combine these into shapes and objects."},
+    {front:"Output size formula for a conv layer?", back:"floor((input_size − kernel_size + 2×padding) / stride) + 1"},
+    {front:"Key CNN inductive bias vs. Vision Transformers?", back:"CNNs assume locality and translation invariance; ViTs learn such structure from data via attention instead."},
+  ],
+};
+
+FLAGSHIP['attention'] = {
+  intro:"Attention lets a model, when producing each output, look back at every input position and decide — dynamically, per token — how much weight to give each one. Instead of compressing an entire input sequence into one fixed-size vector, the model keeps direct access to everything and learns what to focus on.",
+  why:"Older sequence models had to squeeze an entire sentence into a single fixed-size hidden state passed step by step, which became a bottleneck: information from early tokens faded before reaching the end of a long sequence. Attention removes that bottleneck entirely, giving the model direct, weighted access to every position at once — which is also the key insight that made the Transformer architecture, and every modern LLM built on it, possible.",
+  concepts:[
+    {h:"Query, Key, and Value vectors", p:"Every token is projected into three separate vectors: a Query ('what am I looking for'), a Key ('what do I represent, so others can find me'), and a Value ('what information do I actually carry if you attend to me')."},
+    {h:"Attention scores via dot product", p:"A token's Query is compared against every other token's Key using a dot product — a simple, fast way to measure how relevant two vectors are to each other."},
+    {h:"Softmax normalization", p:"Raw dot-product scores are passed through softmax, turning them into a clean probability distribution over all positions that sums to 1 — interpretable weights rather than arbitrary numbers."},
+    {h:"Weighted sum of Values", p:"The output for a token is the weighted sum of every token's Value vector, weighted by the attention scores just computed — so more relevant tokens contribute proportionally more information."},
+    {h:"Multi-head attention", p:"Rather than computing attention once, the model runs several attention computations in parallel ('heads'), each with its own learned Q/K/V projections, letting different heads specialize in different kinds of relationships — one might track syntax, another long-range coreference — before their outputs are concatenated."},
+    {h:"Self-attention vs. cross-attention", p:"Self-attention relates tokens within the same sequence to each other (how GPT-style models work). Cross-attention relates tokens in one sequence to a different sequence — e.g. a translation decoder attending back to the original encoder's output."},
+  ],
+  visual:["An attention-weight heatmap over a sentence, showing which words attend strongly to which","A diagram of a single token's Query, Key, and Value vectors being computed and compared","A multi-head attention diagram showing several parallel heads before concatenation","An animation of one token's output being built as a weighted sum of every other token's Value vector"],
+  math:"Attention(Q, K, V) = softmax(QKᵀ / √d_k) V. Step by step: QKᵀ computes a similarity score between every query and every key. Dividing by √d_k (the key dimension) keeps those scores from growing too large as dimensionality increases, which would otherwise push softmax into a region with vanishingly small gradients. softmax then turns the scores into normalized weights, and multiplying by V produces the final weighted sum — that whole expression is the entire mechanism.",
+  realworld:["Every modern LLM — GPT, Claude, Gemini, Llama — uses multi-head self-attention as its core building block","Machine translation systems use cross-attention so the decoder can look back at the relevant part of the source sentence","Multimodal vision-language models use attention to let text tokens 'look at' relevant regions of an image"],
+  advantages:["No fixed-size bottleneck — any two positions can relate to each other directly, regardless of distance between them","Highly parallelizable during training, unlike an RNN's inherently sequential dependency","Multi-head design lets different heads specialize in different types of relationships","Scales remarkably well with more data and compute, which is a major reason it underlies today's largest models"],
+  limitations:["Computational cost grows quadratically with sequence length, since every token computes a score against every other token","This quadratic cost makes very long contexts expensive in both compute and memory","Attention weights are intuitive to visualize but aren't always a reliable explanation of the model's actual reasoning","Attention itself has no notion of order, so positional information has to be added separately (positional encodings)"],
+  mistakes:["Forgetting the 1/√d_k scaling factor, which can destabilize softmax gradients, especially in larger models","Over-interpreting attention weights as a definitive causal explanation of why the model produced an answer","Confusing self-attention with cross-attention when reading an architecture diagram or paper","Not accounting for the O(n²) cost when planning for very long input sequences or designing a system around them"],
+  interview:{
+    beginner:[
+      {q:"What problem does attention solve compared to a plain RNN encoder-decoder?", a:"RNNs had to compress the entire input sequence into one fixed-size hidden state, losing information over long sequences. Attention lets the model directly access every input position, weighted by relevance, removing that bottleneck."},
+      {q:"In plain terms, what are Query, Key, and Value in attention?", a:"Query is what a token is looking for, Key is what a token offers so it can be found, and Value is the actual information a token contributes if it's attended to."},
+    ],
+    intermediate:[
+      {q:"Why is the attention score scaled by 1/√d_k?", a:"Dot products between high-dimensional vectors can grow large in magnitude, which pushes softmax into a region where its gradients become very small. Scaling down by the square root of the key dimension keeps the scores, and therefore the gradients, in a stable range."},
+      {q:"What's the difference between self-attention and cross-attention?", a:"Self-attention relates tokens within the same sequence to each other. Cross-attention relates tokens from one sequence to a different sequence, such as a decoder attending to an encoder's output."},
+    ],
+    advanced:[
+      {q:"Why is attention's computational cost quadratic in sequence length, and what techniques try to address it?", a:"Every token computes an attention score against every other token, producing an n×n score matrix, so cost scales with the square of sequence length. Techniques like sparse attention, sliding-window attention, linear-attention approximations, and I/O-aware exact implementations like FlashAttention all aim to reduce this cost, either algorithmically or through more efficient computation."},
+      {q:"What does multi-head attention provide that a single attention computation doesn't?", a:"Each head learns its own Q/K/V projections and can specialize in different kinds of relationships between tokens — for example, one head might track short-range syntactic dependencies while another tracks long-range coreference — and concatenating multiple heads lets the model represent several such relationships simultaneously instead of averaging them into one."},
+    ],
+  },
+  exercises:["Implement scaled dot-product attention from scratch in NumPy or PyTorch for a small toy sequence.","Visualize the resulting attention weight matrix as a heatmap for a short sentence.","Extend your implementation to multi-head attention by splitting Q/K/V into several heads and concatenating the outputs.","Measure how compute and memory usage scale as you increase sequence length, and plot the trend."],
+  libraries:[{name:"PyTorch (torch.nn.MultiheadAttention)", desc:"A ready-made, optimized implementation to compare against your own from-scratch version."},{name:"Hugging Face transformers", desc:"Read any model's actual attention implementation in production code, not just a paper's pseudocode."},{name:"FlashAttention", desc:"An I/O-aware, exact attention implementation that's dramatically faster and more memory-efficient in practice."}],
+  youtube:[{level:"Beginner", name:"Attention in transformers, visually explained", by:"3Blue1Brown"},{level:"Intermediate", name:"Let's build GPT: from scratch, in code, spelled out", by:"Andrej Karpathy"},{level:"Advanced", name:"A paper-review deep dive on 'Attention Is All You Need'", by:"Yannic Kilcher"}],
+  reading:[{tag:"Paper", name:"Vaswani et al. (2017). Attention Is All You Need.", url:"https://arxiv.org/abs/1706.03762"},{tag:"Blog", name:"Jay Alammar — The Illustrated Transformer", url:"https://jalammar.github.io/illustrated-transformer/"},{tag:"Docs", name:"Hugging Face course — the Transformer architecture chapter", url:"https://huggingface.co/learn/nlp-course"}],
+  repos:[
+    {name:"karpathy/nanoGPT", url:"https://github.com/karpathy/nanoGPT", difficulty:"Intermediate", learn:"A clean, minimal GPT implementation with attention written out in roughly 300 readable lines.", why:"The best balance of 'small enough to fully read' and 'actually reflects a real modern architecture.'", start:"model.py — the CausalSelfAttention class."},
+    {name:"Dao-AILab/flash-attention", url:"https://github.com/Dao-AILab/flash-attention", difficulty:"Advanced", learn:"How a genuinely fast, production-grade attention implementation is engineered, and why the naive version is so much slower in practice.", why:"Nearly every modern LLM training run relies on this or a similar optimization.", start:"The paper linked in the README, then the core CUDA kernel entry points."},
+    {name:"huggingface/transformers", url:"https://github.com/huggingface/transformers", difficulty:"Advanced", learn:"How attention is implemented consistently across dozens of production model architectures.", why:"Seeing the same core mechanism adapted slightly across many real models cements the concept.", start:"Search any model's modeling_*.py file for its Attention class."},
+  ],
+  quiz:[
+    {q:"What does the Query vector represent in attention?", options:["The information a token contributes if attended to", "What a token is 'looking for' when comparing itself to others", "The final output of the attention layer", "The position of a token in the sequence"], answer:1, explain:"Query represents what a token is searching for; it's compared against every Key."},
+    {q:"Why is the dot product between Query and Key scaled by 1/√d_k?", options:["To speed up matrix multiplication", "To keep scores from growing too large and destabilizing softmax gradients", "To convert the scores into probabilities", "To add positional information"], answer:1, explain:"Without scaling, large-magnitude dot products push softmax into a low-gradient region."},
+    {q:"What does softmax do to the raw attention scores?", options:["Converts them into a normalized probability distribution summing to 1", "Removes the smallest scores entirely", "Doubles the largest score", "Converts them into Key vectors"], answer:0, explain:"Softmax normalizes arbitrary scores into interpretable weights that sum to one."},
+    {q:"What is the fundamental computational bottleneck of standard attention?", options:["It cannot be parallelized at all", "Its cost grows quadratically with sequence length", "It only works with a single attention head", "It cannot be used for language tasks"], answer:1, explain:"Every token attends to every other token, producing an n×n score matrix — quadratic in sequence length."},
+    {q:"What is the key difference between self-attention and cross-attention?", options:["Self-attention only works on images", "Self-attention relates tokens within one sequence; cross-attention relates tokens across two different sequences", "Cross-attention doesn't use Query/Key/Value vectors", "They are mathematically identical"], answer:1, explain:"Cross-attention is used, for example, when a decoder attends back to a separate encoder's output."},
+    {q:"What does multi-head attention allow that a single head doesn't?", options:["It removes the need for softmax", "Different heads can specialize in capturing different kinds of relationships between tokens", "It eliminates the quadratic cost", "It removes the need for positional encoding"], answer:1, explain:"Each head learns its own Q/K/V projections, letting the model represent multiple relationship types in parallel."},
+    {q:"Why does attention need separate positional encoding added to token representations?", options:["Because attention itself has no inherent notion of token order", "Because Query vectors already encode position", "Positional encoding is not actually needed for attention", "Because softmax removes positional information"], answer:0, explain:"Attention treats input as a set of positions compared to each other; without added positional information, it's permutation-invariant."},
+    {q:"What technique specifically targets making attention computation faster and more memory-efficient without changing its exact mathematical output?", options:["Sparse attention", "FlashAttention", "Positional encoding", "Layer normalization"], answer:1, explain:"FlashAttention is an I/O-aware, exact implementation — it changes how the computation is executed, not what it computes."},
+    {q:"In the formula Attention(Q, K, V) = softmax(QKᵀ / √d_k) V, what does multiplying by V ultimately produce?", options:["The raw similarity scores", "A weighted sum of Value vectors, weighted by the normalized attention scores", "The Query vectors for the next layer", "The gradient used for backpropagation"], answer:1, explain:"This final multiplication combines the Value vectors according to how much attention each received."},
+    {q:"Why should attention weights be interpreted cautiously as an 'explanation' of model behavior?", options:["Attention weights are randomly generated and meaningless", "High attention weight doesn't always reliably correspond to what actually drove the model's output", "Attention weights don't exist in trained models", "Attention weights only apply to the first token"], answer:1, explain:"Research has shown attention weights are a useful but imperfect and sometimes misleading proxy for causal importance."},
+  ],
+  summary:"Attention lets every token directly compare itself against every other token via Query and Key vectors, turns those comparisons into normalized weights with softmax, and produces its output as a weighted sum of Value vectors — removing the fixed-size bottleneck that limited earlier sequence models. Multi-head attention runs several such computations in parallel to capture different kinds of relationships at once, at the cost of a computation that scales quadratically with sequence length.",
+  flashcards:[
+    {front:"What do Query, Key, and Value represent?", back:"Query = what a token is looking for; Key = what a token offers to be matched against; Value = the information contributed if attended to."},
+    {front:"Attention formula?", back:"softmax(QKᵀ / √d_k) V"},
+    {front:"Why scale by √d_k?", back:"To prevent large-magnitude dot products from pushing softmax into a low-gradient region."},
+    {front:"Self-attention vs. cross-attention?", back:"Self-attention relates tokens within one sequence; cross-attention relates tokens across two different sequences."},
+    {front:"Why does attention need positional encoding?", back:"Attention alone has no notion of token order — it's permutation-invariant without it."},
+    {front:"Main computational limitation of attention?", back:"Cost scales quadratically with sequence length, since every token attends to every other token."},
+  ],
+};
+
+/*INSERT_HERE*/
+</script>
+</body>
+</html>

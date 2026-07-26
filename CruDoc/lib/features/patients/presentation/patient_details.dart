@@ -5,13 +5,33 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/appointments/presentation/schedule_visit_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
-const Color _accentAmber = Color(0xFFF2B84B);
+
+BoxDecoration _surfaceCardDecoration({BorderRadius? radius}) {
+  return BoxDecoration(
+    color: AppColors.cardSurface,
+    borderRadius: radius ?? BorderRadius.circular(16),
+    border: Border.all(
+      color: AppColors.chartBarDim.withValues(alpha: 0.22),
+    ),
+  );
+}
+
+String _titleCaseWords(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return trimmed;
+  return trimmed
+      .split(RegExp(r'\s+'))
+      .map((word) =>
+          word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
+      .join(' ');
+}
 
 class PatientDetailsPage extends ConsumerStatefulWidget {
   final Patient patient;
@@ -35,7 +55,11 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      backgroundColor: AppColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
       builder: (_) => _NoteEditorSheet(initialNote: _note),
     );
     if (result == null) return; // sheet was dismissed/cancelled
@@ -59,6 +83,24 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
     }
   }
 
+  Future<void> _scheduleSession() async {
+    final scheduled = await showScheduleVisitSheet(
+      context,
+      patient: widget.patient,
+      visitRepository: ref.read(visitRepositoryProvider),
+    );
+
+    if (!scheduled || !mounted) return;
+
+    ref.invalidate(visitsForPatientProvider(widget.patient.id));
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Session scheduled for ${widget.patient.fullName}'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final patient = widget.patient;
@@ -74,25 +116,14 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
               const _TopBar(),
               Expanded(
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 108),
                   physics: const ClampingScrollPhysics(),
                   children: [
                     _PatientHeader(patient: patient),
-                    const SizedBox(height: 20),
-                    _DoctorsNoteCard(note: _note, onDoubleTap: _openNoteEditor),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
                     visitsAsync.when(
-                      loading: () => const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Center(child: CircularProgressIndicator()),
-                      ),
-                      error: (error, stack) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        child: Text(
-                          'Could not load visit history',
-                          style: AppColors.bodyMedium,
-                        ),
-                      ),
+                      loading: () => const _StatsRowSkeleton(),
+                      error: (_, __) => const SizedBox.shrink(),
                       data: (visits) {
                         final completedCount = visits
                             .where((v) => v.status == VisitStatus.completed)
@@ -107,21 +138,29 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                         );
                       },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+                    _DoctorsNoteCard(note: _note, onTap: _openNoteEditor),
+                    const SizedBox(height: 20),
                     const _SectionLabel(text: 'CONTACT'),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     _ContactCard(phone: patient.phone),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
                     const _SectionLabel(text: 'SESSION HISTORY'),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     visitsAsync.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (error, stack) => const SizedBox.shrink(),
+                      loading: () => const _EmptyStateCard(
+                        icon: Icons.history,
+                        message: 'Loading session history…',
+                      ),
+                      error: (error, stack) => _EmptyStateCard(
+                        icon: Icons.error_outline,
+                        message: 'Could not load visit history',
+                      ),
                       data: (visits) {
                         if (visits.isEmpty) {
-                          return Text(
-                            'No sessions recorded yet.',
-                            style: AppColors.bodyMedium,
+                          return const _EmptyStateCard(
+                            icon: Icons.event_busy_outlined,
+                            message: 'No sessions recorded yet.',
                           );
                         }
                         return _SessionHistorySection(
@@ -151,7 +190,10 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
           ),
         ),
       ),
-      bottomNavigationBar: _BottomActionBar(onAddNote: _openNoteEditor),
+      bottomNavigationBar: _BottomActionBar(
+        onAddNote: _openNoteEditor,
+        onScheduleSession: _scheduleSession,
+      ),
     );
   }
 }
@@ -176,9 +218,9 @@ class _TopBar extends StatelessWidget {
             child: Text(
               'Patient Record',
               style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
+                fontFamily: AppColors.headingFontFamily,
                 color: AppColors.textPrimary,
-                fontSize: 16,
+                fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -206,14 +248,15 @@ class _PatientHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          patient.fullName,
+          _titleCaseWords(patient.fullName),
           style: const TextStyle(
             fontFamily: AppColors.headingFontFamily,
             color: AppColors.textPrimary,
-            fontSize: 20,
+            fontSize: 24,
             fontWeight: FontWeight.w700,
+            letterSpacing: -0.3,
           ),
-          maxLines: 1,
+          maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
         const SizedBox(height: 8),
@@ -223,12 +266,13 @@ class _PatientHeader extends StatelessWidget {
           children: [
             _InfoPill(
               icon: Icons.person_outline,
-              label: '${patient.gender}, ${patient.age} yrs',
+              label:
+                  '${_titleCaseWords(patient.gender)}, ${patient.age} yrs',
             ),
             for (final diagnosis in patient.diagnosis)
               _InfoPill(
                 icon: Icons.healing_outlined,
-                label: diagnosis,
+                label: _titleCaseWords(diagnosis),
               ),
           ],
         ),
@@ -245,20 +289,25 @@ class _InfoPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(
+          color: AppColors.chartBarDim.withValues(alpha: 0.25),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: AppColors.textSecondary),
-          const SizedBox(width: 5),
+          Icon(icon, size: 14, color: AppColors.chartBarLight),
+          const SizedBox(width: 6),
           Text(
             label,
-            style: AppColors.bodySmall.copyWith(fontWeight: FontWeight.w500),
+            style: AppColors.bodySmall.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
           ),
         ],
       ),
@@ -267,42 +316,46 @@ class _InfoPill extends StatelessWidget {
 }
 
 // ---------- Doctor's Note ----------
-// Double-tap opens the edit sheet, per the doctor's usual workflow: read
-// the card in passing, then double-tap when they actually want to write
-// something.
 class _DoctorsNoteCard extends StatelessWidget {
   final String? note;
-  final VoidCallback onDoubleTap;
-  const _DoctorsNoteCard({required this.note, required this.onDoubleTap});
+  final VoidCallback onTap;
+  const _DoctorsNoteCard({required this.note, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final bool hasNote = note != null && note!.trim().isNotEmpty;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: GestureDetector(
-        onDoubleTap: onDoubleTap,
-        behavior: HitTestBehavior.opaque,
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            color: AppColors.cardSurface,
-            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-          ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Ink(
+          decoration: _surfaceCardDecoration(),
           child: IntrinsicHeight(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(width: 3, color: _accentAmber),
+                Container(
+                  width: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.chartBarLight,
+                    borderRadius: const BorderRadius.horizontal(
+                      left: Radius.circular(16),
+                    ),
+                  ),
+                ),
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(Icons.sticky_note_2_outlined,
-                            color: _accentAmber, size: 18),
+                        Icon(
+                          Icons.sticky_note_2_outlined,
+                          color: AppColors.chartBarLight,
+                          size: 18,
+                        ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -316,8 +369,7 @@ class _DoctorsNoteCard extends StatelessWidget {
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
                                       letterSpacing: 1.1,
-                                      color:
-                                          _accentAmber.withValues(alpha: 0.9),
+                                      color: AppColors.slateBlue,
                                     ),
                                   ),
                                   const SizedBox(width: 6),
@@ -325,7 +377,7 @@ class _DoctorsNoteCard extends StatelessWidget {
                                     Icons.edit_outlined,
                                     size: 12,
                                     color: AppColors.textSecondary
-                                        .withValues(alpha: 0.5),
+                                        .withValues(alpha: 0.6),
                                   ),
                                 ],
                               ),
@@ -333,18 +385,17 @@ class _DoctorsNoteCard extends StatelessWidget {
                               Text(
                                 hasNote
                                     ? note!
-                                    : 'Double-tap to add a note for this patient.',
+                                    : 'Tap to add a note for this patient.',
                                 style: AppColors.bodyMedium.copyWith(
                                   color: hasNote
                                       ? AppColors.textPrimary
-                                      : AppColors.textSecondary
-                                          .withValues(alpha: 0.7),
+                                      : AppColors.textSecondary,
                                   fontStyle: hasNote
                                       ? FontStyle.italic
                                       : FontStyle.normal,
                                   height: 1.4,
                                 ),
-                                maxLines: 3,
+                                maxLines: 4,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -388,108 +439,100 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
-      child: ClipRRect(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          decoration: const BoxDecoration(
-            color: AppColors.bgTop,
-          ),
-          child: SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 44,
+                height: 5,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.silver.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            Text(
+              "Doctor's Note",
+              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _controller,
+              autofocus: true,
+              maxLines: 6,
+              minLines: 4,
+              style: AppColors.bodyMedium,
+              decoration: InputDecoration(
+                hintText: 'Type notes for this patient…',
+                hintStyle: AppColors.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: AppColors.chartBarLight,
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(2),
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.slateBlue,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
-                const Text(
-                  "Doctor's Note",
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _controller,
-                  autofocus: true,
-                  maxLines: 6,
-                  minLines: 4,
-                  style: AppColors.bodyMedium,
-                  decoration: InputDecoration(
-                    hintText: 'Type notes for this patient…',
-                    hintStyle: AppColors.bodyMedium.copyWith(
-                      color: AppColors.textSecondary.withValues(alpha: 0.6),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: () => Navigator.pop(context, _controller.text),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 14,
                     ),
-                    filled: true,
-                    fillColor: AppColors.cardSurface,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.divider),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: AppColors.divider),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: _accentAmber),
+                    backgroundColor: AppColors.chartBarLight,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.textPrimary,
-                          side: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.2)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('Cancel'),
-                      ),
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontWeight: FontWeight.w600,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () =>
-                            Navigator.pop(context, _controller.text),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _accentAmber,
-                          foregroundColor: Colors.black87,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                        child: const Text('Save'),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -549,11 +592,7 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
+      decoration: _surfaceCardDecoration(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -616,19 +655,26 @@ class _ContactCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
-      ),
+      decoration: _surfaceCardDecoration(),
       child: Row(
         children: [
-          const Icon(Icons.call_outlined, color: AppColors.silver, size: 18),
-          const SizedBox(width: 10),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.chartBarLight.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(
+              Icons.call_outlined,
+              color: AppColors.chartBarLight,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
               phone.isNotEmpty ? phone : 'No phone number',
-              style: AppColors.bodyMedium,
+              style: AppColors.bodyMedium.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -791,7 +837,9 @@ class _SessionTimelineTile extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.cardSurface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                  border: Border.all(
+                    color: AppColors.chartBarDim.withValues(alpha: 0.22),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -844,7 +892,7 @@ class _PaymentChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPaid = visit.isPaid;
-    final color = isPaid ? _accentTeal : _accentAmber;
+    final color = isPaid ? _accentTeal : AppColors.chartBarLight;
     final label = isPaid && visit.amountCharged != null
         ? 'Paid ₹${visit.amountCharged!.toStringAsFixed(0)}'
         : (isPaid ? 'Paid' : 'Payment Pending');
@@ -872,17 +920,26 @@ class _PaymentChip extends StatelessWidget {
 // ---------- Bottom Action Bar ----------
 class _BottomActionBar extends StatelessWidget {
   final VoidCallback onAddNote;
-  const _BottomActionBar({required this.onAddNote});
+  final VoidCallback onScheduleSession;
+
+  const _BottomActionBar({
+    required this.onAddNote,
+    required this.onScheduleSession,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, -4),
+          ),
+        ],
       ),
       child: SafeArea(
         top: false,
@@ -894,27 +951,29 @@ class _BottomActionBar extends StatelessWidget {
                 icon: const Icon(Icons.note_add_outlined, size: 18),
                 label: const Text('Add Note'),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textPrimary,
-                  side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
+                  foregroundColor: AppColors.slateBlue,
+                  side: BorderSide(
+                    color: AppColors.chartBarDim.withValues(alpha: 0.45),
+                  ),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () {},
+              child: FilledButton.icon(
+                onPressed: onScheduleSession,
                 icon: const Icon(Icons.event_available, size: 18),
                 label: const Text('Schedule Session'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _accentBlue,
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.chartBarLight,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                 ),
               ),
@@ -922,6 +981,65 @@ class _BottomActionBar extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------- Empty state card ----------
+class _EmptyStateCard extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _EmptyStateCard({
+    required this.icon,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: _surfaceCardDecoration(),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: AppColors.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: AppColors.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsRowSkeleton extends StatelessWidget {
+  const _StatsRowSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: _StatCardSkeleton()),
+        const SizedBox(width: 12),
+        Expanded(child: _StatCardSkeleton()),
+      ],
+    );
+  }
+}
+
+class _StatCardSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 118,
+      decoration: _surfaceCardDecoration(),
     );
   }
 }

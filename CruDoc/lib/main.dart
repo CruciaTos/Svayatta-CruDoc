@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/services/firestore_sync_service.dart';
@@ -12,7 +10,6 @@ import 'core/theme/app_colors.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
@@ -32,8 +29,7 @@ class MoodyDashboardApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
       theme: ThemeData(
-        useMaterial3: true,
-        // Ensure the app uses the project's chosen font and base text styles
+        useMaterial3: true,        // Ensure the app uses the project's chosen font and base text styles
         fontFamily: AppColors.bodyFontFamily,
         primaryColor: AppColors.accentBlue,
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.accentBlue),

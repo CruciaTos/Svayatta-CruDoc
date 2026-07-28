@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -307,11 +308,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                 ),
                 onAddInventoryItem: _openAddMedicine,
                 onAddPatient: _openAddPatient,
-                onLogExpense: () => _showSectionInfo(
-                  title: 'Log',
-                  message:
-                      'Expense logging is not available yet. This section will help you record clinic expenses and compare them with revenue once implemented.',
-                ),
+                onAppointments: () => AppointmentCalendarSheet.show(context),
               ),
               const SizedBox(height: 20),
               TodaysVisitsCard(

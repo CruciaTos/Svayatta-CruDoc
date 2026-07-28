@@ -44,6 +44,11 @@ final recentVisitsProvider = StreamProvider<List<Visit>>(
   (ref) => ref.watch(visitRepositoryProvider).watchRecentVisits(),
 );
 
+/// Streams ALL non-deleted visits (past, present, future) for calendar view.
+final allVisitsProvider = StreamProvider<List<Visit>>(
+  (ref) => ref.watch(visitRepositoryProvider).watchAllVisits(),
+);
+
 /// Streams a single patient's visit history, most recent first. Family
 /// parameter is the patientId. Used by the patient details screen (real
 /// session history + stats) and by the Last Patient card (session count).
@@ -100,6 +105,35 @@ final visitsWithPatientsProvider =
 final todaysVisitsWithPatientsProvider =
     Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
   final visitsAsync = ref.watch(todaysVisitsProvider);
+  final patientsAsync = ref.watch(patientsStreamProvider);
+
+  if (visitsAsync.isLoading || patientsAsync.isLoading) {
+    return const AsyncValue.loading();
+  }
+  if (visitsAsync.hasError) {
+    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
+  }
+  if (patientsAsync.hasError) {
+    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
+  }
+
+  final visits = visitsAsync.value!;
+  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
+
+  final combined = visits
+      .map(
+        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
+      )
+      .toList();
+
+  return AsyncValue.data(combined);
+});
+
+/// Joins [allVisitsProvider] with patient data for calendar views
+/// showing past, present, and future appointments.
+final allVisitsWithPatientsProvider =
+    Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
+  final visitsAsync = ref.watch(allVisitsProvider);
   final patientsAsync = ref.watch(patientsStreamProvider);
 
   if (visitsAsync.isLoading || patientsAsync.isLoading) {

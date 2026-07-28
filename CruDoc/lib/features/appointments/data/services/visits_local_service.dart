@@ -56,6 +56,8 @@ class VisitLocalService {
   // marked completed/cancelled/missed shows up immediately.
   final StreamController<List<Visit>> _recentVisitsController =
       StreamController<List<Visit>>.broadcast();
+  final StreamController<List<Visit>> _allVisitsController =
+      StreamController<List<Visit>>.broadcast();
 
   Future<String> upsertVisit(
     Visit visit, {
@@ -162,6 +164,11 @@ class VisitLocalService {
     return _recentVisitsController.stream;
   }
 
+  Stream<List<Visit>> watchAllVisits() {
+    Future<void>.microtask(_emitAllVisits);
+    return _allVisitsController.stream;
+  }
+
   Future<List<Visit>> findOverlapping({
     required DateTime start,
     required DateTime end,
@@ -209,6 +216,7 @@ class VisitLocalService {
     await _emitTodaysVisits();
     await _emitLastVisitPerPatient();
     await _emitRecentVisits();
+    await _emitAllVisits();
     for (final key in _patientVisitControllers.keys) {
       final parsed = _parsePatientStreamKey(key);
       await _emitVisitsForPatient(
@@ -254,6 +262,20 @@ class VisitLocalService {
     );
     if (!_recentVisitsController.isClosed) {
       _recentVisitsController.add(rows.map(_fromRow).toList());
+    }
+  }
+
+  Future<void> _emitAllVisits() async {
+    if (_allVisitsController.isClosed) return;
+
+    final db = await _databaseService.database;
+    final rows = await db.query(
+      'visits',
+      where: 'isActive = 1 AND isDeleted = 0',
+      orderBy: 'scheduledStart ASC',
+    );
+    if (!_allVisitsController.isClosed) {
+      _allVisitsController.add(rows.map(_fromRow).toList());
     }
   }
 

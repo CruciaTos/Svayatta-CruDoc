@@ -8,18 +8,20 @@ class QuickActionsRow extends StatelessWidget {
     this.onAddInventoryItem,
     this.onAddPatient,
     this.onLogExpense,
+    this.onAppointments,
   });
 
   final VoidCallback? onNewVisit;
   final VoidCallback? onAddInventoryItem;
   final VoidCallback? onAddPatient;
   final VoidCallback? onLogExpense;
+  final VoidCallback? onAppointments;
 
   static const List<_QuickAction> _actions = [
     _QuickAction(icon: Icons.calendar_today_outlined, label: 'New Visit'),
     _QuickAction(icon: Icons.inventory_2_outlined, label: 'Inventory'),
     _QuickAction(icon: Icons.person_add, label: 'Patient'),
-    _QuickAction(icon: Icons.remove_circle_outline, label: 'Logs'),
+    _QuickAction(icon: Icons.event, label: 'Appointments'),
   ];
 
   @override
@@ -55,8 +57,9 @@ class QuickActionsRow extends StatelessWidget {
         return onAddInventoryItem;
       case 'Patient':
         return onAddPatient;
+      case 'Appointments':
       case 'Logs':
-        return onLogExpense;
+        return onAppointments ?? onLogExpense;
     }
     return null;
   }

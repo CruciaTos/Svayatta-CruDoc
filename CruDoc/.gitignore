@@ -6,7 +6,7 @@
 .DS_Store
 .atom/
 .build/
-.buildlog/
+.buildlog/gita
 .history
 .svn/
 .swiftpm/

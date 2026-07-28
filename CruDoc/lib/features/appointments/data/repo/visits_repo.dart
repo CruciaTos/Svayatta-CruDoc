@@ -496,6 +496,11 @@ class VisitRepository {
     return _localService.watchRecentVisits();
   }
 
+  /// Streams all non-deleted visits (past, present, and future) for calendar view.
+  Stream<List<Visit>> watchAllVisits() {
+    return _localService.watchAllVisits();
+  }
+
   /// Read-only overlap check for the UI to call live — e.g. as soon as
   /// the doctor picks a time — so it can show a warning *before* they
   /// even tap save. [createVisit] and [rescheduleVisit] re-run this

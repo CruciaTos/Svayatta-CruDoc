@@ -17,6 +17,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 // Bottom sheet used for session details (replaces the old full-page
 // VisitDetailsPage push below).
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 
 // ---------- SHARED BOTTOM-SHEET FORM HELPERS ----------
 Widget _buildSheetHandle() {
@@ -737,7 +738,17 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Events', style: AppColors.pageHeading),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Events', style: AppColors.pageHeading),
+                  IconButton.filledTonal(
+                    onPressed: () => AppointmentCalendarSheet.show(context),
+                    icon: const Icon(Icons.calendar_month_rounded),
+                    tooltip: 'Open Appointment Calendar',
+                  ),
+                ],
+              ),
 
               // ---------- Upcoming Webinars section ----------
               const SizedBox(height: 28),

@@ -111,16 +111,19 @@ class _ActionButton extends StatelessWidget {
               child: Icon(action.icon, color: Colors.white, size: 18),
             ),
             const SizedBox(height: 6),
-            Text(
-              action.label,
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
-                fontSize: 11,                       // slightly smaller text
-                fontWeight: FontWeight.w600,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                action.label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textPrimary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
               ),
             ),
           ],

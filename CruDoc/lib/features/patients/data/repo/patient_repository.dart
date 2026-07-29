@@ -1,5 +1,6 @@
 import 'dart:async';
-
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
@@ -9,8 +10,8 @@ import 'package:doctor_management_app/features/patients/data/services/patient_lo
 
 /// Clean API the presentation layer talks to for anything patient-related.
 ///
-/// Reads and writes go through SQLite. Writes are marked pending locally and
-/// the central sync engine is triggered in the background.
+/// Reads and writes go through SQLite on mobile, and directly through Cloud Firestore
+/// on Web to ensure Web & Mobile stay 100% connected with identical live data.
 class PatientRepository {
   PatientRepository({
     PatientLocalService? localService,
@@ -42,6 +43,14 @@ class PatientRepository {
       updatedAt: now,
     );
 
+    if (kIsWeb) {
+      await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(id)
+          .set(patientWithId.toMap());
+      return id;
+    }
+
     await _localService.upsertPatient(patientWithId);
     unawaited(_syncService.triggerPostWriteSync());
     return id;
@@ -62,6 +71,14 @@ class PatientRepository {
     final localData = Map<String, dynamic>.from(data)
       ..['updatedAt'] = DateTime.now();
 
+    if (kIsWeb) {
+      await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(patientId)
+          .update(localData);
+      return;
+    }
+
     await _localService.updatePatient(patientId, localData);
     unawaited(_syncService.triggerPostWriteSync());
   }
@@ -73,17 +90,48 @@ class PatientRepository {
 
   /// Soft-deletes a patient locally, then mirrors the existing Firestore delete.
   Future<void> deletePatient(String patientId) async {
+    if (kIsWeb) {
+      await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(patientId)
+          .update({
+        'isArchived': true,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+      return;
+    }
     await _localService.softDeletePatient(patientId);
     unawaited(_syncService.triggerPostWriteSync());
   }
 
   /// Fetches a single patient by id.
-  Future<Patient?> getPatient(String patientId) {
+  Future<Patient?> getPatient(String patientId) async {
+    if (kIsWeb) {
+      final doc = await FirebaseFirestore.instance
+          .collection('patients')
+          .doc(patientId)
+          .get();
+      if (!doc.exists || doc.data() == null) return null;
+      return Patient.fromMap(doc.data()!, id: doc.id);
+    }
     return _localService.getPatient(patientId);
   }
 
   /// Streams the live list of active (non-archived) patients.
   Stream<List<Patient>> watchPatients() {
+    if (kIsWeb) {
+      return FirebaseFirestore.instance
+          .collection('patients')
+          .snapshots()
+          .map((snapshot) {
+        final list = snapshot.docs
+            .map((doc) => Patient.fromMap(doc.data(), id: doc.id))
+            .where((p) => !p.isArchived)
+            .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        return list;
+      });
+    }
     return _localService.watchPatients();
   }
 

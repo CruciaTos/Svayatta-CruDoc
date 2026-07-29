@@ -1,5 +1,6 @@
 import 'dart:async';
-
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
@@ -9,10 +10,6 @@ import 'package:doctor_management_app/features/inventory/data/models/stock_trans
 import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
 
 /// Clean API the presentation layer talks to for anything inventory-related.
-///
-/// Reads and writes go through SQLite. Writes are marked pending locally and
-/// the central sync engine is triggered in the background. Mirrors
-/// [PatientRepository]'s offline-first pattern.
 class InventoryRepository {
   InventoryRepository({
     InventoryLocalService? localService,
@@ -46,9 +43,35 @@ class InventoryRepository {
       updatedAt: now,
     );
 
+    if (kIsWeb) {
+      await FirebaseFirestore.instance
+          .collection('medicines')
+          .doc(id)
+          .set(medicineWithId.toJson());
+      return id;
+    }
+
     await _localService.upsertMedicine(medicineWithId);
     unawaited(_syncService.triggerPostWriteSync());
     return id;
+  }
+
+  /// Streams the live list of active medicines.
+  Stream<List<MedicineModel>> watchMedicines() {
+    if (kIsWeb) {
+      return FirebaseFirestore.instance
+          .collection('medicines')
+          .snapshots()
+          .map((snapshot) {
+        final list = snapshot.docs
+            .map((doc) => MedicineModel.fromJson({...doc.data(), 'id': doc.id}))
+            .where((m) => m.isActive)
+            .toList();
+        list.sort((a, b) => a.name.compareTo(b.name));
+        return list;
+      });
+    }
+    return _localService.watchMedicines();
   }
 
   /// Updates an existing medicine's fields.
@@ -89,11 +112,6 @@ class InventoryRepository {
   /// Fetches a single medicine by id.
   Future<MedicineModel?> getMedicine(String medicineId) {
     return _localService.getMedicine(medicineId);
-  }
-
-  /// Streams the live list of active medicines.
-  Stream<List<MedicineModel>> watchMedicines() {
-    return _localService.watchMedicines();
   }
 
   /// Records a restock/dispense/adjustment/write-off transaction and

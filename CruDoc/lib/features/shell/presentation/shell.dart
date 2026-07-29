@@ -1,4 +1,4 @@
-// for ImageFilter
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard.dart';
@@ -69,24 +69,25 @@ class _ShellState extends State<Shell> {
                     .map(
                       (screen) => Padding(
                         padding: EdgeInsets.only(
-                          bottom: navBarHeight,
-                        ), // make room for the overlay
+                          bottom: kIsWeb ? 0 : navBarHeight,
+                        ), // make room for overlay on mobile
                         child: screen,
                       ),
                     )
                     .toList(),
               ),
             ),
-            // ---- Floating navigation bar ----
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 12,
-              child: BottomNavBar(
-                selectedIndex: _currentIndex,
-                onTap: _onNavTap,
+            // ---- Floating navigation bar (Mobile Only) ----
+            if (!kIsWeb)
+              Positioned(
+                left: 20,
+                right: 20,
+                bottom: 12,
+                child: BottomNavBar(
+                  selectedIndex: _currentIndex,
+                  onTap: _onNavTap,
+                ),
               ),
-            ),
           ],
         ),
       ),

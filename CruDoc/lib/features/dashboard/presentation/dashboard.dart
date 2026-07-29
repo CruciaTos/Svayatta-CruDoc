@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/web_dashboard_view.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
@@ -219,6 +221,10 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (kIsWeb && MediaQuery.of(context).size.width > 768) {
+      return WebDashboardView(onNavigateToTab: widget.onNavigateToTab);
+    }
+
     // ---- Stats (replace with real data) ----
     final List<StatItem> stats = [
       // TODO: populate with actual values

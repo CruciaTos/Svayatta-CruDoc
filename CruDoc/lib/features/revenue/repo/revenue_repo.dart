@@ -1,5 +1,6 @@
 import 'dart:async';
-
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
@@ -8,10 +9,6 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
 
 /// Clean API the presentation layer talks to for anything revenue-related.
-///
-/// Reads and writes go through SQLite. Writes are marked pending locally
-/// and the central sync engine is triggered in the background — the same
-/// local-first pattern as `PatientRepository` and `VisitRepository`.
 class RevenueRepository {
   RevenueRepository({
     RevenueLocalService? localService,
@@ -45,9 +42,53 @@ class RevenueRepository {
       updatedAt: now,
     );
 
+    if (kIsWeb) {
+      await FirebaseFirestore.instance
+          .collection('revenue_entries')
+          .doc(id)
+          .set(entryWithId.toMap());
+      return id;
+    }
+
     await _localService.upsertRevenueEntry(entryWithId);
     unawaited(_syncService.triggerPostWriteSync());
     return id;
+  }
+
+  /// Streams the live list of active (non-deleted) revenue entries.
+  Stream<List<RevenueEntry>> watchRevenueEntries() {
+    if (kIsWeb) {
+      return FirebaseFirestore.instance
+          .collection('revenue_entries')
+          .snapshots()
+          .map((snapshot) {
+        final list = snapshot.docs
+            .map((doc) => RevenueEntry.fromMap(doc.data(), id: doc.id))
+            .where((e) => !e.isDeleted)
+            .toList();
+        list.sort((a, b) => b.date.compareTo(a.date));
+        return list;
+      });
+    }
+    return _localService.watchRevenueEntries();
+  }
+
+  /// Streams the live list of still-unpaid pending payments.
+  Stream<List<PendingPayment>> watchPendingPayments() {
+    if (kIsWeb) {
+      return FirebaseFirestore.instance
+          .collection('pending_payments')
+          .snapshots()
+          .map((snapshot) {
+        final list = snapshot.docs
+            .map((doc) => PendingPayment.fromMap(doc.data(), id: doc.id))
+            .where((p) => !p.isPaid)
+            .toList();
+        list.sort((a, b) => b.date.compareTo(a.date));
+        return list;
+      });
+    }
+    return _localService.watchPendingPayments();
   }
 
   /// Updates arbitrary fields on an existing revenue entry. `updatedAt`
@@ -91,13 +132,6 @@ class RevenueRepository {
   /// Fetches a single revenue entry by id.
   Future<RevenueEntry?> getRevenueEntry(String entryId) {
     return _localService.getRevenueEntry(entryId);
-  }
-
-  /// Streams the live list of active (non-deleted) revenue entries,
-  /// most recent first. The presentation layer applies its own
-  /// weekly/monthly/yearly filter on top of this stream.
-  Stream<List<RevenueEntry>> watchRevenueEntries() {
-    return _localService.watchRevenueEntries();
   }
 
   // ---------------- pending payments ----------------
@@ -223,12 +257,6 @@ class RevenueRepository {
   /// creates a duplicate pending payment.
   Future<PendingPayment?> getPendingPaymentForVisit(String visitId) {
     return _localService.getPendingPaymentForVisit(visitId);
-  }
-
-  /// Streams the live list of still-unpaid pending payments, most
-  /// recent first.
-  Stream<List<PendingPayment>> watchPendingPayments() {
-    return _localService.watchPendingPayments();
   }
 
   // ---------------- internal helpers ----------------

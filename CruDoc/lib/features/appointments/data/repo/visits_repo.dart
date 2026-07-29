@@ -467,7 +467,7 @@ class VisitRepository {
 
   /// Streams today's scheduled visits — both clinic appointments and
   /// home visitations combined, chronological order. Powers the
-  /// dashboard's "Today's Visits" card.
+  /// Streams today's scheduled visits (clinic + home combined).
   Stream<List<Visit>> watchTodaysVisits() {
     return _localService.watchTodaysVisits();
   }

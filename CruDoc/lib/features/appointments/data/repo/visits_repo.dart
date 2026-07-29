@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
@@ -47,6 +49,45 @@ class VisitRepository {
   final FirestoreSyncService _syncService;
   final PatientRepository _patientRepository;
   final RevenueRepository _revenueRepository;
+
+  Stream<List<Visit>> _watchWebVisits() {
+    final appts = FirebaseFirestore.instance.collection('appointments').snapshots();
+    final visitations = FirebaseFirestore.instance.collection('visitations').snapshots();
+
+    final controller = StreamController<List<Visit>>.broadcast();
+    List<Visit> lastAppts = [];
+    List<Visit> lastVisits = [];
+
+    void emit() {
+      if (controller.isClosed) return;
+      controller.add([...lastAppts, ...lastVisits]);
+    }
+
+    StreamSubscription? sub1;
+    StreamSubscription? sub2;
+
+    controller.onListen = () {
+      sub1 = appts.listen((snap) {
+        lastAppts = snap.docs
+            .map((doc) => Visit.fromMap(doc.data(), id: doc.id))
+            .toList();
+        emit();
+      });
+      sub2 = visitations.listen((snap) {
+        lastVisits = snap.docs
+            .map((doc) => Visit.fromMap(doc.data(), id: doc.id))
+            .toList();
+        emit();
+      });
+    };
+
+    controller.onCancel = () {
+      sub1?.cancel();
+      sub2?.cancel();
+    };
+
+    return controller.stream;
+  }
 
   /// Creates a new visit for an existing patient.
   ///
@@ -141,6 +182,17 @@ class VisitRepository {
       createdAt: now,
       updatedAt: now,
     );
+
+    if (kIsWeb) {
+      final collection = visitWithId.visitType == VisitType.home
+          ? 'visitations'
+          : 'appointments';
+      await FirebaseFirestore.instance
+          .collection(collection)
+          .doc(id)
+          .set(visitWithId.toMap());
+      return id;
+    }
 
     await _localService.upsertVisit(visitWithId);
     unawaited(_syncService.triggerPostWriteSync());
@@ -457,18 +509,58 @@ class VisitRepository {
   }
 
   /// Fetches a single visit by id, or null if it doesn't exist.
-  Future<Visit?> getVisit(String visitId) => _localService.getVisit(visitId);
+  Future<Visit?> getVisit(String visitId) async {
+    if (kIsWeb) {
+      final docA = await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(visitId)
+          .get();
+      if (docA.exists && docA.data() != null) {
+        return Visit.fromMap(docA.data()!, id: docA.id);
+      }
+      final docV = await FirebaseFirestore.instance
+          .collection('visitations')
+          .doc(visitId)
+          .get();
+      if (docV.exists && docV.data() != null) {
+        return Visit.fromMap(docV.data()!, id: docV.id);
+      }
+      return null;
+    }
+    return _localService.getVisit(visitId);
+  }
 
   /// Streams active upcoming visits from [from] (defaults to now)
   /// onward, ordered by start time ascending.
   Stream<List<Visit>> watchUpcomingVisits({DateTime? from}) {
+    if (kIsWeb) {
+      final startFrom = from ?? DateTime.now();
+      return _watchWebVisits().map((list) {
+        final filtered = list
+            .where((v) => !v.isDeleted && v.scheduledStart.isAfter(startFrom))
+            .toList();
+        filtered.sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+        return filtered;
+      });
+    }
     return _localService.watchUpcomingVisits(from: from);
   }
 
-  /// Streams today's scheduled visits — both clinic appointments and
-  /// home visitations combined, chronological order. Powers the
   /// Streams today's scheduled visits (clinic + home combined).
   Stream<List<Visit>> watchTodaysVisits() {
+    if (kIsWeb) {
+      final now = DateTime.now();
+      return _watchWebVisits().map((list) {
+        final filtered = list.where((v) =>
+          !v.isDeleted &&
+          v.scheduledStart.year == now.year &&
+          v.scheduledStart.month == now.month &&
+          v.scheduledStart.day == now.day
+        ).toList();
+        filtered.sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+        return filtered;
+      });
+    }
     return _localService.watchTodaysVisits();
   }
 
@@ -477,6 +569,15 @@ class VisitRepository {
     String patientId, {
     bool includeDeleted = false,
   }) {
+    if (kIsWeb) {
+      return _watchWebVisits().map((list) {
+        final filtered = list.where((v) =>
+          v.patientId == patientId && (includeDeleted || !v.isDeleted)
+        ).toList();
+        filtered.sort((a, b) => b.scheduledStart.compareTo(a.scheduledStart));
+        return filtered;
+      });
+    }
     return _localService.watchVisitsForPatient(
       patientId,
       includeDeleted: includeDeleted,
@@ -487,17 +588,47 @@ class VisitRepository {
   /// occurred, refreshed automatically after every visit write. Powers
   /// the "Last Patient" summary card without querying per-patient.
   Stream<Map<String, Visit>> watchLastVisitPerPatient() {
+    if (kIsWeb) {
+      final now = DateTime.now();
+      return _watchWebVisits().map((list) {
+        final map = <String, Visit>{};
+        final pastVisits = list
+            .where((v) => !v.isDeleted && v.scheduledStart.isBefore(now))
+            .toList();
+        pastVisits.sort((a, b) => b.scheduledStart.compareTo(a.scheduledStart));
+        for (final visit in pastVisits) {
+          if (!map.containsKey(visit.patientId)) {
+            map[visit.patientId] = visit;
+          }
+        }
+        return map;
+      });
+    }
     return _localService.watchLastVisitPerPatient();
   }
 
   /// Streams the most recently created/updated visits (any status),
   /// newest first. Powers the dashboard's "Recent Activity" card.
   Stream<List<Visit>> watchRecentVisits() {
+    if (kIsWeb) {
+      return _watchWebVisits().map((list) {
+        final filtered = list.where((v) => !v.isDeleted).toList();
+        filtered.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+        return filtered;
+      });
+    }
     return _localService.watchRecentVisits();
   }
 
   /// Streams all non-deleted visits (past, present, and future) for calendar view.
   Stream<List<Visit>> watchAllVisits() {
+    if (kIsWeb) {
+      return _watchWebVisits().map((list) {
+        final filtered = list.where((v) => !v.isDeleted).toList();
+        filtered.sort((a, b) => b.scheduledStart.compareTo(a.scheduledStart));
+        return filtered;
+      });
+    }
     return _localService.watchAllVisits();
   }
 

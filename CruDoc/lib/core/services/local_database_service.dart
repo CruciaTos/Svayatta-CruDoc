@@ -18,6 +18,9 @@ class LocalDatabaseService extends ChangeNotifier {
   Database? _database;
 
   Future<Database> get database async {
+    if (kIsWeb) {
+      throw UnsupportedError('SQLite is disabled on Web. Repositories read directly from Cloud Firestore on Web.');
+    }
     final existing = _database;
     if (existing != null) return existing;
 

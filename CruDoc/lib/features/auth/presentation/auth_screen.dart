@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
@@ -56,8 +57,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
 
 
-    // Pre-fill demo email
+    // Pre-fill demo credentials
     _emailController.text = _demoEmail;
+    _passwordController.text = _demoPassword;
   }
 
   @override
@@ -104,35 +106,27 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   void _enterApp() {
     if (!mounted) return;
-    try {
-      context.go('/dashboard');
-    } catch (_) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const Shell()),
-      );
-    }
+    context.go('/dashboard');
   }
 
   // ---------- Email / Password Login ----------
 
   Future<void> _handleEmailLogin() async {
     if (_isLoading) return; // Rate-limiting guard against double submission
-    final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
+    var email = _emailController.text.trim();
+    var password = _passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      _showError('Please enter email and password');
-      return;
+    // Auto-fill demo credentials if user taps Login with empty fields
+    if (email.isEmpty) {
+      email = _demoEmail;
+      _emailController.text = _demoEmail;
+    }
+    if (password.isEmpty) {
+      password = _demoPassword;
+      _passwordController.text = _demoPassword;
     }
 
-    // Email format validation
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(email)) {
-      _showError('Please enter a valid email address');
-      return;
-    }
-
-    // Demo credentials bypass
+    // Demo credentials bypass — no Firebase call needed
     if (email == _demoEmail && password == _demoPassword) {
       _enterApp();
       return;

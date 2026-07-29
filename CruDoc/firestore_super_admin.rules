@@ -1,0 +1,188 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated()
+        && request.auth.token.role == 'superAdmin'
+        && request.auth.token.isTwoFAVerified == true;
+    }
+
+    function isDoctor(doctorId) {
+      return isAuthenticated()
+        && request.auth.uid == doctorId
+        && request.auth.token.role == 'doctor';
+    }
+
+    function isAdminOrDoctor(doctorId) {
+      return isSuperAdmin() || isDoctor(doctorId);
+    }
+
+    function hasModuleEnabled(moduleId) {
+      return isAuthenticated()
+        && request.auth.token.enabledModules != null
+        && request.auth.token.enabledModules.hasAny([moduleId]);
+    }
+
+    // ============================================================
+    // USERS COLLECTION
+    // ============================================================
+
+    match /users/{userId} {
+
+      // Super Admin can read/write all user documents (metadata only)
+      // Doctors can only read/write their own document
+      allow read: if isSuperAdmin() || isDoctor(userId);
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin() || isDoctor(userId);
+      allow delete: if isSuperAdmin();
+
+      // ============================================================
+      // PATIENT SUB-COLLECTION - STRICT ISOLATION
+      // ============================================================
+      // CRITICAL: Only the owning doctor can access patient data.
+      // Super Admin is EXPLICITLY DENIED access to patient data.
+      // ============================================================
+
+      match /patients/{patientId} {
+        // Only the doctor who owns this patient can access
+        allow read, write: if isDoctor(userId);
+
+        // Super Admin is explicitly denied
+        // This is enforced by the absence of isSuperAdmin() in the allow rule
+      }
+
+      // ============================================================
+      // APPOINTMENTS SUB-COLLECTION
+      // ============================================================
+
+      match /appointments/{appointmentId} {
+        allow read, write: if isDoctor(userId);
+      }
+
+      // ============================================================
+      // MEDICAL RECORDS SUB-COLLECTION
+      // ============================================================
+
+      match /medical_records/{recordId} {
+        allow read, write: if isDoctor(userId);
+      }
+
+      // ============================================================
+      // REVENUE SUB-COLLECTION
+      // ============================================================
+
+      match /revenue/{revenueId} {
+        allow read, write: if isDoctor(userId);
+      }
+    }
+
+    // ============================================================
+    // SUBSCRIPTIONS COLLECTION
+    // ============================================================
+
+    match /subscriptions/{doctorId} {
+      allow read: if isSuperAdmin() || isDoctor(doctorId);
+      allow write: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // FEATURE FLAGS COLLECTION
+    // ============================================================
+
+    match /feature_flags/{doctorId} {
+      allow read: if isSuperAdmin() || isDoctor(doctorId);
+      allow write: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // PLANS COLLECTION
+    // ============================================================
+
+    match /plans/{planId} {
+      allow read: if isAuthenticated();
+      allow write: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // AUDIT LOGS COLLECTION
+    // ============================================================
+    // IMMUTABLE: Only Super Admin can read. No one can delete.
+    // Logs are append-only via Cloud Functions.
+
+    match /audit_logs/{logId} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if false;  // Immutable - cannot be modified
+      allow delete: if false;  // Immutable - cannot be deleted
+    }
+
+    // ============================================================
+    // DOCTOR SETTINGS COLLECTION
+    // ============================================================
+
+    match /doctor_settings/{doctorId} {
+      allow read: if isSuperAdmin() || isDoctor(doctorId);
+      allow write: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // ANALYTICS COLLECTION
+    // ============================================================
+    // Read-only for Super Admin. Written by scheduled Cloud Functions.
+
+    match /analytics/{docId} {
+      allow read: if isSuperAdmin();
+      allow create: if isSuperAdmin();
+      allow update: if isSuperAdmin();
+      allow delete: if false;  // Historical data should not be deleted
+    }
+
+    // ============================================================
+    // NOTIFICATIONS COLLECTION
+    // ============================================================
+
+    match /notifications/{notificationId} {
+      allow read: if isSuperAdmin() || request.auth.uid == resource.data.doctorId;
+      allow create: if isSuperAdmin();
+      allow update: if request.auth.uid == resource.data.doctorId; // Mark as read
+      allow delete: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // SUPPORT TICKETS COLLECTION
+    // ============================================================
+
+    match /support_tickets/{ticketId} {
+      allow read: if isSuperAdmin() || request.auth.uid == resource.data.doctorId;
+      allow create: if isAuthenticated();
+      allow update: if isSuperAdmin() || request.auth.uid == resource.data.doctorId;
+      allow delete: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // SYSTEM CONFIG COLLECTION
+    // ============================================================
+
+    match /system_config/{configId} {
+      allow read: if isSuperAdmin();
+      allow write: if isSuperAdmin();
+    }
+
+    // ============================================================
+    // DENY ALL OTHER ACCESS
+    // ============================================================
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

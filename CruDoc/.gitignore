@@ -1,45 +1,150 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/gita
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# ============================================================
+# Flutter / Dart
+# ============================================================
+.dart_tool/
+.pub/
+.pub-cache/
+.buildlog/
+build/
+**/build/
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+.coverage/
+coverage/
+**/doc/api/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/ios/Flutter/.last_build_id
 
-# IntelliJ related
+# ============================================================
+# Node.js / npm / Firebase Functions
+# ============================================================
+node_modules/
+**/node_modules/
+functions/node_modules/
+functions/lib/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================================
+# Secrets & Credentials (NEVER COMMIT)
+# ============================================================
+serviceAccountKey.json
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+.env
+.env.local
+.env.production
+.env.development
+google-services.json
+GoogleService-Info.plist
+
+# ============================================================
+# Android
+# ============================================================
+android/.gradle/
+android/app/debug/
+android/app/profile/
+android/app/release/
+android/app/build/
+android/build/
+**/android/.gradle/
+*.apk
+*.aab
+local.properties
+
+# ============================================================
+# iOS / macOS
+# ============================================================
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/**/*.xcworkspace/xcuserdata/
+ios/**/Pods/
+macos/Pods/
+macos/.symlinks/
+**/xcuserdata/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# ============================================================
+# Linux
+# ============================================================
+linux/flutter/ephemeral/
+linux/runner/CMakeFiles/
+linux/runner/Makefile
+linux/runner/cmake_install.cmake
+linux/runner/*.cmake
+linux/runner/linux_bundle_flutter_assets.yaml
+
+# ============================================================
+# Windows
+# ============================================================
+windows/flutter/ephemeral/
+windows/runner/CMakeFiles/
+windows/runner/*.vcxproj.*
+windows/runner/x64/
+windows/out/
+*.user
+*.suo
+*.sln.docstates
+
+# ============================================================
+# Web
+# ============================================================
+web/firebase-messaging-sw.js
+web/workbox-*.js
+web/version.json
+
+# ============================================================
+# IDE / Editor
+# ============================================================
+.idea/
 *.iml
 *.ipr
 *.iws
-.idea/
+.vscode/
+.atom/
+.svn/
+.history/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# ============================================================
+# System / OS
+# ============================================================
+*.class
+*.log
+*.pyc
+*.pyo
+__pycache__/
+*.orig
+*.bak
+*.pid
+*.seed
+migrate_working_dir/
+.swiftpm/
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
+# ============================================================
+# TypeScript / JavaScript
+# ============================================================
+*.tsbuildinfo
+.eslintcache
 
-# Symbolication related
+# ============================================================
+# Symbolication / Obfuscation
+# ============================================================
 app.*.symbols
-
-# Obfuscation related
 app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release

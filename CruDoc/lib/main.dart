@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -14,8 +15,11 @@ Future<void> main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
-  await InitialFirestoreMigrationService.instance.runIfNeeded();
-  await FirestoreSyncService.instance.start();
+  
+  if (!kIsWeb) {
+    await InitialFirestoreMigrationService.instance.runIfNeeded();
+    await FirestoreSyncService.instance.start();
+  }
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));
 }
@@ -29,7 +33,8 @@ class MoodyDashboardApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
       theme: ThemeData(
-        useMaterial3: true,        // Ensure the app uses the project's chosen font and base text styles
+        useMaterial3: true,
+        // Ensure the app uses the project's chosen font and base text styles
         fontFamily: AppColors.bodyFontFamily,
         primaryColor: AppColors.accentBlue,
         colorScheme: ColorScheme.fromSeed(seedColor: AppColors.accentBlue),

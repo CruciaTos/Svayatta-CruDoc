@@ -29,11 +29,21 @@ class LastPatientsCard extends ConsumerWidget {
       data: (result) {
         if (result == null) {
           return const _CardShell(
-            child: Center(
-              child: Text(
-                'No visits recorded yet',
-                style: AppColors.bodyMedium,
-              ),
+            padding: EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.history_rounded, color: Color(0xFF94A3B8), size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'No visits recorded yet',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           );
         }
@@ -181,14 +191,14 @@ class _CardShell extends StatelessWidget {
       width: double.infinity,
       padding: padding,
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.divider),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),

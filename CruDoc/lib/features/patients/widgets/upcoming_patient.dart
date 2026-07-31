@@ -38,11 +38,21 @@ class UpcomingPatientCard extends ConsumerWidget {
       data: (result) {
         if (result == null) {
           return const _Shell(
-            child: Center(
-              child: Text(
-                'No upcoming visits scheduled',
-                style: AppColors.bodyMedium,
-              ),
+            isCompact: true,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.event_available_rounded, color: Color(0xFF94A3B8), size: 18),
+                SizedBox(width: 8),
+                Text(
+                  'No upcoming visits scheduled',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           );
         }
@@ -184,23 +194,24 @@ class UpcomingPatientCard extends ConsumerWidget {
 // ---------- Taller shell (only height increased) ----------
 class _Shell extends StatelessWidget {
   final Widget child;
-  const _Shell({required this.child});
+  final bool isCompact;
+  const _Shell({required this.child, this.isCompact = false});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 130),   // increased from 80 → 130
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), // original padding kept
+      constraints: BoxConstraints(minHeight: isCompact ? 60 : 120),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.divider),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),

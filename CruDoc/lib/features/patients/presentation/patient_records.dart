@@ -114,21 +114,25 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 44,
+      height: 46,
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
+        color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.divider),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Row(
         children: [
-          const SizedBox(width: 12),
-          const Icon(Icons.search, color: AppColors.silver, size: 20),
-          const SizedBox(width: 8),
+          const SizedBox(width: 14),
+          const Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 20),
+          const SizedBox(width: 10),
           Expanded(
             child: TextField(
               controller: _controller,
-              style: AppColors.bodyMedium,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Color(0xFF0F172A),
+                fontWeight: FontWeight.w500,
+              ),
               onChanged: (value) {
                 ref.read(searchQueryProvider.notifier).state = value;
                 setState(() {});
@@ -136,19 +140,19 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
               decoration: const InputDecoration(
                 hintText: 'Search by name, phone, diagnosis...',
                 hintStyle: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w400,
-                  color: AppColors.textSecondary,
+                  color: Color(0xFF94A3B8),
                 ),
                 border: InputBorder.none,
+                isDense: true,
               ),
             ),
           ),
           if (_controller.text.isNotEmpty)
             IconButton(
-              icon: const Icon(Icons.close, size: 18),
-              color: AppColors.silver,
+              icon: const Icon(Icons.close_rounded, size: 18),
+              color: const Color(0xFF94A3B8),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints(),
               onPressed: () {
@@ -157,7 +161,7 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                 setState(() {});
               },
             ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 10),
         ],
       ),
     );
@@ -218,13 +222,15 @@ class _PatientTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final initial = patient.fullName.isNotEmpty ? patient.fullName[0].toUpperCase() : '?';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(20),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           onTap: () {
             Navigator.push(
               context,
@@ -235,10 +241,32 @@ class _PatientTile extends StatelessWidget {
           },
           child: Container(
             height: 74,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
             child: Row(
               children: [
-                const SizedBox(width: 5),
+                // Patient Initial Avatar Badge
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    initial,
+                    style: const TextStyle(
+                      color: Color(0xFF2563EB),
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,20 +274,25 @@ class _PatientTile extends StatelessWidget {
                     children: [
                       Text(
                         patient.fullName,
-                        style: AppColors.bodyLarge.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
+                        style: const TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 3),
                       Text(
-                        '${patient.gender.isNotEmpty ? patient.gender[0] : ''}, ${patient.age}  •  ${_formatRelativeTime(patient.updatedAt)}',
-                        style: AppColors.bodySmall.copyWith(fontSize: 11),
+                        '${patient.gender.isNotEmpty ? patient.gender[0] : ''}, ${patient.age} yrs  •  Updated ${_formatRelativeTime(patient.updatedAt)}',
+                        style: const TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right, color: AppColors.silver, size: 20),
+                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 22),
               ],
             ),
           ),

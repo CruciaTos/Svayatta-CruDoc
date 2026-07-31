@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
 ///
@@ -72,13 +74,21 @@ class FirestoreSyncService {
 
   Future<void> triggerPostWriteSync() => synchronize();
 
+  /// The signed-in doctor's UID, or `null` if nobody is signed in.
+  ///
+  /// Every Firestore read/write in this service is scoped to this value —
+  /// without it, sync would pull or push every doctor's data.
+  String? get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid;
+
   Future<void> synchronize() async {
     if (_isSyncing) return;
+    final doctorId = _currentDoctorId;
+    if (doctorId == null) return; // nothing to sync without a signed-in doctor
     _isSyncing = true;
 
     try {
-      await _uploadPendingRows();
-      await _downloadChangedRows();
+      await _uploadPendingRows(doctorId);
+      await _downloadChangedRows(doctorId);
     } catch (_) {
       // Leave pending rows untouched; the next startup/connectivity/write trigger
       // retries the same simple sync pass.
@@ -87,7 +97,7 @@ class FirestoreSyncService {
     }
   }
 
-  Future<void> _uploadPendingRows() async {
+  Future<void> _uploadPendingRows(String doctorId) async {
     final db = await _databaseService.database;
 
     // ── non-visit collections (SQLite table == Firestore collection) ────────
@@ -112,7 +122,7 @@ class FirestoreSyncService {
         } else {
           batch.set(
             ref,
-            _firestoreDataFor(collection, row),
+            _firestoreDataFor(collection, row, doctorId),
             SetOptions(merge: true),
           );
         }
@@ -124,7 +134,7 @@ class FirestoreSyncService {
     }
 
     // ── visits table → appointments / visitations Firestore collections ──────
-    await _uploadPendingVisits(db);
+    await _uploadPendingVisits(db, doctorId);
   }
 
   /// Uploads pending rows from the `visits` SQLite table, routing each row
@@ -134,7 +144,7 @@ class FirestoreSyncService {
   ///
   /// Soft-deletes are broadcast to **both** collections so a document is
   /// cleaned up even if its type changed between creation and deletion.
-  Future<void> _uploadPendingVisits(Database db) async {
+  Future<void> _uploadPendingVisits(Database db, String doctorId) async {
     final rows = await db.query(
       'visits',
       where: 'syncStatus = ?',
@@ -161,7 +171,7 @@ class FirestoreSyncService {
         final ref = _firestore.collection(targetCollection).doc(id);
         batch.set(
           ref,
-          _firestoreDataFor(targetCollection, row),
+          _firestoreDataFor(targetCollection, row, doctorId),
           SetOptions(merge: true),
         );
       }
@@ -172,12 +182,17 @@ class FirestoreSyncService {
     await _markRowsSynced('visits', uploadedIds);
   }
 
-  Future<void> _downloadChangedRows() async {
+  Future<void> _downloadChangedRows(String doctorId) async {
     // ── non-visit collections ────────────────────────────────────────────────
     for (final collection in _collections) {
       final lastSyncTime = await _lastSyncTime(collection);
+      // CRITICAL: `.where('doctorId', isEqualTo: doctorId)` is what stops this
+      // device from downloading every other doctor's data. It pairs with the
+      // Firestore security rule that requires `doctorId == request.auth.uid`
+      // on these collections — see firestore.rules.
       final snapshot = await _firestore
           .collection(collection)
+          .where('doctorId', isEqualTo: doctorId)
           .where(
             'updatedAt',
             isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
@@ -191,7 +206,7 @@ class FirestoreSyncService {
         if (updatedAtMillis > newestSyncTime) {
           newestSyncTime = updatedAtMillis;
         }
-        await _upsertDownloadedRow(collection, doc.id, data);
+        await _upsertDownloadedRow(collection, doc.id, data, doctorId);
       }
 
       if (newestSyncTime > lastSyncTime) {
@@ -207,6 +222,7 @@ class FirestoreSyncService {
       final lastSyncTime = await _lastSyncTime(firestoreCollection);
       final snapshot = await _firestore
           .collection(firestoreCollection)
+          .where('doctorId', isEqualTo: doctorId)
           .where(
             'updatedAt',
             isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
@@ -225,6 +241,7 @@ class FirestoreSyncService {
           firestoreCollection,
           doc.id,
           data,
+          doctorId,
           sqliteTable: 'visits',
         );
       }
@@ -238,17 +255,19 @@ class FirestoreSyncService {
   Map<String, dynamic> _firestoreDataFor(
     String collection,
     Map<String, Object?> row,
+    String doctorId,
   ) {
     switch (collection) {
       case 'patients':
         return {
-          'firstName': row['firstName'] as String? ?? '',
-          'lastName': row['lastName'] as String? ?? '',
-          'phone': row['phone'] as String? ?? '',
+          'doctorId': doctorId,
+          'firstName': FieldCipher.encrypt(row['firstName'] as String?),
+          'lastName': FieldCipher.encrypt(row['lastName'] as String?),
+          'phone': FieldCipher.encrypt(row['phone'] as String?),
           'gender': row['gender'] as String? ?? '',
           'dateOfBirth': _timestampFromMillis(row['dateOfBirth']),
-          'diagnosis': row['diagnosis'] as String? ?? '',
-          'notes': row['notes'] as String? ?? '',
+          'diagnosis': FieldCipher.encrypt(row['diagnosis'] as String?),
+          'notes': FieldCipher.encrypt(row['notes'] as String?),
           'packageBalance': (row['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': row['isArchived'] == 1,
           'isActive': row['isActive'] == 1,
@@ -262,10 +281,11 @@ class FirestoreSyncService {
       case 'appointments':
       case 'visitations':
         return {
+          'doctorId': doctorId,
           'patientId': row['patientId'] as String? ?? '',
           'scheduledStart': _timestampFromMillis(row['scheduledStart']),
           'durationMinutes': (row['durationMinutes'] as num?)?.toInt() ?? 30,
-          'address': row['address'] as String? ?? '',
+          'address': FieldCipher.encrypt(row['address'] as String?),
           'latitude': (row['latitude'] as num?)?.toDouble(),
           'longitude': (row['longitude'] as num?)?.toDouble(),
           'mapsLink': row['mapsLink'] as String?,
@@ -278,7 +298,9 @@ class FirestoreSyncService {
           'invoiceId': row['invoiceId'] as String?,
           'packageId': row['packageId'] as String?,
           'treatmentType': row['treatmentType'] as String?,
-          'therapistNotes': row['therapistNotes'] as String?,
+          'therapistNotes': row['therapistNotes'] == null
+              ? null
+              : FieldCipher.encrypt(row['therapistNotes'] as String?),
           'reminderStatus': row['reminderStatus'] as String?,
           'calendarEventId': row['calendarEventId'] as String?,
           'createdAt': _timestampFromMillis(row['createdAt']),
@@ -286,12 +308,15 @@ class FirestoreSyncService {
         };
       case 'revenue_entries':
         return {
+          'doctorId': doctorId,
           'date': _timestampFromMillis(row['date']),
-          'description': row['description'] as String? ?? '',
+          'description': FieldCipher.encrypt(row['description'] as String?),
           'amount': (row['amount'] as num?)?.toDouble() ?? 0,
           'type': row['type'] as String? ?? 'miscellaneous',
           'kind': row['kind'] as String? ?? 'income',
-          'payer': row['payer'] as String?,
+          'payer': row['payer'] == null
+              ? null
+              : FieldCipher.encrypt(row['payer'] as String?),
           'patientId': row['patientId'] as String?,
           'visitId': row['visitId'] as String?,
           'isDeleted': row['isDeleted'] == 1,
@@ -300,20 +325,25 @@ class FirestoreSyncService {
         };
       case 'pending_payments':
         return {
+          'doctorId': doctorId,
           'date': _timestampFromMillis(row['date']),
-          'description': row['description'] as String? ?? '',
+          'description': FieldCipher.encrypt(row['description'] as String?),
           'amount': (row['amount'] as num?)?.toDouble() ?? 0,
           'isPaid': row['isPaid'] == 1,
-          'payer': row['payer'] as String?,
+          'payer': row['payer'] == null
+              ? null
+              : FieldCipher.encrypt(row['payer'] as String?),
           'patientId': row['patientId'] as String?,
           'visitId': row['visitId'] as String?,
-          'notes': row['notes'] as String?,
+          'notes': row['notes'] == null
+              ? null
+              : FieldCipher.encrypt(row['notes'] as String?),
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
       case 'medicines':
         return {
-          'doctorId': row['doctorId'] as String? ?? '',
+          'doctorId': doctorId,
           'name': row['name'] as String? ?? '',
           'category': row['category'] as String? ?? '',
           'unit': row['unit'] as String? ?? '',
@@ -338,7 +368,7 @@ class FirestoreSyncService {
       case 'stock_transactions':
         return {
           'medicineId': row['medicineId'] as String? ?? '',
-          'doctorId': row['doctorId'] as String? ?? '',
+          'doctorId': doctorId,
           'type': row['type'] as String? ?? 'restock',
           'quantity': (row['quantity'] as num?)?.toInt() ?? 0,
           'resultingStock': (row['resultingStock'] as num?)?.toInt() ?? 0,
@@ -363,14 +393,15 @@ class FirestoreSyncService {
   Future<void> _upsertDownloadedRow(
     String firestoreCollection,
     String id,
-    Map<String, dynamic> data, {
+    Map<String, dynamic> data,
+    String doctorId, {
     String? sqliteTable,
   }) async {
     final db = await _databaseService.database;
     final table = sqliteTable ?? firestoreCollection;
     await db.insert(
       table,
-      _sqliteRowFor(firestoreCollection, id, data),
+      _sqliteRowFor(firestoreCollection, id, data, doctorId),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -379,19 +410,21 @@ class FirestoreSyncService {
     String collection,
     String id,
     Map<String, dynamic> data,
+    String doctorId,
   ) {
     final now = DateTime.now().millisecondsSinceEpoch;
     switch (collection) {
       case 'patients':
         return {
           'id': id,
-          'firstName': data['firstName'] as String? ?? '',
-          'lastName': data['lastName'] as String? ?? '',
-          'phone': data['phone'] as String? ?? '',
+          'doctorId': doctorId,
+          'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
+          'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
+          'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          'diagnosis': data['diagnosis'] as String? ?? '',
-          'notes': data['notes'] as String? ?? '',
+          'diagnosis': FieldCipher.decrypt(data['diagnosis'] as String? ?? ''),
+          'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
@@ -409,13 +442,14 @@ class FirestoreSyncService {
       case 'visitations':
         return {
           'id': id,
+          'doctorId': doctorId,
           'patientId': data['patientId'] as String? ?? '',
           'scheduledStart': _timestampToMillis(
             data['scheduledStart'],
             fallback: now,
           ),
           'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
-          'address': data['address'] as String? ?? '',
+          'address': FieldCipher.decrypt(data['address'] as String? ?? ''),
           'latitude': (data['latitude'] as num?)?.toDouble(),
           'longitude': (data['longitude'] as num?)?.toDouble(),
           'mapsLink': data['mapsLink'] as String?,
@@ -430,7 +464,9 @@ class FirestoreSyncService {
           'invoiceId': data['invoiceId'] as String?,
           'packageId': data['packageId'] as String?,
           'treatmentType': data['treatmentType'] as String?,
-          'therapistNotes': data['therapistNotes'] as String?,
+          'therapistNotes': data['therapistNotes'] == null
+              ? null
+              : FieldCipher.decrypt(data['therapistNotes'] as String?),
           'reminderStatus': data['reminderStatus'] as String?,
           'calendarEventId': data['calendarEventId'] as String?,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
@@ -442,12 +478,15 @@ class FirestoreSyncService {
       case 'revenue_entries':
         return {
           'id': id,
+          'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': data['description'] as String? ?? '',
+          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'type': data['type'] as String? ?? 'miscellaneous',
           'kind': data['kind'] as String? ?? 'income',
-          'payer': data['payer'] as String?,
+          'payer': data['payer'] == null
+              ? null
+              : FieldCipher.decrypt(data['payer'] as String?),
           'patientId': data['patientId'] as String?,
           'visitId': data['visitId'] as String?,
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
@@ -461,14 +500,19 @@ class FirestoreSyncService {
       case 'pending_payments':
         return {
           'id': id,
+          'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': data['description'] as String? ?? '',
+          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
-          'payer': data['payer'] as String?,
+          'payer': data['payer'] == null
+              ? null
+              : FieldCipher.decrypt(data['payer'] as String?),
           'patientId': data['patientId'] as String?,
           'visitId': data['visitId'] as String?,
-          'notes': data['notes'] as String?,
+          'notes': data['notes'] == null
+              ? null
+              : FieldCipher.decrypt(data['notes'] as String?),
           'isActive': 1,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
@@ -479,7 +523,7 @@ class FirestoreSyncService {
       case 'medicines':
         return {
           'id': id,
-          'doctorId': data['doctorId'] as String? ?? '',
+          'doctorId': doctorId,
           'name': data['name'] as String? ?? '',
           'category': data['category'] as String? ?? '',
           'unit': data['unit'] as String? ?? '',
@@ -509,7 +553,7 @@ class FirestoreSyncService {
         return {
           'id': id,
           'medicineId': data['medicineId'] as String? ?? '',
-          'doctorId': data['doctorId'] as String? ?? '',
+          'doctorId': doctorId,
           'type': data['type'] as String? ?? 'restock',
           'quantity': (data['quantity'] as num?)?.toInt() ?? 0,
           'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,

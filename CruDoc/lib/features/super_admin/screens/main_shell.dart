@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/auth_provider.dart';
 import '../providers/ui_provider.dart';
 import 'dashboard/dashboard_screen.dart';
+import 'dashboard/doctors_screen.dart';
 
 /// Main Super Admin shell with sidebar navigation and content area.
 class SuperAdminShell extends ConsumerStatefulWidget {
@@ -89,20 +90,36 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
               padding: const EdgeInsets.symmetric(vertical: 8),
               children: SuperAdminTab.values.map((tab) {
                 final isSelected = uiState.selectedTab == tab;
-                return ListTile(
-                  leading: Icon(_tabIcon(tab)),
-                  title: Text(tab.label),
-                  selected: isSelected,
-                  selectedTileColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                  shape: RoundedRectangleBorder(
+                return Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
+                        : null,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  onTap: () {
-                    ref.read(superAdminUIProvider.notifier).selectTab(tab);
-                    if (isMobile) {
-                      ref.read(superAdminUIProvider.notifier).toggleSidebar();
-                    }
-                  },
+                  child: ListTile(
+                    leading: Icon(
+                      _tabIcon(tab),
+                      color: isSelected ? Theme.of(context).primaryColor : null,
+                    ),
+                    title: Text(
+                      tab.label,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        color: isSelected ? Theme.of(context).primaryColor : null,
+                      ),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    onTap: () {
+                      ref.read(superAdminUIProvider.notifier).selectTab(tab);
+                      if (isMobile) {
+                        ref.read(superAdminUIProvider.notifier).toggleSidebar();
+                      }
+                    },
+                  ),
                 );
               }).toList(),
             ),
@@ -199,19 +216,43 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
       case SuperAdminTab.dashboard:
         return const SuperAdminDashboardScreen();
       case SuperAdminTab.doctors:
-        return const Center(child: Text('Doctors Management'));
+        return const SuperAdminDoctorsScreen();
       case SuperAdminTab.subscriptions:
-        return const Center(child: Text('Subscriptions'));
+        return const _ComingSoonTab(
+          icon: Icons.subscriptions_outlined,
+          title: 'Subscription Management',
+          description: 'Manage doctor subscription plans, upgrades, downgrades, and trial extensions.',
+        );
       case SuperAdminTab.features:
-        return const Center(child: Text('Features'));
+        return const _ComingSoonTab(
+          icon: Icons.toggle_on_outlined,
+          title: 'Feature Management',
+          description: 'Toggle feature modules on/off for individual doctors or in bulk.',
+        );
       case SuperAdminTab.analytics:
-        return const Center(child: Text('Analytics'));
+        return const _ComingSoonTab(
+          icon: Icons.analytics_outlined,
+          title: 'Analytics',
+          description: 'View platform-wide analytics, charts, and export data.',
+        );
       case SuperAdminTab.support:
-        return const Center(child: Text('Support Tickets'));
+        return const _ComingSoonTab(
+          icon: Icons.support_agent_outlined,
+          title: 'Support Tickets',
+          description: 'Manage doctor support tickets, replies, and assignments.',
+        );
       case SuperAdminTab.auditLogs:
-        return const Center(child: Text('Audit Logs'));
+        return const _ComingSoonTab(
+          icon: Icons.history_outlined,
+          title: 'Audit Logs',
+          description: 'View all admin actions with filtering and CSV export.',
+        );
       case SuperAdminTab.settings:
-        return const Center(child: Text('Settings'));
+        return const _ComingSoonTab(
+          icon: Icons.settings_outlined,
+          title: 'Settings',
+          description: 'Configure platform settings, profile, 2FA, and system configuration.',
+        );
     }
   }
 
@@ -255,6 +296,80 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
             child: const Text('Sign Out'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// "Coming Soon" placeholder tab for screens not yet built.
+class _ComingSoonTab extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _ComingSoonTab({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(48),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 48, color: Theme.of(context).primaryColor),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              title,
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              description,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 32),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.amber[50],
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.amber[200]!),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.construction, size: 18, color: Colors.amber[800]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Coming Soon',
+                    style: TextStyle(
+                      color: Colors.amber[800],
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

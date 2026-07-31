@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Cap for [VisitLocalService.watchRecentVisits] — enough to feed the
 /// dashboard's activity card after it's merged with patient/inventory/
@@ -350,6 +350,7 @@ class VisitLocalService {
   }) {
     return {
       'id': visit.id,
+      'doctorId': visit.doctorId,
       'patientId': visit.patientId,
       'scheduledStart': _dateTimeToMillis(visit.scheduledStart),
       'durationMinutes': visit.durationMinutes,
@@ -430,6 +431,7 @@ class VisitLocalService {
   Visit _fromRow(Map<String, Object?> row) {
     return Visit(
       id: row['id'] as String,
+      doctorId: row['doctorId'] as String? ?? '',
       patientId: row['patientId'] as String? ?? '',
       scheduledStart: _millisToDateTime(row['scheduledStart']),
       durationMinutes: (row['durationMinutes'] as num?)?.toInt() ?? 30,

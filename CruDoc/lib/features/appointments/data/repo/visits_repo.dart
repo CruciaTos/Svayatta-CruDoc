@@ -2,10 +2,12 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
@@ -50,9 +52,48 @@ class VisitRepository {
   final PatientRepository _patientRepository;
   final RevenueRepository _revenueRepository;
 
+  /// The signed-in doctor's UID — see PatientRepository for why this
+  /// matters and what it guards against.
+  String get _currentDoctorId {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw StateError('No signed-in doctor — cannot access visit data.');
+    }
+    return uid;
+  }
+
+  Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
+    final out = Map<String, dynamic>.from(map);
+    if (out['address'] is String) {
+      out['address'] = FieldCipher.encrypt(out['address'] as String);
+    }
+    if (out['therapistNotes'] is String) {
+      out['therapistNotes'] = FieldCipher.encrypt(out['therapistNotes'] as String);
+    }
+    return out;
+  }
+
+  Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> map) {
+    final out = Map<String, dynamic>.from(map);
+    if (out['address'] is String) {
+      out['address'] = FieldCipher.decrypt(out['address'] as String);
+    }
+    if (out['therapistNotes'] is String) {
+      out['therapistNotes'] = FieldCipher.decrypt(out['therapistNotes'] as String);
+    }
+    return out;
+  }
+
   Stream<List<Visit>> _watchWebVisits() {
-    final appts = FirebaseFirestore.instance.collection('appointments').snapshots();
-    final visitations = FirebaseFirestore.instance.collection('visitations').snapshots();
+    final doctorId = _currentDoctorId;
+    final appts = FirebaseFirestore.instance
+        .collection('appointments')
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots();
+    final visitations = FirebaseFirestore.instance
+        .collection('visitations')
+        .where('doctorId', isEqualTo: doctorId)
+        .snapshots();
 
     final controller = StreamController<List<Visit>>.broadcast();
     List<Visit> lastAppts = [];
@@ -69,13 +110,13 @@ class VisitRepository {
     controller.onListen = () {
       sub1 = appts.listen((snap) {
         lastAppts = snap.docs
-            .map((doc) => Visit.fromMap(doc.data(), id: doc.id))
+            .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
             .toList();
         emit();
       });
       sub2 = visitations.listen((snap) {
         lastVisits = snap.docs
-            .map((doc) => Visit.fromMap(doc.data(), id: doc.id))
+            .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
             .toList();
         emit();
       });
@@ -161,6 +202,7 @@ class VisitRepository {
     final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
     final visitWithId = Visit(
       id: id,
+      doctorId: _currentDoctorId,
       patientId: visit.patientId,
       scheduledStart: visit.scheduledStart,
       durationMinutes: visit.durationMinutes,
@@ -190,7 +232,7 @@ class VisitRepository {
       await FirebaseFirestore.instance
           .collection(collection)
           .doc(id)
-          .set(visitWithId.toMap());
+          .set(_encryptedForFirestore(visitWithId.toMap()));
       return id;
     }
 
@@ -516,14 +558,14 @@ class VisitRepository {
           .doc(visitId)
           .get();
       if (docA.exists && docA.data() != null) {
-        return Visit.fromMap(docA.data()!, id: docA.id);
+        return Visit.fromMap(_decryptedFromFirestore(docA.data()!), id: docA.id);
       }
       final docV = await FirebaseFirestore.instance
           .collection('visitations')
           .doc(visitId)
           .get();
       if (docV.exists && docV.data() != null) {
-        return Visit.fromMap(docV.data()!, id: docV.id);
+        return Visit.fromMap(_decryptedFromFirestore(docV.data()!), id: docV.id);
       }
       return null;
     }

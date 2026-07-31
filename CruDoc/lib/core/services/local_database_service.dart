@@ -1,6 +1,10 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Singleton SQLite database service for CruDoc's local-first data layer.
 ///
@@ -15,6 +19,11 @@ class LocalDatabaseService extends ChangeNotifier {
   static const String _databaseName = 'crudoc.db';
   static const int _databaseVersion = 1;
 
+  static const _secureStorage = FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
+  static const _dbPassphraseKey = 'crudoc_local_db_passphrase';
+
   Database? _database;
 
   Future<Database> get database async {
@@ -26,9 +35,11 @@ class LocalDatabaseService extends ChangeNotifier {
 
     final databasesPath = await getDatabasesPath();
     final dbPath = p.join(databasesPath, _databaseName);
+    final passphrase = await _getOrCreatePassphrase();
 
     final db = await openDatabase(
       dbPath,
+      password: passphrase,
       version: _databaseVersion,
       onConfigure: (db) async {
         await db.execute('PRAGMA foreign_keys = ON');
@@ -44,6 +55,22 @@ class LocalDatabaseService extends ChangeNotifier {
 
     _database = db;
     return db;
+  }
+
+  /// Encrypts the local SQLite file at rest with a random 256-bit passphrase
+  /// unique to this device install. The passphrase itself lives only in
+  /// OS-backed secure storage (Android Keystore / iOS Keychain) — it never
+  /// needs to sync between devices, since the local database is just a
+  /// disposable cache of Firestore data, re-downloadable from scratch.
+  Future<String> _getOrCreatePassphrase() async {
+    final existing = await _secureStorage.read(key: _dbPassphraseKey);
+    if (existing != null && existing.isNotEmpty) return existing;
+
+    final random = Random.secure();
+    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
+    final passphrase = base64UrlEncode(bytes);
+    await _secureStorage.write(key: _dbPassphraseKey, value: passphrase);
+    return passphrase;
   }
 
   Future<void> close() async {
@@ -63,6 +90,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createMedicinesTable(txn);
       await _createStockTransactionsTable(txn);
       await _createSyncStateTable(txn);
+      await _createAppMetaTable(txn);
       await _createIndexes(txn);
     });
   }
@@ -79,6 +107,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createMedicinesTable(txn);
       await _createStockTransactionsTable(txn);
       await _createSyncStateTable(txn);
+      await _createAppMetaTable(txn);
 
       await _ensureColumns(txn, table: 'patients', columns: _patientsColumns);
       await _ensureColumns(txn, table: 'visits', columns: _visitsColumns);
@@ -116,6 +145,7 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS patients (
         id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
         firstName TEXT NOT NULL DEFAULT '',
         lastName TEXT NOT NULL DEFAULT '',
         phone TEXT NOT NULL DEFAULT '',
@@ -140,6 +170,7 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS visits (
         id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
         patientId TEXT NOT NULL,
         scheduledStart INTEGER NOT NULL,
         durationMinutes INTEGER NOT NULL DEFAULT 30,
@@ -176,6 +207,7 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS revenue_entries (
         id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
         date INTEGER NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         amount REAL NOT NULL DEFAULT 0,
@@ -201,6 +233,7 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS pending_payments (
         id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
         date INTEGER NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         amount REAL NOT NULL DEFAULT 0,
@@ -282,7 +315,89 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
+  Future<void> _createAppMetaTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS app_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+      )
+    ''');
+  }
+
+  static const String _cachedDoctorIdKey = 'cachedDoctorId';
+
+  Future<String?> _getMeta(String key) async {
+    final db = await database;
+    final rows = await db.query(
+      'app_meta',
+      columns: ['value'],
+      where: 'key = ?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return rows.first['value'] as String?;
+  }
+
+  Future<void> _setMeta(String key, String value) async {
+    final db = await database;
+    await db.insert('app_meta', {
+      'key': key,
+      'value': value,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  /// Ensures the local cache on this device actually belongs to
+  /// [signedInDoctorId]. If the device previously cached a *different*
+  /// doctor's data (e.g. this tablet was reassigned, or someone signed out
+  /// and a different account signed in), every local table is wiped before
+  /// any new data is loaded — otherwise the previous doctor's patients,
+  /// visits, and revenue would still be sitting in this device's cache and
+  /// could even get merged back up to the new doctor's Firestore data on
+  /// the next sync.
+  ///
+  /// Safe to call on every app start / sign-in. No-ops when the cache
+  /// already belongs to this doctor or the cache is empty (first run).
+  Future<void> ensureLocalDataMatchesSignedInDoctor(
+    String signedInDoctorId,
+  ) async {
+    final cachedDoctorId = await _getMeta(_cachedDoctorIdKey);
+    if (cachedDoctorId == null || cachedDoctorId.isEmpty) {
+      await _setMeta(_cachedDoctorIdKey, signedInDoctorId);
+      return;
+    }
+    if (cachedDoctorId == signedInDoctorId) return;
+
+    await wipeAllLocalData();
+    await _setMeta(_cachedDoctorIdKey, signedInDoctorId);
+  }
+
+  /// Deletes every row from every local table and resets sync watermarks,
+  /// so the next sync pass rebuilds the cache from scratch for whichever
+  /// doctor is now signed in. Called on doctor-switch (see above) and on
+  /// sign-out.
+  Future<void> wipeAllLocalData() async {
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final table in const [
+        'patients',
+        'visits',
+        'revenue_entries',
+        'pending_payments',
+        'medicines',
+        'stock_transactions',
+        'sync_state',
+      ]) {
+        await txn.delete(table);
+      }
+    });
+  }
+
   Future<void> _createIndexes(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_patients_doctor
+      ON patients (doctorId)
+    ''');
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_patients_active_created
       ON patients (isActive, isArchived, createdAt DESC)
@@ -305,6 +420,10 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
 
     await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_visits_doctor
+      ON visits (doctorId)
+    ''');
+    await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_visits_upcoming
       ON visits (isActive, isDeleted, status, scheduledStart)
     ''');
@@ -326,6 +445,10 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
 
     await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_entries_doctor
+      ON revenue_entries (doctorId)
+    ''');
+    await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_revenue_entries_active_date
       ON revenue_entries (isActive, isDeleted, date DESC)
     ''');
@@ -346,6 +469,10 @@ class LocalDatabaseService extends ChangeNotifier {
       ON revenue_entries (updatedAt)
     ''');
 
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_pending_payments_doctor
+      ON pending_payments (doctorId)
+    ''');
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_pending_payments_active_unpaid
       ON pending_payments (isActive, isPaid, date DESC)
@@ -409,6 +536,7 @@ class LocalDatabaseService extends ChangeNotifier {
 
   static const Map<String, String> _patientsColumns = {
     'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
     'firstName': "firstName TEXT NOT NULL DEFAULT ''",
     'lastName': "lastName TEXT NOT NULL DEFAULT ''",
     'phone': "phone TEXT NOT NULL DEFAULT ''",
@@ -428,6 +556,7 @@ class LocalDatabaseService extends ChangeNotifier {
 
   static const Map<String, String> _visitsColumns = {
     'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
     'patientId': "patientId TEXT NOT NULL DEFAULT ''",
     'scheduledStart': 'scheduledStart INTEGER NOT NULL DEFAULT 0',
     'durationMinutes': 'durationMinutes INTEGER NOT NULL DEFAULT 30',
@@ -456,6 +585,7 @@ class LocalDatabaseService extends ChangeNotifier {
 
   static const Map<String, String> _revenueEntriesColumns = {
     'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
     'date': 'date INTEGER NOT NULL DEFAULT 0',
     'description': "description TEXT NOT NULL DEFAULT ''",
     'amount': 'amount REAL NOT NULL DEFAULT 0',
@@ -475,6 +605,7 @@ class LocalDatabaseService extends ChangeNotifier {
 
   static const Map<String, String> _pendingPaymentsColumns = {
     'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
     'date': 'date INTEGER NOT NULL DEFAULT 0',
     'description': "description TEXT NOT NULL DEFAULT ''",
     'amount': 'amount REAL NOT NULL DEFAULT 0',

@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
+import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
@@ -22,6 +24,67 @@ class PatientRepository {
   final PatientLocalService _localService;
   final FirestoreSyncService _syncService;
 
+  /// The signed-in doctor's UID. Every patient read/write is scoped to
+  /// this — without it, the Web branch below (which talks to Firestore
+  /// directly) would read and write every doctor's shared `patients`
+  /// collection instead of just this doctor's own data.
+  String get _currentDoctorId {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw StateError('No signed-in doctor — cannot access patient data.');
+    }
+    return uid;
+  }
+
+  /// Encrypts the free-text PHI fields of a patient map before it leaves
+  /// the device for Firestore. Structural fields (ids, dates, flags,
+  /// `doctorId`) are left as-is so Firestore can still query/sort on them.
+  Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
+    final out = Map<String, dynamic>.from(map);
+    if (out.containsKey('firstName')) {
+      out['firstName'] = FieldCipher.encrypt(out['firstName'] as String?);
+    }
+    if (out.containsKey('lastName')) {
+      out['lastName'] = FieldCipher.encrypt(out['lastName'] as String?);
+    }
+    if (out.containsKey('phone')) {
+      out['phone'] = FieldCipher.encrypt(out['phone'] as String?);
+    }
+    if (out.containsKey('diagnosis')) {
+      out['diagnosis'] = out['diagnosis'] is List
+          ? (out['diagnosis'] as List)
+              .map((d) => FieldCipher.encrypt(d.toString()))
+              .toList()
+          : out['diagnosis'];
+    }
+    if (out.containsKey('notes')) {
+      out['notes'] = FieldCipher.encrypt(out['notes'] as String?);
+    }
+    return out;
+  }
+
+  Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> map) {
+    final out = Map<String, dynamic>.from(map);
+    if (out['firstName'] is String) {
+      out['firstName'] = FieldCipher.decrypt(out['firstName'] as String);
+    }
+    if (out['lastName'] is String) {
+      out['lastName'] = FieldCipher.decrypt(out['lastName'] as String);
+    }
+    if (out['phone'] is String) {
+      out['phone'] = FieldCipher.decrypt(out['phone'] as String);
+    }
+    if (out['diagnosis'] is List) {
+      out['diagnosis'] = (out['diagnosis'] as List)
+          .map((d) => FieldCipher.decrypt(d.toString()))
+          .toList();
+    }
+    if (out['notes'] is String) {
+      out['notes'] = FieldCipher.decrypt(out['notes'] as String);
+    }
+    return out;
+  }
+
   /// Creates a new patient and returns the newly assigned patient id.
   Future<String> createPatient(Patient patient) async {
     _validate(patient);
@@ -30,6 +93,7 @@ class PatientRepository {
     final id = patient.id.trim().isEmpty ? const Uuid().v4() : patient.id;
     final patientWithId = Patient(
       id: id,
+      doctorId: _currentDoctorId,
       firstName: patient.firstName,
       lastName: patient.lastName,
       phone: patient.phone,
@@ -47,7 +111,7 @@ class PatientRepository {
       await FirebaseFirestore.instance
           .collection('patients')
           .doc(id)
-          .set(patientWithId.toMap());
+          .set(_encryptedForFirestore(patientWithId.toMap()));
       return id;
     }
 
@@ -69,13 +133,15 @@ class PatientRepository {
     }
 
     final localData = Map<String, dynamic>.from(data)
-      ..['updatedAt'] = DateTime.now();
+      ..['updatedAt'] = DateTime.now()
+      // doctorId is set once at creation and must never change on update.
+      ..remove('doctorId');
 
     if (kIsWeb) {
       await FirebaseFirestore.instance
           .collection('patients')
           .doc(patientId)
-          .update(localData);
+          .update(_encryptedForFirestore(localData));
       return;
     }
 
@@ -112,7 +178,7 @@ class PatientRepository {
           .doc(patientId)
           .get();
       if (!doc.exists || doc.data() == null) return null;
-      return Patient.fromMap(doc.data()!, id: doc.id);
+      return Patient.fromMap(_decryptedFromFirestore(doc.data()!), id: doc.id);
     }
     return _localService.getPatient(patientId);
   }
@@ -122,10 +188,14 @@ class PatientRepository {
     if (kIsWeb) {
       return FirebaseFirestore.instance
           .collection('patients')
+          .where('doctorId', isEqualTo: _currentDoctorId)
           .snapshots()
           .map((snapshot) {
         final list = snapshot.docs
-            .map((doc) => Patient.fromMap(doc.data(), id: doc.id))
+            .map((doc) => Patient.fromMap(
+                  _decryptedFromFirestore(doc.data()),
+                  id: doc.id,
+                ))
             .where((p) => !p.isArchived)
             .toList();
         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));

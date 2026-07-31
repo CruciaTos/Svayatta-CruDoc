@@ -1,9 +1,10 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// SQLite-backed patient data source.
 ///
@@ -28,6 +29,13 @@ class PatientLocalService {
   final LocalDatabaseService _databaseService;
   final StreamController<List<Patient>> _patientsController =
       StreamController<List<Patient>>.broadcast();
+
+  /// Defense-in-depth: even though this device's local cache should only
+  /// ever contain the signed-in doctor's own data (enforced upstream by
+  /// FirestoreSyncService + InitialFirestoreMigrationService), every local
+  /// read is still scoped to this value in case that guarantee is ever
+  /// broken by a future bug.
+  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   Future<String> upsertPatient(
     Patient patient, {
@@ -89,8 +97,8 @@ class PatientLocalService {
     final db = await _databaseService.database;
     final rows = await db.query(
       'patients',
-      where: 'id = ? AND isActive = 1',
-      whereArgs: [patientId],
+      where: 'id = ? AND isActive = 1 AND doctorId = ?',
+      whereArgs: [patientId, _currentDoctorId],
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -121,8 +129,9 @@ class PatientLocalService {
     final rows = await db.query(
       'patients',
       where: includeArchived
-          ? 'isActive = 1'
-          : 'isActive = 1 AND isArchived = 0',
+          ? 'isActive = 1 AND doctorId = ?'
+          : 'isActive = 1 AND isArchived = 0 AND doctorId = ?',
+      whereArgs: [_currentDoctorId],
       orderBy: 'createdAt DESC',
     );
 
@@ -173,7 +182,8 @@ class PatientLocalService {
     final db = await _databaseService.database;
     final rows = await db.query(
       'patients',
-      where: 'isActive = 1 AND isArchived = 0',
+      where: 'isActive = 1 AND isArchived = 0 AND doctorId = ?',
+      whereArgs: [_currentDoctorId],
       orderBy: 'createdAt DESC',
     );
     if (!_patientsController.isClosed) {
@@ -189,6 +199,7 @@ class PatientLocalService {
   }) {
     return {
       'id': patient.id,
+      'doctorId': patient.doctorId.isEmpty ? _currentDoctorId : patient.doctorId,
       'firstName': patient.firstName,
       'lastName': patient.lastName,
       'phone': patient.phone,
@@ -253,6 +264,7 @@ class PatientLocalService {
   Patient _fromRow(Map<String, Object?> row) {
     return Patient(
       id: row['id'] as String,
+      doctorId: row['doctorId'] as String? ?? '',
       firstName: row['firstName'] as String? ?? '',
       lastName: row['lastName'] as String? ?? '',
       phone: row['phone'] as String? ?? '',

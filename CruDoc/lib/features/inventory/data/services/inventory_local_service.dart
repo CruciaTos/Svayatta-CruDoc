@@ -4,7 +4,7 @@ import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Cap for [InventoryLocalService.watchRecentTransactions] — enough to
 /// feed the dashboard's activity card after it's merged with patient/

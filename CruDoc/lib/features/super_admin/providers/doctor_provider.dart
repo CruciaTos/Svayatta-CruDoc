@@ -84,6 +84,7 @@ class DoctorListNotifier extends Notifier<DoctorListState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
+        doctors: refresh ? [] : state.doctors,
         errorMessage: e.toString().replaceFirst('Exception: ', ''),
       );
     }

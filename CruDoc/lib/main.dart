@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
+import 'core/services/encryption_key_manager.dart';
 import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
+import 'core/services/local_database_service.dart';
 import 'core/theme/app_colors.dart';
 
 Future<void> main() async {
@@ -15,13 +18,74 @@ Future<void> main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
-  
+
   if (!kIsWeb) {
-    await InitialFirestoreMigrationService.instance.runIfNeeded();
-    await FirestoreSyncService.instance.start();
+    _wireDoctorScopedStartup();
+  } else {
+    _wireWebEncryptionKeyLoading();
   }
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));
+}
+
+/// On Web there's no local SQLite cache to migrate or sync — repositories
+/// read/write Firestore directly (see e.g. PatientRepository's `kIsWeb`
+/// branches) — but those branches still call FieldCipher.encrypt/decrypt,
+/// so the per-doctor key still needs to be loaded as soon as someone signs
+/// in, and cleared on sign-out.
+void _wireWebEncryptionKeyLoading() {
+  String? lastHandledUid;
+  FirebaseAuth.instance.authStateChanges().listen((user) async {
+    if (user == null) {
+      EncryptionKeyManager.instance.clear();
+      lastHandledUid = null;
+      return;
+    }
+    if (lastHandledUid == user.uid) return;
+    lastHandledUid = user.uid;
+    await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+  });
+}
+
+/// Starts (and re-starts) the local-first data layer strictly in response
+/// to actual sign-in state, rather than unconditionally at cold start.
+///
+/// This matters for two reasons:
+/// 1. At a cold start, nobody may be signed in yet (Google/Phone-OTP
+///    happens *inside* the app) — running migration/sync before that would
+///    either be denied by Firestore rules or, if rules were ever loosened,
+///    pull every doctor's data onto the device. See
+///    InitialFirestoreMigrationService for the bug this used to cause.
+/// 2. It's also what catches a *different* doctor signing in on a device
+///    that already has another doctor's data cached — before touching
+///    anything else, it wipes the stale cache so the two doctors' data
+///    can never mix locally.
+void _wireDoctorScopedStartup() {
+  String? lastHandledUid;
+
+  FirebaseAuth.instance.authStateChanges().listen((user) async {
+    if (user == null) {
+      if (lastHandledUid != null) {
+        await FirestoreSyncService.instance.stop();
+        EncryptionKeyManager.instance.clear();
+        lastHandledUid = null;
+      }
+      return;
+    }
+
+    if (lastHandledUid == user.uid) return; // already set up for this doctor
+    lastHandledUid = user.uid;
+
+    // Order matters: the key must be loaded before migration/sync try to
+    // decrypt anything, and the local cache must be confirmed to belong to
+    // this doctor before anything is written into it.
+    await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+    await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
+      user.uid,
+    );
+    await InitialFirestoreMigrationService.instance.runIfNeeded();
+    await FirestoreSyncService.instance.start();
+  });
 }
 
 class MoodyDashboardApp extends StatelessWidget {

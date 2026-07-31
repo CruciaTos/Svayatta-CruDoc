@@ -111,6 +111,10 @@ enum VisitType {
 /// collection built on its own, not a variant of this one.
 class Visit {
   final String id;
+
+  /// UID of the doctor this visit belongs to — scoped the same way as
+  /// [Patient.doctorId]; see VisitRepository for enforcement.
+  final String doctorId;
   final String patientId;
 
   /// The moment the visit is scheduled to start.
@@ -182,6 +186,7 @@ class Visit {
 
   const Visit({
     required this.id,
+    this.doctorId = '',
     required this.patientId,
     required this.scheduledStart,
     required this.durationMinutes,
@@ -232,6 +237,7 @@ class Visit {
   factory Visit.fromMap(Map<String, dynamic> map, {required String id}) {
     return Visit(
       id: id,
+      doctorId: map['doctorId'] as String? ?? '',
       patientId: map['patientId'] as String? ?? '',
       scheduledStart: _timestampToDate(map['scheduledStart']),
       durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 30,
@@ -259,6 +265,7 @@ class Visit {
   /// id is not included, since it is the document key.
   Map<String, dynamic> toMap() {
     return {
+      'doctorId': doctorId,
       'patientId': patientId,
       'scheduledStart': Timestamp.fromDate(scheduledStart),
       'durationMinutes': durationMinutes,
@@ -306,6 +313,7 @@ class Visit {
   }) {
     return Visit(
       id: id,
+      doctorId: doctorId,
       patientId: patientId ?? this.patientId,
       scheduledStart: scheduledStart ?? this.scheduledStart,
       durationMinutes: durationMinutes ?? this.durationMinutes,

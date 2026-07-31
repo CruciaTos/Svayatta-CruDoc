@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
+import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
@@ -19,6 +21,38 @@ class RevenueRepository {
   final RevenueLocalService _localService;
   final FirestoreSyncService _syncService;
 
+  /// The signed-in doctor's UID — see PatientRepository for why this
+  /// matters and what it guards against.
+  String get _currentDoctorId {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw StateError('No signed-in doctor — cannot access revenue data.');
+    }
+    return uid;
+  }
+
+  Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
+    final out = Map<String, dynamic>.from(map);
+    if (out['description'] is String) {
+      out['description'] = FieldCipher.encrypt(out['description'] as String);
+    }
+    if (out['payer'] is String) {
+      out['payer'] = FieldCipher.encrypt(out['payer'] as String);
+    }
+    return out;
+  }
+
+  Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> map) {
+    final out = Map<String, dynamic>.from(map);
+    if (out['description'] is String) {
+      out['description'] = FieldCipher.decrypt(out['description'] as String);
+    }
+    if (out['payer'] is String) {
+      out['payer'] = FieldCipher.decrypt(out['payer'] as String);
+    }
+    return out;
+  }
+
   // ---------------- revenue entries ----------------
 
   /// Records a new payment and returns its newly assigned id.
@@ -29,6 +63,7 @@ class RevenueRepository {
     final id = entry.id.trim().isEmpty ? const Uuid().v4() : entry.id;
     final entryWithId = RevenueEntry(
       id: id,
+      doctorId: _currentDoctorId,
       date: entry.date,
       description: entry.description,
       amount: entry.amount,
@@ -46,7 +81,7 @@ class RevenueRepository {
       await FirebaseFirestore.instance
           .collection('revenue_entries')
           .doc(id)
-          .set(entryWithId.toMap());
+          .set(_encryptedForFirestore(entryWithId.toMap()));
       return id;
     }
 
@@ -60,10 +95,11 @@ class RevenueRepository {
     if (kIsWeb) {
       return FirebaseFirestore.instance
           .collection('revenue_entries')
+          .where('doctorId', isEqualTo: _currentDoctorId)
           .snapshots()
           .map((snapshot) {
         final list = snapshot.docs
-            .map((doc) => RevenueEntry.fromMap(doc.data(), id: doc.id))
+            .map((doc) => RevenueEntry.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
             .where((e) => !e.isDeleted)
             .toList();
         list.sort((a, b) => b.date.compareTo(a.date));
@@ -78,10 +114,11 @@ class RevenueRepository {
     if (kIsWeb) {
       return FirebaseFirestore.instance
           .collection('pending_payments')
+          .where('doctorId', isEqualTo: _currentDoctorId)
           .snapshots()
           .map((snapshot) {
         final list = snapshot.docs
-            .map((doc) => PendingPayment.fromMap(doc.data(), id: doc.id))
+            .map((doc) => PendingPayment.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
             .where((p) => !p.isPaid)
             .toList();
         list.sort((a, b) => b.date.compareTo(a.date));
@@ -144,6 +181,7 @@ class RevenueRepository {
     final id = payment.id.trim().isEmpty ? const Uuid().v4() : payment.id;
     final paymentWithId = PendingPayment(
       id: id,
+      doctorId: _currentDoctorId,
       date: payment.date,
       description: payment.description,
       amount: payment.amount,

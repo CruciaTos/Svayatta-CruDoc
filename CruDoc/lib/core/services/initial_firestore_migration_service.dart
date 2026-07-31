@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// One-time Firestore-to-SQLite bootstrap for existing cloud data.
 ///
@@ -32,10 +34,21 @@ class InitialFirestoreMigrationService {
   };
 
   Future<void> runIfNeeded() async {
+    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    if (doctorId == null || doctorId.isEmpty) {
+      // Not signed in yet — nothing to migrate, and querying without a
+      // doctorId would either fail the security rules or (worse, if rules
+      // are ever loosened) pull every doctor's data. Bail out; this is
+      // re-invoked once the doctor signs in (see main.dart).
+      return;
+    }
+
+    await _databaseService.ensureLocalDataMatchesSignedInDoctor(doctorId);
+
     for (final collection in _collections) {
       if (await _hasCompletedInitialMigration(collection)) continue;
       try {
-        await _migrateCollection(collection);
+        await _migrateCollection(collection, doctorId);
       } catch (_) {
         // Keep the guard unset so the next launch can retry. Startup should not
         // be blocked just because Firestore is temporarily unavailable.
@@ -43,8 +56,15 @@ class InitialFirestoreMigrationService {
     }
   }
 
-  Future<void> _migrateCollection(String collection) async {
-    final snapshot = await _firestore.collection(collection).get();
+  Future<void> _migrateCollection(String collection, String doctorId) async {
+    // CRITICAL: scoped to this doctor only. Without this `.where(...)`,
+    // this call would download every doctor's patients/visits/revenue onto
+    // this device — which is exactly the cross-doctor leak this migration
+    // is being patched to prevent.
+    final snapshot = await _firestore
+        .collection(collection)
+        .where('doctorId', isEqualTo: doctorId)
+        .get();
     var newestUpdatedAt = 0;
 
     // Visit Firestore collections (appointments, visitations) both land in
@@ -55,7 +75,7 @@ class InitialFirestoreMigrationService {
 
     for (final doc in snapshot.docs) {
       final data = doc.data();
-      final row = _sqliteRowFor(collection, doc.id, data);
+      final row = _sqliteRowFor(collection, doc.id, data, doctorId);
       final updatedAt = (row['updatedAt'] as num?)?.toInt() ?? 0;
       if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
 
@@ -113,19 +133,21 @@ class InitialFirestoreMigrationService {
     String collection,
     String id,
     Map<String, dynamic> data,
+    String doctorId,
   ) {
     final now = DateTime.now().millisecondsSinceEpoch;
     switch (collection) {
       case 'patients':
         return {
           'id': id,
-          'firstName': data['firstName'] as String? ?? '',
-          'lastName': data['lastName'] as String? ?? '',
-          'phone': data['phone'] as String? ?? '',
+          'doctorId': doctorId,
+          'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
+          'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
+          'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          'diagnosis': data['diagnosis'] as String? ?? '',
-          'notes': data['notes'] as String? ?? '',
+          'diagnosis': FieldCipher.decrypt(data['diagnosis'] as String? ?? ''),
+          'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
@@ -143,13 +165,14 @@ class InitialFirestoreMigrationService {
       case 'visitations':
         return {
           'id': id,
+          'doctorId': doctorId,
           'patientId': data['patientId'] as String? ?? '',
           'scheduledStart': _timestampToMillis(
             data['scheduledStart'],
             fallback: now,
           ),
           'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
-          'address': data['address'] as String? ?? '',
+          'address': FieldCipher.decrypt(data['address'] as String? ?? ''),
           'latitude': (data['latitude'] as num?)?.toDouble(),
           'longitude': (data['longitude'] as num?)?.toDouble(),
           'mapsLink': data['mapsLink'] as String?,
@@ -160,7 +183,9 @@ class InitialFirestoreMigrationService {
           'invoiceId': data['invoiceId'] as String?,
           'packageId': data['packageId'] as String?,
           'treatmentType': data['treatmentType'] as String?,
-          'therapistNotes': data['therapistNotes'] as String?,
+          'therapistNotes': data['therapistNotes'] == null
+              ? null
+              : FieldCipher.decrypt(data['therapistNotes'] as String?),
           'reminderStatus': data['reminderStatus'] as String?,
           'calendarEventId': data['calendarEventId'] as String?,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
@@ -172,12 +197,15 @@ class InitialFirestoreMigrationService {
       case 'revenue_entries':
         return {
           'id': id,
+          'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': data['description'] as String? ?? '',
+          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'type': data['type'] as String? ?? 'miscellaneous',
           'kind': data['kind'] as String? ?? 'income',
-          'payer': data['payer'] as String?,
+          'payer': data['payer'] == null
+              ? null
+              : FieldCipher.decrypt(data['payer'] as String?),
           'patientId': data['patientId'] as String?,
           'visitId': data['visitId'] as String?,
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
@@ -191,14 +219,19 @@ class InitialFirestoreMigrationService {
       case 'pending_payments':
         return {
           'id': id,
+          'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': data['description'] as String? ?? '',
+          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
-          'payer': data['payer'] as String?,
+          'payer': data['payer'] == null
+              ? null
+              : FieldCipher.decrypt(data['payer'] as String?),
           'patientId': data['patientId'] as String?,
           'visitId': data['visitId'] as String?,
-          'notes': data['notes'] as String?,
+          'notes': data['notes'] == null
+              ? null
+              : FieldCipher.decrypt(data['notes'] as String?),
           'isActive': 1,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),

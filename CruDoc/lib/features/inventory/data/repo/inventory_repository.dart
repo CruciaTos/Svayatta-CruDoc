@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
@@ -20,6 +21,18 @@ class InventoryRepository {
   final InventoryLocalService _localService;
   final FirestoreSyncService _syncService;
 
+  /// The signed-in doctor's UID — see PatientRepository for why this
+  /// matters. Authoritative regardless of what a caller passes in below
+  /// (createMedicine/recordTransaction previously trusted a caller-supplied
+  /// `doctorId`, which could be left blank).
+  String get _currentDoctorId {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) {
+      throw StateError('No signed-in doctor — cannot access inventory data.');
+    }
+    return uid;
+  }
+
   /// Creates a new medicine and returns the newly assigned id.
   Future<String> createMedicine(MedicineModel medicine) async {
     _validate(medicine);
@@ -28,7 +41,7 @@ class InventoryRepository {
     final id = medicine.id.trim().isEmpty ? const Uuid().v4() : medicine.id;
     final medicineWithId = MedicineModel(
       id: id,
-      doctorId: medicine.doctorId,
+      doctorId: _currentDoctorId,
       name: medicine.name.trim(),
       category: medicine.category.trim(),
       unit: medicine.unit.trim(),
@@ -61,6 +74,7 @@ class InventoryRepository {
     if (kIsWeb) {
       return FirebaseFirestore.instance
           .collection('medicines')
+          .where('doctorId', isEqualTo: _currentDoctorId)
           .snapshots()
           .map((snapshot) {
         final list = snapshot.docs
@@ -122,7 +136,6 @@ class InventoryRepository {
     required int quantity,
     String? note,
     String? linkedVisitId,
-    String doctorId = '',
   }) async {
     if (quantity <= 0) {
       throw const MedicineValidationException('Quantity must be positive.');
@@ -131,7 +144,7 @@ class InventoryRepository {
     final transaction = StockTransactionModel(
       id: const Uuid().v4(),
       medicineId: medicineId,
-      doctorId: doctorId,
+      doctorId: _currentDoctorId,
       type: type,
       quantity: quantity,
       resultingStock: 0, // recalculated inside the local service's txn

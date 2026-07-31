@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// SQLite-backed revenue data source.
 ///
@@ -264,6 +264,7 @@ class RevenueLocalService {
   }) {
     return {
       'id': entry.id,
+      'doctorId': entry.doctorId,
       'date': _dateTimeToMillis(entry.date),
       'description': entry.description,
       'amount': entry.amount,
@@ -330,6 +331,7 @@ class RevenueLocalService {
   RevenueEntry _revenueEntryFromRow(Map<String, Object?> row) {
     return RevenueEntry(
       id: row['id'] as String,
+      doctorId: row['doctorId'] as String? ?? '',
       date: _millisToDateTime(row['date']),
       description: row['description'] as String? ?? '',
       amount: (row['amount'] as num?)?.toDouble() ?? 0,
@@ -352,6 +354,7 @@ class RevenueLocalService {
   }) {
     return {
       'id': payment.id,
+      'doctorId': payment.doctorId,
       'date': _dateTimeToMillis(payment.date),
       'description': payment.description,
       'amount': payment.amount,
@@ -408,6 +411,7 @@ class RevenueLocalService {
   PendingPayment _pendingPaymentFromRow(Map<String, Object?> row) {
     return PendingPayment(
       id: row['id'] as String,
+      doctorId: row['doctorId'] as String? ?? '',
       date: _millisToDateTime(row['date']),
       description: row['description'] as String? ?? '',
       amount: (row['amount'] as num?)?.toDouble() ?? 0,

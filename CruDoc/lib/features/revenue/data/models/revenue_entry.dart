@@ -63,6 +63,10 @@ enum TransactionKind {
 class RevenueEntry {
   final String id;
 
+  /// UID of the doctor this entry belongs to — scoped the same way as
+  /// [Patient.doctorId]; see RevenueRepository for enforcement.
+  final String doctorId;
+
   /// The date this payment was recorded/received.
   final DateTime date;
   final String description;
@@ -99,6 +103,7 @@ class RevenueEntry {
 
   const RevenueEntry({
     required this.id,
+    this.doctorId = '',
     required this.date,
     required this.description,
     required this.amount,
@@ -127,6 +132,7 @@ class RevenueEntry {
   }) {
     return RevenueEntry(
       id: id,
+      doctorId: map['doctorId'] as String? ?? '',
       date: _timestampToDate(map['date']),
       description: map['description'] as String? ?? '',
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
@@ -145,6 +151,7 @@ class RevenueEntry {
   /// document id is not included, since it is the document key.
   Map<String, dynamic> toMap() {
     return {
+      'doctorId': doctorId,
       'date': Timestamp.fromDate(date),
       'description': description,
       'amount': amount,
@@ -174,6 +181,7 @@ class RevenueEntry {
   }) {
     return RevenueEntry(
       id: id,
+      doctorId: doctorId,
       date: date ?? this.date,
       description: description ?? this.description,
       amount: amount ?? this.amount,
@@ -206,6 +214,9 @@ class RevenueEntry {
 /// history of what was owed and when it was settled is preserved.
 class PendingPayment {
   final String id;
+
+  /// UID of the doctor this pending payment belongs to.
+  final String doctorId;
 
   /// The date this amount became due.
   final DateTime date;
@@ -241,6 +252,7 @@ class PendingPayment {
 
   const PendingPayment({
     required this.id,
+    this.doctorId = '',
     required this.date,
     required this.description,
     required this.amount,
@@ -268,6 +280,7 @@ class PendingPayment {
   }) {
     return PendingPayment(
       id: id,
+      doctorId: map['doctorId'] as String? ?? '',
       date: _timestampToDate(map['date']),
       description: map['description'] as String? ?? '',
       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
@@ -285,6 +298,7 @@ class PendingPayment {
   /// document id is not included, since it is the document key.
   Map<String, dynamic> toMap() {
     return {
+      'doctorId': doctorId,
       'date': Timestamp.fromDate(date),
       'description': description,
       'amount': amount,
@@ -312,6 +326,7 @@ class PendingPayment {
   }) {
     return PendingPayment(
       id: id,
+      doctorId: doctorId,
       date: date ?? this.date,
       description: description ?? this.description,
       amount: amount ?? this.amount,

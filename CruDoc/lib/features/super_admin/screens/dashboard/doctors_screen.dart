@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/doctor_provider.dart';
 import '../../models/doctor_model.dart';
 import '../../config/enums.dart';
+import '../../services/doctor_service.dart';
+import '../../services/audit_log_service.dart';
 
 /// Doctor Management Screen with list, search, and filters.
 class SuperAdminDoctorsScreen extends ConsumerStatefulWidget {
@@ -70,8 +72,24 @@ class _SuperAdminDoctorsScreenState
                           ),
                     ),
                   ),
+                  if (doctorState.isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    ),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, size: 20),
+                    tooltip: 'Refresh',
+                    onPressed: () {
+                      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+                    },
+                  ),
                   ElevatedButton.icon(
-                    onPressed: () {},
+                    onPressed: _showCreateDoctorDialog,
                     icon: const Icon(Icons.add, size: 18),
                     label: const Text('Add Doctor'),
                     style: ElevatedButton.styleFrom(
@@ -251,39 +269,42 @@ class _SuperAdminDoctorsScreenState
   }
 
   Widget _buildMobileList(DoctorListState state) {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.all(16),
-      itemCount: state.doctors.length + (state.hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == state.doctors.length) {
-          return const Center(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: CircularProgressIndicator(),
+    return RefreshIndicator(
+      onRefresh: () => ref.read(doctorListProvider.notifier).loadDoctors(refresh: true),
+      child: ListView.builder(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(16),
+        itemCount: state.doctors.length + (state.hasMore ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index == state.doctors.length) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+          final doctor = state.doctors[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 8),
+            child: ListTile(
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
+                child: Text(
+                  doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : '?',
+                  style: TextStyle(
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.bold),
+                ),
+              ),
+              title: Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.w600)),
+              subtitle: Text('${doctor.email} • ${doctor.clinicName}'),
+              trailing: _statusBadge(doctor.status),
+              onTap: () {},
             ),
           );
-        }
-        final doctor = state.doctors[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 8),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-              child: Text(
-                doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : '?',
-                style: TextStyle(
-                    color: Theme.of(context).primaryColor,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-            title: Text(doctor.name, style: const TextStyle(fontWeight: FontWeight.w600)),
-            subtitle: Text('${doctor.email} • ${doctor.clinicName}'),
-            trailing: _statusBadge(doctor.status),
-            onTap: () {},
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 
@@ -382,23 +403,255 @@ class _SuperAdminDoctorsScreenState
         _showConfirmDialog(
           'Suspend Doctor',
           'Are you sure you want to suspend ${doctor.name}?',
-          () {},
+          () async {
+            try {
+              final doctorService = SuperAdminDoctorService();
+              final auditService = SuperAdminAuditLogService();
+              await doctorService.suspendDoctor(doctor.id, reason: 'Suspended by admin');
+              await auditService.logAction(
+                actionType: AuditActionType.suspendedAccount,
+                targetDoctorName: doctor.name,
+                targetDoctorEmail: doctor.email,
+              );
+              if (mounted) {
+                ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Doctor suspended successfully')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+                );
+              }
+            }
+          },
         );
         break;
       case 'delete':
         _showConfirmDialog(
           'Delete Doctor',
           'Are you sure you want to permanently delete ${doctor.name}? This action cannot be undone.',
-          () {},
+          () async {
+            try {
+              final doctorService = SuperAdminDoctorService();
+              final auditService = SuperAdminAuditLogService();
+              await doctorService.deleteDoctor(doctor.id);
+              await auditService.logAction(
+                actionType: AuditActionType.deletedDoctor,
+                targetDoctorName: doctor.name,
+                targetDoctorEmail: doctor.email,
+              );
+              if (mounted) {
+                ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Doctor deleted successfully')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+                );
+              }
+            }
+          },
         );
         break;
       case 'reset_pwd':
         _showConfirmDialog(
           'Reset Password',
           'Send password reset email to ${doctor.email}?',
-          () {},
+          () async {
+            try {
+              final doctorService = SuperAdminDoctorService();
+              await doctorService.resetDoctorPassword(doctor.id, doctor.email);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Password reset email sent')),
+                );
+              }
+            } catch (e) {
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+                );
+              }
+            }
+          },
         );
         break;
+    }
+  }
+
+  /// Shows a dialog to create a new doctor.
+  Future<void> _showCreateDoctorDialog() async {
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    final passwordController = TextEditingController();
+    final clinicNameController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    String specialization = 'General Physician';
+    SubscriptionPlan selectedPlan = SubscriptionPlan.starter;
+    bool isLoading = false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Create New Doctor'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextFormField(
+                    controller: nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Full Name *',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email *',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (v) {
+                      if (v == null || v.trim().isEmpty) return 'Required';
+                      if (!v.contains('@')) return 'Invalid email';
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: phoneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Phone',
+                      border: OutlineInputBorder(),
+                    ),
+                    keyboardType: TextInputType.phone,
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: specialization,
+                    decoration: const InputDecoration(
+                      labelText: 'Specialization',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ['General Physician', 'Cardiologist', 'Dermatologist', 'Pediatrician', 'Neurologist', 'Orthopedic', 'ENT Specialist', 'Ophthalmologist', 'Dentist', 'Psychiatrist']
+                        .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => specialization = v ?? 'General Physician'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: clinicNameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Clinic Name',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<SubscriptionPlan>(
+                    value: selectedPlan,
+                    decoration: const InputDecoration(
+                      labelText: 'Subscription Plan',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: SubscriptionPlan.values
+                        .map((p) => DropdownMenuItem(value: p, child: Text('${p.label} - \$${p.monthlyPrice.toStringAsFixed(0)}/mo')))
+                        .toList(),
+                    onChanged: (v) => setDialogState(() => selectedPlan = v ?? SubscriptionPlan.starter),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: passwordController,
+                    decoration: const InputDecoration(
+                      labelText: 'Password *',
+                      border: OutlineInputBorder(),
+                    ),
+                    obscureText: true,
+                    validator: (v) {
+                      if (v == null || v.length < 6) return 'Min 6 characters';
+                      return null;
+                    },
+                  ),
+                  if (isLoading) ...[
+                    const SizedBox(height: 16),
+                    const LinearProgressIndicator(),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: isLoading ? null : () => Navigator.of(ctx).pop(false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: isLoading
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDialogState(() => isLoading = true);
+                      try {
+                        final doctorService = SuperAdminDoctorService();
+                        final auditService = SuperAdminAuditLogService();
+                        await doctorService.createDoctor(
+                          name: nameController.text.trim(),
+                          email: emailController.text.trim(),
+                          phone: phoneController.text.trim(),
+                          specialization: specialization,
+                          clinicName: clinicNameController.text.trim(),
+                          country: 'India',
+                          timeZone: 'Asia/Kolkata',
+                          subscriptionPlan: selectedPlan,
+                          storageLimitGB: selectedPlan.storageLimitGB,
+                          password: passwordController.text,
+                        );
+                        await auditService.logAction(
+                          actionType: AuditActionType.createdDoctor,
+                          targetDoctorName: nameController.text.trim(),
+                          targetDoctorEmail: emailController.text.trim(),
+                        );
+                        if (ctx.mounted) Navigator.of(ctx).pop(true);
+                      } catch (e) {
+                        setDialogState(() => isLoading = false);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error: ${e.toString().replaceFirst("Exception: ", "")}')),
+                        );
+                      }
+                    },
+              child: isLoading
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Create Doctor'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
+    clinicNameController.dispose();
+
+    if (result == true && mounted) {
+      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Doctor created successfully!')),
+      );
     }
   }
 

@@ -1,0 +1,2103 @@
+diff --git a/CruDoc/firestore.indexes.json b/CruDoc/firestore.indexes.json
+new file mode 100644
+index 0000000..5279abd
+--- /dev/null
++++ b/CruDoc/firestore.indexes.json
+@@ -0,0 +1,61 @@
++{
++  "indexes": [
++    {
++      "collectionGroup": "patients",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    },
++    {
++      "collectionGroup": "appointments",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    },
++    {
++      "collectionGroup": "visitations",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    },
++    {
++      "collectionGroup": "revenue_entries",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    },
++    {
++      "collectionGroup": "pending_payments",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    },
++    {
++      "collectionGroup": "medicines",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    },
++    {
++      "collectionGroup": "stock_transactions",
++      "queryScope": "COLLECTION",
++      "fields": [
++        { "fieldPath": "doctorId", "order": "ASCENDING" },
++        { "fieldPath": "updatedAt", "order": "ASCENDING" }
++      ]
++    }
++  ],
++  "fieldOverrides": []
++}
+diff --git a/CruDoc/firestore.rules b/CruDoc/firestore.rules
+new file mode 100644
+index 0000000..7c4d72c
+--- /dev/null
++++ b/CruDoc/firestore.rules
+@@ -0,0 +1,94 @@
++rules_version = '2';
++
++// ─────────────────────────────────────────────────────────────────────────
++// CruDoc security rules
++//
++// The app stores patients/appointments/visitations/revenue_entries/
++// pending_payments/medicines/stock_transactions/doctor_keys as TOP-LEVEL
++// collections (not nested under /users/{doctorId}/...). Every document in
++// those collections carries a `doctorId` field stamped by the client at
++// write time. These rules are what actually makes that enforceable:
++// a doctor may only read or write documents whose `doctorId` field equals
++// their own Firebase Auth UID.
++//
++// This pairs with the client-side `.where('doctorId', isEqualTo: uid)`
++// query filters in FirestoreSyncService / *Repository classes — Firestore
++// requires every document returned by a query to individually satisfy the
++// rule, so even if a client-side filter were ever forgotten, the request
++// would fail closed rather than leak another doctor's documents.
++//
++// NOTE: (firestore_super_admin.rules) in this repo describes a different,
++// unused `/users/{doctorId}/patients/...` sub-collection layout — it was
++// never actually wired up to the app's data access code and is not the
++// active rules file (see firebase.json). Keeping it around only as
++// reference/history; don't deploy it as-is.
++// ─────────────────────────────────────────────────────────────────────────
++
++service cloud.firestore {
++  match /databases/{database}/documents {
++
++    function isSignedIn() {
++      return request.auth != null;
++    }
++
++    function ownsDoc() {
++      return isSignedIn() && resource.data.doctorId == request.auth.uid;
++    }
++
++    function ownsIncomingDoc() {
++      return isSignedIn() && request.resource.data.doctorId == request.auth.uid;
++    }
++
++    // Patient records, appointments, home visitations, revenue, and
++    // pending payments — every doctor's data is isolated by the
++    // `doctorId` field stamped on each document.
++    match /patients/{patientId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    match /appointments/{appointmentId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    match /visitations/{visitationId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    match /revenue_entries/{entryId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    match /pending_payments/{paymentId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    match /medicines/{medicineId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    match /stock_transactions/{transactionId} {
++      allow read, update, delete: if ownsDoc();
++      allow create: if ownsIncomingDoc();
++    }
++
++    // Per-doctor wrapped field-encryption key (see
++    // lib/core/services/encryption_key_manager.dart). Only the doctor
++    // themselves may ever read or write their own wrapped key.
++    match /doctor_keys/{doctorId} {
++      allow read, write: if isSignedIn() && request.auth.uid == doctorId;
++    }
++
++    // Nothing else is readable or writable — includes the legacy
++    // /users/{doctorId}/... layout referenced by firestore_super_admin.rules,
++    // which the app does not currently use.
++    match /{document=**} {
++      allow read, write: if false;
++    }
++  }
++}
+diff --git a/CruDoc/lib/core/services/encryption_key_manager.dart b/CruDoc/lib/core/services/encryption_key_manager.dart
+new file mode 100644
+index 0000000..3fde446
+--- /dev/null
++++ b/CruDoc/lib/core/services/encryption_key_manager.dart
+@@ -0,0 +1,154 @@
++import 'dart:convert';
++
++import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:crypto/crypto.dart';
++import 'package:encrypt/encrypt.dart' as enc;
++import 'package:flutter_secure_storage/flutter_secure_storage.dart';
++
++/// Owns the per-doctor AES-256 "data encryption key" (DEK) used to encrypt
++/// sensitive fields (patient names, phone numbers, diagnoses, notes, etc.)
++/// before they ever leave the device for Firestore.
++///
++/// ## Design (fully client-side — no custom backend involved)
++///
++/// Every doctor gets one random 256-bit DEK, generated the first time they
++/// sign in. That DEK never leaves the device in raw form:
++///
++///   1. The raw DEK is cached in this device's OS-backed secure storage
++///      (Android Keystore / iOS Keychain via [FlutterSecureStorage]).
++///   2. A *wrapped* (encrypted) copy of the DEK is stored in the doctor's
++///      own Firestore document at `doctor_keys/{doctorId}` — a location
++///      locked down by security rules so only that doctor's UID can read
++///      or write it. This is what lets the SAME key reach a second device
++///      when the doctor signs in there, without any server-side key
++///      service: the second device fetches the wrapped DEK from Firestore
++///      and unwraps it locally.
++///   3. The "wrapping" key (KEK) is derived deterministically from the
++///      doctor's Firebase UID plus a constant embedded in the app
++///      (`_appPepper`), via SHA-256. Because it's deterministic, any
++///      device signed in as that doctor can re-derive the same KEK
++///      without asking a server for it.
++///
++/// ## Honest limitation
++///
++/// Because Google/Phone-OTP sign-in gives the app no secret the *doctor*
++/// alone knows (like a password), the KEK is reproducible by anyone who
++/// has both (a) the app's source/binary (to extract `_appPepper`) and
++/// (b) read access to that doctor's `doctor_keys` document. Firestore
++/// rules already restrict (b) to the doctor's own authenticated session,
++/// so this scheme's real value is defense-in-depth: it protects patient
++/// data against a leaked Firestore export, a misconfigured rule elsewhere,
++/// or anyone who can see the raw database but doesn't have the app —
++/// not against a fully malicious actor who has both the decompiled app
++/// and a way to authenticate as that doctor. If you want protection that
++/// survives that stronger threat model, add a doctor-chosen passphrase
++/// (see the TODO at the bottom of this file) — that requires typing the
++/// same passphrase in on the second device once, and losing it means
++/// losing access to encrypted fields (no server-side recovery).
++class EncryptionKeyManager {
++  EncryptionKeyManager._();
++
++  static final EncryptionKeyManager instance = EncryptionKeyManager._();
++
++  static const _secureStorage = FlutterSecureStorage(
++    aOptions: AndroidOptions(encryptedSharedPreferences: true),
++  );
++
++  // NOTE: this is a defense-in-depth constant, not a secret the app can
++  // truly keep — anyone with the app binary can extract it. See the class
++  // doc comment above for what this scheme does and doesn't protect against.
++  static const String _appPepper =
++      'crudoc-v1-field-encryption-pepper-CHANGE-ME-BEFORE-PRODUCTION';
++
++  enc.Key? _activeKey;
++  String? _activeDoctorId;
++
++  /// The currently loaded per-doctor key, if [loadForDoctor] has completed.
++  enc.Key? get currentKey => _activeKey;
++
++  bool get isReady => _activeKey != null;
++
++  /// Loads (creating if necessary) the DEK for [doctorId]. Safe to call
++  /// repeatedly — it's a no-op if the key for this doctor is already loaded.
++  Future<void> loadForDoctor(String doctorId) async {
++    if (_activeDoctorId == doctorId && _activeKey != null) return;
++
++    final cacheKey = 'crudoc_dek_$doctorId';
++    final cachedRawKey = await _secureStorage.read(key: cacheKey);
++    if (cachedRawKey != null) {
++      _activeKey = enc.Key(base64Decode(cachedRawKey));
++      _activeDoctorId = doctorId;
++      return;
++    }
++
++    final kek = _deriveKek(doctorId);
++    final doc = await FirebaseFirestore.instance
++        .collection('doctor_keys')
++        .doc(doctorId)
++        .get();
++
++    late final enc.Key dek;
++    if (doc.exists && doc.data()?['wrappedKey'] is String) {
++      dek = _unwrap(doc.data()!['wrappedKey'] as String, kek);
++    } else {
++      dek = enc.Key.fromSecureRandom(32);
++      final wrapped = _wrap(dek, kek);
++      await FirebaseFirestore.instance
++          .collection('doctor_keys')
++          .doc(doctorId)
++          .set({
++        'wrappedKey': wrapped,
++        'createdAt': FieldValue.serverTimestamp(),
++      });
++    }
++
++    await _secureStorage.write(
++      key: cacheKey,
++      value: base64Encode(dek.bytes),
++    );
++    _activeKey = dek;
++    _activeDoctorId = doctorId;
++  }
++
++  /// Clears the in-memory key (called on sign-out). The wrapped key and the
++  /// secure-storage cache are left intact so the doctor doesn't lose access
++  /// to their data next time they sign in on this or another device.
++  void clear() {
++    _activeKey = null;
++    _activeDoctorId = null;
++  }
++
++  enc.Key _deriveKek(String doctorId) {
++    final digest = sha256.convert(utf8.encode('$doctorId::$_appPepper'));
++    return enc.Key(Uint8ListFromList(digest.bytes));
++  }
++
++  String _wrap(enc.Key dek, enc.Key kek) {
++    final iv = enc.IV.fromSecureRandom(12);
++    final encrypter = enc.Encrypter(enc.AES(kek, mode: enc.AESMode.gcm));
++    final encrypted = encrypter.encryptBytes(dek.bytes, iv: iv);
++    return '${base64Encode(iv.bytes)}.${base64Encode(encrypted.bytes)}';
++  }
++
++  enc.Key _unwrap(String wrapped, enc.Key kek) {
++    final parts = wrapped.split('.');
++    final iv = enc.IV(base64Decode(parts[0]));
++    final cipherBytes = base64Decode(parts[1]);
++    final encrypter = enc.Encrypter(enc.AES(kek, mode: enc.AESMode.gcm));
++    final plainBytes = encrypter.decryptBytes(
++      enc.Encrypted(cipherBytes),
++      iv: iv,
++    );
++    return enc.Key(Uint8ListFromList(plainBytes));
++  }
++}
++
++/// Small helper since [enc.Key] wants a concrete byte list constructor.
++List<int> Uint8ListFromList(List<int> bytes) => List<int>.from(bytes);
++
++// TODO(security-upgrade): for a stronger threat model than the pepper-based
++// KEK above, add an optional doctor-chosen "data passphrase" set once during
++// onboarding: derive the KEK with `Pbkdf2(passphrase, salt: doctorId, iterations: 100000)`
++// instead of `_deriveKek`, and prompt for the same passphrase the first time
++// each new device signs in. Show the doctor a one-time recovery code when
++// they set it, since there is no server-side password reset for it.
+diff --git a/CruDoc/lib/core/services/field_cipher.dart b/CruDoc/lib/core/services/field_cipher.dart
+new file mode 100644
+index 0000000..8d8541b
+--- /dev/null
++++ b/CruDoc/lib/core/services/field_cipher.dart
+@@ -0,0 +1,62 @@
++import 'dart:convert';
++
++import 'package:encrypt/encrypt.dart' as enc;
++
++import 'encryption_key_manager.dart';
++
++/// Encrypts/decrypts individual sensitive string fields (patient name,
++/// phone, diagnosis, notes, etc.) using the current doctor's DEK from
++/// [EncryptionKeyManager].
++///
++/// Deliberately field-level rather than whole-document: fields that
++/// Firestore/SQLite need to query, sort, or filter on (ids, timestamps,
++/// booleans, amounts, `doctorId`) are left in plain form. Only free-text
++/// PHI is encrypted.
++///
++/// Values are tagged with a short prefix so already-encrypted data isn't
++/// re-encrypted, and so plaintext written before this feature existed
++/// still reads back correctly instead of throwing.
++class FieldCipher {
++  static const String _prefix = 'enc:v1:';
++
++  static bool get isReady => EncryptionKeyManager.instance.isReady;
++
++  /// Encrypts [plainText]. Returns it unchanged if empty or if no key is
++  /// loaded yet (caller should ensure [EncryptionKeyManager.loadForDoctor]
++  /// has completed before syncing; this fallback just avoids crashing a
++  /// write if it hasn't).
++  static String encrypt(String? plainText) {
++    if (plainText == null || plainText.isEmpty) return plainText ?? '';
++    if (plainText.startsWith(_prefix)) return plainText; // already encrypted
++
++    final key = EncryptionKeyManager.instance.currentKey;
++    if (key == null) return plainText;
++
++    final iv = enc.IV.fromSecureRandom(12);
++    final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.gcm));
++    final encrypted = encrypter.encrypt(plainText, iv: iv);
++    return '$_prefix${base64Encode(iv.bytes)}.${encrypted.base64}';
++  }
++
++  /// Decrypts a value produced by [encrypt]. Values without the marker
++  /// prefix are returned unchanged (legacy/plaintext data).
++  static String decrypt(String? value) {
++    if (value == null || value.isEmpty) return value ?? '';
++    if (!value.startsWith(_prefix)) return value;
++
++    final key = EncryptionKeyManager.instance.currentKey;
++    if (key == null) return value; // can't decrypt yet — surface ciphertext rather than crash
++
++    try {
++      final body = value.substring(_prefix.length);
++      final parts = body.split('.');
++      final iv = enc.IV(base64Decode(parts[0]));
++      final encrypter = enc.Encrypter(enc.AES(key, mode: enc.AESMode.gcm));
++      return encrypter.decrypt(enc.Encrypted.fromBase64(parts[1]), iv: iv);
++    } catch (_) {
++      // Wrong/missing key (e.g. mid-migration) — surface ciphertext rather
++      // than throw and break the whole list render.
++      return value;
++    }
++  }
++}
+diff --git a/CruDoc/lib/core/services/firestore_sync_service.dart b/CruDoc/lib/core/services/firestore_sync_service.dart
+index 67df5a1..b990064 100644
+--- a/CruDoc/lib/core/services/firestore_sync_service.dart
++++ b/CruDoc/lib/core/services/firestore_sync_service.dart
+@@ -2,8 +2,10 @@ import 'dart:async';
+ 
+ import 'package:cloud_firestore/cloud_firestore.dart';
+ import 'package:connectivity_plus/connectivity_plus.dart';
++import 'package:firebase_auth/firebase_auth.dart';
++import 'package:doctor_management_app/core/services/field_cipher.dart';
+ import 'package:doctor_management_app/core/services/local_database_service.dart';
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// Background Firestore sync for the local-first SQLite data layer.
+ ///
+@@ -72,13 +74,21 @@ class FirestoreSyncService {
+ 
+   Future<void> triggerPostWriteSync() => synchronize();
+ 
++  /// The signed-in doctor's UID, or `null` if nobody is signed in.
++  ///
++  /// Every Firestore read/write in this service is scoped to this value —
++  /// without it, sync would pull or push every doctor's data.
++  String? get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid;
++
+   Future<void> synchronize() async {
+     if (_isSyncing) return;
++    final doctorId = _currentDoctorId;
++    if (doctorId == null) return; // nothing to sync without a signed-in doctor
+     _isSyncing = true;
+ 
+     try {
+-      await _uploadPendingRows();
+-      await _downloadChangedRows();
++      await _uploadPendingRows(doctorId);
++      await _downloadChangedRows(doctorId);
+     } catch (_) {
+       // Leave pending rows untouched; the next startup/connectivity/write trigger
+       // retries the same simple sync pass.
+@@ -87,7 +97,7 @@ class FirestoreSyncService {
+     }
+   }
+ 
+-  Future<void> _uploadPendingRows() async {
++  Future<void> _uploadPendingRows(String doctorId) async {
+     final db = await _databaseService.database;
+ 
+     // ── non-visit collections (SQLite table == Firestore collection) ────────
+@@ -112,7 +122,7 @@ class FirestoreSyncService {
+         } else {
+           batch.set(
+             ref,
+-            _firestoreDataFor(collection, row),
++            _firestoreDataFor(collection, row, doctorId),
+             SetOptions(merge: true),
+           );
+         }
+@@ -124,7 +134,7 @@ class FirestoreSyncService {
+     }
+ 
+     // ── visits table → appointments / visitations Firestore collections ──────
+-    await _uploadPendingVisits(db);
++    await _uploadPendingVisits(db, doctorId);
+   }
+ 
+   /// Uploads pending rows from the `visits` SQLite table, routing each row
+@@ -134,7 +144,7 @@ class FirestoreSyncService {
+   ///
+   /// Soft-deletes are broadcast to **both** collections so a document is
+   /// cleaned up even if its type changed between creation and deletion.
+-  Future<void> _uploadPendingVisits(Database db) async {
++  Future<void> _uploadPendingVisits(Database db, String doctorId) async {
+     final rows = await db.query(
+       'visits',
+       where: 'syncStatus = ?',
+@@ -161,7 +171,7 @@ class FirestoreSyncService {
+         final ref = _firestore.collection(targetCollection).doc(id);
+         batch.set(
+           ref,
+-          _firestoreDataFor(targetCollection, row),
++          _firestoreDataFor(targetCollection, row, doctorId),
+           SetOptions(merge: true),
+         );
+       }
+@@ -172,12 +182,17 @@ class FirestoreSyncService {
+     await _markRowsSynced('visits', uploadedIds);
+   }
+ 
+-  Future<void> _downloadChangedRows() async {
++  Future<void> _downloadChangedRows(String doctorId) async {
+     // ── non-visit collections ────────────────────────────────────────────────
+     for (final collection in _collections) {
+       final lastSyncTime = await _lastSyncTime(collection);
++      // CRITICAL: `.where('doctorId', isEqualTo: doctorId)` is what stops this
++      // device from downloading every other doctor's data. It pairs with the
++      // Firestore security rule that requires `doctorId == request.auth.uid`
++      // on these collections — see firestore.rules.
+       final snapshot = await _firestore
+           .collection(collection)
++          .where('doctorId', isEqualTo: doctorId)
+           .where(
+             'updatedAt',
+             isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
+@@ -191,7 +206,7 @@ class FirestoreSyncService {
+         if (updatedAtMillis > newestSyncTime) {
+           newestSyncTime = updatedAtMillis;
+         }
+-        await _upsertDownloadedRow(collection, doc.id, data);
++        await _upsertDownloadedRow(collection, doc.id, data, doctorId);
+       }
+ 
+       if (newestSyncTime > lastSyncTime) {
+@@ -207,6 +222,7 @@ class FirestoreSyncService {
+       final lastSyncTime = await _lastSyncTime(firestoreCollection);
+       final snapshot = await _firestore
+           .collection(firestoreCollection)
++          .where('doctorId', isEqualTo: doctorId)
+           .where(
+             'updatedAt',
+             isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
+@@ -225,6 +241,7 @@ class FirestoreSyncService {
+           firestoreCollection,
+           doc.id,
+           data,
++          doctorId,
+           sqliteTable: 'visits',
+         );
+       }
+@@ -238,17 +255,19 @@ class FirestoreSyncService {
+   Map<String, dynamic> _firestoreDataFor(
+     String collection,
+     Map<String, Object?> row,
++    String doctorId,
+   ) {
+     switch (collection) {
+       case 'patients':
+         return {
+-          'firstName': row['firstName'] as String? ?? '',
+-          'lastName': row['lastName'] as String? ?? '',
+-          'phone': row['phone'] as String? ?? '',
++          'doctorId': doctorId,
++          'firstName': FieldCipher.encrypt(row['firstName'] as String?),
++          'lastName': FieldCipher.encrypt(row['lastName'] as String?),
++          'phone': FieldCipher.encrypt(row['phone'] as String?),
+           'gender': row['gender'] as String? ?? '',
+           'dateOfBirth': _timestampFromMillis(row['dateOfBirth']),
+-          'diagnosis': row['diagnosis'] as String? ?? '',
+-          'notes': row['notes'] as String? ?? '',
++          'diagnosis': FieldCipher.encrypt(row['diagnosis'] as String?),
++          'notes': FieldCipher.encrypt(row['notes'] as String?),
+           'packageBalance': (row['packageBalance'] as num?)?.toDouble() ?? 0,
+           'isArchived': row['isArchived'] == 1,
+           'isActive': row['isActive'] == 1,
+@@ -262,10 +281,11 @@ class FirestoreSyncService {
+       case 'appointments':
+       case 'visitations':
+         return {
++          'doctorId': doctorId,
+           'patientId': row['patientId'] as String? ?? '',
+           'scheduledStart': _timestampFromMillis(row['scheduledStart']),
+           'durationMinutes': (row['durationMinutes'] as num?)?.toInt() ?? 30,
+-          'address': row['address'] as String? ?? '',
++          'address': FieldCipher.encrypt(row['address'] as String?),
+           'latitude': (row['latitude'] as num?)?.toDouble(),
+           'longitude': (row['longitude'] as num?)?.toDouble(),
+           'mapsLink': row['mapsLink'] as String?,
+@@ -278,7 +298,9 @@ class FirestoreSyncService {
+           'invoiceId': row['invoiceId'] as String?,
+           'packageId': row['packageId'] as String?,
+           'treatmentType': row['treatmentType'] as String?,
+-          'therapistNotes': row['therapistNotes'] as String?,
++          'therapistNotes': row['therapistNotes'] == null
++              ? null
++              : FieldCipher.encrypt(row['therapistNotes'] as String?),
+           'reminderStatus': row['reminderStatus'] as String?,
+           'calendarEventId': row['calendarEventId'] as String?,
+           'createdAt': _timestampFromMillis(row['createdAt']),
+@@ -286,12 +308,15 @@ class FirestoreSyncService {
+         };
+       case 'revenue_entries':
+         return {
++          'doctorId': doctorId,
+           'date': _timestampFromMillis(row['date']),
+-          'description': row['description'] as String? ?? '',
++          'description': FieldCipher.encrypt(row['description'] as String?),
+           'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+           'type': row['type'] as String? ?? 'miscellaneous',
+           'kind': row['kind'] as String? ?? 'income',
+-          'payer': row['payer'] as String?,
++          'payer': row['payer'] == null
++              ? null
++              : FieldCipher.encrypt(row['payer'] as String?),
+           'patientId': row['patientId'] as String?,
+           'visitId': row['visitId'] as String?,
+           'isDeleted': row['isDeleted'] == 1,
+@@ -300,20 +325,25 @@ class FirestoreSyncService {
+         };
+       case 'pending_payments':
+         return {
++          'doctorId': doctorId,
+           'date': _timestampFromMillis(row['date']),
+-          'description': row['description'] as String? ?? '',
++          'description': FieldCipher.encrypt(row['description'] as String?),
+           'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+           'isPaid': row['isPaid'] == 1,
+-          'payer': row['payer'] as String?,
++          'payer': row['payer'] == null
++              ? null
++              : FieldCipher.encrypt(row['payer'] as String?),
+           'patientId': row['patientId'] as String?,
+           'visitId': row['visitId'] as String?,
+-          'notes': row['notes'] as String?,
++          'notes': row['notes'] == null
++              ? null
++              : FieldCipher.encrypt(row['notes'] as String?),
+           'createdAt': _timestampFromMillis(row['createdAt']),
+           'updatedAt': FieldValue.serverTimestamp(),
+         };
+       case 'medicines':
+         return {
+-          'doctorId': row['doctorId'] as String? ?? '',
++          'doctorId': doctorId,
+           'name': row['name'] as String? ?? '',
+           'category': row['category'] as String? ?? '',
+           'unit': row['unit'] as String? ?? '',
+@@ -338,7 +368,7 @@ class FirestoreSyncService {
+       case 'stock_transactions':
+         return {
+           'medicineId': row['medicineId'] as String? ?? '',
+-          'doctorId': row['doctorId'] as String? ?? '',
++          'doctorId': doctorId,
+           'type': row['type'] as String? ?? 'restock',
+           'quantity': (row['quantity'] as num?)?.toInt() ?? 0,
+           'resultingStock': (row['resultingStock'] as num?)?.toInt() ?? 0,
+@@ -363,14 +393,15 @@ class FirestoreSyncService {
+   Future<void> _upsertDownloadedRow(
+     String firestoreCollection,
+     String id,
+-    Map<String, dynamic> data, {
++    Map<String, dynamic> data,
++    String doctorId, {
+     String? sqliteTable,
+   }) async {
+     final db = await _databaseService.database;
+     final table = sqliteTable ?? firestoreCollection;
+     await db.insert(
+       table,
+-      _sqliteRowFor(firestoreCollection, id, data),
++      _sqliteRowFor(firestoreCollection, id, data, doctorId),
+       conflictAlgorithm: ConflictAlgorithm.replace,
+     );
+   }
+@@ -379,19 +410,21 @@ class FirestoreSyncService {
+     String collection,
+     String id,
+     Map<String, dynamic> data,
++    String doctorId,
+   ) {
+     final now = DateTime.now().millisecondsSinceEpoch;
+     switch (collection) {
+       case 'patients':
+         return {
+           'id': id,
+-          'firstName': data['firstName'] as String? ?? '',
+-          'lastName': data['lastName'] as String? ?? '',
+-          'phone': data['phone'] as String? ?? '',
++          'doctorId': doctorId,
++          'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
++          'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
++          'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
+           'gender': data['gender'] as String? ?? '',
+           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
+-          'diagnosis': data['diagnosis'] as String? ?? '',
+-          'notes': data['notes'] as String? ?? '',
++          'diagnosis': FieldCipher.decrypt(data['diagnosis'] as String? ?? ''),
++          'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
+           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
+           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
+           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
+@@ -409,13 +442,14 @@ class FirestoreSyncService {
+       case 'visitations':
+         return {
+           'id': id,
++          'doctorId': doctorId,
+           'patientId': data['patientId'] as String? ?? '',
+           'scheduledStart': _timestampToMillis(
+             data['scheduledStart'],
+             fallback: now,
+           ),
+           'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
+-          'address': data['address'] as String? ?? '',
++          'address': FieldCipher.decrypt(data['address'] as String? ?? ''),
+           'latitude': (data['latitude'] as num?)?.toDouble(),
+           'longitude': (data['longitude'] as num?)?.toDouble(),
+           'mapsLink': data['mapsLink'] as String?,
+@@ -430,7 +464,9 @@ class FirestoreSyncService {
+           'invoiceId': data['invoiceId'] as String?,
+           'packageId': data['packageId'] as String?,
+           'treatmentType': data['treatmentType'] as String?,
+-          'therapistNotes': data['therapistNotes'] as String?,
++          'therapistNotes': data['therapistNotes'] == null
++              ? null
++              : FieldCipher.decrypt(data['therapistNotes'] as String?),
+           'reminderStatus': data['reminderStatus'] as String?,
+           'calendarEventId': data['calendarEventId'] as String?,
+           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+@@ -442,12 +478,15 @@ class FirestoreSyncService {
+       case 'revenue_entries':
+         return {
+           'id': id,
++          'doctorId': doctorId,
+           'date': _timestampToMillis(data['date'], fallback: now),
+-          'description': data['description'] as String? ?? '',
++          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+           'type': data['type'] as String? ?? 'miscellaneous',
+           'kind': data['kind'] as String? ?? 'income',
+-          'payer': data['payer'] as String?,
++          'payer': data['payer'] == null
++              ? null
++              : FieldCipher.decrypt(data['payer'] as String?),
+           'patientId': data['patientId'] as String?,
+           'visitId': data['visitId'] as String?,
+           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+@@ -461,14 +500,19 @@ class FirestoreSyncService {
+       case 'pending_payments':
+         return {
+           'id': id,
++          'doctorId': doctorId,
+           'date': _timestampToMillis(data['date'], fallback: now),
+-          'description': data['description'] as String? ?? '',
++          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
+-          'payer': data['payer'] as String?,
++          'payer': data['payer'] == null
++              ? null
++              : FieldCipher.decrypt(data['payer'] as String?),
+           'patientId': data['patientId'] as String?,
+           'visitId': data['visitId'] as String?,
+-          'notes': data['notes'] as String?,
++          'notes': data['notes'] == null
++              ? null
++              : FieldCipher.decrypt(data['notes'] as String?),
+           'isActive': 1,
+           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+@@ -479,7 +523,7 @@ class FirestoreSyncService {
+       case 'medicines':
+         return {
+           'id': id,
+-          'doctorId': data['doctorId'] as String? ?? '',
++          'doctorId': doctorId,
+           'name': data['name'] as String? ?? '',
+           'category': data['category'] as String? ?? '',
+           'unit': data['unit'] as String? ?? '',
+@@ -509,7 +553,7 @@ class FirestoreSyncService {
+         return {
+           'id': id,
+           'medicineId': data['medicineId'] as String? ?? '',
+-          'doctorId': data['doctorId'] as String? ?? '',
++          'doctorId': doctorId,
+           'type': data['type'] as String? ?? 'restock',
+           'quantity': (data['quantity'] as num?)?.toInt() ?? 0,
+           'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,
+diff --git a/CruDoc/lib/core/services/initial_firestore_migration_service.dart b/CruDoc/lib/core/services/initial_firestore_migration_service.dart
+index a98a853..fb49fc2 100644
+--- a/CruDoc/lib/core/services/initial_firestore_migration_service.dart
++++ b/CruDoc/lib/core/services/initial_firestore_migration_service.dart
+@@ -1,6 +1,8 @@
+ import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_auth/firebase_auth.dart';
++import 'package:doctor_management_app/core/services/field_cipher.dart';
+ import 'package:doctor_management_app/core/services/local_database_service.dart';
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// One-time Firestore-to-SQLite bootstrap for existing cloud data.
+ ///
+@@ -32,10 +34,21 @@ class InitialFirestoreMigrationService {
+   };
+ 
+   Future<void> runIfNeeded() async {
++    final doctorId = FirebaseAuth.instance.currentUser?.uid;
++    if (doctorId == null || doctorId.isEmpty) {
++      // Not signed in yet — nothing to migrate, and querying without a
++      // doctorId would either fail the security rules or (worse, if rules
++      // are ever loosened) pull every doctor's data. Bail out; this is
++      // re-invoked once the doctor signs in (see main.dart).
++      return;
++    }
++
++    await _databaseService.ensureLocalDataMatchesSignedInDoctor(doctorId);
++
+     for (final collection in _collections) {
+       if (await _hasCompletedInitialMigration(collection)) continue;
+       try {
+-        await _migrateCollection(collection);
++        await _migrateCollection(collection, doctorId);
+       } catch (_) {
+         // Keep the guard unset so the next launch can retry. Startup should not
+         // be blocked just because Firestore is temporarily unavailable.
+@@ -43,8 +56,15 @@ class InitialFirestoreMigrationService {
+     }
+   }
+ 
+-  Future<void> _migrateCollection(String collection) async {
+-    final snapshot = await _firestore.collection(collection).get();
++  Future<void> _migrateCollection(String collection, String doctorId) async {
++    // CRITICAL: scoped to this doctor only. Without this `.where(...)`,
++    // this call would download every doctor's patients/visits/revenue onto
++    // this device — which is exactly the cross-doctor leak this migration
++    // is being patched to prevent.
++    final snapshot = await _firestore
++        .collection(collection)
++        .where('doctorId', isEqualTo: doctorId)
++        .get();
+     var newestUpdatedAt = 0;
+ 
+     // Visit Firestore collections (appointments, visitations) both land in
+@@ -55,7 +75,7 @@ class InitialFirestoreMigrationService {
+ 
+     for (final doc in snapshot.docs) {
+       final data = doc.data();
+-      final row = _sqliteRowFor(collection, doc.id, data);
++      final row = _sqliteRowFor(collection, doc.id, data, doctorId);
+       final updatedAt = (row['updatedAt'] as num?)?.toInt() ?? 0;
+       if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
+ 
+@@ -113,19 +133,21 @@ class InitialFirestoreMigrationService {
+     String collection,
+     String id,
+     Map<String, dynamic> data,
++    String doctorId,
+   ) {
+     final now = DateTime.now().millisecondsSinceEpoch;
+     switch (collection) {
+       case 'patients':
+         return {
+           'id': id,
+-          'firstName': data['firstName'] as String? ?? '',
+-          'lastName': data['lastName'] as String? ?? '',
+-          'phone': data['phone'] as String? ?? '',
++          'doctorId': doctorId,
++          'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
++          'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
++          'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
+           'gender': data['gender'] as String? ?? '',
+           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
+-          'diagnosis': data['diagnosis'] as String? ?? '',
+-          'notes': data['notes'] as String? ?? '',
++          'diagnosis': FieldCipher.decrypt(data['diagnosis'] as String? ?? ''),
++          'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
+           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
+           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,
+           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
+@@ -143,13 +165,14 @@ class InitialFirestoreMigrationService {
+       case 'visitations':
+         return {
+           'id': id,
++          'doctorId': doctorId,
+           'patientId': data['patientId'] as String? ?? '',
+           'scheduledStart': _timestampToMillis(
+             data['scheduledStart'],
+             fallback: now,
+           ),
+           'durationMinutes': (data['durationMinutes'] as num?)?.toInt() ?? 30,
+-          'address': data['address'] as String? ?? '',
++          'address': FieldCipher.decrypt(data['address'] as String? ?? ''),
+           'latitude': (data['latitude'] as num?)?.toDouble(),
+           'longitude': (data['longitude'] as num?)?.toDouble(),
+           'mapsLink': data['mapsLink'] as String?,
+@@ -160,7 +183,9 @@ class InitialFirestoreMigrationService {
+           'invoiceId': data['invoiceId'] as String?,
+           'packageId': data['packageId'] as String?,
+           'treatmentType': data['treatmentType'] as String?,
+-          'therapistNotes': data['therapistNotes'] as String?,
++          'therapistNotes': data['therapistNotes'] == null
++              ? null
++              : FieldCipher.decrypt(data['therapistNotes'] as String?),
+           'reminderStatus': data['reminderStatus'] as String?,
+           'calendarEventId': data['calendarEventId'] as String?,
+           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+@@ -172,12 +197,15 @@ class InitialFirestoreMigrationService {
+       case 'revenue_entries':
+         return {
+           'id': id,
++          'doctorId': doctorId,
+           'date': _timestampToMillis(data['date'], fallback: now),
+-          'description': data['description'] as String? ?? '',
++          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+           'type': data['type'] as String? ?? 'miscellaneous',
+           'kind': data['kind'] as String? ?? 'income',
+-          'payer': data['payer'] as String?,
++          'payer': data['payer'] == null
++              ? null
++              : FieldCipher.decrypt(data['payer'] as String?),
+           'patientId': data['patientId'] as String?,
+           'visitId': data['visitId'] as String?,
+           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+@@ -191,14 +219,19 @@ class InitialFirestoreMigrationService {
+       case 'pending_payments':
+         return {
+           'id': id,
++          'doctorId': doctorId,
+           'date': _timestampToMillis(data['date'], fallback: now),
+-          'description': data['description'] as String? ?? '',
++          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
+-          'payer': data['payer'] as String?,
++          'payer': data['payer'] == null
++              ? null
++              : FieldCipher.decrypt(data['payer'] as String?),
+           'patientId': data['patientId'] as String?,
+           'visitId': data['visitId'] as String?,
+-          'notes': data['notes'] as String?,
++          'notes': data['notes'] == null
++              ? null
++              : FieldCipher.decrypt(data['notes'] as String?),
+           'isActive': 1,
+           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+diff --git a/CruDoc/lib/core/services/local_database_service.dart b/CruDoc/lib/core/services/local_database_service.dart
+index f4cc654..3323af9 100644
+--- a/CruDoc/lib/core/services/local_database_service.dart
++++ b/CruDoc/lib/core/services/local_database_service.dart
+@@ -1,6 +1,10 @@
++import 'dart:convert';
++import 'dart:math';
++
+ import 'package:flutter/foundation.dart';
++import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+ import 'package:path/path.dart' as p;
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// Singleton SQLite database service for CruDoc's local-first data layer.
+ ///
+@@ -15,6 +19,11 @@ class LocalDatabaseService extends ChangeNotifier {
+   static const String _databaseName = 'crudoc.db';
+   static const int _databaseVersion = 1;
+ 
++  static const _secureStorage = FlutterSecureStorage(
++    aOptions: AndroidOptions(encryptedSharedPreferences: true),
++  );
++  static const _dbPassphraseKey = 'crudoc_local_db_passphrase';
++
+   Database? _database;
+ 
+   Future<Database> get database async {
+@@ -26,9 +35,11 @@ class LocalDatabaseService extends ChangeNotifier {
+ 
+     final databasesPath = await getDatabasesPath();
+     final dbPath = p.join(databasesPath, _databaseName);
++    final passphrase = await _getOrCreatePassphrase();
+ 
+     final db = await openDatabase(
+       dbPath,
++      password: passphrase,
+       version: _databaseVersion,
+       onConfigure: (db) async {
+         await db.execute('PRAGMA foreign_keys = ON');
+@@ -46,6 +57,22 @@ class LocalDatabaseService extends ChangeNotifier {
+     return db;
+   }
+ 
++  /// Encrypts the local SQLite file at rest with a random 256-bit passphrase
++  /// unique to this device install. The passphrase itself lives only in
++  /// OS-backed secure storage (Android Keystore / iOS Keychain) — it never
++  /// needs to sync between devices, since the local database is just a
++  /// disposable cache of Firestore data, re-downloadable from scratch.
++  Future<String> _getOrCreatePassphrase() async {
++    final existing = await _secureStorage.read(key: _dbPassphraseKey);
++    if (existing != null && existing.isNotEmpty) return existing;
++
++    final random = Random.secure();
++    final bytes = List<int>.generate(32, (_) => random.nextInt(256));
++    final passphrase = base64UrlEncode(bytes);
++    await _secureStorage.write(key: _dbPassphraseKey, value: passphrase);
++    return passphrase;
++  }
++
+   Future<void> close() async {
+     final db = _database;
+     if (db == null) return;
+@@ -63,6 +90,7 @@ class LocalDatabaseService extends ChangeNotifier {
+       await _createMedicinesTable(txn);
+       await _createStockTransactionsTable(txn);
+       await _createSyncStateTable(txn);
++      await _createAppMetaTable(txn);
+       await _createIndexes(txn);
+     });
+   }
+@@ -79,6 +107,7 @@ class LocalDatabaseService extends ChangeNotifier {
+       await _createMedicinesTable(txn);
+       await _createStockTransactionsTable(txn);
+       await _createSyncStateTable(txn);
++      await _createAppMetaTable(txn);
+ 
+       await _ensureColumns(txn, table: 'patients', columns: _patientsColumns);
+       await _ensureColumns(txn, table: 'visits', columns: _visitsColumns);
+@@ -116,6 +145,7 @@ class LocalDatabaseService extends ChangeNotifier {
+     await db.execute('''
+       CREATE TABLE IF NOT EXISTS patients (
+         id TEXT PRIMARY KEY,
++        doctorId TEXT NOT NULL DEFAULT '',
+         firstName TEXT NOT NULL DEFAULT '',
+         lastName TEXT NOT NULL DEFAULT '',
+         phone TEXT NOT NULL DEFAULT '',
+@@ -140,6 +170,7 @@ class LocalDatabaseService extends ChangeNotifier {
+     await db.execute('''
+       CREATE TABLE IF NOT EXISTS visits (
+         id TEXT PRIMARY KEY,
++        doctorId TEXT NOT NULL DEFAULT '',
+         patientId TEXT NOT NULL,
+         scheduledStart INTEGER NOT NULL,
+         durationMinutes INTEGER NOT NULL DEFAULT 30,
+@@ -176,6 +207,7 @@ class LocalDatabaseService extends ChangeNotifier {
+     await db.execute('''
+       CREATE TABLE IF NOT EXISTS revenue_entries (
+         id TEXT PRIMARY KEY,
++        doctorId TEXT NOT NULL DEFAULT '',
+         date INTEGER NOT NULL,
+         description TEXT NOT NULL DEFAULT '',
+         amount REAL NOT NULL DEFAULT 0,
+@@ -201,6 +233,7 @@ class LocalDatabaseService extends ChangeNotifier {
+     await db.execute('''
+       CREATE TABLE IF NOT EXISTS pending_payments (
+         id TEXT PRIMARY KEY,
++        doctorId TEXT NOT NULL DEFAULT '',
+         date INTEGER NOT NULL,
+         description TEXT NOT NULL DEFAULT '',
+         amount REAL NOT NULL DEFAULT 0,
+@@ -282,7 +315,89 @@ class LocalDatabaseService extends ChangeNotifier {
+     ''');
+   }
+ 
++  Future<void> _createAppMetaTable(DatabaseExecutor db) async {
++    await db.execute('''
++      CREATE TABLE IF NOT EXISTS app_meta (
++        key TEXT PRIMARY KEY,
++        value TEXT
++      )
++    ''');
++  }
++
++  static const String _cachedDoctorIdKey = 'cachedDoctorId';
++
++  Future<String?> _getMeta(String key) async {
++    final db = await database;
++    final rows = await db.query(
++      'app_meta',
++      columns: ['value'],
++      where: 'key = ?',
++      whereArgs: [key],
++      limit: 1,
++    );
++    if (rows.isEmpty) return null;
++    return rows.first['value'] as String?;
++  }
++
++  Future<void> _setMeta(String key, String value) async {
++    final db = await database;
++    await db.insert('app_meta', {
++      'key': key,
++      'value': value,
++    }, conflictAlgorithm: ConflictAlgorithm.replace);
++  }
++
++  /// Ensures the local cache on this device actually belongs to
++  /// [signedInDoctorId]. If the device previously cached a *different*
++  /// doctor's data (e.g. this tablet was reassigned, or someone signed out
++  /// and a different account signed in), every local table is wiped before
++  /// any new data is loaded — otherwise the previous doctor's patients,
++  /// visits, and revenue would still be sitting in this device's cache and
++  /// could even get merged back up to the new doctor's Firestore data on
++  /// the next sync.
++  ///
++  /// Safe to call on every app start / sign-in. No-ops when the cache
++  /// already belongs to this doctor or the cache is empty (first run).
++  Future<void> ensureLocalDataMatchesSignedInDoctor(
++    String signedInDoctorId,
++  ) async {
++    final cachedDoctorId = await _getMeta(_cachedDoctorIdKey);
++    if (cachedDoctorId == null || cachedDoctorId.isEmpty) {
++      await _setMeta(_cachedDoctorIdKey, signedInDoctorId);
++      return;
++    }
++    if (cachedDoctorId == signedInDoctorId) return;
++
++    await wipeAllLocalData();
++    await _setMeta(_cachedDoctorIdKey, signedInDoctorId);
++  }
++
++  /// Deletes every row from every local table and resets sync watermarks,
++  /// so the next sync pass rebuilds the cache from scratch for whichever
++  /// doctor is now signed in. Called on doctor-switch (see above) and on
++  /// sign-out.
++  Future<void> wipeAllLocalData() async {
++    final db = await database;
++    await db.transaction((txn) async {
++      for (final table in const [
++        'patients',
++        'visits',
++        'revenue_entries',
++        'pending_payments',
++        'medicines',
++        'stock_transactions',
++        'sync_state',
++      ]) {
++        await txn.delete(table);
++      }
++    });
++  }
++
+   Future<void> _createIndexes(DatabaseExecutor db) async {
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_patients_doctor
++      ON patients (doctorId)
++    ''');
+     await db.execute('''
+       CREATE INDEX IF NOT EXISTS idx_patients_active_created
+       ON patients (isActive, isArchived, createdAt DESC)
+@@ -304,6 +419,10 @@ class LocalDatabaseService extends ChangeNotifier {
+       ON patients (updatedAt)
+     ''');
+ 
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_visits_doctor
++      ON visits (doctorId)
++    ''');
+     await db.execute('''
+       CREATE INDEX IF NOT EXISTS idx_visits_upcoming
+       ON visits (isActive, isDeleted, status, scheduledStart)
+@@ -325,6 +444,10 @@ class LocalDatabaseService extends ChangeNotifier {
+       ON visits (updatedAt)
+     ''');
+ 
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_revenue_entries_doctor
++      ON revenue_entries (doctorId)
++    ''');
+     await db.execute('''
+       CREATE INDEX IF NOT EXISTS idx_revenue_entries_active_date
+       ON revenue_entries (isActive, isDeleted, date DESC)
+@@ -346,6 +469,10 @@ class LocalDatabaseService extends ChangeNotifier {
+       ON revenue_entries (updatedAt)
+     ''');
+ 
++    await db.execute('''
++      CREATE INDEX IF NOT EXISTS idx_pending_payments_doctor
++      ON pending_payments (doctorId)
++    ''');
+     await db.execute('''
+       CREATE INDEX IF NOT EXISTS idx_pending_payments_active_unpaid
+       ON pending_payments (isActive, isPaid, date DESC)
+@@ -409,6 +536,7 @@ class LocalDatabaseService extends ChangeNotifier {
+ 
+   static const Map<String, String> _patientsColumns = {
+     'id': 'id TEXT PRIMARY KEY',
++    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+     'firstName': "firstName TEXT NOT NULL DEFAULT ''",
+     'lastName': "lastName TEXT NOT NULL DEFAULT ''",
+     'phone': "phone TEXT NOT NULL DEFAULT ''",
+@@ -428,6 +556,7 @@ class LocalDatabaseService extends ChangeNotifier {
+ 
+   static const Map<String, String> _visitsColumns = {
+     'id': 'id TEXT PRIMARY KEY',
++    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+     'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+     'scheduledStart': 'scheduledStart INTEGER NOT NULL DEFAULT 0',
+     'durationMinutes': 'durationMinutes INTEGER NOT NULL DEFAULT 30',
+@@ -456,6 +585,7 @@ class LocalDatabaseService extends ChangeNotifier {
+ 
+   static const Map<String, String> _revenueEntriesColumns = {
+     'id': 'id TEXT PRIMARY KEY',
++    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+     'date': 'date INTEGER NOT NULL DEFAULT 0',
+     'description': "description TEXT NOT NULL DEFAULT ''",
+     'amount': 'amount REAL NOT NULL DEFAULT 0',
+@@ -475,6 +605,7 @@ class LocalDatabaseService extends ChangeNotifier {
+ 
+   static const Map<String, String> _pendingPaymentsColumns = {
+     'id': 'id TEXT PRIMARY KEY',
++    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+     'date': 'date INTEGER NOT NULL DEFAULT 0',
+     'description': "description TEXT NOT NULL DEFAULT ''",
+     'amount': 'amount REAL NOT NULL DEFAULT 0',
+diff --git a/CruDoc/lib/features/appointments/data/model/visits_model.dart b/CruDoc/lib/features/appointments/data/model/visits_model.dart
+index ab48f5c..e6720d4 100644
+--- a/CruDoc/lib/features/appointments/data/model/visits_model.dart
++++ b/CruDoc/lib/features/appointments/data/model/visits_model.dart
+@@ -111,6 +111,10 @@ enum VisitType {
+ /// collection built on its own, not a variant of this one.
+ class Visit {
+   final String id;
++
++  /// UID of the doctor this visit belongs to — scoped the same way as
++  /// [Patient.doctorId]; see VisitRepository for enforcement.
++  final String doctorId;
+   final String patientId;
+ 
+   /// The moment the visit is scheduled to start.
+@@ -182,6 +186,7 @@ class Visit {
+ 
+   const Visit({
+     required this.id,
++    this.doctorId = '',
+     required this.patientId,
+     required this.scheduledStart,
+     required this.durationMinutes,
+@@ -232,6 +237,7 @@ class Visit {
+   factory Visit.fromMap(Map<String, dynamic> map, {required String id}) {
+     return Visit(
+       id: id,
++      doctorId: map['doctorId'] as String? ?? '',
+       patientId: map['patientId'] as String? ?? '',
+       scheduledStart: _timestampToDate(map['scheduledStart']),
+       durationMinutes: (map['durationMinutes'] as num?)?.toInt() ?? 30,
+@@ -259,6 +265,7 @@ class Visit {
+   /// id is not included, since it is the document key.
+   Map<String, dynamic> toMap() {
+     return {
++      'doctorId': doctorId,
+       'patientId': patientId,
+       'scheduledStart': Timestamp.fromDate(scheduledStart),
+       'durationMinutes': durationMinutes,
+@@ -306,6 +313,7 @@ class Visit {
+   }) {
+     return Visit(
+       id: id,
++      doctorId: doctorId,
+       patientId: patientId ?? this.patientId,
+       scheduledStart: scheduledStart ?? this.scheduledStart,
+       durationMinutes: durationMinutes ?? this.durationMinutes,
+diff --git a/CruDoc/lib/features/appointments/data/repo/visits_repo.dart b/CruDoc/lib/features/appointments/data/repo/visits_repo.dart
+index 0844331..125fc2a 100644
+--- a/CruDoc/lib/features/appointments/data/repo/visits_repo.dart
++++ b/CruDoc/lib/features/appointments/data/repo/visits_repo.dart
+@@ -2,10 +2,12 @@ import 'dart:async';
+ import 'dart:convert';
+ import 'package:flutter/foundation.dart';
+ import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_auth/firebase_auth.dart';
+ 
+ import 'package:http/http.dart' as http;
+ import 'package:uuid/uuid.dart';
+ 
++import 'package:doctor_management_app/core/services/field_cipher.dart';
+ import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
+ import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+ import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+@@ -50,9 +52,48 @@ class VisitRepository {
+   final PatientRepository _patientRepository;
+   final RevenueRepository _revenueRepository;
+ 
++  /// The signed-in doctor's UID — see PatientRepository for why this
++  /// matters and what it guards against.
++  String get _currentDoctorId {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    if (uid == null || uid.isEmpty) {
++      throw StateError('No signed-in doctor — cannot access visit data.');
++    }
++    return uid;
++  }
++
++  Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
++    final out = Map<String, dynamic>.from(map);
++    if (out['address'] is String) {
++      out['address'] = FieldCipher.encrypt(out['address'] as String);
++    }
++    if (out['therapistNotes'] is String) {
++      out['therapistNotes'] = FieldCipher.encrypt(out['therapistNotes'] as String);
++    }
++    return out;
++  }
++
++  Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> map) {
++    final out = Map<String, dynamic>.from(map);
++    if (out['address'] is String) {
++      out['address'] = FieldCipher.decrypt(out['address'] as String);
++    }
++    if (out['therapistNotes'] is String) {
++      out['therapistNotes'] = FieldCipher.decrypt(out['therapistNotes'] as String);
++    }
++    return out;
++  }
++
+   Stream<List<Visit>> _watchWebVisits() {
+-    final appts = FirebaseFirestore.instance.collection('appointments').snapshots();
+-    final visitations = FirebaseFirestore.instance.collection('visitations').snapshots();
++    final doctorId = _currentDoctorId;
++    final appts = FirebaseFirestore.instance
++        .collection('appointments')
++        .where('doctorId', isEqualTo: doctorId)
++        .snapshots();
++    final visitations = FirebaseFirestore.instance
++        .collection('visitations')
++        .where('doctorId', isEqualTo: doctorId)
++        .snapshots();
+ 
+     final controller = StreamController<List<Visit>>.broadcast();
+     List<Visit> lastAppts = [];
+@@ -69,13 +110,13 @@ class VisitRepository {
+     controller.onListen = () {
+       sub1 = appts.listen((snap) {
+         lastAppts = snap.docs
+-            .map((doc) => Visit.fromMap(doc.data(), id: doc.id))
++            .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+             .toList();
+         emit();
+       });
+       sub2 = visitations.listen((snap) {
+         lastVisits = snap.docs
+-            .map((doc) => Visit.fromMap(doc.data(), id: doc.id))
++            .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+             .toList();
+         emit();
+       });
+@@ -161,6 +202,7 @@ class VisitRepository {
+     final id = visit.id.trim().isEmpty ? const Uuid().v4() : visit.id;
+     final visitWithId = Visit(
+       id: id,
++      doctorId: _currentDoctorId,
+       patientId: visit.patientId,
+       scheduledStart: visit.scheduledStart,
+       durationMinutes: visit.durationMinutes,
+@@ -190,7 +232,7 @@ class VisitRepository {
+       await FirebaseFirestore.instance
+           .collection(collection)
+           .doc(id)
+-          .set(visitWithId.toMap());
++          .set(_encryptedForFirestore(visitWithId.toMap()));
+       return id;
+     }
+ 
+@@ -516,14 +558,14 @@ class VisitRepository {
+           .doc(visitId)
+           .get();
+       if (docA.exists && docA.data() != null) {
+-        return Visit.fromMap(docA.data()!, id: docA.id);
++        return Visit.fromMap(_decryptedFromFirestore(docA.data()!), id: docA.id);
+       }
+       final docV = await FirebaseFirestore.instance
+           .collection('visitations')
+           .doc(visitId)
+           .get();
+       if (docV.exists && docV.data() != null) {
+-        return Visit.fromMap(docV.data()!, id: docV.id);
++        return Visit.fromMap(_decryptedFromFirestore(docV.data()!), id: docV.id);
+       }
+       return null;
+     }
+diff --git a/CruDoc/lib/features/appointments/data/services/visits_local_service.dart b/CruDoc/lib/features/appointments/data/services/visits_local_service.dart
+index 2c4739f..204d7ff 100644
+--- a/CruDoc/lib/features/appointments/data/services/visits_local_service.dart
++++ b/CruDoc/lib/features/appointments/data/services/visits_local_service.dart
+@@ -2,7 +2,7 @@ import 'dart:async';
+ 
+ import 'package:doctor_management_app/core/services/local_database_service.dart';
+ import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// Cap for [VisitLocalService.watchRecentVisits] — enough to feed the
+ /// dashboard's activity card after it's merged with patient/inventory/
+@@ -350,6 +350,7 @@ class VisitLocalService {
+   }) {
+     return {
+       'id': visit.id,
++      'doctorId': visit.doctorId,
+       'patientId': visit.patientId,
+       'scheduledStart': _dateTimeToMillis(visit.scheduledStart),
+       'durationMinutes': visit.durationMinutes,
+@@ -430,6 +431,7 @@ class VisitLocalService {
+   Visit _fromRow(Map<String, Object?> row) {
+     return Visit(
+       id: row['id'] as String,
++      doctorId: row['doctorId'] as String? ?? '',
+       patientId: row['patientId'] as String? ?? '',
+       scheduledStart: _millisToDateTime(row['scheduledStart']),
+       durationMinutes: (row['durationMinutes'] as num?)?.toInt() ?? 30,
+diff --git a/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart b/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart
+index 27ca446..6051e7f 100644
+--- a/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart
++++ b/CruDoc/lib/features/inventory/data/repo/inventory_repository.dart
+@@ -1,6 +1,7 @@
+ import 'dart:async';
+ import 'package:flutter/foundation.dart';
+ import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
+@@ -20,6 +21,18 @@ class InventoryRepository {
+   final InventoryLocalService _localService;
+   final FirestoreSyncService _syncService;
+ 
++  /// The signed-in doctor's UID — see PatientRepository for why this
++  /// matters. Authoritative regardless of what a caller passes in below
++  /// (createMedicine/recordTransaction previously trusted a caller-supplied
++  /// `doctorId`, which could be left blank).
++  String get _currentDoctorId {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    if (uid == null || uid.isEmpty) {
++      throw StateError('No signed-in doctor — cannot access inventory data.');
++    }
++    return uid;
++  }
++
+   /// Creates a new medicine and returns the newly assigned id.
+   Future<String> createMedicine(MedicineModel medicine) async {
+     _validate(medicine);
+@@ -28,7 +41,7 @@ class InventoryRepository {
+     final id = medicine.id.trim().isEmpty ? const Uuid().v4() : medicine.id;
+     final medicineWithId = MedicineModel(
+       id: id,
+-      doctorId: medicine.doctorId,
++      doctorId: _currentDoctorId,
+       name: medicine.name.trim(),
+       category: medicine.category.trim(),
+       unit: medicine.unit.trim(),
+@@ -61,6 +74,7 @@ class InventoryRepository {
+     if (kIsWeb) {
+       return FirebaseFirestore.instance
+           .collection('medicines')
++          .where('doctorId', isEqualTo: _currentDoctorId)
+           .snapshots()
+           .map((snapshot) {
+         final list = snapshot.docs
+@@ -122,7 +136,6 @@ class InventoryRepository {
+     required int quantity,
+     String? note,
+     String? linkedVisitId,
+-    String doctorId = '',
+   }) async {
+     if (quantity <= 0) {
+       throw const MedicineValidationException('Quantity must be positive.');
+@@ -131,7 +144,7 @@ class InventoryRepository {
+     final transaction = StockTransactionModel(
+       id: const Uuid().v4(),
+       medicineId: medicineId,
+-      doctorId: doctorId,
++      doctorId: _currentDoctorId,
+       type: type,
+       quantity: quantity,
+       resultingStock: 0, // recalculated inside the local service's txn
+diff --git a/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart b/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart
+index c9a167d..277b545 100644
+--- a/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart
++++ b/CruDoc/lib/features/inventory/data/services/inventory_local_service.dart
+@@ -4,7 +4,7 @@ import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
+ import 'package:doctor_management_app/core/services/local_database_service.dart';
+ import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
+ import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// Cap for [InventoryLocalService.watchRecentTransactions] — enough to
+ /// feed the dashboard's activity card after it's merged with patient/
+diff --git a/CruDoc/lib/features/patients/data/models/patient.dart b/CruDoc/lib/features/patients/data/models/patient.dart
+index 990f33b..3e04e50 100644
+--- a/CruDoc/lib/features/patients/data/models/patient.dart
++++ b/CruDoc/lib/features/patients/data/models/patient.dart
+@@ -11,6 +11,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
+ /// the project adopts it more broadly.
+ class Patient {
+   final String id;
++
++  /// UID of the doctor this patient belongs to. Every read/write of this
++  /// model must be scoped to the signed-in doctor's UID — see
++  /// PatientRepository and FirestoreSyncService for where that's enforced.
++  final String doctorId;
+   final String firstName;
+   final String lastName;
+   final String phone;
+@@ -34,6 +39,7 @@ class Patient {
+ 
+   const Patient({
+     required this.id,
++    this.doctorId = '',
+     required this.firstName,
+     required this.lastName,
+     required this.phone,
+@@ -76,6 +82,7 @@ class Patient {
+   factory Patient.fromMap(Map<String, dynamic> map, {required String id}) {
+     return Patient(
+       id: id,
++      doctorId: map['doctorId'] as String? ?? '',
+       firstName: map['firstName'] as String? ?? '',
+       lastName: map['lastName'] as String? ?? '',
+       phone: map['phone'] as String? ?? '',
+@@ -94,6 +101,7 @@ class Patient {
+   /// The document id is not included, since it is the document key.
+   Map<String, dynamic> toMap() {
+     return {
++      'doctorId': doctorId,
+       'firstName': firstName,
+       'lastName': lastName,
+       'phone': phone,
+@@ -123,6 +131,7 @@ class Patient {
+   }) {
+     return Patient(
+       id: id,
++      doctorId: doctorId,
+       firstName: firstName ?? this.firstName,
+       lastName: lastName ?? this.lastName,
+       phone: phone ?? this.phone,
+diff --git a/CruDoc/lib/features/patients/data/repo/patient_repository.dart b/CruDoc/lib/features/patients/data/repo/patient_repository.dart
+index da71365..8c463ec 100644
+--- a/CruDoc/lib/features/patients/data/repo/patient_repository.dart
++++ b/CruDoc/lib/features/patients/data/repo/patient_repository.dart
+@@ -1,9 +1,11 @@
+ import 'dart:async';
+ import 'package:flutter/foundation.dart';
+ import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
++import 'package:doctor_management_app/core/services/field_cipher.dart';
+ import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
+ import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+ import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
+@@ -22,6 +24,67 @@ class PatientRepository {
+   final PatientLocalService _localService;
+   final FirestoreSyncService _syncService;
+ 
++  /// The signed-in doctor's UID. Every patient read/write is scoped to
++  /// this — without it, the Web branch below (which talks to Firestore
++  /// directly) would read and write every doctor's shared `patients`
++  /// collection instead of just this doctor's own data.
++  String get _currentDoctorId {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    if (uid == null || uid.isEmpty) {
++      throw StateError('No signed-in doctor — cannot access patient data.');
++    }
++    return uid;
++  }
++
++  /// Encrypts the free-text PHI fields of a patient map before it leaves
++  /// the device for Firestore. Structural fields (ids, dates, flags,
++  /// `doctorId`) are left as-is so Firestore can still query/sort on them.
++  Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
++    final out = Map<String, dynamic>.from(map);
++    if (out.containsKey('firstName')) {
++      out['firstName'] = FieldCipher.encrypt(out['firstName'] as String?);
++    }
++    if (out.containsKey('lastName')) {
++      out['lastName'] = FieldCipher.encrypt(out['lastName'] as String?);
++    }
++    if (out.containsKey('phone')) {
++      out['phone'] = FieldCipher.encrypt(out['phone'] as String?);
++    }
++    if (out.containsKey('diagnosis')) {
++      out['diagnosis'] = out['diagnosis'] is List
++          ? (out['diagnosis'] as List)
++              .map((d) => FieldCipher.encrypt(d.toString()))
++              .toList()
++          : out['diagnosis'];
++    }
++    if (out.containsKey('notes')) {
++      out['notes'] = FieldCipher.encrypt(out['notes'] as String?);
++    }
++    return out;
++  }
++
++  Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> map) {
++    final out = Map<String, dynamic>.from(map);
++    if (out['firstName'] is String) {
++      out['firstName'] = FieldCipher.decrypt(out['firstName'] as String);
++    }
++    if (out['lastName'] is String) {
++      out['lastName'] = FieldCipher.decrypt(out['lastName'] as String);
++    }
++    if (out['phone'] is String) {
++      out['phone'] = FieldCipher.decrypt(out['phone'] as String);
++    }
++    if (out['diagnosis'] is List) {
++      out['diagnosis'] = (out['diagnosis'] as List)
++          .map((d) => FieldCipher.decrypt(d.toString()))
++          .toList();
++    }
++    if (out['notes'] is String) {
++      out['notes'] = FieldCipher.decrypt(out['notes'] as String);
++    }
++    return out;
++  }
++
+   /// Creates a new patient and returns the newly assigned patient id.
+   Future<String> createPatient(Patient patient) async {
+     _validate(patient);
+@@ -30,6 +93,7 @@ class PatientRepository {
+     final id = patient.id.trim().isEmpty ? const Uuid().v4() : patient.id;
+     final patientWithId = Patient(
+       id: id,
++      doctorId: _currentDoctorId,
+       firstName: patient.firstName,
+       lastName: patient.lastName,
+       phone: patient.phone,
+@@ -47,7 +111,7 @@ class PatientRepository {
+       await FirebaseFirestore.instance
+           .collection('patients')
+           .doc(id)
+-          .set(patientWithId.toMap());
++          .set(_encryptedForFirestore(patientWithId.toMap()));
+       return id;
+     }
+ 
+@@ -69,13 +133,15 @@ class PatientRepository {
+     }
+ 
+     final localData = Map<String, dynamic>.from(data)
+-      ..['updatedAt'] = DateTime.now();
++      ..['updatedAt'] = DateTime.now()
++      // doctorId is set once at creation and must never change on update.
++      ..remove('doctorId');
+ 
+     if (kIsWeb) {
+       await FirebaseFirestore.instance
+           .collection('patients')
+           .doc(patientId)
+-          .update(localData);
++          .update(_encryptedForFirestore(localData));
+       return;
+     }
+ 
+@@ -112,7 +178,7 @@ class PatientRepository {
+           .doc(patientId)
+           .get();
+       if (!doc.exists || doc.data() == null) return null;
+-      return Patient.fromMap(doc.data()!, id: doc.id);
++      return Patient.fromMap(_decryptedFromFirestore(doc.data()!), id: doc.id);
+     }
+     return _localService.getPatient(patientId);
+   }
+@@ -122,10 +188,14 @@ class PatientRepository {
+     if (kIsWeb) {
+       return FirebaseFirestore.instance
+           .collection('patients')
++          .where('doctorId', isEqualTo: _currentDoctorId)
+           .snapshots()
+           .map((snapshot) {
+         final list = snapshot.docs
+-            .map((doc) => Patient.fromMap(doc.data(), id: doc.id))
++            .map((doc) => Patient.fromMap(
++                  _decryptedFromFirestore(doc.data()),
++                  id: doc.id,
++                ))
+             .where((p) => !p.isArchived)
+             .toList();
+         list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+diff --git a/CruDoc/lib/features/patients/data/services/patient_local_service.dart b/CruDoc/lib/features/patients/data/services/patient_local_service.dart
+index 861fb54..0397a6a 100644
+--- a/CruDoc/lib/features/patients/data/services/patient_local_service.dart
++++ b/CruDoc/lib/features/patients/data/services/patient_local_service.dart
+@@ -1,9 +1,10 @@
+ import 'dart:async';
+ 
++import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:doctor_management_app/core/services/local_database_service.dart';
+ import 'package:doctor_management_app/core/utils/search_normalisation.dart';
+ import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// SQLite-backed patient data source.
+ ///
+@@ -29,6 +30,13 @@ class PatientLocalService {
+   final StreamController<List<Patient>> _patientsController =
+       StreamController<List<Patient>>.broadcast();
+ 
++  /// Defense-in-depth: even though this device's local cache should only
++  /// ever contain the signed-in doctor's own data (enforced upstream by
++  /// FirestoreSyncService + InitialFirestoreMigrationService), every local
++  /// read is still scoped to this value in case that guarantee is ever
++  /// broken by a future bug.
++  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
++
+   Future<String> upsertPatient(
+     Patient patient, {
+     String syncStatus = 'pending',
+@@ -89,8 +97,8 @@ class PatientLocalService {
+     final db = await _databaseService.database;
+     final rows = await db.query(
+       'patients',
+-      where: 'id = ? AND isActive = 1',
+-      whereArgs: [patientId],
++      where: 'id = ? AND isActive = 1 AND doctorId = ?',
++      whereArgs: [patientId, _currentDoctorId],
+       limit: 1,
+     );
+     if (rows.isEmpty) return null;
+@@ -121,8 +129,9 @@ class PatientLocalService {
+     final rows = await db.query(
+       'patients',
+       where: includeArchived
+-          ? 'isActive = 1'
+-          : 'isActive = 1 AND isArchived = 0',
++          ? 'isActive = 1 AND doctorId = ?'
++          : 'isActive = 1 AND isArchived = 0 AND doctorId = ?',
++      whereArgs: [_currentDoctorId],
+       orderBy: 'createdAt DESC',
+     );
+ 
+@@ -173,7 +182,8 @@ class PatientLocalService {
+     final db = await _databaseService.database;
+     final rows = await db.query(
+       'patients',
+-      where: 'isActive = 1 AND isArchived = 0',
++      where: 'isActive = 1 AND isArchived = 0 AND doctorId = ?',
++      whereArgs: [_currentDoctorId],
+       orderBy: 'createdAt DESC',
+     );
+     if (!_patientsController.isClosed) {
+@@ -189,6 +199,7 @@ class PatientLocalService {
+   }) {
+     return {
+       'id': patient.id,
++      'doctorId': patient.doctorId.isEmpty ? _currentDoctorId : patient.doctorId,
+       'firstName': patient.firstName,
+       'lastName': patient.lastName,
+       'phone': patient.phone,
+@@ -253,6 +264,7 @@ class PatientLocalService {
+   Patient _fromRow(Map<String, Object?> row) {
+     return Patient(
+       id: row['id'] as String,
++      doctorId: row['doctorId'] as String? ?? '',
+       firstName: row['firstName'] as String? ?? '',
+       lastName: row['lastName'] as String? ?? '',
+       phone: row['phone'] as String? ?? '',
+diff --git a/CruDoc/lib/features/revenue/data/models/revenue_entry.dart b/CruDoc/lib/features/revenue/data/models/revenue_entry.dart
+index ae90500..930780f 100644
+--- a/CruDoc/lib/features/revenue/data/models/revenue_entry.dart
++++ b/CruDoc/lib/features/revenue/data/models/revenue_entry.dart
+@@ -63,6 +63,10 @@ enum TransactionKind {
+ class RevenueEntry {
+   final String id;
+ 
++  /// UID of the doctor this entry belongs to — scoped the same way as
++  /// [Patient.doctorId]; see RevenueRepository for enforcement.
++  final String doctorId;
++
+   /// The date this payment was recorded/received.
+   final DateTime date;
+   final String description;
+@@ -99,6 +103,7 @@ class RevenueEntry {
+ 
+   const RevenueEntry({
+     required this.id,
++    this.doctorId = '',
+     required this.date,
+     required this.description,
+     required this.amount,
+@@ -127,6 +132,7 @@ class RevenueEntry {
+   }) {
+     return RevenueEntry(
+       id: id,
++      doctorId: map['doctorId'] as String? ?? '',
+       date: _timestampToDate(map['date']),
+       description: map['description'] as String? ?? '',
+       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+@@ -145,6 +151,7 @@ class RevenueEntry {
+   /// document id is not included, since it is the document key.
+   Map<String, dynamic> toMap() {
+     return {
++      'doctorId': doctorId,
+       'date': Timestamp.fromDate(date),
+       'description': description,
+       'amount': amount,
+@@ -174,6 +181,7 @@ class RevenueEntry {
+   }) {
+     return RevenueEntry(
+       id: id,
++      doctorId: doctorId,
+       date: date ?? this.date,
+       description: description ?? this.description,
+       amount: amount ?? this.amount,
+@@ -207,6 +215,9 @@ class RevenueEntry {
+ class PendingPayment {
+   final String id;
+ 
++  /// UID of the doctor this pending payment belongs to.
++  final String doctorId;
++
+   /// The date this amount became due.
+   final DateTime date;
+   final String description;
+@@ -241,6 +252,7 @@ class PendingPayment {
+ 
+   const PendingPayment({
+     required this.id,
++    this.doctorId = '',
+     required this.date,
+     required this.description,
+     required this.amount,
+@@ -268,6 +280,7 @@ class PendingPayment {
+   }) {
+     return PendingPayment(
+       id: id,
++      doctorId: map['doctorId'] as String? ?? '',
+       date: _timestampToDate(map['date']),
+       description: map['description'] as String? ?? '',
+       amount: (map['amount'] as num?)?.toDouble() ?? 0.0,
+@@ -285,6 +298,7 @@ class PendingPayment {
+   /// document id is not included, since it is the document key.
+   Map<String, dynamic> toMap() {
+     return {
++      'doctorId': doctorId,
+       'date': Timestamp.fromDate(date),
+       'description': description,
+       'amount': amount,
+@@ -312,6 +326,7 @@ class PendingPayment {
+   }) {
+     return PendingPayment(
+       id: id,
++      doctorId: doctorId,
+       date: date ?? this.date,
+       description: description ?? this.description,
+       amount: amount ?? this.amount,
+diff --git a/CruDoc/lib/features/revenue/data/services/revenue_local_service.dart b/CruDoc/lib/features/revenue/data/services/revenue_local_service.dart
+index f9e029e..ec85ec4 100644
+--- a/CruDoc/lib/features/revenue/data/services/revenue_local_service.dart
++++ b/CruDoc/lib/features/revenue/data/services/revenue_local_service.dart
+@@ -2,7 +2,7 @@ import 'dart:async';
+ 
+ import 'package:doctor_management_app/core/services/local_database_service.dart';
+ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+-import 'package:sqflite/sqflite.dart';
++import 'package:sqflite_sqlcipher/sqflite.dart';
+ 
+ /// SQLite-backed revenue data source.
+ ///
+@@ -264,6 +264,7 @@ class RevenueLocalService {
+   }) {
+     return {
+       'id': entry.id,
++      'doctorId': entry.doctorId,
+       'date': _dateTimeToMillis(entry.date),
+       'description': entry.description,
+       'amount': entry.amount,
+@@ -330,6 +331,7 @@ class RevenueLocalService {
+   RevenueEntry _revenueEntryFromRow(Map<String, Object?> row) {
+     return RevenueEntry(
+       id: row['id'] as String,
++      doctorId: row['doctorId'] as String? ?? '',
+       date: _millisToDateTime(row['date']),
+       description: row['description'] as String? ?? '',
+       amount: (row['amount'] as num?)?.toDouble() ?? 0,
+@@ -352,6 +354,7 @@ class RevenueLocalService {
+   }) {
+     return {
+       'id': payment.id,
++      'doctorId': payment.doctorId,
+       'date': _dateTimeToMillis(payment.date),
+       'description': payment.description,
+       'amount': payment.amount,
+@@ -408,6 +411,7 @@ class RevenueLocalService {
+   PendingPayment _pendingPaymentFromRow(Map<String, Object?> row) {
+     return PendingPayment(
+       id: row['id'] as String,
++      doctorId: row['doctorId'] as String? ?? '',
+       date: _millisToDateTime(row['date']),
+       description: row['description'] as String? ?? '',
+       amount: (row['amount'] as num?)?.toDouble() ?? 0,
+diff --git a/CruDoc/lib/features/revenue/repo/revenue_repo.dart b/CruDoc/lib/features/revenue/repo/revenue_repo.dart
+index 6807d50..0a22ba2 100644
+--- a/CruDoc/lib/features/revenue/repo/revenue_repo.dart
++++ b/CruDoc/lib/features/revenue/repo/revenue_repo.dart
+@@ -1,9 +1,11 @@
+ import 'dart:async';
+ import 'package:flutter/foundation.dart';
+ import 'package:cloud_firestore/cloud_firestore.dart';
++import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:uuid/uuid.dart';
+ 
+ import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
++import 'package:doctor_management_app/core/services/field_cipher.dart';
+ import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
+ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+ import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
+@@ -19,6 +21,38 @@ class RevenueRepository {
+   final RevenueLocalService _localService;
+   final FirestoreSyncService _syncService;
+ 
++  /// The signed-in doctor's UID — see PatientRepository for why this
++  /// matters and what it guards against.
++  String get _currentDoctorId {
++    final uid = FirebaseAuth.instance.currentUser?.uid;
++    if (uid == null || uid.isEmpty) {
++      throw StateError('No signed-in doctor — cannot access revenue data.');
++    }
++    return uid;
++  }
++
++  Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
++    final out = Map<String, dynamic>.from(map);
++    if (out['description'] is String) {
++      out['description'] = FieldCipher.encrypt(out['description'] as String);
++    }
++    if (out['payer'] is String) {
++      out['payer'] = FieldCipher.encrypt(out['payer'] as String);
++    }
++    return out;
++  }
++
++  Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> map) {
++    final out = Map<String, dynamic>.from(map);
++    if (out['description'] is String) {
++      out['description'] = FieldCipher.decrypt(out['description'] as String);
++    }
++    if (out['payer'] is String) {
++      out['payer'] = FieldCipher.decrypt(out['payer'] as String);
++    }
++    return out;
++  }
++
+   // ---------------- revenue entries ----------------
+ 
+   /// Records a new payment and returns its newly assigned id.
+@@ -29,6 +63,7 @@ class RevenueRepository {
+     final id = entry.id.trim().isEmpty ? const Uuid().v4() : entry.id;
+     final entryWithId = RevenueEntry(
+       id: id,
++      doctorId: _currentDoctorId,
+       date: entry.date,
+       description: entry.description,
+       amount: entry.amount,
+@@ -46,7 +81,7 @@ class RevenueRepository {
+       await FirebaseFirestore.instance
+           .collection('revenue_entries')
+           .doc(id)
+-          .set(entryWithId.toMap());
++          .set(_encryptedForFirestore(entryWithId.toMap()));
+       return id;
+     }
+ 
+@@ -60,10 +95,11 @@ class RevenueRepository {
+     if (kIsWeb) {
+       return FirebaseFirestore.instance
+           .collection('revenue_entries')
++          .where('doctorId', isEqualTo: _currentDoctorId)
+           .snapshots()
+           .map((snapshot) {
+         final list = snapshot.docs
+-            .map((doc) => RevenueEntry.fromMap(doc.data(), id: doc.id))
++            .map((doc) => RevenueEntry.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+             .where((e) => !e.isDeleted)
+             .toList();
+         list.sort((a, b) => b.date.compareTo(a.date));
+@@ -78,10 +114,11 @@ class RevenueRepository {
+     if (kIsWeb) {
+       return FirebaseFirestore.instance
+           .collection('pending_payments')
++          .where('doctorId', isEqualTo: _currentDoctorId)
+           .snapshots()
+           .map((snapshot) {
+         final list = snapshot.docs
+-            .map((doc) => PendingPayment.fromMap(doc.data(), id: doc.id))
++            .map((doc) => PendingPayment.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+             .where((p) => !p.isPaid)
+             .toList();
+         list.sort((a, b) => b.date.compareTo(a.date));
+@@ -144,6 +181,7 @@ class RevenueRepository {
+     final id = payment.id.trim().isEmpty ? const Uuid().v4() : payment.id;
+     final paymentWithId = PendingPayment(
+       id: id,
++      doctorId: _currentDoctorId,
+       date: payment.date,
+       description: payment.description,
+       amount: payment.amount,
+diff --git a/CruDoc/lib/main.dart b/CruDoc/lib/main.dart
+index 213f6ec..f45e18d 100644
+--- a/CruDoc/lib/main.dart
++++ b/CruDoc/lib/main.dart
+@@ -2,11 +2,14 @@ import 'package:flutter/foundation.dart';
+ import 'package:flutter/material.dart';
+ import 'package:flutter_riverpod/flutter_riverpod.dart';
+ import 'package:firebase_core/firebase_core.dart';
++import 'package:firebase_auth/firebase_auth.dart';
+ import 'package:cloud_firestore/cloud_firestore.dart';
+ import 'firebase_options.dart';
+ import 'core/router/app_router.dart';
++import 'core/services/encryption_key_manager.dart';
+ import 'core/services/firestore_sync_service.dart';
+ import 'core/services/initial_firestore_migration_service.dart';
++import 'core/services/local_database_service.dart';
+ import 'core/theme/app_colors.dart';
+ 
+ Future<void> main() async {
+@@ -15,15 +18,76 @@ Future<void> main() async {
+   FirebaseFirestore.instance.settings = const Settings(
+     persistenceEnabled: false,
+   );
+-  
++
+   if (!kIsWeb) {
+-    await InitialFirestoreMigrationService.instance.runIfNeeded();
+-    await FirestoreSyncService.instance.start();
++    _wireDoctorScopedStartup();
++  } else {
++    _wireWebEncryptionKeyLoading();
+   }
+ 
+   runApp(const ProviderScope(child: MoodyDashboardApp()));
+ }
+ 
++/// On Web there's no local SQLite cache to migrate or sync — repositories
++/// read/write Firestore directly (see e.g. PatientRepository's `kIsWeb`
++/// branches) — but those branches still call FieldCipher.encrypt/decrypt,
++/// so the per-doctor key still needs to be loaded as soon as someone signs
++/// in, and cleared on sign-out.
++void _wireWebEncryptionKeyLoading() {
++  String? lastHandledUid;
++  FirebaseAuth.instance.authStateChanges().listen((user) async {
++    if (user == null) {
++      EncryptionKeyManager.instance.clear();
++      lastHandledUid = null;
++      return;
++    }
++    if (lastHandledUid == user.uid) return;
++    lastHandledUid = user.uid;
++    await EncryptionKeyManager.instance.loadForDoctor(user.uid);
++  });
++}
++
++/// Starts (and re-starts) the local-first data layer strictly in response
++/// to actual sign-in state, rather than unconditionally at cold start.
++///
++/// This matters for two reasons:
++/// 1. At a cold start, nobody may be signed in yet (Google/Phone-OTP
++///    happens *inside* the app) — running migration/sync before that would
++///    either be denied by Firestore rules or, if rules were ever loosened,
++///    pull every doctor's data onto the device. See
++///    InitialFirestoreMigrationService for the bug this used to cause.
++/// 2. It's also what catches a *different* doctor signing in on a device
++///    that already has another doctor's data cached — before touching
++///    anything else, it wipes the stale cache so the two doctors' data
++///    can never mix locally.
++void _wireDoctorScopedStartup() {
++  String? lastHandledUid;
++
++  FirebaseAuth.instance.authStateChanges().listen((user) async {
++    if (user == null) {
++      if (lastHandledUid != null) {
++        await FirestoreSyncService.instance.stop();
++        EncryptionKeyManager.instance.clear();
++        lastHandledUid = null;
++      }
++      return;
++    }
++
++    if (lastHandledUid == user.uid) return; // already set up for this doctor
++    lastHandledUid = user.uid;
++
++    // Order matters: the key must be loaded before migration/sync try to
++    // decrypt anything, and the local cache must be confirmed to belong to
++    // this doctor before anything is written into it.
++    await EncryptionKeyManager.instance.loadForDoctor(user.uid);
++    await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
++      user.uid,
++    );
++    await InitialFirestoreMigrationService.instance.runIfNeeded();
++    await FirestoreSyncService.instance.start();
++  });
++}
++
+ class MoodyDashboardApp extends StatelessWidget {
+   const MoodyDashboardApp({super.key});
+ 
+diff --git a/CruDoc/pubspec.yaml b/CruDoc/pubspec.yaml
+index c0d7cf6..bc72705 100644
+--- a/CruDoc/pubspec.yaml
++++ b/CruDoc/pubspec.yaml
+@@ -50,11 +50,14 @@ dependencies:
+   json_annotation: ^4.12.0
+   equatable: ^2.1.0
+   uuid: ^4.5.3
+-  sqflite: ^2.4.2+1
++  sqflite_sqlcipher: ^3.1.0+2
+   path: ^1.9.1
+   connectivity_plus: ^7.2.0
+   cached_network_image: ^3.4.1
+   image_picker: ^1.1.2
++  flutter_secure_storage: ^9.2.2
++  encrypt: ^5.0.3
++  crypto: ^3.0.5
+ 
+ dev_dependencies:
+   flutter_test:
+diff --git a/firebase.json b/firebase.json
+new file mode 100644
+index 0000000..40d650b
+--- /dev/null
++++ b/firebase.json
+@@ -0,0 +1,9 @@
++{
++  "firestore": {
++    "rules": "CruDoc/firestore.rules",
++    "indexes": "CruDoc/firestore.indexes.json"
++  },
++  "functions": {
++    "source": "CruDoc/functions"
++  }
++}

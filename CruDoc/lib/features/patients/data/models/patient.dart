@@ -11,6 +11,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// the project adopts it more broadly.
 class Patient {
   final String id;
+
+  /// UID of the doctor this patient belongs to. Every read/write of this
+  /// model must be scoped to the signed-in doctor's UID — see
+  /// PatientRepository and FirestoreSyncService for where that's enforced.
+  final String doctorId;
   final String firstName;
   final String lastName;
   final String phone;
@@ -34,6 +39,7 @@ class Patient {
 
   const Patient({
     required this.id,
+    this.doctorId = '',
     required this.firstName,
     required this.lastName,
     required this.phone,
@@ -76,6 +82,7 @@ class Patient {
   factory Patient.fromMap(Map<String, dynamic> map, {required String id}) {
     return Patient(
       id: id,
+      doctorId: map['doctorId'] as String? ?? '',
       firstName: map['firstName'] as String? ?? '',
       lastName: map['lastName'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
@@ -94,6 +101,7 @@ class Patient {
   /// The document id is not included, since it is the document key.
   Map<String, dynamic> toMap() {
     return {
+      'doctorId': doctorId,
       'firstName': firstName,
       'lastName': lastName,
       'phone': phone,
@@ -123,6 +131,7 @@ class Patient {
   }) {
     return Patient(
       id: id,
+      doctorId: doctorId,
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       phone: phone ?? this.phone,

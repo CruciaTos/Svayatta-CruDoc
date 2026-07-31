@@ -188,10 +188,10 @@ class PatientFormState extends State<PatientForm> {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: AppColors.slateBlue,
+              primary: Color(0xFF2563EB),
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: AppColors.textPrimary,
+              onSurface: Color(0xFF0F172A),
             ),
           ),
           child: child!,
@@ -347,20 +347,20 @@ class _FormField extends StatelessWidget {
           style: AppColors.bodyMedium,
           decoration: InputDecoration(
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.75),
+            fillColor: const Color(0xFFF8FAFC),
             contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.slateBlue, width: 1.5),
+              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -404,23 +404,23 @@ class _DiagnosisFieldRow extends StatelessWidget {
               decoration: InputDecoration(
                 hintText: 'Diagnosis ${index + 1}',
                 hintStyle: AppColors.bodyMedium.copyWith(
-                  color: AppColors.textSecondary.withValues(alpha: 0.6),
+                  color: const Color(0xFF94A3B8),
                 ),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: 0.75),
+                fillColor: const Color(0xFFF8FAFC),
                 contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: AppColors.slateBlue, width: 1.5),
+                  borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
                 ),
               ),
             ),
@@ -433,14 +433,14 @@ class _DiagnosisFieldRow extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.75),
+                  color: const Color(0xFFFEE2E2),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+                  border: Border.all(color: const Color(0xFFFCA5A5)),
                 ),
                 child: const Icon(
                   Icons.close,
                   size: 16,
-                  color: AppColors.textSecondary,
+                  color: Color(0xFFEF4444),
                 ),
               ),
             ),
@@ -465,18 +465,19 @@ class _AddDiagnosisButton extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
+          color: const Color(0xFFEFF6FF),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.slateBlue.withValues(alpha: 0.5)),
+          border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.add, size: 16, color: AppColors.slateBlue),
+            const Icon(Icons.add, size: 16, color: Color(0xFF2563EB)),
             const SizedBox(width: 6),
             Text(
               'Add another diagnosis',
               style: AppColors.bodyMeta.copyWith(
-                color: AppColors.slateBlue,
+                color: const Color(0xFF2563EB),
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -517,13 +518,13 @@ class _GenderSelector extends StatelessWidget {
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.slateBlue
-                      : Colors.white.withValues(alpha: 0.75),
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
-                        ? AppColors.slateBlue
-                        : AppColors.slateBlue.withValues(alpha: 0.2),
+                        ? const Color(0xFF2563EB)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Text(
@@ -532,7 +533,7 @@ class _GenderSelector extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: isSelected
                         ? Colors.white
-                        : AppColors.textSecondary,
+                        : const Color(0xFF475569),
                   ),
                 ),
               ),
@@ -566,21 +567,21 @@ class _DateOfBirthField extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.75),
+          color: const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Row(
           children: [
             Icon(Icons.calendar_today_outlined,
-                color: AppColors.slateBlue.withValues(alpha: 0.7), size: 18),
+                color: const Color(0xFF2563EB).withValues(alpha: 0.7), size: 18),
             const SizedBox(width: 10),
             Text(
               label,
               style: AppColors.bodyMedium.copyWith(
                 color: date == null
-                    ? AppColors.textSecondary
-                    : AppColors.textPrimary,
+                    ? const Color(0xFF94A3B8)
+                    : const Color(0xFF0F172A),
               ),
             ),
           ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/widgets/last_patient.dart';
@@ -43,6 +44,7 @@ class PatientRecords extends StatelessWidget {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
+                  if (!kIsWeb)
                   GestureDetector(
                     onTap: () {
                       showAddPatientSheet(context);

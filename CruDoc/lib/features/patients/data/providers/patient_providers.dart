@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' as riverpod_legacy;
 
+import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
@@ -12,7 +13,10 @@ final patientRepositoryProvider = Provider<PatientRepository>(
 );
 
 final patientsStreamProvider = StreamProvider<List<Patient>>(
-  (ref) => ref.watch(patientRepositoryProvider).watchPatients(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(patientRepositoryProvider).watchPatients();
+  },
 );
 
 final searchQueryProvider = riverpod_legacy.StateProvider<String>((ref) => '');

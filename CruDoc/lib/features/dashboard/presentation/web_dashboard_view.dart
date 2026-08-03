@@ -56,30 +56,50 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         .trim();
   }
 
-  String? _latestDbDoctorName;
+  Map<String, dynamic>? _latestDbUserData;
 
-  String _getFormattedDoctorName(User? user, [String? dbName]) {
-    if (dbName != null && dbName.trim().isNotEmpty) {
-      final name = dbName.trim();
-      return name.toLowerCase().startsWith('dr') ? name : 'Dr. $name';
+  String _getFormattedDoctorName(User? user, [Map<String, dynamic>? dbData]) {
+    final data = dbData ?? _latestDbUserData;
+
+    if (data != null) {
+      // 1. Check explicit Full Name fields first
+      final fullName = (data['fullName'] ?? 
+                        data['full_name'] ?? 
+                        data['doctorName'] ?? 
+                        data['doctor_name'] ?? 
+                        data['name'] ?? 
+                        data['displayName'] ?? 
+                        data['userName']) as String?;
+
+      if (fullName != null && fullName.trim().isNotEmpty) {
+        final clean = fullName.trim();
+        return clean.toLowerCase().startsWith('dr') ? clean : 'Dr. $clean';
+      }
+
+      // 2. Combine First Name + Last Name if stored in separate fields
+      final firstName = (data['firstName'] ?? data['first_name'] ?? data['givenName']) as String?;
+      final lastName = (data['lastName'] ?? data['last_name'] ?? data['familyName']) as String?;
+
+      if (firstName != null && firstName.trim().isNotEmpty) {
+        final combined = ((lastName != null && lastName.trim().isNotEmpty)
+                ? '${firstName.trim()} ${lastName.trim()}'
+                : firstName.trim())
+            .trim();
+        return combined.toLowerCase().startsWith('dr') ? combined : 'Dr. $combined';
+      }
     }
+
+    // 3. Check Auth user display name
     if (user?.displayName != null && user!.displayName!.trim().isNotEmpty) {
       final name = user.displayName!.trim();
       return name.toLowerCase().startsWith('dr') ? name : 'Dr. $name';
     }
-    if (user?.email != null && user!.email!.trim().isNotEmpty) {
-      final emailName = user.email!.split('@').first;
-      final parts = emailName.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
-      if (parts.isNotEmpty) {
-        final formatted = parts.map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase()).join(' ');
-        return 'Dr. $formatted';
-      }
-    }
-    return 'Dr. Charlie Teo';
+
+    return 'Doctor';
   }
 
   String get _doctorName =>
-      _getFormattedDoctorName(FirebaseAuth.instance.currentUser, _latestDbDoctorName);
+      _getFormattedDoctorName(FirebaseAuth.instance.currentUser, _latestDbUserData);
 
   void _openAddPatient() {
     showAddPatientSheet(context);
@@ -315,9 +335,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
           const Spacer(),
 
-          // Bottom Section: Help & Support + Log Out
-          _buildSidebarBottomItem(Icons.help_outline_rounded, 'Help & Support'),
-          const SizedBox(height: 12),
+          // Bottom Section: Log Out
           InkWell(
             onTap: () async {
               await FirebaseAuth.instance.signOut();
@@ -488,38 +506,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           ),
           const Spacer(),
 
-          // Search Box in Header
-          Container(
-            width: 220,
-            height: 36,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.search_rounded,
-                    color: Color(0xFF94A3B8), size: 16),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
-                      hintText: 'Search workspace...',
-                      hintStyle:
-                          TextStyle(color: Color(0xFFCBD5E1), fontSize: 12),
-                      border: InputBorder.none,
-                      isDense: true,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 14),
+
 
           // Add Patient Primary Button (Top Navigation Bar)
           ElevatedButton.icon(
@@ -567,23 +554,21 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                 );
               }
 
-              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(user.uid)
-                    .snapshots(),
+              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: (user.email != null && user.email!.isNotEmpty)
+                    ? FirebaseFirestore.instance
+                        .collection('users')
+                        .where('email', isEqualTo: user.email!.toLowerCase().trim())
+                        .snapshots()
+                    : null,
                 builder: (context, snapshot) {
-                  String? dbName;
-                  if (snapshot.hasData &&
-                      snapshot.data!.exists &&
-                      snapshot.data!.data() != null) {
-                    dbName = snapshot.data!.data()!['displayName'] as String?;
-                    if (dbName != null && dbName.isNotEmpty) {
-                      _latestDbDoctorName = dbName;
-                    }
+                  Map<String, dynamic>? dbData;
+                  if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                    dbData = snapshot.data!.docs.first.data();
+                    _latestDbUserData = dbData;
                   }
 
-                  final displayName = _getFormattedDoctorName(user, dbName);
+                  final displayName = _getFormattedDoctorName(user, dbData);
                   final initial = displayName.replaceAll('Dr. ', '').trim().isNotEmpty
                       ? displayName.replaceAll('Dr. ', '').trim()[0].toUpperCase()
                       : 'D';
@@ -790,7 +775,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   Widget _buildAppointmentsTableCard(BuildContext context) {
     return Consumer(
       builder: (context, ref, child) {
-        final visitsAsync = ref.watch(todaysVisitsWithPatientsProvider);
+        final visitsAsync = ref.watch(allVisitsWithPatientsProvider);
 
         return Container(
           decoration: BoxDecoration(
@@ -813,14 +798,26 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                 child: Row(
                   children: [
                     visitsAsync.when(
-                      data: (list) => Text(
-                        '${list.length} All Appointments',
-                        style: const TextStyle(
-                          color: Color(0xFF0F172A),
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
+                      data: (rawVisits) {
+                        final visits = rawVisits.where((vw) {
+                          if (_selectedStatusFilter == 'Completed') {
+                            return vw.visit.status == vmodel.VisitStatus.completed;
+                          }
+                          if (_selectedStatusFilter == 'Scheduled') {
+                            return vw.visit.status == vmodel.VisitStatus.scheduled;
+                          }
+                          return true;
+                        }).toList();
+
+                        return Text(
+                          '${visits.length} All Appointments',
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        );
+                      },
                       loading: () => const Text('Loading Appointments...'),
                       error: (_, _) => const Text('Appointments'),
                     ),
@@ -867,13 +864,23 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
               // Table Content
               visitsAsync.when(
-                data: (visits) {
+                data: (rawVisits) {
+                  final visits = rawVisits.where((vw) {
+                    if (_selectedStatusFilter == 'Completed') {
+                      return vw.visit.status == vmodel.VisitStatus.completed;
+                    }
+                    if (_selectedStatusFilter == 'Scheduled') {
+                      return vw.visit.status == vmodel.VisitStatus.scheduled;
+                    }
+                    return true;
+                  }).toList();
+
                   if (visits.isEmpty) {
                     return const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40),
                       child: Center(
                         child: Text(
-                          'No visits or appointments scheduled for today.',
+                          'No visits or appointments found in database.',
                           style: TextStyle(
                               color: Color(0xFF94A3B8), fontSize: 13),
                         ),

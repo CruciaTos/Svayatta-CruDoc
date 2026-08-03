@@ -1,20 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
-/// Shared Riverpod providers for visit data — mirrors the shape of
-/// patients/data/providers/patient_providers.dart.
-///
-/// This is the single source of truth for visit-related providers. A
-/// second copy of these (`features/appointments/providers/visits_providers.dart`)
-/// and an orphaned third copy (`appointments_provider.dart`) used to
-/// exist alongside this file, each independently declaring their own
-/// `visitRepositoryProvider` — they've been merged into this file and
-/// deleted, since two `Provider<VisitRepository>` instances imported
-/// into the same file caused an ambiguous-import error.
 final visitRepositoryProvider = Provider<VisitRepository>(
   (ref) => VisitRepository(),
 );
@@ -22,31 +13,44 @@ final visitRepositoryProvider = Provider<VisitRepository>(
 /// Streams patientId -> their most recent visit that has already
 /// occurred, refreshed automatically after every visit write.
 final lastVisitPerPatientProvider = StreamProvider<Map<String, Visit>>(
-  (ref) => ref.watch(visitRepositoryProvider).watchLastVisitPerPatient(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(visitRepositoryProvider).watchLastVisitPerPatient();
+  },
 );
 
 /// Streams upcoming scheduled visits, soonest first.
 final upcomingVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) => ref.watch(visitRepositoryProvider).watchUpcomingVisits(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(visitRepositoryProvider).watchUpcomingVisits();
+  },
 );
 
 /// Streams today's scheduled visits (clinic + home combined), soonest
-/// first. Backed by its own stream — see
-/// [VisitLocalService.watchTodaysVisits] — so it stays correct even
-/// while [upcomingVisitsProvider] is live at the same time on another tab.
+/// first.
 final todaysVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) => ref.watch(visitRepositoryProvider).watchTodaysVisits(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(visitRepositoryProvider).watchTodaysVisits();
+  },
 );
 
 /// Streams the most recently created/updated visits (any status),
 /// newest first. Feeds the dashboard's "Recent Activity" card.
 final recentVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) => ref.watch(visitRepositoryProvider).watchRecentVisits(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(visitRepositoryProvider).watchRecentVisits();
+  },
 );
 
 /// Streams ALL non-deleted visits (past, present, future) for calendar view.
 final allVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) => ref.watch(visitRepositoryProvider).watchAllVisits(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(visitRepositoryProvider).watchAllVisits();
+  },
 );
 
 /// Streams a single patient's visit history, most recent first. Family

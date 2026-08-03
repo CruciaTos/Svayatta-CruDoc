@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
@@ -31,6 +32,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   int _currentPage = 1; // Start on login page for mobile
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _rememberMe = true;
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   // Form Controllers
   final _emailController = TextEditingController();
@@ -56,9 +59,30 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       duration: const Duration(milliseconds: 680),
     )..forward();
 
-
+    _loadRememberedCredentials();
 
     // Clean empty text controllers by default
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    try {
+      final savedEmail = await _secureStorage.read(key: 'remembered_email');
+      final rememberFlag = await _secureStorage.read(key: 'remember_me');
+      if (mounted) {
+        setState(() {
+          if (rememberFlag == 'false') {
+            _rememberMe = false;
+          } else {
+            _rememberMe = true;
+            if (savedEmail != null && savedEmail.trim().isNotEmpty) {
+              _emailController.text = savedEmail.trim();
+            }
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Remember Me read warning: $e');
+    }
   }
 
   @override
@@ -338,6 +362,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         }
 
         // User exists in database and is active -> allow login!
+        if (_rememberMe) {
+          await _secureStorage.write(key: 'remembered_email', value: email);
+          await _secureStorage.write(key: 'remember_me', value: 'true');
+        } else {
+          await _secureStorage.delete(key: 'remembered_email');
+          await _secureStorage.write(key: 'remember_me', value: 'false');
+        }
+
         await _syncUserProfile(user);
         if (!mounted) return;
         _enterApp();
@@ -595,10 +627,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                           child: _WebAuthPortalCard(
                             obscurePassword: _obscurePassword,
                             isLoading: _isLoading,
+                            rememberMe: _rememberMe,
                             emailController: _emailController,
                             passwordController: _passwordController,
                             onObscureToggle: () => setState(
                                 () => _obscurePassword = !_obscurePassword),
+                            onRememberMeToggle: () => setState(
+                                () => _rememberMe = !_rememberMe),
                             onPrimarySubmit: _handleEmailLogin,
                             onDemoFill: _fillDemoCredentials,
                           ),
@@ -951,18 +986,22 @@ class _WebAuthPortalCard extends StatelessWidget {
   const _WebAuthPortalCard({
     required this.obscurePassword,
     required this.isLoading,
+    required this.rememberMe,
     required this.emailController,
     required this.passwordController,
     required this.onObscureToggle,
+    required this.onRememberMeToggle,
     required this.onPrimarySubmit,
     required this.onDemoFill,
   });
 
   final bool obscurePassword;
   final bool isLoading;
+  final bool rememberMe;
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final VoidCallback onObscureToggle;
+  final VoidCallback onRememberMeToggle;
   final VoidCallback onPrimarySubmit;
   final VoidCallback onDemoFill;
 
@@ -1073,15 +1112,35 @@ class _WebAuthPortalCard extends StatelessWidget {
         // Remember Me & Need Help
         Row(
           children: [
-            const Icon(Icons.check_box_outline_blank_rounded,
-                color: Color(0xFFCBD5E1), size: 18),
-            const SizedBox(width: 6),
-            const Text(
-              'Remember Me',
-              style: TextStyle(
-                color: Color(0xFF94A3B8),
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
+            GestureDetector(
+              onTap: onRememberMeToggle,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      rememberMe
+                          ? Icons.check_box_rounded
+                          : Icons.check_box_outline_blank_rounded,
+                      color: rememberMe
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF94A3B8),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Remember Me',
+                      style: TextStyle(
+                        color: rememberMe
+                            ? const Color(0xFF0F172A)
+                            : const Color(0xFF64748B),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const Spacer(),

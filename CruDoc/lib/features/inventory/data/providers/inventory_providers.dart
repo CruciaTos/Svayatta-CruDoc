@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
@@ -10,14 +11,22 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>(
 
 /// Streams every active medicine for the current doctor.
 final medicinesStreamProvider = StreamProvider<List<MedicineModel>>(
-  (ref) => ref.watch(inventoryRepositoryProvider).watchMedicines(),
+  (ref) {
+    ref.watch(authStateProvider);
+    return ref.watch(inventoryRepositoryProvider).watchMedicines();
+  },
 );
 
 /// Streams the most recent stock transactions across every medicine,
 /// newest first. Feeds the dashboard's "Recent Activity" card.
 final recentStockTransactionsProvider =
     StreamProvider<List<StockTransactionModel>>(
-      (ref) => ref.watch(inventoryRepositoryProvider).watchRecentTransactions(),
+      (ref) {
+        ref.watch(authStateProvider);
+        return ref
+            .watch(inventoryRepositoryProvider)
+            .watchRecentTransactions();
+      },
     );
 
 /// Medicines whose `currentStock` has crossed at/under their configured

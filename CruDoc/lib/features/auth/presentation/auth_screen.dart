@@ -152,100 +152,83 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         .trim();
   }
 
+  OverlayEntry? _toastOverlayEntry;
+
   void _showAuthToast(String message, {bool isError = true}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
+
+    // Dismiss previous active toast if any
+    _toastOverlayEntry?.remove();
+    _toastOverlayEntry = null;
+
+    final overlayState = Overlay.of(context);
+    _toastOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return Positioned(
+          top: 28,
+          left: 20,
+          right: 20,
+          child: Material(
+            color: Colors.transparent,
+            child: Center(
+              child: Container(
+                constraints: const BoxConstraints(maxWidth: 520),
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                decoration: BoxDecoration(
+                  color: isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.18),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        message,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
-        backgroundColor: isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        margin: const EdgeInsets.all(16),
-      ),
+          ),
+        );
+      },
     );
+
+    overlayState.insert(_toastOverlayEntry!);
+
+    // Auto dismiss after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      if (_toastOverlayEntry != null && _toastOverlayEntry!.mounted) {
+        _toastOverlayEntry?.remove();
+        _toastOverlayEntry = null;
+      }
+    });
   }
 
   void _showUserDoesNotExistDialog({
     String title = 'User Does Not Exist',
     required String message,
   }) {
-    if (!mounted) return;
-
-    // Trigger floating toast message
+    // Show single sleek Top Toast Banner (No double dialog popup)
     _showAuthToast(message, isError: true);
-
-    showDialog(
-      context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          backgroundColor: Colors.white,
-          title: Row(
-            children: [
-              const Icon(Icons.account_circle_outlined,
-                  color: Color(0xFFEF4444), size: 26),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          content: Text(
-            message,
-            style: const TextStyle(
-              color: Color(0xFF475569),
-              fontSize: 14,
-              height: 1.4,
-            ),
-          ),
-          actions: [
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-              ),
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('OK',
-                  style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showError(String message) {

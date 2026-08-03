@@ -56,8 +56,30 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         .trim();
   }
 
+  String? _latestDbDoctorName;
+
+  String _getFormattedDoctorName(User? user, [String? dbName]) {
+    if (dbName != null && dbName.trim().isNotEmpty) {
+      final name = dbName.trim();
+      return name.toLowerCase().startsWith('dr') ? name : 'Dr. $name';
+    }
+    if (user?.displayName != null && user!.displayName!.trim().isNotEmpty) {
+      final name = user.displayName!.trim();
+      return name.toLowerCase().startsWith('dr') ? name : 'Dr. $name';
+    }
+    if (user?.email != null && user!.email!.trim().isNotEmpty) {
+      final emailName = user.email!.split('@').first;
+      final parts = emailName.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+      if (parts.isNotEmpty) {
+        final formatted = parts.map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase()).join(' ');
+        return 'Dr. $formatted';
+      }
+    }
+    return 'Dr. Charlie Teo';
+  }
+
   String get _doctorName =>
-      FirebaseAuth.instance.currentUser?.displayName ?? 'Dr. Charlie Teo';
+      _getFormattedDoctorName(FirebaseAuth.instance.currentUser, _latestDbDoctorName);
 
   void _openAddPatient() {
     showAddPatientSheet(context);
@@ -520,32 +542,88 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           ),
           const SizedBox(width: 14),
 
-          // Doctor Avatar Profile
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          // Doctor Avatar Profile (Live Database Stream)
+          Builder(
+            builder: (context) {
+              final user = FirebaseAuth.instance.currentUser;
+              if (user == null) {
+                return Row(
+                  children: const [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Color(0xFF334155),
+                      child: Icon(Icons.person, color: Colors.white, size: 18),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      'Dr. Guest',
+                      style: TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user.uid)
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  String? dbName;
+                  if (snapshot.hasData &&
+                      snapshot.data!.exists &&
+                      snapshot.data!.data() != null) {
+                    dbName = snapshot.data!.data()!['displayName'] as String?;
+                    if (dbName != null && dbName.isNotEmpty) {
+                      _latestDbDoctorName = dbName;
+                    }
+                  }
+
+                  final displayName = _getFormattedDoctorName(user, dbName);
+                  final initial = displayName.replaceAll('Dr. ', '').trim().isNotEmpty
+                      ? displayName.replaceAll('Dr. ', '').trim()[0].toUpperCase()
+                      : 'D';
+
+                  return GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      );
+                    },
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 16,
+                          backgroundColor: const Color(0xFF2563EB),
+                          child: Text(
+                            initial,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          displayName,
+                          style: const TextStyle(
+                            color: Color(0xFF0F172A),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
               );
             },
-            child: Row(
-              children: [
-                const CircleAvatar(
-                  radius: 16,
-                  backgroundColor: Color(0xFF334155),
-                  child: Icon(Icons.person, color: Colors.white, size: 18),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _doctorName,
-                  style: const TextStyle(
-                    color: Color(0xFF0F172A),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
           ),
         ],
       ),

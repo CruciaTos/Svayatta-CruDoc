@@ -25,10 +25,7 @@ class RevenueRepository {
   /// matters and what it guards against.
   String get _currentDoctorId {
     final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null || uid.isEmpty) {
-      throw StateError('No signed-in doctor — cannot access revenue data.');
-    }
-    return uid;
+    return (uid != null && uid.isNotEmpty) ? uid : 'anonymous';
   }
 
   Map<String, dynamic> _encryptedForFirestore(Map<String, dynamic> map) {
@@ -92,10 +89,14 @@ class RevenueRepository {
 
   /// Streams the live list of active (non-deleted) revenue entries.
   Stream<List<RevenueEntry>> watchRevenueEntries() {
+    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    if (doctorId == null || doctorId.isEmpty) {
+      return Stream.value(const <RevenueEntry>[]);
+    }
     if (kIsWeb) {
       return FirebaseFirestore.instance
           .collection('revenue_entries')
-          .where('doctorId', isEqualTo: _currentDoctorId)
+          .where('doctorId', isEqualTo: doctorId)
           .snapshots()
           .map((snapshot) {
         final list = snapshot.docs

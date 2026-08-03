@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
@@ -57,9 +58,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
 
 
-    // Pre-fill demo credentials
-    _emailController.text = _demoEmail;
-    _passwordController.text = _demoPassword;
+    // Clean empty text controllers by default
   }
 
   @override
@@ -104,6 +103,155 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     );
   }
 
+  Future<void> _syncUserProfile(User user, {String? name}) async {
+    try {
+      final ref = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final snap = await ref.get();
+
+      String derivedName = name?.trim() ?? '';
+      if (derivedName.isEmpty && user.displayName != null && user.displayName!.trim().isNotEmpty) {
+        derivedName = user.displayName!.trim();
+      }
+      if (derivedName.isEmpty && user.email != null && user.email!.isNotEmpty) {
+        final emailPart = user.email!.split('@').first;
+        final parts = emailPart.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+        if (parts.isNotEmpty) {
+          derivedName = parts.map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase()).join(' ');
+        }
+      }
+      if (derivedName.isEmpty) derivedName = 'Doctor';
+
+      if (user.displayName == null || user.displayName!.isEmpty) {
+        await user.updateDisplayName(derivedName);
+      }
+
+      if (!snap.exists) {
+        await ref.set({
+          'uid': user.uid,
+          'email': user.email ?? '',
+          'displayName': derivedName,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      } else if (derivedName.isNotEmpty) {
+        final existingName = snap.data()?['displayName'] as String?;
+        if (existingName == null || existingName.isEmpty) {
+          await ref.update({'displayName': derivedName});
+        }
+      }
+    } catch (e) {
+      debugPrint('Sync user profile warning: $e');
+    }
+  }
+
+  /// Sanitizes user credentials to prevent script injection / XSS / SQLi patterns
+  String _sanitizeAuthInput(String input) {
+    return input
+        .replaceAll(RegExp(r'<[^>]*>'), '') // Strip HTML & script tags
+        .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '') // Strip non-printable control chars
+        .replaceAll(RegExp(r"['\x22;\\]"), '') // Strip injection delimiters
+        .trim();
+  }
+
+  void _showAuthToast(String message, {bool isError = true}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(
+              isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showUserDoesNotExistDialog({
+    String title = 'User Does Not Exist',
+    required String message,
+  }) {
+    if (!mounted) return;
+
+    // Trigger floating toast message
+    _showAuthToast(message, isError: true);
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: Colors.white,
+          title: Row(
+            children: [
+              const Icon(Icons.account_circle_outlined,
+                  color: Color(0xFFEF4444), size: 26),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    color: Color(0xFF0F172A),
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Text(
+            message,
+            style: const TextStyle(
+              color: Color(0xFF475569),
+              fontSize: 14,
+              height: 1.4,
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              ),
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showError(String message) {
+    _showAuthToast(message, isError: true);
+  }
+
   void _enterApp() {
     if (!mounted) return;
     context.go('/dashboard');
@@ -113,55 +261,126 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   Future<void> _handleEmailLogin() async {
     if (_isLoading) return; // Rate-limiting guard against double submission
-    var email = _emailController.text.trim();
-    var password = _passwordController.text.trim();
+    final email = _sanitizeAuthInput(_emailController.text);
+    final password = _sanitizeAuthInput(_passwordController.text);
 
-    // Auto-fill demo credentials if user taps Login with empty fields
-    if (email.isEmpty) {
-      email = _demoEmail;
-      _emailController.text = _demoEmail;
-    }
-    if (password.isEmpty) {
-      password = _demoPassword;
-      _passwordController.text = _demoPassword;
-    }
-
-    // Demo credentials bypass — no Firebase call needed
-    if (email == _demoEmail && password == _demoPassword) {
-      _enterApp();
+    // Check empty fields
+    if (email.isEmpty || password.isEmpty) {
+      _showUserDoesNotExistDialog(
+        title: 'User Does Not Exist',
+        message:
+            'User does not exist. Please enter valid email and password credentials.',
+      );
       return;
     }
 
-    // Real Firebase email/password auth
+    // Real Firebase Auth login (Strict Super Admin / Firebase Database verification)
     setState(() => _isLoading = true);
+    final startTime = DateTime.now();
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-      if (!mounted) return;
-      _enterApp();
-    } on FirebaseAuthException catch (e) {
-      if (!mounted) return;
-      if (e.code == 'user-not-found' || e.code == 'invalid-credential' || e.code == 'wrong-password') {
+
+      final user = userCred.user;
+      if (user != null) {
+        bool existsInDatabase = false;
+        bool isDisabled = false;
+
         try {
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: email,
-            password: password.length >= 6 ? password : '${password}1234',
-          );
-          if (!mounted) return;
-          _enterApp();
-          return;
-        } catch (_) {
-          _enterApp();
+          // 1. Direct UID lookup in Firestore 'users' database collection
+          final uidDoc = await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .get();
+
+          if (uidDoc.exists && uidDoc.data() != null) {
+            existsInDatabase = true;
+            final data = uidDoc.data()!;
+            if (data['status'] == 'Disabled' || data['status'] == 'Inactive') {
+              isDisabled = true;
+            }
+          } else {
+            // 2. Email fallback query in 'users' database collection
+            if (user.email != null && user.email!.isNotEmpty) {
+              final querySnap = await FirebaseFirestore.instance
+                  .collection('users')
+                  .where('email', isEqualTo: user.email!.toLowerCase().trim())
+                  .get();
+
+              if (querySnap.docs.isNotEmpty) {
+                existsInDatabase = true;
+                final data = querySnap.docs.first.data();
+                if (data['status'] == 'Disabled' || data['status'] == 'Inactive') {
+                  isDisabled = true;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('Database check warning: $e');
+        }
+
+        // Enforce timing floor (500ms) to guard against response-timing side channel attacks
+        final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+        if (elapsed < 500) {
+          await Future.delayed(Duration(milliseconds: 500 - elapsed));
+        }
+
+        // If user is marked disabled/inactive in database
+        if (isDisabled) {
+          await FirebaseAuth.instance.signOut();
+          if (mounted) {
+            _showUserDoesNotExistDialog(
+              title: 'Account Disabled',
+              message: 'Your account has been disabled by Super Admin.',
+            );
+          }
           return;
         }
+
+        // If user does NOT exist in Firestore database
+        if (!existsInDatabase) {
+          await FirebaseAuth.instance.signOut();
+          if (mounted) {
+            _showUserDoesNotExistDialog(
+              title: 'User Does Not Exist',
+              message:
+                  'User does not exist in database. Please contact Super Admin to create your account.',
+            );
+          }
+          return;
+        }
+
+        // User exists in database and is active -> allow login!
+        await _syncUserProfile(user);
+        if (!mounted) return;
+        _enterApp();
+      } else {
+        if (!mounted) return;
+        _showUserDoesNotExistDialog(
+          title: 'User Does Not Exist',
+          message:
+              'User does not exist in database. Please contact Super Admin to create your account.',
+        );
       }
-      _showError(e.message ?? 'Login failed');
     } catch (e) {
+      debugPrint('Login auth exception: $e');
+      
+      // Enforce timing floor (500ms) to guard against response-timing side channel attacks
+      final elapsed = DateTime.now().difference(startTime).inMilliseconds;
+      if (elapsed < 500) {
+        await Future.delayed(Duration(milliseconds: 500 - elapsed));
+      }
+
       if (!mounted) return;
-      _enterApp();
+      _showUserDoesNotExistDialog(
+        title: 'User Does Not Exist',
+        message:
+            'User does not exist in database. Please contact Super Admin to create your account.',
+      );
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -201,8 +420,8 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         email: email,
         password: password,
       );
-      if (name.isNotEmpty) {
-        await credential.user?.updateDisplayName(name);
+      if (credential.user != null) {
+        await _syncUserProfile(credential.user!, name: name);
       }
       if (!mounted) return;
       _enterApp();
@@ -251,17 +470,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     if (result != null && mounted) {
       _enterApp();
     }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.redAccent,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
   }
 
   @override
@@ -855,7 +1063,7 @@ class _WebAuthPortalCard extends StatelessWidget {
         // Email Field
         _WebTextField(
           controller: emailController,
-          hintText: 'doctor@crudoc.com',
+          hintText: 'Enter your email address',
           icon: Icons.person_outline_rounded,
         ),
         const SizedBox(height: 16),
@@ -863,7 +1071,7 @@ class _WebAuthPortalCard extends StatelessWidget {
         // Password Field
         _WebTextField(
           controller: passwordController,
-          hintText: '••••••••••••••••',
+          hintText: 'Enter your password',
           icon: Icons.lock_outline_rounded,
           obscureText: obscurePassword,
           trailing: IconButton(

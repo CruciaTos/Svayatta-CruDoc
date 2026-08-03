@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import '../models/doctor_model.dart';
 import '../config/enums.dart';
@@ -18,34 +19,33 @@ class SuperAdminDoctorService {
     String? specializationFilter,
   }) async {
     try {
-      Query query = _fb.usersCollection
-          .where('role', isEqualTo: 'doctor')
-          .where('isDeleted', isEqualTo: false)
-          .orderBy('accountCreated', descending: true)
-          .limit(limit);
-
-      if (statusFilter != null) {
-        query = query.where('status', isEqualTo: statusFilter.name);
-      }
-      if (planFilter != null) {
-        query = query.where('subscriptionPlan', isEqualTo: planFilter.name);
-      }
-      if (lastDocId != null) {
-        final lastDoc = await _fb.usersCollection.doc(lastDocId).get();
-        if (lastDoc.exists) {
-          query = query.startAfterDocument(lastDoc);
-        }
-      }
-
-      final snapshot = await query.get();
+      final snapshot = await _fb.usersCollection.get();
       final doctors = <DoctorModel>[];
 
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
+        final role = (data['role'] as String? ?? '').toLowerCase();
+        final isDeleted = data['isDeleted'] as bool? ?? false;
+
+        if (role != 'doctor' || isDeleted) {
+          continue;
+        }
+
+        if (statusFilter != null) {
+          final status = data['status'] as String? ?? DoctorStatus.pending.name;
+          if (status != statusFilter.name) continue;
+        }
+
+        if (planFilter != null) {
+          final plan = data['subscriptionPlan'] as String? ?? SubscriptionPlan.starter.name;
+          if (plan != planFilter.name) continue;
+        }
+
         doctors.add(DoctorModel.fromJson(data, doc.id));
       }
 
-      // Client-side search filtering for text searches
+      doctors.sort((a, b) => b.accountCreated.compareTo(a.accountCreated));
+
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final queryLower = searchQuery.toLowerCase();
         return doctors.where((d) {
@@ -53,10 +53,10 @@ class SuperAdminDoctorService {
               d.email.toLowerCase().contains(queryLower) ||
               d.phone.contains(queryLower) ||
               d.clinicName.toLowerCase().contains(queryLower);
-        }).toList();
+        }).take(limit).toList();
       }
 
-      return doctors;
+      return doctors.take(limit).toList();
     } catch (e) {
       throw Exception('Failed to fetch doctors: ${e.toString()}');
     }
@@ -88,23 +88,8 @@ class SuperAdminDoctorService {
     List<String>? enabledModules,
   }) async {
     try {
-      // 1. Create Firebase Auth user
-      final userCredential = await _fb.auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      final doctorId = userCredential.user!.uid;
-
-      // 2. Custom claims are set via Cloud Function in production
-
-      // 3. Create Firestore document in a batch
-      final batch = _fb.batch();
-
-      // Doctor user document
-      final now = Timestamp.now();
-      final modules = enabledModules ?? subscriptionPlan.includedModules;
-      final doctorDoc = _fb.usersCollection.doc(doctorId);
-      batch.set(doctorDoc, {
+      final callable = FirebaseFunctions.instance.httpsCallable('createDoctor');
+      final result = await callable.call<Map<String, dynamic>>({
         'name': name,
         'email': email,
         'phone': phone,
@@ -113,48 +98,15 @@ class SuperAdminDoctorService {
         'country': country,
         'timeZone': timeZone,
         'subscriptionPlan': subscriptionPlan.name,
-        'status': DoctorStatus.active.name,
-        'role': 'doctor',
-        'accountCreated': now,
-        'lastLogin': null,
-        'storageUsedGB': 0.0,
         'storageLimitGB': storageLimitGB,
-        'patientCount': 0,
-        'appointmentCount': 0,
-        'activeDeviceCount': 0,
-        'ocrRequestsThisMonth': 0,
-        'enabledModules': modules,
-        'totalSessions': 0,
-        'isDeleted': false,
-        'notes': null,
+        'password': password,
+        'enabledModules': enabledModules ?? subscriptionPlan.includedModules,
       });
 
-      // Doctor settings document
-      final settingsDoc = _fb.doctorSettingsCollection.doc(doctorId);
-      batch.set(settingsDoc, {
-        'doctorId': doctorId,
-        'enabledModules': modules,
-        'lastModified': now,
-        'createdAt': now,
-      });
-
-      // Subscription document
-      final subDoc = _fb.subscriptionsCollection.doc(doctorId);
-      batch.set(subDoc, {
-        'doctorId': doctorId,
-        'plan': subscriptionPlan.name,
-        'subscribedDate': now,
-        'isTrial': false,
-        'autoRenew': true,
-        'history': [],
-        'lastModified': now,
-        'modifiedBy': _fb.currentUserEmail,
-      });
-
-      await batch.commit();
-
-      // 4. Send welcome email (would trigger a Cloud Function in production)
-      // await _fb.sendWelcomeEmail(doctorId, email, password);
+      final doctorId = result.data['doctorId'] as String?;
+      if (doctorId == null || doctorId.isEmpty) {
+        throw Exception('Doctor creation did not return an ID');
+      }
 
       return DoctorModel(
         id: doctorId,
@@ -167,10 +119,12 @@ class SuperAdminDoctorService {
         timeZone: timeZone,
         subscriptionPlan: subscriptionPlan,
         status: DoctorStatus.active,
-        accountCreated: now.toDate(),
+        accountCreated: DateTime.now(),
         storageLimitGB: storageLimitGB,
-        enabledModules: modules,
+        enabledModules: enabledModules ?? subscriptionPlan.includedModules,
       );
+    } on FirebaseFunctionsException catch (e) {
+      throw Exception(e.message ?? 'Failed to create doctor');
     } on fb_auth.FirebaseAuthException catch (e) {
       throw Exception('Auth error: ${e.message}');
     } catch (e) {

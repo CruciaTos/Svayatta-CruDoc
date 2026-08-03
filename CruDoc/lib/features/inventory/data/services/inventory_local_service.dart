@@ -4,6 +4,7 @@ import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Cap for [InventoryLocalService.watchRecentTransactions] — enough to
@@ -35,6 +36,12 @@ class InventoryLocalService {
   final LocalDatabaseService _databaseService;
   final StreamController<List<MedicineModel>> _medicinesController =
       StreamController<List<MedicineModel>>.broadcast();
+
+  String _currentDoctorId() {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null || uid.isEmpty) return '';
+    return uid;
+  }
   // Backs [watchRecentTransactions] — unlike [getTransactionsForMedicine],
   // this spans every medicine, most recent first, for the dashboard's
   // "Recent Activity" feed.
@@ -93,8 +100,8 @@ class InventoryLocalService {
     await db.update(
       'medicines',
       row,
-      where: 'id = ?',
-      whereArgs: [medicineId],
+      where: 'id = ? AND doctorId = ?',
+      whereArgs: [medicineId, _currentDoctorId()],
     );
     await _emitMedicines();
   }
@@ -110,8 +117,8 @@ class InventoryLocalService {
     final db = await _databaseService.database;
     final rows = await db.query(
       'medicines',
-      where: 'id = ? AND isActive = 1',
-      whereArgs: [medicineId],
+      where: 'id = ? AND doctorId = ? AND isActive = 1',
+      whereArgs: [medicineId, _currentDoctorId()],
       limit: 1,
     );
     if (rows.isEmpty) return null;
@@ -153,8 +160,8 @@ class InventoryLocalService {
     await db.transaction((txn) async {
       final medicineRows = await txn.query(
         'medicines',
-        where: 'id = ? AND isActive = 1',
-        whereArgs: [transaction.medicineId],
+        where: 'id = ? AND doctorId = ? AND isActive = 1',
+        whereArgs: [transaction.medicineId, _currentDoctorId()],
         limit: 1,
       );
       if (medicineRows.isEmpty) {
@@ -199,8 +206,8 @@ class InventoryLocalService {
           'syncStatus': 'pending',
           'updatedAt': _dateTimeToMillis(now),
         },
-        where: 'id = ?',
-        whereArgs: [transaction.medicineId],
+        where: 'id = ? AND doctorId = ?',
+        whereArgs: [transaction.medicineId, _currentDoctorId()],
       );
     });
 
@@ -215,8 +222,8 @@ class InventoryLocalService {
     final db = await _databaseService.database;
     final rows = await db.query(
       'stock_transactions',
-      where: 'medicineId = ? AND isActive = 1',
-      whereArgs: [medicineId],
+      where: 'medicineId = ? AND doctorId = ? AND isActive = 1',
+      whereArgs: [medicineId, _currentDoctorId()],
       orderBy: 'createdAt DESC',
     );
     return rows.map(_transactionFromRow).toList();
@@ -243,7 +250,8 @@ class InventoryLocalService {
     final db = await _databaseService.database;
     final rows = await db.query(
       'medicines',
-      where: 'isActive = 1',
+      where: 'isActive = 1 AND doctorId = ?',
+      whereArgs: [_currentDoctorId()],
       orderBy: 'name ASC',
     );
     if (!_medicinesController.isClosed) {
@@ -257,7 +265,8 @@ class InventoryLocalService {
     final db = await _databaseService.database;
     final rows = await db.query(
       'stock_transactions',
-      where: 'isActive = 1',
+      where: 'isActive = 1 AND doctorId = ?',
+      whereArgs: [_currentDoctorId()],
       orderBy: 'createdAt DESC',
       limit: kRecentTransactionsLimit,
     );

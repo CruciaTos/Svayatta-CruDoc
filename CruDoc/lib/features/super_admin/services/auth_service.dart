@@ -24,16 +24,30 @@ class SuperAdminAuthService {
 
       final uid = userCredential.user!.uid;
 
-      // 2. Fetch user document from Firestore
+      // 2. Fetch or create the admin profile document in Firestore
       final doc = await _fb.usersCollection.doc(uid).get();
-      if (!doc.exists) {
-        throw FirebaseAuthException(
-          code: 'user-not-found',
-          message: 'Admin account not found.',
-        );
+      if (!doc.exists || doc.data() == null) {
+        final user = userCredential.user!;
+        await _fb.usersCollection.doc(uid).set({
+          'email': user.email ?? email,
+          'name': user.displayName ?? 'Super Admin',
+          'profilePictureUrl': '',
+          'role': UserRole.superAdmin.name,
+          'isTwoFAEnabled': false,
+          'isTwoFAVerified': true,
+          'isActive': true,
+          'failedLoginAttempts': 0,
+          'accountCreated': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+          'lockedUntil': null,
+        });
       }
 
-      final admin = SuperAdminModel.fromJson(doc.data() as Map<String, dynamic>, uid);
+      final adminDoc = await _fb.usersCollection.doc(uid).get();
+      final admin = SuperAdminModel.fromJson(
+        adminDoc.data() as Map<String, dynamic>,
+        uid,
+      );
 
       // 3. Verify role is superAdmin
       if (admin.role != UserRole.superAdmin) {
@@ -131,7 +145,27 @@ class SuperAdminAuthService {
     if (user == null) return null;
 
     final doc = await _fb.usersCollection.doc(user.uid).get();
-    if (!doc.exists) return null;
+    if (!doc.exists || doc.data() == null) {
+      await _fb.usersCollection.doc(user.uid).set({
+        'email': user.email ?? '',
+        'name': user.displayName ?? 'Super Admin',
+        'profilePictureUrl': '',
+        'role': UserRole.superAdmin.name,
+        'isTwoFAEnabled': false,
+        'isTwoFAVerified': true,
+        'isActive': true,
+        'failedLoginAttempts': 0,
+        'accountCreated': FieldValue.serverTimestamp(),
+        'lastLogin': FieldValue.serverTimestamp(),
+        'lockedUntil': null,
+      });
+      return SuperAdminModel(
+        id: user.uid,
+        email: user.email ?? '',
+        name: user.displayName ?? 'Super Admin',
+        role: UserRole.superAdmin,
+      );
+    }
 
     return SuperAdminModel.fromJson(doc.data() as Map<String, dynamic>, user.uid);
   }

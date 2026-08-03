@@ -67,6 +67,7 @@ void _wireDoctorScopedStartup() {
     if (user == null) {
       if (lastHandledUid != null) {
         await FirestoreSyncService.instance.stop();
+        await LocalDatabaseService.instance.close();
         EncryptionKeyManager.instance.clear();
         lastHandledUid = null;
       }

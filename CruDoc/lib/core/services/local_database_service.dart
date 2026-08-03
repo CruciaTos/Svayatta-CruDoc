@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
@@ -16,7 +17,7 @@ class LocalDatabaseService extends ChangeNotifier {
 
   static final LocalDatabaseService instance = LocalDatabaseService._();
 
-  static const String _databaseName = 'crudoc.db';
+  static const String _databaseNamePrefix = 'crudoc';
   static const int _databaseVersion = 1;
 
   static const _secureStorage = FlutterSecureStorage(
@@ -25,36 +26,97 @@ class LocalDatabaseService extends ChangeNotifier {
   static const _dbPassphraseKey = 'crudoc_local_db_passphrase';
 
   Database? _database;
+  String? _databaseDoctorId;
 
   Future<Database> get database async {
     if (kIsWeb) {
       throw UnsupportedError('SQLite is disabled on Web. Repositories read directly from Cloud Firestore on Web.');
     }
+
+    final requestedDoctorId = FirebaseAuth.instance.currentUser?.uid ?? 'signed_out';
     final existing = _database;
-    if (existing != null) return existing;
+    if (existing != null && _databaseDoctorId == requestedDoctorId) {
+      return existing;
+    }
+    if (existing != null) {
+      await existing.close();
+      _database = null;
+      _databaseDoctorId = null;
+    }
 
     final databasesPath = await getDatabasesPath();
-    final dbPath = p.join(databasesPath, _databaseName);
+    final dbPath = p.join(
+      databasesPath,
+      _databaseFileNameForDoctor(requestedDoctorId),
+    );
     final passphrase = await _getOrCreatePassphrase();
 
-    final db = await openDatabase(
-      dbPath,
-      password: passphrase,
-      version: _databaseVersion,
-      onConfigure: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON');
-      },
-      onCreate: (db, version) async {
-        await _createSchema(db);
-      },
-      onOpen: (db) async {
-        await db.execute('PRAGMA foreign_keys = ON');
-        await _runGuardedMigrations(db);
-      },
-    );
+    final db = await _openDatabaseWithRecovery(dbPath, passphrase);
 
     _database = db;
+    _databaseDoctorId = requestedDoctorId;
     return db;
+  }
+
+  String _databaseFileNameForDoctor(String doctorId) {
+    final safeDoctorId = doctorId.trim().isEmpty ? 'signed_out' : doctorId;
+    return '${_databaseNamePrefix}_$safeDoctorId.db';
+  }
+
+  Future<Database> _openDatabaseWithRecovery(String dbPath, String passphrase) async {
+    try {
+      return await openDatabase(
+        dbPath,
+        password: passphrase,
+        version: _databaseVersion,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: (db, version) async {
+          await _createSchema(db);
+        },
+        onOpen: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+          await _runGuardedMigrations(db);
+        },
+      );
+    } on DatabaseException catch (error) {
+      if (!_isRecoverableOpenError(error)) {
+        rethrow;
+      }
+
+      try {
+        await deleteDatabase(dbPath);
+      } catch (_) {
+        // Ignore cleanup failures and retry once; the next open attempt will
+        // surface the real issue if the database is still not recoverable.
+      }
+
+      return openDatabase(
+        dbPath,
+        password: passphrase,
+        version: _databaseVersion,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+        onCreate: (db, version) async {
+          await _createSchema(db);
+        },
+        onOpen: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+          await _runGuardedMigrations(db);
+        },
+      );
+    }
+  }
+
+  bool _isRecoverableOpenError(DatabaseException error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('file is not a database') ||
+        message.contains('not a database') ||
+        message.contains('unable to determine format version') ||
+        message.contains('hmac') ||
+        message.contains('open_failed');
   }
 
   /// Encrypts the local SQLite file at rest with a random 256-bit passphrase
@@ -79,6 +141,7 @@ class LocalDatabaseService extends ChangeNotifier {
 
     await db.close();
     _database = null;
+    _databaseDoctorId = null;
   }
 
   Future<void> _createSchema(Database db) async {

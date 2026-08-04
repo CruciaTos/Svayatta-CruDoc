@@ -57,9 +57,18 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   }
 
   Map<String, dynamic>? _latestDbUserData;
+  String? _lastUserId;
 
   String _getFormattedDoctorName(User? user, [Map<String, dynamic>? dbData]) {
-    final data = dbData ?? _latestDbUserData;
+    // Reset cache if user changed
+    if (user?.uid != _lastUserId) {
+      _lastUserId = user?.uid;
+      _latestDbUserData = dbData;
+    } else if (dbData != null) {
+      _latestDbUserData = dbData;
+    }
+
+    final data = dbData ?? (user?.uid == _lastUserId ? _latestDbUserData : null);
 
     if (data != null) {
       // 1. Check explicit Full Name fields first
@@ -95,7 +104,48 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
       return name.toLowerCase().startsWith('dr') ? name : 'Dr. $name';
     }
 
+    // 4. Format email handle nicely if no name in DB
+    if (user?.email != null && user!.email!.trim().isNotEmpty) {
+      final rawName = user.email!.split('@').first;
+      final cleanHandle = rawName.replaceAll(RegExp(r'\d+$'), '');
+      final parts = cleanHandle.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+      if (parts.isNotEmpty) {
+        final formatted = parts.map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase()).join(' ');
+        return 'Dr. $formatted';
+      }
+    }
+
     return 'Doctor';
+  }
+
+  Stream<Map<String, dynamic>?> _watchDoctorProfileStream(User user) async* {
+    final uidDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    await for (final snap in uidDocRef.snapshots()) {
+      if (snap.exists && snap.data() != null) {
+        yield snap.data();
+      } else {
+        final email = user.email?.trim();
+        if (email != null && email.isNotEmpty) {
+          final q1 = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: email.toLowerCase())
+              .get();
+          if (q1.docs.isNotEmpty) {
+            yield q1.docs.first.data();
+            continue;
+          }
+          final q2 = await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: email)
+              .get();
+          if (q2.docs.isNotEmpty) {
+            yield q2.docs.first.data();
+            continue;
+          }
+        }
+        yield null;
+      }
+    }
   }
 
   String get _doctorName =>
@@ -554,18 +604,12 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                 );
               }
 
-              return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: (user.email != null && user.email!.isNotEmpty)
-                    ? FirebaseFirestore.instance
-                        .collection('users')
-                        .where('email', isEqualTo: user.email!.toLowerCase().trim())
-                        .snapshots()
-                    : null,
+              return StreamBuilder<Map<String, dynamic>?>(
+                stream: _watchDoctorProfileStream(user),
                 builder: (context, snapshot) {
                   Map<String, dynamic>? dbData;
-                  if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-                    dbData = snapshot.data!.docs.first.data();
-                    _latestDbUserData = dbData;
+                  if (snapshot.hasData) {
+                    dbData = snapshot.data;
                   }
 
                   final displayName = _getFormattedDoctorName(user, dbData);

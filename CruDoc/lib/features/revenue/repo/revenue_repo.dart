@@ -36,6 +36,15 @@ class RevenueRepository {
     if (out['payer'] is String) {
       out['payer'] = FieldCipher.encrypt(out['payer'] as String);
     }
+    if (out['notes'] is String) {
+      out['notes'] = FieldCipher.encrypt(out['notes'] as String);
+    }
+    if (out['amount'] is num) {
+      out['amount'] = FieldCipher.encrypt(out['amount'].toString());
+    }
+    if (out['doctorId'] is String) {
+      out['doctorId'] = FieldCipher.encrypt(out['doctorId'] as String);
+    }
     return out;
   }
 
@@ -46,6 +55,16 @@ class RevenueRepository {
     }
     if (out['payer'] is String) {
       out['payer'] = FieldCipher.decrypt(out['payer'] as String);
+    }
+    if (out['notes'] is String) {
+      out['notes'] = FieldCipher.decrypt(out['notes'] as String);
+    }
+    if (out['amount'] is String) {
+      final parsed = double.tryParse(FieldCipher.decrypt(out['amount'] as String));
+      out['amount'] = parsed ?? 0.0;
+    }
+    if (out['doctorId'] is String) {
+      out['doctorId'] = FieldCipher.decrypt(out['doctorId'] as String);
     }
     return out;
   }

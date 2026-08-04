@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/core/services/encryption_key_manager.dart';
 import 'package:doctor_management_app/core/errors/patient_exceptions.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
@@ -51,11 +52,13 @@ class PatientRepository {
       out['phone'] = FieldCipher.encrypt(out['phone'] as String?);
     }
     if (out.containsKey('diagnosis')) {
-      out['diagnosis'] = out['diagnosis'] is List
-          ? (out['diagnosis'] as List)
-              .map((d) => FieldCipher.encrypt(d.toString()))
-              .toList()
-          : out['diagnosis'];
+      if (out['diagnosis'] is List) {
+        out['diagnosis'] = (out['diagnosis'] as List)
+            .map((d) => FieldCipher.encrypt(d.toString()))
+            .toList();
+      } else if (out['diagnosis'] is String) {
+        out['diagnosis'] = FieldCipher.encrypt(out['diagnosis'] as String?);
+      }
     }
     if (out.containsKey('notes')) {
       out['notes'] = FieldCipher.encrypt(out['notes'] as String?);
@@ -74,7 +77,9 @@ class PatientRepository {
     if (out['phone'] is String) {
       out['phone'] = FieldCipher.decrypt(out['phone'] as String);
     }
-    if (out['diagnosis'] is List) {
+    if (out['diagnosis'] is String) {
+      out['diagnosis'] = FieldCipher.decrypt(out['diagnosis'] as String);
+    } else if (out['diagnosis'] is List) {
       out['diagnosis'] = (out['diagnosis'] as List)
           .map((d) => FieldCipher.decrypt(d.toString()))
           .toList();
@@ -108,6 +113,9 @@ class PatientRepository {
     );
 
     if (kIsWeb) {
+      if (!FieldCipher.isReady) {
+        await EncryptionKeyManager.instance.loadForDoctor(_currentDoctorId);
+      }
       await FirebaseFirestore.instance
           .collection('patients')
           .doc(id)
@@ -138,6 +146,9 @@ class PatientRepository {
       ..remove('doctorId');
 
     if (kIsWeb) {
+      if (!FieldCipher.isReady) {
+        await EncryptionKeyManager.instance.loadForDoctor(_currentDoctorId);
+      }
       await FirebaseFirestore.instance
           .collection('patients')
           .doc(patientId)
@@ -173,6 +184,11 @@ class PatientRepository {
   /// Fetches a single patient by id.
   Future<Patient?> getPatient(String patientId) async {
     if (kIsWeb) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.uid.isEmpty) return null;
+      if (!FieldCipher.isReady) {
+        await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+      }
       final doc = await FirebaseFirestore.instance
           .collection('patients')
           .doc(patientId)
@@ -186,11 +202,18 @@ class PatientRepository {
   /// Streams the live list of active (non-archived) patients.
   Stream<List<Patient>> watchPatients() {
     if (kIsWeb) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.uid.isEmpty) {
+        return Stream.value(const []);
+      }
       return FirebaseFirestore.instance
           .collection('patients')
-          .where('doctorId', isEqualTo: _currentDoctorId)
+          .where('doctorId', isEqualTo: user.uid)
           .snapshots()
-          .map((snapshot) {
+          .asyncMap((snapshot) async {
+        if (!FieldCipher.isReady) {
+          await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+        }
         final list = snapshot.docs
             .map((doc) => Patient.fromMap(
                   _decryptedFromFirestore(doc.data()),
@@ -214,9 +237,14 @@ class PatientRepository {
     if (cleanQuery.isEmpty) return const [];
 
     if (kIsWeb) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null || user.uid.isEmpty) return const [];
+      if (!FieldCipher.isReady) {
+        await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+      }
       final snap = await FirebaseFirestore.instance
           .collection('patients')
-          .where('doctorId', isEqualTo: _currentDoctorId)
+          .where('doctorId', isEqualTo: user.uid)
           .get();
 
       final list = snap.docs

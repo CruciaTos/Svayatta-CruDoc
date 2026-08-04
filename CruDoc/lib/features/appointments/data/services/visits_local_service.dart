@@ -211,6 +211,8 @@ class VisitLocalService {
     await _emitAll();
   }
 
+  Future<void> notifyVisitsChanged() => _emitAll();
+
   Future<void> _emitAll() async {
     await _emitUpcomingVisits();
     await _emitTodaysVisits();

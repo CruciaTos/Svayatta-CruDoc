@@ -37,6 +37,8 @@ class PatientLocalService {
   /// broken by a future bug.
   String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
+  Future<void> notifyPatientsChanged() => _emitPatients();
+
   Future<String> upsertPatient(
     Patient patient, {
     String syncStatus = 'pending',

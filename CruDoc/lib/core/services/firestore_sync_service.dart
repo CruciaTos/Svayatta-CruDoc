@@ -5,6 +5,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
+import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
@@ -51,6 +54,8 @@ class FirestoreSyncService {
     'visitations': 'home',
   };
 
+  final List<StreamSubscription> _liveSubscriptions = [];
+
   Future<void> start() async {
     if (_isStarted) return;
     _isStarted = true;
@@ -63,13 +68,62 @@ class FirestoreSyncService {
       }
     });
 
+    final doctorId = _currentDoctorId;
+    if (doctorId != null) {
+      _startLiveSubscriptions(doctorId);
+    }
+
     unawaited(synchronize());
   }
 
   Future<void> stop() async {
     await _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
+    _stopLiveSubscriptions();
     _isStarted = false;
+  }
+
+  void _startLiveSubscriptions(String doctorId) {
+    _stopLiveSubscriptions();
+
+    for (final collection in _collections) {
+      final sub = _firestore
+          .collection(collection)
+          .where('doctorId', isEqualTo: doctorId)
+          .snapshots()
+          .listen((snapshot) async {
+        for (final doc in snapshot.docs) {
+          await _upsertDownloadedRow(collection, doc.id, doc.data(), doctorId);
+        }
+      });
+      _liveSubscriptions.add(sub);
+    }
+
+    for (final firestoreCollection in _visitFirestoreToType.keys) {
+      final sub = _firestore
+          .collection(firestoreCollection)
+          .where('doctorId', isEqualTo: doctorId)
+          .snapshots()
+          .listen((snapshot) async {
+        for (final doc in snapshot.docs) {
+          await _upsertDownloadedRow(
+            firestoreCollection,
+            doc.id,
+            doc.data(),
+            doctorId,
+            sqliteTable: 'visits',
+          );
+        }
+      });
+      _liveSubscriptions.add(sub);
+    }
+  }
+
+  void _stopLiveSubscriptions() {
+    for (final sub in _liveSubscriptions) {
+      sub.cancel();
+    }
+    _liveSubscriptions.clear();
   }
 
   Future<void> triggerPostWriteSync() => synchronize();
@@ -87,6 +141,7 @@ class FirestoreSyncService {
     _isSyncing = true;
 
     try {
+      _startLiveSubscriptions(doctorId);
       await _uploadPendingRows(doctorId);
       await _downloadChangedRows(doctorId);
     } catch (_) {
@@ -186,17 +241,9 @@ class FirestoreSyncService {
     // ── non-visit collections ────────────────────────────────────────────────
     for (final collection in _collections) {
       final lastSyncTime = await _lastSyncTime(collection);
-      // CRITICAL: `.where('doctorId', isEqualTo: doctorId)` is what stops this
-      // device from downloading every other doctor's data. It pairs with the
-      // Firestore security rule that requires `doctorId == request.auth.uid`
-      // on these collections — see firestore.rules.
       final snapshot = await _firestore
           .collection(collection)
           .where('doctorId', isEqualTo: doctorId)
-          .where(
-            'updatedAt',
-            isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
-          )
           .get();
 
       var newestSyncTime = lastSyncTime;
@@ -215,18 +262,11 @@ class FirestoreSyncService {
     }
 
     // ── visit Firestore collections → visits SQLite table ────────────────────
-    // `appointments` and `visitations` both land in the `visits` table.
-    // The sync-state key is the Firestore collection name so each collection
-    // tracks its own high-water mark independently.
     for (final firestoreCollection in _visitFirestoreToType.keys) {
       final lastSyncTime = await _lastSyncTime(firestoreCollection);
       final snapshot = await _firestore
           .collection(firestoreCollection)
           .where('doctorId', isEqualTo: doctorId)
-          .where(
-            'updatedAt',
-            isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
-          )
           .get();
 
       var newestSyncTime = lastSyncTime;
@@ -236,7 +276,6 @@ class FirestoreSyncService {
         if (updatedAtMillis > newestSyncTime) {
           newestSyncTime = updatedAtMillis;
         }
-        // Write into `visits`, not into a table named by the Firestore collection.
         await _upsertDownloadedRow(
           firestoreCollection,
           doc.id,
@@ -390,6 +429,21 @@ class FirestoreSyncService {
   /// when omitted it defaults to [firestoreCollection]. Pass `sqliteTable:
   /// 'visits'` when downloading from `appointments` or `visitations` so both
   /// Firestore collections land in the single `visits` SQLite table.
+  String _decryptDiagnosisForSqlite(dynamic rawDiagnosis) {
+    if (rawDiagnosis == null) return '';
+    if (rawDiagnosis is String) {
+      return FieldCipher.decrypt(rawDiagnosis);
+    }
+    if (rawDiagnosis is List) {
+      final decryptedList = rawDiagnosis
+          .map((d) => FieldCipher.decrypt(d.toString()))
+          .where((d) => d.isNotEmpty)
+          .toList();
+      return Patient.diagnosisToStored(decryptedList);
+    }
+    return rawDiagnosis.toString();
+  }
+
   Future<void> _upsertDownloadedRow(
     String firestoreCollection,
     String id,
@@ -404,6 +458,12 @@ class FirestoreSyncService {
       _sqliteRowFor(firestoreCollection, id, data, doctorId),
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
+
+    if (table == 'patients') {
+      unawaited(PatientLocalService.instance.notifyPatientsChanged());
+    } else if (table == 'visits') {
+      unawaited(VisitLocalService.instance.notifyVisitsChanged());
+    }
   }
 
   Map<String, dynamic> _sqliteRowFor(
@@ -423,7 +483,7 @@ class FirestoreSyncService {
           'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          'diagnosis': FieldCipher.decrypt(data['diagnosis'] as String? ?? ''),
+          'diagnosis': _decryptDiagnosisForSqlite(data['diagnosis']),
           'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// One-time Firestore-to-SQLite bootstrap for existing cloud data.
@@ -129,6 +130,21 @@ class InitialFirestoreMigrationService {
     });
   }
 
+  String _decryptDiagnosisForSqlite(dynamic rawDiagnosis) {
+    if (rawDiagnosis == null) return '';
+    if (rawDiagnosis is String) {
+      return FieldCipher.decrypt(rawDiagnosis);
+    }
+    if (rawDiagnosis is List) {
+      final decryptedList = rawDiagnosis
+          .map((d) => FieldCipher.decrypt(d.toString()))
+          .where((d) => d.isNotEmpty)
+          .toList();
+      return Patient.diagnosisToStored(decryptedList);
+    }
+    return rawDiagnosis.toString();
+  }
+
   Map<String, dynamic> _sqliteRowFor(
     String collection,
     String id,
@@ -146,7 +162,7 @@ class InitialFirestoreMigrationService {
           'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
-          'diagnosis': FieldCipher.decrypt(data['diagnosis'] as String? ?? ''),
+          'diagnosis': _decryptDiagnosisForSqlite(data['diagnosis']),
           'notes': FieldCipher.decrypt(data['notes'] as String? ?? ''),
           'packageBalance': (data['packageBalance'] as num?)?.toDouble() ?? 0,
           'isArchived': (data['isArchived'] as bool? ?? false) ? 1 : 0,

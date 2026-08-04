@@ -209,7 +209,35 @@ class PatientRepository {
   Future<List<Patient>> searchPatients(
     String query, {
     bool includeArchived = true,
-  }) {
+  }) async {
+    final cleanQuery = query.trim().toLowerCase();
+    if (cleanQuery.isEmpty) return const [];
+
+    if (kIsWeb) {
+      final snap = await FirebaseFirestore.instance
+          .collection('patients')
+          .where('doctorId', isEqualTo: _currentDoctorId)
+          .get();
+
+      final list = snap.docs
+          .map((doc) => Patient.fromMap(
+                _decryptedFromFirestore(doc.data()),
+                id: doc.id,
+              ))
+          .where((p) => includeArchived || !p.isArchived)
+          .where((p) {
+            final nameMatch = p.fullName.toLowerCase().contains(cleanQuery);
+            final phoneMatch = p.phone.toLowerCase().contains(cleanQuery);
+            final diagMatch = p.diagnosisDisplay.toLowerCase().contains(cleanQuery);
+            final idMatch = p.id.toLowerCase() == cleanQuery;
+            return nameMatch || phoneMatch || diagMatch || idMatch;
+          })
+          .toList();
+
+      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return list;
+    }
+
     return _localService.searchPatients(
       query,
       includeArchived: includeArchived,

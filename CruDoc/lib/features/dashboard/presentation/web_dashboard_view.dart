@@ -18,6 +18,7 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
+import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
 import 'package:doctor_management_app/features/auth/presentation/auth_screen.dart';
 
 // ==================== CAREDOC ALL-IN-ONE WEB DASHBOARD ====================
@@ -1086,10 +1087,132 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                 ),
                                 SizedBox(
                                   width: 60,
-                                  child: IconButton(
-                                    icon: const Icon(Icons.more_horiz_rounded,
-                                        color: Color(0xFF94A3B8), size: 18),
-                                    onPressed: () {},
+                                  child: PopupMenuButton<String>(
+                                    icon: const Icon(
+                                      Icons.more_horiz_rounded,
+                                      color: Color(0xFF94A3B8),
+                                      size: 20,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    color: Colors.white,
+                                    elevation: 4,
+                                    tooltip: 'Actions',
+                                    itemBuilder: (context) => [
+                                      const PopupMenuItem(
+                                        value: 'view',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.visibility_outlined,
+                                                size: 16, color: Color(0xFF2563EB)),
+                                            SizedBox(width: 10),
+                                            Text('View Details',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600)),
+                                          ],
+                                        ),
+                                      ),
+                                      if (!isCompleted)
+                                        const PopupMenuItem(
+                                          value: 'complete',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.check_circle_outline_rounded,
+                                                  size: 16, color: Color(0xFF16A34A)),
+                                              SizedBox(width: 10),
+                                              Text('Mark Completed',
+                                                  style: TextStyle(
+                                                      fontSize: 12,
+                                                      fontWeight: FontWeight.w600)),
+                                            ],
+                                          ),
+                                        ),
+                                      const PopupMenuItem(
+                                        value: 'cancel',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.cancel_outlined,
+                                                size: 16, color: Color(0xFFEAB308)),
+                                            SizedBox(width: 10),
+                                            Text('Cancel Visit',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600)),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete_outline_rounded,
+                                                size: 16, color: Color(0xFFDC2626)),
+                                            SizedBox(width: 10),
+                                            Text('Delete Visit',
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Color(0xFFDC2626))),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                    onSelected: (value) async {
+                                      switch (value) {
+                                        case 'view':
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (_) =>
+                                                  VisitDetailsPage(initial: vw),
+                                            ),
+                                          );
+                                          break;
+                                        case 'complete':
+                                          await ref
+                                              .read(visitRepositoryProvider)
+                                              .updateStatus(visit.id,
+                                                  vmodel.VisitStatus.completed);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Appointment marked as Completed')),
+                                            );
+                                          }
+                                          break;
+                                        case 'cancel':
+                                          await ref
+                                              .read(visitRepositoryProvider)
+                                              .updateStatus(visit.id,
+                                                  vmodel.VisitStatus.cancelled);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Appointment cancelled')),
+                                            );
+                                          }
+                                          break;
+                                        case 'delete':
+                                          await ref
+                                              .read(visitRepositoryProvider)
+                                              .softDeleteVisit(visit.id);
+                                          if (context.mounted) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                  content: Text(
+                                                      'Appointment deleted')),
+                                            );
+                                          }
+                                          break;
+                                      }
+                                    },
                                   ),
                                 ),
                               ],

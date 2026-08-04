@@ -59,9 +59,8 @@ Patient? _findPatientById(List<Patient> patients, String patientId) {
   return null;
 }
 
-/// The patient from the single most recent visit that has already
-/// occurred, or null if there's no visit history yet. Feeds
-/// [LastPatientsCard].
+/// The most recently created or updated patient, or null if no patients exist.
+/// Feeds [LastPatientsCard].
 final lastPatientProvider = Provider<AsyncValue<PatientVisit?>>((ref) {
   final patientsAsync = ref.watch(patientsStreamProvider);
   final lastVisitsAsync = ref.watch(lastVisitPerPatientProvider);
@@ -69,25 +68,60 @@ final lastPatientProvider = Provider<AsyncValue<PatientVisit?>>((ref) {
   return patientsAsync.when(
     loading: () => const AsyncValue.loading(),
     error: (error, stack) => AsyncValue.error(error, stack),
-    data: (patients) => lastVisitsAsync.when(
-      loading: () => const AsyncValue.loading(),
-      error: (error, stack) => AsyncValue.error(error, stack),
-      data: (lastVisits) {
-        Visit? mostRecent;
-        for (final visit in lastVisits.values) {
-          if (mostRecent == null ||
-              visit.scheduledStart.isAfter(mostRecent.scheduledStart)) {
-            mostRecent = visit;
-          }
-        }
-        if (mostRecent == null) return const AsyncValue.data(null);
+    data: (patients) {
+      if (patients.isEmpty) return const AsyncValue.data(null);
 
-        final patient = _findPatientById(patients, mostRecent.patientId);
-        if (patient == null) return const AsyncValue.data(null);
+      // Sort patients by updatedAt descending to get the newest patient added
+      final sortedPatients = List<Patient>.from(patients)
+        ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
 
-        return AsyncValue.data((patient: patient, visit: mostRecent));
-      },
-    ),
+      final newestPatient = sortedPatients.first;
+
+      return lastVisitsAsync.when(
+        loading: () => AsyncValue.data((
+          patient: newestPatient,
+          visit: Visit(
+            id: '',
+            patientId: newestPatient.id,
+            scheduledStart: newestPatient.updatedAt,
+            durationMinutes: 30,
+            address: '',
+            status: VisitStatus.scheduled,
+            createdAt: newestPatient.createdAt,
+            updatedAt: newestPatient.updatedAt,
+          ),
+        )),
+        error: (_, __) => AsyncValue.data((
+          patient: newestPatient,
+          visit: Visit(
+            id: '',
+            patientId: newestPatient.id,
+            scheduledStart: newestPatient.updatedAt,
+            durationMinutes: 30,
+            address: '',
+            status: VisitStatus.scheduled,
+            createdAt: newestPatient.createdAt,
+            updatedAt: newestPatient.updatedAt,
+          ),
+        )),
+        data: (lastVisits) {
+          final patientVisit = lastVisits[newestPatient.id];
+          final visitToUse = patientVisit ??
+              Visit(
+                id: '',
+                patientId: newestPatient.id,
+                scheduledStart: newestPatient.updatedAt,
+                durationMinutes: 30,
+                address: '',
+                status: VisitStatus.scheduled,
+                createdAt: newestPatient.createdAt,
+                updatedAt: newestPatient.updatedAt,
+              );
+
+          return AsyncValue.data((patient: newestPatient, visit: visitToUse));
+        },
+      );
+    },
   );
 });
 

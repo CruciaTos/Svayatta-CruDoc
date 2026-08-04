@@ -69,8 +69,8 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
                   child: Text(
                     'CruDoc Admin',
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 if (isMobile)
@@ -91,34 +91,48 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
               children: SuperAdminTab.values.map((tab) {
                 final isSelected = uiState.selectedTab == tab;
                 return Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? Theme.of(context).primaryColor.withValues(alpha: 0.1)
                         : null,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: ListTile(
-                    leading: Icon(
-                      _tabIcon(tab),
-                      color: isSelected ? Theme.of(context).primaryColor : null,
-                    ),
-                    title: Text(
-                      tab.label,
-                      style: TextStyle(
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                        color: isSelected ? Theme.of(context).primaryColor : null,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: ListTile(
+                      leading: Icon(
+                        _tabIcon(tab),
+                        color: isSelected
+                            ? Theme.of(context).primaryColor
+                            : null,
                       ),
+                      title: Text(
+                        tab.label,
+                        style: TextStyle(
+                          fontWeight: isSelected
+                              ? FontWeight.w600
+                              : FontWeight.normal,
+                          color: isSelected
+                              ? Theme.of(context).primaryColor
+                              : null,
+                        ),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      onTap: () {
+                        ref.read(superAdminUIProvider.notifier).selectTab(tab);
+                        if (isMobile) {
+                          ref
+                              .read(superAdminUIProvider.notifier)
+                              .toggleSidebar();
+                        }
+                      },
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    onTap: () {
-                      ref.read(superAdminUIProvider.notifier).selectTab(tab);
-                      if (isMobile) {
-                        ref.read(superAdminUIProvider.notifier).toggleSidebar();
-                      }
-                    },
                   ),
                 );
               }).toList(),
@@ -139,7 +153,10 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
                             ? authState.currentAdmin!.name[0]
                             : 'A')
                         .toUpperCase(),
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -149,7 +166,10 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
                     children: [
                       Text(
                         authState.currentAdmin?.name ?? 'Admin',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
                       ),
                       Text(
                         authState.currentAdmin?.email ?? '',
@@ -178,12 +198,13 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
     bool isMobile,
   ) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 12),
+      padding: EdgeInsets.symmetric(
+        horizontal: isMobile ? 12 : 24,
+        vertical: 12,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey[200]!),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
       ),
       child: Row(
         children: [
@@ -195,12 +216,18 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
             ),
           if (!uiState.isSidebarOpen) ...[
             const SizedBox(width: 8),
-            Icon(Icons.admin_panel_settings,
-                color: Theme.of(context).primaryColor, size: 28),
+            Icon(
+              Icons.admin_panel_settings,
+              color: Theme.of(context).primaryColor,
+              size: 28,
+            ),
             const SizedBox(width: 8),
-            Text('CruDoc Admin',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold)),
+            Text(
+              'CruDoc Admin',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
           ],
           const Spacer(),
           Icon(Icons.notifications_outlined, color: Colors.grey[600]),
@@ -221,13 +248,15 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return const _ComingSoonTab(
           icon: Icons.subscriptions_outlined,
           title: 'Subscription Management',
-          description: 'Manage doctor subscription plans, upgrades, downgrades, and trial extensions.',
+          description:
+              'Manage doctor subscription plans, upgrades, downgrades, and trial extensions.',
         );
       case SuperAdminTab.features:
         return const _ComingSoonTab(
           icon: Icons.toggle_on_outlined,
           title: 'Feature Management',
-          description: 'Toggle feature modules on/off for individual doctors or in bulk.',
+          description:
+              'Toggle feature modules on/off for individual doctors or in bulk.',
         );
       case SuperAdminTab.analytics:
         return const _ComingSoonTab(
@@ -239,7 +268,8 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return const _ComingSoonTab(
           icon: Icons.support_agent_outlined,
           title: 'Support Tickets',
-          description: 'Manage doctor support tickets, replies, and assignments.',
+          description:
+              'Manage doctor support tickets, replies, and assignments.',
         );
       case SuperAdminTab.auditLogs:
         return const _ComingSoonTab(
@@ -251,7 +281,8 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return const _ComingSoonTab(
           icon: Icons.settings_outlined,
           title: 'Settings',
-          description: 'Configure platform settings, profile, 2FA, and system configuration.',
+          description:
+              'Configure platform settings, profile, 2FA, and system configuration.',
         );
     }
   }
@@ -327,22 +358,26 @@ class _ComingSoonTab extends StatelessWidget {
                 color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 48, color: Theme.of(context).primaryColor),
+              child: Icon(
+                icon,
+                size: 48,
+                color: Theme.of(context).primaryColor,
+              ),
             ),
             const SizedBox(height: 24),
             Text(
               title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               description,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),

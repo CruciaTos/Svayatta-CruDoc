@@ -1,8 +1,6 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-admin.initializeApp();
-
 const db = admin.firestore();
 const auth = admin.auth();
 
@@ -61,7 +59,9 @@ export const logAdminAction = functions.https.onCall(async (data: any, context: 
 // 2. CREATE DOCTOR ACCOUNT (ATOMIC)
 // ============================================================
 
-export const createDoctor = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const createDoctor = functions.region('asia-south1').https.onCall(
+  async (data: any, context: functions.https.CallableContext) => {
+
   // Verify Super Admin
   if (!context.auth || context.auth.token.role !== 'superAdmin') {
     throw new functions.https.HttpsError(
@@ -113,16 +113,24 @@ export const createDoctor = functions.https.onCall(async (data: any, context: fu
     const batch = db.batch();
     const now = admin.firestore.Timestamp.now();
 
+    const encryptedName = encryptDoctorValue(name, doctorId);
+    const encryptedEmail = encryptDoctorValue(email, doctorId);
+    const encryptedPhone = encryptDoctorValue(phone || '', doctorId);
+    const encryptedSpecialization = encryptDoctorValue(specialization || '', doctorId);
+    const encryptedClinicName = encryptDoctorValue(clinicName || '', doctorId);
+    const encryptedCountry = encryptDoctorValue(country || '', doctorId);
+    const encryptedTimeZone = encryptDoctorValue(timeZone || '', doctorId);
+
     // Doctor document
     const doctorRef = db.collection('users').doc(doctorId);
     batch.set(doctorRef, {
-      name,
-      email,
-      phone: phone || '',
-      specialization: specialization || '',
-      clinicName: clinicName || '',
-      country: country || '',
-      timeZone: timeZone || '',
+      name: encryptedName,
+      email: encryptedEmail,
+      phone: encryptedPhone,
+      specialization: encryptedSpecialization,
+      clinicName: encryptedClinicName,
+      country: encryptedCountry,
+      timeZone: encryptedTimeZone,
       subscriptionPlan: subscriptionPlan || 'starter',
       status: 'active',
       role: 'doctor',
@@ -186,6 +194,16 @@ export const createDoctor = functions.https.onCall(async (data: any, context: fu
     throw new functions.https.HttpsError('internal', errorMessage);
   }
 });
+
+function encryptDoctorValue(value: string, doctorId: string): string {
+  const crypto = require('crypto');
+  const key = crypto.createHash('sha256').update(`crudoc-doctor-profile::${doctorId}`).digest();
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  return `enc:v1:${iv.toString('base64')}.${Buffer.concat([encrypted, tag]).toString('base64')}`;
+}
 
 // ============================================================
 // 3. DELETE DOCTOR (SOFT DELETE WITH CASCADE)

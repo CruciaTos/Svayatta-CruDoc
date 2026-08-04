@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import '../../../core/services/doctor_encryption_service.dart';
 import '../models/doctor_model.dart';
 import '../config/enums.dart';
 import 'firebase_service.dart';
@@ -41,7 +42,43 @@ class SuperAdminDoctorService {
           if (plan != planFilter.name) continue;
         }
 
-        doctors.add(DoctorModel.fromJson(data, doc.id));
+        final decryptedData = <String, dynamic>{
+          ...data,
+          'name': DoctorEncryptionService.decryptForDoctor(
+            data['name'] as String?,
+            doc.id,
+          ),
+          'email': DoctorEncryptionService.decryptForDoctor(
+            data['email'] as String?,
+            doc.id,
+          ),
+          'phone': DoctorEncryptionService.decryptForDoctor(
+            data['phone'] as String?,
+            doc.id,
+          ),
+          'specialization': DoctorEncryptionService.decryptForDoctor(
+            data['specialization'] as String?,
+            doc.id,
+          ),
+          'clinicName': DoctorEncryptionService.decryptForDoctor(
+            data['clinicName'] as String?,
+            doc.id,
+          ),
+          'country': DoctorEncryptionService.decryptForDoctor(
+            data['country'] as String?,
+            doc.id,
+          ),
+          'timeZone': DoctorEncryptionService.decryptForDoctor(
+            data['timeZone'] as String?,
+            doc.id,
+          ),
+          'notes': DoctorEncryptionService.decryptForDoctor(
+            data['notes'] as String?,
+            doc.id,
+          ),
+        };
+
+        doctors.add(DoctorModel.fromJson(decryptedData, doc.id));
       }
 
       doctors.sort((a, b) => b.accountCreated.compareTo(a.accountCreated));
@@ -67,7 +104,25 @@ class SuperAdminDoctorService {
     try {
       final doc = await _fb.usersCollection.doc(doctorId).get();
       if (!doc.exists) return null;
-      return DoctorModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+      final data = doc.data() as Map<String, dynamic>;
+      final decryptedData = <String, dynamic>{
+        ...data,
+        'name': DoctorEncryptionService.decryptForDoctor(data['name'] as String?, doctorId),
+        'email': DoctorEncryptionService.decryptForDoctor(data['email'] as String?, doctorId),
+        'phone': DoctorEncryptionService.decryptForDoctor(data['phone'] as String?, doctorId),
+        'specialization': DoctorEncryptionService.decryptForDoctor(
+          data['specialization'] as String?,
+          doctorId,
+        ),
+        'clinicName': DoctorEncryptionService.decryptForDoctor(
+          data['clinicName'] as String?,
+          doctorId,
+        ),
+        'country': DoctorEncryptionService.decryptForDoctor(data['country'] as String?, doctorId),
+        'timeZone': DoctorEncryptionService.decryptForDoctor(data['timeZone'] as String?, doctorId),
+        'notes': DoctorEncryptionService.decryptForDoctor(data['notes'] as String?, doctorId),
+      };
+      return DoctorModel.fromJson(decryptedData, doc.id);
     } catch (e) {
       throw Exception('Failed to fetch doctor: ${e.toString()}');
     }
@@ -88,7 +143,7 @@ class SuperAdminDoctorService {
     List<String>? enabledModules,
   }) async {
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('createDoctor');
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createDoctor');
       final result = await callable.call<Map<String, dynamic>>({
         'name': name,
         'email': email,
@@ -135,9 +190,28 @@ class SuperAdminDoctorService {
   /// Update doctor details.
   Future<void> updateDoctor(String doctorId, Map<String, dynamic> updates) async {
     try {
-      updates['lastModified'] = FieldValue.serverTimestamp();
-      updates['modifiedBy'] = _fb.currentUserEmail;
-      await _fb.usersCollection.doc(doctorId).update(updates);
+      final encryptedUpdates = <String, dynamic>{...updates};
+      for (final entry in <MapEntry<String, dynamic>>[
+        MapEntry('name', updates['name']),
+        MapEntry('email', updates['email']),
+        MapEntry('phone', updates['phone']),
+        MapEntry('specialization', updates['specialization']),
+        MapEntry('clinicName', updates['clinicName']),
+        MapEntry('country', updates['country']),
+        MapEntry('timeZone', updates['timeZone']),
+        MapEntry('notes', updates['notes']),
+      ]) {
+        if (entry.value is String) {
+          encryptedUpdates[entry.key] = DoctorEncryptionService.encryptForDoctor(
+            entry.value as String,
+            doctorId,
+          );
+        }
+      }
+
+      encryptedUpdates['lastModified'] = FieldValue.serverTimestamp();
+      encryptedUpdates['modifiedBy'] = _fb.currentUserEmail;
+      await _fb.usersCollection.doc(doctorId).update(encryptedUpdates);
     } catch (e) {
       throw Exception('Failed to update doctor: ${e.toString()}');
     }

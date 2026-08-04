@@ -20,6 +20,8 @@ import 'package:doctor_management_app/features/inventory/data/providers/inventor
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
 import 'package:doctor_management_app/features/auth/presentation/auth_screen.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
 // ==================== CAREDOC ALL-IN-ONE WEB DASHBOARD ====================
 
@@ -1932,16 +1934,93 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                     ],
                                   ),
                                   const SizedBox(height: 10),
-                                  // Patient Search / Add New
-                                  TextField(
-                                    controller: patientNameCtrl,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Search Patient or Add New',
-                                      hintText: 'e.g. Ravi Teja',
-                                      isDense: true,
-                                      border: OutlineInputBorder(),
-                                      prefixIcon: Icon(Icons.person_search_rounded, size: 20),
-                                    ),
+                                  // Patient Search Autocomplete / Add New
+                                  Consumer(
+                                    builder: (context, ref, child) {
+                                      final patientsAsync = ref.watch(patientsStreamProvider);
+                                      final patientsList = patientsAsync.value ?? <Patient>[];
+
+                                      return Autocomplete<Patient>(
+                                        displayStringForOption: (Patient p) => p.fullName,
+                                        optionsBuilder: (TextEditingValue textEditingValue) {
+                                          if (textEditingValue.text.isEmpty) {
+                                            return patientsList;
+                                          }
+                                          final q = textEditingValue.text.toLowerCase().trim();
+                                          return patientsList.where((Patient p) {
+                                            return p.fullName.toLowerCase().contains(q) ||
+                                                p.phone.contains(q) ||
+                                                p.id.toLowerCase().contains(q);
+                                          });
+                                        },
+                                        onSelected: (Patient selected) {
+                                          patientNameCtrl.text = selected.fullName;
+                                        },
+                                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                                          if (controller.text.isEmpty && patientNameCtrl.text.isNotEmpty) {
+                                            controller.text = patientNameCtrl.text;
+                                          }
+                                          controller.addListener(() {
+                                            patientNameCtrl.text = controller.text;
+                                          });
+                                          return TextField(
+                                            controller: controller,
+                                            focusNode: focusNode,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Search Existing Patient or Add New Name',
+                                              hintText: 'Type patient name or phone number...',
+                                              isDense: true,
+                                              border: OutlineInputBorder(),
+                                              prefixIcon: Icon(Icons.person_search_rounded, size: 20),
+                                            ),
+                                          );
+                                        },
+                                        optionsViewBuilder: (context, onSelected, options) {
+                                          return Align(
+                                            alignment: Alignment.topLeft,
+                                            child: Material(
+                                              elevation: 6,
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(10),
+                                              child: Container(
+                                                width: 480,
+                                                constraints: const BoxConstraints(maxHeight: 220),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius: BorderRadius.circular(10),
+                                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                ),
+                                                child: ListView.separated(
+                                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                                  shrinkWrap: true,
+                                                  itemCount: options.length,
+                                                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                                  itemBuilder: (BuildContext context, int index) {
+                                                    final Patient option = options.elementAt(index);
+                                                    return ListTile(
+                                                      dense: true,
+                                                      leading: CircleAvatar(
+                                                        radius: 13,
+                                                        backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                                                        child: Text(
+                                                          option.fullName.isNotEmpty ? option.fullName[0].toUpperCase() : 'P',
+                                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                                                        ),
+                                                      ),
+                                                      title: Text(option.fullName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A))),
+                                                      subtitle: Text('${option.gender}, ${option.age} yrs • ${option.phone}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                                      onTap: () {
+                                                        onSelected(option);
+                                                      },
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      );
+                                    },
                                   ),
                                 ],
                               ),

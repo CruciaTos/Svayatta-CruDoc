@@ -111,12 +111,14 @@ class VisitRepository {
       sub1 = appts.listen((snap) {
         lastAppts = snap.docs
             .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+            .where((v) => !v.isDeleted)
             .toList();
         emit();
       });
       sub2 = visitations.listen((snap) {
         lastVisits = snap.docs
             .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+            .where((v) => !v.isDeleted)
             .toList();
         emit();
       });

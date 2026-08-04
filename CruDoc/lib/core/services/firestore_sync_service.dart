@@ -350,7 +350,7 @@ class FirestoreSyncService {
           'doctorId': doctorId,
           'date': _timestampFromMillis(row['date']),
           'description': FieldCipher.encrypt(row['description'] as String?),
-          'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+          'amount': FieldCipher.encrypt(((row['amount'] as num?)?.toDouble() ?? 0).toString()),
           'type': row['type'] as String? ?? 'miscellaneous',
           'kind': row['kind'] as String? ?? 'income',
           'payer': row['payer'] == null
@@ -367,7 +367,7 @@ class FirestoreSyncService {
           'doctorId': doctorId,
           'date': _timestampFromMillis(row['date']),
           'description': FieldCipher.encrypt(row['description'] as String?),
-          'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+          'amount': FieldCipher.encrypt(((row['amount'] as num?)?.toDouble() ?? 0).toString()),
           'isPaid': row['isPaid'] == 1,
           'payer': row['payer'] == null
               ? null
@@ -541,7 +541,9 @@ class FirestoreSyncService {
           'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
           'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
-          'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+          'amount': data['amount'] is String
+              ? (double.tryParse(FieldCipher.decrypt(data['amount'] as String)) ?? 0)
+              : ((data['amount'] as num?)?.toDouble() ?? 0),
           'type': data['type'] as String? ?? 'miscellaneous',
           'kind': data['kind'] as String? ?? 'income',
           'payer': data['payer'] == null
@@ -563,7 +565,9 @@ class FirestoreSyncService {
           'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
           'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
-          'amount': (data['amount'] as num?)?.toDouble() ?? 0,
+          'amount': data['amount'] is String
+              ? (double.tryParse(FieldCipher.decrypt(data['amount'] as String)) ?? 0)
+              : ((data['amount'] as num?)?.toDouble() ?? 0),
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
           'payer': data['payer'] == null
               ? null

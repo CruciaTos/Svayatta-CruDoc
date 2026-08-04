@@ -35,6 +35,46 @@ class MedicineDetailScreen extends ConsumerWidget {
                   title: medicine.name,
                   onEdit: () =>
                       showAddEditMedicineForm(context, medicine: medicine),
+                  onDelete: () async {
+                    final confirm = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Delete Medicine'),
+                        content: Text(
+                          'Are you sure you want to delete "${medicine.name}"?',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.redAccent,
+                            ),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text(
+                              'Delete',
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      await ref
+                          .read(inventoryRepositoryProvider)
+                          .deleteMedicine(medicine.id);
+                      if (context.mounted) {
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${medicine.name} deleted'),
+                          ),
+                        );
+                      }
+                    }
+                  },
                 ),
                 const SizedBox(height: 16),
                 _SummaryCard(medicine: medicine),
@@ -121,10 +161,15 @@ class MedicineDetailScreen extends ConsumerWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.title, required this.onEdit});
+  const _TopBar({
+    required this.title,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final String title;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +201,13 @@ class _TopBar extends StatelessWidget {
         IconButton(
           icon: const Icon(Icons.edit_outlined, color: AppColors.textPrimary),
           onPressed: onEdit,
+        ),
+        IconButton(
+          icon: const Icon(
+            Icons.delete_outline_rounded,
+            color: Colors.redAccent,
+          ),
+          onPressed: onDelete,
         ),
       ],
     );

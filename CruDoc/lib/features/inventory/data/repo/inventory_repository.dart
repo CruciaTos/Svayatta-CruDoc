@@ -119,6 +119,16 @@ class InventoryRepository {
 
   /// Soft-deletes a medicine locally, then mirrors the delete to Firestore.
   Future<void> deleteMedicine(String medicineId) async {
+    if (kIsWeb) {
+      await FirebaseFirestore.instance
+          .collection('medicines')
+          .doc(medicineId)
+          .update({
+        'isActive': false,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+      return;
+    }
     await _localService.softDeleteMedicine(medicineId);
     unawaited(_syncService.triggerPostWriteSync());
   }

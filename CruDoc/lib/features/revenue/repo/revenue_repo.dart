@@ -39,11 +39,8 @@ class RevenueRepository {
     if (out['notes'] is String) {
       out['notes'] = FieldCipher.encrypt(out['notes'] as String);
     }
-    if (out['amount'] is num) {
+    if (out['amount'] != null) {
       out['amount'] = FieldCipher.encrypt(out['amount'].toString());
-    }
-    if (out['doctorId'] is String) {
-      out['doctorId'] = FieldCipher.encrypt(out['doctorId'] as String);
     }
     return out;
   }
@@ -60,11 +57,10 @@ class RevenueRepository {
       out['notes'] = FieldCipher.decrypt(out['notes'] as String);
     }
     if (out['amount'] is String) {
-      final parsed = double.tryParse(FieldCipher.decrypt(out['amount'] as String));
-      out['amount'] = parsed ?? 0.0;
-    }
-    if (out['doctorId'] is String) {
-      out['doctorId'] = FieldCipher.decrypt(out['doctorId'] as String);
+      final decryptedStr = FieldCipher.decrypt(out['amount'] as String);
+      out['amount'] = double.tryParse(decryptedStr) ?? 0.0;
+    } else if (out['amount'] is num) {
+      out['amount'] = (out['amount'] as num).toDouble();
     }
     return out;
   }
@@ -106,6 +102,47 @@ class RevenueRepository {
     return id;
   }
 
+  /// Auto-encrypts existing unencrypted amounts in Cloud Firestore for the signed-in doctor.
+  Future<void> migrateUnencryptedAmountsInFirestore() async {
+    if (!kIsWeb) return;
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null || uid.isEmpty) return;
+
+      final revSnap = await FirebaseFirestore.instance
+          .collection('revenue_entries')
+          .where('doctorId', isEqualTo: uid)
+          .get();
+
+      for (final doc in revSnap.docs) {
+        final data = doc.data();
+        if (data['amount'] is num) {
+          final plainVal = (data['amount'] as num).toDouble();
+          final encryptedVal = FieldCipher.encrypt(plainVal.toString());
+          await doc.reference.update({
+            'amount': encryptedVal,
+          });
+        }
+      }
+
+      final paySnap = await FirebaseFirestore.instance
+          .collection('pending_payments')
+          .where('doctorId', isEqualTo: uid)
+          .get();
+
+      for (final doc in paySnap.docs) {
+        final data = doc.data();
+        if (data['amount'] is num) {
+          final plainVal = (data['amount'] as num).toDouble();
+          final encryptedVal = FieldCipher.encrypt(plainVal.toString());
+          await doc.reference.update({
+            'amount': encryptedVal,
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
   /// Streams the live list of active (non-deleted) revenue entries.
   Stream<List<RevenueEntry>> watchRevenueEntries() {
     final doctorId = FirebaseAuth.instance.currentUser?.uid;
@@ -113,6 +150,7 @@ class RevenueRepository {
       return Stream.value(const <RevenueEntry>[]);
     }
     if (kIsWeb) {
+      unawaited(migrateUnencryptedAmountsInFirestore());
       return FirebaseFirestore.instance
           .collection('revenue_entries')
           .where('doctorId', isEqualTo: doctorId)

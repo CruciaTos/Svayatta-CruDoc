@@ -109,7 +109,9 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                   category: _category,
                   categories: medicines
                       .map((m) => m.category)
-                      .where((c) => c.trim().isNotEmpty)
+                      .where((c) =>
+                          c.trim().isNotEmpty &&
+                          c.trim().toLowerCase() != 'pain killer')
                       .toSet()
                       .toList()
                     ..sort(),
@@ -318,7 +320,7 @@ class _FilterChip extends StatelessWidget {
 }
 
 // ---------- MEDICINE TILE ----------
-class _MedicineTile extends StatelessWidget {
+class _MedicineTile extends ConsumerWidget {
   const _MedicineTile({required this.medicine});
 
   final MedicineModel medicine;
@@ -344,7 +346,7 @@ class _MedicineTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final expiryLabel = _expiryLabel();
 
     return Padding(
@@ -414,13 +416,52 @@ class _MedicineTile extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  onSelected: (value) {
+                  onSelected: (value) async {
                     switch (value) {
                       case 'adjust':
                         showStockAdjustmentDialog(context, medicine: medicine);
                         break;
                       case 'edit':
                         showAddEditMedicineForm(context, medicine: medicine);
+                        break;
+                      case 'delete':
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (ctx) => AlertDialog(
+                            title: const Text('Delete Medicine'),
+                            content: Text(
+                              'Are you sure you want to delete "${medicine.name}"?',
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(ctx, false),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                ),
+                                onPressed: () => Navigator.pop(ctx, true),
+                                child: const Text(
+                                  'Delete',
+                                  style: TextStyle(color: Colors.white),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                        if (confirm == true) {
+                          await ref
+                              .read(inventoryRepositoryProvider)
+                              .deleteMedicine(medicine.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${medicine.name} deleted'),
+                              ),
+                            );
+                          }
+                        }
                         break;
                     }
                   },
@@ -430,6 +471,26 @@ class _MedicineTile extends StatelessWidget {
                       child: Text('Restock / Dispense'),
                     ),
                     PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.delete_outline_rounded,
+                            size: 16,
+                            color: Colors.redAccent,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
               ],

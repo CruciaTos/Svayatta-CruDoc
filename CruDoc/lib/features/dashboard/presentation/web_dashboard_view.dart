@@ -363,8 +363,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           ),
           const SizedBox(height: 10),
           _buildSidebarNavItem(0, Icons.grid_view_rounded, 'Dashboard'),
-          _buildSidebarNavItem(1, Icons.calendar_today_rounded, 'Appointments',
-              subItems: ['All Appointments', 'Past Appointments']),
+          _buildSidebarNavItem(1, Icons.calendar_today_rounded, 'Appointments'),
           _buildSidebarNavItem(2, Icons.people_alt_outlined, 'Patients'),
           _buildSidebarNavItem(3, Icons.inventory_2_outlined, 'Inventory'),
 

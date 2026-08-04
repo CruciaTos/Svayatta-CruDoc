@@ -92,10 +92,11 @@ final visitsWithPatientsProvider =
     return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
   }
 
-  final visits = visitsAsync.value!;
+  final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
   final patientsById = {for (final p in patientsAsync.value!) p.id: p};
 
   final combined = visits
+      .where((v) => patientsById.containsKey(v.patientId))
       .map(
         (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
       )
@@ -121,10 +122,11 @@ final todaysVisitsWithPatientsProvider =
     return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
   }
 
-  final visits = visitsAsync.value!;
+  final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
   final patientsById = {for (final p in patientsAsync.value!) p.id: p};
 
   final combined = visits
+      .where((v) => patientsById.containsKey(v.patientId))
       .map(
         (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
       )
@@ -150,10 +152,11 @@ final allVisitsWithPatientsProvider =
     return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
   }
 
-  final visits = visitsAsync.value!;
+  final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
   final patientsById = {for (final p in patientsAsync.value!) p.id: p};
 
   final combined = visits
+      .where((v) => patientsById.containsKey(v.patientId))
       .map(
         (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
       )

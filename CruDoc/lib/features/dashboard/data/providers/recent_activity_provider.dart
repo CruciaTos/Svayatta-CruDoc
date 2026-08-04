@@ -153,11 +153,13 @@ ActivityItem _revenueActivity(RevenueEntry entry) {
   final amountLabel = '₹${entry.amount.toStringAsFixed(0)}';
 
   if (entry.kind == TransactionKind.expense) {
+    final payer = entry.payer?.trim();
     final description = entry.description.trim();
+    final recipient = (payer == null || payer.isEmpty) ? '' : ' to $payer';
     final suffix = description.isEmpty ? '' : ' — $description';
     return ActivityItem(
       icon: Icons.trending_down,
-      text: 'Expense logged — $amountLabel$suffix',
+      text: 'Expense logged — $amountLabel$recipient$suffix',
       timestamp: entry.createdAt,
     );
   }

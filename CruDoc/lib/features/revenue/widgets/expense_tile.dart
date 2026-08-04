@@ -81,7 +81,9 @@ class TransactionTile extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    entry.description,
+                    (entry.payer?.trim().isNotEmpty ?? false)
+                        ? entry.payer!
+                        : entry.description,
                     style: const TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
                       color: AppColors.textPrimary,
@@ -91,7 +93,9 @@ class TransactionTile extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    DateFormat.yMMMd().format(entry.date),
+                    (entry.payer?.trim().isNotEmpty ?? false)
+                        ? '${DateFormat.yMMMd().format(entry.date)} • ${entry.description}'
+                        : DateFormat.yMMMd().format(entry.date),
                     style: const TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
                       color: AppColors.textSecondary,

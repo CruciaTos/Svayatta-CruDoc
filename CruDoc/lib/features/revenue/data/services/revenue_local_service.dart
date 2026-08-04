@@ -33,6 +33,9 @@ class RevenueLocalService {
   final StreamController<List<PendingPayment>> _pendingPaymentsController =
       StreamController<List<PendingPayment>>.broadcast();
 
+  Future<void> notifyRevenueEntriesChanged() => _emitRevenueEntries();
+  Future<void> notifyPendingPaymentsChanged() => _emitPendingPayments();
+
   // ---------------- revenue entries ----------------
 
   Future<String> upsertRevenueEntry(

@@ -8,6 +8,8 @@ import 'package:doctor_management_app/core/services/local_database_service.dart'
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
+import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
+import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
@@ -463,6 +465,14 @@ class FirestoreSyncService {
       unawaited(PatientLocalService.instance.notifyPatientsChanged());
     } else if (table == 'visits') {
       unawaited(VisitLocalService.instance.notifyVisitsChanged());
+    } else if (table == 'medicines') {
+      unawaited(InventoryLocalService.instance.notifyMedicinesChanged());
+    } else if (table == 'stock_transactions') {
+      unawaited(InventoryLocalService.instance.notifyTransactionsChanged());
+    } else if (table == 'revenue_entries') {
+      unawaited(RevenueLocalService.instance.notifyRevenueEntriesChanged());
+    } else if (table == 'pending_payments') {
+      unawaited(RevenueLocalService.instance.notifyPendingPaymentsChanged());
     }
   }
 

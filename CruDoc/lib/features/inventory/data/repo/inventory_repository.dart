@@ -110,6 +110,25 @@ class InventoryRepository {
       }
     }
 
+    if (kIsWeb) {
+      final firestoreData = Map<String, dynamic>.from(data)
+        ..['updatedAt'] = FieldValue.serverTimestamp();
+      if (firestoreData.containsKey('expiryDate') && firestoreData['expiryDate'] is DateTime) {
+        firestoreData['expiryDate'] = Timestamp.fromDate(firestoreData['expiryDate'] as DateTime);
+      }
+      if (firestoreData.containsKey('lowStockNotifiedAt') && firestoreData['lowStockNotifiedAt'] is DateTime) {
+        firestoreData['lowStockNotifiedAt'] = Timestamp.fromDate(firestoreData['lowStockNotifiedAt'] as DateTime);
+      }
+      if (firestoreData.containsKey('expiryNotifiedAt') && firestoreData['expiryNotifiedAt'] is DateTime) {
+        firestoreData['expiryNotifiedAt'] = Timestamp.fromDate(firestoreData['expiryNotifiedAt'] as DateTime);
+      }
+      await FirebaseFirestore.instance
+          .collection('medicines')
+          .doc(medicineId)
+          .update(firestoreData);
+      return;
+    }
+
     final localData = Map<String, dynamic>.from(data)
       ..['updatedAt'] = DateTime.now();
 
@@ -134,7 +153,15 @@ class InventoryRepository {
   }
 
   /// Fetches a single medicine by id.
-  Future<MedicineModel?> getMedicine(String medicineId) {
+  Future<MedicineModel?> getMedicine(String medicineId) async {
+    if (kIsWeb) {
+      final doc = await FirebaseFirestore.instance
+          .collection('medicines')
+          .doc(medicineId)
+          .get();
+      if (!doc.exists) return null;
+      return MedicineModel.fromFirestore(doc);
+    }
     return _localService.getMedicine(medicineId);
   }
 
@@ -149,6 +176,65 @@ class InventoryRepository {
   }) async {
     if (quantity <= 0) {
       throw const MedicineValidationException('Quantity must be positive.');
+    }
+
+    if (kIsWeb) {
+      final now = DateTime.now();
+      final txId = const Uuid().v4();
+      late final StockTransactionModel recorded;
+
+      await FirebaseFirestore.instance.runTransaction((txn) async {
+        final medRef = FirebaseFirestore.instance.collection('medicines').doc(medicineId);
+        final medDoc = await txn.get(medRef);
+        if (!medDoc.exists) {
+          throw MedicineNotFoundException('Medicine $medicineId was not found.');
+        }
+        final medData = medDoc.data() ?? {};
+        final isActive = medData['isActive'] as bool? ?? true;
+        if (!isActive) {
+          throw MedicineNotFoundException('Medicine $medicineId was not found.');
+        }
+
+        final currentStock = (medData['currentStock'] as num?)?.toInt() ?? 0;
+        final magnitude = quantity.abs();
+        int delta;
+        switch (type) {
+          case StockTransactionType.restock:
+            delta = magnitude;
+            break;
+          case StockTransactionType.dispense:
+          case StockTransactionType.adjustment:
+          case StockTransactionType.expiredWriteoff:
+            delta = -magnitude;
+            break;
+        }
+
+        final newStock = currentStock + delta;
+        if (newStock < 0) {
+          throw InsufficientStockException('Not enough stock: only $currentStock unit(s) available.');
+        }
+
+        recorded = StockTransactionModel(
+          id: txId,
+          medicineId: medicineId,
+          doctorId: _currentDoctorId,
+          type: type,
+          quantity: quantity,
+          resultingStock: newStock,
+          note: note,
+          linkedVisitId: linkedVisitId,
+          createdAt: now,
+        );
+
+        final txRef = FirebaseFirestore.instance.collection('stock_transactions').doc(txId);
+        txn.set(txRef, recorded.toJson());
+        txn.update(medRef, {
+          'currentStock': newStock,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      return recorded;
     }
 
     final transaction = StockTransactionModel(
@@ -172,13 +258,38 @@ class InventoryRepository {
   /// first.
   Future<List<StockTransactionModel>> getTransactionsForMedicine(
     String medicineId,
-  ) {
+  ) async {
+    if (kIsWeb) {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('stock_transactions')
+          .where('medicineId', isEqualTo: medicineId)
+          .where('doctorId', isEqualTo: _currentDoctorId)
+          .orderBy('createdAt', descending: true)
+          .get();
+      return snapshot.docs
+          .where((doc) => doc.data()['isActive'] as bool? ?? true)
+          .map((doc) => StockTransactionModel.fromJson({...doc.data(), 'id': doc.id}))
+          .toList();
+    }
     return _localService.getTransactionsForMedicine(medicineId);
   }
 
   /// Streams the most recent stock transactions across every medicine,
   /// newest first. Powers the dashboard's "Recent Activity" card.
   Stream<List<StockTransactionModel>> watchRecentTransactions() {
+    if (kIsWeb) {
+      return FirebaseFirestore.instance
+          .collection('stock_transactions')
+          .where('doctorId', isEqualTo: _currentDoctorId)
+          .orderBy('createdAt', descending: true)
+          .limit(50)
+          .snapshots()
+          .map((snapshot) {
+        return snapshot.docs
+            .map((doc) => StockTransactionModel.fromJson({...doc.data(), 'id': doc.id}))
+            .toList();
+      });
+    }
     return _localService.watchRecentTransactions();
   }
 

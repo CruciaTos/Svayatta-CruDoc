@@ -37,6 +37,9 @@ class InventoryLocalService {
   final StreamController<List<MedicineModel>> _medicinesController =
       StreamController<List<MedicineModel>>.broadcast();
 
+  Future<void> notifyMedicinesChanged() => _emitMedicines();
+  Future<void> notifyTransactionsChanged() => _emitRecentTransactions();
+
   String _currentDoctorId() {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.isEmpty) return '';

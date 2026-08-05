@@ -6,6 +6,7 @@ import 'dashboard/dashboard_screen.dart';
 import 'dashboard/doctors_screen.dart';
 import 'dashboard/audit_logs_screen.dart';
 import 'dashboard/support_screen.dart';
+import 'dashboard/features_screen.dart';
 
 /// Main Super Admin shell with sidebar navigation and content area.
 class SuperAdminShell extends ConsumerStatefulWidget {
@@ -254,12 +255,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
               'Manage doctor subscription plans, upgrades, downgrades, and trial extensions.',
         );
       case SuperAdminTab.features:
-        return const _ComingSoonTab(
-          icon: Icons.toggle_on_outlined,
-          title: 'Feature Management',
-          description:
-              'Toggle feature modules on/off for individual doctors or in bulk.',
-        );
+        return const SuperAdminFeaturesScreen();
       case SuperAdminTab.analytics:
         return const _ComingSoonTab(
           icon: Icons.analytics_outlined,

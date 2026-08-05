@@ -145,32 +145,41 @@ enum SubscriptionPlan {
       'dashboard',
       'patients',
       'appointments',
+      'revenue',
       'inventory',
       'reports',
+      'multi_device_access',
     ];
     switch (this) {
       case SubscriptionPlan.starter:
         return base;
       case SubscriptionPlan.professional:
-        return [...base, 'revenue', 'analytics', 'session_history'];
+        return [
+          ...base,
+          'session_history',
+          'home_visits',
+          'analytics',
+          'omnichannel_messaging',
+        ];
       case SubscriptionPlan.clinic:
         return [
           ...base,
-          'revenue',
-          'analytics',
           'session_history',
           'home_visits',
+          'analytics',
+          'omnichannel_messaging',
           'medicine_ocr',
           'prescription_generator',
           'packages',
+          'ai_assistant',
         ];
       case SubscriptionPlan.enterprise:
         return [
           ...base,
-          'revenue',
-          'analytics',
           'session_history',
           'home_visits',
+          'analytics',
+          'omnichannel_messaging',
           'medicine_ocr',
           'medicine_bills',
           'prescription_generator',
@@ -178,6 +187,7 @@ enum SubscriptionPlan {
           'online_consultation',
           'whatsapp_integration',
           'ai_assistant',
+          'ai_agentic_calling',
           'custom_branding',
         ];
     }
@@ -307,59 +317,59 @@ enum AuditActionType {
 /// Enabled feature modules
 enum FeatureModule {
   dashboard,
+  revenue,
   patients,
-  sessionHistory,
   appointments,
   homeVisits,
-  revenue,
-  inventory,
-  medicineOcr,
-  medicineBills,
-  prescriptionGenerator,
-  packages,
-  reports,
-  analytics,
-  onlineConsultation,
-  whatsappIntegration,
   aiAssistant,
-  customBranding;
+  aiAgenticCalling,
+  omnichannelMessaging,
+  multiDeviceAccess;
 
   String get label {
     switch (this) {
       case FeatureModule.dashboard:
         return 'Dashboard';
-      case FeatureModule.patients:
-        return 'Patients';
-      case FeatureModule.sessionHistory:
-        return 'Session History';
-      case FeatureModule.appointments:
-        return 'Appointments';
-      case FeatureModule.homeVisits:
-        return 'Home Visits';
       case FeatureModule.revenue:
-        return 'Revenue';
-      case FeatureModule.inventory:
-        return 'Inventory';
-      case FeatureModule.medicineOcr:
-        return 'Medicine OCR';
-      case FeatureModule.medicineBills:
-        return 'Medicine Bills';
-      case FeatureModule.prescriptionGenerator:
-        return 'Prescription Generator';
-      case FeatureModule.packages:
-        return 'Packages';
-      case FeatureModule.reports:
-        return 'Reports';
-      case FeatureModule.analytics:
-        return 'Analytics';
-      case FeatureModule.onlineConsultation:
-        return 'Online Consultation';
-      case FeatureModule.whatsappIntegration:
-        return 'WhatsApp Integration';
+        return 'Revenue Page';
+      case FeatureModule.patients:
+        return 'Patient Page';
+      case FeatureModule.appointments:
+        return 'Appointment';
+      case FeatureModule.homeVisits:
+        return 'Visitation';
       case FeatureModule.aiAssistant:
-        return 'AI Assistant';
-      case FeatureModule.customBranding:
-        return 'Custom Branding';
+        return 'AI Assistant (LLM Interface)';
+      case FeatureModule.aiAgenticCalling:
+        return 'AI Agentic Calling';
+      case FeatureModule.omnichannelMessaging:
+        return 'WhatsApp, Email & SMS Messaging';
+      case FeatureModule.multiDeviceAccess:
+        return 'Multi-Device Account Access';
+    }
+  }
+
+  /// Default monthly add-on price ($)
+  double get defaultAddonPrice {
+    switch (this) {
+      case FeatureModule.dashboard:
+        return 0.0; // Included in base plan
+      case FeatureModule.patients:
+        return 0.0; // Included in base plan
+      case FeatureModule.appointments:
+        return 0.0; // Included in base plan
+      case FeatureModule.revenue:
+        return 15.0;
+      case FeatureModule.multiDeviceAccess:
+        return 10.0;
+      case FeatureModule.homeVisits:
+        return 20.0;
+      case FeatureModule.omnichannelMessaging:
+        return 25.0;
+      case FeatureModule.aiAssistant:
+        return 35.0;
+      case FeatureModule.aiAgenticCalling:
+        return 60.0;
     }
   }
 }

@@ -9,6 +9,7 @@ class SupportTicketModel {
   final String doctorEmail;
   final String subject;
   final String description;
+  final TicketCategory category;
   final TicketPriority priority;
   final TicketStatus status;
   final DateTime createdAt;
@@ -29,6 +30,7 @@ class SupportTicketModel {
     required this.doctorEmail,
     required this.subject,
     required this.description,
+    this.category = TicketCategory.bug,
     this.priority = TicketPriority.medium,
     this.status = TicketStatus.open,
     DateTime? createdAt,
@@ -54,6 +56,10 @@ class SupportTicketModel {
       doctorEmail: json['doctorEmail'] as String? ?? '',
       subject: json['subject'] as String? ?? '',
       description: json['description'] as String? ?? '',
+      category: TicketCategory.values.firstWhere(
+        (e) => e.name == json['category'],
+        orElse: () => TicketCategory.bug,
+      ),
       priority: TicketPriority.values.firstWhere(
         (e) => e.name == json['priority'],
         orElse: () => TicketPriority.medium,
@@ -88,6 +94,7 @@ class SupportTicketModel {
       'doctorEmail': doctorEmail,
       'subject': subject,
       'description': description,
+      'category': category.name,
       'priority': priority.name,
       'status': status.name,
       'createdAt': Timestamp.fromDate(createdAt),

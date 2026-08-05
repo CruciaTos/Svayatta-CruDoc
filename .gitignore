@@ -1,6 +1,7 @@
 *.json
 CruDoc/lib/firebase_options.dart
-/CruDoc/.agents
+.agents/
+.cursor/
 /.idea
 pending-payment-completion.patch
 session-details-sheet.patch

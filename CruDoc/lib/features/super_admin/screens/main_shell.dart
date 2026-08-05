@@ -4,6 +4,8 @@ import '../providers/auth_provider.dart';
 import '../providers/ui_provider.dart';
 import 'dashboard/dashboard_screen.dart';
 import 'dashboard/doctors_screen.dart';
+import 'dashboard/audit_logs_screen.dart';
+import 'dashboard/support_screen.dart';
 
 /// Main Super Admin shell with sidebar navigation and content area.
 class SuperAdminShell extends ConsumerStatefulWidget {
@@ -265,18 +267,9 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
           description: 'View platform-wide analytics, charts, and export data.',
         );
       case SuperAdminTab.support:
-        return const _ComingSoonTab(
-          icon: Icons.support_agent_outlined,
-          title: 'Support Tickets',
-          description:
-              'Manage doctor support tickets, replies, and assignments.',
-        );
+        return const SuperAdminSupportScreen();
       case SuperAdminTab.auditLogs:
-        return const _ComingSoonTab(
-          icon: Icons.history_outlined,
-          title: 'Audit Logs',
-          description: 'View all admin actions with filtering and CSV export.',
-        );
+        return const SuperAdminAuditLogsScreen();
       case SuperAdminTab.settings:
         return const _ComingSoonTab(
           icon: Icons.settings_outlined,

@@ -226,6 +226,30 @@ enum TicketStatus {
   }
 }
 
+/// Category of a support ticket
+enum TicketCategory {
+  bug,
+  complaint,
+  feedback,
+  suggestion,
+  featureRequest;
+
+  String get label {
+    switch (this) {
+      case TicketCategory.bug:
+        return 'Bug';
+      case TicketCategory.complaint:
+        return 'Complaint';
+      case TicketCategory.feedback:
+        return 'Feedback';
+      case TicketCategory.suggestion:
+        return 'Suggestion';
+      case TicketCategory.featureRequest:
+        return 'Feature Request';
+    }
+  }
+}
+
 /// Type of admin action for audit logs
 enum AuditActionType {
   createdDoctor,

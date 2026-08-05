@@ -634,6 +634,17 @@ class _SuperAdminSupportScreenState
                   style: const TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w600),
                 ),
+                if (ticket.doctorPhone != null &&
+                    ticket.doctorPhone!.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    '• ${ticket.doctorPhone!}',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[600]),
+                  ),
+                ],
                 const SizedBox(width: 16),
 
                 // Assigned
@@ -807,6 +818,92 @@ class _SuperAdminSupportScreenState
                             const SizedBox(height: 8),
                             _buildDetailRow('Doctor', ticket.doctorName),
                             _buildDetailRow('Email', ticket.doctorEmail),
+                            if (ticket.doctorPhone != null &&
+                                ticket.doctorPhone!.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 3),
+                                child: Row(
+                                  children: [
+                                    const SizedBox(
+                                      width: 110,
+                                      child: Text(
+                                        'Phone',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Color(0xFF64748B),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Text(
+                                            ticket.doctorPhone!,
+                                            style: const TextStyle(
+                                              fontSize: 12,
+                                              color: Color(0xFF0F172A),
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          InkWell(
+                                            onTap: () {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                SnackBar(
+                                                  content: Row(
+                                                    children: [
+                                                      const Icon(Icons.phone_in_talk_rounded,
+                                                          color: Colors.white, size: 18),
+                                                      const SizedBox(width: 8),
+                                                      Text(
+                                                        'Calling ${ticket.doctorName} at ${ticket.doctorPhone}...',
+                                                        style: const TextStyle(
+                                                            fontWeight: FontWeight.w600),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  backgroundColor: const Color(0xFF10B981),
+                                                  behavior: SnackBarBehavior.floating,
+                                                  duration: const Duration(seconds: 3),
+                                                ),
+                                              );
+                                            },
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                  horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFFECFDF5),
+                                                borderRadius: BorderRadius.circular(6),
+                                                border: Border.all(
+                                                    color: const Color(0xFFA7F3D0)),
+                                              ),
+                                              child: const Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.phone_rounded,
+                                                      size: 12,
+                                                      color: Color(0xFF10B981)),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'Call Doctor',
+                                                    style: TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.bold,
+                                                      color: Color(0xFF047857),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
                             _buildDetailRow(
                                 'Created', dateFormat.format(ticket.createdAt)),
                             _buildDetailRow(

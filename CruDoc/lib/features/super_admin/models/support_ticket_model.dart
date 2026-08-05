@@ -7,6 +7,7 @@ class SupportTicketModel {
   final String doctorId;
   final String doctorName;
   final String doctorEmail;
+  final String? doctorPhone;
   final String subject;
   final String description;
   final TicketCategory category;
@@ -28,6 +29,7 @@ class SupportTicketModel {
     required this.doctorId,
     required this.doctorName,
     required this.doctorEmail,
+    this.doctorPhone,
     required this.subject,
     required this.description,
     this.category = TicketCategory.bug,
@@ -54,6 +56,7 @@ class SupportTicketModel {
       doctorId: json['doctorId'] as String? ?? '',
       doctorName: json['doctorName'] as String? ?? '',
       doctorEmail: json['doctorEmail'] as String? ?? '',
+      doctorPhone: json['doctorPhone'] as String?,
       subject: json['subject'] as String? ?? '',
       description: json['description'] as String? ?? '',
       category: TicketCategory.values.firstWhere(
@@ -92,6 +95,7 @@ class SupportTicketModel {
       'doctorId': doctorId,
       'doctorName': doctorName,
       'doctorEmail': doctorEmail,
+      'doctorPhone': doctorPhone,
       'subject': subject,
       'description': description,
       'category': category.name,

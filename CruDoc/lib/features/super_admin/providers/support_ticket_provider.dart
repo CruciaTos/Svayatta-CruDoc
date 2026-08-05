@@ -58,7 +58,8 @@ class SupportTicketState {
         final q = searchQuery.toLowerCase().trim();
         final matchesSubject = ticket.subject.toLowerCase().contains(q);
         final matchesDoctor = ticket.doctorName.toLowerCase().contains(q) ||
-            ticket.doctorEmail.toLowerCase().contains(q);
+            ticket.doctorEmail.toLowerCase().contains(q) ||
+            (ticket.doctorPhone?.toLowerCase().contains(q) ?? false);
         final matchesDescription = ticket.description.toLowerCase().contains(q);
         final matchesId = ticket.id.toLowerCase().contains(q);
         if (!matchesSubject &&
@@ -122,6 +123,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
         doctorId: 'doc-991',
         doctorName: 'Dr. Venom Mhatre',
         doctorEmail: 'venom@crudoc.com',
+        doctorPhone: '+91 98765 43210',
         subject: 'App crashes on adding patient with special characters',
         description:
             'When I add a patient whose name contains special characters like apostrophes or accented letters, the app freezes and crashes. This happens consistently on both web and mobile.',
@@ -146,6 +148,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
         doctorId: 'doc-882',
         doctorName: 'Dr. Smit Mhatre',
         doctorEmail: 'smit@crudoc.com',
+        doctorPhone: '+91 98123 45678',
         subject: 'Revenue report shows wrong totals for last month',
         description:
             'The monthly revenue summary on the dashboard is displaying an incorrect total. It seems to be double-counting some visit fees. The CSV export is also reflecting the wrong numbers.',
@@ -188,6 +191,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
         doctorId: 'doc-773',
         doctorName: 'Dr. Ananya Roy',
         doctorEmail: 'ananya@royhealth.com',
+        doctorPhone: '+91 97654 32109',
         subject: 'Slow appointment loading on dashboard',
         description:
             'The dashboard takes over 10 seconds to load the appointment list when I have more than 50 appointments for the day. This is making my workflow very slow.',
@@ -362,6 +366,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
           doctorId: t.doctorId,
           doctorName: t.doctorName,
           doctorEmail: t.doctorEmail,
+          doctorPhone: t.doctorPhone,
           subject: t.subject,
           description: t.description,
           category: t.category,

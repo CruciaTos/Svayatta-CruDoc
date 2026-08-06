@@ -42,7 +42,7 @@ class SuperAdminModel {
       profilePictureUrl: json['profilePictureUrl'] as String?,
       role: UserRole.values.firstWhere(
         (e) => e.name == json['role'],
-        orElse: () => UserRole.superAdmin,
+        orElse: () => UserRole.doctor, // Default to least privilege
       ),
       isTwoFAEnabled: json['isTwoFAEnabled'] as bool? ?? false,
       isTwoFAVerified: json['isTwoFAVerified'] as bool? ?? false,

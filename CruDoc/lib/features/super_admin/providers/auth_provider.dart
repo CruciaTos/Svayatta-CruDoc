@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../config/enums.dart';
 import '../models/super_admin_model.dart';
 import '../services/auth_service.dart';
 
@@ -55,11 +56,11 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
     return const SuperAdminAuthState();
   }
 
-  /// Initialize auth state — check if already logged in.
+  /// Initialize auth state — check if already logged in as Super Admin.
   Future<void> _initialize() async {
     try {
       final admin = await _authService.getCurrentAdmin();
-      if (admin != null) {
+      if (admin != null && admin.role == UserRole.superAdmin) {
         state = state.copyWith(
           currentAdmin: admin,
           isAuthenticated: true,
@@ -67,8 +68,10 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
           isTwoFAVerified: admin.isTwoFAVerified,
         );
       }
+      // If admin is null, the user is either not logged in or not a Super Admin.
+      // State remains unauthenticated (default), so the guard will block access.
     } catch (_) {
-      // Not authenticated
+      // Not authenticated — state remains default (unauthenticated).
     }
   }
 

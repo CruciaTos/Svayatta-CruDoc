@@ -140,34 +140,34 @@ class SuperAdminAuthService {
   }
 
   /// Get current admin profile.
+  /// Returns null if user is not authenticated or not a Super Admin.
   Future<SuperAdminModel?> getCurrentAdmin() async {
     final user = _fb.currentUser;
     if (user == null) return null;
 
     final doc = await _fb.usersCollection.doc(user.uid).get();
     if (!doc.exists || doc.data() == null) {
-      await _fb.usersCollection.doc(user.uid).set({
-        'email': user.email ?? '',
-        'name': user.displayName ?? 'Super Admin',
-        'profilePictureUrl': '',
-        'role': UserRole.superAdmin.name,
-        'isTwoFAEnabled': false,
-        'isTwoFAVerified': true,
-        'isActive': true,
-        'failedLoginAttempts': 0,
-        'accountCreated': FieldValue.serverTimestamp(),
-        'lastLogin': FieldValue.serverTimestamp(),
-        'lockedUntil': null,
-      });
-      return SuperAdminModel(
-        id: user.uid,
-        email: user.email ?? '',
-        name: user.displayName ?? 'Super Admin',
-        role: UserRole.superAdmin,
-      );
+      // No profile document exists — do NOT auto-create one.
+      // Only verified Super Admins should have profiles.
+      return null;
     }
 
-    return SuperAdminModel.fromJson(doc.data() as Map<String, dynamic>, user.uid);
+    final data = doc.data() as Map<String, dynamic>;
+    final roleStr = data['role'] as String?;
+
+    // Strictly verify the role is superAdmin before granting access.
+    if (roleStr != UserRole.superAdmin.name) {
+      return null;
+    }
+
+    final admin = SuperAdminModel.fromJson(data, user.uid);
+
+    // Also verify the account is active.
+    if (!admin.isActive) {
+      return null;
+    }
+
+    return admin;
   }
 
   /// Update admin profile.

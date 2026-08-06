@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
+import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
@@ -57,6 +58,64 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         .replaceAll(RegExp(r'<[^>]*>'), '') // Strip HTML tags
         .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '') // Strip control characters
         .trim();
+  }
+
+  /// Safely parses an amount value whether it's num, plain String, or FieldCipher-encrypted String.
+  double _parseAmount(dynamic val) {
+    if (val == null) return 0.0;
+    if (val is num) return val.toDouble();
+    final str = val.toString().trim();
+    if (str.isEmpty) return 0.0;
+    
+    // Decrypt if encrypted with FieldCipher
+    final decStr = FieldCipher.decrypt(str);
+    return double.tryParse(decStr) ?? double.tryParse(str) ?? 0.0;
+  }
+
+  /// Safely converts a date value (int epoch ms, String, or Timestamp) to a formatted date string.
+  String _parseDateField(dynamic val) {
+    if (val == null) return '';
+    if (val is int) {
+      try {
+        return DateFormat('MMM dd, yyyy').format(DateTime.fromMillisecondsSinceEpoch(val));
+      } catch (_) {
+        return '';
+      }
+    }
+    if (val is String) return val;
+    // Handle Firestore Timestamp objects
+    try {
+      final ts = val as dynamic;
+      if (ts.toDate != null) {
+        return DateFormat('MMM dd, yyyy').format(ts.toDate() as DateTime);
+      }
+    } catch (_) {}
+    return val.toString();
+  }
+
+  /// Decrypts encrypted invoice fields and normalizes date/amount types for safe display.
+  Map<String, dynamic> _decryptInvoice(Map<String, dynamic> raw) {
+    final out = Map<String, dynamic>.from(raw);
+    // Decrypt text fields
+    if (out['patientName'] != null) {
+      out['patientName'] = FieldCipher.decrypt(out['patientName'].toString());
+    }
+    if (out['service'] != null) {
+      out['service'] = FieldCipher.decrypt(out['service'].toString());
+    }
+    if (out['notes'] != null) {
+      out['notes'] = FieldCipher.decrypt(out['notes'].toString());
+    }
+    if (out['clinicalNotes'] != null) {
+      out['clinicalNotes'] = FieldCipher.decrypt(out['clinicalNotes'].toString());
+    }
+    // Parse amount safely
+    out['amount'] = _parseAmount(out['amount']);
+    // Normalize date fields (int epoch → formatted String)
+    out['dueDate'] = _parseDateField(out['dueDate']);
+    out['issueDate'] = _parseDateField(out['issueDate']);
+    out['date'] = _parseDateField(out['date']);
+    return out;
   }
 
   Map<String, dynamic>? _latestDbUserData;
@@ -1273,6 +1332,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   // ==================== INVOICES WORKSPACE (WEB ONLY) ====================
 
   Widget _buildInvoicesWorkspace(BuildContext context) {
+    final currentDoctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('invoices')
@@ -1281,11 +1342,23 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         List<Map<String, dynamic>> allInvoices = List.from(_invoicesList);
 
         if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-          final dbInvoices = snapshot.data!.docs.map((doc) {
-            final data = Map<String, dynamic>.from(doc.data());
-            data['id'] = doc.id;
-            return data;
-          }).toList();
+          final dbInvoices = snapshot.data!.docs
+              .map((doc) {
+                final data = Map<String, dynamic>.from(doc.data());
+                data['id'] = doc.id;
+
+                // Multi-tenant protection: verify doctorId/doctorUid matching
+                final docDoctorId = (data['doctorId'] ?? data['doctorUid'] ?? '').toString();
+                if (docDoctorId.isNotEmpty &&
+                    currentDoctorId.isNotEmpty &&
+                    docDoctorId != currentDoctorId) {
+                  return null;
+                }
+
+                return _decryptInvoice(data);
+              })
+              .whereType<Map<String, dynamic>>()
+              .toList();
 
           final dbIds = dbInvoices.map((e) => e['id'].toString()).toSet();
           allInvoices = [
@@ -1314,17 +1387,17 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           return matchesSearch && matchesStatus;
         }).toList();
 
-        // Financial calculations
-        double totalInvoiced = allInvoices.fold(0.0, (sum, i) => sum + ((i['amount'] as num?)?.toDouble() ?? 0.0));
+        // Financial calculations with safe amount parsing
+        double totalInvoiced = allInvoices.fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
         double paidTotal = allInvoices
             .where((i) => i['status'] == 'Paid')
-            .fold(0.0, (sum, i) => sum + ((i['amount'] as num?)?.toDouble() ?? 0.0));
+            .fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
         double pendingTotal = allInvoices
             .where((i) => i['status'] == 'Pending')
-            .fold(0.0, (sum, i) => sum + ((i['amount'] as num?)?.toDouble() ?? 0.0));
+            .fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
         double overdueTotal = allInvoices
             .where((i) => i['status'] == 'Overdue')
-            .fold(0.0, (sum, i) => sum + ((i['amount'] as num?)?.toDouble() ?? 0.0));
+            .fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
 
         final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
 
@@ -1565,7 +1638,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                inv['id'] ?? '',
+                                (inv['id'] ?? '').toString(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF0F172A),
@@ -1577,7 +1650,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                inv['patientName'] ?? '',
+                                (inv['patientName'] ?? '').toString(),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF334155),
@@ -1589,7 +1662,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             Expanded(
                               flex: 3,
                               child: Text(
-                                inv['service'] ?? '-',
+                                (inv['service'] ?? '-').toString(),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -1602,7 +1675,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                inv['dueDate'] ?? '',
+                                _parseDateField(inv['dueDate']),
                                 style: const TextStyle(
                                   color: Color(0xFF64748B),
                                   fontSize: 13,
@@ -1613,7 +1686,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             Expanded(
                               flex: 2,
                               child: Text(
-                                currencyFormat.format(inv['amount'] ?? 0),
+                                currencyFormat.format(_parseAmount(inv['amount'])),
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w700,
                                   color: Color(0xFF0F172A),
@@ -1763,9 +1836,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           builder: (context, setModalState) {
             // Live financial calculations (treatments + medicines)
             final double treatmentFees = treatmentsList.fold(
-                0.0, (sum, item) => sum + ((item['price'] as num?)?.toDouble() ?? 0.0));
+                0.0, (sum, item) => sum + _parseAmount(item['price']));
             final double medicineFees = medicinesList.fold(
-                0.0, (sum, item) => sum + ((item['price'] as num?)?.toDouble() ?? 0.0));
+                0.0, (sum, item) => sum + _parseAmount(item['price']));
             final double fees = treatmentFees + medicineFees;
             final double discount = double.tryParse(discountCtrl.text.trim()) ?? 0.0;
             final double total = (fees - discount).clamp(0.0, double.infinity);
@@ -2290,7 +2363,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                       children: medicinesList.asMap().entries.map((entry) {
                                         final idx = entry.key;
                                         final item = entry.value;
-                                        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+                                        final price = _parseAmount(item['price']);
                                         return Padding(
                                           padding: const EdgeInsets.symmetric(vertical: 4),
                                           child: Row(
@@ -2446,7 +2519,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             icon: const Icon(Icons.receipt_long_rounded, size: 18),
                             label: const Text('Generate & Save Invoice',
                                 style: TextStyle(fontWeight: FontWeight.bold)),
-                            onPressed: () {
+                            onPressed: () async {
                               final patientName =
                                   _sanitizeInput(patientNameCtrl.text);
                               if (patientName.isEmpty) {
@@ -2492,12 +2565,22 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                 _invoicesList.insert(0, newInvoiceObj);
                               });
 
-                              // Persist directly to Database (Cloud Firestore)
+                              // Persist directly to Database (Cloud Firestore) with FieldCipher encryption
                               try {
-                                FirebaseFirestore.instance
+                                final currentDoctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                                final firestoreData = {
+                                  ...newInvoiceObj,
+                                  'patientName': FieldCipher.encrypt(newInvoiceObj['patientName']?.toString()),
+                                  'service': FieldCipher.encrypt(newInvoiceObj['service']?.toString()),
+                                  'clinicalNotes': FieldCipher.encrypt(newInvoiceObj['clinicalNotes']?.toString()),
+                                  'amount': FieldCipher.encrypt(newInvoiceObj['amount']?.toString()),
+                                  'doctorId': currentDoctorId,
+                                  'doctorUid': currentDoctorId,
+                                };
+                                await FirebaseFirestore.instance
                                     .collection('invoices')
                                     .doc(newId)
-                                    .set(newInvoiceObj);
+                                    .set(firestoreData);
                               } catch (e) {
                                 debugPrint('Firestore database error: $e');
                               }
@@ -2532,7 +2615,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     final status = (inv['status'] ?? 'Pending').toString();
     final isPaid = status == 'Paid';
 
-    final double totalAmount = (inv['amount'] as num?)?.toDouble() ?? 0.0;
+    final double totalAmount = _parseAmount(inv['amount']);
     final double payments = isPaid ? totalAmount : 0.0;
     final double balance = isPaid ? 0.0 : totalAmount;
 
@@ -2589,7 +2672,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Date: ${inv['issueDate'] ?? ''}',
+                        'Date: ${_parseDateField(inv['issueDate'])}',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
@@ -2656,7 +2739,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       // Treatments Rows
                       ...treatments.map((t) {
                         final item = t as Map<String, dynamic>;
-                        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+                        final price = _parseAmount(item['price']);
                         final priceStr = currencyFormat.format(price);
                         return TableRow(
                           children: [
@@ -2671,7 +2754,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       // Medicines Rows
                       ...medicines.map((m) {
                         final item = m as Map<String, dynamic>;
-                        final price = (item['price'] as num?)?.toDouble() ?? 0.0;
+                        final price = _parseAmount(item['price']);
                         final priceStr = currencyFormat.format(price);
                         final nameWithDosage = (item['dosage'] ?? '').toString().isNotEmpty
                             ? '${item['name']} (${item['dosage']})'
@@ -2760,7 +2843,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   const SizedBox(height: 4),
                   if (isPaid)
                     Text(
-                      'Rs. ${currencyFormat.format(totalAmount)}/- on ${inv['issueDate']} by Online / Cash',
+                      'Rs. ${currencyFormat.format(totalAmount)}/- on ${_parseDateField(inv['issueDate'])} by Online / Cash',
                       style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
                     )
                   else

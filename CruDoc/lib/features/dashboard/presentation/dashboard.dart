@@ -319,7 +319,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               const SizedBox(height: 20),
               TodaysVisitsCard(
                 onViewAll: () => _navigateToTabOrExplain(
-                  tabIndex: 4,
+                  tabIndex: 5,
                   unavailableTitle: "Today's Visits",
                   unavailableMessage:
                       'Visitations and appointments live in the Events section.',

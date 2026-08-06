@@ -9,7 +9,7 @@ const Color chartBarLight = Color.fromARGB(255, 30, 120, 255);
 
 /// Tab index of the Inventory screen — used to attach the low-stock badge
 /// to the right icon.
-const int _inventoryTabIndex = 2;
+const int _inventoryTabIndex = 3;
 
 class BottomNavBar extends ConsumerWidget {
   final int selectedIndex;
@@ -23,6 +23,7 @@ class BottomNavBar extends ConsumerWidget {
 
   static const _icons = [
     Icons.grid_view_rounded,
+    Icons.receipt_long_outlined,
     Icons.groups_rounded,
     Icons.inventory_2_outlined,
     Icons.payments_outlined,
@@ -31,6 +32,7 @@ class BottomNavBar extends ConsumerWidget {
 
   static const _activeIcons = [
     Icons.grid_view_rounded,
+    Icons.receipt_long_rounded,
     Icons.groups_rounded,
     Icons.inventory_2,
     Icons.payments_outlined,

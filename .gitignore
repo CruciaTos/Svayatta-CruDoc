@@ -5,3 +5,4 @@ CruDoc/lib/firebase_options.dart
 /.idea
 pending-payment-completion.patch
 session-details-sheet.patch
+/CruDoc/android

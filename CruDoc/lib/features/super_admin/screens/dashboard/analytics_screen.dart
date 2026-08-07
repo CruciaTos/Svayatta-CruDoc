@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../config/enums.dart';
 import '../../models/doctor_model.dart';
 import '../../providers/doctor_provider.dart';
+import 'package:doctor_management_app/core/theme/app_colors.dart'; // Added for unified design
 
 /// Production Super Admin Analytics Screen.
 /// Displays platform-wide KPIs, feature adoption stats, doctor usage, and revenue metrics.
@@ -131,29 +132,36 @@ class _SuperAdminAnalyticsScreenState
                   children: [
                     Text(
                       'Super Admin Analytics',
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      style: TextStyle(
+                        fontFamily: AppColors.headingFontFamily,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Platform-wide performance, revenue estimation, doctor activity, and feature adoption metrics.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.grey[600],
-                          ),
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 icon: doctorState.isLoading
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 18,
                         height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.slateBlue,
+                        ),
                       )
-                    : const Icon(Icons.refresh),
+                    : Icon(Icons.refresh, color: AppColors.silver),
                 onPressed: () => ref
                     .read(doctorListProvider.notifier)
                     .loadDoctors(refresh: true),
@@ -178,8 +186,7 @@ class _SuperAdminAnalyticsScreenState
                   value: '$totalDoctors',
                   subtitle: '$activeDoctors Active',
                   icon: Icons.people_alt_rounded,
-                  color: const Color(0xFF2563EB),
-                  bgColor: const Color(0xFFEFF6FF),
+                  iconColor: AppColors.slateBlue,
                 ),
                 _buildKPICard(
                   width: cardWidth,
@@ -187,8 +194,7 @@ class _SuperAdminAnalyticsScreenState
                   value: '\$${totalMonthlyRevenue.toStringAsFixed(0)}',
                   subtitle: 'From selected features',
                   icon: Icons.attach_money_rounded,
-                  color: const Color(0xFF10B981),
-                  bgColor: const Color(0xFFECFDF5),
+                  iconColor: AppColors.positiveGreen,
                 ),
                 _buildKPICard(
                   width: cardWidth,
@@ -196,8 +202,7 @@ class _SuperAdminAnalyticsScreenState
                   value: '$totalPatients',
                   subtitle: 'Across all clinics',
                   icon: Icons.personal_injury_rounded,
-                  color: const Color(0xFF8B5CF6),
-                  bgColor: const Color(0xFFF5F3FF),
+                  iconColor: AppColors.slateBlue,
                 ),
                 _buildKPICard(
                   width: cardWidth,
@@ -205,8 +210,7 @@ class _SuperAdminAnalyticsScreenState
                   value: '${totalStorageGB.toStringAsFixed(1)} GB',
                   subtitle: 'Firestore & Media',
                   icon: Icons.cloud_done_rounded,
-                  color: const Color(0xFFF59E0B),
-                  bgColor: const Color(0xFFFFFBEB),
+                  iconColor: Colors.amber,
                 ),
               ],
             );
@@ -295,14 +299,14 @@ class _SuperAdminAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -315,14 +319,15 @@ class _SuperAdminAnalyticsScreenState
               Row(
                 children: [
                   const Icon(Icons.show_chart_rounded,
-                      color: Color(0xFF10B981), size: 22),
+                      color: AppColors.positiveGreen, size: 22),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'REVENUE & MRR GROWTH TREND',
                     style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
                       fontSize: 11,
                       fontWeight: FontWeight.w800,
-                      color: Color(0xFF10B981),
+                      color: AppColors.positiveGreen,
                       letterSpacing: 0.8,
                     ),
                   ),
@@ -331,15 +336,16 @@ class _SuperAdminAnalyticsScreenState
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                  color: AppColors.positiveGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Text(
+                child: Text(
                   '+24% vs Last Month',
                   style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF047857),
+                    color: AppColors.positiveGreen,
                   ),
                 ),
               ),
@@ -353,6 +359,8 @@ class _SuperAdminAnalyticsScreenState
               painter: RevenueTrendPainter(
                 dataPoints: points,
                 months: months,
+                lineColor: AppColors.chartBarLight,
+                fillColor: AppColors.chartBarLight,
               ),
             ),
           ),
@@ -374,14 +382,14 @@ class _SuperAdminAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -391,14 +399,15 @@ class _SuperAdminAnalyticsScreenState
           Row(
             children: [
               const Icon(Icons.donut_large_rounded,
-                  color: Color(0xFF8B5CF6), size: 22),
+                  color: AppColors.slateBlue, size: 22),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'ACCOUNT STATUS DISTRIBUTION',
                 style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
                   fontSize: 11,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF8B5CF6),
+                  color: AppColors.slateBlue,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -419,15 +428,19 @@ class _SuperAdminAnalyticsScreenState
                         activeRatio: activeRatio,
                         pendingRatio: pendingRatio,
                         inactiveRatio: suspendedRatio,
+                        activeColor: AppColors.positiveGreen,
+                        pendingColor: Colors.amber,
+                        inactiveColor: Colors.redAccent,
                       ),
                     ),
                     Text(
                       '$total\nDoctors',
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF334155),
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -438,11 +451,11 @@ class _SuperAdminAnalyticsScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildLegendItem('Active Accounts', '$active', const Color(0xFF10B981)),
+                    _buildLegendItem('Active Accounts', '$active', AppColors.positiveGreen),
                     const SizedBox(height: 8),
-                    _buildLegendItem('Pending Accounts', '$pending', const Color(0xFFF59E0B)),
+                    _buildLegendItem('Pending Accounts', '$pending', Colors.amber),
                     const SizedBox(height: 8),
-                    _buildLegendItem('Suspended / Expired', '$suspended', const Color(0xFFEF4444)),
+                    _buildLegendItem('Suspended / Expired', '$suspended', Colors.redAccent),
                   ],
                 ),
               ),
@@ -468,12 +481,21 @@ class _SuperAdminAnalyticsScreenState
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+            style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontSize: 12,
+              color: AppColors.textSecondary,
+            ),
           ),
         ),
         Text(
           count,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textPrimary,
+          ),
         ),
       ],
     );
@@ -486,21 +508,20 @@ class _SuperAdminAnalyticsScreenState
     required String value,
     required String subtitle,
     required IconData icon,
-    required Color color,
-    required Color bgColor,
+    required Color iconColor,
   }) {
     return Container(
       width: width,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -512,10 +533,10 @@ class _SuperAdminAnalyticsScreenState
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: bgColor,
+                  color: iconColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, color: color, size: 22),
+                child: Icon(icon, color: iconColor, size: 22),
               ),
               const Spacer(),
             ],
@@ -523,27 +544,31 @@ class _SuperAdminAnalyticsScreenState
           const SizedBox(height: 16),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               fontSize: 22,
               fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
               letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 2),
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF475569),
+              color: AppColors.textSecondary,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             subtitle,
             style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
               fontSize: 11,
-              color: Colors.grey[500],
+              color: AppColors.textSecondary.withValues(alpha: 0.7),
             ),
           ),
         ],
@@ -560,14 +585,14 @@ class _SuperAdminAnalyticsScreenState
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -576,15 +601,16 @@ class _SuperAdminAnalyticsScreenState
         children: [
           Row(
             children: [
-              const Icon(Icons.pie_chart_outline_rounded,
-                  color: Color(0xFF2563EB), size: 22),
+              Icon(Icons.pie_chart_outline_rounded,
+                  color: AppColors.slateBlue, size: 22),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'FEATURE MODULE ADOPTION RATE',
                 style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF2563EB),
+                  color: AppColors.slateBlue,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -609,9 +635,11 @@ class _SuperAdminAnalyticsScreenState
                           children: [
                             Text(
                               module.label,
-                              style: const TextStyle(
+                              style: TextStyle(
+                                fontFamily: AppColors.bodyFontFamily,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -619,18 +647,20 @@ class _SuperAdminAnalyticsScreenState
                               Text(
                                 '(+\$${module.defaultAddonPrice.toStringAsFixed(0)}/mo)',
                                 style: TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
                                   fontSize: 11,
-                                  color: Colors.grey[500],
+                                  color: AppColors.textSecondary,
                                 ),
                               ),
                           ],
                         ),
                         Text(
                           '$count / $totalDoctors doctors (${(percent * 100).toStringAsFixed(0)}%)',
-                          style: const TextStyle(
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: Color(0xFF334155),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ],
@@ -641,7 +671,7 @@ class _SuperAdminAnalyticsScreenState
                       child: LinearProgressIndicator(
                         value: percent,
                         minHeight: 8,
-                        backgroundColor: const Color(0xFFF1F5F9),
+                        backgroundColor: AppColors.divider,
                         valueColor: AlwaysStoppedAnimation<Color>(
                           _getModuleColor(module),
                         ),
@@ -660,25 +690,25 @@ class _SuperAdminAnalyticsScreenState
   Color _getModuleColor(FeatureModule module) {
     switch (module) {
       case FeatureModule.dashboard:
-        return const Color(0xFF3B82F6);
+        return AppColors.slateBlue;
       case FeatureModule.revenue:
-        return const Color(0xFF10B981);
+        return AppColors.positiveGreen;
       case FeatureModule.patients:
-        return const Color(0xFF8B5CF6);
+        return AppColors.slateBlue;
       case FeatureModule.appointments:
-        return const Color(0xFF06B6D4);
+        return const Color(0xFF06B6D4); // teal
       case FeatureModule.inventory:
-        return const Color(0xFF10B981);
+        return AppColors.positiveGreen;
       case FeatureModule.homeVisits:
-        return const Color(0xFFF59E0B);
+        return Colors.amber;
       case FeatureModule.aiAssistant:
-        return const Color(0xFFEC4899);
+        return const Color(0xFFEC4899); // pink
       case FeatureModule.aiAgenticCalling:
-        return const Color(0xFF6366F1);
+        return const Color(0xFF6366F1); // indigo
       case FeatureModule.omnichannelMessaging:
-        return const Color(0xFF14B8A6);
+        return const Color(0xFF14B8A6); // teal
       case FeatureModule.multiDeviceAccess:
-        return const Color(0xFF64748B);
+        return AppColors.slateBlue;
     }
   }
 
@@ -690,14 +720,14 @@ class _SuperAdminAnalyticsScreenState
   ) {
     return Container(
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppColors.divider),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -709,15 +739,16 @@ class _SuperAdminAnalyticsScreenState
             padding: const EdgeInsets.all(18),
             child: Row(
               children: [
-                const Icon(Icons.analytics_rounded,
-                    color: Color(0xFF8B5CF6), size: 22),
+                Icon(Icons.analytics_rounded,
+                    color: AppColors.slateBlue, size: 22),
                 const SizedBox(width: 8),
-                const Text(
+                Text(
                   'DOCTOR PLATFORM ACTIVITY',
                   style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF8B5CF6),
+                    color: AppColors.slateBlue,
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -728,21 +759,34 @@ class _SuperAdminAnalyticsScreenState
                   child: TextField(
                     controller: _searchController,
                     onChanged: (val) => setState(() => _searchQuery = val),
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12,
+                      color: AppColors.textPrimary,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search doctor or clinic...',
-                      hintStyle: const TextStyle(fontSize: 12),
-                      prefixIcon:
-                          const Icon(Icons.search, size: 18, color: Colors.grey),
+                      hintStyle: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        fontSize: 12,
+                        color: AppColors.textSecondary,
+                      ),
+                      prefixIcon: Icon(Icons.search,
+                          size: 18, color: AppColors.textSecondary),
                       contentPadding: const EdgeInsets.symmetric(vertical: 8),
                       filled: true,
-                      fillColor: const Color(0xFFF8FAFC),
+                      fillColor: AppColors.cardSurfaceAlt,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(color: AppColors.divider),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: BorderSide(color: AppColors.divider),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: AppColors.slateBlue),
                       ),
                     ),
                   ),
@@ -751,18 +795,26 @@ class _SuperAdminAnalyticsScreenState
             ),
           ),
 
-          const Divider(height: 1),
+          const Divider(height: 1, color: AppColors.divider),
 
           if (isLoading)
             const Padding(
               padding: EdgeInsets.all(30.0),
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.slateBlue),
+              ),
             )
           else if (doctors.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(30.0),
+            Padding(
+              padding: const EdgeInsets.all(30.0),
               child: Center(
-                child: Text('No doctor accounts match your query.'),
+                child: Text(
+                  'No doctor accounts match your query.',
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ),
             )
           else
@@ -773,35 +825,25 @@ class _SuperAdminAnalyticsScreenState
                 headingRowHeight: 44,
                 dataRowMinHeight: 48,
                 dataRowMaxHeight: 56,
+                headingTextStyle: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                ),
+                dataTextStyle: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                ),
                 columns: const [
-                  DataColumn(
-                    label: Text('Doctor Name',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Clinic',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Active Features',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Calculated Rate',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Patients',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Storage Used',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
-                  DataColumn(
-                    label: Text('Status',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                  ),
+                  DataColumn(label: Text('Doctor Name')),
+                  DataColumn(label: Text('Clinic')),
+                  DataColumn(label: Text('Active Features')),
+                  DataColumn(label: Text('Calculated Rate')),
+                  DataColumn(label: Text('Patients')),
+                  DataColumn(label: Text('Storage Used')),
+                  DataColumn(label: Text('Status')),
                 ],
                 rows: doctors.map((doc) {
                   final rate = _calculateDoctorMonthlyRate(doc);
@@ -812,14 +854,14 @@ class _SuperAdminAnalyticsScreenState
                           children: [
                             CircleAvatar(
                               radius: 12,
-                              backgroundColor: const Color(0xFF8B5CF6)
-                                  .withValues(alpha: 0.12),
+                              backgroundColor: AppColors.slateBlue.withValues(alpha: 0.12),
                               child: Text(
                                 doc.name.isNotEmpty ? doc.name[0].toUpperCase() : 'D',
-                                style: const TextStyle(
+                                style: TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  color: Color(0xFF8B5CF6),
+                                  color: AppColors.slateBlue,
                                 ),
                               ),
                             ),
@@ -828,34 +870,48 @@ class _SuperAdminAnalyticsScreenState
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(doc.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.w600)),
-                                Text(doc.email,
-                                    style: TextStyle(
-                                        fontSize: 11, color: Colors.grey[500])),
+                                Text(
+                                  doc.name,
+                                  style: TextStyle(
+                                    fontFamily: AppColors.bodyFontFamily,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.textPrimary,
+                                  ),
+                                ),
+                                Text(
+                                  doc.email,
+                                  style: TextStyle(
+                                    fontFamily: AppColors.bodyFontFamily,
+                                    fontSize: 11,
+                                    color: AppColors.textSecondary,
+                                  ),
+                                ),
                               ],
                             ),
                           ],
                         ),
                       ),
-                      DataCell(Text(
-                          doc.clinicName.isNotEmpty ? doc.clinicName : 'Clinic')),
+                      DataCell(
+                        Text(
+                          doc.clinicName.isNotEmpty ? doc.clinicName : 'Clinic',
+                          style: TextStyle(color: AppColors.textPrimary),
+                        ),
+                      ),
                       DataCell(
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF10B981)
-                                .withValues(alpha: 0.12),
+                            color: AppColors.positiveGreen.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             '${doc.enabledModules.length} Modules',
-                            style: const TextStyle(
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF047857),
+                              color: AppColors.positiveGreen,
                             ),
                           ),
                         ),
@@ -863,32 +919,44 @@ class _SuperAdminAnalyticsScreenState
                       DataCell(
                         Text(
                           '\$${rate.toStringAsFixed(2)}/mo',
-                          style: const TextStyle(
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
+                            color: AppColors.textPrimary,
                           ),
                         ),
                       ),
-                      DataCell(Text('${doc.patientCount}')),
-                      DataCell(Text('${doc.storageUsedGB.toStringAsFixed(1)} GB')),
+                      DataCell(
+                        Text(
+                          '${doc.patientCount}',
+                          style: TextStyle(color: AppColors.textPrimary),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          '${doc.storageUsedGB.toStringAsFixed(1)} GB',
+                          style: TextStyle(color: AppColors.textPrimary),
+                        ),
+                      ),
                       DataCell(
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 2),
                           decoration: BoxDecoration(
                             color: doc.status == DoctorStatus.active
-                                ? const Color(0xFFECFDF5)
-                                : const Color(0xFFFEF2F2),
+                                ? AppColors.positiveGreen.withValues(alpha: 0.12)
+                                : Colors.redAccent.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
                             doc.status.name.toUpperCase(),
                             style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                               color: doc.status == DoctorStatus.active
-                                  ? const Color(0xFF047857)
-                                  : const Color(0xFFDC2626),
+                                  ? AppColors.positiveGreen
+                                  : Colors.redAccent,
                             ),
                           ),
                         ),
@@ -904,31 +972,38 @@ class _SuperAdminAnalyticsScreenState
   }
 }
 
-// ==================== CUSTOM PAINTER CHARTS ====================
+// ==================== CUSTOM PAINTER CHARTS (adapted colors) ====================
 
 /// Smooth Bezier Curved Line & Area Chart for Revenue Trend.
 class RevenueTrendPainter extends CustomPainter {
   final List<double> dataPoints;
   final List<String> months;
+  final Color lineColor;
+  final Color fillColor;
 
-  RevenueTrendPainter({required this.dataPoints, required this.months});
+  RevenueTrendPainter({
+    required this.dataPoints,
+    required this.months,
+    this.lineColor = const Color(0xFF10B981),
+    this.fillColor = const Color(0xFF10B981),
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     if (dataPoints.isEmpty) return;
 
     final gridPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
+      ..color = AppColors.divider
       ..strokeWidth = 1;
 
     final linePaint = Paint()
-      ..color = const Color(0xFF10B981)
+      ..color = lineColor
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
 
     final dotPaint = Paint()
-      ..color = const Color(0xFF10B981)
+      ..color = lineColor
       ..style = PaintingStyle.fill;
 
     final dotOuterPaint = Paint()
@@ -950,7 +1025,12 @@ class RevenueTrendPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: '\$$valLabel',
-          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 10, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: AppColors.textSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -969,7 +1049,12 @@ class RevenueTrendPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: months[i],
-          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: AppColors.textSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -1002,8 +1087,8 @@ class RevenueTrendPainter extends CustomPainter {
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: [
-        const Color(0xFF10B981).withValues(alpha: 0.25),
-        const Color(0xFF10B981).withValues(alpha: 0.0),
+        fillColor.withValues(alpha: 0.25),
+        fillColor.withValues(alpha: 0.0),
       ],
     );
 
@@ -1030,11 +1115,17 @@ class DonutChartPainter extends CustomPainter {
   final double activeRatio;
   final double pendingRatio;
   final double inactiveRatio;
+  final Color activeColor;
+  final Color pendingColor;
+  final Color inactiveColor;
 
   DonutChartPainter({
     required this.activeRatio,
     required this.pendingRatio,
     required this.inactiveRatio,
+    this.activeColor = const Color(0xFF10B981),
+    this.pendingColor = const Color(0xFFF59E0B),
+    this.inactiveColor = const Color(0xFFEF4444),
   });
 
   @override
@@ -1045,19 +1136,19 @@ class DonutChartPainter extends CustomPainter {
     final rect = Rect.fromCircle(center: center, radius: radius);
 
     final paintActive = Paint()
-      ..color = const Color(0xFF10B981)
+      ..color = activeColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
     final paintPending = Paint()
-      ..color = const Color(0xFFF59E0B)
+      ..color = pendingColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
 
     final paintInactive = Paint()
-      ..color = const Color(0xFFEF4444)
+      ..color = inactiveColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;

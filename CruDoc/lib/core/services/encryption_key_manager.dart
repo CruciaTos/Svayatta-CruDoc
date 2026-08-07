@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:encrypt/encrypt.dart' as enc;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class EncryptionKeyManager {
@@ -11,9 +11,11 @@ class EncryptionKeyManager {
 
   static final EncryptionKeyManager instance = EncryptionKeyManager._();
 
-  static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  static final FlutterSecureStorage _secureStorage = kIsWeb
+      ? const FlutterSecureStorage()
+      : const FlutterSecureStorage(
+          aOptions: AndroidOptions(encryptedSharedPreferences: true),
+        );
 
   // NOTE: this is a defense-in-depth constant, not a secret the app can
   // truly keep — anyone with the app binary can extract it. See the class

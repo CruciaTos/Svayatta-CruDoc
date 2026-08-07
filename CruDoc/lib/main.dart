@@ -36,14 +36,19 @@ Future<void> main() async {
 void _wireWebEncryptionKeyLoading() {
   String? lastHandledUid;
   FirebaseAuth.instance.authStateChanges().listen((user) async {
-    if (user == null) {
-      EncryptionKeyManager.instance.clear();
-      lastHandledUid = null;
-      return;
+    try {
+      if (user == null) {
+        EncryptionKeyManager.instance.clear();
+        lastHandledUid = null;
+        return;
+      }
+      if (lastHandledUid == user.uid) return;
+      lastHandledUid = user.uid;
+      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+    } catch (error, stackTrace) {
+      debugPrint('Web startup auth bootstrap failed: $error');
+      debugPrint(stackTrace.toString());
     }
-    if (lastHandledUid == user.uid) return;
-    lastHandledUid = user.uid;
-    await EncryptionKeyManager.instance.loadForDoctor(user.uid);
   });
 }
 
@@ -64,28 +69,33 @@ void _wireDoctorScopedStartup() {
   String? lastHandledUid;
 
   FirebaseAuth.instance.authStateChanges().listen((user) async {
-    if (user == null) {
-      if (lastHandledUid != null) {
-        await FirestoreSyncService.instance.stop();
-        await LocalDatabaseService.instance.close();
-        EncryptionKeyManager.instance.clear();
-        lastHandledUid = null;
+    try {
+      if (user == null) {
+        if (lastHandledUid != null) {
+          await FirestoreSyncService.instance.stop();
+          await LocalDatabaseService.instance.close();
+          EncryptionKeyManager.instance.clear();
+          lastHandledUid = null;
+        }
+        return;
       }
-      return;
+
+      if (lastHandledUid == user.uid) return; // already set up for this doctor
+      lastHandledUid = user.uid;
+
+      // Order matters: the key must be loaded before migration/sync try to
+      // decrypt anything, and the local cache must be confirmed to belong to
+      // this doctor before anything is written into it.
+      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+      await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
+        user.uid,
+      );
+      await InitialFirestoreMigrationService.instance.runIfNeeded();
+      await FirestoreSyncService.instance.start();
+    } catch (error, stackTrace) {
+      debugPrint('Doctor-scoped startup bootstrap failed: $error');
+      debugPrint(stackTrace.toString());
     }
-
-    if (lastHandledUid == user.uid) return; // already set up for this doctor
-    lastHandledUid = user.uid;
-
-    // Order matters: the key must be loaded before migration/sync try to
-    // decrypt anything, and the local cache must be confirmed to belong to
-    // this doctor before anything is written into it.
-    await EncryptionKeyManager.instance.loadForDoctor(user.uid);
-    await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
-      user.uid,
-    );
-    await InitialFirestoreMigrationService.instance.runIfNeeded();
-    await FirestoreSyncService.instance.start();
   });
 }
 

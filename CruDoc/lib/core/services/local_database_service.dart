@@ -20,9 +20,11 @@ class LocalDatabaseService extends ChangeNotifier {
   static const String _databaseNamePrefix = 'crudoc';
   static const int _databaseVersion = 1;
 
-  static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-  );
+  static final FlutterSecureStorage _secureStorage = kIsWeb
+      ? const FlutterSecureStorage()
+      : const FlutterSecureStorage(
+          aOptions: AndroidOptions(encryptedSharedPreferences: true),
+        );
   static const _dbPassphraseKey = 'crudoc_local_db_passphrase';
 
   Database? _database;

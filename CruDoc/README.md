@@ -15,3 +15,13 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
+
+## AI Voice Receptionist
+
+An AI-powered phone receptionist that answers incoming calls, books appointments into CruDoc, or transfers callers to a human receptionist.
+
+- **Location**: [`voice-receptionist/`](./voice-receptionist/)
+- **Tech**: Pipecat · Twilio · Sarvam AI · Google Gemini
+- **Setup & deployment**: See [`voice-receptionist/README.md`](./voice-receptionist/README.md)
+
+The voice receptionist is a standalone Python service that communicates with CruDoc's backend via a Cloud Function endpoint (`functions/src/appointments.ts`). Appointments booked by the AI appear in the CruDoc app in real time.

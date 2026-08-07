@@ -1,0 +1,14 @@
+# Pipecat AI pipeline + services
+pipecat-ai[google,sarvam,silero,runner]
+
+# Environment variables
+python-dotenv
+
+# HTTP client for CruDoc API calls
+aiohttp
+
+# Twilio REST API (live call transfer)
+twilio
+
+# Structured logging
+loguru

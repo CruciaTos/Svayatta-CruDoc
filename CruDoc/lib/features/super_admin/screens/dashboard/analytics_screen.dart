@@ -59,6 +59,9 @@ class _SuperAdminAnalyticsScreenState
       case 'appointments':
       case 'appointment':
         return FeatureModule.appointments;
+      case 'inventory':
+      case 'inventory_management':
+        return FeatureModule.inventory;
       case 'home_visits':
       case 'visitation':
         return FeatureModule.homeVisits;
@@ -664,6 +667,8 @@ class _SuperAdminAnalyticsScreenState
         return const Color(0xFF8B5CF6);
       case FeatureModule.appointments:
         return const Color(0xFF06B6D4);
+      case FeatureModule.inventory:
+        return const Color(0xFF10B981);
       case FeatureModule.homeVisits:
         return const Color(0xFFF59E0B);
       case FeatureModule.aiAssistant:

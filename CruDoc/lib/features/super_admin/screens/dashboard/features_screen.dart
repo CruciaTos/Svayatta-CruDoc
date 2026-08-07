@@ -46,6 +46,9 @@ class _SuperAdminFeaturesScreenState
       case 'appointments':
       case 'appointment':
         return FeatureModule.appointments;
+      case 'inventory':
+      case 'inventory_management':
+        return FeatureModule.inventory;
       case 'home_visits':
       case 'visitation':
         return FeatureModule.homeVisits;
@@ -73,6 +76,8 @@ class _SuperAdminFeaturesScreenState
         return 'patients';
       case FeatureModule.appointments:
         return 'appointments';
+      case FeatureModule.inventory:
+        return 'inventory';
       case FeatureModule.homeVisits:
         return 'home_visits';
       case FeatureModule.aiAssistant:
@@ -633,6 +638,8 @@ class _SuperAdminFeaturesScreenState
         return Icons.people_alt_rounded;
       case FeatureModule.appointments:
         return Icons.calendar_month_rounded;
+      case FeatureModule.inventory:
+        return Icons.inventory_2_rounded;
       case FeatureModule.homeVisits:
         return Icons.home_work_rounded;
       case FeatureModule.aiAssistant:

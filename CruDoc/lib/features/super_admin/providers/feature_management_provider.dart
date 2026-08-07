@@ -182,6 +182,16 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
         planAvailability: planMap(FeatureModule.appointments),
       ),
       FeatureModuleItem(
+        module: FeatureModule.inventory,
+        description:
+            'Medicine stock tracking, low-stock alerts, expiry notifications, and inventory management.',
+        iconCategory: IconCategory.core,
+        isGloballyEnabled: true,
+        enabledDoctorsCount: 48,
+        totalDoctors: _totalDoctors,
+        planAvailability: planMap(FeatureModule.inventory),
+      ),
+      FeatureModuleItem(
         module: FeatureModule.homeVisits,
         description:
             'Schedule and track patient visitations, doctor home visits, session logs, and location details.',

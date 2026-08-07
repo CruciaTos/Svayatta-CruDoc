@@ -320,6 +320,7 @@ enum FeatureModule {
   revenue,
   patients,
   appointments,
+  inventory,
   homeVisits,
   aiAssistant,
   aiAgenticCalling,
@@ -336,6 +337,8 @@ enum FeatureModule {
         return 'Patient Page';
       case FeatureModule.appointments:
         return 'Appointment';
+      case FeatureModule.inventory:
+        return 'Inventory Management';
       case FeatureModule.homeVisits:
         return 'Visitation';
       case FeatureModule.aiAssistant:
@@ -357,6 +360,8 @@ enum FeatureModule {
       case FeatureModule.patients:
         return 0.0; // Included in base plan
       case FeatureModule.appointments:
+        return 0.0; // Included in base plan
+      case FeatureModule.inventory:
         return 0.0; // Included in base plan
       case FeatureModule.revenue:
         return 15.0;

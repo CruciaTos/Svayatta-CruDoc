@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 enum SuperAdminTab {
   dashboard,
   doctors,
-  subscriptions,
   features,
   analytics,
   support,
@@ -17,8 +16,6 @@ enum SuperAdminTab {
         return 'Dashboard';
       case SuperAdminTab.doctors:
         return 'Doctors';
-      case SuperAdminTab.subscriptions:
-        return 'Subscriptions';
       case SuperAdminTab.features:
         return 'Features';
       case SuperAdminTab.analytics:

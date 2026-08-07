@@ -561,18 +561,6 @@ class _SuperAdminDoctorsScreenState
                     ),
                   ),
                   const SizedBox(height: 12),
-                  DropdownButtonFormField<SubscriptionPlan>(
-                    value: selectedPlan,
-                    decoration: const InputDecoration(
-                      labelText: 'Subscription Plan',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: SubscriptionPlan.values
-                        .map((p) => DropdownMenuItem(value: p, child: Text('${p.label} - \$${p.monthlyPrice.toStringAsFixed(0)}/mo')))
-                        .toList(),
-                    onChanged: (v) => setDialogState(() => selectedPlan = v ?? SubscriptionPlan.starter),
-                  ),
-                  const SizedBox(height: 12),
                   TextFormField(
                     controller: passwordController,
                     decoration: const InputDecoration(

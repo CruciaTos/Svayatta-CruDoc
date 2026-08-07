@@ -247,13 +247,6 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return const SuperAdminDashboardScreen();
       case SuperAdminTab.doctors:
         return const SuperAdminDoctorsScreen();
-      case SuperAdminTab.subscriptions:
-        return const _ComingSoonTab(
-          icon: Icons.subscriptions_outlined,
-          title: 'Subscription Management',
-          description:
-              'Manage doctor subscription plans, upgrades, downgrades, and trial extensions.',
-        );
       case SuperAdminTab.features:
         return const SuperAdminFeaturesScreen();
       case SuperAdminTab.analytics:
@@ -282,8 +275,6 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return Icons.dashboard_outlined;
       case SuperAdminTab.doctors:
         return Icons.people_outline;
-      case SuperAdminTab.subscriptions:
-        return Icons.subscriptions_outlined;
       case SuperAdminTab.features:
         return Icons.toggle_on_outlined;
       case SuperAdminTab.analytics:

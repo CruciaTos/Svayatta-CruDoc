@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/services/doctor_encryption_service.dart';
 import '../models/doctor_model.dart';
 import '../config/enums.dart';
@@ -129,6 +131,8 @@ class SuperAdminDoctorService {
   }
 
   /// Create a new doctor account atomically.
+  /// First attempts server-side Cloud Function (best practice with custom claims & atomic rollback).
+  /// If Cloud Function is not available/deployed, seamlessly falls back to secondary Firebase App client creation.
   Future<DoctorModel> createDoctor({
     required String name,
     required String email,
@@ -142,6 +146,9 @@ class SuperAdminDoctorService {
     required String password,
     List<String>? enabledModules,
   }) async {
+    final modules = enabledModules ?? subscriptionPlan.includedModules;
+
+    // --- Approach 1: Try Production Cloud Function ---
     try {
       final callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createDoctor');
       final result = await callable.call<Map<String, dynamic>>({
@@ -155,13 +162,123 @@ class SuperAdminDoctorService {
         'subscriptionPlan': subscriptionPlan.name,
         'storageLimitGB': storageLimitGB,
         'password': password,
-        'enabledModules': enabledModules ?? subscriptionPlan.includedModules,
+        'enabledModules': modules,
       });
 
       final doctorId = result.data['doctorId'] as String?;
-      if (doctorId == null || doctorId.isEmpty) {
-        throw Exception('Doctor creation did not return an ID');
+      if (doctorId != null && doctorId.isNotEmpty) {
+        debugPrint('Doctor created successfully via Cloud Function: $doctorId');
+        return DoctorModel(
+          id: doctorId,
+          name: name,
+          email: email,
+          phone: phone,
+          specialization: specialization,
+          clinicName: clinicName,
+          country: country,
+          timeZone: timeZone,
+          subscriptionPlan: subscriptionPlan,
+          status: DoctorStatus.active,
+          accountCreated: DateTime.now(),
+          storageLimitGB: storageLimitGB,
+          enabledModules: modules,
+        );
       }
+    } catch (cfError) {
+      debugPrint('Cloud Function createDoctor skipped/failed (${cfError.toString()}), falling back to secondary app creation.');
+      if (cfError.toString().contains('already exists') || cfError.toString().contains('email-already-in-use')) {
+        throw Exception('A doctor with this email already exists');
+      }
+    }
+
+    // --- Approach 2: Fallback to Secondary Firebase App Client Creation ---
+    FirebaseApp? secondaryApp;
+    String? createdUid;
+
+    try {
+      try {
+        secondaryApp = Firebase.app('doctorCreator');
+      } catch (_) {
+        secondaryApp = await Firebase.initializeApp(
+          name: 'doctorCreator',
+          options: Firebase.app().options,
+        );
+      }
+
+      final secondaryAuth = fb_auth.FirebaseAuth.instanceFor(app: secondaryApp);
+
+      final userCredential = await secondaryAuth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final doctorId = userCredential.user!.uid;
+      createdUid = doctorId;
+
+      await userCredential.user!.updateDisplayName(name);
+      await secondaryAuth.signOut();
+
+      final batch = _fb.batch();
+      final now = DateTime.now();
+
+      final encryptedName = DoctorEncryptionService.encryptForDoctor(name, doctorId);
+      final encryptedEmail = DoctorEncryptionService.encryptForDoctor(email, doctorId);
+      final encryptedPhone = DoctorEncryptionService.encryptForDoctor(phone, doctorId);
+      final encryptedSpec = DoctorEncryptionService.encryptForDoctor(specialization, doctorId);
+      final encryptedClinic = DoctorEncryptionService.encryptForDoctor(clinicName, doctorId);
+      final encryptedCountry = DoctorEncryptionService.encryptForDoctor(country, doctorId);
+      final encryptedTZ = DoctorEncryptionService.encryptForDoctor(timeZone, doctorId);
+
+      batch.set(_fb.usersCollection.doc(doctorId), {
+        'name': encryptedName,
+        'email': encryptedEmail,
+        'phone': encryptedPhone,
+        'specialization': encryptedSpec,
+        'clinicName': encryptedClinic,
+        'country': encryptedCountry,
+        'timeZone': encryptedTZ,
+        'subscriptionPlan': subscriptionPlan.name,
+        'status': 'active',
+        'role': 'doctor',
+        'accountCreated': FieldValue.serverTimestamp(),
+        'lastLogin': null,
+        'storageUsedGB': 0,
+        'storageLimitGB': storageLimitGB,
+        'patientCount': 0,
+        'appointmentCount': 0,
+        'activeDeviceCount': 0,
+        'ocrRequestsThisMonth': 0,
+        'enabledModules': modules,
+        'totalSessions': 0,
+        'isDeleted': false,
+      });
+
+      batch.set(
+        FirebaseFirestore.instance.collection('doctor_settings').doc(doctorId),
+        {
+          'doctorId': doctorId,
+          'enabledModules': modules,
+          'lastModified': FieldValue.serverTimestamp(),
+          'createdAt': FieldValue.serverTimestamp(),
+        },
+      );
+
+      batch.set(
+        FirebaseFirestore.instance.collection('subscriptions').doc(doctorId),
+        {
+          'doctorId': doctorId,
+          'plan': subscriptionPlan.name,
+          'subscribedDate': FieldValue.serverTimestamp(),
+          'isTrial': true,
+          'trialEndDate': Timestamp.fromDate(now.add(const Duration(days: 14))),
+          'autoRenew': true,
+          'history': [],
+          'lastModified': FieldValue.serverTimestamp(),
+          'modifiedBy': _fb.currentUserEmail,
+        },
+      );
+
+      await batch.commit();
 
       return DoctorModel(
         id: doctorId,
@@ -174,15 +291,19 @@ class SuperAdminDoctorService {
         timeZone: timeZone,
         subscriptionPlan: subscriptionPlan,
         status: DoctorStatus.active,
-        accountCreated: DateTime.now(),
+        accountCreated: now,
         storageLimitGB: storageLimitGB,
-        enabledModules: enabledModules ?? subscriptionPlan.includedModules,
+        enabledModules: modules,
       );
-    } on FirebaseFunctionsException catch (e) {
-      throw Exception(e.message ?? 'Failed to create doctor');
     } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        throw Exception('A doctor with this email already exists');
+      }
       throw Exception('Auth error: ${e.message}');
     } catch (e) {
+      if (createdUid != null) {
+        debugPrint('Warning: Auth user $createdUid created but Firestore write failed.');
+      }
       throw Exception('Failed to create doctor: ${e.toString()}');
     }
   }

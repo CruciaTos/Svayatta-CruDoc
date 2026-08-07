@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/enums.dart';
+import '../../models/doctor_model.dart';
+import '../../providers/doctor_provider.dart';
 import '../../providers/feature_management_provider.dart';
+import '../../services/doctor_service.dart';
 
 /// Super Admin Feature Management Screen.
-/// Provides a simple Doctor dropdown menu with feature toggle switches inside.
+/// Displays real doctors from Firestore with interactive feature toggle switches.
 class SuperAdminFeaturesScreen extends ConsumerStatefulWidget {
   const SuperAdminFeaturesScreen({super.key});
 
@@ -16,105 +19,123 @@ class SuperAdminFeaturesScreen extends ConsumerStatefulWidget {
 
 class _SuperAdminFeaturesScreenState
     extends ConsumerState<SuperAdminFeaturesScreen> {
-  // Sample doctor accounts list
-  final List<Map<String, String>> _doctors = const [
-    {
-      'id': 'doc-991',
-      'name': 'Dr. Venom Mhatre',
-      'email': 'venom@crudoc.com',
-      'clinic': 'Mhatre Healthcare Clinic',
-    },
-    {
-      'id': 'doc-882',
-      'name': 'Dr. Smit Mhatre',
-      'email': 'smit@crudoc.com',
-      'clinic': 'Smit Medical Center',
-    },
-    {
-      'id': 'doc-773',
-      'name': 'Dr. Ananya Roy',
-      'email': 'ananya@royhealth.com',
-      'clinic': 'Roy Specialty Hospital',
-    },
-    {
-      'id': 'doc-664',
-      'name': 'Dr. Rajesh Kumar',
-      'email': 'rkumar@citycare.com',
-      'clinic': 'CityCare Polyclinic',
-    },
-    {
-      'id': 'doc-555',
-      'name': 'Dr. Meera Patel',
-      'email': 'meera@patelclinic.in',
-      'clinic': 'Patel Wellness Center',
-    },
-  ];
-
-  late String _selectedDoctorId;
-
-  // Track enabled feature modules per doctor (doctorId -> Set of enabled FeatureModules)
+  String? _selectedDoctorId;
   final Map<String, Set<FeatureModule>> _doctorFeatures = {};
+  final SuperAdminDoctorService _doctorService = SuperAdminDoctorService();
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDoctorId = _doctors.first['id']!;
-
-    // Initialize initial feature toggles for doctors
-    _doctorFeatures['doc-991'] = {
-      FeatureModule.dashboard,
-      FeatureModule.patients,
-      FeatureModule.appointments,
-      FeatureModule.revenue,
-    };
-    _doctorFeatures['doc-882'] = {
-      FeatureModule.dashboard,
-      FeatureModule.patients,
-      FeatureModule.appointments,
-      FeatureModule.revenue,
-      FeatureModule.omnichannelMessaging,
-    };
-    _doctorFeatures['doc-773'] = {
-      FeatureModule.dashboard,
-      FeatureModule.patients,
-      FeatureModule.appointments,
-      FeatureModule.homeVisits,
-      FeatureModule.aiAssistant,
-    };
-    _doctorFeatures['doc-664'] = {
-      FeatureModule.dashboard,
-      FeatureModule.patients,
-      FeatureModule.appointments,
-      FeatureModule.revenue,
-      FeatureModule.aiAssistant,
-      FeatureModule.aiAgenticCalling,
-      FeatureModule.omnichannelMessaging,
-    };
-    _doctorFeatures['doc-555'] = {
-      FeatureModule.dashboard,
-      FeatureModule.patients,
-      FeatureModule.appointments,
-      FeatureModule.multiDeviceAccess,
-    };
+    Future.microtask(() {
+      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+    });
   }
 
-  Set<FeatureModule> _getEnabledModules(String doctorId) {
-    return _doctorFeatures[doctorId] ??= {
-      FeatureModule.dashboard,
-      FeatureModule.patients,
-      FeatureModule.appointments,
-    };
+  FeatureModule? _parseModule(String str) {
+    final clean = str.trim().toLowerCase();
+    switch (clean) {
+      case 'dashboard':
+        return FeatureModule.dashboard;
+      case 'revenue':
+      case 'revenue_page':
+        return FeatureModule.revenue;
+      case 'patients':
+      case 'patient_page':
+        return FeatureModule.patients;
+      case 'appointments':
+      case 'appointment':
+        return FeatureModule.appointments;
+      case 'home_visits':
+      case 'visitation':
+        return FeatureModule.homeVisits;
+      case 'ai_assistant':
+        return FeatureModule.aiAssistant;
+      case 'ai_agentic_calling':
+        return FeatureModule.aiAgenticCalling;
+      case 'omnichannel_messaging':
+      case 'whatsapp_messaging':
+        return FeatureModule.omnichannelMessaging;
+      case 'multi_device_access':
+        return FeatureModule.multiDeviceAccess;
+      default:
+        return null;
+    }
   }
 
-  void _toggleModule(String doctorId, FeatureModule module, bool value) {
+  String _moduleToString(FeatureModule module) {
+    switch (module) {
+      case FeatureModule.dashboard:
+        return 'dashboard';
+      case FeatureModule.revenue:
+        return 'revenue';
+      case FeatureModule.patients:
+        return 'patients';
+      case FeatureModule.appointments:
+        return 'appointments';
+      case FeatureModule.homeVisits:
+        return 'home_visits';
+      case FeatureModule.aiAssistant:
+        return 'ai_assistant';
+      case FeatureModule.aiAgenticCalling:
+        return 'ai_agentic_calling';
+      case FeatureModule.omnichannelMessaging:
+        return 'omnichannel_messaging';
+      case FeatureModule.multiDeviceAccess:
+        return 'multi_device_access';
+    }
+  }
+
+  Set<FeatureModule> _getEnabledModules(DoctorModel doctor) {
+    if (!_doctorFeatures.containsKey(doctor.id)) {
+      final set = <FeatureModule>{};
+      for (final modStr in doctor.enabledModules) {
+        final parsed = _parseModule(modStr);
+        if (parsed != null) set.add(parsed);
+      }
+      _doctorFeatures[doctor.id] = set;
+    }
+    return _doctorFeatures[doctor.id]!;
+  }
+
+  Future<void> _toggleModule(DoctorModel doctor, FeatureModule module, bool value) async {
+    final set = _getEnabledModules(doctor);
     setState(() {
-      final set = _getEnabledModules(doctorId);
       if (value) {
         set.add(module);
       } else {
         set.remove(module);
       }
     });
+
+    final updatedModuleStrings = set.map(_moduleToString).toList();
+
+    try {
+      setState(() => _isSaving = true);
+      await _doctorService.updateDoctor(doctor.id, {
+        'enabledModules': updatedModuleStrings,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${module.label} updated for ${doctor.name}'),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to update feature: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   double _calculateMonthlyTotal(Set<FeatureModule> enabled) {
@@ -127,13 +148,57 @@ class _SuperAdminFeaturesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final doctorState = ref.watch(doctorListProvider);
     final featureState = ref.watch(featureManagementProvider);
     final isMobile = MediaQuery.of(context).size.width < 768;
-    final selectedDoctor = _doctors.firstWhere(
-      (d) => d['id'] == _selectedDoctorId,
-      orElse: () => _doctors.first,
+
+    if (doctorState.isLoading && doctorState.doctors.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
+    final doctors = doctorState.doctors;
+
+    if (doctors.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.people_outline, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                'No doctors found in system',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Create a new doctor account in the Doctors tab to manage their feature permissions.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Ensure selected doctor exists
+    if (_selectedDoctorId == null || !doctors.any((d) => d.id == _selectedDoctorId)) {
+      _selectedDoctorId = doctors.first.id;
+    }
+
+    final selectedDoctor = doctors.firstWhere(
+      (d) => d.id == _selectedDoctorId,
+      orElse: () => doctors.first,
     );
-    final enabledModules = _getEnabledModules(_selectedDoctorId);
+
+    final enabledModules = _getEnabledModules(selectedDoctor);
     final totalMonthlyPrice = _calculateMonthlyTotal(enabledModules);
 
     return SingleChildScrollView(
@@ -149,12 +214,17 @@ class _SuperAdminFeaturesScreenState
               const SizedBox(height: 20),
 
               // 2. Doctor Selector Dropdown Menu Card
-              _buildDoctorDropdownCard(context, selectedDoctor, enabledModules),
+              _buildDoctorDropdownCard(context, doctors, selectedDoctor, enabledModules),
               const SizedBox(height: 20),
 
               // 3. Feature Toggles List inside Doctor Container
               _buildFeatureTogglesCard(
-                  context, featureState, enabledModules, totalMonthlyPrice),
+                context,
+                selectedDoctor,
+                featureState,
+                enabledModules,
+                totalMonthlyPrice,
+              ),
             ],
           ),
         ),
@@ -167,11 +237,23 @@ class _SuperAdminFeaturesScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Doctor Feature Management',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+        Row(
+          children: [
+            Text(
+              'Doctor Feature Management',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+            if (_isSaving) ...[
+              const SizedBox(width: 12),
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
               ),
+            ],
+          ],
         ),
         const SizedBox(height: 4),
         Text(
@@ -187,7 +269,8 @@ class _SuperAdminFeaturesScreenState
   // ==================== 2. DOCTOR DROPDOWN CARD ====================
   Widget _buildDoctorDropdownCard(
     BuildContext context,
-    Map<String, String> selectedDoctor,
+    List<DoctorModel> doctors,
+    DoctorModel selectedDoctor,
     Set<FeatureModule> enabledModules,
   ) {
     return Container(
@@ -252,13 +335,14 @@ class _SuperAdminFeaturesScreenState
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
-                value: _selectedDoctorId,
+                value: selectedDoctor.id,
                 isExpanded: true,
                 icon: const Icon(Icons.keyboard_arrow_down_rounded,
                     color: Color(0xFF64748B), size: 24),
-                items: _doctors.map((doctor) {
+                items: doctors.map((doctor) {
+                  final initialLetter = doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : 'D';
                   return DropdownMenuItem<String>(
-                    value: doctor['id']!,
+                    value: doctor.id,
                     child: Row(
                       children: [
                         CircleAvatar(
@@ -266,7 +350,7 @@ class _SuperAdminFeaturesScreenState
                           backgroundColor: const Color(0xFF8B5CF6)
                               .withValues(alpha: 0.12),
                           child: Text(
-                            doctor['name']![4].toUpperCase(),
+                            initialLetter,
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
@@ -275,25 +359,29 @@ class _SuperAdminFeaturesScreenState
                           ),
                         ),
                         const SizedBox(width: 10),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              doctor['name']!,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                doctor.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            Text(
-                              '${doctor['clinic']} • ${doctor['email']}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[600],
+                              Text(
+                                '${doctor.clinicName.isNotEmpty ? doctor.clinicName : "Clinic"} • ${doctor.email}',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -317,6 +405,7 @@ class _SuperAdminFeaturesScreenState
   // ==================== 3. FEATURE TOGGLES LIST ====================
   Widget _buildFeatureTogglesCard(
     BuildContext context,
+    DoctorModel selectedDoctor,
     FeatureManagementState state,
     Set<FeatureModule> enabledModules,
     double totalMonthlyPrice,
@@ -485,7 +574,7 @@ class _SuperAdminFeaturesScreenState
                     Switch(
                       value: isEnabled,
                       onChanged: (val) {
-                        _toggleModule(_selectedDoctorId, feature.module, val);
+                        _toggleModule(selectedDoctor, feature.module, val);
                       },
                       activeThumbColor: const Color(0xFF10B981),
                     ),

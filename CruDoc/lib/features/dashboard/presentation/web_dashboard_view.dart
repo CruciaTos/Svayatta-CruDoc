@@ -217,44 +217,176 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     showAddPatientSheet(context);
   }
 
+  Stream<List<String>> _watchDoctorModulesStream(User? user) {
+    if (user == null) {
+      return Stream.value([
+        'dashboard',
+        'patients',
+        'appointments',
+        'inventory',
+        'revenue',
+        'home_visits',
+        'ai_assistant',
+        'ai_agentic_calling',
+        'omnichannel_messaging',
+        'multi_device_access',
+      ]);
+    }
+
+    return FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .map((doc) {
+      if (!doc.exists || doc.data() == null) {
+        return [
+          'dashboard',
+          'patients',
+          'appointments',
+          'inventory',
+          'revenue',
+          'home_visits',
+          'ai_assistant',
+          'ai_agentic_calling',
+          'omnichannel_messaging',
+          'multi_device_access',
+        ];
+      }
+      final data = doc.data()!;
+      final rawList = data['enabledModules'] as List<dynamic>?;
+      if (rawList == null) {
+        return [
+          'dashboard',
+          'patients',
+          'appointments',
+          'inventory',
+          'revenue',
+          'home_visits',
+          'ai_assistant',
+          'ai_agentic_calling',
+          'omnichannel_messaging',
+          'multi_device_access',
+        ];
+      }
+      return rawList.map((e) => e.toString().trim().toLowerCase()).toList();
+    });
+  }
+
+  Widget _buildFeatureDisabledView(String featureName) {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 480),
+        margin: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(36),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEF2F2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.lock_outline_rounded,
+                color: Color(0xFFEF4444),
+                size: 40,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              '$featureName Feature Disabled',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'The $featureName module is currently not enabled for your doctor account. Please contact your Super Administrator to activate this feature.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[600],
+                height: 1.5,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC), // Crisp Light Slate Background
-      body: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Left Sidebar (CareDoc Navigation Rail)
-          _buildSidebar(context),
+    final user = FirebaseAuth.instance.currentUser;
+    return StreamBuilder<List<String>>(
+      stream: _watchDoctorModulesStream(user),
+      builder: (context, snapshot) {
+        final enabledModules = snapshot.data ?? const [
+          'dashboard',
+          'patients',
+          'appointments',
+          'inventory',
+          'revenue',
+          'home_visits',
+          'ai_assistant',
+          'ai_agentic_calling',
+          'omnichannel_messaging',
+          'multi_device_access',
+        ];
 
-          // Main Section (Header + Body Content)
-          Expanded(
-            child: Column(
-              children: [
-                // Top Header Navbar
-                _buildTopHeader(context),
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8FAFC), // Crisp Light Slate Background
+          body: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left Sidebar (CareDoc Navigation Rail)
+              _buildSidebar(context, enabledModules),
 
-                // Main Content Workspace (Dynamic per selected Nav tab)
-                Expanded(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 200),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: _buildSelectedTabWorkspace(context),
+              // Main Section (Header + Body Content)
+              Expanded(
+                child: Column(
+                  children: [
+                    // Top Header Navbar
+                    _buildTopHeader(context),
+
+                    // Main Content Workspace (Dynamic per selected Nav tab)
+                    Expanded(
+                      child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: _buildSelectedTabWorkspace(context, enabledModules),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
   // ==================== DYNAMIC TAB WORKSPACE SWITCHER ====================
 
-  Widget _buildSelectedTabWorkspace(BuildContext context) {
+  Widget _buildSelectedTabWorkspace(BuildContext context, List<String> enabledModules) {
     switch (_selectedNavIndex) {
       case 0:
         // Tab 0: Main Dashboard Overview
@@ -267,7 +399,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                 onTap: () => setState(() => _selectedNavIndex = 3),
               ),
               const SizedBox(height: 16),
-              _buildOverviewStatsRow(context),
+              _buildOverviewStatsRow(context, enabledModules),
               const SizedBox(height: 20),
               _buildAppointmentsTableCard(context),
             ],
@@ -275,7 +407,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         );
 
       case 1:
-        // Tab 1: Appointments / Events (Full Events Management)
+        // Tab 1: Appointments / Events
+        if (!enabledModules.contains('appointments')) {
+          return _buildFeatureDisabledView('Appointments');
+        }
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Container(
@@ -298,7 +433,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         );
 
       case 2:
-        // Tab 2: Patients Record (Full Patient Records Management)
+        // Tab 2: Patients Record
+        if (!enabledModules.contains('patients')) {
+          return _buildFeatureDisabledView('Patient Records');
+        }
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Container(
@@ -321,7 +459,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         );
 
       case 3:
-        // Tab 3: Inventory List (Full Inventory Management)
+        // Tab 3: Inventory List
+        if (!enabledModules.contains('inventory')) {
+          return _buildFeatureDisabledView('Inventory');
+        }
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Container(
@@ -344,7 +485,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         );
 
       case 4:
-        // Tab 4: Revenue & Finance (Full Revenue Management)
+        // Tab 4: Revenue & Finance
+        if (!enabledModules.contains('revenue')) {
+          return _buildFeatureDisabledView('Revenue Log');
+        }
         return Padding(
           padding: const EdgeInsets.all(24),
           child: Container(
@@ -367,7 +511,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         );
 
       case 5:
-        // Tab 5: Invoices & Billing Management (Web Exclusive)
+        // Tab 5: Invoices & Billing Management
+        if (!enabledModules.contains('revenue')) {
+          return _buildFeatureDisabledView('Invoices & Billing');
+        }
         return _buildInvoicesWorkspace(context);
 
       default:
@@ -377,7 +524,12 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
   // ==================== SIDEBAR ====================
 
-  Widget _buildSidebar(BuildContext context) {
+  Widget _buildSidebar(BuildContext context, List<String> enabledModules) {
+    final hasAppointments = enabledModules.contains('appointments');
+    final hasPatients = enabledModules.contains('patients');
+    final hasInventory = enabledModules.contains('inventory');
+    final hasRevenue = enabledModules.contains('revenue');
+
     return Container(
       width: 250,
       color: Colors.white,
@@ -423,10 +575,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             ),
           ),
           const SizedBox(height: 10),
-          _buildSidebarNavItem(0, Icons.grid_view_rounded, 'Dashboard'),
-          _buildSidebarNavItem(1, Icons.calendar_today_rounded, 'Appointments'),
-          _buildSidebarNavItem(2, Icons.people_alt_outlined, 'Patients'),
-          _buildSidebarNavItem(3, Icons.inventory_2_outlined, 'Inventory'),
+          _buildSidebarNavItem(0, Icons.grid_view_rounded, 'Dashboard', true),
+          _buildSidebarNavItem(1, Icons.calendar_today_rounded, 'Appointments', hasAppointments),
+          _buildSidebarNavItem(2, Icons.people_alt_outlined, 'Patients', hasPatients),
+          _buildSidebarNavItem(3, Icons.inventory_2_outlined, 'Inventory', hasInventory),
 
           const SizedBox(height: 20),
 
@@ -441,8 +593,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             ),
           ),
           const SizedBox(height: 10),
-          _buildSidebarNavItem(4, Icons.payments_outlined, 'Revenue Log'),
-          _buildSidebarNavItem(5, Icons.receipt_long_outlined, 'Invoices'),
+          _buildSidebarNavItem(4, Icons.payments_outlined, 'Revenue Log', hasRevenue),
+          _buildSidebarNavItem(5, Icons.receipt_long_outlined, 'Invoices', hasRevenue),
 
           const Spacer(),
 
@@ -484,7 +636,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     );
   }
 
-  Widget _buildSidebarNavItem(int index, IconData icon, String title,
+  Widget _buildSidebarNavItem(int index, IconData icon, String title, bool isEnabled,
       {List<String>? subItems}) {
     final isSelected = _selectedNavIndex == index;
 
@@ -508,22 +660,34 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
               children: [
                 Icon(
                   icon,
-                  color: isSelected
-                      ? const Color(0xFF2563EB)
-                      : const Color(0xFF64748B),
+                  color: !isEnabled
+                      ? Colors.grey[400]
+                      : isSelected
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF64748B),
                   size: 18,
                 ),
                 const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: isSelected
-                        ? const Color(0xFF2563EB)
-                        : const Color(0xFF334155),
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: TextStyle(
+                      color: !isEnabled
+                          ? Colors.grey[400]
+                          : isSelected
+                              ? const Color(0xFF2563EB)
+                              : const Color(0xFF334155),
+                      fontSize: 13,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                 ),
+                if (!isEnabled)
+                  const Icon(
+                    Icons.lock_outline_rounded,
+                    size: 14,
+                    color: Color(0xFF94A3B8),
+                  ),
               ],
             ),
           ),
@@ -722,7 +886,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
   // ==================== OVERVIEW STATS ROW ====================
 
-  Widget _buildOverviewStatsRow(BuildContext context) {
+  Widget _buildOverviewStatsRow(BuildContext context, List<String> enabledModules) {
+    final isRevenueEnabled = enabledModules.contains('revenue');
+    final isInventoryEnabled = enabledModules.contains('inventory');
+
     return StreamBuilder<List<RevenueEntry>>(
       stream: _revenueRepository.watchRevenueEntries(),
       builder: (context, snapshot) {
@@ -734,57 +901,73 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         return Row(
           children: [
             Expanded(
-              child: _buildStatCard(
-                title: 'Total Revenue',
-                value: _hideRevenue
-                    ? '₹ • • • • • •'
-                    : '₹ ${totalRevenue.toInt()}',
-                icon: Icons.account_balance_wallet_outlined,
-                iconBg: const Color(0xFFEFF6FF),
-                iconColor: const Color(0xFF2563EB),
-                action: GestureDetector(
-                  onTap: () => setState(() => _hideRevenue = !_hideRevenue),
-                  child: Icon(
-                    _hideRevenue
-                        ? Icons.visibility_off_outlined
-                        : Icons.visibility_outlined,
-                    color: const Color(0xFF94A3B8),
-                    size: 18,
-                  ),
-                ),
-              ),
+              child: isRevenueEnabled
+                  ? _buildStatCard(
+                      title: 'Total Revenue',
+                      value: _hideRevenue
+                          ? '₹ • • • • • •'
+                          : '₹ ${totalRevenue.toInt()}',
+                      icon: Icons.account_balance_wallet_outlined,
+                      iconBg: const Color(0xFFEFF6FF),
+                      iconColor: const Color(0xFF2563EB),
+                      action: GestureDetector(
+                        onTap: () => setState(() => _hideRevenue = !_hideRevenue),
+                        child: Icon(
+                          _hideRevenue
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: const Color(0xFF94A3B8),
+                          size: 18,
+                        ),
+                      ),
+                    )
+                  : _buildStatCard(
+                      title: 'Total Revenue',
+                      value: '🔒 Feature Locked',
+                      icon: Icons.lock_outline_rounded,
+                      iconBg: const Color(0xFFFEF2F2),
+                      iconColor: const Color(0xFFEF4444),
+                    ),
             ),
             const SizedBox(width: 16),
             Expanded(
-              child: Consumer(
-                builder: (context, ref, child) {
-                  final medicinesAsync = ref.watch(medicinesStreamProvider);
-                  final countText = medicinesAsync.when(
-                    data: (medicines) => '${medicines.length} Items',
-                    loading: () => 'Loading...',
-                    error: (_, _) => 'Stock Items',
-                  );
+              child: isInventoryEnabled
+                  ? Consumer(
+                      builder: (context, ref, child) {
+                        final medicinesAsync = ref.watch(medicinesStreamProvider);
+                        final countText = medicinesAsync.when(
+                          data: (medicines) => '${medicines.length} Items',
+                          loading: () => 'Loading...',
+                          error: (_, _) => 'Stock Items',
+                        );
 
-                  return _buildStatCard(
-                    title: 'Inventory',
-                    value: countText,
-                    icon: Icons.inventory_2_outlined,
-                    iconBg: const Color(0xFFECFDF5),
-                    iconColor: const Color(0xFF10B981),
-                    action: TextButton(
-                      onPressed: () => setState(() => _selectedNavIndex = 3),
-                      child: const Text(
-                        'View Inventory',
-                        style: TextStyle(
-                          color: Color(0xFF10B981),
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                        return _buildStatCard(
+                          title: 'Inventory',
+                          value: countText,
+                          icon: Icons.inventory_2_outlined,
+                          iconBg: const Color(0xFFECFDF5),
+                          iconColor: const Color(0xFF10B981),
+                          action: TextButton(
+                            onPressed: () => setState(() => _selectedNavIndex = 3),
+                            child: const Text(
+                              'View Inventory',
+                              style: TextStyle(
+                                color: Color(0xFF10B981),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : _buildStatCard(
+                      title: 'Inventory',
+                      value: '🔒 Feature Locked',
+                      icon: Icons.lock_outline_rounded,
+                      iconBg: const Color(0xFFFEF2F2),
+                      iconColor: const Color(0xFFEF4444),
                     ),
-                  );
-                },
-              ),
             ),
             const SizedBox(width: 16),
             Expanded(

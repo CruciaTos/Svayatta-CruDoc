@@ -7,6 +7,7 @@ import 'dashboard/doctors_screen.dart';
 import 'dashboard/audit_logs_screen.dart';
 import 'dashboard/support_screen.dart';
 import 'dashboard/features_screen.dart';
+import 'dashboard/analytics_screen.dart';
 
 /// Main Super Admin shell with sidebar navigation and content area.
 class SuperAdminShell extends ConsumerStatefulWidget {
@@ -250,11 +251,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
       case SuperAdminTab.features:
         return const SuperAdminFeaturesScreen();
       case SuperAdminTab.analytics:
-        return const _ComingSoonTab(
-          icon: Icons.analytics_outlined,
-          title: 'Analytics',
-          description: 'View platform-wide analytics, charts, and export data.',
-        );
+        return const SuperAdminAnalyticsScreen();
       case SuperAdminTab.support:
         return const SuperAdminSupportScreen();
       case SuperAdminTab.auditLogs:

@@ -14,55 +14,61 @@ GoRouter _createAppRouter() {
   return GoRouter(
     initialLocation: '/',
     redirect: (context, state) async {
-      final isLoggedIn = FirebaseAuth.instance.currentUser != null;
+      final user = FirebaseAuth.instance.currentUser;
+      final isLoggedIn = user != null;
       final path = state.matchedLocation;
       final isAuthRoute = path == '/' || path == '/auth';
       final isAdminRoute = path.startsWith('/admin');
       final isAdminLoginRoute = path == '/admin/login';
 
-      // Unauthenticated users trying to access protected routes
+      // 1. Unauthenticated users trying to access protected routes
       if (!isLoggedIn && !isAuthRoute && !isAdminLoginRoute) {
-        // If trying to access /admin, redirect to admin login
         if (isAdminRoute) {
           return '/admin/login';
         }
         return '/auth';
       }
 
-      // Logged-in users on auth pages → go to dashboard
-      if (isLoggedIn && isAuthRoute) {
-        return '/dashboard';
-      }
+      // If user is logged in, check their role to enforce strict role-based route separation
+      if (isLoggedIn) {
+        String? role;
+        bool isActiveAdmin = true;
 
-      // --- CRITICAL SECURITY GUARD ---
-      // Logged-in users trying to access /admin (not the login page):
-      // Verify they actually have the superAdmin role in Firestore.
-      if (isLoggedIn && isAdminRoute && !isAdminLoginRoute) {
         try {
-          final uid = FirebaseAuth.instance.currentUser!.uid;
           final doc = await FirebaseFirestore.instance
               .collection('users')
-              .doc(uid)
+              .doc(user.uid)
               .get();
 
-          if (!doc.exists || doc.data() == null) {
-            // No super admin profile → not an admin, block access.
-            return '/dashboard';
+          if (doc.exists && doc.data() != null) {
+            role = doc.data()!['role'] as String?;
+            isActiveAdmin = doc.data()!['isActive'] as bool? ?? true;
           }
+        } catch (_) {}
 
-          final role = doc.data()!['role'] as String?;
-          if (role != 'superAdmin') {
-            // User exists but is not a superAdmin → block access.
-            return '/dashboard';
-          }
+        final isSuperAdmin = role == 'superAdmin';
 
-          final isActive = doc.data()!['isActive'] as bool? ?? false;
-          if (!isActive) {
-            // Admin account is disabled → block access.
-            return '/dashboard';
+        // 2. SUPER ADMIN ROLE BOUNDARY
+        if (isSuperAdmin) {
+          // Inactive admin -> send to admin login
+          if (!isActiveAdmin && !isAdminLoginRoute) {
+            return '/admin/login';
           }
-        } catch (_) {
-          // On any error, deny access to admin panel.
+          // Super Admin trying to access doctor routes or auth pages -> redirect to /admin
+          if (!isAdminRoute) {
+            return '/admin';
+          }
+          return null; // Allow access to /admin
+        }
+
+        // 3. DOCTOR / REGULAR USER ROLE BOUNDARY
+        // Non-admin trying to access /admin routes -> redirect to /dashboard
+        if (isAdminRoute) {
+          return '/dashboard';
+        }
+
+        // Logged-in doctor on auth pages -> redirect to /dashboard
+        if (isAuthRoute) {
           return '/dashboard';
         }
       }

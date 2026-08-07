@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/web_dashboard_view.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
@@ -234,101 +235,219 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _TopBar(
-                doctorName: _doctorName,
-                specialty: _specialty,
-                onProfileTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              LowStockBanner(
-                onTap: () => _navigateToTabOrExplain(
-                  tabIndex: 2,
-                  unavailableTitle: 'Inventory',
-                  unavailableMessage:
-                      'Low-stock and expiring medicines are listed in the Inventory section.',
-                ),
-              ),
-              const SizedBox(height: 8),
-              StreamBuilder<List<RevenueEntry>>(
-                stream: _revenueRepository.watchRevenueEntries(),
-                builder: (context, snapshot) {
-                  final entries = snapshot.data ?? const <RevenueEntry>[];
-                  final bars = _isMonthly
-                      ? _buildMonthlyBars(entries)
-                      : _buildWeeklyBars(entries);
-                  final currentIndex = bars.isEmpty
-                      ? -1
-                      : (_selectedBarIndex >= 0
-                          ? _selectedBarIndex.clamp(0, bars.length - 1)
-                          : _defaultSelectedBarIndex(bars));
-                  final amount = currentIndex < 0
-                      ? '₹0'
-                      : '₹${bars[currentIndex].revenueAmount ?? 0}';
-                  final subtitle = currentIndex < 0
-                      ? ''
-                      : bars[currentIndex].label;
+        child: StreamBuilder<List<String>>(
+          stream: DoctorFeatureGuard.watchEnabledModules(),
+          builder: (context, modulesSnapshot) {
+            final enabledModules = modulesSnapshot.data ?? DoctorFeatureGuard.defaultModules;
+            final isRevenueEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'revenue');
+            final isInventoryEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'inventory');
+            final isPatientsEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'patients');
+            final isAppointmentsEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'appointments');
 
-                  return _RevenueSnapshotCard(
-                    isMonthly: _isMonthly,
-                    bars: bars,
-                    selectedBarIndex: currentIndex < 0 ? 0 : currentIndex,
-                    amount: amount,
-                    subtitle: subtitle,
-                    hideRevenue: _hideRevenue,
-                    onHideToggle: () {
-                      setState(() => _hideRevenue = !_hideRevenue);
-                    },
-                    onToggle: (monthly) {
-                      setState(() {
-                        _isMonthly = monthly;
-                        _selectedBarIndex = 0; // reset selection on toggle
-                      });
-                    },
-                    onBarSelected: (index) {
-                      setState(() {
-                        _selectedBarIndex = index;
-                      });
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _StatsGrid(stats: stats),
-              const SizedBox(height: 20),
-              QuickActionsRow(
-                onNewVisit: () => _navigateToTabOrExplain(
-                  tabIndex: 4,
-                  unavailableTitle: 'Visits',
-                  unavailableMessage:
-                      'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
+            void showLockedNotice(String featureLabel) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.lock_rounded, color: Colors.amber, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          '🔒 $featureLabel is disabled by Administrator.',
+                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: AppColors.cardSurface,
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                onAddInventoryItem: _openAddMedicine,
-                onAddPatient: _openAddPatient,
-                onAppointments: () => AppointmentCalendarSheet.show(context),
+              );
+            }
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _TopBar(
+                    doctorName: _doctorName,
+                    specialty: _specialty,
+                    onProfileTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  if (isInventoryEnabled) ...[
+                    LowStockBanner(
+                      onTap: () => _navigateToTabOrExplain(
+                        tabIndex: 3,
+                        unavailableTitle: 'Inventory',
+                        unavailableMessage:
+                            'Low-stock and expiring medicines are listed in the Inventory section.',
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                  if (!isRevenueEnabled)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(22),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardSurface,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.lock_rounded, color: Colors.amber.shade300, size: 18),
+                              const SizedBox(width: 8),
+                              const Text(
+                                'Revenue & Financials',
+                                style: TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  color: AppColors.textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              const Icon(Icons.shield_outlined, color: Colors.amber, size: 20),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Feature Locked by Super Admin',
+                                style: TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  color: AppColors.textPrimary.withValues(alpha: 0.8),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    StreamBuilder<List<RevenueEntry>>(
+                      stream: _revenueRepository.watchRevenueEntries(),
+                      builder: (context, snapshot) {
+                        final entries = snapshot.data ?? const <RevenueEntry>[];
+                        final bars = _isMonthly
+                            ? _buildMonthlyBars(entries)
+                            : _buildWeeklyBars(entries);
+                        final currentIndex = bars.isEmpty
+                            ? -1
+                            : (_selectedBarIndex >= 0
+                                ? _selectedBarIndex.clamp(0, bars.length - 1)
+                                : _defaultSelectedBarIndex(bars));
+                        final amount = currentIndex < 0
+                            ? '₹0'
+                            : '₹${bars[currentIndex].revenueAmount ?? 0}';
+                        final subtitle = currentIndex < 0
+                            ? ''
+                            : bars[currentIndex].label;
+
+                        return _RevenueSnapshotCard(
+                          isMonthly: _isMonthly,
+                          bars: bars,
+                          selectedBarIndex: currentIndex < 0 ? 0 : currentIndex,
+                          amount: amount,
+                          subtitle: subtitle,
+                          hideRevenue: _hideRevenue,
+                          onHideToggle: () {
+                            setState(() => _hideRevenue = !_hideRevenue);
+                          },
+                          onToggle: (monthly) {
+                            setState(() {
+                              _isMonthly = monthly;
+                              _selectedBarIndex = 0; // reset selection on toggle
+                            });
+                          },
+                          onBarSelected: (index) {
+                            setState(() {
+                              _selectedBarIndex = index;
+                            });
+                          },
+                        );
+                      },
+                    ),
+                  const SizedBox(height: 16),
+                  _StatsGrid(stats: stats),
+                  const SizedBox(height: 20),
+                  QuickActionsRow(
+                    onNewVisit: isAppointmentsEnabled
+                        ? () => _navigateToTabOrExplain(
+                              tabIndex: 5,
+                              unavailableTitle: 'Visits',
+                              unavailableMessage:
+                                  'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
+                            )
+                        : () => showLockedNotice('Appointments & Visits'),
+                    onAddInventoryItem: isInventoryEnabled
+                        ? _openAddMedicine
+                        : () => showLockedNotice('Inventory Management'),
+                    onAddPatient: isPatientsEnabled
+                        ? _openAddPatient
+                        : () => showLockedNotice('Patient Records'),
+                    onAppointments: isAppointmentsEnabled
+                        ? () => AppointmentCalendarSheet.show(context)
+                        : () => showLockedNotice('Appointments & Calendar'),
+                  ),
+                  const SizedBox(height: 20),
+                  if (isAppointmentsEnabled)
+                    TodaysVisitsCard(
+                      onViewAll: () => _navigateToTabOrExplain(
+                        tabIndex: 5,
+                        unavailableTitle: "Today's Visits",
+                        unavailableMessage:
+                            'Visitations and appointments live in the Events section.',
+                      ),
+                    )
+                  else
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardSurface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppColors.divider),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.lock_rounded, color: Colors.amber.shade300, size: 20),
+                          const SizedBox(width: 10),
+                          const Expanded(
+                            child: Text(
+                              "Today's Visits module is disabled",
+                              style: TextStyle(
+                                fontFamily: AppColors.bodyFontFamily,
+                                color: AppColors.textSecondary,
+                                fontSize: 13.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 16),
+                  const RecentActivityCard(),
+                ],
               ),
-              const SizedBox(height: 20),
-              TodaysVisitsCard(
-                onViewAll: () => _navigateToTabOrExplain(
-                  tabIndex: 5,
-                  unavailableTitle: "Today's Visits",
-                  unavailableMessage:
-                      'Visitations and appointments live in the Events section.',
-                ),
-              ),
-              const SizedBox(height: 16),
-              const RecentActivityCard(),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -486,7 +605,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                     child: Icon(
                       hideRevenue ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                       size: 17,
-                      color: AppColors.slateBlue.withOpacity(0.7),
+                      color: AppColors.slateBlue.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -513,7 +632,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                     '₹ ••••••',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.textPrimary.withOpacity(0.35),
+                      color: AppColors.textPrimary.withValues(alpha: 0.35),
                       fontSize: 30,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 2,
@@ -616,7 +735,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
                                         decoration: BoxDecoration(
                                           color: isSelected ? AppColors.chartBarLight : null,
                                           border: Border.all(
-                                            color: AppColors.chartBarLight.withOpacity(0.6),
+                                            color: AppColors.chartBarLight.withValues(alpha: 0.6),
                                             width: 1.2,
                                           ),
                                           borderRadius: BorderRadius.circular(12),
@@ -662,12 +781,12 @@ class _RevenueSnapshotCard extends StatelessWidget {
           // Active: slateBlue fill; inactive: white at 70% (matches form fields on gradient bg)
           color: isActive
               ? AppColors.slateBlue
-              : Colors.white.withOpacity(0.70),
+              : Colors.white.withValues(alpha: 0.70),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isActive
                 ? AppColors.slateBlue
-                : AppColors.slateBlue.withOpacity(0.20),
+                : AppColors.slateBlue.withValues(alpha: 0.20),
             width: 1,
           ),
         ),

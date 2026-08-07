@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
@@ -25,6 +27,15 @@ class _ShellState extends State<Shell> {
 
   // Height of the nav bar (including margins/padding) – we'll use this to pad the content
   static const double navBarHeight = 78.0; // adjust to match your bar
+
+  static const List<IconData> _screenIcons = [
+    Icons.grid_view_rounded,
+    Icons.receipt_long_outlined,
+    Icons.groups_rounded,
+    Icons.inventory_2_outlined,
+    Icons.payments_outlined,
+    Icons.calendar_today_outlined,
+  ];
 
   @override
   void initState() {
@@ -56,43 +67,65 @@ class _ShellState extends State<Shell> {
 
   @override
   Widget build(BuildContext context) {
-    return InventoryAlertListener(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: Stack(
-          children: [
-            // ---- Background gradient + animated lines + PageView ----
-            ShellBackground(
-              child: PageView(
-                controller: _pageController,
-                onPageChanged: (index) =>
-                    setState(() => _currentIndex = index),
-                children: _screens
-                    .map(
-                      (screen) => Padding(
+    return StreamBuilder<List<String>>(
+      stream: DoctorFeatureGuard.watchEnabledModules(),
+      builder: (context, snapshot) {
+        final enabledModules = snapshot.data ?? DoctorFeatureGuard.defaultModules;
+
+        return InventoryAlertListener(
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: Stack(
+              children: [
+                // ---- Background gradient + animated lines + PageView ----
+                ShellBackground(
+                  child: PageView.builder(
+                    controller: _pageController,
+                    onPageChanged: (index) =>
+                        setState(() => _currentIndex = index),
+                    itemCount: _screens.length,
+                    itemBuilder: (context, index) {
+                      final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(index);
+                      final isTabEnabled = index == 0 || DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
+
+                      Widget content;
+                      if (!isTabEnabled) {
+                        content = MobileFeatureDisabledView(
+                          featureTitle: DoctorFeatureGuard.getTabTitle(index),
+                          icon: _screenIcons[index],
+                          onBackToDashboard: () => _onNavTap(0),
+                        );
+                      } else {
+                        content = _screens[index];
+                      }
+
+                      return Padding(
                         padding: EdgeInsets.only(
                           bottom: kIsWeb ? 0 : navBarHeight,
-                        ), // make room for overlay on mobile
-                        child: screen,
-                      ),
-                    )
-                    .toList(),
-              ),
-            ),
-            // ---- Floating navigation bar (Mobile Only) ----
-            if (!kIsWeb)
-              Positioned(
-                left: 20,
-                right: 20,
-                bottom: 12,
-                child: BottomNavBar(
-                  selectedIndex: _currentIndex,
-                  onTap: _onNavTap,
+                        ),
+                        child: content,
+                      );
+                    },
+                  ),
                 ),
-              ),
-          ],
-        ),
-      ),
+                // ---- Floating navigation bar (Mobile Only) ----
+                if (!kIsWeb)
+                  Positioned(
+                    left: 20,
+                    right: 20,
+                    bottom: 12,
+                    child: BottomNavBar(
+                      selectedIndex: _currentIndex,
+                      onTap: _onNavTap,
+                      enabledModules: enabledModules,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
+

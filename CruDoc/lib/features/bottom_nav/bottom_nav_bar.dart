@@ -2,6 +2,7 @@ import 'dart:ui'; // required for ImageFilter
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 
 // Vivid blue used for both container tint and active background
@@ -14,11 +15,13 @@ const int _inventoryTabIndex = 3;
 class BottomNavBar extends ConsumerWidget {
   final int selectedIndex;
   final ValueChanged<int> onTap;
+  final List<String>? enabledModules;
 
   const BottomNavBar({
     super.key,
     required this.selectedIndex,
     required this.onTap,
+    this.enabledModules,
   });
 
   static const _icons = [
@@ -60,7 +63,7 @@ class BottomNavBar extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
           decoration: BoxDecoration(
             // Container background uses vivid blue with low opacity
-            color: Color.fromARGB(255, 220, 250, 255),
+            color: const Color.fromARGB(255, 220, 250, 255),
             borderRadius: BorderRadius.circular(28),
             border: Border.all(
               color: chartBarLight.withValues(alpha: 0.3), // vivid blue border
@@ -72,6 +75,11 @@ class BottomNavBar extends ConsumerWidget {
               final isActive = index == selectedIndex;
               final badgeCount =
                   index == _inventoryTabIndex ? inventoryBadgeCount : 0;
+              final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(index);
+              final isEnabled = enabledModules == null ||
+                  index == 0 ||
+                  DoctorFeatureGuard.isEnabled(enabledModules!, moduleKey);
+
               return GestureDetector(
                 onTap: () => onTap(index),
                 child: AnimatedContainer(
@@ -91,10 +99,31 @@ class BottomNavBar extends ConsumerWidget {
                       Icon(
                         isActive ? _activeIcons[index] : _icons[index],
                         size: 22,
-                        // White on active, silver when inactive
-                        color: isActive ? Colors.white : AppColors.silver,
+                        // White on active, silver when inactive (or slightly dimmed if locked)
+                        color: isActive
+                            ? Colors.white
+                            : (isEnabled
+                                ? AppColors.silver
+                                : AppColors.silver.withValues(alpha: 0.5)),
                       ),
-                      if (badgeCount > 0)
+                      if (!isEnabled)
+                        Positioned(
+                          right: -5,
+                          top: -5,
+                          child: Container(
+                            padding: const EdgeInsets.all(2),
+                            decoration: const BoxDecoration(
+                              color: Colors.amber,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_rounded,
+                              size: 9,
+                              color: Colors.black87,
+                            ),
+                          ),
+                        )
+                      else if (badgeCount > 0)
                         Positioned(
                           right: -6,
                           top: -6,
@@ -130,3 +159,4 @@ class BottomNavBar extends ConsumerWidget {
     );
   }
 }
+

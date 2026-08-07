@@ -11,6 +11,10 @@
 
 import asyncio
 import os
+import sys
+
+if sys.stdout and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
 
 import aiohttp
 from dotenv import load_dotenv
@@ -28,7 +32,7 @@ from pipecat.frames.frames import (
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
-from pipecat.processors.aggregators.openai_llm_context import OpenAILLMContext
+from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
 from pipecat.services.google.llm import GoogleLLMService
 from pipecat.services.llm_service import FunctionCallParams
@@ -351,7 +355,7 @@ async def bot(args: RunnerArguments):
 
     # ── LLM Context ─────────────────────────────────────────────
     messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-    context = OpenAILLMContext(messages=messages, tools=TOOLS)
+    context = LLMContext(messages=messages, tools=TOOLS)
     context_aggregator = llm.create_context_aggregator(context)
 
     # ── Hard-fallback STT monitor ───────────────────────────────

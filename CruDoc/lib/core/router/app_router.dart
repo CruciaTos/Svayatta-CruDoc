@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/auth_screen.dart';
-import '../../features/shell/presentation/shell.dart';
+import '../../features/shell/presentation/responsive_shell.dart';
 import '../../features/super_admin/screens/auth/login_screen.dart';
 import '../../features/super_admin/screens/main_shell.dart';
 import '../../features/super_admin/middleware/auth_middleware.dart';
@@ -78,7 +78,7 @@ GoRouter _createAppRouter() {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const AuthScreen()),
       GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
-      GoRoute(path: '/dashboard', builder: (context, state) => const Shell()),
+      GoRoute(path: '/dashboard', builder: (context, state) => const ResponsiveShell()),
       GoRoute(
         path: '/admin/login',
         builder: (context, state) => const SuperAdminLoginScreen(),

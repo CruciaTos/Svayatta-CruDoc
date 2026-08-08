@@ -6,3 +6,4 @@ CruDoc/lib/firebase_options.dart
 pending-payment-completion.patch
 session-details-sheet.patch
 /CruDoc/android
+0001-update-framework-core.patch

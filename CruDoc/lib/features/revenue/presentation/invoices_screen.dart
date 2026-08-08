@@ -184,7 +184,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 children: [
                   // Top Header Section: Action Bar + Page Title
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       if (Navigator.canPop(context))
                         InkWell(
@@ -229,56 +228,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                               ],
                             ),
                           ),
-                        )
-                      else
-                        const SizedBox.shrink(),
-                      Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: _openCreateInvoiceSheet,
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 9,
-                            ),
-                            decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF1E78FF), Color(0xFF1D4ED8)],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                              ),
-                              borderRadius: BorderRadius.circular(14),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x331E78FF),
-                                  blurRadius: 8,
-                                  offset: Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(
-                                  Icons.add_circle_outline_rounded,
-                                  size: 17,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Create Invoice',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
                         ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -291,18 +241,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                       letterSpacing: -0.5,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Manage patient bills, payment receipts, and pending invoices securely',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      color: Color(0xFF64748B),
-                      height: 1.3,
-                    ),
-                  ),
                   const SizedBox(height: 18),
-
-                  const SizedBox(height: 14),
 
                   // Horizontal Metric Cards (4 Cards inspired by Web UI)
                   SingleChildScrollView(
@@ -347,110 +286,190 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
                   const SizedBox(height: 14),
 
-                  // Search & Filter Card (White Bar)
+                  // Search & Create Invoice Section (Compact & Sleek Sizing)
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(14),
                       border: Border.all(color: const Color(0xFFE2E8F0)),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x06000000),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
                     ),
-                    child: Column(
+                    child: Row(
                       children: [
-                        // Search Input
-                        TextField(
-                          controller: _searchController,
-                          onChanged: (val) {
-                            setState(() {
-                              _searchQuery = _repository.sanitizeInput(val);
-                            });
-                          },
-                          decoration: InputDecoration(
-                            hintText:
-                                'Search by Invoice #, Patient Name, Service...',
-                            hintStyle: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF94A3B8),
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.search_rounded,
-                              size: 20,
-                              color: Color(0xFF64748B),
-                            ),
-                            suffixIcon: _searchController.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () {
-                                      setState(() {
-                                        _searchController.clear();
-                                        _searchQuery = '';
-                                      });
-                                    },
-                                  )
-                                : null,
-                            filled: true,
-                            fillColor: const Color(0xFFF8FAFC),
-                            contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 10,
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
+                        Expanded(
+                          child: SizedBox(
+                            height: 36,
+                            child: TextField(
+                              controller: _searchController,
+                              onChanged: (val) {
+                                setState(() {
+                                  _searchQuery =
+                                      _repository.sanitizeInput(val);
+                                });
+                              },
+                              style: const TextStyle(
+                                  fontSize: 12.5, color: Color(0xFF0F172A)),
+                              decoration: InputDecoration(
+                                hintText: 'Search invoice #, patient...',
+                                hintStyle: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF94A3B8),
+                                ),
+                                prefixIcon: const Icon(
+                                  Icons.search_rounded,
+                                  size: 17,
+                                  color: Color(0xFF64748B),
+                                ),
+                                prefixIconConstraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(Icons.clear, size: 15),
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(
+                                          minWidth: 28,
+                                          minHeight: 28,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _searchController.clear();
+                                            _searchQuery = '';
+                                          });
+                                        },
+                                      )
+                                    : null,
+                                filled: true,
+                                fillColor: const Color(0xFFF8FAFC),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 0,
+                                ),
+                                isDense: true,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide.none,
+                                ),
+                              ),
                             ),
                           ),
                         ),
-
-                        const SizedBox(height: 10),
-
-                        // Filter Pills Row
-                        Row(
-                          children:
-                              ['All', 'Paid', 'Pending', 'Overdue'].map((filter) {
-                            final isSelected = _selectedFilter == filter;
-                            return Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: InkWell(
-                                onTap: () {
-                                  setState(() => _selectedFilter = filter);
-                                },
-                                borderRadius: BorderRadius.circular(8),
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 150),
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 14,
-                                    vertical: 6,
+                        const SizedBox(width: 8),
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: _openCreateInvoiceSheet,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFF1E78FF),
+                                    Color(0xFF1D4ED8)
+                                  ],
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Color(0x261E78FF),
+                                    blurRadius: 6,
+                                    offset: Offset(0, 2),
                                   ),
-                                  decoration: BoxDecoration(
-                                    color: isSelected
-                                        ? const Color(0xFFEFF6FF)
-                                        : Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                      color: isSelected
-                                          ? primaryBlue
-                                          : const Color(0xFFE2E8F0),
-                                      width: isSelected ? 1.5 : 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    filter,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: isSelected
-                                          ? FontWeight.w700
-                                          : FontWeight.w500,
-                                      color: isSelected
-                                          ? primaryBlue
-                                          : const Color(0xFF64748B),
-                                    ),
-                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.add_rounded,
+                                  size: 20,
+                                  color: Colors.white,
                                 ),
                               ),
-                            );
-                          }).toList(),
+                            ),
+                          ),
                         ),
                       ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Filter Pills Row (Shifted below Search Bar Box)
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children:
+                          ['All', 'Paid', 'Pending', 'Overdue'].map((filter) {
+                        final isSelected = _selectedFilter == filter;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: InkWell(
+                            onTap: () {
+                              setState(() => _selectedFilter = filter);
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(0xFF1E78FF)
+                                    : Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected
+                                      ? const Color(0xFF1E78FF)
+                                      : const Color(0xFFE2E8F0),
+                                  width: 1,
+                                ),
+                                boxShadow: isSelected
+                                    ? const [
+                                        BoxShadow(
+                                          color: Color(0x331E78FF),
+                                          blurRadius: 6,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ]
+                                    : const [
+                                        BoxShadow(
+                                          color: Color(0x06000000),
+                                          blurRadius: 4,
+                                          offset: Offset(0, 1),
+                                        ),
+                                      ],
+                              ),
+                              child: Text(
+                                filter,
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: isSelected
+                                      ? FontWeight.w700
+                                      : FontWeight.w600,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
                     ),
                   ),
 

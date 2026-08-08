@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/inventory/data/providers/inventor
 import 'package:doctor_management_app/features/inventory/presentation/add_edit_medicine_form.dart';
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
+import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 
 enum _InventoryFilter { all, lowStock, expiring }
 
@@ -88,14 +89,27 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
         onPressed: () => showAddEditMedicineForm(context),
         child: const Icon(Icons.add),
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Inventory', style: AppColors.pageHeading),
-              const SizedBox(height: 8),
+      body: ShellBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    if (Navigator.canPop(context)) ...[
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back_ios_new,
+                            color: AppColors.textPrimary, size: 20),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                      const SizedBox(width: 4),
+                    ],
+                    const Text('Inventory', style: AppColors.pageHeading),
+                  ],
+                ),
+                const SizedBox(height: 8),
               _SearchBar(
                 controller: _searchController,
                 onChanged: (value) => setState(() => _query = value),
@@ -162,7 +176,8 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
           ),
         ),
       ),
-    );
+    ),
+  );
   }
 }
 

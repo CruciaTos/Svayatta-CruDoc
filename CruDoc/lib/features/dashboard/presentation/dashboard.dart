@@ -11,8 +11,8 @@ import 'package:doctor_management_app/features/patients/presentation/add_patient
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
-import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
+import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 
 // ---------- Data Models ----------
@@ -53,11 +53,6 @@ class HomeDashboardScreen extends StatefulWidget {
 }
 
 class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
-  // ---- Doctor info from Firebase Auth ----
-  String get _doctorName =>
-      FirebaseAuth.instance.currentUser?.displayName ?? '';
-  String get _specialty => ''; // TODO: fetch from Firestore user profile
-
   // ---- Revenue card state (lifted up) ----
   final RevenueRepository _revenueRepository = RevenueRepository();
   bool _isMonthly = true;
@@ -172,11 +167,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   void _openAddMedicine() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const InventoryListScreen(autoOpenAddForm: true),
-      ),
+    _navigateToTabOrExplain(
+      tabIndex: 2,
+      unavailableTitle: 'Inventory',
+      unavailableMessage:
+          'Low-stock and expiring medicines are listed in the Inventory section.',
     );
   }
 
@@ -272,13 +267,27 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _TopBar(
-                    doctorName: _doctorName,
-                    specialty: _specialty,
-                    onProfileTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  StreamBuilder<Map<String, dynamic>?>(
+                    stream: DoctorProfileHelper.watchDoctorProfile(),
+                    builder: (context, profileSnapshot) {
+                      final profileData = profileSnapshot.data;
+                      final currentUser = FirebaseAuth.instance.currentUser;
+                      final doctorName = DoctorProfileHelper.formatDoctorName(
+                          currentUser, profileData);
+                      final specialty =
+                          DoctorProfileHelper.formatSpecialty(profileData);
+
+                      return _TopBar(
+                        doctorName: doctorName,
+                        specialty: specialty,
+                        onProfileTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfileScreen(),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -373,7 +382,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           onToggle: (monthly) {
                             setState(() {
                               _isMonthly = monthly;
-                              _selectedBarIndex = 0; // reset selection on toggle
+                              _selectedBarIndex = -1; // reset selection to current day / month
                             });
                           },
                           onBarSelected: (index) {

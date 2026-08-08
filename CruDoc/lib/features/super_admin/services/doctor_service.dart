@@ -230,6 +230,9 @@ class SuperAdminDoctorService {
       final encryptedTZ = DoctorEncryptionService.encryptForDoctor(timeZone, doctorId);
 
       batch.set(_fb.usersCollection.doc(doctorId), {
+        'displayName': name,
+        'doctorName': name,
+        'specialty': specialization,
         'name': encryptedName,
         'email': encryptedEmail,
         'phone': encryptedPhone,

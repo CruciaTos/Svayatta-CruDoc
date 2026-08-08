@@ -7,6 +7,7 @@ import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
+import 'package:doctor_management_app/features/inventory/data/services/ocr_service.dart';
 
 /// Shows the Add/Edit Medicine dialog. Pass [medicine] to edit an existing
 /// one; omit it to create a new medicine.
@@ -76,8 +77,10 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
 
   DateTime? _expiryDate;
   bool _isSaving = false;
+  bool _isScanning = false;
   String? _errorText;
   XFile? _receiptImage;
+  int _ocrFieldsFilled = 0;
 
   static final _imagePicker = ImagePicker();
 
@@ -177,11 +180,80 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
     }
   }
 
-  /// Placeholder for OCR integration — wire your model here to auto-fill fields.
+  /// Scans [image] with ML Kit and auto-fills the form fields.
   Future<void> _scanReceiptWithOcr(XFile image) async {
-    // TODO(OCR): Parse [image] and populate name, category, unit, stock,
-    // price, supplier, batch, and expiry fields below.
-    await Future<void>.value();
+    if (!mounted) return;
+    setState(() {
+      _isScanning = true;
+      _ocrFieldsFilled = 0;
+    });
+
+    try {
+      final result = await OcrService.instance.scanMedicineReceipt(
+        File(image.path),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isScanning = false;
+        _ocrFieldsFilled = result.filledFieldCount;
+
+        if (result.name != null && _nameController.text.isEmpty) {
+          _nameController.text = result.name!;
+        }
+        if (result.category != null && _categoryController.text.isEmpty) {
+          _categoryController.text = result.category!;
+        }
+        if (result.unitPrice != null && _priceController.text.isEmpty) {
+          _priceController.text = result.unitPrice!.toStringAsFixed(2);
+        }
+        if (result.supplierName != null && _supplierController.text.isEmpty) {
+          _supplierController.text = result.supplierName!;
+        }
+        if (result.batchNumber != null && _batchController.text.isEmpty) {
+          _batchController.text = result.batchNumber!;
+        }
+        if (result.expiryDate != null && _expiryDate == null) {
+          _expiryDate = result.expiryDate;
+        }
+        if (result.quantity != null &&
+            (_stockController.text.isEmpty ||
+                _stockController.text == '0')) {
+          _stockController.text = '${result.quantity}';
+        }
+      });
+
+      if (!mounted) return;
+
+      if (result.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Could not extract medicine details — please fill manually.',
+            ),
+            duration: Duration(seconds: 4),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              '✓ Auto-filled ${result.filledFieldCount} field'
+              '${result.filledFieldCount == 1 ? '' : 's'} — review before saving.',
+            ),
+            backgroundColor: AppColors.slateBlue,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isScanning = false;
+        _errorText = 'OCR failed: $e';
+      });
+    }
   }
 
   Widget _buildReceiptUploadSection() {
@@ -274,26 +346,51 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.beige,
+                          color: _isScanning
+                              ? AppColors.beige
+                              : _ocrFieldsFilled > 0
+                                  ? const Color(0xFFE8F5E9)
+                                  : AppColors.beige,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.document_scanner_outlined,
-                              size: 14,
-                              color: AppColors.chartBarLight.withValues(
-                                alpha: 0.9,
+                            if (_isScanning)
+                              const SizedBox(
+                                width: 12,
+                                height: 12,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 1.8,
+                                  color: AppColors.slateBlue,
+                                ),
+                              )
+                            else
+                              Icon(
+                                _ocrFieldsFilled > 0
+                                    ? Icons.check_circle_outline
+                                    : Icons.document_scanner_outlined,
+                                size: 14,
+                                color: _ocrFieldsFilled > 0
+                                    ? Colors.green.shade700
+                                    : AppColors.chartBarLight.withValues(
+                                        alpha: 0.9,
+                                      ),
                               ),
-                            ),
                             const SizedBox(width: 6),
                             Text(
-                              'OCR scan — coming soon',
+                              _isScanning
+                                  ? 'Scanning…'
+                                  : _ocrFieldsFilled > 0
+                                      ? '$_ocrFieldsFilled field'
+                                        '${_ocrFieldsFilled == 1 ? '' : 's'} filled'
+                                      : 'Tap scan to auto-fill',
                               style: AppColors.bodyMedium.copyWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.slateBlue,
+                                color: _ocrFieldsFilled > 0
+                                    ? Colors.green.shade700
+                                    : AppColors.slateBlue,
                               ),
                             ),
                           ],

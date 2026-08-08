@@ -46,14 +46,12 @@ class DoctorFeatureGuard {
       case 0:
         return 'dashboard';
       case 1:
-        return 'revenue'; // Invoices tab
-      case 2:
         return 'patients'; // Patient Records tab
-      case 3:
+      case 2:
         return 'inventory'; // Inventory tab
-      case 4:
+      case 3:
         return 'revenue'; // Revenue Analytics tab
-      case 5:
+      case 4:
         return 'appointments'; // Events / Visitation tab
       default:
         return 'dashboard';
@@ -66,14 +64,12 @@ class DoctorFeatureGuard {
       case 0:
         return 'Dashboard';
       case 1:
-        return 'Invoices';
-      case 2:
         return 'Patient Records';
-      case 3:
+      case 2:
         return 'Inventory Management';
-      case 4:
+      case 3:
         return 'Revenue & Financials';
-      case 5:
+      case 4:
         return 'Appointments & Events';
       default:
         return 'Feature';

@@ -10,7 +10,6 @@ import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
-import 'package:doctor_management_app/features/revenue/presentation/invoices_screen.dart';
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -30,7 +29,6 @@ class _ShellState extends State<Shell> {
 
   static const List<IconData> _screenIcons = [
     Icons.grid_view_rounded,
-    Icons.receipt_long_outlined,
     Icons.groups_rounded,
     Icons.inventory_2_outlined,
     Icons.payments_outlined,
@@ -42,7 +40,6 @@ class _ShellState extends State<Shell> {
     super.initState();
     _screens = [
       HomeDashboardScreen(onNavigateToTab: _onNavTap),
-      const InvoicesScreen(),
       const PatientRecords(),
       const InventoryListScreen(),
       const RevenueScreen(),

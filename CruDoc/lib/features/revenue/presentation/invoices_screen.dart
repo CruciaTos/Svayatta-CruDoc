@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/revenue/data/models/invoice_model
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
@@ -143,8 +144,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   Widget build(BuildContext context) {
     const primaryBlue = Color(0xFF2563EB);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+    return ShellBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
       body: SafeArea(
         child: StreamBuilder<List<InvoiceModel>>(
           stream: _repository.watchInvoices(),
@@ -180,86 +182,125 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Top Header Row (Matching Web Header)
+                  // Top Header Section: Action Bar + Page Title
                   Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Invoices & Billing',
-                              style: TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w800,
-                                color: Color(0xFF0F172A),
-                                letterSpacing: -0.5,
-                              ),
+                      if (Navigator.canPop(context))
+                        InkWell(
+                          onTap: () => Navigator.pop(context),
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
                             ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Manage patient bills, payment receipts, and pending invoices securely',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF64748B),
-                                height: 1.3,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
                               ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x08000000),
+                                  blurRadius: 6,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF2563EB)
-                                  .withValues(alpha: 0.35),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _openCreateInvoiceSheet,
-                            borderRadius: BorderRadius.circular(12),
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 10,
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.add_circle_outline_rounded,
-                                      size: 16, color: Colors.white),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Create Invoice',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 13,
-                                      letterSpacing: 0.2,
-                                    ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.arrow_back_rounded,
+                                  size: 18,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Back',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0F172A),
                                   ),
-                                ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        )
+                      else
+                        const SizedBox.shrink(),
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _openCreateInvoiceSheet,
+                          borderRadius: BorderRadius.circular(14),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 9,
+                            ),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF1E78FF), Color(0xFF1D4ED8)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
+                              borderRadius: BorderRadius.circular(14),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x331E78FF),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                Icon(
+                                  Icons.add_circle_outline_rounded,
+                                  size: 17,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 6),
+                                Text(
+                                  'Create Invoice',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Invoices & Billing',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Manage patient bills, payment receipts, and pending invoices securely',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      color: Color(0xFF64748B),
+                      height: 1.3,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
 
                   const SizedBox(height: 14),
 
@@ -564,8 +605,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
           },
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _MetricCard extends StatelessWidget {

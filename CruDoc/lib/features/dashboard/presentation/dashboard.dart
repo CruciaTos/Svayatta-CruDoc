@@ -286,7 +286,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   if (isInventoryEnabled) ...[
                     LowStockBanner(
                       onTap: () => _navigateToTabOrExplain(
-                        tabIndex: 3,
+                        tabIndex: 2,
                         unavailableTitle: 'Inventory',
                         unavailableMessage:
                             'Low-stock and expiring medicines are listed in the Inventory section.',
@@ -390,7 +390,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   QuickActionsRow(
                     onNewVisit: isAppointmentsEnabled
                         ? () => _navigateToTabOrExplain(
-                              tabIndex: 5,
+                              tabIndex: 4,
                               unavailableTitle: 'Visits',
                               unavailableMessage:
                                   'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
@@ -410,7 +410,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   if (isAppointmentsEnabled)
                     TodaysVisitsCard(
                       onViewAll: () => _navigateToTabOrExplain(
-                        tabIndex: 5,
+                        tabIndex: 4,
                         unavailableTitle: "Today's Visits",
                         unavailableMessage:
                             'Visitations and appointments live in the Events section.',

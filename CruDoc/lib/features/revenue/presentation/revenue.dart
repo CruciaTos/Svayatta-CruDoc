@@ -3,6 +3,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/presentation/invoices_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/revenue/widgets/expense_tile.dart';
@@ -33,7 +34,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
   ];
 
   String _selectedFilter = 'Weekly';
-  TransactionKind? _kindFilter = null; // null = show all
+  TransactionKind? _kindFilter; // null = show all
   double _chevronAngle = 0.0; // for animated rotation
 
   void _cycleFilter() {
@@ -200,20 +201,68 @@ class _RevenueScreenState extends State<RevenueScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: <Widget>[
                               Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: <Widget>[
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: <Widget>[
-                                        Text(
-                                          'Revenue',
-                                          style: AppColors.pageHeading.copyWith(
-                                            fontSize: 28,
-                                            fontWeight: FontWeight.w700,
+                                  Text(
+                                    'Revenue',
+                                    style: AppColors.pageHeading.copyWith(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  Material(
+                                    color: Colors.transparent,
+                                    child: InkWell(
+                                      onTap: () {
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) =>
+                                                const InvoicesScreen(),
+                                          ),
+                                        );
+                                      },
+                                      borderRadius: BorderRadius.circular(16),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 14,
+                                          vertical: 8,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.chartBarLight
+                                              .withValues(alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          border: Border.all(
+                                            color: AppColors.chartBarLight
+                                                .withValues(alpha: 0.4),
+                                            width: 1,
                                           ),
                                         ),
-                                      ],
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Icon(
+                                              Icons.receipt_long_rounded,
+                                              size: 18,
+                                              color: AppColors.chartBarLight,
+                                            ),
+                                            SizedBox(width: 6),
+                                            Text(
+                                              'Invoices & Billing',
+                                              style: TextStyle(
+                                                fontFamily:
+                                                    AppColors.bodyFontFamily,
+                                                color: AppColors.chartBarLight,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],

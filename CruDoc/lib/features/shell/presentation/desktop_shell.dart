@@ -10,8 +10,8 @@ import 'package:doctor_management_app/features/inventory/presentation/inventory_
 import 'package:doctor_management_app/features/appointments/presentation/desktop_events_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
 
-/// Desktop layout with a custom sidebar that matches the Donezo dashboard style,
-/// including categorized menus, selected state indicators, badges, and a download card.
+/// Desktop layout with a custom sidebar that matches the Donezo dashboard style.
+/// Includes an immersive toggle between expanded (full-width) and collapsed (icon-only) states.
 class DesktopShell extends StatefulWidget {
   const DesktopShell({super.key});
 
@@ -20,7 +20,16 @@ class DesktopShell extends StatefulWidget {
 }
 
 class _DesktopShellState extends State<DesktopShell> {
+  static const chartBarDim = Color.fromARGB(255, 140, 188, 255);
+  
   int _currentIndex = 0;
+  bool _isSidebarExpanded = true;
+
+  void _toggleSidebar() {
+    setState(() {
+      _isSidebarExpanded = !_isSidebarExpanded;
+    });
+  }
 
   static const List<String> _labels = [
     'Dashboard',
@@ -45,9 +54,7 @@ class _DesktopShellState extends State<DesktopShell> {
     setState(() => _currentIndex = index);
   }
 
-  /// Builds only the screen that's actually selected — mirrors the mobile
-  /// Shell's behaviour of never constructing a screen behind a locked
-  /// module (e.g. so it can't fire off Firestore reads it isn't allowed to).
+  /// Builds only the screen that's actually selected.
   Widget _buildScreen(int index) {
     switch (index) {
       case 0:
@@ -84,19 +91,21 @@ class _DesktopShellState extends State<DesktopShell> {
               padding: const EdgeInsets.all(16.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.transparent,
+                  color: chartBarDim, // Applied background color
                   borderRadius: BorderRadius.circular(24),
                 ),
                 child: Row(
                   children: [
-                    // ---------- Left: Custom Sidebar with own rounded corners ----------
+                    // ---------- Left: Animated Custom Sidebar ----------
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.only(top: 16, bottom: 16, left: 16),
                       child: _DesktopSidebar(
                         currentIndex: _currentIndex,
                         labels: _labels,
                         icons: _icons,
                         onNavTap: _onNavTap,
+                        isExpanded: _isSidebarExpanded,
+                        onToggle: _toggleSidebar,
                       ),
                     ),
 
@@ -106,7 +115,7 @@ class _DesktopShellState extends State<DesktopShell> {
                         padding: const EdgeInsets.only(top: 16, bottom: 16, right: 16),
                         child: Container(
                           decoration: BoxDecoration(
-                            color: Colors.transparent,
+                            color: Colors.transparent, // The outer background now shows through transparently
                             borderRadius: BorderRadius.circular(24),
                           ),
                           clipBehavior: Clip.hardEdge,
@@ -140,103 +149,176 @@ class _DesktopSidebar extends StatelessWidget {
   final List<String> labels;
   final List<IconData> icons;
   final Function(int) onNavTap;
+  final bool isExpanded;
+  final VoidCallback onToggle;
 
   const _DesktopSidebar({
     required this.currentIndex,
     required this.labels,
     required this.icons,
     required this.onNavTap,
+    required this.isExpanded,
+    required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 220,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      curve: Curves.easeInOutCubic,
+      width: isExpanded ? 220 : 76,
+      height: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.white, // Sidebar stays white
         borderRadius: BorderRadius.circular(24),
-      ),
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16), // Reduced vertical padding
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // --- 1. Logo Area (Pinned to top) ---
-          Row(
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF0D422C),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.local_hospital, color: Colors.white, size: 14), // Reduced icon size
-              ),
-              const SizedBox(width: 10),
-              const Text(
-                'CruDoc',
-                style: TextStyle(
-                  color: Color(0xFF0D422C),
-                  fontSize: 18, // Reduced font size
-                  fontWeight: FontWeight.w700,
-                  fontFamily: AppColors.headingFontFamily,
-                ),
-              ),
-            ],
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(4, 0),
           ),
-          const SizedBox(height: 24), // Reduced gap
-
-          // --- 2. Scrollable Menu Area ---
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildSectionHeader('MENU'),
-                  const SizedBox(height: 8), // Reduced gap
-                  ...List.generate(labels.length, (index) {
-                    return _SidebarItem(
-                      icon: icons[index],
-                      label: labels[index],
-                      isSelected: currentIndex == index,
-                      badge: index == 1 ? '12' : null,
-                      onTap: () => onNavTap(index),
-                    );
-                  }),
-
-                  const SizedBox(height: 18), // Reduced gap between sections
-
-                  _buildSectionHeader('GENERAL'),
-                  const SizedBox(height: 8), // Reduced gap
-                  _SidebarItem(
-                    icon: Icons.settings_outlined,
-                    label: 'Settings',
-                    isSelected: false,
-                    onTap: () {},
-                  ),
-                  _SidebarItem(
-                    icon: Icons.help_outline,
-                    label: 'Help',
-                    isSelected: false,
-                    onTap: () {},
-                  ),
-                  _SidebarItem(
-                    icon: Icons.logout,
-                    label: 'Logout',
-                    isSelected: false,
-                    onTap: () {},
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8), // Reduced gap before download card
-
-          // --- 3. Mobile App Download Card ---
-          _buildDownloadCard(),
         ],
       ),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 350),
+          switchInCurve: Curves.easeInOutCubic,
+          switchOutCurve: Curves.easeInOutCubic,
+          child: isExpanded
+              ? _ExpandedLayout(
+                  key: const ValueKey('expanded'),
+                  currentIndex: currentIndex,
+                  labels: labels,
+                  icons: icons,
+                  onNavTap: onNavTap,
+                  onToggle: onToggle,
+                )
+              : _CollapsedLayout(
+                  key: const ValueKey('collapsed'),
+                  currentIndex: currentIndex,
+                  icons: icons,
+                  onNavTap: onNavTap,
+                  onToggle: onToggle,
+                ),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------------------
+// EXPANDED LAYOUT (Full White Sidebar with Labels)
+// ------------------------------------------------------------------------------
+
+class _ExpandedLayout extends StatelessWidget {
+  final int currentIndex;
+  final List<String> labels;
+  final List<IconData> icons;
+  final Function(int) onNavTap;
+  final VoidCallback onToggle;
+
+  const _ExpandedLayout({
+    required this.currentIndex,
+    required this.labels,
+    required this.icons,
+    required this.onNavTap,
+    required this.onToggle,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // --- Logo Area ---
+        Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: const BoxDecoration(
+                color: Color(0xFF0D422C),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.local_hospital, color: Colors.white, size: 14),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'CruDoc',
+              style: TextStyle(
+                color: Color(0xFF0D422C),
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                fontFamily: AppColors.headingFontFamily,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // --- Scrollable Menu Area ---
+        Expanded(
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionHeader('MENU'),
+                const SizedBox(height: 8),
+                ...List.generate(labels.length, (index) {
+                  return _SidebarItem(
+                    icon: icons[index],
+                    label: labels[index],
+                    isSelected: currentIndex == index,
+                    badge: index == 1 ? '12' : null,
+                    onTap: () => onNavTap(index),
+                  );
+                }),
+                const SizedBox(height: 18),
+                _buildSectionHeader('GENERAL'),
+                const SizedBox(height: 8),
+                const _SidebarItem(
+                  icon: Icons.settings_outlined,
+                  label: 'Settings',
+                  isSelected: false,
+                  onTap: null,
+                ),
+                const _SidebarItem(
+                  icon: Icons.help_outline,
+                  label: 'Help',
+                  isSelected: false,
+                  onTap: null,
+                ),
+                const _SidebarItem(
+                  icon: Icons.logout,
+                  label: 'Logout',
+                  isSelected: false,
+                  onTap: null,
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 8),
+
+        // --- Download Card ---
+        _buildDownloadCard(),
+
+        // --- Toggle Button (Collapse) ---
+        const SizedBox(height: 4),
+        Align(
+          alignment: Alignment.centerRight,
+          child: IconButton(
+            onPressed: onToggle,
+            icon: const Icon(Icons.arrow_back_ios_new, size: 14, color: Color(0xFF8E9BAB)),
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          ),
+        ),
+      ],
     );
   }
 
@@ -245,7 +327,7 @@ class _DesktopSidebar extends StatelessWidget {
       title,
       style: TextStyle(
         color: Colors.grey.shade400,
-        fontSize: 10, // Reduced font size
+        fontSize: 10,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
       ),
@@ -307,27 +389,127 @@ class _DesktopSidebar extends StatelessWidget {
   }
 }
 
+// ------------------------------------------------------------------------------
+// COLLAPSED LAYOUT (Clean, Minimalist, Icon-Only)
+// ------------------------------------------------------------------------------
+
+class _CollapsedLayout extends StatelessWidget {
+  final int currentIndex;
+  final List<IconData> icons;
+  final Function(int) onNavTap;
+  final VoidCallback onToggle;
+
+  const _CollapsedLayout({
+    required this.currentIndex,
+    required this.icons,
+    required this.onNavTap,
+    required this.onToggle,
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // --- Minimalist Logo (Center) ---
+        Container(
+          width: 40,
+          height: 40,
+          decoration: const BoxDecoration(
+            color: Color(0xFF0D422C),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.local_hospital, color: Colors.white, size: 20),
+        ),
+        const SizedBox(height: 32),
+
+        // --- Navigation Icons (Center) ---
+        ...List.generate(icons.length, (index) => _buildCollapsedNavItem(index)),
+
+        const Spacer(),
+
+        // --- Bottom Utility Icons ---
+        IconButton(
+          icon: const Icon(Icons.settings_outlined, color: Color(0xFF8E9BAB), size: 20),
+          onPressed: () {},
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(height: 4),
+        IconButton(
+          icon: const Icon(Icons.help_outline, color: Color(0xFF8E9BAB), size: 20),
+          onPressed: () {},
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+
+        const SizedBox(height: 8),
+
+        // --- Toggle Button (Expand) ---
+        IconButton(
+          onPressed: onToggle,
+          icon: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF8E9BAB)),
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCollapsedNavItem(int index) {
+    final bool isSelected = currentIndex == index;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: InkWell(
+        onTap: () => onNavTap(index),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF0D422C).withOpacity(0.1) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icons[index],
+            color: isSelected ? const Color(0xFF0D422C) : const Color(0xFF8E9BAB),
+            size: 22,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------------------
+// STANDARD MENU ITEM (Used inside Expanded Layout)
+// ------------------------------------------------------------------------------
+
 class _SidebarItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
   final String? badge;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _SidebarItem({
     required this.icon,
     required this.label,
     required this.isSelected,
     this.badge,
-    required this.onTap,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2.0), // Reduced gap between items
+      padding: const EdgeInsets.only(bottom: 2.0),
       child: InkWell(
-        onTap: onTap,
+        onTap: onTap ?? () {},
         borderRadius: BorderRadius.circular(10),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -349,7 +531,7 @@ class _SidebarItem extends StatelessWidget {
                   style: TextStyle(
                     color: isSelected ? Colors.white : const Color(0xFF8E9BAB),
                     fontWeight: FontWeight.w500,
-                    fontSize: 13, // Reduced font size
+                    fontSize: 13,
                   ),
                 ),
               ),

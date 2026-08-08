@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -53,6 +54,11 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
   VisitType _selectedType = VisitType.clinic;
   bool _isSaving = false;
   String? _errorText;
+
+  // Coordinates resolved from Places Autocomplete — if non-null, the
+  // repository can skip its separate geocoding call entirely.
+  double? _resolvedLat;
+  double? _resolvedLng;
 
   @override
   void dispose() {
@@ -130,6 +136,8 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
       scheduledStart: scheduledStart,
       durationMinutes: _durationMinutes,
       address: _addressController.text.trim(),
+      latitude: _resolvedLat,
+      longitude: _resolvedLng,
       mapsLink: _mapsLinkController.text.trim().isEmpty
           ? null
           : _mapsLinkController.text.trim(),
@@ -372,11 +380,16 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
               const SizedBox(height: 14),
               _label('Home Address (optional)'),
               const SizedBox(height: 8),
-              TextField(
+              PlacesAutocompleteField(
                 controller: _addressController,
                 enabled: !_isSaving,
-                style: AppColors.bodyMedium,
-                decoration: _fieldDecoration('Patient home address'),
+                hint: 'Start typing to search places',
+                onPlaceSelected: (selection) {
+                  setState(() {
+                    _resolvedLat = selection.latitude;
+                    _resolvedLng = selection.longitude;
+                  });
+                },
               ),
             ],
             const SizedBox(height: 14),

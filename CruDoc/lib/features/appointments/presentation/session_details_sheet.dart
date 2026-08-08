@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+import 'package:doctor_management_app/core/widgets/visit_location_map.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -276,7 +277,12 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
               const SizedBox(height: 20),
               const _SectionLabel(text: 'LOCATION'),
               const SizedBox(height: 10),
-              _LocationInfo(address: _visit.address, onOpenMaps: _openMaps),
+              _LocationInfo(
+                address: _visit.address,
+                latitude: _visit.latitude,
+                longitude: _visit.longitude,
+                onOpenMaps: _openMaps,
+              ),
             ],
 
             const SizedBox(height: 20),
@@ -544,8 +550,15 @@ class _PhoneRow extends StatelessWidget {
 
 class _LocationInfo extends StatelessWidget {
   final String address;
+  final double? latitude;
+  final double? longitude;
   final VoidCallback onOpenMaps;
-  const _LocationInfo({required this.address, required this.onOpenMaps});
+  const _LocationInfo({
+    required this.address,
+    this.latitude,
+    this.longitude,
+    required this.onOpenMaps,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -558,6 +571,15 @@ class _LocationInfo extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Embedded map preview (lite mode — no gestures inside sheet)
+          VisitLocationMap(
+            latitude: latitude,
+            longitude: longitude,
+            height: 140,
+            lite: true,
+            onOpenMaps: onOpenMaps,
+          ),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

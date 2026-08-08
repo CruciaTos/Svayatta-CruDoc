@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:doctor_management_app/features/appointments/widgets/visitation_card.dart';
 import 'package:doctor_management_app/features/appointments/widgets/appointment_card.dart';
@@ -286,6 +287,8 @@ class _VisitDraft {
   final TimeOfDay scheduledTime;
   final String duration;
   final String address;
+  final double? latitude;
+  final double? longitude;
   final String? mapsLink;
   final vmodel.VisitType visitType;   // merged: added visitType field
   const _VisitDraft({
@@ -295,6 +298,8 @@ class _VisitDraft {
     required this.scheduledTime,
     required this.duration,
     required this.address,
+    this.latitude,
+    this.longitude,
     this.mapsLink,
     required this.visitType,          // merged: required
   });
@@ -456,6 +461,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       scheduledStart: scheduledStart,
       durationMinutes: durationMinutes,
       address: draft.address,
+      latitude: draft.latitude,
+      longitude: draft.longitude,
       dateStr: dateStr,
       dayStr: dayStr,
       timeStr: timeStr,
@@ -470,6 +477,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
     required DateTime scheduledStart,
     required int durationMinutes,
     required String address,
+    double? latitude,
+    double? longitude,
     required String dateStr,
     required String dayStr,
     required String timeStr,
@@ -485,6 +494,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       scheduledStart: scheduledStart,
       durationMinutes: durationMinutes,
       address: address,
+      latitude: latitude,
+      longitude: longitude,
       mapsLink: mapsLink,
       visitType: visitType,              // merged: set visit type
       status: vmodel.VisitStatus.scheduled,
@@ -534,6 +545,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
           scheduledStart: scheduledStart,
           durationMinutes: durationMinutes,
           address: address,
+          latitude: latitude,
+          longitude: longitude,
           dateStr: dateStr,
           dayStr: dayStr,
           timeStr: timeStr,
@@ -1137,6 +1150,10 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
   String _selectedDuration = '30 min';
   vmodel.VisitType _selectedType = vmodel.VisitType.clinic;   // merged: new toggle state
 
+  // Coordinates resolved from Places Autocomplete.
+  double? _resolvedLat;
+  double? _resolvedLng;
+
   Patient? _selectedPatient;
   List<Patient> _patientMatches = [];
   int _searchRequestId = 0;
@@ -1204,6 +1221,8 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
         scheduledTime: _selectedTime,
         duration: _selectedDuration,
         address: _addressController.text.trim(), // may be empty
+        latitude: _resolvedLat,
+        longitude: _resolvedLng,
         mapsLink: _mapsLinkController.text.trim().isEmpty
             ? null
             : _mapsLinkController.text.trim(),
@@ -1378,14 +1397,18 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
               },
             ),
             const SizedBox(height: 12),
-            _buildTextField(
-              _selectedType == vmodel.VisitType.home
+            PlacesAutocompleteField(
+              controller: _addressController,
+              label: _selectedType == vmodel.VisitType.home
                   ? 'Home Address'
                   : 'Clinic Address (optional)',
-              _addressController,
-              hint: _selectedType == vmodel.VisitType.home
-                  ? "Patient's home address"
-                  : 'Clinic address',
+              hint: 'Start typing to search places',
+              onPlaceSelected: (selection) {
+                setState(() {
+                  _resolvedLat = selection.latitude;
+                  _resolvedLng = selection.longitude;
+                });
+              },
             ),
             const SizedBox(height: 12),
             _buildTextField(

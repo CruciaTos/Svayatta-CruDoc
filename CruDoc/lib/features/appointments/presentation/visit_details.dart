@@ -5,11 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
+import 'package:doctor_management_app/core/widgets/visit_location_map.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
-// The providers — VisitWithPatient and visitsWithPatientsProvider now
-// live in this same file (previously a separate broken import pointed
-// at a directory instead of a file).
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
@@ -220,6 +219,10 @@ class _EditVisitDialogState extends State<_EditVisitDialog> {
   late TimeOfDay _selectedTime;
   late String _selectedDuration;
 
+  // Coordinates resolved from Places Autocomplete.
+  double? _resolvedLat;
+  double? _resolvedLng;
+
   @override
   void initState() {
     super.initState();
@@ -251,6 +254,8 @@ class _EditVisitDialogState extends State<_EditVisitDialog> {
       'date': _selectedDate,
       'time': _selectedTime,
       'duration': _selectedDuration,
+      'latitude': _resolvedLat,
+      'longitude': _resolvedLng,
     });
   }
 
@@ -275,7 +280,18 @@ class _EditVisitDialogState extends State<_EditVisitDialog> {
               if (value != null) setState(() => _selectedDuration = value);
             }),
             const SizedBox(height: 12),
-            _buildTextField('Address (optional)', _addressController),
+            PlacesAutocompleteField(
+              controller: _addressController,
+              label: 'Address (optional)',
+              hint: 'Start typing to search places',
+              style: 'dialog',
+              onPlaceSelected: (selection) {
+                setState(() {
+                  _resolvedLat = selection.latitude;
+                  _resolvedLng = selection.longitude;
+                });
+              },
+            ),
             const SizedBox(height: 12),
             _buildTextField(
               'Google Maps Link (optional)',
@@ -439,6 +455,8 @@ class VisitDetailsPage extends ConsumerWidget {
         'mapsLink': mapsLink,
         'scheduledStart': scheduledStart,
         'durationMinutes': durationMinutes,
+        if (result['latitude'] != null) 'latitude': result['latitude'],
+        if (result['longitude'] != null) 'longitude': result['longitude'],
       });
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -687,6 +705,15 @@ class _LocationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Embedded map (or static image on desktop)
+          VisitLocationMap(
+            latitude: visit.latitude,
+            longitude: visit.longitude,
+            height: 180,
+            lite: false,
+            onOpenMaps: () => _openMaps(context),
+          ),
+          const SizedBox(height: 12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

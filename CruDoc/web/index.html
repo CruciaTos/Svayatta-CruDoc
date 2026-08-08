@@ -41,6 +41,72 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
+  <!-- Google Maps JavaScript SDK — required for Flutter Web Maps and Places Autocomplete. -->
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCvA7zLFFwUdL5xN9iqYy2uULtNnjH-NWo&libraries=places"></script>
+  
+  <script>
+    window.googlePlacesAutocomplete = function(input, callback) {
+      if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
+        console.error('Google Maps Places library is not loaded.');
+        callback(JSON.stringify([]));
+        return;
+      }
+      var service = new google.maps.places.AutocompleteService();
+      service.getPlacePredictions({
+        input: input,
+        componentRestrictions: { country: 'in' },
+        types: ['geocode', 'establishment']
+      }, function(predictions, status) {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions) {
+          callback(JSON.stringify([]));
+          return;
+        }
+        var results = predictions.map(function(p) {
+          return {
+            description: p.description,
+            place_id: p.place_id,
+            structured_formatting: {
+              main_text: p.structured_formatting.main_text,
+              secondary_text: p.structured_formatting.secondary_text
+            }
+          };
+        });
+        callback(JSON.stringify(results));
+      });
+    };
+
+    window.googlePlaceDetails = function(placeId, callback) {
+      if (typeof google === 'undefined' || !google.maps || !google.maps.places) {
+        console.error('Google Maps Places library is not loaded.');
+        callback(null);
+        return;
+      }
+      var dummy = document.createElement('div');
+      var service = new google.maps.places.PlacesService(dummy);
+      service.getDetails({
+        placeId: placeId,
+        fields: ['geometry', 'formatted_address']
+      }, function(place, status) {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !place) {
+          callback(null);
+          return;
+        }
+        var lat = place.geometry.location.lat();
+        var lng = place.geometry.location.lng();
+        var result = {
+          formatted_address: place.formatted_address,
+          geometry: {
+            location: {
+              lat: lat,
+              lng: lng
+            }
+          }
+        };
+        callback(JSON.stringify(result));
+      });
+    };
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

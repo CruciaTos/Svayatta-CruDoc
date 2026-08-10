@@ -2,7 +2,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';

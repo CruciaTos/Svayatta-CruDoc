@@ -142,8 +142,6 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2563EB);
-
     return ShellBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,

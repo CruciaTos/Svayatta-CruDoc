@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/bottom_nav/bottom_nav_bar.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
+import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -115,6 +116,39 @@ class _ShellState extends State<Shell> {
                       selectedIndex: _currentIndex,
                       onTap: _onNavTap,
                       enabledModules: enabledModules,
+                    ),
+                  ),
+                // ---- Floating Chat FAB (Mobile Only) ----
+                if (!kIsWeb)
+                  Positioned(
+                    right: 16,
+                    bottom: 90, // above the nav bar
+                    child: GestureDetector(
+                      onTap: () => ChatbotScreen.show(context),
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(18),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF1E78FF).withValues(alpha: 0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.smart_toy_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                      ),
                     ),
                   ),
               ],

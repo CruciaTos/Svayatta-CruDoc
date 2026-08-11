@@ -133,6 +133,72 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
     }
   }
 
+  Future<void> _deleteVisit() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Delete Appointment',
+              style: TextStyle(
+                fontFamily: AppColors.headingFontFamily,
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Are you sure you want to delete this appointment? It will be removed permanently.',
+          style: AppColors.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        final repo = ref.read(visitRepositoryProvider);
+        await repo.softDeleteVisit(_visit.id);
+        if (!mounted) return;
+        ref.invalidate(visitsForPatientProvider(_visit.patientId));
+        ref.invalidate(upcomingVisitsProvider);
+        ref.invalidate(lastVisitPerPatientProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment deleted.')),
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete appointment: $e')),
+        );
+      }
+    }
+  }
+
   Future<void> _callPatient() async {
     final phone = _patient?.phone.trim();
     if (phone == null || phone.isEmpty) return;
@@ -289,6 +355,29 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
             const _SectionLabel(text: 'SESSION NOTE'),
             const SizedBox(height: 10),
             _buildNoteField(),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: _deleteVisit,
+                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                label: const Text(
+                  'Delete Appointment',
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  side: const BorderSide(color: Colors.redAccent, width: 1.2),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

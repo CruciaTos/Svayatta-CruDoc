@@ -7,11 +7,11 @@ import 'package:doctor_management_app/features/patients/data/repo/patient_reposi
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/shell/components/animated_background.dart';
 
-Future<void> showAddPatientSheet(
+Future<bool?> showAddPatientSheet(
   BuildContext context, {
   PatientRepository? repository,
 }) {
-  return showModalBottomSheet<void>(
+  return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
@@ -21,6 +21,23 @@ Future<void> showAddPatientSheet(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
     builder: (_) => AddPatientSheet(repository: repository),
+  );
+}
+
+Future<bool?> showEditPatientSheet(
+  BuildContext context, {
+  required Patient patient,
+  PatientRepository? repository,
+}) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => EditPatientSheet(patient: patient, repository: repository),
   );
 }
 
@@ -360,6 +377,190 @@ class _TopBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Bottom sheet for editing an existing patient's details.
+class EditPatientSheet extends StatefulWidget {
+  const EditPatientSheet({
+    super.key,
+    required this.patient,
+    PatientRepository? repository,
+  }) : _repository = repository;
+
+  final Patient patient;
+  final PatientRepository? _repository;
+
+  @override
+  State<EditPatientSheet> createState() => _EditPatientSheetState();
+}
+
+class _EditPatientSheetState extends State<EditPatientSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _formStateKey = GlobalKey<PatientFormState>();
+
+  late final PatientRepository _repository =
+      widget._repository ?? PatientRepository();
+
+  bool _isSaving = false;
+
+  Future<void> _handleSubmit(PatientFormResult result) async {
+    setState(() => _isSaving = true);
+
+    try {
+      await _repository.updatePatient(widget.patient.id, {
+        'firstName': result.firstName,
+        'lastName': result.lastName,
+        'phone': result.phone,
+        'email': result.email,
+        'gender': result.gender,
+        'dateOfBirth': result.dateOfBirth,
+        'diagnosis': result.diagnosis,
+        'packageBalance': result.packageBalance,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient updated successfully')),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update patient: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _onSavePressed() {
+    _formStateKey.currentState?.submit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.edit_note,
+                                color: Color(0xFF2563EB),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Edit Patient',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF64748B),
+                            size: 20,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: PatientForm(
+                          key: _formStateKey,
+                          formKey: _formKey,
+                          initialFirstName: widget.patient.firstName,
+                          initialLastName: widget.patient.lastName,
+                          initialPhone: widget.patient.phone,
+                          initialEmail: widget.patient.email,
+                          initialGender: widget.patient.gender,
+                          initialDateOfBirth: widget.patient.dateOfBirth,
+                          initialDiagnoses: widget.patient.diagnosis,
+                          initialPackageBalance: widget.patient.packageBalance,
+                          onSubmit: _handleSubmit,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _onSavePressed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          disabledBackgroundColor:
+                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Update Patient',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

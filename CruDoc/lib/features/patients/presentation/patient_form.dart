@@ -12,6 +12,7 @@ class PatientFormResult {
   final String firstName;
   final String lastName;
   final String phone;
+  final String email;
   final String gender;
   final DateTime dateOfBirth;
   final List<String> diagnosis;
@@ -21,6 +22,7 @@ class PatientFormResult {
     required this.firstName,
     required this.lastName,
     required this.phone,
+    this.email = '',
     required this.gender,
     required this.dateOfBirth,
     required this.diagnosis,
@@ -42,6 +44,7 @@ class PatientForm extends StatefulWidget {
     this.initialFirstName,
     this.initialLastName,
     this.initialPhone,
+    this.initialEmail,
     this.initialGender,
     this.initialDateOfBirth,
     this.initialDiagnoses,
@@ -58,6 +61,7 @@ class PatientForm extends StatefulWidget {
   final String? initialFirstName;
   final String? initialLastName;
   final String? initialPhone;
+  final String? initialEmail;
   final String? initialGender;
   final DateTime? initialDateOfBirth;
 
@@ -77,6 +81,7 @@ class PatientFormState extends State<PatientForm> {
   late final TextEditingController _firstNameController;
   late final TextEditingController _lastNameController;
   late final TextEditingController _phoneController;
+  late final TextEditingController _emailController;
   late List<TextEditingController> _diagnosisControllers;
   late final TextEditingController _packageBalanceController;
 
@@ -91,6 +96,7 @@ class PatientFormState extends State<PatientForm> {
     _lastNameController =
         TextEditingController(text: widget.initialLastName ?? '');
     _phoneController = TextEditingController(text: widget.initialPhone ?? '');
+    _emailController = TextEditingController(text: widget.initialEmail ?? '');
 
     final initialDiagnoses = widget.initialDiagnoses;
     _diagnosisControllers = (initialDiagnoses == null || initialDiagnoses.isEmpty)
@@ -114,6 +120,7 @@ class PatientFormState extends State<PatientForm> {
     _firstNameController.dispose();
     _lastNameController.dispose();
     _phoneController.dispose();
+    _emailController.dispose();
     for (final controller in _diagnosisControllers) {
       controller.dispose();
     }
@@ -167,6 +174,7 @@ class PatientFormState extends State<PatientForm> {
         firstName: _firstNameController.text.trim(),
         lastName: _lastNameController.text.trim(),
         phone: _phoneController.text.trim(),
+        email: _emailController.text.trim(),
         gender: _gender,
         dateOfBirth: _dateOfBirth!,
         diagnosis: diagnoses,
@@ -242,6 +250,21 @@ class PatientFormState extends State<PatientForm> {
               final trimmed = value?.trim() ?? '';
               if (trimmed.isEmpty) return 'Required';
               if (trimmed.length < 7) return 'Enter a valid phone number';
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          _FormField(
+            label: 'Email (optional)',
+            controller: _emailController,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              final trimmed = value?.trim() ?? '';
+              if (trimmed.isEmpty) return null; // optional field
+              final emailRegex = RegExp(r'^[\w.-]+@[\w.-]+\.[a-zA-Z]{2,}$');
+              if (!emailRegex.hasMatch(trimmed)) {
+                return 'Enter a valid email address';
+              }
               return null;
             },
           ),

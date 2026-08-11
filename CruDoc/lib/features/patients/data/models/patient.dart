@@ -19,6 +19,7 @@ class Patient {
   final String firstName;
   final String lastName;
   final String phone;
+  final String email;
   final String gender;
   final DateTime dateOfBirth;
 
@@ -43,6 +44,7 @@ class Patient {
     required this.firstName,
     required this.lastName,
     required this.phone,
+    this.email = '',
     required this.gender,
     required this.dateOfBirth,
     required this.diagnosis,
@@ -86,6 +88,7 @@ class Patient {
       firstName: map['firstName'] as String? ?? '',
       lastName: map['lastName'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
+      email: map['email'] as String? ?? '',
       gender: map['gender'] as String? ?? '',
       dateOfBirth: _timestampToDate(map['dateOfBirth']),
       diagnosis: diagnosisFromStored(map['diagnosis']),
@@ -105,6 +108,7 @@ class Patient {
       'firstName': firstName,
       'lastName': lastName,
       'phone': phone,
+      'email': email,
       'gender': gender,
       'dateOfBirth': Timestamp.fromDate(dateOfBirth),
       'diagnosis': diagnosisToStored(diagnosis),
@@ -120,6 +124,7 @@ class Patient {
     String? firstName,
     String? lastName,
     String? phone,
+    String? email,
     String? gender,
     DateTime? dateOfBirth,
     List<String>? diagnosis,
@@ -135,6 +140,7 @@ class Patient {
       firstName: firstName ?? this.firstName,
       lastName: lastName ?? this.lastName,
       phone: phone ?? this.phone,
+      email: email ?? this.email,
       gender: gender ?? this.gender,
       dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       diagnosis: diagnosis ?? this.diagnosis,

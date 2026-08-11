@@ -479,11 +479,35 @@ class VisitRepository {
     return updateStatus(visitId, VisitStatus.cancelled);
   }
 
-  /// Soft-deletes a visit (e.g. it was created by mistake). The
-  /// document is never removed from Firestore — it's only excluded from
-  /// every default query — so history is fully preserved.
-  Future<void> softDeleteVisit(String visitId) {
-    return updateVisit(visitId, {'isDeleted': true});
+  /// Soft-deletes a visit (e.g. it was created by mistake). Deletes the
+  /// document from Firestore and excludes it from local SQLite queries.
+  Future<void> softDeleteVisit(String visitId) async {
+    final now = DateTime.now();
+
+    // 1. Delete document from Cloud Firestore directly
+    try {
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(visitId)
+          .delete();
+      await FirebaseFirestore.instance
+          .collection('visitations')
+          .doc(visitId)
+          .delete();
+    } catch (_) {}
+
+    // 2. Soft-delete and hide in local SQLite database
+    await _localService.updateVisit(
+      visitId,
+      {
+        'isDeleted': true,
+        'isActive': false,
+        'updatedAt': now,
+      },
+      pendingDelete: true,
+    );
+
+    unawaited(_syncService.triggerPostWriteSync());
   }
 
   /// Records payment for a session: stamps `Visit.isPaid`/

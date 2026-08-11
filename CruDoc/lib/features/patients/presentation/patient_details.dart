@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/schedule_visit_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
+import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
@@ -101,9 +102,93 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
     );
   }
 
+  Future<void> _editPatient(Patient currentPatient) async {
+    final updated = await showEditPatientSheet(
+      context,
+      patient: currentPatient,
+      repository: ref.read(patientRepositoryProvider),
+    );
+    if (updated == true && mounted) {
+      ref.invalidate(patientsStreamProvider);
+    }
+  }
+
+  Future<void> _deletePatient(Patient currentPatient) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardSurface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(
+          children: [
+            Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Delete Patient',
+              style: TextStyle(
+                fontFamily: AppColors.headingFontFamily,
+                color: AppColors.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'Are you sure you want to delete ${currentPatient.fullName}? This will remove the patient record from your active list.',
+          style: AppColors.bodyMedium,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && mounted) {
+      try {
+        await ref
+            .read(patientRepositoryProvider)
+            .deletePatient(currentPatient.id);
+        if (!mounted) return;
+        ref.invalidate(patientsStreamProvider);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${currentPatient.fullName} deleted')),
+        );
+        Navigator.pop(context);
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to delete patient: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final patient = widget.patient;
+    final patientsAsync = ref.watch(patientsStreamProvider);
+    final patient = patientsAsync.maybeWhen(
+      data: (list) {
+        for (final p in list) {
+          if (p.id == widget.patient.id) return p;
+        }
+        return widget.patient;
+      },
+      orElse: () => widget.patient,
+    );
     final visitsAsync = ref.watch(visitsForPatientProvider(patient.id));
 
     return Scaffold(
@@ -113,7 +198,10 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
           bottom: false,
           child: Column(
             children: [
-              const _TopBar(),
+              _TopBar(
+                onEdit: () => _editPatient(patient),
+                onDelete: () => _deletePatient(patient),
+              ),
               Expanded(
                 child: ListView(
                   padding: const EdgeInsets.fromLTRB(20, 8, 20, 108),
@@ -200,7 +288,13 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
 
 // ---------- Top Bar ----------
 class _TopBar extends StatelessWidget {
-  const _TopBar();
+  const _TopBar({
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -226,10 +320,16 @@ class _TopBar extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.edit_note,
+            icon: const Icon(Icons.edit_outlined,
                 color: AppColors.textPrimary, size: 22),
             tooltip: 'Edit patient',
-            onPressed: () {},
+            onPressed: onEdit,
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline,
+                color: Colors.redAccent, size: 22),
+            tooltip: 'Delete patient',
+            onPressed: onDelete,
           ),
         ],
       ),

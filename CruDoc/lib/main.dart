@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/services/encryption_key_manager.dart';
+import 'core/services/device_session_service.dart';
 import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
@@ -38,6 +39,7 @@ void _wireWebEncryptionKeyLoading() {
   FirebaseAuth.instance.authStateChanges().listen((user) async {
     try {
       if (user == null) {
+        DeviceSessionService.instance.stopSessionMonitoring();
         EncryptionKeyManager.instance.clear();
         lastHandledUid = null;
         return;
@@ -45,6 +47,12 @@ void _wireWebEncryptionKeyLoading() {
       if (lastHandledUid == user.uid) return;
       lastHandledUid = user.uid;
       await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+      DeviceSessionService.instance.startSessionMonitoring(
+        user.uid,
+        onForcedLogout: (reason) {
+          debugPrint('Web forced logout: $reason');
+        },
+      );
     } catch (error, stackTrace) {
       debugPrint('Web startup auth bootstrap failed: $error');
       debugPrint(stackTrace.toString());
@@ -71,6 +79,7 @@ void _wireDoctorScopedStartup() {
   FirebaseAuth.instance.authStateChanges().listen((user) async {
     try {
       if (user == null) {
+        DeviceSessionService.instance.stopSessionMonitoring();
         if (lastHandledUid != null) {
           await FirestoreSyncService.instance.stop();
           await LocalDatabaseService.instance.close();
@@ -92,6 +101,13 @@ void _wireDoctorScopedStartup() {
       );
       await InitialFirestoreMigrationService.instance.runIfNeeded();
       await FirestoreSyncService.instance.start();
+
+      DeviceSessionService.instance.startSessionMonitoring(
+        user.uid,
+        onForcedLogout: (reason) {
+          debugPrint('Mobile forced logout: $reason');
+        },
+      );
     } catch (error, stackTrace) {
       debugPrint('Doctor-scoped startup bootstrap failed: $error');
       debugPrint(stackTrace.toString());

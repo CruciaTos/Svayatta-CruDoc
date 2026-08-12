@@ -57,6 +57,7 @@ class FirestoreSyncService {
   };
 
   final List<StreamSubscription> _liveSubscriptions = [];
+  String? _subscribedDoctorId;
 
   Future<void> start() async {
     if (_isStarted) return;
@@ -86,7 +87,11 @@ class FirestoreSyncService {
   }
 
   void _startLiveSubscriptions(String doctorId) {
+    if (_subscribedDoctorId == doctorId && _liveSubscriptions.isNotEmpty) {
+      return;
+    }
     _stopLiveSubscriptions();
+    _subscribedDoctorId = doctorId;
 
     for (final collection in _collections) {
       final sub = _firestore
@@ -126,6 +131,7 @@ class FirestoreSyncService {
       sub.cancel();
     }
     _liveSubscriptions.clear();
+    _subscribedDoctorId = null;
   }
 
   Future<void> triggerPostWriteSync() => synchronize();
@@ -243,10 +249,16 @@ class FirestoreSyncService {
     // ── non-visit collections ────────────────────────────────────────────────
     for (final collection in _collections) {
       final lastSyncTime = await _lastSyncTime(collection);
-      final snapshot = await _firestore
+      Query<Map<String, dynamic>> query = _firestore
           .collection(collection)
-          .where('doctorId', isEqualTo: doctorId)
-          .get();
+          .where('doctorId', isEqualTo: doctorId);
+      if (lastSyncTime > 0) {
+        query = query.where(
+          'updatedAt',
+          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
+        );
+      }
+      final snapshot = await query.get();
 
       var newestSyncTime = lastSyncTime;
       for (final doc in snapshot.docs) {
@@ -266,10 +278,16 @@ class FirestoreSyncService {
     // ── visit Firestore collections → visits SQLite table ────────────────────
     for (final firestoreCollection in _visitFirestoreToType.keys) {
       final lastSyncTime = await _lastSyncTime(firestoreCollection);
-      final snapshot = await _firestore
+      Query<Map<String, dynamic>> query = _firestore
           .collection(firestoreCollection)
-          .where('doctorId', isEqualTo: doctorId)
-          .get();
+          .where('doctorId', isEqualTo: doctorId);
+      if (lastSyncTime > 0) {
+        query = query.where(
+          'updatedAt',
+          isGreaterThan: Timestamp.fromMillisecondsSinceEpoch(lastSyncTime),
+        );
+      }
+      final snapshot = await query.get();
 
       var newestSyncTime = lastSyncTime;
       for (final doc in snapshot.docs) {

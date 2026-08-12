@@ -57,15 +57,23 @@ final recentActivityProvider = Provider<AsyncValue<List<ActivityItem>>>((ref) {
   final patientsById = {for (final p in patients) p.id: p};
   final medicinesById = {for (final m in medicines) m.id: m};
 
+  // Source lists are sorted newest-first. Taking top 10 from each source guarantees
+  // we capture all candidate items for the top display limit while avoiding mapping
+  // and sorting thousands of historical entries.
+  final candidatePatients = patients.take(kRecentActivityDisplayLimit * 2);
+  final candidateVisits = visits.take(kRecentActivityDisplayLimit * 2);
+  final candidateTransactions = transactions.take(kRecentActivityDisplayLimit * 2);
+  final candidateRevenue = revenueEntries.take(kRecentActivityDisplayLimit * 2);
+
   final items = <ActivityItem>[
-    ...patients.map(_patientActivity),
-    ...visits
+    ...candidatePatients.map(_patientActivity),
+    ...candidateVisits
         .map((v) => _visitActivity(v, patientsById))
         .whereType<ActivityItem>(),
-    ...transactions
+    ...candidateTransactions
         .map((t) => _transactionActivity(t, medicinesById))
         .whereType<ActivityItem>(),
-    ...revenueEntries.map(_revenueActivity),
+    ...candidateRevenue.map(_revenueActivity),
   ];
 
   items.sort((a, b) => b.timestamp.compareTo(a.timestamp));

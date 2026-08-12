@@ -404,6 +404,19 @@ class SuperAdminDoctorService {
     }
   }
 
+  /// Toggle whether a doctor is allowed to log in on multiple devices concurrently.
+  Future<void> toggleMultiDeviceAccess(String doctorId, bool allow) async {
+    try {
+      await _fb.usersCollection.doc(doctorId).update({
+        'allowMultiDevice': allow,
+        'lastModified': FieldValue.serverTimestamp(),
+        'modifiedBy': _fb.currentUserEmail,
+      });
+    } catch (e) {
+      throw Exception('Failed to update multi-device access: ${e.toString()}');
+    }
+  }
+
   /// Get total count of doctors.
   Future<int> getDoctorCount({DoctorStatus? status}) async {
     try {

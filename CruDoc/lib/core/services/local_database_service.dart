@@ -489,6 +489,10 @@ class LocalDatabaseService extends ChangeNotifier {
       ON visits (doctorId)
     ''');
     await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_visits_doc_deleted_start
+      ON visits (doctorId, isDeleted, scheduledStart DESC)
+    ''');
+    await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_visits_upcoming
       ON visits (isActive, isDeleted, status, scheduledStart)
     ''');
@@ -512,6 +516,10 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_revenue_entries_doctor
       ON revenue_entries (doctorId)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_revenue_doc_deleted_date
+      ON revenue_entries (doctorId, isDeleted, date DESC)
     ''');
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_revenue_entries_active_date

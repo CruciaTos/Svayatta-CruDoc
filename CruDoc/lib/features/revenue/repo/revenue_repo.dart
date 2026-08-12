@@ -102,6 +102,8 @@ class RevenueRepository {
     return id;
   }
 
+  static bool _isMigrationAttempted = false;
+
   /// Auto-encrypts existing unencrypted amounts in Cloud Firestore for the signed-in doctor.
   Future<void> migrateUnencryptedAmountsInFirestore() async {
     if (!kIsWeb) return;
@@ -150,7 +152,10 @@ class RevenueRepository {
       return Stream.value(const <RevenueEntry>[]);
     }
     if (kIsWeb) {
-      unawaited(migrateUnencryptedAmountsInFirestore());
+      if (!_isMigrationAttempted) {
+        _isMigrationAttempted = true;
+        unawaited(migrateUnencryptedAmountsInFirestore());
+      }
       return FirebaseFirestore.instance
           .collection('revenue_entries')
           .where('doctorId', isEqualTo: doctorId)

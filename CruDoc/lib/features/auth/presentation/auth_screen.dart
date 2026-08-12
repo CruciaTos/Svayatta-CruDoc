@@ -8,8 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
-import 'package:doctor_management_app/features/shell/presentation/shell.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -371,6 +371,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         }
 
         await _syncUserProfile(user);
+        await DeviceSessionService.instance.registerNewSession(user.uid);
         if (!mounted) return;
         _enterApp();
       } else {

@@ -212,6 +212,33 @@ class _SuperAdminDoctorsScreenState
     }
   }
 
+  Future<void> _toggleMultiDevice(DoctorModel doctor, bool allow) async {
+    setState(() => _savingDoctorIds.add(doctor.id));
+    try {
+      await _doctorService.toggleMultiDeviceAccess(doctor.id, allow);
+      if (!mounted) return;
+      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            allow
+                ? 'Multi-device login granted for ${doctor.name}'
+                : 'Single-device login enforced for ${doctor.name}',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _savingDoctorIds.remove(doctor.id));
+      }
+    }
+  }
+
   // Toggle a doctor’s feature panel (add/remove from set)
   void _toggleExpanded(String doctorId) {
     setState(() {
@@ -982,6 +1009,45 @@ class _SuperAdminDoctorsScreenState
                 ),
               );
             }).toList(),
+          ),
+          const Divider(height: 24, color: Color(0xFFE2E8F0)),
+          Row(
+            children: [
+              const Icon(Icons.devices_rounded,
+                  color: Color(0xFF2563EB), size: 18),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Multi-Device Login Access',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                    Text(
+                      doctor.allowMultiDevice
+                          ? 'Multi-device mode: Doctor can log in on multiple devices concurrently.'
+                          : 'Single-device mode: Logging in on a new device will sign out active sessions.',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: doctor.allowMultiDevice,
+                onChanged: isSaving
+                    ? null
+                    : (val) => _toggleMultiDevice(doctor, val),
+                activeThumbColor: const Color(0xFF2563EB),
+              ),
+            ],
           ),
         ],
       ),

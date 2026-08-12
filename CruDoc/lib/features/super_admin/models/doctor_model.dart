@@ -27,6 +27,7 @@ class DoctorModel {
   final bool isDeleted;
   final DateTime? deletedAt;
   final String? notes;
+  final bool allowMultiDevice;
 
   DoctorModel({
     required this.id,
@@ -52,6 +53,7 @@ class DoctorModel {
     this.isDeleted = false,
     this.deletedAt,
     this.notes,
+    this.allowMultiDevice = false,
   })  : accountCreated = accountCreated ?? DateTime.now(),
         storageLimitGB = storageLimitGB ?? subscriptionPlan.storageLimitGB,
         enabledModules = enabledModules ?? subscriptionPlan.includedModules;
@@ -91,6 +93,7 @@ class DoctorModel {
       isDeleted: json['isDeleted'] as bool? ?? false,
       deletedAt: (json['deletedAt'] as Timestamp?)?.toDate(),
       notes: json['notes'] as String?,
+      allowMultiDevice: json['allowMultiDevice'] as bool? ?? false,
     );
   }
 
@@ -118,6 +121,7 @@ class DoctorModel {
       'isDeleted': isDeleted,
       'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
       'notes': notes,
+      'allowMultiDevice': allowMultiDevice,
     };
   }
 
@@ -145,6 +149,7 @@ class DoctorModel {
     bool? isDeleted,
     DateTime? deletedAt,
     String? notes,
+    bool? allowMultiDevice,
   }) {
     return DoctorModel(
       id: id ?? this.id,
@@ -170,6 +175,7 @@ class DoctorModel {
       isDeleted: isDeleted ?? this.isDeleted,
       deletedAt: deletedAt ?? this.deletedAt,
       notes: notes ?? this.notes,
+      allowMultiDevice: allowMultiDevice ?? this.allowMultiDevice,
     );
   }
 

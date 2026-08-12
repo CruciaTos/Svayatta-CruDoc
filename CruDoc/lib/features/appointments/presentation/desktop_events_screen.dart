@@ -5,32 +5,28 @@ import 'package:flutter/material.dart';
 /// A fully functional, interactive calendar matching the Pillio-style UI.
 /// Features dynamic month navigation, accurate day grid generation,
 /// and an animated hover popup that adapts to the selected day's data.
-/// Wrapped in a centered container to respect the side navigation.
+/// Now wrapped in the same white card style as the other desktop dashboards.
 class DesktopEventsScreen extends StatelessWidget {
   const DesktopEventsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+    return SizedBox.expand(
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withValues(alpha: 0.05),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
             ),
-            padding: const EdgeInsets.all(24.0),
-            child: const _CalendarDashboardView(),
-          ),
+          ],
+        ),
+        padding: const EdgeInsets.all(20),
+        child: const SingleChildScrollView(
+          child: _CalendarDashboardView(),
         ),
       ),
     );
@@ -154,7 +150,6 @@ class _CalendarDashboardViewState extends State<_CalendarDashboardView> {
         ),
 
         // --- Interactive Hover Popup ---
-        // Only shows if hoveredDateKey matches the specific target date (e.g. '2026-03-17')
         if (_hoveredDateKey == '2026-03-17')
           Positioned(
             top: 280,

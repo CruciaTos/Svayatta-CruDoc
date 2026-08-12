@@ -150,46 +150,36 @@ class _DesktopPatientRecordsScreenState
 
     return Stack(
       children: [
-        LayoutBuilder(
-          builder: (context, constraints) {
-            return Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: 1200,
-                  maxHeight: constraints.maxHeight,
+        SizedBox.expand(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
                 ),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withValues(alpha: 0.05),
-                        blurRadius: 20,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(24.0),
-                  child: _PatientDashboardView(
-                    viewData: viewData,
-                    patients: filteredPatients,
-                    searchController: _searchController,
-                    searchQuery: _searchQuery,
-                    onSearchChanged: (value) {
-                      setState(() => _searchQuery = value.trim());
-                    },
-                    onClearSearch: () {
-                      setState(() {
-                        _searchController.clear();
-                        _searchQuery = '';
-                      });
-                    },
-                  ),
-                ),
-              ),
-            );
-          },
+              ],
+            ),
+            padding: const EdgeInsets.all(20),
+            child: _PatientDashboardView(
+              viewData: viewData,
+              patients: filteredPatients,
+              searchController: _searchController,
+              searchQuery: _searchQuery,
+              onSearchChanged: (value) {
+                setState(() => _searchQuery = value.trim());
+              },
+              onClearSearch: () {
+                setState(() {
+                  _searchController.clear();
+                  _searchQuery = '';
+                });
+              },
+            ),
+          ),
         ),
         if (patientsAsync.hasError)
           Positioned(
@@ -282,7 +272,7 @@ class _PatientsStatusBanner extends StatelessWidget {
 }
 
 // ==============================================================================
-// MAIN DASHBOARD VIEW
+// MAIN DASHBOARD VIEW (non‑scrollable outer, scrollable table inside)
 // ==============================================================================
 
 class _PatientDashboardView extends StatelessWidget {
@@ -374,7 +364,7 @@ class _PatientDashboardView extends StatelessWidget {
 }
 
 // ==============================================================================
-// 1. HEADER SECTION (unchanged)
+// 1. HEADER SECTION
 // ==============================================================================
 
 class _HeaderSection extends StatelessWidget {
@@ -461,7 +451,7 @@ class _HeaderSection extends StatelessWidget {
 }
 
 // ==============================================================================
-// 2. CHART SECTION (unchanged)
+// 2. CHART SECTION
 // ==============================================================================
 
 class _ChartSection extends StatelessWidget {
@@ -671,7 +661,7 @@ class _LegendItem extends StatelessWidget {
 }
 
 // ==============================================================================
-// 3. STATS GRID SECTION (unchanged)
+// 3. STATS GRID SECTION
 // ==============================================================================
 
 class _StatsGridSection extends StatelessWidget {
@@ -811,7 +801,7 @@ class _StatCard extends StatelessWidget {
 }
 
 // ==============================================================================
-// 4. TOOLBAR SECTION (unchanged)
+// 4. TOOLBAR SECTION
 // ==============================================================================
 
 class _ToolbarSection extends StatelessWidget {
@@ -968,7 +958,7 @@ class _DropdownButton extends StatelessWidget {
 }
 
 // ==============================================================================
-// 5. PATIENT DATA TABLE (now scrollable in both directions)
+// 5. PATIENT DATA TABLE (scrollable in both directions)
 // ==============================================================================
 
 class _PatientTable extends StatelessWidget {

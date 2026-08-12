@@ -33,14 +33,31 @@ class DesktopInventoryScreen extends ConsumerWidget {
 
     return Stack(
       children: [
-        DesktopInventoryListScreen(
-          totalItems: inventoryViewData.totalItems,
-          lowStockAlerts: inventoryViewData.lowStockAlerts,
-          outOfStock: inventoryViewData.outOfStock,
-          inventoryValue: inventoryViewData.inventoryValue,
-          monthlyUsage: inventoryViewData.monthlyUsage,
-          medications: inventoryViewData.medications,
-          alerts: inventoryViewData.alerts,
+        // Full‑width white card matching the revenue screen
+        SizedBox.expand(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withValues(alpha: 0.05),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.all(20),
+            child: _InventoryDashboardView(
+              totalItems: inventoryViewData.totalItems,
+              lowStockAlerts: inventoryViewData.lowStockAlerts,
+              outOfStock: inventoryViewData.outOfStock,
+              inventoryValue: inventoryViewData.inventoryValue,
+              monthlyUsage: inventoryViewData.monthlyUsage,
+              medications: inventoryViewData.medications,
+              alerts: inventoryViewData.alerts,
+            ),
+          ),
         ),
         if (inventoryViewAsync.hasError)
           Positioned(
@@ -118,6 +135,10 @@ class _InventoryStatusBanner extends StatelessWidget {
     );
   }
 }
+
+// -----------------------------------------------------------------------------
+// DATA MODELS
+// -----------------------------------------------------------------------------
 
 class _DesktopInventoryViewData {
   final String totalItems;
@@ -282,16 +303,16 @@ Color _stockLevelColor(MedicineModel medicine, double progress) {
 }
 
 // -----------------------------------------------------------------------------
-// DATA MODELS (replace with your own data layer)
+// DATA MODELS (unchanged)
 // -----------------------------------------------------------------------------
 
 class MedicationData {
   final String name;
   final String subtitle;
-  final String status; // e.g. 'Active', 'Paused', 'Finished'
+  final String status;
   final String dose;
   final String daysLeft;
-  final double progress; // 0.0 … 1.0
+  final double progress;
   final Color progressColor;
   final String synced;
   final String nextDose;
@@ -377,76 +398,6 @@ class AlertData {
   @override
   int get hashCode =>
       Object.hash(icon, iconColor, bgColor, title, subtitle, actionLabel);
-}
-
-// -----------------------------------------------------------------------------
-// DESKTOP INVENTORY SCREEN (now data‑driven)
-// -----------------------------------------------------------------------------
-
-class DesktopInventoryListScreen extends StatelessWidget {
-  final bool autoOpenAddForm;
-
-  // Inventory summary stats
-  final String totalItems;
-  final String lowStockAlerts;
-  final String outOfStock;
-  final String inventoryValue;
-  final String monthlyUsage;
-
-  // Data lists
-  final List<MedicationData> medications;
-  final List<AlertData> alerts;
-
-  const DesktopInventoryListScreen({
-    super.key,
-    this.autoOpenAddForm = false,
-    required this.totalItems,
-    required this.lowStockAlerts,
-    required this.outOfStock,
-    required this.inventoryValue,
-    required this.monthlyUsage,
-    required this.medications,
-    required this.alerts,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: 1200,
-              maxHeight: constraints.maxHeight,
-            ),
-            child: Container(
-              padding: const EdgeInsets.all(24.0),
-              decoration: BoxDecoration(
-                color: const Color(0xFFFCFCFD),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withValues(alpha: 0.05),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: _InventoryDashboardView(
-                totalItems: totalItems,
-                lowStockAlerts: lowStockAlerts,
-                outOfStock: outOfStock,
-                inventoryValue: inventoryValue,
-                monthlyUsage: monthlyUsage,
-                medications: medications,
-                alerts: alerts,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
 }
 
 // ==============================================================================

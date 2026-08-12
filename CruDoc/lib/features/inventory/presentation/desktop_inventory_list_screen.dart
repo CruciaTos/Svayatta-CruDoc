@@ -1,39 +1,367 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
+import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 
-/// Desktop version of the Inventory tab.
-///
-/// Features a clean header with stats, tabs, medication cards,
-/// striped progress bars, and a side alerts panel.
-/// Wrapped in a centered container to respect the side navigation.
+final _desktopInventoryViewProvider =
+    Provider<AsyncValue<_DesktopInventoryViewData>>((ref) {
+      return ref.watch(
+        medicinesStreamProvider.select(
+          (medicinesAsync) => medicinesAsync.whenData(_mapMedicinesToViewData),
+        ),
+      );
+    });
+
+class DesktopInventoryScreen extends ConsumerWidget {
+  const DesktopInventoryScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final inventoryViewAsync = ref.watch(_desktopInventoryViewProvider);
+
+    return inventoryViewAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stack) =>
+          Center(child: Text('Failed to load inventory: $error')),
+      data: (data) => DesktopInventoryListScreen(
+        totalItems: data.totalItems,
+        lowStockAlerts: data.lowStockAlerts,
+        outOfStock: data.outOfStock,
+        inventoryValue: data.inventoryValue,
+        monthlyUsage: data.monthlyUsage,
+        medications: data.medications,
+        alerts: data.alerts,
+      ),
+    );
+  }
+}
+
+class _DesktopInventoryViewData {
+  final String totalItems;
+  final String lowStockAlerts;
+  final String outOfStock;
+  final String inventoryValue;
+  final String monthlyUsage;
+  final List<MedicationData> medications;
+  final List<AlertData> alerts;
+
+  const _DesktopInventoryViewData({
+    required this.totalItems,
+    required this.lowStockAlerts,
+    required this.outOfStock,
+    required this.inventoryValue,
+    required this.monthlyUsage,
+    required this.medications,
+    required this.alerts,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is _DesktopInventoryViewData &&
+            other.totalItems == totalItems &&
+            other.lowStockAlerts == lowStockAlerts &&
+            other.outOfStock == outOfStock &&
+            other.inventoryValue == inventoryValue &&
+            other.monthlyUsage == monthlyUsage &&
+            _listEquals(other.medications, medications) &&
+            _listEquals(other.alerts, alerts);
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    totalItems,
+    lowStockAlerts,
+    outOfStock,
+    inventoryValue,
+    monthlyUsage,
+    Object.hashAll(medications),
+    Object.hashAll(alerts),
+  );
+}
+
+bool _listEquals<T>(List<T> a, List<T> b) {
+  if (identical(a, b)) return true;
+  if (a.length != b.length) return false;
+
+  for (var i = 0; i < a.length; i += 1) {
+    if (a[i] != b[i]) return false;
+  }
+
+  return true;
+}
+
+_DesktopInventoryViewData _mapMedicinesToViewData(
+  List<MedicineModel> medicines,
+) {
+  final medications = <MedicationData>[];
+  final alerts = <AlertData>[];
+  int lowStockCount = 0;
+  int outOfStockCount = 0;
+  double inventoryTotal = 0;
+  bool hasAnyPrice = false;
+  final now = DateTime.now();
+
+  for (final medicine in medicines) {
+    final subtitle = medicine.category.isNotEmpty && medicine.unit.isNotEmpty
+        ? '${medicine.category} · ${medicine.unit}'
+        : '';
+    final isLowStock = medicine.isLowStock;
+    final isOutOfStock = medicine.currentStock == 0;
+    final isExpiringSoon = medicine.isExpiringSoon;
+    final reorderThreshold = medicine.reorderThreshold;
+    final progress = reorderThreshold > 0
+        ? (medicine.currentStock / reorderThreshold).clamp(0.0, 1.0)
+        : 0.0;
+    final progressColor = _stockLevelColor(medicine, progress);
+    final expiryDays = medicine.expiryDate?.difference(now).inDays;
+
+    medications.add(
+      MedicationData(
+        name: medicine.name,
+        subtitle: subtitle,
+        status: isExpiringSoon ? 'Expiring' : 'Active',
+        dose: '${medicine.currentStock} ${medicine.unit}',
+        daysLeft: medicine.expiryDate != null
+            ? '${expiryDays ?? 0} days left'
+            : '—',
+        progress: progress,
+        progressColor: progressColor,
+        synced: 'Inventory',
+        nextDose: '—',
+        isPaused: false,
+        buttonFilled: false,
+      ),
+    );
+
+    if (isLowStock) {
+      lowStockCount += 1;
+      alerts.add(
+        AlertData(
+          icon: Icons.warning_amber_rounded,
+          iconColor: Colors.amber.shade700,
+          bgColor: Colors.amber.shade50,
+          title: medicine.name,
+          subtitle: 'Low stock: ${medicine.currentStock} ${medicine.unit}',
+          actionLabel: 'Restock',
+        ),
+      );
+    }
+
+    if (isExpiringSoon) {
+      alerts.add(
+        AlertData(
+          icon: Icons.timer_outlined,
+          iconColor: Colors.orange.shade700,
+          bgColor: Colors.orange.shade50,
+          title: medicine.name,
+          subtitle: 'Expiring soon',
+          actionLabel: 'View',
+        ),
+      );
+    }
+
+    if (isOutOfStock) {
+      outOfStockCount += 1;
+    }
+
+    if (medicine.unitPrice != null) {
+      hasAnyPrice = true;
+      inventoryTotal += medicine.unitPrice! * medicine.currentStock;
+    }
+  }
+
+  final inventoryValue = hasAnyPrice
+      ? '\$${inventoryTotal.toStringAsFixed(2)}'
+      : '\$0';
+
+  return _DesktopInventoryViewData(
+    totalItems: medicines.length.toString(),
+    lowStockAlerts: lowStockCount.toString(),
+    outOfStock: outOfStockCount.toString(),
+    inventoryValue: inventoryValue,
+    monthlyUsage: '—',
+    medications: List.unmodifiable(medications),
+    alerts: List.unmodifiable(alerts.take(20)),
+  );
+}
+
+Color _stockLevelColor(MedicineModel medicine, double progress) {
+  if (medicine.isLowStock) {
+    return Colors.red.shade600;
+  }
+
+  if (progress < 0.6) {
+    return Colors.amber.shade700;
+  }
+
+  return const Color(0xFF00C853);
+}
+
+// -----------------------------------------------------------------------------
+// DATA MODELS (replace with your own data layer)
+// -----------------------------------------------------------------------------
+
+class MedicationData {
+  final String name;
+  final String subtitle;
+  final String status; // e.g. 'Active', 'Paused', 'Finished'
+  final String dose;
+  final String daysLeft;
+  final double progress; // 0.0 … 1.0
+  final Color progressColor;
+  final String synced;
+  final String nextDose;
+  final bool isPaused;
+  final bool buttonFilled;
+
+  const MedicationData({
+    required this.name,
+    required this.subtitle,
+    required this.status,
+    required this.dose,
+    required this.daysLeft,
+    required this.progress,
+    required this.progressColor,
+    required this.synced,
+    required this.nextDose,
+    this.isPaused = false,
+    this.buttonFilled = false,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is MedicationData &&
+            other.name == name &&
+            other.subtitle == subtitle &&
+            other.status == status &&
+            other.dose == dose &&
+            other.daysLeft == daysLeft &&
+            other.progress == progress &&
+            other.progressColor == progressColor &&
+            other.synced == synced &&
+            other.nextDose == nextDose &&
+            other.isPaused == isPaused &&
+            other.buttonFilled == buttonFilled;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    name,
+    subtitle,
+    status,
+    dose,
+    daysLeft,
+    progress,
+    progressColor,
+    synced,
+    nextDose,
+    isPaused,
+    buttonFilled,
+  );
+}
+
+class AlertData {
+  final IconData icon;
+  final Color iconColor;
+  final Color bgColor;
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+
+  const AlertData({
+    required this.icon,
+    required this.iconColor,
+    required this.bgColor,
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+  });
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is AlertData &&
+            other.icon == icon &&
+            other.iconColor == iconColor &&
+            other.bgColor == bgColor &&
+            other.title == title &&
+            other.subtitle == subtitle &&
+            other.actionLabel == actionLabel;
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(icon, iconColor, bgColor, title, subtitle, actionLabel);
+}
+
+// -----------------------------------------------------------------------------
+// DESKTOP INVENTORY SCREEN (now data‑driven)
+// -----------------------------------------------------------------------------
+
 class DesktopInventoryListScreen extends StatelessWidget {
-  const DesktopInventoryListScreen({super.key, this.autoOpenAddForm = false});
-
   final bool autoOpenAddForm;
+
+  // Inventory summary stats
+  final String totalItems;
+  final String lowStockAlerts;
+  final String outOfStock;
+  final String inventoryValue;
+  final String monthlyUsage;
+
+  // Data lists
+  final List<MedicationData> medications;
+  final List<AlertData> alerts;
+
+  const DesktopInventoryListScreen({
+    super.key,
+    this.autoOpenAddForm = false,
+    required this.totalItems,
+    required this.lowStockAlerts,
+    required this.outOfStock,
+    required this.inventoryValue,
+    required this.monthlyUsage,
+    required this.medications,
+    required this.alerts,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFFFCFCFD),
-              borderRadius: BorderRadius.circular(24),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 1200,
+              maxHeight: constraints.maxHeight,
             ),
-            padding: const EdgeInsets.all(24.0),
-            child: const _InventoryDashboardView(),
+            child: Container(
+              padding: const EdgeInsets.all(24.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFCFCFD),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: _InventoryDashboardView(
+                totalItems: totalItems,
+                lowStockAlerts: lowStockAlerts,
+                outOfStock: outOfStock,
+                inventoryValue: inventoryValue,
+                monthlyUsage: monthlyUsage,
+                medications: medications,
+                alerts: alerts,
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -43,57 +371,76 @@ class DesktopInventoryListScreen extends StatelessWidget {
 // ==============================================================================
 
 class _InventoryDashboardView extends StatelessWidget {
-  const _InventoryDashboardView();
+  final String totalItems;
+  final String lowStockAlerts;
+  final String outOfStock;
+  final String inventoryValue;
+  final String monthlyUsage;
+  final List<MedicationData> medications;
+  final List<AlertData> alerts;
+
+  const _InventoryDashboardView({
+    required this.totalItems,
+    required this.lowStockAlerts,
+    required this.outOfStock,
+    required this.inventoryValue,
+    required this.monthlyUsage,
+    required this.medications,
+    required this.alerts,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- 1. HEADER SECTION ---
-        const _InventoryHeaderSection(),
+        _InventoryHeaderSection(
+          totalItems: totalItems,
+          lowStockAlerts: lowStockAlerts,
+          outOfStock: outOfStock,
+          inventoryValue: inventoryValue,
+          monthlyUsage: monthlyUsage,
+        ),
         const SizedBox(height: 32),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, bodyConstraints) {
+              final bool isWideScreen = bodyConstraints.maxWidth > 1100;
 
-        // --- 2. MAIN BODY (Filter + Cards Left, Alerts Right) ---
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final bool isWideScreen = constraints.maxWidth > 1100;
-
-            if (isWideScreen) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left Column: Filters & Responsive 2-Column Medication Grid
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _FilterRow(),
-                        const SizedBox(height: 24),
-                        const _MedicationGrid(),
-                      ],
+              if (isWideScreen) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _FilteredMedicationSection(
+                        medications: medications,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 24),
-                  // Right Column: Alerts Panel
-                  const _AlertsPanel(),
-                ],
-              );
-            } else {
-              // Mobile / narrow screen layout
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _FilterRow(),
-                  const SizedBox(height: 24),
-                  const _MedicationGrid(),
-                  const SizedBox(height: 32),
-                  const _AlertsPanel(),
-                ],
-              );
-            }
-          },
+                    const SizedBox(width: 24),
+                    Expanded(child: _ScrollableAlertsPanel(alerts: alerts)),
+                  ],
+                );
+              } else {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: _FilteredMedicationSection(
+                        medications: medications,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Expanded(
+                      flex: 2,
+                      child: _ScrollableAlertsPanel(alerts: alerts),
+                    ),
+                  ],
+                );
+              }
+            },
+          ),
         ),
       ],
     );
@@ -105,20 +452,35 @@ class _InventoryDashboardView extends StatelessWidget {
 // ==============================================================================
 
 class _InventoryHeaderSection extends StatelessWidget {
-  const _InventoryHeaderSection();
+  final String totalItems;
+  final String lowStockAlerts;
+  final String outOfStock;
+  final String inventoryValue;
+  final String monthlyUsage;
+
+  const _InventoryHeaderSection({
+    required this.totalItems,
+    required this.lowStockAlerts,
+    required this.outOfStock,
+    required this.inventoryValue,
+    required this.monthlyUsage,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Title & Action Buttons ---
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             const Text(
               'Inventory',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1F2937),
+              ),
             ),
             Row(
               children: [
@@ -128,11 +490,19 @@ class _InventoryHeaderSection extends StatelessWidget {
                     backgroundColor: const Color(0xFF1F2937),
                     foregroundColor: Colors.white,
                     elevation: 0,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
                   icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add item', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+                  label: const Text(
+                    'Add item',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Container(
@@ -142,15 +512,17 @@ class _InventoryHeaderSection extends StatelessWidget {
                     border: Border.all(color: Colors.grey.shade200),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.settings_outlined, size: 20, color: Color(0xFF4B5563)),
+                  child: const Icon(
+                    Icons.settings_outlined,
+                    size: 20,
+                    color: Color(0xFF4B5563),
+                  ),
                 ),
               ],
             ),
           ],
         ),
         const SizedBox(height: 24),
-
-        // --- Tabs ---
         Row(
           children: [
             _TabItem(label: 'Items', isActive: true),
@@ -160,42 +532,50 @@ class _InventoryHeaderSection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 24),
-
-        // --- 5 Stats Cards ---
         LayoutBuilder(
           builder: (context, constraints) {
             return Row(
               children: [
-                Expanded(child: _NewStatCard(
-                  title: 'Total items',
-                  value: '1,248',
-                  subtext: 'across all locations',
-                )),
+                Expanded(
+                  child: _NewStatCard(
+                    title: 'Total items',
+                    value: totalItems,
+                    subtext: 'across all locations',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _NewStatCard(
-                  title: 'Low stock alerts',
-                  value: '36',
-                  subtext: 'needs restocking soon',
-                )),
+                Expanded(
+                  child: _NewStatCard(
+                    title: 'Low stock alerts',
+                    value: lowStockAlerts,
+                    subtext: 'needs restocking soon',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _NewStatCard(
-                  title: 'Out of stock',
-                  value: '12',
-                  subtext: 'immediate attention',
-                )),
+                Expanded(
+                  child: _NewStatCard(
+                    title: 'Out of stock',
+                    value: outOfStock,
+                    subtext: 'immediate attention',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _NewStatCard(
-                  title: 'Inventory value',
-                  value: '\$184,320',
-                  subtext: 'estimated total value',
-                )),
+                Expanded(
+                  child: _NewStatCard(
+                    title: 'Inventory value',
+                    value: inventoryValue,
+                    subtext: 'estimated total value',
+                  ),
+                ),
                 const SizedBox(width: 12),
-                Expanded(child: _NewStatCard(
-                  title: 'Monthly usage',
-                  value: '8,420 units',
-                  subtext: 'per last month',
-                  hasPositiveGrowth: true,
-                )),
+                Expanded(
+                  child: _NewStatCard(
+                    title: 'Monthly usage',
+                    value: monthlyUsage,
+                    subtext: 'per last month',
+                    hasPositiveGrowth: true,
+                  ),
+                ),
               ],
             );
           },
@@ -220,7 +600,9 @@ class _TabItem extends StatelessWidget {
           Text(
             label,
             style: TextStyle(
-              color: isActive ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+              color: isActive
+                  ? const Color(0xFF1F2937)
+                  : const Color(0xFF6B7280),
               fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
               fontSize: 15,
             ),
@@ -260,12 +642,20 @@ class _NewStatCard extends StatelessWidget {
       children: [
         Text(
           title,
-          style: TextStyle(color: const Color(0xFF6B7280), fontSize: 13, fontWeight: FontWeight.w500),
+          style: TextStyle(
+            color: const Color(0xFF6B7280),
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         const SizedBox(height: 8),
         Text(
           value,
-          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700, color: Color(0xFF1F2937)),
+          style: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF1F2937),
+          ),
         ),
         const SizedBox(height: 6),
         Row(
@@ -276,11 +666,19 @@ class _NewStatCard extends StatelessWidget {
             ),
             if (hasPositiveGrowth) ...[
               const SizedBox(width: 8),
-              const Icon(Icons.arrow_upward_rounded, size: 12, color: Color(0xFF00C853)),
+              const Icon(
+                Icons.arrow_upward_rounded,
+                size: 12,
+                color: Color(0xFF00C853),
+              ),
               const SizedBox(width: 4),
               const Text(
                 '+12%',
-                style: TextStyle(color: Color(0xFF00C853), fontWeight: FontWeight.w600, fontSize: 12),
+                style: TextStyle(
+                  color: Color(0xFF00C853),
+                  fontWeight: FontWeight.w600,
+                  fontSize: 12,
+                ),
               ),
             ],
           ],
@@ -291,11 +689,64 @@ class _NewStatCard extends StatelessWidget {
 }
 
 // ==============================================================================
-// 2. FILTER ROW & RESPONSIVE MEDICATION GRID
+// 2. FILTER + MEDICATION GRID
 // ==============================================================================
 
+class _FilteredMedicationSection extends StatefulWidget {
+  final List<MedicationData> medications;
+
+  const _FilteredMedicationSection({required this.medications});
+
+  @override
+  State<_FilteredMedicationSection> createState() =>
+      _FilteredMedicationSectionState();
+}
+
+class _FilteredMedicationSectionState
+    extends State<_FilteredMedicationSection> {
+  String _selectedFilter = 'All';
+
+  List<MedicationData> get _filteredMedications {
+    if (_selectedFilter == 'All') return widget.medications;
+    return widget.medications
+        .where((m) => m.status == _selectedFilter)
+        .toList();
+  }
+
+  void _onFilterChanged(String filter) {
+    setState(() {
+      _selectedFilter = filter;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _FilterRow(
+          selectedFilter: _selectedFilter,
+          onFilterChanged: _onFilterChanged,
+        ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: SingleChildScrollView(
+            child: _MedicationGrid(medications: _filteredMedications),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _FilterRow extends StatelessWidget {
-  const _FilterRow();
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
+
+  const _FilterRow({
+    required this.selectedFilter,
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -309,10 +760,26 @@ class _FilterRow extends StatelessWidget {
           ),
           child: Row(
             children: [
-              _FilterTab(label: 'All', isActive: true),
-              _FilterTab(label: 'Active', isActive: false),
-              _FilterTab(label: 'Paused', isActive: false),
-              _FilterTab(label: 'Completed', isActive: false),
+              _FilterTab(
+                label: 'All',
+                isActive: selectedFilter == 'All',
+                onTap: () => onFilterChanged('All'),
+              ),
+              _FilterTab(
+                label: 'Active',
+                isActive: selectedFilter == 'Active',
+                onTap: () => onFilterChanged('Active'),
+              ),
+              _FilterTab(
+                label: 'Paused',
+                isActive: selectedFilter == 'Paused',
+                onTap: () => onFilterChanged('Paused'),
+              ),
+              _FilterTab(
+                label: 'Finished',
+                isActive: selectedFilter == 'Finished',
+                onTap: () => onFilterChanged('Finished'),
+              ),
             ],
           ),
         ),
@@ -324,10 +791,15 @@ class _FilterRow extends StatelessWidget {
             foregroundColor: Colors.white,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
           ),
           icon: const Icon(Icons.add, size: 18),
-          label: const Text('Add Prescription', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+          label: const Text(
+            'Add Prescription',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          ),
         ),
       ],
     );
@@ -337,26 +809,39 @@ class _FilterRow extends StatelessWidget {
 class _FilterTab extends StatelessWidget {
   final String label;
   final bool isActive;
+  final VoidCallback onTap;
 
-  const _FilterTab({required this.label, required this.isActive});
+  const _FilterTab({
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.white : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: isActive
-            ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)]
-            : [],
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isActive ? Colors.black : Colors.grey[600],
-          fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-          fontSize: 13,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: isActive
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 4,
+                  ),
+                ]
+              : [],
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? Colors.black : Colors.grey[600],
+            fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+            fontSize: 13,
+          ),
         ),
       ),
     );
@@ -364,92 +849,12 @@ class _FilterTab extends StatelessWidget {
 }
 
 class _MedicationGrid extends StatelessWidget {
-  const _MedicationGrid();
+  final List<MedicationData> medications;
+
+  const _MedicationGrid({required this.medications});
 
   @override
   Widget build(BuildContext context) {
-    final List<Map<String, dynamic>> medications = [
-      {
-        'name': 'Metformin',
-        'subtitle': 'Glucophage · 500 mg',
-        'status': 'Active',
-        'dose': '10 tablets',
-        'daysLeft': '7 days left',
-        'progress': 0.6,
-        'progressColor': const Color(0xFF9FA8FF),
-        'synced': 'Dr. Anna Nowak',
-        'nextDose': 'Today, 13:00',
-        'isPaused': false,
-        'buttonFilled': false,
-      },
-      {
-        'name': 'Atorvastatin',
-        'subtitle': 'Lipitor · 20 mg',
-        'status': 'Active',
-        'dose': '4 tablets',
-        'daysLeft': '7 days left',
-        'progress': 0.35,
-        'progressColor': const Color(0xFFFFAB40),
-        'synced': 'Dr. Piotr Wiśni...',
-        'nextDose': '21 March, 14:00',
-        'isPaused': false,
-        'buttonFilled': false,
-      },
-      {
-        'name': 'Lisinopril',
-        'subtitle': 'Zestril · 10 mg',
-        'status': 'Active',
-        'dose': '10 tablets',
-        'daysLeft': '36 days left',
-        'progress': 0.6,
-        'progressColor': const Color(0xFF9FA8FF),
-        'synced': 'Dr. Sarah Lee',
-        'nextDose': '23 March , 11:00',
-        'isPaused': false,
-        'buttonFilled': false,
-      },
-      {
-        'name': 'Vitamin D3',
-        'subtitle': 'Generic · 1000 IU',
-        'status': 'Active',
-        'dose': '2 capsules',
-        'daysLeft': '1 days left',
-        'progress': 0.15,
-        'progressColor': const Color(0xFFFF8A80),
-        'synced': 'Dr. Anna Nowak',
-        'nextDose': '2 May, 11:00',
-        'isPaused': false,
-        'buttonFilled': true,
-      },
-      {
-        'name': 'Amoxicillin',
-        'subtitle': 'Antibiotic · 500 mg',
-        'status': 'Paused',
-        'dose': '5 tablets',
-        'daysLeft': '24 days left',
-        'progress': 0.4,
-        'progressColor': const Color(0xFF9FA8FF),
-        'synced': 'Dr. Anna Nowak',
-        'nextDose': '-',
-        'isPaused': true,
-        'buttonFilled': false,
-      },
-      {
-        'name': 'Omega B6',
-        'subtitle': 'Generic · 50 mg',
-        'status': 'Paused',
-        'dose': '10 capsules',
-        'daysLeft': '16 days left',
-        'progress': 0.3,
-        'progressColor': const Color(0xFF9FA8FF),
-        'synced': 'Dr. Anna Nowak',
-        'nextDose': '-',
-        'isPaused': true,
-        'buttonFilled': false,
-      },
-    ];
-
-    // Use LayoutBuilder to perfectly split the available width into 2 columns
     return LayoutBuilder(
       builder: (context, constraints) {
         final double cardWidth = (constraints.maxWidth - 16) / 2;
@@ -459,7 +864,7 @@ class _MedicationGrid extends StatelessWidget {
           children: medications.map((med) {
             return SizedBox(
               width: cardWidth,
-              child: _MedicationCard(data: med),
+              child: _MedicationCard(medication: med),
             );
           }).toList(),
         );
@@ -468,15 +873,21 @@ class _MedicationGrid extends StatelessWidget {
   }
 }
 
-class _MedicationCard extends StatelessWidget {
-  final Map<String, dynamic> data;
+// ==============================================================================
+// 3. MEDICATION CARD
+// ==============================================================================
 
-  const _MedicationCard({required this.data});
+class _MedicationCard extends StatelessWidget {
+  final MedicationData medication;
+
+  const _MedicationCard({required this.medication});
 
   @override
   Widget build(BuildContext context) {
-    final bool isPaused = data['isPaused'] as bool;
-    final Color statusColor = isPaused ? const Color(0xFFFFA000) : const Color(0xFF00C853);
+    final bool isPaused = medication.isPaused;
+    final Color statusColor = isPaused
+        ? const Color(0xFFFFA000)
+        : const Color(0xFF00C853);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -496,21 +907,34 @@ class _MedicationCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 4)],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 4,
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.medication, color: Color(0xFFD17A28), size: 22),
+                child: const Icon(
+                  Icons.medication,
+                  color: Color(0xFFD17A28),
+                  size: 22,
+                ),
               ),
               const SizedBox(width: 12),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    data['name'],
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A1A)),
+                    medication.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: Color(0xFF1A1A1A),
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    data['subtitle'],
+                    medication.subtitle,
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
@@ -521,12 +945,19 @@ class _MedicationCard extends StatelessWidget {
                   Container(
                     width: 6,
                     height: 6,
-                    decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: statusColor,
+                      shape: BoxShape.circle,
+                    ),
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    data['status'],
-                    style: TextStyle(color: statusColor, fontSize: 12, fontWeight: FontWeight.w500),
+                    medication.status,
+                    style: TextStyle(
+                      color: statusColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ],
               ),
@@ -535,15 +966,21 @@ class _MedicationCard extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              Text(data['dose'], style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              Text(
+                medication.dose,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
               const Spacer(),
-              Text(data['daysLeft'], style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+              Text(
+                medication.daysLeft,
+                style: TextStyle(color: Colors.grey[600], fontSize: 12),
+              ),
             ],
           ),
           const SizedBox(height: 8),
           _StripedProgressBar(
-            value: data['progress'],
-            color: data['progressColor'],
+            value: medication.progress,
+            color: medication.progressColor,
           ),
           const SizedBox(height: 16),
           Row(
@@ -553,9 +990,19 @@ class _MedicationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Synced from', style: TextStyle(color: Colors.grey[400], fontSize: 10)),
+                    Text(
+                      'Synced from',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 10),
+                    ),
                     const SizedBox(height: 2),
-                    Text(data['synced'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: Color(0xFF1A1A1A))),
+                    Text(
+                      medication.synced,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -563,9 +1010,19 @@ class _MedicationCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Next dose', style: TextStyle(color: Colors.grey[400], fontSize: 10)),
+                    Text(
+                      'Next dose',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 10),
+                    ),
                     const SizedBox(height: 2),
-                    Text(data['nextDose'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12, color: Color(0xFF1A1A1A))),
+                    Text(
+                      medication.nextDose,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 12,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -574,14 +1031,25 @@ class _MedicationCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: data['buttonFilled'] == true ? const Color(0xFF1A1A1A) : Colors.white,
+                  color: medication.buttonFilled
+                      ? const Color(0xFF1A1A1A)
+                      : Colors.white,
                   shape: BoxShape.circle,
-                  boxShadow: data['buttonFilled'] == true ? [] : [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
+                  boxShadow: medication.buttonFilled
+                      ? []
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 4,
+                          ),
+                        ],
                 ),
                 child: Icon(
                   Icons.arrow_outward_rounded,
                   size: 16,
-                  color: data['buttonFilled'] == true ? Colors.white : Colors.grey[700],
+                  color: medication.buttonFilled
+                      ? Colors.white
+                      : Colors.grey[700],
                 ),
               ),
             ],
@@ -642,123 +1110,76 @@ class _StripePainter extends CustomPainter {
 }
 
 // ==============================================================================
-// 3. ALERTS PANEL (Right Side)
+// 4. SCROLLABLE ALERTS PANEL
 // ==============================================================================
 
-class _AlertsPanel extends StatelessWidget {
-  const _AlertsPanel();
+class _ScrollableAlertsPanel extends StatelessWidget {
+  final List<AlertData> alerts;
+
+  const _ScrollableAlertsPanel({required this.alerts});
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 350, // Fixed width to match the clean side-column look
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Alerts',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1F2937)),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Alerts',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
                 ),
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF3F4F6),
-                    borderRadius: BorderRadius.circular(8),
+              ),
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.more_horiz,
+                  size: 20,
+                  color: Color(0xFF4B5563),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Expanded(
+            child: ListView.builder(
+              itemCount: alerts.length,
+              itemBuilder: (context, index) {
+                final alert = alerts[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index < alerts.length - 1 ? 8 : 0,
                   ),
-                  child: const Icon(Icons.more_horiz, size: 20, color: Color(0xFF4B5563)),
-                ),
-              ],
+                  child: _AlertItem(alert: alert),
+                );
+              },
             ),
-            const SizedBox(height: 16),
-
-            // Alert Items
-            _AlertItem(
-              icon: Icons.warning_amber_rounded,
-              iconColor: Colors.amber.shade700,
-              bgColor: Colors.amber.shade50,
-              title: 'Face Masks (N95)',
-              subtitle: 'Purchase request pe...',
-              actionLabel: 'Approve',
-            ),
-            const SizedBox(height: 8),
-            _AlertItem(
-              icon: Icons.warning_amber_rounded,
-              iconColor: Colors.amber.shade700,
-              bgColor: Colors.amber.shade50,
-              title: 'IV Drip Sets',
-              subtitle: 'Supplier: MedSupply Co.',
-              actionLabel: 'View',
-            ),
-            const SizedBox(height: 8),
-            _AlertItem(
-              icon: Icons.warning_amber_rounded,
-              iconColor: Colors.orange.shade700,
-              bgColor: Colors.orange.shade50,
-              title: 'Syringes 5ml',
-              subtitle: 'ER Department',
-              actionLabel: 'View',
-            ),
-            const SizedBox(height: 8),
-            _AlertItem(
-              icon: Icons.warning_amber_rounded,
-              iconColor: Colors.orange.shade700,
-              bgColor: Colors.orange.shade50,
-              title: 'Disinfectant Solution',
-              subtitle: '8 units',
-              actionLabel: 'Restock',
-            ),
-            const SizedBox(height: 8),
-            _AlertItem(
-              icon: Icons.check_circle_outline_rounded,
-              iconColor: Colors.green.shade700,
-              bgColor: Colors.green.shade50,
-              title: 'Syringes 5ml',
-              subtitle: 'Stock updated: 500 units',
-              actionLabel: 'View',
-            ),
-            const SizedBox(height: 8),
-            _AlertItem(
-              icon: Icons.warning_amber_rounded,
-              iconColor: Colors.orange.shade700,
-              bgColor: Colors.orange.shade50,
-              title: 'IV Drip Sets',
-              subtitle: '',
-              actionLabel: 'View',
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _AlertItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final Color bgColor;
-  final String title;
-  final String subtitle;
-  final String actionLabel;
+  final AlertData alert;
 
-  const _AlertItem({
-    required this.icon,
-    required this.iconColor,
-    required this.bgColor,
-    required this.title,
-    required this.subtitle,
-    required this.actionLabel,
-  });
+  const _AlertItem({required this.alert});
 
   @override
   Widget build(BuildContext context) {
@@ -770,39 +1191,38 @@ class _AlertItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon
           Container(
             width: 32,
             height: 32,
             decoration: BoxDecoration(
-              color: bgColor,
+              color: alert.bgColor,
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 16, color: iconColor),
+            child: Icon(alert.icon, size: 16, color: alert.iconColor),
           ),
           const SizedBox(width: 12),
-
-          // Text
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: Color(0xFF1F2937)),
+                  alert.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF1F2937),
+                  ),
                 ),
-                if (subtitle.isNotEmpty) ...[
+                if (alert.subtitle.isNotEmpty) ...[
                   const SizedBox(height: 2),
                   Text(
-                    subtitle,
+                    alert.subtitle,
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                 ],
               ],
             ),
           ),
-
-          // Action Button
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -810,7 +1230,7 @@ class _AlertItem extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              actionLabel,
+              alert.actionLabel,
               style: const TextStyle(
                 color: Color(0xFF673AB7),
                 fontSize: 12,

@@ -64,7 +64,7 @@ class _DesktopShellState extends State<DesktopShell> {
       case 2:
         return const DesktopPatientRecordsScreen();
       case 3:
-        return const DesktopInventoryListScreen();
+        return const DesktopInventoryScreen();
       case 4:
         return const DesktopRevenueScreen();
       case 5:

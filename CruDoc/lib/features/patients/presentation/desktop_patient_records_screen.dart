@@ -6,34 +6,38 @@ import 'dart:math';
 /// A fully realized, interactive patient management dashboard matching the
 /// provided design. Includes a donut chart, stats cards, a searchable toolbar,
 /// and a rich data table with status chips.
-/// Wrapped in a centered container to respect the side navigation.
+/// Non‑scrollable outer container – the table scrolls internally.
 class DesktopPatientRecordsScreen extends StatelessWidget {
   const DesktopPatientRecordsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1200),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
-                ),
-              ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: 1200,
+              maxHeight: constraints.maxHeight,   // fill all vertical space
             ),
-            padding: const EdgeInsets.all(24.0),
-            child: const _PatientDashboardView(),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.05),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.all(24.0),
+              child: const _PatientDashboardView(),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -50,49 +54,59 @@ class _PatientDashboardView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // --- Header ---
+        // --- Header (fixed) ---
         const _HeaderSection(),
         const SizedBox(height: 24),
 
-        // --- Top Row (Chart & Stats) ---
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final bool isWide = constraints.maxWidth > 850;
-            if (isWide) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 5, child: _ChartSection()),
-                  const SizedBox(width: 24),
-                  Expanded(flex: 7, child: _StatsGridSection()),
-                ],
-              );
-            } else {
-              return Column(
-                children: [
-                  _ChartSection(),
-                  const SizedBox(height: 24),
-                  _StatsGridSection(),
-                ],
-              );
-            }
-          },
+        // --- Remaining area: chart/stats + toolbar + scrollable table ---
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Chart & Stats Row (fixed)
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final bool isWide = constraints.maxWidth > 850;
+                  if (isWide) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 5, child: _ChartSection()),
+                        const SizedBox(width: 24),
+                        Expanded(flex: 7, child: _StatsGridSection()),
+                      ],
+                    );
+                  } else {
+                    return Column(
+                      children: [
+                        _ChartSection(),
+                        const SizedBox(height: 24),
+                        _StatsGridSection(),
+                      ],
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 24),
+
+              // Toolbar (fixed)
+              const _ToolbarSection(),
+              const SizedBox(height: 16),
+
+              // Table takes all remaining vertical space and scrolls
+              const Expanded(
+                child: _PatientTable(),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 24),
-
-        // --- Toolbar ---
-        const _ToolbarSection(),
-        const SizedBox(height: 16),
-
-        // --- Data Table ---
-        const _PatientTable(),
       ],
     );
   }
 }
 
 // ==============================================================================
-// 1. HEADER SECTION
+// 1. HEADER SECTION (unchanged)
 // ==============================================================================
 
 class _HeaderSection extends StatelessWidget {
@@ -156,7 +170,7 @@ class _HeaderSection extends StatelessWidget {
 }
 
 // ==============================================================================
-// 2. CHART SECTION
+// 2. CHART SECTION (unchanged)
 // ==============================================================================
 
 class _ChartSection extends StatelessWidget {
@@ -186,14 +200,12 @@ class _ChartSection extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              // Donut Chart
               SizedBox(
                 width: 160,
                 height: 160,
                 child: CustomPaint(painter: _DonutChartPainter()),
               ),
               const SizedBox(width: 24),
-              // Legend
               Expanded(
                 child: Column(
                   children: [
@@ -238,7 +250,6 @@ class _DonutChartPainter extends CustomPainter {
       start += sweep;
     }
 
-    // Center Text
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
     textPainter.text = const TextSpan(
       text: '1170\n',
@@ -280,7 +291,7 @@ class _LegendItem extends StatelessWidget {
 }
 
 // ==============================================================================
-// 3. STATS GRID SECTION
+// 3. STATS GRID SECTION (unchanged)
 // ==============================================================================
 
 class _StatsGridSection extends StatelessWidget {
@@ -362,7 +373,7 @@ class _StatCard extends StatelessWidget {
 }
 
 // ==============================================================================
-// 4. TOOLBAR SECTION
+// 4. TOOLBAR SECTION (unchanged)
 // ==============================================================================
 
 class _ToolbarSection extends StatelessWidget {
@@ -379,7 +390,6 @@ class _ToolbarSection extends StatelessWidget {
           spacing: 16,
           runSpacing: 16,
           children: [
-            // Search
             Container(
               width: isWide ? 300 : 200,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -402,8 +412,6 @@ class _ToolbarSection extends StatelessWidget {
                 ],
               ),
             ),
-
-            // Filters
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -412,8 +420,6 @@ class _ToolbarSection extends StatelessWidget {
                 _DropdownButton(text: 'Filter'),
               ],
             ),
-
-            // Actions
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -473,7 +479,7 @@ class _DropdownButton extends StatelessWidget {
 }
 
 // ==============================================================================
-// 5. PATIENT DATA TABLE
+// 5. PATIENT DATA TABLE (now scrollable in both directions)
 // ==============================================================================
 
 class _PatientTable extends StatelessWidget {
@@ -498,65 +504,67 @@ class _PatientTable extends StatelessWidget {
         border: Border.all(color: Colors.grey.withOpacity(0.1)),
         borderRadius: BorderRadius.circular(8),
       ),
+      // Outer vertical scroll so the table can overflow within the Expanded area
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: DataTable(
-          headingRowColor: MaterialStateProperty.all(Colors.grey[50]),
-          headingTextStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1F2937), fontSize: 13),
-          dataRowHeight: 60,
-          columnSpacing: 16,
-          columns: const [
-            DataColumn(label: Text('#', style: TextStyle(fontWeight: FontWeight.bold))),
-            DataColumn(label: Text('Patient')),
-            DataColumn(label: Text('Date of Birth')),
-            DataColumn(label: Text('Gender')),
-            DataColumn(label: Text('Provider')),
-            DataColumn(label: Text('Diagnosis')),
-            DataColumn(label: Text('Room')),
-            DataColumn(label: Text('Next Appointment')),
-            DataColumn(label: Text('Status')),
-            DataColumn(label: Text('Action')),
-          ],
-          rows: patients.asMap().entries.map((entry) {
-            final index = entry.key + 1;
-            final p = entry.value;
-            return DataRow(cells: [
-              DataCell(Row(children: [
-                SizedBox(width: 16, child: Checkbox(value: false, onChanged: (v) {})),
-                Text('#$index', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
-              ])),
-              DataCell(Row(children: [
-                CircleAvatar(
-                  radius: 14,
-                  backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=${index + 10}'),
-                ),
-                const SizedBox(width: 10),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(p['name'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                  Text(p['id'], style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-                ]),
-              ])),
-              DataCell(Text(p['dob'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-              DataCell(Text(p['gender'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-              DataCell(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p['provider'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-                Text(p['diagnosis'].split(' ').last, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-              ])),
-              DataCell(Text(p['diagnosis'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-              DataCell(Text(p['room'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
-              DataCell(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(p['date'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
-                if (p['time'].isNotEmpty) Text(p['time'], style: TextStyle(color: Colors.grey[500], fontSize: 11)),
-              ])),
-              DataCell(_StatusChip(status: p['status'])),
-              DataCell(Row(children: [
-                // FIX: Removed 'const' and changed 'edit_square_outlined' to 'edit_outlined'
-                IconButton(icon: Icon(Icons.edit_outlined, size: 18, color: Colors.grey), onPressed: () {}),
-                IconButton(icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey), onPressed: () {}),
-                IconButton(icon: Icon(Icons.more_vert, size: 18, color: Colors.grey), onPressed: () {}),
-              ])),
-            ]);
-          }).toList(),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            headingRowColor: MaterialStateProperty.all(Colors.grey[50]),
+            headingTextStyle: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFF1F2937), fontSize: 13),
+            dataRowHeight: 60,
+            columnSpacing: 16,
+            columns: const [
+              DataColumn(label: Text('#', style: TextStyle(fontWeight: FontWeight.bold))),
+              DataColumn(label: Text('Patient')),
+              DataColumn(label: Text('Date of Birth')),
+              DataColumn(label: Text('Gender')),
+              DataColumn(label: Text('Provider')),
+              DataColumn(label: Text('Diagnosis')),
+              DataColumn(label: Text('Room')),
+              DataColumn(label: Text('Next Appointment')),
+              DataColumn(label: Text('Status')),
+              DataColumn(label: Text('Action')),
+            ],
+            rows: patients.asMap().entries.map((entry) {
+              final index = entry.key + 1;
+              final p = entry.value;
+              return DataRow(cells: [
+                DataCell(Row(children: [
+                  SizedBox(width: 16, child: Checkbox(value: false, onChanged: (v) {})),
+                  Text('#$index', style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                ])),
+                DataCell(Row(children: [
+                  CircleAvatar(
+                    radius: 14,
+                    backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=${index + 10}'),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(p['name'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                    Text(p['id'], style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                  ]),
+                ])),
+                DataCell(Text(p['dob'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
+                DataCell(Text(p['gender'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
+                DataCell(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(p['provider'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  Text(p['diagnosis'].split(' ').last, style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                ])),
+                DataCell(Text(p['diagnosis'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
+                DataCell(Text(p['room'], style: TextStyle(color: Colors.grey[700], fontSize: 13))),
+                DataCell(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(p['date'], style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                  if (p['time'].isNotEmpty) Text(p['time'], style: TextStyle(color: Colors.grey[500], fontSize: 11)),
+                ])),
+                DataCell(_StatusChip(status: p['status'])),
+                DataCell(Row(children: [
+                  IconButton(icon: Icon(Icons.edit_outlined, size: 18, color: Colors.grey), onPressed: () {}),
+                  IconButton(icon: Icon(Icons.delete_outline, size: 18, color: Colors.grey), onPressed: () {}),
+                  IconButton(icon: Icon(Icons.more_vert, size: 18, color: Colors.grey), onPressed: () {}),
+                ])),
+              ]);
+            }).toList(),
+          ),
         ),
       ),
     );

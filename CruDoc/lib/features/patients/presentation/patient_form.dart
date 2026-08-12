@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
+
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/features/shell/components/animated_background.dart';
+
+// ==============================================================================
+// 1. PATIENT FORM RESULT & FORM WIDGET
+// ==============================================================================
 
 /// Data collected by [PatientForm], handed back to the caller on submit.
 ///
@@ -397,9 +405,6 @@ class _FormField extends StatelessWidget {
 }
 
 // ---------- DIAGNOSIS FIELD ROW ----------
-// One of up to Patient.maxDiagnoses diagnosis inputs. Every row beyond the
-// first shows a remove button so the doctor can back out an entry they
-// added by mistake.
 class _DiagnosisFieldRow extends StatelessWidget {
   final int index;
   final TextEditingController controller;
@@ -608,6 +613,574 @@ class _DateOfBirthField extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ==============================================================================
+// 2. TOP-LEVEL SHEET FUNCTIONS
+// ==============================================================================
+
+/// Shows the bottom sheet for adding a new patient.
+Future<bool?> showAddPatientSheet(
+  BuildContext context, {
+  PatientRepository? repository,
+}) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => AddPatientSheet(repository: repository),
+  );
+}
+
+/// Shows the bottom sheet for editing an existing patient.
+Future<bool?> showEditPatientSheet(
+  BuildContext context, {
+  required Patient patient,
+  PatientRepository? repository,
+}) {
+  return showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    backgroundColor: Colors.transparent,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    ),
+    builder: (_) => EditPatientSheet(patient: patient, repository: repository),
+  );
+}
+
+// ==============================================================================
+// 3. ADD PATIENT SHEET
+// ==============================================================================
+
+class AddPatientSheet extends StatefulWidget {
+  const AddPatientSheet({super.key, PatientRepository? repository})
+      : _repository = repository;
+
+  final PatientRepository? _repository;
+
+  @override
+  State<AddPatientSheet> createState() => _AddPatientSheetState();
+}
+
+class _AddPatientSheetState extends State<AddPatientSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _formStateKey = GlobalKey<PatientFormState>();
+
+  late final PatientRepository _repository =
+      widget._repository ?? PatientRepository();
+
+  bool _isSaving = false;
+
+  Future<void> _handleSubmit(PatientFormResult result) async {
+    setState(() => _isSaving = true);
+
+    final now = DateTime.now();
+    final patient = Patient(
+      id: '',
+      firstName: result.firstName,
+      lastName: result.lastName,
+      phone: result.phone,
+      gender: result.gender,
+      dateOfBirth: result.dateOfBirth,
+      diagnosis: result.diagnosis,
+      notes: '',
+      packageBalance: result.packageBalance,
+      isArchived: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    try {
+      await _repository.createPatient(patient);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient added successfully')),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save patient: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _onSavePressed() {
+    _formStateKey.currentState?.submit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Drag handle
+                    Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFCBD5E1),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Row(
+                          children: [
+                            Icon(Icons.person_add_alt_1_rounded,
+                                color: Color(0xFF2563EB), size: 22),
+                            SizedBox(width: 10),
+                            Text(
+                              'Add New Patient',
+                              style: TextStyle(
+                                color: Color(0xFF0F172A),
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF64748B),
+                            size: 20,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: PatientForm(
+                          key: _formStateKey,
+                          formKey: _formKey,
+                          onSubmit: _handleSubmit,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _onSavePressed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          disabledBackgroundColor:
+                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Save Patient',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==============================================================================
+// 4. ADD PATIENT FULL PAGE (used elsewhere, kept for completeness)
+// ==============================================================================
+
+class AddPatientPage extends StatefulWidget {
+  const AddPatientPage({super.key, PatientRepository? repository})
+      : _repository = repository;
+
+  final PatientRepository? _repository;
+
+  @override
+  State<AddPatientPage> createState() => _AddPatientPageState();
+}
+
+class _AddPatientPageState extends State<AddPatientPage> {
+  final _formKey = GlobalKey<FormState>();
+  final _formStateKey = GlobalKey<PatientFormState>();
+
+  late final PatientRepository _repository =
+      widget._repository ?? PatientRepository();
+
+  bool _isSaving = false;
+
+  Future<void> _handleSubmit(PatientFormResult result) async {
+    setState(() => _isSaving = true);
+
+    final now = DateTime.now();
+    final patient = Patient(
+      id: '', // Firestore assigns the id on create.
+      firstName: result.firstName,
+      lastName: result.lastName,
+      phone: result.phone,
+      gender: result.gender,
+      dateOfBirth: result.dateOfBirth,
+      diagnosis: result.diagnosis,
+      notes: '',
+      packageBalance: result.packageBalance,
+      isArchived: false,
+      createdAt: now,
+      updatedAt: now,
+    );
+
+    try {
+      await _repository.createPatient(patient);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient added successfully')),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save patient: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _onSavePressed() {
+    _formStateKey.currentState?.submit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: ShellBackground(
+        child: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+            child: Column(
+              children: [
+                const _TopBar(),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: SingleChildScrollView(
+                    physics: const ClampingScrollPhysics(),
+                    child: PatientForm(
+                      key: _formStateKey,
+                      formKey: _formKey,
+                      onSubmit: _handleSubmit,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: _isSaving ? null : _onSavePressed,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.slateBlue,
+                      disabledBackgroundColor:
+                          AppColors.slateBlue.withValues(alpha: 0.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: _isSaving
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: AppColors.textPrimary,
+                            ),
+                          )
+                        : const Text(
+                            'Save Patient',
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: AppColors.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- Top Bar for AddPatientPage ----------
+class _TopBar extends StatelessWidget {
+  const _TopBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              color: AppColors.textPrimary, size: 20),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(),
+          onPressed: () => Navigator.pop(context),
+        ),
+        const SizedBox(width: 10),
+        const Text(
+          'Add Patient',
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ==============================================================================
+// 5. EDIT PATIENT SHEET
+// ==============================================================================
+
+class EditPatientSheet extends StatefulWidget {
+  const EditPatientSheet({
+    super.key,
+    required this.patient,
+    PatientRepository? repository,
+  }) : _repository = repository;
+
+  final Patient patient;
+  final PatientRepository? _repository;
+
+  @override
+  State<EditPatientSheet> createState() => _EditPatientSheetState();
+}
+
+class _EditPatientSheetState extends State<EditPatientSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _formStateKey = GlobalKey<PatientFormState>();
+
+  late final PatientRepository _repository =
+      widget._repository ?? PatientRepository();
+
+  bool _isSaving = false;
+
+  Future<void> _handleSubmit(PatientFormResult result) async {
+    setState(() => _isSaving = true);
+
+    try {
+      await _repository.updatePatient(widget.patient.id, {
+        'firstName': result.firstName,
+        'lastName': result.lastName,
+        'phone': result.phone,
+        'email': result.email,
+        'gender': result.gender,
+        'dateOfBirth': result.dateOfBirth,
+        'diagnosis': result.diagnosis,
+        'packageBalance': result.packageBalance,
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Patient updated successfully')),
+      );
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to update patient: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  void _onSavePressed() {
+    _formStateKey.currentState?.submit();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.9,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.edit_note,
+                                color: Color(0xFF2563EB),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            const Text(
+                              'Edit Patient',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF0F172A),
+                              ),
+                            ),
+                          ],
+                        ),
+                        IconButton(
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            color: Color(0xFF64748B),
+                            size: 20,
+                          ),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        physics: const ClampingScrollPhysics(),
+                        child: PatientForm(
+                          key: _formStateKey,
+                          formKey: _formKey,
+                          initialFirstName: widget.patient.firstName,
+                          initialLastName: widget.patient.lastName,
+                          initialPhone: widget.patient.phone,
+                          initialEmail: widget.patient.email,
+                          initialGender: widget.patient.gender,
+                          initialDateOfBirth: widget.patient.dateOfBirth,
+                          initialDiagnoses: widget.patient.diagnosis,
+                          initialPackageBalance: widget.patient.packageBalance,
+                          onSubmit: _handleSubmit,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 50,
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _onSavePressed,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          disabledBackgroundColor:
+                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _isSaving
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.4,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Update Patient',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
       ),
     );

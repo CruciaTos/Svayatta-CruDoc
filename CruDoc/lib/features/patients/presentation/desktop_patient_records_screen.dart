@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 
 const _emptyDesktopPatientViewData = _DesktopPatientViewData(
   totalPatients: '0',
@@ -132,18 +133,91 @@ class _DesktopPatientRecordsScreenState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
+  // Sort and filter states
+  PatientSortOption _sortOption = PatientSortOption.nameAsc;
+  PatientFilterOption _filterOption = PatientFilterOption.all;
+
+  // Create a single repository instance for the lifetime of this widget.
+  late final PatientRepository _repository = PatientRepository();
+
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
   }
 
+  void _openAddPatientSheet() {
+    showAddPatientSheet(context, repository: _repository);
+  }
+
+  void _openEditPatientSheet(Patient patient) {
+    showEditPatientSheet(context, patient: patient, repository: _repository);
+  }
+
+  List<Patient> _applySortAndFilter(List<Patient> patients) {
+    List<Patient> result = List.of(patients);
+
+    // Filter
+    switch (_filterOption) {
+      case PatientFilterOption.all:
+        break;
+      case PatientFilterOption.male:
+        result = result
+            .where((p) => p.gender.trim().toLowerCase() == 'male')
+            .toList();
+        break;
+      case PatientFilterOption.female:
+        result = result
+            .where((p) => p.gender.trim().toLowerCase() == 'female')
+            .toList();
+        break;
+      case PatientFilterOption.notSpecified:
+        result = result.where((p) => p.gender.trim().isEmpty).toList();
+        break;
+      case PatientFilterOption.active:
+        result = result.where((p) => _statusForPatient(p) == 'Active').toList();
+        break;
+      case PatientFilterOption.stable:
+        result = result.where((p) => _statusForPatient(p) == 'Stable').toList();
+        break;
+      case PatientFilterOption.critical:
+        result =
+            result.where((p) => _statusForPatient(p) == 'Critical').toList();
+        break;
+    }
+
+    // Sort
+    switch (_sortOption) {
+      case PatientSortOption.nameAsc:
+        result.sort((a, b) =>
+            a.fullName.toLowerCase().compareTo(b.fullName.toLowerCase()));
+        break;
+      case PatientSortOption.nameDesc:
+        result.sort((a, b) =>
+            b.fullName.toLowerCase().compareTo(a.fullName.toLowerCase()));
+        break;
+      case PatientSortOption.newest:
+        result.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        break;
+      case PatientSortOption.oldest:
+        result.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+        break;
+      case PatientSortOption.packageHigh:
+        result.sort((a, b) => b.packageBalance.compareTo(a.packageBalance));
+        break;
+      case PatientSortOption.packageLow:
+        result.sort((a, b) => a.packageBalance.compareTo(b.packageBalance));
+        break;
+    }
+
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
-    final patientStream = PatientRepository().watchPatients();
+    final patientStream = _repository.watchPatients();
     if (kDebugMode) {
       // Log that the stream was created (helps debug startup issues)
-      // This will appear in verbose app logs.
       // ignore: avoid_print
       print('[Patients] patientStream created: $patientStream');
     }
@@ -163,7 +237,8 @@ class _DesktopPatientRecordsScreenState
         final viewData = patients.isEmpty
             ? _emptyDesktopPatientViewData
             : _mapPatientsToViewData(patients);
-        final filteredPatients = _filterPatients(viewData.patients, _searchQuery);
+        final filteredBySearch = _filterPatients(viewData.patients, _searchQuery);
+        final displayPatients = _applySortAndFilter(filteredBySearch);
 
         return Stack(
           children: [
@@ -183,7 +258,7 @@ class _DesktopPatientRecordsScreenState
                 padding: const EdgeInsets.all(20),
                 child: _PatientDashboardView(
                   viewData: viewData,
-                  patients: filteredPatients,
+                  patients: displayPatients,
                   searchController: _searchController,
                   searchQuery: _searchQuery,
                   onSearchChanged: (value) {
@@ -194,6 +269,16 @@ class _DesktopPatientRecordsScreenState
                       _searchController.clear();
                       _searchQuery = '';
                     });
+                  },
+                  onAddPatient: _openAddPatientSheet,
+                  onEditPatient: _openEditPatientSheet,
+                  sortOption: _sortOption,
+                  filterOption: _filterOption,
+                  onSortChanged: (option) {
+                    setState(() => _sortOption = option);
+                  },
+                  onFilterChanged: (option) {
+                    setState(() => _filterOption = option);
                   },
                 ),
               ),
@@ -301,6 +386,14 @@ class _PatientDashboardView extends StatelessWidget {
   final String searchQuery;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
+  final VoidCallback onAddPatient;
+  final ValueChanged<Patient> onEditPatient;
+
+  // Sort and filter
+  final PatientSortOption sortOption;
+  final PatientFilterOption filterOption;
+  final ValueChanged<PatientSortOption> onSortChanged;
+  final ValueChanged<PatientFilterOption> onFilterChanged;
 
   const _PatientDashboardView({
     required this.viewData,
@@ -309,6 +402,12 @@ class _PatientDashboardView extends StatelessWidget {
     required this.searchQuery,
     required this.onSearchChanged,
     required this.onClearSearch,
+    required this.onAddPatient,
+    required this.onEditPatient,
+    required this.sortOption,
+    required this.filterOption,
+    required this.onSortChanged,
+    required this.onFilterChanged,
   });
 
   @override
@@ -369,11 +468,21 @@ class _PatientDashboardView extends StatelessWidget {
                 searchQuery: searchQuery,
                 onChanged: onSearchChanged,
                 onClear: onClearSearch,
+                onAddPatient: onAddPatient,
+                sortOption: sortOption,
+                filterOption: filterOption,
+                onSortChanged: onSortChanged,
+                onFilterChanged: onFilterChanged,
               ),
               const SizedBox(height: 16),
 
               // Table takes all remaining vertical space and scrolls
-              Expanded(child: _PatientTable(patients: patients)),
+              Expanded(
+                child: _PatientTable(
+                  patients: patients,
+                  onEditPatient: onEditPatient,
+                ),
+              ),
             ],
           ),
         ),
@@ -589,15 +698,8 @@ class _DonutChartPainter extends CustomPainter {
       }
     }
 
+    // Draw center text: total count and "Patients" label
     final textPainter = TextPainter(textDirection: ui.TextDirection.ltr);
-    textPainter.text = const TextSpan(
-      text: '',
-      style: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF1F2937),
-      ),
-    );
     textPainter.text = TextSpan(
       text: '$totalPatients\n',
       style: const TextStyle(
@@ -823,17 +925,34 @@ class _StatCard extends StatelessWidget {
 // 4. TOOLBAR SECTION
 // ==============================================================================
 
+// Enums for sort and filter
+enum PatientSortOption { nameAsc, nameDesc, newest, oldest, packageHigh, packageLow }
+
+enum PatientFilterOption { all, male, female, notSpecified, active, stable, critical }
+
 class _ToolbarSection extends StatelessWidget {
   final TextEditingController controller;
   final String searchQuery;
   final ValueChanged<String> onChanged;
   final VoidCallback onClear;
+  final VoidCallback onAddPatient;
+
+  // Sort and filter
+  final PatientSortOption sortOption;
+  final PatientFilterOption filterOption;
+  final ValueChanged<PatientSortOption> onSortChanged;
+  final ValueChanged<PatientFilterOption> onFilterChanged;
 
   const _ToolbarSection({
     required this.controller,
     required this.searchQuery,
     required this.onChanged,
     required this.onClear,
+    required this.onAddPatient,
+    required this.sortOption,
+    required this.filterOption,
+    required this.onSortChanged,
+    required this.onFilterChanged,
   });
 
   @override
@@ -895,9 +1014,15 @@ class _ToolbarSection extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _DropdownButton(text: 'Sort'),
+                _SortButton(
+                  currentOption: sortOption,
+                  onSelected: onSortChanged,
+                ),
                 const SizedBox(width: 8),
-                _DropdownButton(text: 'Filter'),
+                _FilterButton(
+                  currentOption: filterOption,
+                  onSelected: onFilterChanged,
+                ),
               ],
             ),
             Row(
@@ -917,7 +1042,7 @@ class _ToolbarSection extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: onAddPatient, // <-- Add Patient opens modal sheet
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF2196F3),
                     foregroundColor: Colors.white,
@@ -945,32 +1070,174 @@ class _ToolbarSection extends StatelessWidget {
   }
 }
 
-class _DropdownButton extends StatelessWidget {
-  final String text;
+// Reusable sort button
+class _SortButton extends StatelessWidget {
+  final PatientSortOption currentOption;
+  final ValueChanged<PatientSortOption> onSelected;
 
-  const _DropdownButton({required this.text});
+  const _SortButton({
+    required this.currentOption,
+    required this.onSelected,
+  });
+
+  String get _label {
+    switch (currentOption) {
+      case PatientSortOption.nameAsc:
+        return 'Name A-Z';
+      case PatientSortOption.nameDesc:
+        return 'Name Z-A';
+      case PatientSortOption.newest:
+        return 'Newest';
+      case PatientSortOption.oldest:
+        return 'Oldest';
+      case PatientSortOption.packageHigh:
+        return 'Package High';
+      case PatientSortOption.packageLow:
+        return 'Package Low';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+    return PopupMenuButton<PatientSortOption>(
+      tooltip: 'Sort',
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: PatientSortOption.nameAsc,
+          child: Text('Name A-Z'),
+        ),
+        const PopupMenuItem(
+          value: PatientSortOption.nameDesc,
+          child: Text('Name Z-A'),
+        ),
+        const PopupMenuItem(
+          value: PatientSortOption.newest,
+          child: Text('Newest First'),
+        ),
+        const PopupMenuItem(
+          value: PatientSortOption.oldest,
+          child: Text('Oldest First'),
+        ),
+        const PopupMenuItem(
+          value: PatientSortOption.packageHigh,
+          child: Text('Package Balance (High-Low)'),
+        ),
+        const PopupMenuItem(
+          value: PatientSortOption.packageLow,
+          child: Text('Package Balance (Low-High)'),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sort_rounded, size: 14, color: Colors.grey),
+            const SizedBox(width: 6),
+            Text(
+              _label,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.vertical_split_rounded, size: 14, color: Colors.grey),
-          const SizedBox(width: 6),
-          Text(
-            text,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
-          ),
-          const SizedBox(width: 4),
-          const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
-        ],
+    );
+  }
+}
+
+// Reusable filter button
+class _FilterButton extends StatelessWidget {
+  final PatientFilterOption currentOption;
+  final ValueChanged<PatientFilterOption> onSelected;
+
+  const _FilterButton({
+    required this.currentOption,
+    required this.onSelected,
+  });
+
+  String get _label {
+    switch (currentOption) {
+      case PatientFilterOption.all:
+        return 'All';
+      case PatientFilterOption.male:
+        return 'Male';
+      case PatientFilterOption.female:
+        return 'Female';
+      case PatientFilterOption.notSpecified:
+        return 'Not Specified';
+      case PatientFilterOption.active:
+        return 'Active';
+      case PatientFilterOption.stable:
+        return 'Stable';
+      case PatientFilterOption.critical:
+        return 'Critical';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<PatientFilterOption>(
+      tooltip: 'Filter',
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: PatientFilterOption.all,
+          child: Text('All Patients'),
+        ),
+        const PopupMenuItem(
+          value: PatientFilterOption.male,
+          child: Text('Male'),
+        ),
+        const PopupMenuItem(
+          value: PatientFilterOption.female,
+          child: Text('Female'),
+        ),
+        const PopupMenuItem(
+          value: PatientFilterOption.notSpecified,
+          child: Text('Not Specified'),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: PatientFilterOption.active,
+          child: Text('Active'),
+        ),
+        const PopupMenuItem(
+          value: PatientFilterOption.stable,
+          child: Text('Stable'),
+        ),
+        const PopupMenuItem(
+          value: PatientFilterOption.critical,
+          child: Text('Critical'),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.filter_list_rounded, size: 14, color: Colors.grey),
+            const SizedBox(width: 6),
+            Text(
+              _label,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
+          ],
+        ),
       ),
     );
   }
@@ -982,8 +1249,12 @@ class _DropdownButton extends StatelessWidget {
 
 class _PatientTable extends StatelessWidget {
   final List<Patient> patients;
+  final ValueChanged<Patient> onEditPatient;
 
-  const _PatientTable({required this.patients});
+  const _PatientTable({
+    required this.patients,
+    required this.onEditPatient,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1178,7 +1449,7 @@ class _PatientTable extends StatelessWidget {
                                   size: 18,
                                   color: Colors.grey,
                                 ),
-                                onPressed: () {},
+                                onPressed: () => onEditPatient(patient),
                               ),
                               IconButton(
                                 icon: Icon(

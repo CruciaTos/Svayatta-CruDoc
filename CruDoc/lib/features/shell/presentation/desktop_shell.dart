@@ -23,7 +23,7 @@ class DesktopShell extends StatefulWidget {
 
 class _DesktopShellState extends State<DesktopShell> {
   static const chartBarDim = Color.fromARGB(255, 140, 188, 255);
-  
+
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
 
@@ -81,58 +81,65 @@ class _DesktopShellState extends State<DesktopShell> {
     return StreamBuilder<List<String>>(
       stream: DoctorFeatureGuard.watchEnabledModules(),
       builder: (context, snapshot) {
-        final enabledModules = snapshot.data ?? DoctorFeatureGuard.defaultModules;
+        final enabledModules =
+            snapshot.data ?? DoctorFeatureGuard.defaultModules;
         final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(_currentIndex);
-        final isTabEnabled = _currentIndex == 0 ||
+        final isTabEnabled =
+            _currentIndex == 0 ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
 
         return InventoryAlertListener(
           child: Scaffold(
-            backgroundColor: Colors.transparent,
-            body: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: chartBarDim, // Applied background color
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: Row(
-                  children: [
-                    // ---------- Left: Animated Custom Sidebar ----------
-                    Padding(
-                      padding: const EdgeInsets.only(top: 16, bottom: 16, left: 16),
-                      child: _DesktopSidebar(
-                        currentIndex: _currentIndex,
-                        labels: _labels,
-                        icons: _icons,
-                        onNavTap: _onNavTap,
-                        isExpanded: _isSidebarExpanded,
-                        onToggle: _toggleSidebar,
-                      ),
+            backgroundColor: Colors.white,
+            body: Container(
+              width: double.infinity,
+              height: double.infinity,
+              color: chartBarDim,
+              child: Row(
+                children: [
+                  // ---------- Left: Animated Custom Sidebar ----------
+                  Padding(
+                    padding: const EdgeInsets.only(
+                      top: 16,
+                      bottom: 16,
+                      left: 16,
                     ),
+                    child: _DesktopSidebar(
+                      currentIndex: _currentIndex,
+                      labels: _labels,
+                      icons: _icons,
+                      onNavTap: _onNavTap,
+                      isExpanded: _isSidebarExpanded,
+                      onToggle: _toggleSidebar,
+                    ),
+                  ),
 
-                    // ---------- Right: Main Content Area ----------
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 16, bottom: 16, right: 16),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.transparent, // The outer background now shows through transparently
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                          clipBehavior: Clip.hardEdge,
-                          child: isTabEnabled
-                              ? _buildScreen(_currentIndex)
-                              : MobileFeatureDisabledView(
-                                  featureTitle: DoctorFeatureGuard.getTabTitle(_currentIndex),
-                                  icon: _icons[_currentIndex],
-                                  onBackToDashboard: () => _onNavTap(0),
-                                ),
-                        ),
+                  const SizedBox(width: 16),
+
+                  // ---------- Right: Main Content Area ----------
+                  // [FIXED] Removed the clipping Container wrapper to let the inner screen
+                  // fill the exact space with its own 24px border radius and shadow.
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(
+                        top: 16,
+                        bottom: 16,
+                        right: 16,
                       ),
+                      child: isTabEnabled
+                          ? SizedBox.expand(child: _buildScreen(_currentIndex))
+                          : SizedBox.expand(
+                              child: MobileFeatureDisabledView(
+                                featureTitle: DoctorFeatureGuard.getTabTitle(
+                                  _currentIndex,
+                                ),
+                                icon: _icons[_currentIndex],
+                                onBackToDashboard: () => _onNavTap(0),
+                              ),
+                            ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -143,7 +150,7 @@ class _DesktopShellState extends State<DesktopShell> {
 }
 
 // ==============================================================================
-// SIDEBAR WIDGETS
+// SIDEBAR WIDGETS (Kept exactly as provided - no changes)
 // ==============================================================================
 
 class _DesktopSidebar extends StatelessWidget {
@@ -171,7 +178,7 @@ class _DesktopSidebar extends StatelessWidget {
       width: isExpanded ? 220 : 76,
       height: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white, // Sidebar stays white
+        color: Colors.white,
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -244,7 +251,11 @@ class _ExpandedLayout extends StatelessWidget {
                 color: Color(0xFF0D422C),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.local_hospital, color: Colors.white, size: 14),
+              child: const Icon(
+                Icons.local_hospital,
+                color: Colors.white,
+                size: 14,
+              ),
             ),
             const SizedBox(width: 10),
             const Text(
@@ -319,7 +330,11 @@ class _ExpandedLayout extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: IconButton(
             onPressed: onToggle,
-            icon: const Icon(Icons.arrow_back_ios_new, size: 14, color: Color(0xFF8E9BAB)),
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              size: 14,
+              color: Color(0xFF8E9BAB),
+            ),
             splashRadius: 20,
             padding: EdgeInsets.zero,
             constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -369,10 +384,7 @@ class _ExpandedLayout extends StatelessWidget {
           const SizedBox(height: 4),
           const Text(
             'Get easy in another way',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 11),
           ),
           const SizedBox(height: 12),
           Container(
@@ -427,18 +439,29 @@ class _CollapsedLayout extends StatelessWidget {
             color: Color(0xFF0D422C),
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.local_hospital, color: Colors.white, size: 20),
+          child: const Icon(
+            Icons.local_hospital,
+            color: Colors.white,
+            size: 20,
+          ),
         ),
         const SizedBox(height: 32),
 
         // --- Navigation Icons (Center) ---
-        ...List.generate(icons.length, (index) => _buildCollapsedNavItem(index)),
+        ...List.generate(
+          icons.length,
+          (index) => _buildCollapsedNavItem(index),
+        ),
 
         const Spacer(),
 
         // --- Bottom Utility Icons ---
         IconButton(
-          icon: const Icon(Icons.settings_outlined, color: Color(0xFF8E9BAB), size: 20),
+          icon: const Icon(
+            Icons.settings_outlined,
+            color: Color(0xFF8E9BAB),
+            size: 20,
+          ),
           onPressed: () {},
           splashRadius: 20,
           padding: EdgeInsets.zero,
@@ -446,7 +469,11 @@ class _CollapsedLayout extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         IconButton(
-          icon: const Icon(Icons.help_outline, color: Color(0xFF8E9BAB), size: 20),
+          icon: const Icon(
+            Icons.help_outline,
+            color: Color(0xFF8E9BAB),
+            size: 20,
+          ),
           onPressed: () {},
           splashRadius: 20,
           padding: EdgeInsets.zero,
@@ -458,7 +485,11 @@ class _CollapsedLayout extends StatelessWidget {
         // --- Toggle Button (Expand) ---
         IconButton(
           onPressed: onToggle,
-          icon: const Icon(Icons.arrow_forward_ios, size: 14, color: Color(0xFF8E9BAB)),
+          icon: const Icon(
+            Icons.arrow_forward_ios,
+            size: 14,
+            color: Color(0xFF8E9BAB),
+          ),
           splashRadius: 20,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -478,12 +509,16 @@ class _CollapsedLayout extends StatelessWidget {
           width: 44,
           height: 44,
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0D422C).withOpacity(0.1) : Colors.transparent,
+            color: isSelected
+                ? const Color(0xFF0D422C).withOpacity(0.1)
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Icon(
             icons[index],
-            color: isSelected ? const Color(0xFF0D422C) : const Color(0xFF8E9BAB),
+            color: isSelected
+                ? const Color(0xFF0D422C)
+                : const Color(0xFF8E9BAB),
             size: 22,
           ),
         ),
@@ -544,7 +579,10 @@ class _SidebarItem extends StatelessWidget {
               ),
               if (badge != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF334A5E),
                     borderRadius: BorderRadius.circular(20),
@@ -561,7 +599,11 @@ class _SidebarItem extends StatelessWidget {
               if (isSelected)
                 const Padding(
                   padding: EdgeInsets.only(left: 4.0),
-                  child: Icon(Icons.arrow_forward_ios, color: Colors.white, size: 12),
+                  child: Icon(
+                    Icons.arrow_forward_ios,
+                    color: Colors.white,
+                    size: 12,
+                  ),
                 ),
             ],
           ),

@@ -237,9 +237,8 @@ class _StructureData {
 /// Desktop version of the Revenue & Financials tab.
 ///
 /// Fully redesigned to match the CareOps financial dashboard exactly.
-/// Includes stats, an interactive chart with tooltip, a recent transactions
-/// list, and the exact horizontal pill-bar layout for financial structure.
-/// Wrapped in a centered container to respect the side navigation.
+/// The outer screen fills the full available height (matching the sidebar),
+/// while only the "Recent Transactions" section scrolls internally.
 class DesktopRevenueScreen extends StatefulWidget {
   const DesktopRevenueScreen({super.key});
 
@@ -263,27 +262,22 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
 
         return Stack(
           children: [
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withValues(alpha: 0.05),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
+            // Fill the shell-provided space exactly so this panel matches the
+            // sidebar height. Keep revenue-screen padding at zero.
+            SizedBox.expand(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
                     ),
-                    padding: const EdgeInsets.all(24.0),
-                    child: _FinancialDashboardView(viewData: viewData),
-                  ),
+                  ],
                 ),
+                child: _FinancialDashboardView(viewData: viewData),
               ),
             ),
             if (snapshot.hasError)
@@ -366,7 +360,7 @@ class _RevenueStatusBanner extends StatelessWidget {
 }
 
 // ==============================================================================
-// MAIN DASHBOARD VIEW
+// MAIN DASHBOARD VIEW (non-scrollable outer, scrollable transactions inside)
 // ==============================================================================
 
 class _FinancialDashboardView extends StatelessWidget {
@@ -376,52 +370,60 @@ class _FinancialDashboardView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _HeaderSection(),
-        const SizedBox(height: 24),
-        const _TabsSection(),
-        const SizedBox(height: 24),
-        _StatsRow(viewData: viewData),
-        const SizedBox(height: 24),
-        _ChartSection(weeklyData: viewData.weeklyData),
-        const SizedBox(height: 24),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            if (constraints.maxWidth > 800) {
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: _RecentTransactionsSection(
-                      transactions: viewData.recentTransactions,
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    flex: 1,
-                    child: _FinancialStructureSection(
-                      structures: viewData.structures,
-                    ),
-                  ),
-                ],
-              );
-            } else {
-              return Column(
-                children: [
-                  _RecentTransactionsSection(
-                    transactions: viewData.recentTransactions,
-                  ),
-                  const SizedBox(height: 16),
-                  _FinancialStructureSection(structures: viewData.structures),
-                ],
-              );
-            }
-          },
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.all(20), // <-- Added inner padding here
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _HeaderSection(),
+          const SizedBox(height: 24),
+          const _TabsSection(),
+          const SizedBox(height: 24),
+          _StatsRow(viewData: viewData),
+          const SizedBox(height: 24),
+          _ChartSection(weeklyData: viewData.weeklyData),
+          const SizedBox(height: 24),
+          // Bottom area fills remaining height; transactions scroll inside
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                if (constraints.maxWidth > 800) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: _RecentTransactionsSection(
+                          transactions: viewData.recentTransactions,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        flex: 1,
+                        child: _FinancialStructureSection(
+                          structures: viewData.structures,
+                        ),
+                      ),
+                    ],
+                  );
+                } else {
+                  return Column(
+                    children: [
+                      Expanded(
+                        child: _RecentTransactionsSection(
+                          transactions: viewData.recentTransactions,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _FinancialStructureSection(structures: viewData.structures),
+                    ],
+                  );
+                }
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -995,7 +997,7 @@ class _LineChartPainter extends CustomPainter {
 }
 
 // ==============================================================================
-// 4. RECENT TRANSACTIONS (REPLACED DEPARTMENT PERFORMANCE)
+// 4. RECENT TRANSACTIONS (scrollable inside its own container)
 // ==============================================================================
 
 class _RecentTransactionsSection extends StatelessWidget {
@@ -1033,30 +1035,34 @@ class _RecentTransactionsSection extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (transactions.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                child: Text(
-                  'No invoice transactions yet',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                ),
-              ),
-            )
-          else
-            ...transactions.asMap().entries.expand((entry) sync* {
-              if (entry.key > 0) yield const SizedBox(height: 12);
-              final transaction = entry.value;
-              yield _TransactionRow(
-                name: transaction.name,
-                type: transaction.type,
-                amount: transaction.amount,
-                date: transaction.date,
-                icon: transaction.icon,
-                color: transaction.color,
-                isIncome: transaction.isIncome,
-              );
-            }),
+          Expanded(
+            child: transactions.isEmpty
+                ? Center(
+                    child: Text(
+                      'No invoice transactions yet',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                  )
+                : SingleChildScrollView(
+                    child: Column(
+                      children: transactions.asMap().entries.expand((
+                        entry,
+                      ) sync* {
+                        if (entry.key > 0) yield const SizedBox(height: 12);
+                        final transaction = entry.value;
+                        yield _TransactionRow(
+                          name: transaction.name,
+                          type: transaction.type,
+                          amount: transaction.amount,
+                          date: transaction.date,
+                          icon: transaction.icon,
+                          color: transaction.color,
+                          isIncome: transaction.isIncome,
+                        );
+                      }).toList(),
+                    ),
+                  ),
+          ),
         ],
       ),
     );
@@ -1149,7 +1155,7 @@ class _TransactionRow extends StatelessWidget {
 }
 
 // ==============================================================================
-// 5. FINANCIAL STRUCTURE (HORIZONTAL PILL BARS)
+// 5. FINANCIAL STRUCTURE (stays fixed, does not scroll)
 // ==============================================================================
 
 class _FinancialStructureSection extends StatelessWidget {

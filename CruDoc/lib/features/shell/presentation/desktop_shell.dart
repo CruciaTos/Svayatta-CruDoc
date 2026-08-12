@@ -4,6 +4,8 @@ import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
+import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
+import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/desktop_dashboard_screen.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_patient_records_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_revenue_screen.dart';
@@ -91,56 +93,93 @@ class _DesktopShellState extends State<DesktopShell> {
         return InventoryAlertListener(
           child: Scaffold(
             backgroundColor: Colors.white,
-            body: Container(
-              width: double.infinity,
-              height: double.infinity,
-              color: chartBarDim,
-              child: Row(
-                children: [
-                  // ---------- Left: Animated Custom Sidebar ----------
-                  Padding(
-                    padding: const EdgeInsets.only(
-                      top: 16,
-                      bottom: 16,
-                      left: 16,
-                    ),
-                    child: _DesktopSidebar(
-                      currentIndex: _currentIndex,
-                      labels: _labels,
-                      icons: _icons,
-                      onNavTap: _onNavTap,
-                      isExpanded: _isSidebarExpanded,
-                      onToggle: _toggleSidebar,
-                    ),
-                  ),
-
-                  const SizedBox(width: 16),
-
-                  // ---------- Right: Main Content Area ----------
-                  // [FIXED] Removed the clipping Container wrapper to let the inner screen
-                  // fill the exact space with its own 24px border radius and shadow.
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.only(
-                        top: 16,
-                        bottom: 16,
-                        right: 16,
+            body: Stack(
+              children: [
+                Container(
+                  width: double.infinity,
+                  height: double.infinity,
+                  color: chartBarDim,
+                  child: Row(
+                    children: [
+                      // ---------- Left: Animated Custom Sidebar ----------
+                      Padding(
+                        padding: const EdgeInsets.only(
+                          top: 16,
+                          bottom: 16,
+                          left: 16,
+                        ),
+                        child: _DesktopSidebar(
+                          currentIndex: _currentIndex,
+                          labels: _labels,
+                          icons: _icons,
+                          onNavTap: _onNavTap,
+                          isExpanded: _isSidebarExpanded,
+                          onToggle: _toggleSidebar,
+                        ),
                       ),
-                      child: isTabEnabled
-                          ? SizedBox.expand(child: _buildScreen(_currentIndex))
-                          : SizedBox.expand(
-                              child: MobileFeatureDisabledView(
-                                featureTitle: DoctorFeatureGuard.getTabTitle(
-                                  _currentIndex,
+
+                      const SizedBox(width: 16),
+
+                      // ---------- Right: Main Content Area ----------
+                      // [FIXED] Removed the clipping Container wrapper to let the inner screen
+                      // fill the exact space with its own 24px border radius and shadow.
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(
+                            top: 16,
+                            bottom: 16,
+                            right: 16,
+                          ),
+                          child: isTabEnabled
+                              ? SizedBox.expand(child: _buildScreen(_currentIndex))
+                              : SizedBox.expand(
+                                  child: MobileFeatureDisabledView(
+                                    featureTitle: DoctorFeatureGuard.getTabTitle(
+                                      _currentIndex,
+                                    ),
+                                    icon: _icons[_currentIndex],
+                                    onBackToDashboard: () => _onNavTap(0),
+                                  ),
                                 ),
-                                icon: _icons[_currentIndex],
-                                onBackToDashboard: () => _onNavTap(0),
-                              ),
-                            ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ---- Floating Chat FAB (ported from mobile Shell) ----
+                Positioned(
+                  right: 32,
+                  bottom: 32,
+                  child: GestureDetector(
+                    onTap: () => ChatbotScreen.show(context),
+                    child: Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1E78FF).withValues(alpha: 0.4),
+                            blurRadius: 12,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.smart_toy_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -291,6 +330,15 @@ class _ExpandedLayout extends StatelessWidget {
                 const SizedBox(height: 18),
                 _buildSectionHeader('GENERAL'),
                 const SizedBox(height: 8),
+                _SidebarItem(
+                  icon: Icons.person_outline,
+                  label: 'Profile',
+                  isSelected: false,
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
+                ),
                 const _SidebarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
@@ -456,6 +504,21 @@ class _CollapsedLayout extends StatelessWidget {
         const Spacer(),
 
         // --- Bottom Utility Icons ---
+        IconButton(
+          icon: const Icon(
+            Icons.person_outline,
+            color: Color(0xFF8E9BAB),
+            size: 20,
+          ),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          ),
+          splashRadius: 20,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        ),
+        const SizedBox(height: 4),
         IconButton(
           icon: const Icon(
             Icons.settings_outlined,

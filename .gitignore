@@ -7,3 +7,5 @@ pending-payment-completion.patch
 session-details-sheet.patch
 /CruDoc/android
 0001-update-framework-core.patch
+0001-desktop-feature-parity.patch
+*.patch

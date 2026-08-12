@@ -200,32 +200,45 @@ class PatientRepository {
   }
 
   /// Streams the live list of active (non-archived) patients.
-  Stream<List<Patient>> watchPatients() {
+  ///
+  /// On web, we load the encryption key **before** returning the stream.
+  /// If the key cannot be loaded (e.g., not yet available), an error is
+  /// thrown, which the StreamProvider will surface as an error state instead
+  /// of hanging in loading.
+  Stream<List<Patient>> watchPatients() async* {
     if (kIsWeb) {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || user.uid.isEmpty) {
-        return Stream.value(const []);
+        yield const [];
+        return;
       }
-      return FirebaseFirestore.instance
+
+      // Ensure encryption key is loaded once before listening to Firestore.
+      // If it fails, the error propagates to the stream listener.
+      if (!FieldCipher.isReady) {
+        await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+      }
+
+      // Now yield from the Firestore snapshot stream.
+      yield* FirebaseFirestore.instance
           .collection('patients')
           .where('doctorId', isEqualTo: user.uid)
           .snapshots()
-          .asyncMap((snapshot) async {
-        if (!FieldCipher.isReady) {
-          await EncryptionKeyManager.instance.loadForDoctor(user.uid);
-        }
-        final list = snapshot.docs
-            .map((doc) => Patient.fromMap(
-                  _decryptedFromFirestore(doc.data()),
-                  id: doc.id,
-                ))
-            .where((p) => !p.isArchived)
-            .toList();
-        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-        return list;
-      });
+          .map((snapshot) {
+            final list = snapshot.docs
+                .map((doc) => Patient.fromMap(
+                      _decryptedFromFirestore(doc.data()),
+                      id: doc.id,
+                    ))
+                .where((p) => !p.isArchived)
+                .toList();
+            list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+            return list;
+          });
+    } else {
+      // Mobile: stream from local database.
+      yield* _localService.watchPatients();
     }
-    return _localService.watchPatients();
   }
 
   /// Searches patients by name, phone, or exact patient id.

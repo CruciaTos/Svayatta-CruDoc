@@ -3,11 +3,11 @@ import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
 const _emptyDesktopPatientViewData = _DesktopPatientViewData(
   totalPatients: '0',
@@ -119,16 +119,16 @@ class _BreakdownItem {
 /// provided design. Includes a donut chart, stats cards, a searchable toolbar,
 /// and a rich data table with status chips.
 /// Non‑scrollable outer container – the table scrolls internally.
-class DesktopPatientRecordsScreen extends ConsumerStatefulWidget {
+class DesktopPatientRecordsScreen extends StatefulWidget {
   const DesktopPatientRecordsScreen({super.key});
 
   @override
-  ConsumerState<DesktopPatientRecordsScreen> createState() =>
+  State<DesktopPatientRecordsScreen> createState() =>
       _DesktopPatientRecordsScreenState();
 }
 
 class _DesktopPatientRecordsScreenState
-    extends ConsumerState<DesktopPatientRecordsScreen> {
+    extends State<DesktopPatientRecordsScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -140,70 +140,89 @@ class _DesktopPatientRecordsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final patientsAsync = ref.watch(
-      patientsStreamProvider.select(
-        (patientsAsync) => patientsAsync.whenData(_mapPatientsToViewData),
-      ),
-    );
-    final viewData = patientsAsync.value ?? _emptyDesktopPatientViewData;
-    final filteredPatients = _filterPatients(viewData.patients, _searchQuery);
+    final patientStream = PatientRepository().watchPatients();
+    if (kDebugMode) {
+      // Log that the stream was created (helps debug startup issues)
+      // This will appear in verbose app logs.
+      // ignore: avoid_print
+      print('[Patients] patientStream created: $patientStream');
+    }
 
-    return Stack(
-      children: [
-        SizedBox.expand(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+    return StreamBuilder<List<Patient>>(
+      stream: patientStream,
+      builder: (context, snapshot) {
+        if (kDebugMode) {
+          // ignore: avoid_print
+          print(
+              '[Patients] snapshot: state=${snapshot.connectionState} hasData=${snapshot.hasData} dataCount=${snapshot.data?.length ?? 0} hasError=${snapshot.hasError} error=${snapshot.error}');
+        }
+
+        final isWaiting = snapshot.connectionState == ConnectionState.waiting;
+        final hasError = snapshot.hasError;
+        final patients = snapshot.data ?? <Patient>[];
+        final viewData = patients.isEmpty
+            ? _emptyDesktopPatientViewData
+            : _mapPatientsToViewData(patients);
+        final filteredPatients = _filterPatients(viewData.patients, _searchQuery);
+
+        return Stack(
+          children: [
+            SizedBox.expand(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.grey.withValues(alpha: 0.05),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
                 ),
-              ],
+                padding: const EdgeInsets.all(20),
+                child: _PatientDashboardView(
+                  viewData: viewData,
+                  patients: filteredPatients,
+                  searchController: _searchController,
+                  searchQuery: _searchQuery,
+                  onSearchChanged: (value) {
+                    setState(() => _searchQuery = value.trim());
+                  },
+                  onClearSearch: () {
+                    setState(() {
+                      _searchController.clear();
+                      _searchQuery = '';
+                    });
+                  },
+                ),
+              ),
             ),
-            padding: const EdgeInsets.all(20),
-            child: _PatientDashboardView(
-              viewData: viewData,
-              patients: filteredPatients,
-              searchController: _searchController,
-              searchQuery: _searchQuery,
-              onSearchChanged: (value) {
-                setState(() => _searchQuery = value.trim());
-              },
-              onClearSearch: () {
-                setState(() {
-                  _searchController.clear();
-                  _searchQuery = '';
-                });
-              },
-            ),
-          ),
-        ),
-        if (patientsAsync.hasError)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: _PatientsStatusBanner(
-              icon: Icons.error_outline_rounded,
-              message: 'Failed to load patients',
-              color: Colors.red.shade700,
-              backgroundColor: Colors.red.shade50,
-            ),
-          )
-        else if (patientsAsync.isLoading)
-          const Positioned(
-            top: 16,
-            right: 16,
-            child: _PatientsStatusBanner(
-              icon: Icons.sync_rounded,
-              message: 'Syncing patients...',
-              color: Color(0xFF2563EB),
-              backgroundColor: Color(0xFFEFF6FF),
-            ),
-          ),
-      ],
+            if (hasError)
+              Positioned(
+                top: 16,
+                right: 16,
+                child: _PatientsStatusBanner(
+                  icon: Icons.error_outline_rounded,
+                  message: 'Failed to load patients',
+                  color: Colors.red.shade700,
+                  backgroundColor: Colors.red.shade50,
+                ),
+              )
+            else if (isWaiting)
+              const Positioned(
+                top: 16,
+                right: 16,
+                child: _PatientsStatusBanner(
+                  icon: Icons.sync_rounded,
+                  message: 'Syncing patients...',
+                  color: Color(0xFF2563EB),
+                  backgroundColor: Color(0xFFEFF6FF),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

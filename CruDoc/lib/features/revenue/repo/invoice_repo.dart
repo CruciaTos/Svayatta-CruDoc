@@ -77,6 +77,7 @@ class InvoiceRepository {
 
     return _firestore
         .collection('invoices')
+        .where('doctorId', isEqualTo: doctorId)
         .snapshots()
         .map((snapshot) {
       final list = snapshot.docs

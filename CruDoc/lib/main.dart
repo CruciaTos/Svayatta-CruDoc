@@ -40,19 +40,20 @@ void _wireWebEncryptionKeyLoading() {
     try {
       if (user == null) {
         DeviceSessionService.instance.stopSessionMonitoring();
+        await DeviceSessionService.instance.clearSessionToken();
         EncryptionKeyManager.instance.clear();
         lastHandledUid = null;
         return;
       }
-      if (lastHandledUid == user.uid) return;
-      lastHandledUid = user.uid;
-      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
       DeviceSessionService.instance.startSessionMonitoring(
         user.uid,
         onForcedLogout: (reason) {
           debugPrint('Web forced logout: $reason');
         },
       );
+      if (lastHandledUid == user.uid) return;
+      lastHandledUid = user.uid;
+      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
     } catch (error, stackTrace) {
       debugPrint('Web startup auth bootstrap failed: $error');
       debugPrint(stackTrace.toString());
@@ -80,6 +81,7 @@ void _wireDoctorScopedStartup() {
     try {
       if (user == null) {
         DeviceSessionService.instance.stopSessionMonitoring();
+        await DeviceSessionService.instance.clearSessionToken();
         if (lastHandledUid != null) {
           await FirestoreSyncService.instance.stop();
           await LocalDatabaseService.instance.close();
@@ -88,6 +90,13 @@ void _wireDoctorScopedStartup() {
         }
         return;
       }
+
+      DeviceSessionService.instance.startSessionMonitoring(
+        user.uid,
+        onForcedLogout: (reason) {
+          debugPrint('Mobile forced logout: $reason');
+        },
+      );
 
       if (lastHandledUid == user.uid) return; // already set up for this doctor
       lastHandledUid = user.uid;
@@ -101,13 +110,6 @@ void _wireDoctorScopedStartup() {
       );
       await InitialFirestoreMigrationService.instance.runIfNeeded();
       await FirestoreSyncService.instance.start();
-
-      DeviceSessionService.instance.startSessionMonitoring(
-        user.uid,
-        onForcedLogout: (reason) {
-          debugPrint('Mobile forced logout: $reason');
-        },
-      );
     } catch (error, stackTrace) {
       debugPrint('Doctor-scoped startup bootstrap failed: $error');
       debugPrint(stackTrace.toString());

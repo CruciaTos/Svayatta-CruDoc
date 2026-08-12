@@ -70,13 +70,13 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       final rememberFlag = await _secureStorage.read(key: 'remember_me');
       if (mounted) {
         setState(() {
-          if (rememberFlag == 'false') {
-            _rememberMe = false;
-          } else {
+          if (rememberFlag == 'true' && savedEmail != null && savedEmail.trim().isNotEmpty) {
             _rememberMe = true;
-            if (savedEmail != null && savedEmail.trim().isNotEmpty) {
-              _emailController.text = savedEmail.trim();
-            }
+            _emailController.text = savedEmail.trim();
+          } else {
+            _rememberMe = false;
+            _emailController.clear();
+            _passwordController.clear();
           }
         });
       }

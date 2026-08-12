@@ -490,9 +490,15 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final bool isWebLayout = kIsWeb && MediaQuery.of(context).size.width > 800;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final bool isDesktopLayout = screenWidth > 800 && (
+      kIsWeb ||
+      defaultTargetPlatform == TargetPlatform.windows ||
+      defaultTargetPlatform == TargetPlatform.macOS ||
+      defaultTargetPlatform == TargetPlatform.linux
+    );
 
-    if (isWebLayout) {
+    if (isDesktopLayout) {
       return _buildWebAuthView(context);
     }
 

@@ -10,24 +10,32 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>(
 );
 
 /// Streams every active medicine for the current doctor.
-final medicinesStreamProvider = StreamProvider<List<MedicineModel>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(inventoryRepositoryProvider).watchMedicines();
-  },
-);
+final medicinesStreamProvider = StreamProvider<List<MedicineModel>>((ref) {
+  final authState = ref.watch(authStateProvider);
+  final user = authState.value;
+
+  if (authState.isLoading || user == null) {
+    return Stream<List<MedicineModel>>.value(const <MedicineModel>[]);
+  }
+
+  return ref.watch(inventoryRepositoryProvider).watchMedicines();
+});
 
 /// Streams the most recent stock transactions across every medicine,
 /// newest first. Feeds the dashboard's "Recent Activity" card.
 final recentStockTransactionsProvider =
-    StreamProvider<List<StockTransactionModel>>(
-      (ref) {
-        ref.watch(authStateProvider);
-        return ref
-            .watch(inventoryRepositoryProvider)
-            .watchRecentTransactions();
-      },
-    );
+    StreamProvider<List<StockTransactionModel>>((ref) {
+      final authState = ref.watch(authStateProvider);
+      final user = authState.value;
+
+      if (authState.isLoading || user == null) {
+        return Stream<List<StockTransactionModel>>.value(
+          const <StockTransactionModel>[],
+        );
+      }
+
+      return ref.watch(inventoryRepositoryProvider).watchRecentTransactions();
+    });
 
 /// Medicines whose `currentStock` has crossed at/under their configured
 /// `reorderThreshold`.

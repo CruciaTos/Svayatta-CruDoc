@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
@@ -290,11 +292,16 @@ class _ExpandedLayout extends StatelessWidget {
                   isSelected: false,
                   onTap: null,
                 ),
-                const _SidebarItem(
+                _SidebarItem(
                   icon: Icons.logout,
                   label: 'Logout',
                   isSelected: false,
-                  onTap: null,
+                  onTap: () async {
+                    final authService = AuthService();
+                    await authService.signOut();
+                    if (!context.mounted) return;
+                    context.go('/auth');
+                  },
                 ),
               ],
             ),

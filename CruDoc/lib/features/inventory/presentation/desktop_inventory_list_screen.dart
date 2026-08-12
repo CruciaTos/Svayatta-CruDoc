@@ -12,25 +12,108 @@ final _desktopInventoryViewProvider =
       );
     });
 
+const _emptyDesktopInventoryViewData = _DesktopInventoryViewData(
+  totalItems: '0',
+  lowStockAlerts: '0',
+  outOfStock: '0',
+  inventoryValue: '\$0',
+  monthlyUsage: '—',
+  medications: <MedicationData>[],
+  alerts: <AlertData>[],
+);
+
 class DesktopInventoryScreen extends ConsumerWidget {
   const DesktopInventoryScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final inventoryViewAsync = ref.watch(_desktopInventoryViewProvider);
+    final inventoryViewData =
+        inventoryViewAsync.value ?? _emptyDesktopInventoryViewData;
 
-    return inventoryViewAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (error, stack) =>
-          Center(child: Text('Failed to load inventory: $error')),
-      data: (data) => DesktopInventoryListScreen(
-        totalItems: data.totalItems,
-        lowStockAlerts: data.lowStockAlerts,
-        outOfStock: data.outOfStock,
-        inventoryValue: data.inventoryValue,
-        monthlyUsage: data.monthlyUsage,
-        medications: data.medications,
-        alerts: data.alerts,
+    return Stack(
+      children: [
+        DesktopInventoryListScreen(
+          totalItems: inventoryViewData.totalItems,
+          lowStockAlerts: inventoryViewData.lowStockAlerts,
+          outOfStock: inventoryViewData.outOfStock,
+          inventoryValue: inventoryViewData.inventoryValue,
+          monthlyUsage: inventoryViewData.monthlyUsage,
+          medications: inventoryViewData.medications,
+          alerts: inventoryViewData.alerts,
+        ),
+        if (inventoryViewAsync.hasError)
+          Positioned(
+            top: 16,
+            right: 16,
+            child: _InventoryStatusBanner(
+              icon: Icons.error_outline_rounded,
+              message: 'Failed to load inventory',
+              color: Colors.red.shade700,
+              backgroundColor: Colors.red.shade50,
+            ),
+          )
+        else if (inventoryViewAsync.isLoading)
+          const Positioned(
+            top: 16,
+            right: 16,
+            child: _InventoryStatusBanner(
+              icon: Icons.sync_rounded,
+              message: 'Syncing inventory...',
+              color: Color(0xFF2563EB),
+              backgroundColor: Color(0xFFEFF6FF),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _InventoryStatusBanner extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  final Color color;
+  final Color backgroundColor;
+
+  const _InventoryStatusBanner({
+    required this.icon,
+    required this.message,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 8),
+            Text(
+              message,
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -343,7 +426,7 @@ class DesktopInventoryListScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.grey.withOpacity(0.05),
+                    color: Colors.grey.withValues(alpha: 0.05),
                     blurRadius: 20,
                     offset: const Offset(0, 10),
                   ),
@@ -829,7 +912,7 @@ class _FilterTab extends StatelessWidget {
           boxShadow: isActive
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withValues(alpha: 0.05),
                     blurRadius: 4,
                   ),
                 ]
@@ -909,7 +992,7 @@ class _MedicationCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.03),
+                      color: Colors.black.withValues(alpha: 0.03),
                       blurRadius: 4,
                     ),
                   ],
@@ -1039,7 +1122,7 @@ class _MedicationCard extends StatelessWidget {
                       ? []
                       : [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
+                            color: Colors.black.withValues(alpha: 0.05),
                             blurRadius: 4,
                           ),
                         ],
@@ -1093,7 +1176,7 @@ class _StripePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = Colors.white.withOpacity(0.6)
+      ..color = Colors.white.withValues(alpha: 0.6)
       ..strokeWidth = 1.5;
 
     for (double x = -size.height; x < size.width + size.height; x += 6) {

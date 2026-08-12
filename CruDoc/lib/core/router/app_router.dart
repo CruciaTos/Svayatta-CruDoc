@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/auth/presentation/auth_screen.dart';
@@ -10,11 +13,31 @@ import '../../features/super_admin/middleware/auth_middleware.dart';
 
 final GoRouter appRouter = _createAppRouter();
 
+class _FirebaseAuthListenable extends ChangeNotifier {
+  _FirebaseAuthListenable() {
+    _subscription = FirebaseAuth.instance.authStateChanges().listen((_) {
+      notifyListeners();
+    });
+  }
+
+  late final StreamSubscription<User?> _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
+
+final _firebaseAuthListenable = _FirebaseAuthListenable();
+
 GoRouter _createAppRouter() {
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: _firebaseAuthListenable,
     redirect: (context, state) async {
-      final user = FirebaseAuth.instance.currentUser;
+      final currentUser = FirebaseAuth.instance.currentUser;
+      final user = currentUser ?? await FirebaseAuth.instance.authStateChanges().first;
       final isLoggedIn = user != null;
       final path = state.matchedLocation;
       final isAuthRoute = path == '/' || path == '/auth';

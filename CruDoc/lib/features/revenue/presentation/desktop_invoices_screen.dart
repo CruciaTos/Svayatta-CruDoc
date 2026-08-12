@@ -735,20 +735,20 @@ class _CreateInvoiceDialogState extends State<_CreateInvoiceDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Royal Blue Header
+          // 1. Transparent Header (formerly blue)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: const BoxDecoration(
-              color: primaryBlue,
+              color: Colors.transparent,
               borderRadius: BorderRadius.vertical(top: Radius.circular(4)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.medical_services_rounded, color: Colors.white, size: 24),
+                const Icon(Icons.medical_services_rounded, color: primaryBlue, size: 24),
                 const SizedBox(width: 8),
-                const Text('cru.doc', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: -0.5)),
+                const Text('cru.doc', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, color: primaryBlue, letterSpacing: -0.5)),
                 const Spacer(),
-                IconButton(icon: const Icon(Icons.close, color: Colors.white, size: 22), onPressed: () => Navigator.pop(context)),
+                IconButton(icon: const Icon(Icons.close, color: primaryBlue, size: 22), onPressed: () => Navigator.pop(context)),
               ],
             ),
           ),

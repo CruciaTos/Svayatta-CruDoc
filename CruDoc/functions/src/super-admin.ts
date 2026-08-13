@@ -1,8 +1,27 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
-const auth = admin.auth();
+function getDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.firestore();
+}
+
+function getAuth() {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.auth();
+}
+
+const db: admin.firestore.Firestore = new Proxy({} as admin.firestore.Firestore, {
+  get: (_, prop: string | symbol) => (getDb() as any)[prop],
+});
+
+const auth: admin.auth.Auth = new Proxy({} as admin.auth.Auth, {
+  get: (_, prop: string | symbol) => (getAuth() as any)[prop],
+});
 
 // ============================================================
 // 1. LOG ADMIN ACTION
@@ -48,7 +67,7 @@ export const logAdminAction = functions.https.onCall(async (data: any, context: 
       ipAddress: (context.rawRequest as unknown as Record<string, unknown>).ip || null,
     };
 
-    await db.collection('audit_logs').add(logEntry);
+    await getDb().collection('audit_logs').add(logEntry);
     return { success: true };
   } catch (error) {
     throw new functions.https.HttpsError('internal', 'Failed to log action');

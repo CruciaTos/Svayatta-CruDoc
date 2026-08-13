@@ -51,6 +51,9 @@ class PatientRepository {
     if (out.containsKey('phone')) {
       out['phone'] = FieldCipher.encrypt(out['phone'] as String?);
     }
+    if (out.containsKey('email')) {
+      out['email'] = out['email'] as String? ?? '';
+    }
     if (out.containsKey('diagnosis')) {
       if (out['diagnosis'] is List) {
         out['diagnosis'] = (out['diagnosis'] as List)
@@ -77,6 +80,7 @@ class PatientRepository {
     if (out['phone'] is String) {
       out['phone'] = FieldCipher.decrypt(out['phone'] as String);
     }
+    // email is stored in plaintext — no decryption needed
     if (out['diagnosis'] is String) {
       out['diagnosis'] = FieldCipher.decrypt(out['diagnosis'] as String);
     } else if (out['diagnosis'] is List) {
@@ -102,6 +106,7 @@ class PatientRepository {
       firstName: patient.firstName,
       lastName: patient.lastName,
       phone: patient.phone,
+      email: patient.email,
       gender: patient.gender,
       dateOfBirth: patient.dateOfBirth,
       diagnosis: patient.diagnosis,

@@ -205,6 +205,7 @@ class PatientLocalService {
       'firstName': patient.firstName,
       'lastName': patient.lastName,
       'phone': patient.phone,
+      'email': patient.email,
       'gender': patient.gender,
       'dateOfBirth': _dateTimeToMillis(patient.dateOfBirth),
       'diagnosis': Patient.diagnosisToStored(patient.diagnosis),
@@ -244,6 +245,7 @@ class PatientLocalService {
         case 'firstName':
         case 'lastName':
         case 'phone':
+        case 'email':
         case 'gender':
         case 'notes':
           row[entry.key] = entry.value;
@@ -270,6 +272,7 @@ class PatientLocalService {
       firstName: row['firstName'] as String? ?? '',
       lastName: row['lastName'] as String? ?? '',
       phone: row['phone'] as String? ?? '',
+      email: row['email'] as String? ?? '',
       gender: row['gender'] as String? ?? '',
       dateOfBirth: _millisToDateTime(row['dateOfBirth']),
       diagnosis: Patient.diagnosisFromStored(row['diagnosis'] as String?),

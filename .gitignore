@@ -1,4 +1,5 @@
 *.json
+.env
 CruDoc/lib/firebase_options.dart
 .agents/
 .cursor/

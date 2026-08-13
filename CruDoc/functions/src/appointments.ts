@@ -1,7 +1,12 @@
 import * as functions from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 
-const db = admin.firestore();
+function getDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.firestore();
+}
 
 // ============================================================
 // APPOINTMENT CREATION ENDPOINT (for AI Voice Receptionist)
@@ -104,7 +109,7 @@ export const createAppointment = functions.onRequest(
 
     try {
       // ---- Verify doctor exists ----
-      const doctorDoc = await db.collection('users').doc(doctor_id).get();
+      const doctorDoc = await getDb().collection('users').doc(doctor_id).get();
       if (!doctorDoc.exists) {
         res.status(404).json({success: false, error: 'Doctor not found'});
         return;
@@ -144,7 +149,7 @@ export const createAppointment = functions.onRequest(
         updatedAt: now,
       };
 
-      const appointmentRef = await db
+      const appointmentRef = await getDb()
         .collection('appointments')
         .add(appointmentData);
 
@@ -191,7 +196,7 @@ async function findOrCreatePatient(
   // receptionist creates its own records with a plaintext `phone`
   // field so it can look them up. These records are tagged with
   // `source: "ai_receptionist"` so they're distinguishable.
-  const existing = await db
+  const existing = await getDb()
     .collection('patients')
     .where('doctorId', '==', doctorId)
     .where('phone', '==', phone)
@@ -221,7 +226,7 @@ async function findOrCreatePatient(
     updatedAt: now,
   };
 
-  const patientRef = await db.collection('patients').add(patientData);
+  const patientRef = await getDb().collection('patients').add(patientData);
   console.log(
     `AI receptionist created patient ${patientRef.id} (${name}, ${phone})`,
   );

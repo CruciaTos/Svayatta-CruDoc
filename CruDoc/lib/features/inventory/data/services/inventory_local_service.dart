@@ -1,11 +1,11 @@
 import 'dart:async';
 
+import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Cap for [InventoryLocalService.watchRecentTransactions] — enough to
 /// feed the dashboard's activity card after it's merged with patient/
@@ -62,7 +62,7 @@ class InventoryLocalService {
     bool pendingDelete = false,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.insert(
       'medicines',
       _medicineToRow(
@@ -71,7 +71,7 @@ class InventoryLocalService {
         pendingDelete: pendingDelete,
         lastSyncedAt: lastSyncedAt,
       ),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
     await _emitMedicines();
     return medicine.id;
@@ -84,7 +84,7 @@ class InventoryLocalService {
     bool? pendingDelete,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final row = _updateDataToRow(data)
       ..['syncStatus'] = syncStatus
       ..['updatedAt'] = _dateTimeToMillis(
@@ -117,7 +117,7 @@ class InventoryLocalService {
   }
 
   Future<MedicineModel?> getMedicine(String medicineId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'medicines',
       where: 'id = ? AND doctorId = ? AND isActive = 1',
@@ -155,7 +155,7 @@ class InventoryLocalService {
   Future<StockTransactionModel> recordTransaction(
     StockTransactionModel transaction,
   ) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final now = DateTime.now();
 
     late final StockTransactionModel recorded;
@@ -199,7 +199,7 @@ class InventoryLocalService {
       await txn.insert(
         'stock_transactions',
         _transactionToRow(recorded),
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
       );
 
       await txn.update(
@@ -222,7 +222,7 @@ class InventoryLocalService {
   Future<List<StockTransactionModel>> getTransactionsForMedicine(
     String medicineId,
   ) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'stock_transactions',
       where: 'medicineId = ? AND doctorId = ? AND isActive = 1',
@@ -250,7 +250,7 @@ class InventoryLocalService {
   Future<void> _emitMedicines() async {
     if (_medicinesController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'medicines',
       where: 'isActive = 1 AND doctorId = ?',
@@ -265,7 +265,7 @@ class InventoryLocalService {
   Future<void> _emitRecentTransactions() async {
     if (_recentTransactionsController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'stock_transactions',
       where: 'isActive = 1 AND doctorId = ?',

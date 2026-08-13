@@ -201,25 +201,25 @@ class PatientRepository {
 
   /// Streams the live list of active (non-archived) patients.
   ///
-  /// On web, we load the encryption key **before** returning the stream.
-  /// If the key cannot be loaded (e.g., not yet available), an error is
-  /// thrown, which the StreamProvider will surface as an error state instead
-  /// of hanging in loading.
-  Stream<List<Patient>> watchPatients() async* {
+  /// The [encryptionKey] should be provided by the caller (e.g. a
+  /// FutureProvider that loads the key once). When provided, this method
+  /// will not await key-loading and will synchronously map snapshots.
+  Stream<List<Patient>> watchPatients({String? encryptionKey}) async* {
     if (kIsWeb) {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || user.uid.isEmpty) {
         yield const [];
         return;
       }
-
-      // Ensure encryption key is loaded once before listening to Firestore.
-      // If it fails, the error propagates to the stream listener.
-      if (!FieldCipher.isReady) {
+ 
+      // If a key was passed in, assume caller has loaded it and FieldCipher
+      // is ready. If not, attempt to load as a fallback.
+      if (encryptionKey == null && !FieldCipher.isReady) {
         await EncryptionKeyManager.instance.loadForDoctor(user.uid);
       }
-
-      // Now yield from the Firestore snapshot stream.
+ 
+      // Now yield from the Firestore snapshot stream and do synchronous
+      // mapping/decryption using FieldCipher which relies on the loaded key.
       yield* FirebaseFirestore.instance
           .collection('patients')
           .where('doctorId', isEqualTo: user.uid)

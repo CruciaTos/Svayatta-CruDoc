@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// SQLite-backed patient data source.
 ///
@@ -45,7 +45,7 @@ class PatientLocalService {
     bool pendingDelete = false,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.insert(
       'patients',
       _toRow(
@@ -54,7 +54,7 @@ class PatientLocalService {
         pendingDelete: pendingDelete,
         lastSyncedAt: lastSyncedAt,
       ),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
     await _emitPatients();
     return patient.id;
@@ -67,7 +67,7 @@ class PatientLocalService {
     bool? pendingDelete,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final row = _updateDataToRow(data)
       ..['syncStatus'] = syncStatus
       ..['updatedAt'] = _dateTimeToMillis(
@@ -96,7 +96,7 @@ class PatientLocalService {
   }
 
   Future<Patient?> getPatient(String patientId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'patients',
       where: 'id = ? AND isActive = 1 AND doctorId = ?',
@@ -127,7 +127,7 @@ class PatientLocalService {
       }
     }
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'patients',
       where: includeArchived
@@ -164,7 +164,7 @@ class PatientLocalService {
   }
 
   Future<void> markSynced(String patientId, {DateTime? syncedAt}) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.update(
       'patients',
       {
@@ -181,7 +181,7 @@ class PatientLocalService {
   Future<void> _emitPatients() async {
     if (_patientsController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'patients',
       where: 'isActive = 1 AND isArchived = 0 AND doctorId = ?',

@@ -16,11 +16,24 @@ import 'core/theme/app_colors.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Windows-only smoke test: attempt a direct Firestore read and log result.
+  if (defaultTargetPlatform == TargetPlatform.windows) {
+    try {
+      final testSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .limit(1)
+          .get();
+      debugPrint('Windows Firestore smoke test: ${testSnap.docs.length} documents');
+    } catch (e, st) {
+      debugPrint('Windows Firestore smoke test failed: $e');
+      debugPrint(st.toString());
+    }
+  }
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
   );
 
-  if (!kIsWeb) {
+  if (!kIsWeb && defaultTargetPlatform != TargetPlatform.windows) {
     _wireDoctorScopedStartup();
   } else {
     _wireWebEncryptionKeyLoading();

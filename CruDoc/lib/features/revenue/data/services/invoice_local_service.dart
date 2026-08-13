@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 
@@ -9,7 +9,7 @@ class InvoiceLocalService {
 
   final LocalDatabaseService _dbService;
 
-  Future<void> _ensureTableCreated(Database db) async {
+  Future<void> _ensureTableCreated(LocalDatabase db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS invoices (
         id TEXT PRIMARY KEY,
@@ -30,13 +30,13 @@ class InvoiceLocalService {
 
   Future<void> upsertInvoice(InvoiceModel invoice) async {
     if (kIsWeb) return;
-    final db = await _dbService.database;
+    final db = await _dbService.localDatabase;
     await _ensureTableCreated(db);
 
     await db.insert(
       'invoices',
       invoice.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
   }
 
@@ -44,7 +44,7 @@ class InvoiceLocalService {
     if (kIsWeb) return [];
     if (doctorId.trim().isEmpty) return [];
 
-    final db = await _dbService.database;
+    final db = await _dbService.localDatabase;
     await _ensureTableCreated(db);
 
     final maps = await db.query(
@@ -59,7 +59,7 @@ class InvoiceLocalService {
 
   Future<void> deleteInvoice(String id, String doctorId) async {
     if (kIsWeb) return;
-    final db = await _dbService.database;
+    final db = await _dbService.localDatabase;
     await _ensureTableCreated(db);
 
     await db.delete(

@@ -1,8 +1,8 @@
 import 'dart:async';
 
+import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// Cap for [VisitLocalService.watchRecentVisits] — enough to feed the
 /// dashboard's activity card after it's merged with patient/inventory/
@@ -65,7 +65,7 @@ class VisitLocalService {
     bool pendingDelete = false,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.insert(
       'visits',
       _toRow(
@@ -74,7 +74,7 @@ class VisitLocalService {
         pendingDelete: pendingDelete,
         lastSyncedAt: lastSyncedAt,
       ),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
     await _emitAll();
     return visit.id;
@@ -87,7 +87,7 @@ class VisitLocalService {
     bool? pendingDelete,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final row = _updateDataToRow(data)
       ..['syncStatus'] = syncStatus
       ..['updatedAt'] = _dateTimeToMillis(
@@ -108,7 +108,7 @@ class VisitLocalService {
   }
 
   Future<Visit?> getVisit(String visitId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
       where: 'id = ? AND isActive = 1',
@@ -174,7 +174,7 @@ class VisitLocalService {
     required DateTime end,
     String? excludeVisitId,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final lookbackStart = start.subtract(
       const Duration(minutes: kMaxVisitDurationMinutes),
     );
@@ -197,7 +197,7 @@ class VisitLocalService {
   }
 
   Future<void> markSynced(String visitId, {DateTime? syncedAt}) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.update(
       'visits',
       {
@@ -231,7 +231,7 @@ class VisitLocalService {
   Future<void> _emitLastVisitPerPatient() async {
     if (_lastVisitPerPatientController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
       where: 'isActive = 1 AND isDeleted = 0 AND scheduledStart <= ?',
@@ -255,7 +255,7 @@ class VisitLocalService {
   Future<void> _emitRecentVisits() async {
     if (_recentVisitsController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
       where: 'isActive = 1 AND isDeleted = 0',
@@ -270,7 +270,7 @@ class VisitLocalService {
   Future<void> _emitAllVisits() async {
     if (_allVisitsController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
       where: 'isActive = 1 AND isDeleted = 0',
@@ -284,7 +284,7 @@ class VisitLocalService {
   Future<void> _emitUpcomingVisits({DateTime? from}) async {
     if (_upcomingVisitsController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final start = from ?? DateTime.now();
     final rows = await db.query(
       'visits',
@@ -305,7 +305,7 @@ class VisitLocalService {
     final startOfDay = DateTime(now.year, now.month, now.day);
     final startOfNextDay = startOfDay.add(const Duration(days: 1));
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
       where: 'isActive = 1 AND isDeleted = 0 AND status = ? '
@@ -330,7 +330,7 @@ class VisitLocalService {
     final controller = _patientVisitControllers[key];
     if (controller == null || controller.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
       where: includeDeleted

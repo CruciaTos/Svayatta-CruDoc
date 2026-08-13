@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart' as riverpod_legacy;
 
@@ -7,15 +10,49 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/core/services/encryption_key_manager.dart';
 
 final patientRepositoryProvider = Provider<PatientRepository>(
   (ref) => PatientRepository(),
 );
 
+/// Loads the doctor's encryption key once. Consumers can watch this
+/// FutureProvider and react to loading/error/data states before
+/// subscribing to the live Firestore stream.
+final encryptionKeyProvider = FutureProvider<String>((ref) async {
+  final user = ref.watch(authStateProvider).value;
+  if (user == null || user.uid.isEmpty) {
+    throw StateError('No signed-in doctor — cannot load encryption key.');
+  }
+  await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+  final key = EncryptionKeyManager.instance.currentKey;
+  if (key == null) throw StateError('Failed to load encryption key.');
+  return base64Encode(key.bytes);
+});
+
 final patientsStreamProvider = StreamProvider<List<Patient>>(
   (ref) {
+    // Keep stream registration reactive to auth changes.
     ref.watch(authStateProvider);
-    return ref.watch(patientRepositoryProvider).watchPatients();
+
+    final keyAsync = ref.watch(encryptionKeyProvider);
+
+    return keyAsync.when(
+      data: (keyBase64) {
+        // Pass loaded key into the repository so it can map/decrypt snapshots synchronously.
+        return ref.watch(patientRepositoryProvider).watchPatients(encryptionKey: keyBase64);
+      },
+      loading: () {
+        // While key is loading, return an empty stream; the provider will be in loading state.
+        return const Stream<List<Patient>>.empty();
+      },
+      error: (e, s) {
+        final controller = StreamController<List<Patient>>();
+        controller.addError(e, s);
+        controller.close();
+        return controller.stream;
+      },
+    );
   },
 );
 

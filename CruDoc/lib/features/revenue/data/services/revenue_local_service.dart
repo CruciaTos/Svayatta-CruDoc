@@ -1,8 +1,8 @@
 import 'dart:async';
 
+import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
 
 /// SQLite-backed revenue data source.
 ///
@@ -44,7 +44,7 @@ class RevenueLocalService {
     bool pendingDelete = false,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.insert(
       'revenue_entries',
       _revenueEntryToRow(
@@ -53,7 +53,7 @@ class RevenueLocalService {
         pendingDelete: pendingDelete,
         lastSyncedAt: lastSyncedAt,
       ),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
     await _emitRevenueEntries();
     return entry.id;
@@ -66,7 +66,7 @@ class RevenueLocalService {
     bool? pendingDelete,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final row = _revenueEntryUpdateToRow(data)
       ..['syncStatus'] = syncStatus
       ..['updatedAt'] = _dateTimeToMillis(
@@ -99,7 +99,7 @@ class RevenueLocalService {
   }
 
   Future<RevenueEntry?> getRevenueEntry(String entryId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'revenue_entries',
       where: 'id = ? AND isActive = 1',
@@ -120,7 +120,7 @@ class RevenueLocalService {
     String entryId, {
     DateTime? syncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.update(
       'revenue_entries',
       {
@@ -142,7 +142,7 @@ class RevenueLocalService {
     bool pendingDelete = false,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.insert(
       'pending_payments',
       _pendingPaymentToRow(
@@ -151,7 +151,7 @@ class RevenueLocalService {
         pendingDelete: pendingDelete,
         lastSyncedAt: lastSyncedAt,
       ),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
     await _emitPendingPayments();
     return payment.id;
@@ -164,7 +164,7 @@ class RevenueLocalService {
     bool? pendingDelete,
     int? lastSyncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final row = _pendingPaymentUpdateToRow(data)
       ..['syncStatus'] = syncStatus
       ..['updatedAt'] = _dateTimeToMillis(
@@ -190,7 +190,7 @@ class RevenueLocalService {
   }
 
   Future<PendingPayment?> getPendingPayment(String paymentId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'pending_payments',
       where: 'id = ? AND isActive = 1',
@@ -211,7 +211,7 @@ class RevenueLocalService {
     String paymentId, {
     DateTime? syncedAt,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     await db.update(
       'pending_payments',
       {
@@ -230,7 +230,7 @@ class RevenueLocalService {
   Future<void> _emitRevenueEntries() async {
     if (_revenueEntriesController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'revenue_entries',
       where: 'isActive = 1 AND isDeleted = 0',
@@ -244,7 +244,7 @@ class RevenueLocalService {
   Future<void> _emitPendingPayments() async {
     if (_pendingPaymentsController.isClosed) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'pending_payments',
       where: 'isActive = 1 AND isPaid = 0',
@@ -434,7 +434,7 @@ class RevenueLocalService {
   /// `VisitRepository.updateStatus` can tell whether a visitation
   /// already has a pending payment before creating another one.
   Future<PendingPayment?> getPendingPaymentForVisit(String visitId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'pending_payments',
       where: 'visitId = ? AND isActive = 1',

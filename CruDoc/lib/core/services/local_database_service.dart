@@ -7,6 +7,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_sqlcipher/sqflite.dart';
 
+import '../database/local_database.dart';
+import '../database/sqlcipher_local_database.dart';
+
 /// Singleton SQLite database service for CruDoc's local-first data layer.
 ///
 /// Phase 1 only creates the local schema and guarded migrations. Repositories
@@ -60,6 +63,17 @@ class LocalDatabaseService extends ChangeNotifier {
     return db;
   }
 
+  /// [LocalDatabase]-typed access to the same underlying connection as
+  /// [database]. This is the entry point repositories and local services
+  /// should use going forward — it carries no `sqflite_sqlcipher` types in
+  /// its signature, so a future Windows backend can be swapped in behind
+  /// [LocalDatabase] without touching those call sites.
+  ///
+  /// `FirestoreSyncService` and `InitialFirestoreMigrationService` continue
+  /// to use [database] directly and are unaffected by this.
+  Future<LocalDatabase> get localDatabase async =>
+      SqlCipherDatabase(await database);
+
   String _databaseFileNameForDoctor(String doctorId) {
     final safeDoctorId = doctorId.trim().isEmpty ? 'signed_out' : doctorId;
     return '${_databaseNamePrefix}_$safeDoctorId.db';
@@ -72,14 +86,15 @@ class LocalDatabaseService extends ChangeNotifier {
         password: passphrase,
         version: _databaseVersion,
         onConfigure: (db) async {
-          await db.execute('PRAGMA foreign_keys = ON');
+          await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
         },
         onCreate: (db, version) async {
-          await _createSchema(db);
+          await _createSchema(SqlCipherDatabase(db));
         },
         onOpen: (db) async {
-          await db.execute('PRAGMA foreign_keys = ON');
-          await _runGuardedMigrations(db);
+          final localDb = SqlCipherDatabase(db);
+          await localDb.execute('PRAGMA foreign_keys = ON');
+          await _runGuardedMigrations(localDb);
         },
       );
     } on DatabaseException catch (error) {
@@ -99,14 +114,15 @@ class LocalDatabaseService extends ChangeNotifier {
         password: passphrase,
         version: _databaseVersion,
         onConfigure: (db) async {
-          await db.execute('PRAGMA foreign_keys = ON');
+          await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
         },
         onCreate: (db, version) async {
-          await _createSchema(db);
+          await _createSchema(SqlCipherDatabase(db));
         },
         onOpen: (db) async {
-          await db.execute('PRAGMA foreign_keys = ON');
-          await _runGuardedMigrations(db);
+          final localDb = SqlCipherDatabase(db);
+          await localDb.execute('PRAGMA foreign_keys = ON');
+          await _runGuardedMigrations(localDb);
         },
       );
     }
@@ -146,7 +162,7 @@ class LocalDatabaseService extends ChangeNotifier {
     _databaseDoctorId = null;
   }
 
-  Future<void> _createSchema(Database db) async {
+  Future<void> _createSchema(LocalDatabase db) async {
     await db.transaction((txn) async {
       await _createPatientsTable(txn);
       await _createVisitsTable(txn);
@@ -163,7 +179,7 @@ class LocalDatabaseService extends ChangeNotifier {
   /// Runs idempotent migrations in the same style as CruSam: inspect the
   /// existing table shape via PRAGMA table_info, then ALTER TABLE only when a
   /// column is missing. No versioned onUpgrade ladder is used.
-  Future<void> _runGuardedMigrations(Database db) async {
+  Future<void> _runGuardedMigrations(LocalDatabase db) async {
     await db.transaction((txn) async {
       await _createPatientsTable(txn);
       await _createVisitsTable(txn);
@@ -206,7 +222,7 @@ class LocalDatabaseService extends ChangeNotifier {
     });
   }
 
-  Future<void> _createPatientsTable(DatabaseExecutor db) async {
+  Future<void> _createPatientsTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS patients (
         id TEXT PRIMARY KEY,
@@ -231,7 +247,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createVisitsTable(DatabaseExecutor db) async {
+  Future<void> _createVisitsTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS visits (
         id TEXT PRIMARY KEY,
@@ -268,7 +284,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createRevenueEntriesTable(DatabaseExecutor db) async {
+  Future<void> _createRevenueEntriesTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS revenue_entries (
         id TEXT PRIMARY KEY,
@@ -294,7 +310,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createPendingPaymentsTable(DatabaseExecutor db) async {
+  Future<void> _createPendingPaymentsTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS pending_payments (
         id TEXT PRIMARY KEY,
@@ -318,7 +334,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createMedicinesTable(DatabaseExecutor db) async {
+  Future<void> _createMedicinesTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS medicines (
         id TEXT PRIMARY KEY,
@@ -345,7 +361,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createStockTransactionsTable(DatabaseExecutor db) async {
+  Future<void> _createStockTransactionsTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS stock_transactions (
         id TEXT PRIMARY KEY,
@@ -369,7 +385,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createSyncStateTable(DatabaseExecutor db) async {
+  Future<void> _createSyncStateTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS sync_state (
         collectionName TEXT PRIMARY KEY,
@@ -380,7 +396,7 @@ class LocalDatabaseService extends ChangeNotifier {
     ''');
   }
 
-  Future<void> _createAppMetaTable(DatabaseExecutor db) async {
+  Future<void> _createAppMetaTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS app_meta (
         key TEXT PRIMARY KEY,
@@ -392,7 +408,7 @@ class LocalDatabaseService extends ChangeNotifier {
   static const String _cachedDoctorIdKey = 'cachedDoctorId';
 
   Future<String?> _getMeta(String key) async {
-    final db = await database;
+    final db = await localDatabase;
     final rows = await db.query(
       'app_meta',
       columns: ['value'],
@@ -405,11 +421,11 @@ class LocalDatabaseService extends ChangeNotifier {
   }
 
   Future<void> _setMeta(String key, String value) async {
-    final db = await database;
+    final db = await localDatabase;
     await db.insert('app_meta', {
       'key': key,
       'value': value,
-    }, conflictAlgorithm: ConflictAlgorithm.replace);
+    }, conflictAlgorithm: LocalConflictAlgorithm.replace);
   }
 
   /// Ensures the local cache on this device actually belongs to
@@ -442,7 +458,7 @@ class LocalDatabaseService extends ChangeNotifier {
   /// doctor is now signed in. Called on doctor-switch (see above) and on
   /// sign-out.
   Future<void> wipeAllLocalData() async {
-    final db = await database;
+    final db = await localDatabase;
     await db.transaction((txn) async {
       for (final table in const [
         'patients',
@@ -458,7 +474,7 @@ class LocalDatabaseService extends ChangeNotifier {
     });
   }
 
-  Future<void> _createIndexes(DatabaseExecutor db) async {
+  Future<void> _createIndexes(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_patients_doctor
       ON patients (doctorId)
@@ -591,7 +607,7 @@ class LocalDatabaseService extends ChangeNotifier {
   }
 
   Future<void> _ensureColumns(
-    DatabaseExecutor db, {
+    LocalDatabaseExecutor db, {
     required String table,
     required Map<String, String> columns,
   }) async {
@@ -602,7 +618,7 @@ class LocalDatabaseService extends ChangeNotifier {
     }
   }
 
-  Future<Set<String>> _columnNames(DatabaseExecutor db, String table) async {
+  Future<Set<String>> _columnNames(LocalDatabaseExecutor db, String table) async {
     final rows = await db.rawQuery('PRAGMA table_info($table)');
     return rows.map((row) => row['name'] as String).toSet();
   }

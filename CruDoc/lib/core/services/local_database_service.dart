@@ -1,14 +1,19 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:sqflite_common/sqlite_api.dart' as sqflite_common;
+import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
+import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 
 import '../database/local_database.dart';
 import '../database/sqlcipher_local_database.dart';
+import '../database/windows_local_database.dart';
 
 /// Singleton SQLite database service for CruDoc's local-first data layer.
 ///
@@ -30,10 +35,16 @@ class LocalDatabaseService extends ChangeNotifier {
         );
   static const _dbPassphraseKey = 'crudoc_local_db_passphrase';
 
-  Database? _database;
+  sqflite_common.Database? _database;
   String? _databaseDoctorId;
 
-  Future<Database> get database async {
+  /// Set once, the first time a Windows database is opened in this process.
+  /// `sqfliteFfiInit()` just points `sqflite_common_ffi` at its `sqlite3`
+  /// loader — safe to call more than once, but there's no reason to redo it
+  /// on every doctor switch.
+  static bool _windowsFfiInitialized = false;
+
+  Future<sqflite_common.Database> get database async {
     if (kIsWeb) {
       throw UnsupportedError('SQLite is disabled on Web. Repositories read directly from Cloud Firestore on Web.');
     }
@@ -49,14 +60,10 @@ class LocalDatabaseService extends ChangeNotifier {
       _databaseDoctorId = null;
     }
 
-    final databasesPath = await getDatabasesPath();
-    final dbPath = p.join(
-      databasesPath,
-      _databaseFileNameForDoctor(requestedDoctorId),
-    );
-    final passphrase = await _getOrCreatePassphrase();
-
-    final db = await _openDatabaseWithRecovery(dbPath, passphrase);
+    final fileName = _databaseFileNameForDoctor(requestedDoctorId);
+    final db = Platform.isWindows
+        ? await _openWindowsDatabaseWithRecovery(fileName)
+        : await _openSqlCipherDatabaseWithRecovery(fileName);
 
     _database = db;
     _databaseDoctorId = requestedDoctorId;
@@ -65,70 +72,137 @@ class LocalDatabaseService extends ChangeNotifier {
 
   /// [LocalDatabase]-typed access to the same underlying connection as
   /// [database]. This is the entry point repositories and local services
-  /// should use going forward — it carries no `sqflite_sqlcipher` types in
-  /// its signature, so a future Windows backend can be swapped in behind
-  /// [LocalDatabase] without touching those call sites.
+  /// should use — it carries no `sqflite_sqlcipher` or `sqflite_common_ffi`
+  /// types in its signature. Windows gets [WindowsDatabase]; every other
+  /// native platform keeps the existing [SqlCipherDatabase]. Consumers on
+  /// either platform see the same [LocalDatabase] contract.
   ///
   /// `FirestoreSyncService` and `InitialFirestoreMigrationService` continue
-  /// to use [database] directly and are unaffected by this.
-  Future<LocalDatabase> get localDatabase async =>
-      SqlCipherDatabase(await database);
+  /// to use [database] directly and are unaffected by this — both backends
+  /// hand back the same `sqflite_common.Database` type those services
+  /// already import (via `sqflite_sqlcipher`'s re-export of it).
+  Future<LocalDatabase> get localDatabase async {
+    final db = await database;
+    return Platform.isWindows ? WindowsDatabase(db) : SqlCipherDatabase(db);
+  }
 
   String _databaseFileNameForDoctor(String doctorId) {
     final safeDoctorId = doctorId.trim().isEmpty ? 'signed_out' : doctorId;
     return '${_databaseNamePrefix}_$safeDoctorId.db';
   }
 
-  Future<Database> _openDatabaseWithRecovery(String dbPath, String passphrase) async {
+  Future<sqflite_common.Database> _openSqlCipherDatabaseWithRecovery(
+    String fileName,
+  ) async {
+    final databasesPath = await sqlcipher.getDatabasesPath();
+    final dbPath = p.join(databasesPath, fileName);
+    final passphrase = await _getOrCreatePassphrase();
+
+    Future<sqflite_common.Database> open() => sqlcipher.openDatabase(
+          dbPath,
+          password: passphrase,
+          version: _databaseVersion,
+          onConfigure: (db) async {
+            await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
+          },
+          onCreate: (db, version) async {
+            await _createSchema(SqlCipherDatabase(db));
+          },
+          onOpen: (db) async {
+            final localDb = SqlCipherDatabase(db);
+            await localDb.execute('PRAGMA foreign_keys = ON');
+            await _runGuardedMigrations(localDb);
+          },
+        );
+
     try {
-      return await openDatabase(
-        dbPath,
-        password: passphrase,
-        version: _databaseVersion,
-        onConfigure: (db) async {
-          await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
-        },
-        onCreate: (db, version) async {
-          await _createSchema(SqlCipherDatabase(db));
-        },
-        onOpen: (db) async {
-          final localDb = SqlCipherDatabase(db);
-          await localDb.execute('PRAGMA foreign_keys = ON');
-          await _runGuardedMigrations(localDb);
-        },
-      );
-    } on DatabaseException catch (error) {
+      return await open();
+    } on sqflite_common.DatabaseException catch (error) {
       if (!_isRecoverableOpenError(error)) {
         rethrow;
       }
 
       try {
-        await deleteDatabase(dbPath);
+        await sqlcipher.deleteDatabase(dbPath);
       } catch (_) {
         // Ignore cleanup failures and retry once; the next open attempt will
         // surface the real issue if the database is still not recoverable.
       }
 
-      return openDatabase(
-        dbPath,
-        password: passphrase,
-        version: _databaseVersion,
-        onConfigure: (db) async {
-          await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
-        },
-        onCreate: (db, version) async {
-          await _createSchema(SqlCipherDatabase(db));
-        },
-        onOpen: (db) async {
-          final localDb = SqlCipherDatabase(db);
-          await localDb.execute('PRAGMA foreign_keys = ON');
-          await _runGuardedMigrations(localDb);
-        },
-      );
+      return open();
     }
   }
 
-  bool _isRecoverableOpenError(DatabaseException error) {
+  /// Windows counterpart of [_openSqlCipherDatabaseWithRecovery]. Same
+  /// recovery behavior, same schema/migration calls, same
+  /// `PRAGMA foreign_keys = ON` — just opened through `sqflite_common_ffi`
+  /// instead of `sqflite_sqlcipher` (which has no Windows implementation),
+  /// and with no passphrase: the local cache is unencrypted at rest on
+  /// Windows today. See the doc comment on [WindowsDatabase] for why that's
+  /// an intentional gap, not an oversight.
+  Future<sqflite_common.Database> _openWindowsDatabaseWithRecovery(
+    String fileName,
+  ) async {
+    if (!_windowsFfiInitialized) {
+      sqflite_ffi.sqfliteFfiInit();
+      _windowsFfiInitialized = true;
+    }
+
+    final dbPath = await _windowsDatabasePath(fileName);
+
+    Future<sqflite_common.Database> open() =>
+        sqflite_ffi.databaseFactoryFfi.openDatabase(
+          dbPath,
+          options: sqflite_common.OpenDatabaseOptions(
+            version: _databaseVersion,
+            onConfigure: (db) async {
+              await WindowsDatabase(db).execute('PRAGMA foreign_keys = ON');
+            },
+            onCreate: (db, version) async {
+              await _createSchema(WindowsDatabase(db));
+            },
+            onOpen: (db) async {
+              final localDb = WindowsDatabase(db);
+              await localDb.execute('PRAGMA foreign_keys = ON');
+              await _runGuardedMigrations(localDb);
+            },
+          ),
+        );
+
+    try {
+      return await open();
+    } on sqflite_common.DatabaseException catch (error) {
+      if (!_isRecoverableOpenError(error)) {
+        rethrow;
+      }
+
+      try {
+        await sqflite_ffi.databaseFactoryFfi.deleteDatabase(dbPath);
+      } catch (_) {
+        // Ignore cleanup failures and retry once; the next open attempt will
+        // surface the real issue if the database is still not recoverable.
+      }
+
+      return open();
+    }
+  }
+
+  /// `databaseFactoryFfi.getDatabasesPath()` has a "lame implementation" by
+  /// its own package's documentation (it's not meaningful outside
+  /// mobile/desktop plugin sandboxing) — so, unlike the SQLCipher path,
+  /// Windows resolves its database directory via `path_provider`, which
+  /// this project already depends on and already uses for other
+  /// Windows-specific paths (see `windows_update_installer.dart`).
+  Future<String> _windowsDatabasePath(String fileName) async {
+    final supportDir = await getApplicationSupportDirectory();
+    final dbDir = Directory(p.join(supportDir.path, 'databases'));
+    if (!await dbDir.exists()) {
+      await dbDir.create(recursive: true);
+    }
+    return p.join(dbDir.path, fileName);
+  }
+
+  bool _isRecoverableOpenError(sqflite_common.DatabaseException error) {
     final message = error.toString().toLowerCase();
     return message.contains('file is not a database') ||
         message.contains('not a database') ||

@@ -1,12 +1,10 @@
 /// Minimal database abstraction for CruDoc's local-first data layer.
 ///
 /// Repositories and per-feature local services depend on [LocalDatabase]
-/// instead of importing `sqflite_sqlcipher` directly. Today the only
-/// implementation is `SqlCipherDatabase` (see `sqlcipher_local_database.dart`
-/// in this directory), which adapts the existing `sqflite_sqlcipher`
-/// package. A future `WindowsDatabase` implementation can plug in behind
-/// this same interface without requiring repositories or the sync services
-/// to change:
+/// instead of importing `sqflite_sqlcipher` or `sqflite_common_ffi`
+/// directly. Two implementations plug in behind this interface, selected by
+/// `LocalDatabaseService` at open time — repositories and the sync services
+/// never branch on platform themselves:
 ///
 /// ```text
 /// Repositories / Services
@@ -14,10 +12,14 @@
 /// LocalDatabase abstraction
 ///         ↓
 ///   ┌─────────────┬─────────────────┐
-///   SqlCipherDatabase          WindowsDatabase (future)
+///   SqlCipherDatabase          WindowsDatabase
 ///   ↓                          ↓
-///   sqflite_sqlcipher          Windows-capable SQLite backend (future)
+///   sqflite_sqlcipher          sqflite_common_ffi
+///   (mobile / macOS)           (Windows)
 /// ```
+///
+/// See `sqlcipher_local_database.dart` and `windows_local_database.dart` in
+/// this directory for the two adapters.
 ///
 /// This interface intentionally only covers the operations CruDoc actually
 /// uses today (query / insert / update / delete / execute / rawQuery /

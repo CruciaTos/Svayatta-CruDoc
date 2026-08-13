@@ -26,7 +26,7 @@ class FirestoreSyncService {
 
   final LocalDatabaseService _databaseService = LocalDatabaseService.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+  StreamSubscription<dynamic>? _connectivitySubscription;
 
   bool _isSyncing = false;
   bool _isStarted = false;
@@ -63,13 +63,26 @@ class FirestoreSyncService {
     if (_isStarted) return;
     _isStarted = true;
 
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
-      results,
-    ) {
-      if (results.any((result) => result != ConnectivityResult.none)) {
-        unawaited(synchronize());
-      }
-    });
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      (dynamic result) {
+        try {
+          if (result is ConnectivityResult) {
+            if (result != ConnectivityResult.none) unawaited(synchronize());
+            return;
+          }
+          if (result is List<ConnectivityResult>) {
+            if (result.any((r) => r != ConnectivityResult.none)) {
+              unawaited(synchronize());
+            }
+            return;
+          }
+          // Unknown payload shape — conservatively attempt synchronization.
+          unawaited(synchronize());
+        } catch (_) {
+          // Swallow listener errors to avoid crashing the subscription.
+        }
+      },
+    );
 
     final doctorId = _currentDoctorId;
     if (doctorId != null) {
@@ -99,8 +112,19 @@ class FirestoreSyncService {
           .where('doctorId', isEqualTo: doctorId)
           .snapshots()
           .listen((snapshot) async {
-        for (final doc in snapshot.docs) {
-          await _upsertDownloadedRow(collection, doc.id, doc.data(), doctorId);
+        for (final change in snapshot.docChanges) {
+          try {
+            final doc = change.doc;
+            if (change.type == DocumentChangeType.removed) {
+              await _applyRemoteDeletion(collection, doc.id, doctorId);
+            } else {
+              final data = doc.data();
+              if (data == null) continue;
+              await _upsertDownloadedRow(collection, doc.id, data, doctorId);
+            }
+          } catch (_) {
+            // Swallow individual doc handling errors so the listener continues.
+          }
         }
       });
       _liveSubscriptions.add(sub);
@@ -112,14 +136,30 @@ class FirestoreSyncService {
           .where('doctorId', isEqualTo: doctorId)
           .snapshots()
           .listen((snapshot) async {
-        for (final doc in snapshot.docs) {
-          await _upsertDownloadedRow(
-            firestoreCollection,
-            doc.id,
-            doc.data(),
-            doctorId,
-            sqliteTable: 'visits',
-          );
+        for (final change in snapshot.docChanges) {
+          try {
+            final doc = change.doc;
+            if (change.type == DocumentChangeType.removed) {
+              await _applyRemoteDeletion(
+                firestoreCollection,
+                doc.id,
+                doctorId,
+                sqliteTable: 'visits',
+              );
+            } else {
+              final data = doc.data();
+              if (data == null) continue;
+              await _upsertDownloadedRow(
+                firestoreCollection,
+                doc.id,
+                data,
+                doctorId,
+                sqliteTable: 'visits',
+              );
+            }
+          } catch (_) {
+            // Swallow per-doc errors so listener stays alive.
+          }
         }
       });
       _liveSubscriptions.add(sub);
@@ -172,8 +212,22 @@ class FirestoreSyncService {
       );
       if (rows.isEmpty) continue;
 
-      final batch = _firestore.batch();
+      // Firestore limits batches to 500 operations; use a safe chunk size
+      // so very large pending queues still make progress instead of failing
+      // permanently.
+      const int maxBatchSize = 400;
       final uploadedIds = <String>[];
+      var currentBatch = _firestore.batch();
+      var batchCount = 0;
+
+      Future<void> commitCurrentBatch() async {
+        if (batchCount == 0) return;
+        await currentBatch.commit();
+        await _markRowsSynced(collection, uploadedIds.toList());
+        uploadedIds.clear();
+        currentBatch = _firestore.batch();
+        batchCount = 0;
+      }
 
       for (final row in rows) {
         final id = row['id'] as String;
@@ -181,19 +235,23 @@ class FirestoreSyncService {
         final pendingDelete = row['pendingDelete'] == 1;
 
         if (pendingDelete) {
-          batch.delete(ref);
+          currentBatch.delete(ref);
         } else {
-          batch.set(
+          currentBatch.set(
             ref,
             _firestoreDataFor(collection, row, doctorId),
             SetOptions(merge: true),
           );
         }
         uploadedIds.add(id);
+        batchCount++;
+
+        if (batchCount >= maxBatchSize) {
+          await commitCurrentBatch();
+        }
       }
 
-      await batch.commit();
-      await _markRowsSynced(collection, uploadedIds);
+      await commitCurrentBatch();
     }
 
     // ── visits table → appointments / visitations Firestore collections ──────
@@ -215,8 +273,23 @@ class FirestoreSyncService {
     );
     if (rows.isEmpty) return;
 
-    final batch = _firestore.batch();
+    // Chunk visit uploads too. Because deletes need to touch both
+    // collections, each operation may count as 2 writes but Firestore's batch
+    // limit is per operation, so keep chunk sizes conservative.
+    const int maxBatchSize = 400;
     final uploadedIds = <String>[];
+    var currentBatch = _firestore.batch();
+    var batchCount = 0;
+
+
+    Future<void> commitCurrentBatch() async {
+      if (batchCount == 0) return;
+      await currentBatch.commit();
+      await _markRowsSynced('visits', uploadedIds.toList());
+      uploadedIds.clear();
+      currentBatch = _firestore.batch();
+      batchCount = 0;
+    }
 
     for (final row in rows) {
       final id = row['id'] as String;
@@ -226,23 +299,27 @@ class FirestoreSyncService {
       final pendingDelete = row['pendingDelete'] == 1;
 
       if (pendingDelete) {
-        // Delete from both collections to handle type-changes that occurred
-        // before this sync run — keeps orphaned documents from building up.
-        batch.delete(_firestore.collection('appointments').doc(id));
-        batch.delete(_firestore.collection('visitations').doc(id));
+        currentBatch.delete(_firestore.collection('appointments').doc(id));
+        currentBatch.delete(_firestore.collection('visitations').doc(id));
+        // Count as two ops conservatively
+        batchCount += 2;
       } else {
         final ref = _firestore.collection(targetCollection).doc(id);
-        batch.set(
+        currentBatch.set(
           ref,
           _firestoreDataFor(targetCollection, row, doctorId),
           SetOptions(merge: true),
         );
+        batchCount++;
       }
       uploadedIds.add(id);
+
+      if (batchCount >= maxBatchSize) {
+        await commitCurrentBatch();
+      }
     }
 
-    await batch.commit();
-    await _markRowsSynced('visits', uploadedIds);
+    await commitCurrentBatch();
   }
 
   Future<void> _downloadChangedRows(String doctorId) async {
@@ -473,11 +550,23 @@ class FirestoreSyncService {
   }) async {
     final db = await _databaseService.database;
     final table = sqliteTable ?? firestoreCollection;
-    await db.insert(
+    // Preserve any locally-pending edits: if a local row exists and has
+    // `syncStatus = 'pending'`, do not overwrite it with the remote copy.
+    final existing = await db.query(
       table,
-      _sqliteRowFor(firestoreCollection, id, data, doctorId),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      where: 'id = ?',
+      whereArgs: [id],
+      limit: 1,
     );
+    if (existing.isNotEmpty && (existing.first['syncStatus'] == 'pending')) {
+      // Keep local pending changes intact and do not change sync markers.
+    } else {
+      await db.insert(
+        table,
+        _sqliteRowFor(firestoreCollection, id, data, doctorId),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
 
     if (table == 'patients') {
       unawaited(PatientLocalService.instance.notifyPatientsChanged());
@@ -723,5 +812,93 @@ class FirestoreSyncService {
     if (value is DateTime) return value.millisecondsSinceEpoch;
     if (value is num) return value.toInt();
     return fallback ?? 0;
+  }
+
+  /// Apply a remote deletion (Firestore remove) into the local SQLite cache.
+  ///
+  /// Tries to mark rows soft-deleted (set `isDeleted=1` or `isArchived=1`) and
+  /// mark them `syncStatus='synced'`. If the table has no suitable soft-delete
+  /// column, falls back to deleting the local row. Notifies local services
+  /// after changes so UI updates.
+  Future<void> _applyRemoteDeletion(
+    String firestoreCollection,
+    String id,
+    String doctorId, {
+    String? sqliteTable,
+  }) async {
+    final db = await _databaseService.database;
+    final table = sqliteTable ?? firestoreCollection;
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Try marking as soft-deleted via commonly used columns.
+    // Order: isDeleted, isArchived. If neither affects a row, delete it.
+    final updatedIsDeleted = await db.update(
+      table,
+      {
+        'isDeleted': 1,
+        'isActive': 0,
+        'syncStatus': 'synced',
+        'pendingDelete': 0,
+        'lastSyncedAt': now,
+      },
+      where: 'id = ? AND doctorId = ?',
+      whereArgs: [id, doctorId],
+    );
+    if (updatedIsDeleted > 0) {
+      _notifyTableChanged(table);
+      return;
+    }
+
+    final updatedIsArchived = await db.update(
+      table,
+      {
+        'isArchived': 1,
+        'isActive': 0,
+        'syncStatus': 'synced',
+        'pendingDelete': 0,
+        'lastSyncedAt': now,
+      },
+      where: 'id = ? AND doctorId = ?',
+      whereArgs: [id, doctorId],
+    );
+    if (updatedIsArchived > 0) {
+      _notifyTableChanged(table);
+      return;
+    }
+
+    // No soft-delete column matched; remove the row entirely.
+    final deleted = await db.delete(
+      table,
+      where: 'id = ? AND doctorId = ?',
+      whereArgs: [id, doctorId],
+    );
+    if (deleted > 0) {
+      _notifyTableChanged(table);
+    }
+  }
+
+  void _notifyTableChanged(String table) {
+    switch (table) {
+      case 'patients':
+        unawaited(PatientLocalService.instance.notifyPatientsChanged());
+        break;
+      case 'visits':
+        unawaited(VisitLocalService.instance.notifyVisitsChanged());
+        break;
+      case 'medicines':
+        unawaited(InventoryLocalService.instance.notifyMedicinesChanged());
+        break;
+      case 'stock_transactions':
+        unawaited(InventoryLocalService.instance.notifyTransactionsChanged());
+        break;
+      case 'revenue_entries':
+        unawaited(RevenueLocalService.instance.notifyRevenueEntriesChanged());
+        break;
+      case 'pending_payments':
+        unawaited(RevenueLocalService.instance.notifyPendingPaymentsChanged());
+        break;
+      default:
+        break;
+    }
   }
 }

@@ -81,6 +81,19 @@ class InitialFirestoreMigrationService {
       if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
 
       final db = await _databaseService.database;
+      // If a local row exists and is locally modified (pending), preserve
+      // the local change instead of overwriting it with the cloud copy.
+      final existing = await db.query(
+        sqliteTable,
+        where: 'id = ?',
+        whereArgs: [doc.id],
+        limit: 1,
+      );
+      if (existing.isNotEmpty && (existing.first['syncStatus'] == 'pending')) {
+        // Skip replacing a locally-pending row to avoid losing unsynced edits.
+        continue;
+      }
+
       await db.insert(
         sqliteTable,
         row,

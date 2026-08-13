@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -10,7 +11,7 @@ import 'package:doctor_management_app/features/patients/data/services/patient_lo
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:doctor_management_app/core/database/local_database.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
 ///
@@ -97,6 +98,9 @@ class FirestoreSyncService {
     _connectivitySubscription = null;
     _stopLiveSubscriptions();
     _isStarted = false;
+    // Phase 19: reset the sync-in-progress flag so the next doctor's
+    // first synchronize() call is never silently dropped.
+    _isSyncing = false;
   }
 
   void _startLiveSubscriptions(String doctorId) {
@@ -122,8 +126,9 @@ class FirestoreSyncService {
               if (data == null) continue;
               await _upsertDownloadedRow(collection, doc.id, data, doctorId);
             }
-          } catch (_) {
+          } catch (e, st) {
             // Swallow individual doc handling errors so the listener continues.
+            debugPrint('Live sync doc update failed in $collection: $e\n$st');
           }
         }
       });
@@ -157,8 +162,9 @@ class FirestoreSyncService {
                 sqliteTable: 'visits',
               );
             }
-          } catch (_) {
+          } catch (e, st) {
             // Swallow per-doc errors so listener stays alive.
+            debugPrint('Live sync doc update failed in visits: $e\n$st');
           }
         }
       });
@@ -192,16 +198,17 @@ class FirestoreSyncService {
       _startLiveSubscriptions(doctorId);
       await _uploadPendingRows(doctorId);
       await _downloadChangedRows(doctorId);
-    } catch (_) {
+    } catch (e, st) {
       // Leave pending rows untouched; the next startup/connectivity/write trigger
       // retries the same simple sync pass.
+      debugPrint('Sync pass failed: $e\n$st');
     } finally {
       _isSyncing = false;
     }
   }
 
   Future<void> _uploadPendingRows(String doctorId) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
 
     // ── non-visit collections (SQLite table == Firestore collection) ────────
     for (final collection in _collections) {
@@ -231,6 +238,13 @@ class FirestoreSyncService {
 
       for (final row in rows) {
         final id = row['id'] as String;
+        // Phase 18/19: skip rows that belong to a different doctor.
+        // The per-doctor DB file makes this an edge case, but guard
+        // defensively so a stale row can never be uploaded under the
+        // wrong account.
+        final rowDoctorId = row['doctorId'] as String?;
+        if (rowDoctorId != null && rowDoctorId != doctorId) continue;
+
         final ref = _firestore.collection(collection).doc(id);
         final pendingDelete = row['pendingDelete'] == 1;
 
@@ -265,7 +279,7 @@ class FirestoreSyncService {
   ///
   /// Soft-deletes are broadcast to **both** collections so a document is
   /// cleaned up even if its type changed between creation and deletion.
-  Future<void> _uploadPendingVisits(Database db, String doctorId) async {
+  Future<void> _uploadPendingVisits(LocalDatabaseExecutor db, String doctorId) async {
     final rows = await db.query(
       'visits',
       where: 'syncStatus = ?',
@@ -293,6 +307,10 @@ class FirestoreSyncService {
 
     for (final row in rows) {
       final id = row['id'] as String;
+      // Phase 18/19: skip rows belonging to a different doctor.
+      final rowDoctorId = row['doctorId'] as String?;
+      if (rowDoctorId != null && rowDoctorId != doctorId) continue;
+
       final visitType = row['visitType'] as String? ?? 'clinic';
       final targetCollection =
           visitType == 'home' ? 'visitations' : 'appointments';
@@ -548,25 +566,40 @@ class FirestoreSyncService {
     String doctorId, {
     String? sqliteTable,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final table = sqliteTable ?? firestoreCollection;
     // Preserve any locally-pending edits: if a local row exists and has
     // `syncStatus = 'pending'`, do not overwrite it with the remote copy.
+    // Phase 16: additionally, if the local row is already 'synced' but
+    // locally newer than the remote document (e.g. a stale batch download
+    // arriving after a live-listener write), keep the newer local copy.
     final existing = await db.query(
       table,
       where: 'id = ?',
       whereArgs: [id],
       limit: 1,
     );
-    if (existing.isNotEmpty && (existing.first['syncStatus'] == 'pending')) {
-      // Keep local pending changes intact and do not change sync markers.
-    } else {
-      await db.insert(
-        table,
-        _sqliteRowFor(firestoreCollection, id, data, doctorId),
-        conflictAlgorithm: ConflictAlgorithm.replace,
-      );
+    if (existing.isNotEmpty) {
+      final local = existing.first;
+      if (local['syncStatus'] == 'pending') {
+        // Pending local changes win — do nothing.
+        return;
+      }
+      // For synced rows, only overwrite if the remote data is at least as
+      // recent as the local copy.  This prevents an older batch download from
+      // clobbering a fresher live-listener write.
+      final localUpdatedAt = (local['updatedAt'] as num?)?.toInt() ?? 0;
+      final remoteUpdatedAt = _timestampToMillis(data['updatedAt']);
+      if (remoteUpdatedAt > 0 && localUpdatedAt > remoteUpdatedAt) {
+        // Local is newer — keep it.
+        return;
+      }
     }
+    await db.insert(
+      table,
+      _sqliteRowFor(firestoreCollection, id, data, doctorId),
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    );
 
     if (table == 'patients') {
       unawaited(PatientLocalService.instance.notifyPatientsChanged());
@@ -755,7 +788,7 @@ class FirestoreSyncService {
   Future<void> _markRowsSynced(String collection, List<String> ids) async {
     if (ids.isEmpty) return;
 
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final now = DateTime.now().millisecondsSinceEpoch;
     for (final id in ids) {
       await db.update(
@@ -768,7 +801,7 @@ class FirestoreSyncService {
   }
 
   Future<int> _lastSyncTime(String collection) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'sync_state',
       columns: ['lastSyncTime'],
@@ -781,7 +814,7 @@ class FirestoreSyncService {
   }
 
   Future<void> _setLastSyncTime(String collection, int millis) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final updated = await db.update(
       'sync_state',
       {
@@ -826,9 +859,37 @@ class FirestoreSyncService {
     String doctorId, {
     String? sqliteTable,
   }) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final table = sqliteTable ?? firestoreCollection;
     final now = DateTime.now().millisecondsSinceEpoch;
+
+    // Phase 17: if the local row has a pending local delete already
+    // queued, the upload loop will push it to Firestore on the next
+    // sync pass.  Do not clear syncStatus or pendingDelete here — just
+    // let the upload complete normally.  The row will transition to
+    // 'synced' once the upload succeeds.
+    final pendingRows = await db.query(
+      table,
+      columns: ['syncStatus', 'pendingDelete'],
+      where: 'id = ? AND doctorId = ?',
+      whereArgs: [id, doctorId],
+      limit: 1,
+    );
+    if (pendingRows.isNotEmpty &&
+        pendingRows.first['syncStatus'] == 'pending' &&
+        pendingRows.first['pendingDelete'] == 1) {
+      // Local delete is already pending upload — the remote removal is
+      // the expected echo.  Mark it synced so the upload loop won't
+      // re-upload the deleted document.
+      await db.update(
+        table,
+        {'syncStatus': 'synced', 'pendingDelete': 0, 'lastSyncedAt': now},
+        where: 'id = ? AND doctorId = ?',
+        whereArgs: [id, doctorId],
+      );
+      _notifyTableChanged(table);
+      return;
+    }
 
     // Try marking as soft-deleted via commonly used columns.
     // Order: isDeleted, isArchived. If neither affects a row, delete it.

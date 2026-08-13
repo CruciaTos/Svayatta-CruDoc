@@ -1,9 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:sqflite_sqlcipher/sqflite.dart';
+import 'package:doctor_management_app/core/database/local_database.dart';
 
 /// One-time Firestore-to-SQLite bootstrap for existing cloud data.
 ///
@@ -50,9 +51,10 @@ class InitialFirestoreMigrationService {
       if (await _hasCompletedInitialMigration(collection)) continue;
       try {
         await _migrateCollection(collection, doctorId);
-      } catch (_) {
+      } catch (e, st) {
         // Keep the guard unset so the next launch can retry. Startup should not
         // be blocked just because Firestore is temporarily unavailable.
+        debugPrint('Initial migration failed for $collection: $e\n$st');
       }
     }
   }
@@ -80,7 +82,7 @@ class InitialFirestoreMigrationService {
       final updatedAt = (row['updatedAt'] as num?)?.toInt() ?? 0;
       if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
 
-      final db = await _databaseService.database;
+      final db = await _databaseService.localDatabase;
       // If a local row exists and is locally modified (pending), preserve
       // the local change instead of overwriting it with the cloud copy.
       final existing = await db.query(
@@ -97,7 +99,7 @@ class InitialFirestoreMigrationService {
       await db.insert(
         sqliteTable,
         row,
-        conflictAlgorithm: ConflictAlgorithm.replace,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
       );
     }
 
@@ -105,7 +107,7 @@ class InitialFirestoreMigrationService {
   }
 
   Future<bool> _hasCompletedInitialMigration(String collection) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'sync_state',
       columns: ['hasCompletedInitialMigration'],
@@ -121,7 +123,7 @@ class InitialFirestoreMigrationService {
     String collection,
     int lastSyncTime,
   ) async {
-    final db = await _databaseService.database;
+    final db = await _databaseService.localDatabase;
     final now = DateTime.now().millisecondsSinceEpoch;
     final updated = await db.update(
       'sync_state',

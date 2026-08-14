@@ -45,16 +45,25 @@ class RevenueLocalService {
     int? lastSyncedAt,
   }) async {
     final db = await _databaseService.localDatabase;
-    await db.insert(
-      'revenue_entries',
-      _revenueEntryToRow(
-        entry,
-        syncStatus: syncStatus,
-        pendingDelete: pendingDelete,
-        lastSyncedAt: lastSyncedAt,
-      ),
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    final row = _revenueEntryToRow(
+      entry,
+      syncStatus: syncStatus,
+      pendingDelete: pendingDelete,
+      lastSyncedAt: lastSyncedAt,
     );
+    final count = await db.update(
+      'revenue_entries',
+      row,
+      where: 'id = ?',
+      whereArgs: [entry.id],
+    );
+    if (count == 0) {
+      await db.insert(
+        'revenue_entries',
+        row,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
+      );
+    }
     await _emitRevenueEntries();
     return entry.id;
   }
@@ -143,16 +152,25 @@ class RevenueLocalService {
     int? lastSyncedAt,
   }) async {
     final db = await _databaseService.localDatabase;
-    await db.insert(
-      'pending_payments',
-      _pendingPaymentToRow(
-        payment,
-        syncStatus: syncStatus,
-        pendingDelete: pendingDelete,
-        lastSyncedAt: lastSyncedAt,
-      ),
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    final row = _pendingPaymentToRow(
+      payment,
+      syncStatus: syncStatus,
+      pendingDelete: pendingDelete,
+      lastSyncedAt: lastSyncedAt,
     );
+    final count = await db.update(
+      'pending_payments',
+      row,
+      where: 'id = ?',
+      whereArgs: [payment.id],
+    );
+    if (count == 0) {
+      await db.insert(
+        'pending_payments',
+        row,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
+      );
+    }
     await _emitPendingPayments();
     return payment.id;
   }

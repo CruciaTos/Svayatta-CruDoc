@@ -319,13 +319,37 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
               'Schedule Session',
               style: AppColors.sectionHeading.copyWith(fontSize: 20),
             ),
-            const SizedBox(height: 6),
-            Text(
-              widget.patient.fullName,
-              style: AppColors.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    widget.patient.fullName,
+                    style: AppColors.bodyMedium.copyWith(
+                      color: AppColors.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                if (widget.patient.email.isNotEmpty) ...[
+                  const Icon(Icons.email_outlined, size: 14, color: AppColors.chartBarLight),
+                  const SizedBox(width: 4),
+                  Text(
+                    widget.patient.email,
+                    style: AppColors.bodySmall.copyWith(
+                      color: AppColors.chartBarLight,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ] else ...[
+                  Text(
+                    'No email on profile',
+                    style: AppColors.bodySmall.copyWith(
+                      color: AppColors.textSecondary,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ],
+              ],
             ),
             const SizedBox(height: 16),
             _buildVisitTypeToggle(),

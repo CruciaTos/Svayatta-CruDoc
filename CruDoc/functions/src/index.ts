@@ -12,4 +12,4 @@ setGlobalOptions({
 
 export * from "./super-admin";
 export * from "./appointments";
-export * from "./email-notifications";
+

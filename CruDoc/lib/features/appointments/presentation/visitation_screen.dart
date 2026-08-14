@@ -1313,53 +1313,56 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
               Container(
                 margin: const EdgeInsets.only(top: 6),
                 width: double.infinity,
-                decoration: BoxDecoration(
+                child: Material(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: AppColors.chartBarDim.withValues(alpha: 0.22),
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: AppColors.chartBarDim.withValues(alpha: 0.22),
+                    ),
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (var i = 0;
-                        i < visiblePatientMatches.length;
-                        i++) ...[
-                      ListTile(
-                        dense: true,
-                        title: Text(
-                          visiblePatientMatches[i].fullName,
-                          style: AppColors.bodyMedium.copyWith(
-                            fontWeight: FontWeight.w600,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (var i = 0;
+                          i < visiblePatientMatches.length;
+                          i++) ...[
+                        ListTile(
+                          dense: true,
+                          title: Text(
+                            visiblePatientMatches[i].fullName,
+                            style: AppColors.bodyMedium.copyWith(
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
+                          subtitle: Text(
+                            visiblePatientMatches[i].phone,
+                            style: AppColors.bodySmall,
+                          ),
+                          onTap: () =>
+                              _selectPatient(visiblePatientMatches[i]),
                         ),
-                        subtitle: Text(
-                          visiblePatientMatches[i].phone,
-                          style: AppColors.bodySmall,
-                        ),
-                        onTap: () =>
-                            _selectPatient(visiblePatientMatches[i]),
-                      ),
-                      if (i != visiblePatientMatches.length - 1)
-                        Divider(
-                          height: 1,
-                          color:
-                              AppColors.textSecondary.withValues(alpha: 0.12),
+                        if (i != visiblePatientMatches.length - 1)
+                          Divider(
+                            height: 1,
+                            color:
+                                AppColors.textSecondary.withValues(alpha: 0.12),
+                          ),
+                      ],
+                      if (_patientMatches.length >
+                          visiblePatientMatches.length)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                          child: Text(
+                            'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
+                            style: AppColors.bodySmall.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
                         ),
                     ],
-                    if (_patientMatches.length >
-                        visiblePatientMatches.length)
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-                        child: Text(
-                          'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
-                          style: AppColors.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                        ),
-                      ),
-                  ],
+                  ),
                 ),
               )
             else if (_selectedPatient == null &&

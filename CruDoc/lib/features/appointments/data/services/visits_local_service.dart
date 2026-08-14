@@ -66,16 +66,25 @@ class VisitLocalService {
     int? lastSyncedAt,
   }) async {
     final db = await _databaseService.localDatabase;
-    await db.insert(
-      'visits',
-      _toRow(
-        visit,
-        syncStatus: syncStatus,
-        pendingDelete: pendingDelete,
-        lastSyncedAt: lastSyncedAt,
-      ),
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    final row = _toRow(
+      visit,
+      syncStatus: syncStatus,
+      pendingDelete: pendingDelete,
+      lastSyncedAt: lastSyncedAt,
     );
+    final count = await db.update(
+      'visits',
+      row,
+      where: 'id = ?',
+      whereArgs: [visit.id],
+    );
+    if (count == 0) {
+      await db.insert(
+        'visits',
+        row,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
+      );
+    }
     await _emitAll();
     return visit.id;
   }

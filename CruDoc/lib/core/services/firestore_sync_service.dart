@@ -560,6 +560,66 @@ class FirestoreSyncService {
     return rawDiagnosis.toString();
   }
 
+  Future<void> _ensurePatientExists(String patientId, String doctorId) async {
+    if (patientId.trim().isEmpty) return;
+    final db = await _databaseService.localDatabase;
+    final existing = await db.query(
+      'patients',
+      columns: ['id'],
+      where: 'id = ?',
+      whereArgs: [patientId],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) return;
+
+    try {
+      final doc = await _firestore.collection('patients').doc(patientId).get();
+      if (doc.exists && doc.data() != null) {
+        final patientRow = _sqliteRowFor('patients', doc.id, doc.data()!, doctorId);
+        await db.insert(
+          'patients',
+          patientRow,
+          conflictAlgorithm: LocalConflictAlgorithm.replace,
+        );
+        unawaited(PatientLocalService.instance.notifyPatientsChanged());
+        return;
+      }
+    } catch (e) {
+      debugPrint('[FirestoreSync] Could not fetch missing parent patient $patientId from Firestore: $e');
+    }
+
+    // Fallback: If patient document does not exist in Firestore, create a minimal stub
+    // to satisfy the SQLite foreign key constraint and prevent synchronization crashes.
+    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      await db.insert(
+        'patients',
+        {
+          'id': patientId,
+          'doctorId': doctorId,
+          'firstName': 'Patient',
+          'lastName': '',
+          'phone': '',
+          'email': '',
+          'gender': '',
+          'dateOfBirth': now,
+          'diagnosis': '[]',
+          'notes': '',
+          'packageBalance': 0.0,
+          'isArchived': 0,
+          'isActive': 1,
+          'createdAt': now,
+          'updatedAt': now,
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        },
+        conflictAlgorithm: LocalConflictAlgorithm.ignore,
+      );
+      unawaited(PatientLocalService.instance.notifyPatientsChanged());
+    } catch (_) {}
+  }
+
   Future<void> _upsertDownloadedRow(
     String firestoreCollection,
     String id,
@@ -596,11 +656,30 @@ class FirestoreSyncService {
         return;
       }
     }
-    await db.insert(
-      table,
-      _sqliteRowFor(firestoreCollection, id, data, doctorId),
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
-    );
+    final row = _sqliteRowFor(firestoreCollection, id, data, doctorId);
+
+    // Foreign key safety: ensure parent patient exists locally before writing to visits
+    if (table == 'visits') {
+      final patientId = row['patientId'] as String?;
+      if (patientId != null && patientId.isNotEmpty) {
+        await _ensurePatientExists(patientId, doctorId);
+      }
+    }
+
+    if (existing.isNotEmpty) {
+      await db.update(
+        table,
+        row,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    } else {
+      await db.insert(
+        table,
+        row,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
+      );
+    }
 
     if (table == 'patients') {
       unawaited(PatientLocalService.instance.notifyPatientsChanged());

@@ -231,7 +231,10 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                     const SizedBox(height: 20),
                     const _SectionLabel(text: 'CONTACT'),
                     const SizedBox(height: 10),
-                    _ContactCard(phone: patient.phone),
+                    _ContactCard(
+                      phone: patient.phone,
+                      email: patient.email,
+                    ),
                     const SizedBox(height: 20),
                     const _SectionLabel(text: 'SESSION HISTORY'),
                     const SizedBox(height: 10),
@@ -748,34 +751,74 @@ class _SectionLabel extends StatelessWidget {
 // ---------- Contact Card ----------
 class _ContactCard extends StatelessWidget {
   final String phone;
+  final String email;
 
-  const _ContactCard({required this.phone});
+  const _ContactCard({
+    required this.phone,
+    required this.email,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _surfaceCardDecoration(),
-      child: Row(
+      child: Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.chartBarLight.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.call_outlined,
-              color: AppColors.chartBarLight,
-              size: 18,
-            ),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.chartBarLight.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.call_outlined,
+                  color: AppColors.chartBarLight,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  phone.isNotEmpty ? phone : 'No phone number',
+                  style: AppColors.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              phone.isNotEmpty ? phone : 'No phone number',
-              style: AppColors.bodyMedium.copyWith(fontWeight: FontWeight.w600),
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppColors.chartBarLight.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.email_outlined,
+                  color: AppColors.chartBarLight,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  email.isNotEmpty ? email : 'No email registered (tap Edit to add)',
+                  style: AppColors.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: email.isNotEmpty
+                        ? AppColors.textPrimary
+                        : AppColors.textSecondary,
+                    fontStyle: email.isNotEmpty
+                        ? FontStyle.normal
+                        : FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

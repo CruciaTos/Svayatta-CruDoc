@@ -63,16 +63,25 @@ class InventoryLocalService {
     int? lastSyncedAt,
   }) async {
     final db = await _databaseService.localDatabase;
-    await db.insert(
-      'medicines',
-      _medicineToRow(
-        medicine,
-        syncStatus: syncStatus,
-        pendingDelete: pendingDelete,
-        lastSyncedAt: lastSyncedAt,
-      ),
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    final row = _medicineToRow(
+      medicine,
+      syncStatus: syncStatus,
+      pendingDelete: pendingDelete,
+      lastSyncedAt: lastSyncedAt,
     );
+    final count = await db.update(
+      'medicines',
+      row,
+      where: 'id = ?',
+      whereArgs: [medicine.id],
+    );
+    if (count == 0) {
+      await db.insert(
+        'medicines',
+        row,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
+      );
+    }
     await _emitMedicines();
     return medicine.id;
   }

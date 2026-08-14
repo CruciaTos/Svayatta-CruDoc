@@ -244,6 +244,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createPendingPaymentsTable(txn);
       await _createMedicinesTable(txn);
       await _createStockTransactionsTable(txn);
+      await _createEmailLogTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
       await _createIndexes(txn);
@@ -261,6 +262,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createPendingPaymentsTable(txn);
       await _createMedicinesTable(txn);
       await _createStockTransactionsTable(txn);
+      await _createEmailLogTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
 
@@ -285,6 +287,11 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'stock_transactions',
         columns: _stockTransactionsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'email_log',
+        columns: _emailLogColumns,
       );
       await _ensureColumns(
         txn,
@@ -542,6 +549,7 @@ class LocalDatabaseService extends ChangeNotifier {
         'pending_payments',
         'medicines',
         'stock_transactions',
+        'email_log',
         'sync_state',
       ]) {
         await txn.delete(table);
@@ -678,6 +686,23 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_stock_transactions_updated_at
       ON stock_transactions (updatedAt)
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_email_log_doctor
+      ON email_log (doctorId)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_email_log_doc_status_attempt
+      ON email_log (doctorId, status, attemptedAt DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_email_log_gmail_msg_id
+      ON email_log (gmailMessageId)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_email_log_visit_id
+      ON email_log (visitId)
     ''');
   }
 
@@ -832,5 +857,46 @@ class LocalDatabaseService extends ChangeNotifier {
     'hasCompletedInitialMigration':
         'hasCompletedInitialMigration INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+  };
+
+  Future<void> _createEmailLogTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS email_log (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT,
+        visitId TEXT,
+        recipientEmail TEXT NOT NULL DEFAULT '',
+        recipientName TEXT,
+        subject TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'pending'
+          CHECK (status IN ('pending', 'sent', 'failed')),
+        gmailMessageId TEXT,
+        gmailThreadId TEXT,
+        failureReason TEXT,
+        senderEmail TEXT NOT NULL DEFAULT '',
+        attemptedAt INTEGER NOT NULL,
+        sentAt INTEGER,
+        createdAt INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  static const Map<String, String> _emailLogColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': 'patientId TEXT',
+    'visitId': 'visitId TEXT',
+    'recipientEmail': "recipientEmail TEXT NOT NULL DEFAULT ''",
+    'recipientName': 'recipientName TEXT',
+    'subject': "subject TEXT NOT NULL DEFAULT ''",
+    'status': "status TEXT NOT NULL DEFAULT 'pending'",
+    'gmailMessageId': 'gmailMessageId TEXT',
+    'gmailThreadId': 'gmailThreadId TEXT',
+    'failureReason': 'failureReason TEXT',
+    'senderEmail': "senderEmail TEXT NOT NULL DEFAULT ''",
+    'attemptedAt': 'attemptedAt INTEGER NOT NULL DEFAULT 0',
+    'sentAt': 'sentAt INTEGER',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
   };
 }

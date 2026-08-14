@@ -46,16 +46,25 @@ class PatientLocalService {
     int? lastSyncedAt,
   }) async {
     final db = await _databaseService.localDatabase;
-    await db.insert(
-      'patients',
-      _toRow(
-        patient,
-        syncStatus: syncStatus,
-        pendingDelete: pendingDelete,
-        lastSyncedAt: lastSyncedAt,
-      ),
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    final row = _toRow(
+      patient,
+      syncStatus: syncStatus,
+      pendingDelete: pendingDelete,
+      lastSyncedAt: lastSyncedAt,
     );
+    final count = await db.update(
+      'patients',
+      row,
+      where: 'id = ?',
+      whereArgs: [patient.id],
+    );
+    if (count == 0) {
+      await db.insert(
+        'patients',
+        row,
+        conflictAlgorithm: LocalConflictAlgorithm.replace,
+      );
+    }
     await _emitPatients();
     return patient.id;
   }

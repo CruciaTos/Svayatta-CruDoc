@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/appointments/data/services/visits
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
+import 'package:doctor_management_app/features/messaging/data/repo/messaging_repository.dart';
 
 /// Standard fee recorded when an appointment ([VisitType.clinic]) is
 /// marked [VisitStatus.completed] — see [VisitRepository.updateStatus].
@@ -42,15 +43,18 @@ class VisitRepository {
     FirestoreSyncService? syncService,
     PatientRepository? patientRepository,
     RevenueRepository? revenueRepository,
+    MessagingRepository? messagingRepository,
   }) : _localService = localService ?? VisitLocalService(),
        _syncService = syncService ?? FirestoreSyncService.instance,
        _patientRepository = patientRepository ?? PatientRepository(),
-       _revenueRepository = revenueRepository ?? RevenueRepository();
+       _revenueRepository = revenueRepository ?? RevenueRepository(),
+       _messagingRepository = messagingRepository ?? MessagingRepository();
 
   final VisitLocalService _localService;
   final FirestoreSyncService _syncService;
   final PatientRepository _patientRepository;
   final RevenueRepository _revenueRepository;
+  final MessagingRepository _messagingRepository;
 
   /// The signed-in doctor's UID — see PatientRepository for why this
   /// matters and what it guards against.
@@ -240,6 +244,7 @@ class VisitRepository {
 
     await _localService.upsertVisit(visitWithId);
     unawaited(_syncService.triggerPostWriteSync());
+    unawaited(_messagingRepository.sendAppointmentConfirmation(visit: visitWithId));
     return id;
   }
 

@@ -25,10 +25,7 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
   String _selectedFilter = 'All'; // 'All', 'Paid', 'Pending', 'Overdue'
   String _searchQuery = '';
 
-  bool _isSeeding = false;
-
   Future<void> _seedSampleInvoicesToFirebase() async {
-    setState(() => _isSeeding = true);
     try {
       final samples = [
         {
@@ -82,8 +79,6 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
           SnackBar(content: Text('Error seeding Firebase: $e')),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isSeeding = false);
     }
   }
 

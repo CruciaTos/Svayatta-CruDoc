@@ -4,7 +4,6 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
-import 'package:doctor_management_app/features/shell/components/animated_background.dart';
 
 // ==============================================================================
 // 1. PATIENT FORM RESULT & FORM WIDGET
@@ -690,6 +689,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
       firstName: result.firstName,
       lastName: result.lastName,
       phone: result.phone,
+      email: result.email,
       gender: result.gender,
       dateOfBirth: result.dateOfBirth,
       diagnosis: result.diagnosis,
@@ -872,6 +872,7 @@ class _AddPatientPageState extends State<AddPatientPage> {
       firstName: result.firstName,
       lastName: result.lastName,
       phone: result.phone,
+      email: result.email,
       gender: result.gender,
       dateOfBirth: result.dateOfBirth,
       diagnosis: result.diagnosis,

@@ -83,6 +83,15 @@ class InitialFirestoreMigrationService {
       if (updatedAt > newestUpdatedAt) newestUpdatedAt = updatedAt;
 
       final db = await _databaseService.localDatabase;
+
+      // Foreign key safety: ensure parent patient exists locally before writing to visits
+      if (sqliteTable == 'visits') {
+        final patientId = row['patientId'] as String?;
+        if (patientId != null && patientId.isNotEmpty) {
+          await _ensurePatientExists(patientId, doctorId);
+        }
+      }
+
       // If a local row exists and is locally modified (pending), preserve
       // the local change instead of overwriting it with the cloud copy.
       final existing = await db.query(
@@ -96,11 +105,20 @@ class InitialFirestoreMigrationService {
         continue;
       }
 
-      await db.insert(
-        sqliteTable,
-        row,
-        conflictAlgorithm: LocalConflictAlgorithm.replace,
-      );
+      if (existing.isNotEmpty) {
+        await db.update(
+          sqliteTable,
+          row,
+          where: 'id = ?',
+          whereArgs: [doc.id],
+        );
+      } else {
+        await db.insert(
+          sqliteTable,
+          row,
+          conflictAlgorithm: LocalConflictAlgorithm.replace,
+        );
+      }
     }
 
     await _markInitialMigrationComplete(collection, newestUpdatedAt);
@@ -160,6 +178,63 @@ class InitialFirestoreMigrationService {
     return rawDiagnosis.toString();
   }
 
+  Future<void> _ensurePatientExists(String patientId, String doctorId) async {
+    if (patientId.trim().isEmpty) return;
+    final db = await _databaseService.localDatabase;
+    final existing = await db.query(
+      'patients',
+      columns: ['id'],
+      where: 'id = ?',
+      whereArgs: [patientId],
+      limit: 1,
+    );
+    if (existing.isNotEmpty) return;
+
+    try {
+      final doc = await _firestore.collection('patients').doc(patientId).get();
+      if (doc.exists && doc.data() != null) {
+        final patientRow = _sqliteRowFor('patients', doc.id, doc.data()!, doctorId);
+        await db.insert(
+          'patients',
+          patientRow,
+          conflictAlgorithm: LocalConflictAlgorithm.replace,
+        );
+        return;
+      }
+    } catch (e) {
+      debugPrint('[InitialMigration] Could not fetch parent patient $patientId: $e');
+    }
+
+    // Fallback: create a stub patient so FK constraint is satisfied
+    final now = DateTime.now().millisecondsSinceEpoch;
+    try {
+      await db.insert(
+        'patients',
+        {
+          'id': patientId,
+          'doctorId': doctorId,
+          'firstName': 'Patient',
+          'lastName': '',
+          'phone': '',
+          'email': '',
+          'gender': '',
+          'dateOfBirth': now,
+          'diagnosis': '[]',
+          'notes': '',
+          'packageBalance': 0.0,
+          'isArchived': 0,
+          'isActive': 1,
+          'createdAt': now,
+          'updatedAt': now,
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        },
+        conflictAlgorithm: LocalConflictAlgorithm.ignore,
+      );
+    } catch (_) {}
+  }
+
   Map<String, dynamic> _sqliteRowFor(
     String collection,
     String id,
@@ -175,6 +250,7 @@ class InitialFirestoreMigrationService {
           'firstName': FieldCipher.decrypt(data['firstName'] as String? ?? ''),
           'lastName': FieldCipher.decrypt(data['lastName'] as String? ?? ''),
           'phone': FieldCipher.decrypt(data['phone'] as String? ?? ''),
+          'email': data['email'] as String? ?? '',
           'gender': data['gender'] as String? ?? '',
           'dateOfBirth': _timestampToMillis(data['dateOfBirth'], fallback: now),
           'diagnosis': _decryptDiagnosisForSqlite(data['diagnosis']),

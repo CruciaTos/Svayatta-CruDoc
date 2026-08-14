@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:go_router/go_router.dart';
@@ -6,6 +7,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/features/profile/presentation/widgets/gmail_integration_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -377,6 +379,21 @@ class ProfileScreen extends StatelessWidget {
                           title: 'Authentication Provider',
                           subtitle: '$authMethod Account',
                         ),
+                        if (!kIsWeb) ...[
+                          const SizedBox(height: 20),
+                          // ---- Gmail Integration Section ----
+                          const Text(
+                            'Integrations & Notifications',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF475569),
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const GmailIntegrationCard(),
+                        ],
                         const SizedBox(height: 28),
 
                         // ---- Log Out Button ----

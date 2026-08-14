@@ -77,4 +77,52 @@ void main() {
     expect(finalRows.length, 2);
     expect(finalRows.map((row) => row['id']).toList(), ['item-2', 'item-3']);
   });
+
+  test('Parent row update with child foreign keys on DELETE RESTRICT works without FK constraint violation', () async {
+    final dbPath = '${Directory.systemTemp.path}/crudoc_fk_test_${DateTime.now().microsecondsSinceEpoch}.db';
+
+    final database = await sqflite_ffi.databaseFactoryFfi.openDatabase(
+      dbPath,
+      options: sqflite_common.OpenDatabaseOptions(
+        version: 1,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+        },
+      ),
+    );
+    addTearDown(() async {
+      await database.close();
+      final file = File(dbPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    });
+
+    final localDb = WindowsDatabase(database);
+
+    await localDb.execute('''
+      CREATE TABLE parents (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL
+      )
+    ''');
+    await localDb.execute('''
+      CREATE TABLE children (
+        id TEXT PRIMARY KEY,
+        parentId TEXT NOT NULL,
+        FOREIGN KEY (parentId) REFERENCES parents (id) ON DELETE RESTRICT
+      )
+    ''');
+
+    // Insert parent and child
+    await localDb.insert('parents', {'id': 'p1', 'name': 'Parent Initial'});
+    await localDb.insert('children', {'id': 'c1', 'parentId': 'p1'});
+
+    // Updating existing parent via update() works cleanly while maintaining child FK
+    final count = await localDb.update('parents', {'name': 'Parent Updated'}, where: 'id = ?', whereArgs: ['p1']);
+    expect(count, 1);
+
+    final parent = await localDb.query('parents', where: 'id = ?', whereArgs: ['p1']);
+    expect(parent.first['name'], 'Parent Updated');
+  });
 }

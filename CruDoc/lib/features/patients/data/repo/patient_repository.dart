@@ -201,7 +201,29 @@ class PatientRepository {
       if (!doc.exists || doc.data() == null) return null;
       return Patient.fromMap(_decryptedFromFirestore(doc.data()!), id: doc.id);
     }
-    return _localService.getPatient(patientId);
+    final local = await _localService.getPatient(patientId);
+    if (local != null) return local;
+
+    // Fallback: If not found in local SQLite, query Firestore directly and cache locally
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && user.uid.isNotEmpty) {
+        if (!FieldCipher.isReady) {
+          await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+        }
+        final doc = await FirebaseFirestore.instance
+            .collection('patients')
+            .doc(patientId)
+            .get();
+        if (doc.exists && doc.data() != null) {
+          final p = Patient.fromMap(_decryptedFromFirestore(doc.data()!), id: doc.id);
+          await _localService.upsertPatient(p, syncStatus: 'synced');
+          return p;
+        }
+      }
+    } catch (_) {}
+
+    return null;
   }
 
   /// Streams the live list of active (non-archived) patients.

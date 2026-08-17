@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:doctor_management_app/core/widgets/visit_location_map.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
@@ -12,6 +13,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details.dart';
+import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
 
 // ---------- Accent colours ----------
 const Color _accentBlue = Color(0xFF5DADE2);
@@ -366,6 +368,30 @@ class VisitDetailsPage extends ConsumerWidget {
                         ),
                       ),
                     ),
+                    // AI Scribe button — gated on 'ai_assistant' module (§9)
+                    StreamBuilder<List<String>>(
+                      stream: DoctorFeatureGuard.watchEnabledModules(),
+                      builder: (context, snapshot) {
+                        final modules =
+                            snapshot.data ?? DoctorFeatureGuard.defaultModules;
+                        final hasAiAssistant =
+                            DoctorFeatureGuard.isEnabled(modules, 'ai_assistant');
+                        if (!hasAiAssistant) return const SizedBox.shrink();
+                        return IconButton(
+                          icon: const Icon(
+                            Icons.mic_rounded,
+                            color: Color(0xFF4A90D9),
+                            size: 22,
+                          ),
+                          tooltip: 'AI Voice Scribe',
+                          onPressed: () => _showScribeSheet(
+                            context,
+                            visit,
+                            patient,
+                          ),
+                        );
+                      },
+                    ),
                     IconButton(
                       icon: const Icon(
                         Icons.edit_note,
@@ -476,6 +502,23 @@ class VisitDetailsPage extends ConsumerWidget {
         ).showSnackBar(const SnackBar(content: Text('Something went wrong')));
       }
     }
+  }
+
+  /// Opens the AI Voice Scribe recording sheet as a modal bottom sheet.
+  /// Gated on the 'ai_assistant' module at the call site (the button is
+  /// invisible when the module is not enabled).
+  void _showScribeSheet(
+    BuildContext context,
+    Visit visit,
+    Patient? patient,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      enableDrag: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ScribeRecordingSheet(visit: visit, patient: patient),
+    );
   }
 }
 

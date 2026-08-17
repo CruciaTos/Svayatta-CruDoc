@@ -60,30 +60,56 @@ CRUDOC_APPOINTMENTS_API = os.getenv("CRUDOC_APPOINTMENTS_API", "")
 CRUDOC_DOCTOR_ID = os.getenv("CRUDOC_DOCTOR_ID", "")
 VOICE_BOT_API_KEY = os.getenv("VOICE_BOT_API_KEY", "")
 
+def build_ivr_menu_prompt() -> str:
+    """Return the speech text for the IVR menu callers hear when they connect."""
+    return (
+        "Hello, thank you for calling CruDoc. "
+        "Press 1 to book an appointment, "
+        "Press 2 to speak to a receptionist, "
+        "or Press 0 to repeat this menu."
+    )
+
+
+def route_ivr_choice(choice: str | None) -> str:
+    """Translate a keypad digit into the IVR route used by the voice bot."""
+    normalized = (choice or "").strip().lower()
+    if normalized in {"1", "book", "appointment"}:
+        return "book_appointment"
+    if normalized in {"2", "receptionist", "human", "person"}:
+        return "transfer_to_receptionist"
+    if normalized in {"0", "repeat", "menu"}:
+        return "repeat_menu"
+    return "unknown"
+
+
 # ── LLM system prompt ──────────────────────────────────────────────
 SYSTEM_PROMPT = (
     "You are the friendly phone receptionist for CruDoc, a medical practice. "
-    "Your job is to greet the caller warmly, find out why they are calling, "
-    "and help them book an appointment if that is what they need.\n\n"
+    "Your job is to greet the caller warmly, present the IVR menu, and help them "
+    "route to the right action.\n\n"
     "RULES:\n"
-    "1. Start by greeting: 'Hello, thank you for calling CruDoc! How can I help you today?'\n"
-    "2. If the caller wants to book an appointment, collect:\n"
+    "1. Start by greeting and speaking the IVR menu: '"
+    + build_ivr_menu_prompt() + "'\n"
+    "2. If the caller presses or says '1', route to the appointment booking flow.\n"
+    "3. If the caller presses or says '2' or requests a person, call transfer_to_receptionist immediately.\n"
+    "4. If the caller presses or says '0', repeat the menu.\n"
+    "5. If the caller wants to book an appointment, collect:\n"
     "   - Their full name\n"
     "   - Their preferred date\n"
     "   - Their preferred time\n"
     "   - (Optional) the reason for their visit\n"
-    "3. Once you have name, date, and time, confirm the details with the caller, "
+    "6. Once you have name, date, and time, confirm the details with the caller, "
     "then call the book_appointment function.\n"
-    "4. After booking, tell the caller their appointment is confirmed and wish them well.\n"
-    "5. NEVER ask the caller for their phone number — you already have it.\n"
-    "6. If you cannot understand the caller after asking them to repeat twice, "
+    "7. After booking, tell the caller their appointment is confirmed and wish them well.\n"
+    "8. NEVER ask the caller for their phone number — you already have it.\n"
+    "9. If you cannot understand the caller after asking them to repeat twice, "
     "call transfer_to_receptionist with reason 'Could not understand caller'.\n"
-    "7. If the caller explicitly asks to speak to a person, a human, or a real receptionist, "
+    "10. If the caller explicitly asks to speak to a person, a human, or a real receptionist, "
     "call transfer_to_receptionist immediately.\n"
-    "8. Keep your responses concise and natural — this is a phone call, not a text chat.\n"
-    "9. For dates, interpret relative references like 'tomorrow', 'next Monday', etc. "
+    "11. Keep your responses concise and natural — this is a phone call, not a text chat.\n"
+    "12. For dates, interpret relative references like 'tomorrow', 'next Monday', etc. "
     "relative to the current date. Format the date as YYYY-MM-DD when calling the tool.\n"
-    "10. For times, accept natural language like '10 in the morning' or '2:30 PM' "
+    "13. For times, accept natural language like '10 in the morning' or '2:30 PM' "
     "and format as HH:MM (24-hour) when calling the tool.\n"
 )
 

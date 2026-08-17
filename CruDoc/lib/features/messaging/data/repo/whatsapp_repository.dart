@@ -270,26 +270,70 @@ class WhatsAppRepository {
     try {
       final normalizedTo = WhatsAppTemplateService.normalizePhone(phone) ?? phone;
       final metaUrl = Uri.parse('https://graph.facebook.com/v20.0/$metaPhoneId/messages');
-      
-      final metaBody = jsonEncode({
+
+      final dateStr = DateFormat('EEE, d MMM yyyy').format(scheduledStart);
+      final timeStr = DateFormat('h:mm a').format(scheduledStart);
+      final consultationType = visitType.toLowerCase() == 'home'
+          ? 'Home Visit Consultation'
+          : 'In-Clinic Consultation';
+
+      // 1. Try approved appointment_confirm template
+      final templateBody = jsonEncode({
         'messaging_product': 'whatsapp',
         'recipient_type': 'individual',
         'to': normalizedTo,
         'type': 'template',
         'template': {
-          'name': 'hello_world',
+          'name': 'appointment_confirm',
           'language': {'code': 'en_US'},
+          'components': [
+            {
+              'type': 'body',
+              'parameters': [
+                {'type': 'text', 'text': patientName.isNotEmpty ? patientName : 'Valued Patient'},
+                {'type': 'text', 'text': doctorName.isNotEmpty ? doctorName : 'Doctor'},
+                {'type': 'text', 'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Practice'},
+                {'type': 'text', 'text': dateStr},
+                {'type': 'text', 'text': timeStr},
+                {'type': 'text', 'text': consultationType},
+              ],
+            },
+          ],
         },
       });
 
-      final metaResponse = await _httpClient.post(
+      var metaResponse = await _httpClient.post(
         metaUrl,
         headers: {
           'Authorization': 'Bearer $metaToken',
           'Content-Type': 'application/json',
         },
-        body: metaBody,
+        body: templateBody,
       ).timeout(const Duration(seconds: 8));
+
+      // 2. If appointment_confirm is still under review, fallback to hello_world test template
+      if (metaResponse.statusCode != 200) {
+        debugPrint('[WhatsApp Cloud API] appointment_confirm not active yet (${metaResponse.statusCode}), falling back to hello_world...');
+        final fallbackBody = jsonEncode({
+          'messaging_product': 'whatsapp',
+          'recipient_type': 'individual',
+          'to': normalizedTo,
+          'type': 'template',
+          'template': {
+            'name': 'hello_world',
+            'language': {'code': 'en_US'},
+          },
+        });
+
+        metaResponse = await _httpClient.post(
+          metaUrl,
+          headers: {
+            'Authorization': 'Bearer $metaToken',
+            'Content-Type': 'application/json',
+          },
+          body: fallbackBody,
+        ).timeout(const Duration(seconds: 8));
+      }
 
       if (metaResponse.statusCode == 200) {
         final metaData = jsonDecode(metaResponse.body) as Map<String, dynamic>;

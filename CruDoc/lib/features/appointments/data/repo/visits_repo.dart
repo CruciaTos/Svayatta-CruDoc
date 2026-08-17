@@ -16,6 +16,7 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/messaging/data/repo/messaging_repository.dart';
+import 'package:doctor_management_app/features/messaging/data/repo/whatsapp_repository.dart';
 
 /// Standard fee recorded when an appointment ([VisitType.clinic]) is
 /// marked [VisitStatus.completed] — see [VisitRepository.updateStatus].
@@ -44,17 +45,20 @@ class VisitRepository {
     PatientRepository? patientRepository,
     RevenueRepository? revenueRepository,
     MessagingRepository? messagingRepository,
+    WhatsAppRepository? whatsappRepository,
   }) : _localService = localService ?? VisitLocalService(),
        _syncService = syncService ?? FirestoreSyncService.instance,
        _patientRepository = patientRepository ?? PatientRepository(),
        _revenueRepository = revenueRepository ?? RevenueRepository(),
-       _messagingRepository = messagingRepository ?? MessagingRepository();
+       _messagingRepository = messagingRepository ?? MessagingRepository(),
+       _whatsappRepository = whatsappRepository ?? WhatsAppRepository();
 
   final VisitLocalService _localService;
   final FirestoreSyncService _syncService;
   final PatientRepository _patientRepository;
   final RevenueRepository _revenueRepository;
   final MessagingRepository _messagingRepository;
+  final WhatsAppRepository _whatsappRepository;
 
   /// The signed-in doctor's UID — see PatientRepository for why this
   /// matters and what it guards against.
@@ -239,11 +243,14 @@ class VisitRepository {
           .collection(collection)
           .doc(id)
           .set(_encryptedForFirestore(visitWithId.toMap()));
+      unawaited(_whatsappRepository.sendAppointmentConfirmation(visit: visitWithId));
+      unawaited(_messagingRepository.sendAppointmentConfirmation(visit: visitWithId));
       return id;
     }
 
     await _localService.upsertVisit(visitWithId);
     unawaited(_syncService.triggerPostWriteSync());
+    unawaited(_whatsappRepository.sendAppointmentConfirmation(visit: visitWithId));
     unawaited(_messagingRepository.sendAppointmentConfirmation(visit: visitWithId));
     return id;
   }

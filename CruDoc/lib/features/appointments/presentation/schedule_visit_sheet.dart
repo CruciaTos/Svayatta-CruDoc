@@ -6,6 +6,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
+import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 /// Opens a bottom sheet to schedule a visit for [patient].
@@ -330,22 +331,24 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                     ),
                   ),
                 ),
-                if (widget.patient.email.isNotEmpty) ...[
-                  const Icon(Icons.email_outlined, size: 14, color: AppColors.chartBarLight),
+                if (WhatsAppTemplateService.isValidWhatsAppPhone(widget.patient.phone)) ...[
+                  const Icon(Icons.chat_outlined, size: 13, color: Color(0xFF25D366)),
                   const SizedBox(width: 4),
                   Text(
-                    widget.patient.email,
+                    'WhatsApp Auto-Notify',
                     style: AppColors.bodySmall.copyWith(
-                      color: AppColors.chartBarLight,
+                      color: const Color(0xFF25D366),
                       fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
                   ),
                 ] else ...[
                   Text(
-                    'No email on profile',
+                    'No WhatsApp mobile',
                     style: AppColors.bodySmall.copyWith(
                       color: AppColors.textSecondary,
                       fontStyle: FontStyle.italic,
+                      fontSize: 11,
                     ),
                   ),
                 ],

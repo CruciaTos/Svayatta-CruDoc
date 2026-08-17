@@ -66,8 +66,9 @@ class WhatsAppRepository {
   }
 
   String get _currentDoctorId {
-    if (_doctorIdOverride != null && _doctorIdOverride!.isNotEmpty) {
-      return _doctorIdOverride!;
+    final override = _doctorIdOverride;
+    if (override != null && override.isNotEmpty) {
+      return override;
     }
     try {
       final uid = _auth?.currentUser?.uid;

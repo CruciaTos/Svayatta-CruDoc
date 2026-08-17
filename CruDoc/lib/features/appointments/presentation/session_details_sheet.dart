@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/messaging/data/models/whatsapp_no
 import 'package:doctor_management_app/features/messaging/data/providers/whatsapp_providers.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
 
 // ---------- Accent colours (mirrors visit_details.dart) ----------
 const Color _accentBlue = Color(0xFF5DADE2);
@@ -357,7 +358,37 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
             ],
 
             const SizedBox(height: 20),
-            const _SectionLabel(text: 'SESSION NOTE'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const _SectionLabel(text: 'SESSION NOTE'),
+                TextButton.icon(
+                  onPressed: () {
+                    showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      enableDrag: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => ScribeRecordingSheet(visit: _visit, patient: _patient),
+                    );
+                  },
+                  icon: const Icon(Icons.mic_rounded, size: 15, color: Color(0xFF4A90D9)),
+                  label: const Text(
+                    'AI Voice Scribe',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF4A90D9),
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    backgroundColor: const Color(0xFF4A90D9).withValues(alpha: 0.1),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 10),
             _buildNoteField(),
             const SizedBox(height: 24),

@@ -199,29 +199,23 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     }
 
     try {
-      // Upload audio to Firebase Storage
-      final storagePath = await processingService.uploadAudio(
-        audioPath: audioPath,
-        doctorId: user.uid,
-        patientId: widget.visit.patientId,
-      );
-
-      // Delete local copy now that it's in Storage
-      try {
-        await File(audioPath).delete();
-      } catch (_) {}
-
       final noteId = const Uuid().v4();
 
-      // Call Gemini
+      // Call Gemini directly with the recorded local audio (instant, local-first)
       final draft = await processingService.processAudio(
-        audioStoragePath: storagePath,
+        localAudioPath: audioPath,
+        audioStoragePath: null,
         noteId: noteId,
         doctorId: user.uid,
         patientId: widget.visit.patientId,
         visitId: widget.visit.id,
         consentAt: _consentAt ?? DateTime.now(),
       );
+
+      // Clean up local temp file after processing
+      try {
+        await File(audioPath).delete();
+      } catch (_) {}
 
       // Save draft locally
       await repo.saveNote(draft);

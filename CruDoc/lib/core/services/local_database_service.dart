@@ -245,6 +245,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createMedicinesTable(txn);
       await _createStockTransactionsTable(txn);
       await _createEmailLogTable(txn);
+      await _createConsultationNotesTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
       await _createIndexes(txn);
@@ -263,6 +264,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createMedicinesTable(txn);
       await _createStockTransactionsTable(txn);
       await _createEmailLogTable(txn);
+      await _createConsultationNotesTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
 
@@ -292,6 +294,11 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'email_log',
         columns: _emailLogColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'consultation_notes',
+        columns: _consultationNotesColumns,
       );
       await _ensureColumns(
         txn,
@@ -550,6 +557,7 @@ class LocalDatabaseService extends ChangeNotifier {
         'medicines',
         'stock_transactions',
         'email_log',
+        'consultation_notes',
         'sync_state',
       ]) {
         await txn.delete(table);
@@ -704,6 +712,18 @@ class LocalDatabaseService extends ChangeNotifier {
       CREATE INDEX IF NOT EXISTS idx_email_log_visit_id
       ON email_log (visitId)
     ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_consultation_notes_visit
+      ON consultation_notes (visitId, createdAt DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_consultation_notes_doctor
+      ON consultation_notes (doctorId, createdAt DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_consultation_notes_status
+      ON consultation_notes (visitId, status)
+    ''');
   }
 
   Future<void> _ensureColumns(
@@ -857,6 +877,57 @@ class LocalDatabaseService extends ChangeNotifier {
     'hasCompletedInitialMigration':
         'hasCompletedInitialMigration INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+  };
+
+  Future<void> _createConsultationNotesTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS consultation_notes (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL DEFAULT '',
+        visitId TEXT NOT NULL DEFAULT '',
+        transcript TEXT NOT NULL DEFAULT '',
+        chiefComplaint TEXT NOT NULL DEFAULT '',
+        symptoms TEXT NOT NULL DEFAULT '[]',
+        diagnosisSuggestions TEXT NOT NULL DEFAULT '[]',
+        medicines TEXT NOT NULL DEFAULT '[]',
+        advice TEXT NOT NULL DEFAULT '',
+        followUpDate INTEGER,
+        vitals TEXT NOT NULL DEFAULT '{}',
+        confidenceNote TEXT NOT NULL DEFAULT '',
+        consentGiven INTEGER NOT NULL DEFAULT 1,
+        consentAt INTEGER,
+        audioStoragePath TEXT,
+        status TEXT NOT NULL DEFAULT 'draft'
+          CHECK (status IN ('draft', 'confirmed', 'discarded')),
+        createdAt INTEGER NOT NULL,
+        confirmedAt INTEGER,
+        updatedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _consultationNotesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'visitId': "visitId TEXT NOT NULL DEFAULT ''",
+    'transcript': "transcript TEXT NOT NULL DEFAULT ''",
+    'chiefComplaint': "chiefComplaint TEXT NOT NULL DEFAULT ''",
+    'symptoms': "symptoms TEXT NOT NULL DEFAULT '[]'",
+    'diagnosisSuggestions': "diagnosisSuggestions TEXT NOT NULL DEFAULT '[]'",
+    'medicines': "medicines TEXT NOT NULL DEFAULT '[]'",
+    'advice': "advice TEXT NOT NULL DEFAULT ''",
+    'followUpDate': 'followUpDate INTEGER',
+    'vitals': "vitals TEXT NOT NULL DEFAULT '{}'",
+    'confidenceNote': "confidenceNote TEXT NOT NULL DEFAULT ''",
+    'consentGiven': 'consentGiven INTEGER NOT NULL DEFAULT 1',
+    'consentAt': 'consentAt INTEGER',
+    'audioStoragePath': 'audioStoragePath TEXT',
+    'status': "status TEXT NOT NULL DEFAULT 'draft'",
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'confirmedAt': 'confirmedAt INTEGER',
+    'updatedAt': 'updatedAt INTEGER',
   };
 
   Future<void> _createEmailLogTable(LocalDatabaseExecutor db) async {

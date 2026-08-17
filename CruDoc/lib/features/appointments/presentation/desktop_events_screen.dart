@@ -1,8 +1,13 @@
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/messaging/data/models/whatsapp_notification_log.dart';
+import 'package:doctor_management_app/features/messaging/data/providers/whatsapp_providers.dart';
+import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
+import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// Desktop version of the Appointments & Events tab.
 ///
@@ -670,14 +675,104 @@ class _EventPill extends StatelessWidget {
   }
 }
 
-class _EventPopupCard extends StatelessWidget {
+class _EventPopupCard extends ConsumerWidget {
   final _CalendarEvent event;
   final int additionalCount;
 
   const _EventPopupCard({required this.event, required this.additionalCount});
 
+  Future<void> _openWhatsApp(BuildContext context) async {
+    final phone = event.patientPhone;
+    if (!WhatsAppTemplateService.isValidWhatsAppPhone(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid WhatsApp mobile number for this patient.')),
+      );
+      return;
+    }
+
+    final message = WhatsAppTemplateService.buildConfirmationMessage(
+      visit: event.visit,
+      patient: event.item.patient ??
+          Patient(
+            id: event.visit.patientId,
+            firstName: event.patientName,
+            lastName: '',
+            phone: phone,
+            gender: 'Other',
+            dateOfBirth: DateTime(2000),
+            diagnosis: const [],
+            packageBalance: 0,
+            isArchived: false,
+            createdAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          ),
+      doctorName: 'Doctor',
+    );
+
+    final uri = WhatsAppTemplateService.buildDirectWhatsAppUrl(
+      rawPhone: phone,
+      message: message,
+    );
+
+    if (uri != null && await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } else {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open WhatsApp.')),
+      );
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final statusAsync = ref.watch(visitWhatsAppStatusProvider(event.visit.id));
+    final log = statusAsync.asData?.value;
+    final hasValidPhone = WhatsAppTemplateService.isValidWhatsAppPhone(event.patientPhone);
+
+    Color badgeColor = const Color(0xFF25D366);
+    IconData badgeIcon = Icons.check_circle_outline;
+    String badgeLabel = 'WhatsApp Notified';
+
+    if (log != null) {
+      switch (log.status) {
+        case WhatsAppNotificationStatus.delivered:
+          badgeColor = const Color(0xFF10B981);
+          badgeIcon = Icons.done_all_rounded;
+          badgeLabel = 'WhatsApp: Delivered';
+          break;
+        case WhatsAppNotificationStatus.read:
+          badgeColor = const Color(0xFF2D9CDB);
+          badgeIcon = Icons.done_all_rounded;
+          badgeLabel = 'WhatsApp: Read';
+          break;
+        case WhatsAppNotificationStatus.sent:
+          badgeColor = const Color(0xFF25D366);
+          badgeIcon = Icons.check_rounded;
+          badgeLabel = 'WhatsApp: Sent';
+          break;
+        case WhatsAppNotificationStatus.pending:
+          badgeColor = const Color(0xFFF59E0B);
+          badgeIcon = Icons.hourglass_top_rounded;
+          badgeLabel = 'WhatsApp: Sending...';
+          break;
+        case WhatsAppNotificationStatus.failed:
+          badgeColor = const Color(0xFFEF4444);
+          badgeIcon = Icons.error_outline_rounded;
+          badgeLabel = 'WhatsApp: Failed';
+          break;
+        case WhatsAppNotificationStatus.skipped:
+          badgeColor = const Color(0xFF6B7280);
+          badgeIcon = Icons.phone_disabled_outlined;
+          badgeLabel = 'WhatsApp: Skipped';
+          break;
+      }
+    } else if (!hasValidPhone) {
+      badgeColor = const Color(0xFF6B7280);
+      badgeIcon = Icons.phone_disabled_outlined;
+      badgeLabel = 'WhatsApp: No Number';
+    }
+
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
@@ -773,6 +868,29 @@ class _EventPopupCard extends StatelessWidget {
             const SizedBox(height: 8),
             _DetailRow(icon: Icons.phone_outlined, text: event.patientPhone),
           ],
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(badgeIcon, size: 14, color: badgeColor),
+                const SizedBox(width: 6),
+                Text(
+                  badgeLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: badgeColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
           if (additionalCount > 0) ...[
             const SizedBox(height: 12),
             Text(
@@ -784,27 +902,29 @@ class _EventPopupCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A1A1A),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          if (hasValidPhone) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () => _openWhatsApp(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF25D366),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                icon: const Icon(Icons.chat_outlined, size: 16),
+                label: const Text(
+                  'Chat on WhatsApp',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
               ),
-              icon: const Icon(Icons.calendar_today_rounded, size: 16),
-              label: const Text(
-                'Live appointment data',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-              ),
             ),
-          ),
+          ],
         ],
       ),
     );

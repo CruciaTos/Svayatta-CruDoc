@@ -1,5 +1,6 @@
 import * as functions from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import { dispatchAppointmentWhatsApp } from './whatsapp';
 
 function getDb() {
   if (!admin.apps.length) {
@@ -157,6 +158,20 @@ export const createAppointment = functions.onRequest(
         `AI receptionist created appointment ${appointmentRef.id} ` +
         `for patient ${patientId} under doctor ${doctor_id}`,
       );
+
+      // Asynchronously trigger WhatsApp confirmation without blocking appointment response
+      dispatchAppointmentWhatsApp({
+        appointmentId: appointmentRef.id,
+        doctorId: doctor_id,
+        patientId: patientId,
+        patientName: patient_name.trim(),
+        phone: phone.trim(),
+        scheduledStart,
+        visitType: 'clinic',
+        source: source || 'ai_receptionist',
+      }).catch((err) => {
+        console.error(`[WhatsApp] Failed to dispatch for appointment ${appointmentRef.id}:`, err);
+      });
 
       res.status(201).json({
         success: true,

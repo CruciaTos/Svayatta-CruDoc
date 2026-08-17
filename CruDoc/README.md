@@ -25,3 +25,10 @@ An AI-powered phone receptionist that answers incoming calls, books appointments
 - **Setup & deployment**: See [`voice-receptionist/README.md`](./voice-receptionist/README.md)
 
 The voice receptionist is a standalone Python service that communicates with CruDoc's backend via a Cloud Function endpoint (`functions/src/appointments.ts`). Appointments booked by the AI appear in the CruDoc app in real time.
+
+## WhatsApp Appointment Notification System
+
+An automated WhatsApp notification engine that sends instant appointment confirmation messages to patients whenever a doctor, receptionist, or the AI Voice Receptionist books an appointment.
+
+- **Guide & Documentation**: See [`WHATSAPP_INTEGRATION_GUIDE.md`](./WHATSAPP_INTEGRATION_GUIDE.md)
+- **Features**: Meta WhatsApp Cloud API · 1-Click WhatsApp Companion · Real-time Delivery Status Tracking · Zero Medical Data Leakage · E.164 Normalization · Local SQLite & Cloud Audit Logs.

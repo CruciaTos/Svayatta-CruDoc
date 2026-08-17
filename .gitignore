@@ -10,3 +10,4 @@ session-details-sheet.patch
 0001-update-framework-core.patch
 0001-desktop-feature-parity.patch
 *.patch
+/crudoc_sms_gateway

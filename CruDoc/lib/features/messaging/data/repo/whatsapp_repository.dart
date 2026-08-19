@@ -197,6 +197,10 @@ class WhatsAppRepository {
         );
 
         debugPrint('[WhatsApp] Successfully dispatched notification to $normalizedPhone (Message ID: ${result.messageId})');
+
+        // Automatically schedule local pre-appointment reminder timer (10 mins before visit)
+        _scheduleLocalPreAppointmentReminder(visit: visit, patientOverride: patient);
+
         return true;
       } else {
         await _logLocalService.updateLogStatus(
@@ -216,6 +220,110 @@ class WhatsAppRepository {
       }
     } catch (e, st) {
       debugPrint('[WhatsApp] Unexpected error in sendAppointmentConfirmation: $e\n$st');
+      return false;
+    }
+  }
+
+  // In-memory set of dispatched reminder IDs to prevent duplicate sends during app runtime
+  static final Set<String> _sentReminderVisitIds = <String>{};
+  static Timer? _activePeriodicReminderChecker;
+
+  /// Automatically schedules an in-memory reminder timer that fires exactly 10 minutes
+  /// before the appointment start time.
+  /// If the appointment was booked to start within the next 10 minutes (common in testing/walk-ins),
+  /// it automatically dispatches the reminder in 5 seconds!
+  void _scheduleLocalPreAppointmentReminder({
+    required Visit visit,
+    Patient? patientOverride,
+  }) {
+    if (_sentReminderVisitIds.contains(visit.id)) return;
+
+    final now = DateTime.now();
+    final durationUntilStart = visit.scheduledStart.difference(now);
+
+    // If appointment is already in the past, skip
+    if (durationUntilStart < -const Duration(minutes: 5)) return;
+
+    // If appointment starts in <= 10 minutes (or now), fire reminder after 5 seconds
+    if (durationUntilStart <= const Duration(minutes: 10)) {
+      debugPrint('[WhatsApp Auto-Reminder] Visit ${visit.id} starts in ${durationUntilStart.inMinutes}m (<=10m). Scheduling reminder in 5s...');
+      Timer(const Duration(seconds: 5), () {
+        if (!_sentReminderVisitIds.contains(visit.id)) {
+          _sentReminderVisitIds.add(visit.id);
+          sendAppointmentReminder(visit: visit, patientOverride: patientOverride);
+        }
+      });
+      return;
+    }
+
+    // Otherwise, schedule to fire exactly 10 minutes before start time
+    final reminderTime = visit.scheduledStart.subtract(const Duration(minutes: 10));
+    final durationUntilReminder = reminderTime.difference(now);
+
+    if (durationUntilReminder > Duration.zero && durationUntilReminder < const Duration(hours: 24)) {
+      debugPrint('[WhatsApp Auto-Reminder] Scheduling 10-min reminder to fire in ${durationUntilReminder.inMinutes}m for visit ${visit.id}');
+      Timer(durationUntilReminder, () {
+        if (!_sentReminderVisitIds.contains(visit.id)) {
+          _sentReminderVisitIds.add(visit.id);
+          sendAppointmentReminder(visit: visit, patientOverride: patientOverride);
+        }
+      });
+    }
+  }
+
+  /// Automatically dispatches a 10-minute pre-appointment WhatsApp reminder notification.
+  Future<bool> sendAppointmentReminder({
+    required Visit visit,
+    Patient? patientOverride,
+  }) async {
+    final doctorId = _currentDoctorId;
+    if (doctorId == 'anonymous') return false;
+
+    try {
+      Patient? patient = patientOverride;
+      if (patient == null) {
+        try {
+          patient = await _patientRepository.getPatient(visit.patientId);
+        } catch (_) {}
+      }
+
+      final phone = patient?.phone ?? '';
+      if (!WhatsAppTemplateService.isValidWhatsAppPhone(phone)) {
+        return false;
+      }
+
+      final user = _auth?.currentUser;
+      Map<String, dynamic>? profileData;
+      try {
+        final firestore = _firestore;
+        if (firestore != null) {
+          final doc = await firestore.collection('users').doc(doctorId).get();
+          if (doc.exists) profileData = doc.data();
+        }
+      } catch (_) {}
+
+      final doctorName = DoctorProfileHelper.formatDoctorName(user, profileData);
+      final clinicName = (profileData?['clinicName'] as String?) ??
+          (profileData?['practiceName'] as String?) ??
+          'CruDoc Practice';
+
+      debugPrint('[WhatsApp Auto-Reminder] Automatically dispatching 10-min reminder to $phone for appointment ${visit.id}');
+
+      final res = await _dispatchViaEndpointOrMock(
+        appointmentId: '${visit.id}_reminder',
+        doctorId: doctorId,
+        patientId: visit.patientId,
+        phone: phone,
+        patientName: patient?.fullName ?? 'Valued Patient',
+        doctorName: doctorName,
+        clinicName: clinicName,
+        scheduledStart: visit.scheduledStart,
+        visitType: visit.visitType == VisitType.home ? 'home' : 'clinic',
+      );
+
+      return res.success;
+    } catch (e) {
+      debugPrint('[WhatsApp Auto-Reminder] Error in sendAppointmentReminder: $e');
       return false;
     }
   }
@@ -266,7 +374,7 @@ class WhatsAppRepository {
     } catch (_) {}
 
     // 2. Direct Meta WhatsApp Business Cloud API Dispatch
-    const metaToken = 'EAAPCogiyZB7ABSL1MDCJIxCJEhCkxbc353CEOPXMpBN7wZCpRZCBFF4cZAnLOJmx3e30LZCxZBFjyAknVZAPRPvUHDOwwDOI81UlsLHDVwjYLYZAUHQCPDi4Y5CI661uMG9j7YQV2GaZA39mKNZCCNXwGExNhM6MplFIg0UwLbZAwfYNlkTw98fkPyP4I6sbRcEERcrKHbFd0FYatFmcEoZB0NINCQ8fHIhtZCaop63ZBldy2YKyUaIwdfZAcyF0vQaJxkgVUz83aXCakKc5tYeHZBdV1sY7Llyt';
+    const metaToken = 'EAAPCogiyZB7ABSVwTQL88d2C0qAWsZBhJWvzUD6fJsK1D0ZB2bufZCB0BnBnEI70Xvz44XEyQYqbmVOCtZAGK4OSVYqNThkN12eQypgzzipfp1hXAXHAAYntixtQgEQ2X1SSqWZCxxcn7OttbHLtZCRwPfh3pZB88ZCtbtfffd0wMNezNEGmU90ZBaCjunSkYQAJib95wpaUzSVjQ9bMRfkym58KZAVdnZBkib6RLRsMXMeoQQrvfPUgTP2vcxk50BiVPsBZAmTr6BUOsApFZBQTE9uSQ3WB82FAZDZD';
     const metaPhoneId = '1260194177180019';
 
     try {
@@ -279,14 +387,14 @@ class WhatsAppRepository {
           ? 'Home Visit Consultation'
           : 'In-Clinic Consultation';
 
-      // 1. Try approved appointment_confirm template
-      final templateBody = jsonEncode({
+      // 1. Try approved appointment_confirmation template (en_US)
+      final templateBodyEnUs = jsonEncode({
         'messaging_product': 'whatsapp',
         'recipient_type': 'individual',
         'to': normalizedTo,
         'type': 'template',
         'template': {
-          'name': 'appointment_confirm',
+          'name': 'appointment_confirmation',
           'language': {'code': 'en_US'},
           'components': [
             {
@@ -294,7 +402,7 @@ class WhatsAppRepository {
               'parameters': [
                 {'type': 'text', 'text': patientName.isNotEmpty ? patientName : 'Valued Patient'},
                 {'type': 'text', 'text': doctorName.isNotEmpty ? doctorName : 'Doctor'},
-                {'type': 'text', 'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Practice'},
+                {'type': 'text', 'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Clinic'},
                 {'type': 'text', 'text': dateStr},
                 {'type': 'text', 'text': timeStr},
                 {'type': 'text', 'text': consultationType},
@@ -310,12 +418,48 @@ class WhatsAppRepository {
           'Authorization': 'Bearer $metaToken',
           'Content-Type': 'application/json',
         },
-        body: templateBody,
-      ).timeout(const Duration(seconds: 8));
+        body: templateBodyEnUs,
+      ).timeout(const Duration(seconds: 15));
 
-      // 2. If appointment_confirm is still under review, fallback to hello_world test template
+      // 2. If en_US fails, try language code 'en'
       if (metaResponse.statusCode != 200) {
-        debugPrint('[WhatsApp Cloud API] appointment_confirm not active yet (${metaResponse.statusCode}), falling back to hello_world...');
+        final templateBodyEn = jsonEncode({
+          'messaging_product': 'whatsapp',
+          'recipient_type': 'individual',
+          'to': normalizedTo,
+          'type': 'template',
+          'template': {
+            'name': 'appointment_confirmation',
+            'language': {'code': 'en'},
+            'components': [
+              {
+                'type': 'body',
+                'parameters': [
+                  {'type': 'text', 'text': patientName.isNotEmpty ? patientName : 'Valued Patient'},
+                  {'type': 'text', 'text': doctorName.isNotEmpty ? doctorName : 'Doctor'},
+                  {'type': 'text', 'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Clinic'},
+                  {'type': 'text', 'text': dateStr},
+                  {'type': 'text', 'text': timeStr},
+                  {'type': 'text', 'text': consultationType},
+                ],
+              },
+            ],
+          },
+        });
+
+        metaResponse = await _httpClient.post(
+          metaUrl,
+          headers: {
+            'Authorization': 'Bearer $metaToken',
+            'Content-Type': 'application/json',
+          },
+          body: templateBodyEn,
+        ).timeout(const Duration(seconds: 15));
+      }
+
+      // 3. If appointment_confirmation is still pending, fallback to hello_world test template
+      if (metaResponse.statusCode != 200) {
+        debugPrint('[WhatsApp Cloud API] appointment_confirmation error (${metaResponse.statusCode}: ${metaResponse.body}), falling back to hello_world...');
         final fallbackBody = jsonEncode({
           'messaging_product': 'whatsapp',
           'recipient_type': 'individual',
@@ -334,7 +478,7 @@ class WhatsAppRepository {
             'Content-Type': 'application/json',
           },
           body: fallbackBody,
-        ).timeout(const Duration(seconds: 8));
+        ).timeout(const Duration(seconds: 15));
       }
 
       if (metaResponse.statusCode == 200) {

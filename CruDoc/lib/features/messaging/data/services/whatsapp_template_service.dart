@@ -112,6 +112,34 @@ class WhatsAppTemplateService {
     return buffer.toString();
   }
 
+  /// Builds a standard, privacy-compliant 10-minute WhatsApp pre-appointment reminder message.
+  static String buildReminderMessage({
+    required Visit visit,
+    required Patient patient,
+    required String doctorName,
+    String? clinicName,
+  }) {
+    final effectiveClinic = (clinicName != null && clinicName.trim().isNotEmpty)
+        ? clinicName.trim()
+        : 'CruDoc Practice';
+
+    final effectiveDoctor = doctorName.trim().isNotEmpty ? doctorName.trim() : 'Doctor';
+    final patientName = patient.fullName.trim().isNotEmpty ? patient.fullName.trim() : 'Valued Patient';
+
+    final timeStr = formatTime(visit.scheduledStart);
+    final typeStr = formatConsultationType(visit.visitType);
+
+    final buffer = StringBuffer();
+    buffer.writeln('⏰ *Appointment Reminder — Starting in 10 Minutes*');
+    buffer.writeln();
+    buffer.writeln('Hello *$patientName*,');
+    buffer.writeln('This is a quick reminder that your appointment with *$effectiveDoctor* at *$effectiveClinic* is starting in *10 minutes* at *$timeStr* ($typeStr).');
+    buffer.writeln();
+    buffer.writeln('Please be ready or arrive at the clinic on time. Thank you!');
+
+    return buffer.toString();
+  }
+
   /// Builds a `https://wa.me/<phone>?text=<encodedMessage>` URL for 1-click direct sending in WhatsApp.
   static Uri? buildDirectWhatsAppUrl({
     required String? rawPhone,

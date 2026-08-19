@@ -134,6 +134,27 @@ void main() {
       expect(msg, isNot(contains('chest pain')));
     });
 
+    test('generates automated 10-minute reminder message with privacy preservation', () {
+      final reminderMsg = WhatsAppTemplateService.buildReminderMessage(
+        visit: clinicVisit,
+        patient: samplePatient,
+        doctorName: 'Dr. Sarah Jenkins',
+        clinicName: 'Moody Clinic',
+      );
+
+      expect(reminderMsg, contains('Appointment Reminder'));
+      expect(reminderMsg, contains('Starting in 10 Minutes'));
+      expect(reminderMsg, contains('Rahul Sharma'));
+      expect(reminderMsg, contains('Dr. Sarah Jenkins'));
+      expect(reminderMsg, contains('10:30 AM'));
+      expect(reminderMsg, contains('Moody Clinic'));
+
+      // STRICT PRIVACY VERIFICATION
+      expect(reminderMsg, isNot(contains('Hypertension')));
+      expect(reminderMsg, isNot(contains('chest pain')));
+      expect(reminderMsg, isNot(contains('ECG')));
+    });
+
     test('builds wa.me direct URL with proper URI encoding', () {
       final uri = WhatsAppTemplateService.buildDirectWhatsAppUrl(
         rawPhone: '+91 98765 43210',

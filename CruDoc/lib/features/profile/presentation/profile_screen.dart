@@ -8,6 +8,7 @@ import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/gmail_integration_card.dart';
+import 'package:doctor_management_app/features/profile/presentation/widgets/letterhead_branding_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -379,6 +380,14 @@ class ProfileScreen extends StatelessWidget {
                           title: 'Authentication Provider',
                           subtitle: '$authMethod Account',
                         ),
+                        const SizedBox(height: 20),
+
+                        // ---- Letterhead & Branding Section (Bills & Prescriptions) ----
+                        LetterheadBrandingCard(
+                          profileData: profileData,
+                          user: user,
+                        ),
+
                         if (!kIsWeb) ...[
                           const SizedBox(height: 20),
                           // ---- Gmail Integration Section ----

@@ -276,7 +276,10 @@ enum AuditActionType {
   sentAnnouncement,
   updatedSystemConfig,
   assignedSupportTicket,
-  resolvedSupportTicket;
+  resolvedSupportTicket,
+  createdApiKey,
+  updatedApiKey,
+  revokedApiKey;
 
   String get label {
     switch (this) {
@@ -310,6 +313,12 @@ enum AuditActionType {
         return 'Assigned Support Ticket';
       case AuditActionType.resolvedSupportTicket:
         return 'Resolved Support Ticket';
+      case AuditActionType.createdApiKey:
+        return 'Created API Key';
+      case AuditActionType.updatedApiKey:
+        return 'Updated API Key';
+      case AuditActionType.revokedApiKey:
+        return 'Revoked API Key';
     }
   }
 }

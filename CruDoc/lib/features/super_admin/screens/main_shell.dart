@@ -8,6 +8,7 @@ import 'dashboard/audit_logs_screen.dart';
 import 'dashboard/support_screen.dart';
 import 'dashboard/features_screen.dart';
 import 'dashboard/analytics_screen.dart';
+import 'dashboard/api_usage_screen.dart';
 
 /// Main Super Admin shell with sidebar navigation and content area.
 class SuperAdminShell extends ConsumerStatefulWidget {
@@ -252,6 +253,8 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return const SuperAdminFeaturesScreen();
       case SuperAdminTab.analytics:
         return const SuperAdminAnalyticsScreen();
+      case SuperAdminTab.apiKeys:
+        return const SuperAdminApiUsageScreen();
       case SuperAdminTab.support:
         return const SuperAdminSupportScreen();
       case SuperAdminTab.auditLogs:
@@ -276,6 +279,8 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
         return Icons.toggle_on_outlined;
       case SuperAdminTab.analytics:
         return Icons.analytics_outlined;
+      case SuperAdminTab.apiKeys:
+        return Icons.vpn_key_outlined;
       case SuperAdminTab.support:
         return Icons.support_agent_outlined;
       case SuperAdminTab.auditLogs:

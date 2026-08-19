@@ -6,6 +6,7 @@ enum SuperAdminTab {
   doctors,
   features,
   analytics,
+  apiKeys,
   support,
   auditLogs,
   settings;
@@ -20,6 +21,8 @@ enum SuperAdminTab {
         return 'Features';
       case SuperAdminTab.analytics:
         return 'Analytics';
+      case SuperAdminTab.apiKeys:
+        return 'API Keys & Usage';
       case SuperAdminTab.support:
         return 'Support';
       case SuperAdminTab.auditLogs:

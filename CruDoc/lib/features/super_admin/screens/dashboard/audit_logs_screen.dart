@@ -769,6 +769,7 @@ class _SuperAdminAuditLogsScreenState
       case AuditActionType.createdDoctor:
       case AuditActionType.activatedAccount:
       case AuditActionType.enabledModule:
+      case AuditActionType.createdApiKey:
         bg = const Color(0xFFECFDF5);
         fg = const Color(0xFF10B981);
         break;
@@ -776,6 +777,7 @@ class _SuperAdminAuditLogsScreenState
       case AuditActionType.updatedDoctor:
       case AuditActionType.editedPlanDefinition:
       case AuditActionType.updatedSystemConfig:
+      case AuditActionType.updatedApiKey:
         bg = const Color(0xFFEFF6FF);
         fg = const Color(0xFF2563EB);
         break;
@@ -790,6 +792,7 @@ class _SuperAdminAuditLogsScreenState
       case AuditActionType.suspendedAccount:
       case AuditActionType.deletedDoctor:
       case AuditActionType.disabledModule:
+      case AuditActionType.revokedApiKey:
         bg = const Color(0xFFFEF2F2);
         fg = const Color(0xFFEF4444);
         break;

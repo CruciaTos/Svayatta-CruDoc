@@ -15,6 +15,7 @@ export 'models/analytics_model.dart';
 export 'models/support_ticket_model.dart';
 export 'models/audit_log_model.dart';
 export 'models/dashboard_stats_model.dart';
+export 'models/api_key_model.dart';
 
 // Services
 export 'services/firebase_service.dart';
@@ -25,12 +26,14 @@ export 'services/analytics_service.dart';
 export 'services/audit_log_service.dart';
 export 'services/support_service.dart';
 export 'services/feature_module_service.dart';
+export 'services/api_key_service.dart';
 
 // Providers
 export 'providers/auth_provider.dart';
 export 'providers/doctor_provider.dart';
 export 'providers/dashboard_provider.dart';
 export 'providers/ui_provider.dart';
+export 'providers/api_key_provider.dart';
 
 // Middleware
 export 'middleware/auth_middleware.dart';
@@ -40,3 +43,4 @@ export 'screens/auth/login_screen.dart';
 export 'screens/main_shell.dart';
 export 'screens/dashboard/dashboard_screen.dart';
 export 'screens/dashboard/doctors_screen.dart';
+export 'screens/dashboard/api_usage_screen.dart';

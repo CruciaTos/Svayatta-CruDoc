@@ -53,6 +53,12 @@ class SuperAdminFirebaseService {
   CollectionReference get systemConfigCollection =>
       _firestore.collection(SuperAdminConstants.collectionSystemConfig);
 
+  CollectionReference get apiKeysCollection =>
+      _firestore.collection(SuperAdminConstants.collectionApiKeys);
+
+  CollectionReference get apiLogsCollection =>
+      _firestore.collection(SuperAdminConstants.collectionApiLogs);
+
   // --------------- Storage ---------------
 
   FirebaseStorage get storage => _storage;

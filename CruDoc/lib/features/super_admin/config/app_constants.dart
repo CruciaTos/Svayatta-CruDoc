@@ -46,4 +46,6 @@ class SuperAdminConstants {
   static const String collectionNotifications = 'notifications';
   static const String collectionSupportTickets = 'support_tickets';
   static const String collectionSystemConfig = 'system_config';
+  static const String collectionApiKeys = 'api_keys';
+  static const String collectionApiLogs = 'api_logs';
 }

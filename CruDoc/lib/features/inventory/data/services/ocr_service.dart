@@ -1,6 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
 
 /// Result of an OCR scan on a medicine receipt/strip.
 class OcrMedicineResult {
@@ -46,45 +48,84 @@ class OcrMedicineResult {
       ].where((v) => v != null).length;
 }
 
-/// Performs on-device OCR using Google ML Kit and extracts medicine fields
-/// from a receipt or medicine strip image.
+/// Performs on-device OCR using Google ML Kit (on mobile) or PaddleOCR (on desktop)
+/// and extracts medicine fields from a receipt or medicine strip image.
 class OcrService {
   OcrService._();
   static final OcrService instance = OcrService._();
 
-  final TextRecognizer _recognizer = TextRecognizer(
-    script: TextRecognitionScript.latin,
-  );
+  TextRecognizer? _recognizer;
+
+  TextRecognizer get recognizer {
+    _recognizer ??= TextRecognizer(
+      script: TextRecognitionScript.latin,
+    );
+    return _recognizer!;
+  }
 
   /// Scans [imageFile] and returns extracted medicine fields.
   Future<OcrMedicineResult> scanMedicineReceipt(File imageFile) async {
-    final inputImage = InputImage.fromFile(imageFile);
-    final RecognizedText recognised = await _recognizer.processImage(inputImage);
+    final bool isDesktop = !kIsWeb &&
+        (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
-    final allLines = <String>[];
-    for (final block in recognised.blocks) {
-      for (final line in block.lines) {
-        final text = line.text.trim();
-        if (text.isNotEmpty) allLines.add(text);
+    if (isDesktop) {
+      final paddleResult = await PaddleOcrService.instance.scanInvoice(imageFile);
+      
+      String? name;
+      double? price;
+      
+      if (paddleResult.medicines.isNotEmpty) {
+        name = paddleResult.medicines[0].name;
+        price = paddleResult.medicines[0].price;
+      } else if (paddleResult.treatments.isNotEmpty) {
+        name = paddleResult.treatments[0].name;
+        price = paddleResult.treatments[0].price;
       }
+      
+      final rawText = paddleResult.rawText ?? '';
+      final allLines = rawText.split('\n');
+
+      return OcrMedicineResult(
+        name: name ?? _extractName(allLines),
+        category: _extractCategory(allLines, rawText),
+        batchNumber: _extractBatch(allLines),
+        expiryDate: _extractExpiry(allLines),
+        unitPrice: price ?? _extractPrice(allLines),
+        supplierName: _extractSupplier(allLines),
+        quantity: _extractQuantity(allLines),
+        rawText: rawText,
+      );
+    } else {
+      final inputImage = InputImage.fromFile(imageFile);
+      final RecognizedText recognised = await recognizer.processImage(inputImage);
+
+      final allLines = <String>[];
+      for (final block in recognised.blocks) {
+        for (final line in block.lines) {
+          final text = line.text.trim();
+          if (text.isNotEmpty) allLines.add(text);
+        }
+      }
+
+      final rawText = allLines.join('\n');
+
+      return OcrMedicineResult(
+        name: _extractName(allLines),
+        category: _extractCategory(allLines, rawText),
+        batchNumber: _extractBatch(allLines),
+        expiryDate: _extractExpiry(allLines),
+        unitPrice: _extractPrice(allLines),
+        supplierName: _extractSupplier(allLines),
+        quantity: _extractQuantity(allLines),
+        rawText: rawText,
+      );
     }
-
-    final rawText = allLines.join('\n');
-
-    return OcrMedicineResult(
-      name: _extractName(allLines),
-      category: _extractCategory(allLines, rawText),
-      batchNumber: _extractBatch(allLines),
-      expiryDate: _extractExpiry(allLines),
-      unitPrice: _extractPrice(allLines),
-      supplierName: _extractSupplier(allLines),
-      quantity: _extractQuantity(allLines),
-      rawText: rawText,
-    );
   }
 
   /// Dispose the underlying ML Kit recognizer.
-  Future<void> dispose() => _recognizer.close();
+  Future<void> dispose() async {
+    await _recognizer?.close();
+  }
 
   // ─── Field extractors ────────────────────────────────────────────────────────
 

@@ -1,13 +1,16 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
@@ -876,11 +879,108 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
 
   bool _showClinicalNotes = false;
   bool _isSubmitting = false;
+  bool _isOcrLoading = false;
 
   final List<_TreatmentItem> _treatments = [];
   final List<_MedicineItem> _medicines = [];
+  static final _imagePicker = ImagePicker();
 
   String _doctorName = 'Dr. Smit';
+
+  Future<void> _scanMedicalBill() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: AppColors.cardSurface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(context, ImageSource.gallery),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () => Navigator.pop(context, ImageSource.camera),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null || !mounted) return;
+
+    try {
+      final image = await _imagePicker.pickImage(
+        source: source,
+        imageQuality: 85,
+      );
+      if (image == null || !mounted) return;
+
+      setState(() => _isOcrLoading = true);
+
+      final result = await PaddleOcrService.instance.scanInvoice(
+        File(image.path),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _isOcrLoading = false;
+
+        if (result.patientName != null && result.patientName!.isNotEmpty) {
+          _patientController.text = result.patientName!;
+          _patientQuery = result.patientName!;
+        }
+
+        if (result.clinicalNotes != null && result.clinicalNotes!.isNotEmpty) {
+          _clinicalNotesController.text = result.clinicalNotes!;
+          _showClinicalNotes = true;
+        }
+
+        for (final treatment in result.treatments) {
+          _treatments.add(_TreatmentItem(
+            name: treatment.name,
+            price: treatment.price,
+          ));
+        }
+
+        for (final medicine in result.medicines) {
+          _medicines.add(_MedicineItem(
+            name: medicine.name,
+            dosage: medicine.dosage,
+            price: medicine.price,
+          ));
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'OCR Completed! Added ${result.treatments.length} treatments and ${result.medicines.length} medicines.',
+          ),
+          backgroundColor: const Color(0xFF16A34A),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isOcrLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('OCR Failed: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -1144,6 +1244,36 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                   ),
                 ),
                 const Spacer(),
+                TextButton.icon(
+                  onPressed: _isOcrLoading ? null : _scanMedicalBill,
+                  icon: _isOcrLoading
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Icon(Icons.document_scanner_outlined,
+                          color: Colors.white, size: 16),
+                  label: Text(
+                    _isOcrLoading ? 'Scanning...' : 'Scan Bill (OCR)',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: Colors.white.withOpacity(0.15),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white, size: 22),
                   onPressed: () => Navigator.pop(context),

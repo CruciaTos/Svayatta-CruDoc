@@ -423,7 +423,141 @@ export const sendWhatsAppAppointmentConfirmation = functions.onRequest(
 );
 
 // ============================================================
-// 6. SECURE META WEBHOOK (SIGNATURE VERIFICATION & STATUS UPDATES)
+// 6. AUTOMATED 10-MINUTE PRE-APPOINTMENT REMINDER ENGINE
+// ============================================================
+
+/**
+ * Checks all upcoming appointments in the next 10-12 minutes and automatically
+ * sends WhatsApp reminder notifications to patients who have not yet received one.
+ */
+export async function checkAndDispatchUpcomingReminders(): Promise<{
+  processedCount: number;
+  sentCount: number;
+}> {
+  const db = getDb();
+  const now = new Date();
+
+  // Query appointments starting between now and next 12 minutes
+  const windowStart = new Date(now.getTime() - 2 * 60 * 1000); // 2 mins grace
+  const windowEnd = new Date(now.getTime() + 12 * 60 * 1000); // 12 mins ahead
+
+  const windowStartTs = admin.firestore.Timestamp.fromDate(windowStart);
+  const windowEndTs = admin.firestore.Timestamp.fromDate(windowEnd);
+
+  let processedCount = 0;
+  let sentCount = 0;
+
+  const collections = ['appointments', 'visitations'];
+
+  for (const colName of collections) {
+    try {
+      const snap = await db
+        .collection(colName)
+        .where('status', '==', 'scheduled')
+        .where('scheduledStart', '>=', windowStartTs)
+        .where('scheduledStart', '<=', windowEndTs)
+        .get();
+
+      for (const doc of snap.docs) {
+        const data = doc.data();
+        processedCount++;
+
+        // Skip if reminder has already been sent
+        if (data.reminderSent === true || data.reminderStatus === 'sent') {
+          continue;
+        }
+
+        const appointmentId = doc.id;
+        const doctorId = data.doctorId;
+        const patientId = data.patientId;
+        const visitType = data.visitType || (colName === 'visitations' ? 'home' : 'clinic');
+
+        if (!doctorId || !patientId) continue;
+
+        // Fetch patient phone and details
+        let phone = data.phone || data.patientPhone || '';
+        let patientName = data.patientName || '';
+
+        if (!phone || !patientName) {
+          try {
+            const pDoc = await db.collection('patients').doc(patientId).get();
+            if (pDoc.exists) {
+              const pData = pDoc.data() || {};
+              phone = phone || pData.phone || '';
+              patientName = patientName || pData.fullName || 'Valued Patient';
+            }
+          } catch (_) {}
+        }
+
+        const startDate = data.scheduledStart instanceof admin.firestore.Timestamp
+          ? data.scheduledStart.toDate()
+          : new Date(data.scheduledStart);
+
+        console.log(
+          `[WhatsApp Auto-Reminder] Triggering 10-min reminder for appt ${appointmentId} ` +
+          `(Patient: "${patientName}", Time: ${startDate.toLocaleTimeString()})`
+        );
+
+        // Dispatch WhatsApp Reminder
+        const result = await dispatchAppointmentWhatsApp({
+          appointmentId: `${appointmentId}_reminder`,
+          doctorId,
+          patientId,
+          phone,
+          patientName,
+          scheduledStart: startDate,
+          visitType,
+          source: '10_min_automated_reminder',
+        });
+
+        // Mark visit with reminderSent = true to guarantee idempotency
+        await doc.ref.update({
+          reminderSent: true,
+          reminderStatus: 'sent',
+          reminderSentAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+        if (result.success) {
+          sentCount++;
+        }
+      }
+    } catch (err) {
+      console.error(`[WhatsApp Auto-Reminder] Error querying ${colName}:`, err);
+    }
+  }
+
+  return { processedCount, sentCount };
+}
+
+/**
+ * Cloud Scheduler cron trigger running every 1 minute to automatically
+ * detect and send pre-appointment WhatsApp reminders 10 minutes before the visit.
+ */
+export const scheduledAppointmentReminders = functions.onRequest(
+  {
+    region: 'asia-south1',
+    maxInstances: 5,
+    cors: true,
+  },
+  async (req, res) => {
+    try {
+      console.log('[WhatsApp Reminders] Automated 10-minute reminder job triggered.');
+      const result = await checkAndDispatchUpcomingReminders();
+      res.status(200).json({
+        success: true,
+        message: `Processed ${result.processedCount} appointments, sent ${result.sentCount} reminders.`,
+        ...result,
+      });
+    } catch (err: any) {
+      console.error('[WhatsApp Reminders Error]', err);
+      res.status(500).json({ success: false, error: err?.message || 'Internal error' });
+    }
+  }
+);
+
+// ============================================================
+// 7. SECURE META WEBHOOK (SIGNATURE VERIFICATION & STATUS UPDATES)
 // ============================================================
 
 export const whatsappWebhook = functions.onRequest(

@@ -13,6 +13,9 @@ import 'package:doctor_management_app/features/messaging/data/providers/whatsapp
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
+import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
+import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 
 // ---------- Accent colours (mirrors visit_details.dart) ----------
 const Color _accentBlue = Color(0xFF5DADE2);
@@ -391,6 +394,80 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
             ),
             const SizedBox(height: 10),
             _buildNoteField(),
+            const SizedBox(height: 20),
+
+            // ---- Clinical & Billing Documents ----
+            const _SectionLabel(text: 'CLINICAL & BILLING DOCUMENTS'),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final cfg = DoctorLetterheadConfig.fromProfileData(null, null);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => BillGenerationSheet(
+                          letterheadConfig: cfg,
+                          initialVisit: _visit,
+                          initialPatient: _patient,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF0D9488)),
+                    label: const Text(
+                      'Generate Bill',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0D9488),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xFF99F6E4)),
+                      backgroundColor: const Color(0xFFF0FDFA),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      final cfg = DoctorLetterheadConfig.fromProfileData(null, null);
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => PrescriptionGenerationSheet(
+                          letterheadConfig: cfg,
+                          initialVisit: _visit,
+                          initialPatient: _patient,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.medication_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                    label: const Text(
+                      'Generate Rx',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF8B5CF6),
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: const BorderSide(color: Color(0xFFDDD6FE)),
+                      backgroundColor: const Color(0xFFF5F3FF),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,

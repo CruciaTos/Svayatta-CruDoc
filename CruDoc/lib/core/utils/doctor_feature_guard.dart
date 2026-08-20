@@ -1,9 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-/// Helper utility for real-time doctor feature locking.
+/// Helper utility for real-time doctor feature locking and subscription expiry.
 class DoctorFeatureGuard {
-  /// Default set of modules if unspecified.
+  /// Base modules that are always free / permanently accessible.
+  static const List<String> baseModules = [
+    'dashboard',
+    'patients',
+    'appointments',
+    'inventory',
+  ];
+
+  /// Default set of modules if unspecified (all modules active during trial/active plan).
   static const List<String> defaultModules = [
     'dashboard',
     'revenue',
@@ -17,7 +25,13 @@ class DoctorFeatureGuard {
     'multi_device_access',
   ];
 
+  /// Checks if a module is a core base module that cannot be locked.
+  static bool isBaseModule(String moduleKey) {
+    return baseModules.contains(moduleKey.toLowerCase());
+  }
+
   /// Listens to real-time updates for enabled modules of current logged-in doctor.
+  /// If the doctor's subscription is expired, only base modules are returned.
   static Stream<List<String>> watchEnabledModules([User? user]) {
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -33,6 +47,25 @@ class DoctorFeatureGuard {
         return defaultModules;
       }
       final data = doc.data()!;
+      final status = (data['status'] as String? ?? 'active').toLowerCase();
+
+      DateTime? expiresDate;
+      final rawExpires = data['expiresDate'];
+      if (rawExpires is Timestamp) {
+        expiresDate = rawExpires.toDate();
+      } else if (rawExpires is String) {
+        expiresDate = DateTime.tryParse(rawExpires);
+      }
+
+      final now = DateTime.now();
+      final isExpired = (expiresDate != null && expiresDate.isBefore(now)) ||
+          status == 'expired';
+
+      if (isExpired) {
+        // Only return base free modules when plan has expired
+        return baseModules;
+      }
+
       final modulesList = (data['enabledModules'] as List<dynamic>?)
           ?.map((e) => e.toString().toLowerCase())
           .toList();
@@ -78,6 +111,8 @@ class DoctorFeatureGuard {
 
   /// Checks if a module is enabled in the active modules list.
   static bool isEnabled(List<String> enabledModules, String moduleKey) {
-    return enabledModules.contains(moduleKey.toLowerCase());
+    final key = moduleKey.toLowerCase();
+    if (isBaseModule(key)) return true;
+    return enabledModules.contains(key);
   }
 }

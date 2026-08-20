@@ -6,6 +6,7 @@ import '../../models/doctor_model.dart';
 import '../../providers/doctor_provider.dart';
 import '../../providers/feature_management_provider.dart';
 import '../../services/doctor_service.dart';
+import 'upgrade_requests_screen.dart';
 
 /// Super Admin Feature Management Screen.
 /// Displays real doctors from Firestore with interactive feature toggle switches.
@@ -244,11 +245,13 @@ class _SuperAdminFeaturesScreenState
       children: [
         Row(
           children: [
-            Text(
-              'Doctor Feature Management',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+            Expanded(
+              child: Text(
+                'Doctor Feature Management',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
             ),
             if (_isSaving) ...[
               const SizedBox(width: 12),
@@ -257,7 +260,30 @@ class _SuperAdminFeaturesScreenState
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
+              const SizedBox(width: 12),
             ],
+            FilledButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const SuperAdminUpgradeRequestsScreen(),
+                  ),
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF1E78FF),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.inbox_rounded, size: 18),
+              label: const Text(
+                'Upgrade Requests',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 4),

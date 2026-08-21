@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 /// Result of an OCR scan on a medicine receipt/strip.
 class OcrMedicineResult {
@@ -64,11 +65,11 @@ class OcrService {
   }
 
   /// Scans [imageFile] and returns extracted medicine fields.
-  Future<OcrMedicineResult> scanMedicineReceipt(File imageFile) async {
+  Future<OcrMedicineResult> scanMedicineReceipt(XFile imageFile) async {
     final bool isDesktop = !kIsWeb &&
         (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
-    if (isDesktop) {
+    if (isDesktop || kIsWeb) {
       final paddleResult = await PaddleOcrService.instance.scanInvoice(imageFile);
       
       String? name;
@@ -96,7 +97,7 @@ class OcrService {
         rawText: rawText,
       );
     } else {
-      final inputImage = InputImage.fromFile(imageFile);
+      final inputImage = InputImage.fromFilePath(imageFile.path);
       final RecognizedText recognised = await recognizer.processImage(inputImage);
 
       final allLines = <String>[];

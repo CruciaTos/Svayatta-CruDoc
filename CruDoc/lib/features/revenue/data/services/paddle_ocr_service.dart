@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+import 'package:image_picker/image_picker.dart';
 
 class PaddleOcrTreatmentItem {
   final String name;
@@ -78,9 +79,14 @@ class PaddleOcrService {
   PaddleOcrService._();
   static final PaddleOcrService instance = PaddleOcrService._();
 
-  static const String serverUrl = 'http://10.0.2.2:5000/ocr';
+  static String get serverUrl {
+    if (kIsWeb) {
+      return 'http://localhost:5000/ocr';
+    }
+    return 'http://10.0.2.2:5000/ocr';
+  }
 
-  Future<PaddleOcrResult> scanInvoice(File imageFile) async {
+  Future<PaddleOcrResult> scanInvoice(XFile imageFile) async {
     final bool isDesktop = !kIsWeb &&
         (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
@@ -91,7 +97,7 @@ class PaddleOcrService {
     }
   }
 
-  Future<PaddleOcrResult> _scanDesktop(File imageFile) async {
+  Future<PaddleOcrResult> _scanDesktop(XFile imageFile) async {
     try {
       String projectRoot = Directory.current.path;
       if (p.basename(projectRoot) == 'CruDoc') {
@@ -130,11 +136,24 @@ class PaddleOcrService {
     }
   }
 
-  Future<PaddleOcrResult> _scanMobile(File imageFile) async {
+  Future<PaddleOcrResult> _scanMobile(XFile imageFile) async {
     try {
       final request = http.MultipartRequest('POST', Uri.parse(serverUrl));
-      request.files
-          .add(await http.MultipartFile.fromPath('image', imageFile.path));
+      
+      if (kIsWeb) {
+        final bytes = await imageFile.readAsBytes();
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'image',
+            bytes,
+            filename: imageFile.name,
+          ),
+        );
+      } else {
+        request.files.add(
+          await http.MultipartFile.fromPath('image', imageFile.path),
+        );
+      }
 
       final response = await request.send();
       if (response.statusCode != 200) {

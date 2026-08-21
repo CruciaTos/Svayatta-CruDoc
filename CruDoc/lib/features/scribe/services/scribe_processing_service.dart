@@ -5,8 +5,6 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 
@@ -327,13 +325,6 @@ CRITICAL RULES — read these carefully:
       status: ConsultationNoteStatus.draft,
       createdAt: now,
     );
-  }
-
-  static void _deleteFile(String? path) {
-    if (path == null) return;
-    try {
-      File(path).delete().catchError((_) => File(path));
-    } catch (_) {}
   }
 
   static List<String> _toStringList(dynamic value) {

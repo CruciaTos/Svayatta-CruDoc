@@ -226,7 +226,10 @@ class DoctorSubscriptionService {
       ...selectedModules,
     }.toList();
 
-    // 2. Update user document directly
+    // 2. Derive allowMultiDevice from the purchased modules
+    final allowMultiDevice = fullModulesList.contains('multi_device_access');
+
+    // 3. Update user document directly
     await _firestore.collection('users').doc(doctorId).update({
       'enabledModules': fullModulesList,
       'status': 'active',
@@ -235,13 +238,15 @@ class DoctorSubscriptionService {
       'lastTransactionId': transactionId,
       'lastPaymentAmount': amountPaid,
       'lastPaymentMethod': paymentMethod,
+      'allowMultiDevice': allowMultiDevice,
     });
 
-    // 3. Update doctor_settings if exists
+    // 4. Update doctor_settings if exists
     try {
       await _firestore.collection('doctor_settings').doc(doctorId).set({
         'doctorId': doctorId,
         'enabledModules': fullModulesList,
+        'allowMultiDevice': allowMultiDevice,
         'lastModified': Timestamp.fromDate(now),
       }, SetOptions(merge: true));
     } catch (_) {}

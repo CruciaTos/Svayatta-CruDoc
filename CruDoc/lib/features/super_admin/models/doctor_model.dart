@@ -28,6 +28,7 @@ class DoctorModel {
   final DateTime? deletedAt;
   final String? notes;
   final bool allowMultiDevice;
+  final int maxDeviceLimit;
 
   DoctorModel({
     required this.id,
@@ -54,6 +55,7 @@ class DoctorModel {
     this.deletedAt,
     this.notes,
     this.allowMultiDevice = false,
+    this.maxDeviceLimit = 0,
   })  : accountCreated = accountCreated ?? DateTime.now(),
         storageLimitGB = storageLimitGB ?? subscriptionPlan.storageLimitGB,
         enabledModules = enabledModules ?? subscriptionPlan.includedModules;
@@ -94,6 +96,7 @@ class DoctorModel {
       deletedAt: (json['deletedAt'] as Timestamp?)?.toDate(),
       notes: json['notes'] as String?,
       allowMultiDevice: json['allowMultiDevice'] as bool? ?? false,
+      maxDeviceLimit: (json['maxDeviceLimit'] as num?)?.toInt() ?? 0,
     );
   }
 
@@ -122,6 +125,7 @@ class DoctorModel {
       'deletedAt': deletedAt != null ? Timestamp.fromDate(deletedAt!) : null,
       'notes': notes,
       'allowMultiDevice': allowMultiDevice,
+      'maxDeviceLimit': maxDeviceLimit,
     };
   }
 
@@ -150,6 +154,7 @@ class DoctorModel {
     DateTime? deletedAt,
     String? notes,
     bool? allowMultiDevice,
+    int? maxDeviceLimit,
   }) {
     return DoctorModel(
       id: id ?? this.id,
@@ -176,6 +181,7 @@ class DoctorModel {
       deletedAt: deletedAt ?? this.deletedAt,
       notes: notes ?? this.notes,
       allowMultiDevice: allowMultiDevice ?? this.allowMultiDevice,
+      maxDeviceLimit: maxDeviceLimit ?? this.maxDeviceLimit,
     );
   }
 

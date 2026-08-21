@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 /// Helper utility for real-time doctor feature locking and subscription expiry.
 class DoctorFeatureGuard {
-  /// Base modules that are always free / permanently accessible.
+  /// Base modules that remain active during subscription expiry.
   static const List<String> baseModules = [
     'dashboard',
     'patients',
@@ -11,7 +11,7 @@ class DoctorFeatureGuard {
     'inventory',
   ];
 
-  /// Default set of modules if unspecified (all modules active during trial/active plan).
+  /// Default set of modules if unspecified.
   static const List<String> defaultModules = [
     'dashboard',
     'revenue',
@@ -25,13 +25,13 @@ class DoctorFeatureGuard {
     'multi_device_access',
   ];
 
-  /// Checks if a module is a core base module that cannot be locked.
+  /// Checks if a module is a core base module.
   static bool isBaseModule(String moduleKey) {
     return baseModules.contains(moduleKey.toLowerCase());
   }
 
   /// Listens to real-time updates for enabled modules of current logged-in doctor.
-  /// If the doctor's subscription is expired, only base modules are returned.
+  /// Strictly reflects what the Super Admin sets in Firestore `users/{uid}.enabledModules`.
   static Stream<List<String>> watchEnabledModules([User? user]) {
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -61,15 +61,21 @@ class DoctorFeatureGuard {
       final isExpired = (expiresDate != null && expiresDate.isBefore(now)) ||
           status == 'expired';
 
-      if (isExpired) {
-        // Only return base free modules when plan has expired
-        return baseModules;
+      // Read enabledModules list explicitly configured by Super Admin
+      final rawList = data['enabledModules'] as List<dynamic>?;
+      List<String> modulesList;
+      if (rawList != null) {
+        modulesList = rawList.map((e) => e.toString().toLowerCase()).toList();
+      } else {
+        modulesList = List<String>.from(defaultModules);
       }
 
-      final modulesList = (data['enabledModules'] as List<dynamic>?)
-          ?.map((e) => e.toString().toLowerCase())
-          .toList();
-      return modulesList ?? defaultModules;
+      if (isExpired) {
+        // If expired, only allow base modules that are configured in modulesList
+        return modulesList.where((m) => baseModules.contains(m)).toList();
+      }
+
+      return modulesList;
     });
   }
 
@@ -110,9 +116,8 @@ class DoctorFeatureGuard {
   }
 
   /// Checks if a module is enabled in the active modules list.
+  /// Strictly respects what the Super Admin configures in `enabledModules`.
   static bool isEnabled(List<String> enabledModules, String moduleKey) {
-    final key = moduleKey.toLowerCase();
-    if (isBaseModule(key)) return true;
-    return enabledModules.contains(key);
+    return enabledModules.contains(moduleKey.toLowerCase());
   }
 }

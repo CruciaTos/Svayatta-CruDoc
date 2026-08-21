@@ -4,7 +4,7 @@ import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
-import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
+import 'package:doctor_management_app/features/chatbot/widgets/draggable_floating_chatbot_button.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/desktop_dashboard_screen.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_patient_records_screen.dart';
@@ -147,38 +147,8 @@ class _DesktopShellState extends State<DesktopShell> {
                   ),
                 ),
 
-                // ---- Floating Chat FAB (ported from mobile Shell) ----
-                Positioned(
-                  right: 32,
-                  bottom: 32,
-                  child: GestureDetector(
-                    onTap: () => ChatbotScreen.show(context),
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF1E78FF).withValues(alpha: 0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Icon(
-                        Icons.smart_toy_rounded,
-                        color: Colors.white,
-                        size: 28,
-                      ),
-                    ),
-                  ),
-                ),
+                // ---- Free-Floating / Draggable Chat FAB ----
+                const DraggableFloatingChatbotButton(initialBottom: 32, initialRight: 32),
               ],
             ),
           ),

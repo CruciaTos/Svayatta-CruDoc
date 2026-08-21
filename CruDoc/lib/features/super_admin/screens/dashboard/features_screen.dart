@@ -116,11 +116,17 @@ class _SuperAdminFeaturesScreenState
 
     final updatedModuleStrings = set.map(_moduleToString).toList();
 
+    // Derive allowMultiDevice from enabled modules so DeviceSessionService
+    // picks up the change immediately.
+    final allowMultiDevice = updatedModuleStrings.contains('multi_device_access');
+
     try {
       setState(() => _isSaving = true);
       await _doctorService.updateDoctor(doctor.id, {
         'enabledModules': updatedModuleStrings,
+        'allowMultiDevice': allowMultiDevice,
       });
+      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -139,6 +145,90 @@ class _SuperAdminFeaturesScreenState
           ),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _setDoctorMaxDeviceLimit(DoctorModel doctor, int limit) async {
+    setState(() => _isSaving = true);
+    try {
+      await _doctorService.setMaxDeviceLimit(doctor.id, limit);
+      if (!mounted) return;
+      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            limit == 0
+                ? 'Device limit set to Unlimited for ${doctor.name}'
+                : 'Device limit set to max $limit devices for ${doctor.name}',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update limit: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _forceRevokeSessions(DoctorModel doctor) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Force Revoke All Sessions?'),
+        content: Text(
+          'This will immediately sign out ${doctor.name} from all active devices and tablets.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Revoke All'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    setState(() => _isSaving = true);
+    try {
+      await _doctorService.revokeAllSessions(doctor.id);
+      if (!mounted) return;
+      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('All sessions revoked for ${doctor.name}'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to revoke sessions: $e'),
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -516,99 +606,182 @@ class _SuperAdminFeaturesScreenState
               return Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Module Icon
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isEnabled
-                            ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                            : Colors.grey.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        _moduleIcon(feature.module),
-                        color: isEnabled
-                            ? const Color(0xFF10B981)
-                            : Colors.grey[400],
-                        size: 20,
-                      ),
-                    ),
-                    const SizedBox(width: 14),
+                    Row(
+                      children: [
+                        // Module Icon
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: isEnabled
+                                ? const Color(0xFF10B981).withValues(alpha: 0.1)
+                                : Colors.grey.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(
+                            _moduleIcon(feature.module),
+                            color: isEnabled
+                                ? const Color(0xFF10B981)
+                                : Colors.grey[400],
+                            size: 20,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
 
-                    // Module Title + Description
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                        // Module Title + Description
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                feature.module.label,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                  color: isEnabled
-                                      ? null
-                                      : Colors.grey[500],
-                                ),
+                              Row(
+                                children: [
+                                  Text(
+                                    feature.module.label,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: isEnabled
+                                          ? null
+                                          : Colors.grey[500],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: feature.monthlyPrice == 0
+                                          ? const Color(0xFFECFDF5)
+                                          : const Color(0xFFEFF6FF),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: feature.monthlyPrice == 0
+                                            ? const Color(0xFFA7F3D0)
+                                            : const Color(0xFFBFDBFE),
+                                      ),
+                                    ),
+                                    child: Text(
+                                      feature.monthlyPrice == 0
+                                          ? 'Free'
+                                          : '+\$${feature.monthlyPrice.toStringAsFixed(0)}/mo',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                        color: feature.monthlyPrice == 0
+                                            ? const Color(0xFF047857)
+                                            : const Color(0xFF1D4ED8),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: feature.monthlyPrice == 0
-                                      ? const Color(0xFFECFDF5)
-                                      : const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(4),
-                                  border: Border.all(
-                                    color: feature.monthlyPrice == 0
-                                        ? const Color(0xFFA7F3D0)
-                                        : const Color(0xFFBFDBFE),
-                                  ),
+                              const SizedBox(height: 2),
+                              Text(
+                                feature.description,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: isEnabled
+                                      ? Colors.grey[600]
+                                      : Colors.grey[400],
                                 ),
-                                child: Text(
-                                  feature.monthlyPrice == 0
-                                      ? 'Free'
-                                      : '+\$${feature.monthlyPrice.toStringAsFixed(0)}/mo',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: feature.monthlyPrice == 0
-                                        ? const Color(0xFF047857)
-                                        : const Color(0xFF1D4ED8),
-                                  ),
-                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            feature.description,
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: isEnabled
-                                  ? Colors.grey[600]
-                                  : Colors.grey[400],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
+                        ),
+                        const SizedBox(width: 12),
 
-                    // Toggle Switch
-                    Switch(
-                      value: isEnabled,
-                      onChanged: (val) {
-                        _toggleModule(selectedDoctor, feature.module, val);
-                      },
-                      activeThumbColor: const Color(0xFF10B981),
+                        // Toggle Switch
+                        Switch(
+                          value: isEnabled,
+                          onChanged: (val) {
+                            _toggleModule(selectedDoctor, feature.module, val);
+                          },
+                          activeThumbColor: const Color(0xFF10B981),
+                        ),
+                      ],
                     ),
+                    if (feature.module == FeatureModule.multiDeviceAccess && isEnabled) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        margin: const EdgeInsets.only(left: 44),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF1F5F9),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF64748B)),
+                                const SizedBox(width: 8),
+                                const Expanded(
+                                  child: Text(
+                                    'Simultaneous Device Cap:',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF334155),
+                                    ),
+                                  ),
+                                ),
+                                DropdownButton<int>(
+                                  value: selectedDoctor.maxDeviceLimit,
+                                  isDense: true,
+                                  underline: const SizedBox(),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF2563EB),
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(value: 0, child: Text('Unlimited Devices')),
+                                    DropdownMenuItem(value: 2, child: Text('Max 2 Devices')),
+                                    DropdownMenuItem(value: 3, child: Text('Max 3 Devices')),
+                                    DropdownMenuItem(value: 5, child: Text('Max 5 Devices')),
+                                    DropdownMenuItem(value: 10, child: Text('Max 10 Devices')),
+                                  ],
+                                  onChanged: _isSaving
+                                      ? null
+                                      : (val) {
+                                          if (val != null) {
+                                            _setDoctorMaxDeviceLimit(selectedDoctor, val);
+                                          }
+                                        },
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: TextButton.icon(
+                                onPressed: _isSaving ? null : () => _forceRevokeSessions(selectedDoctor),
+                                icon: const Icon(Icons.phonelink_erase_rounded, size: 15, color: Color(0xFFDC2626)),
+                                label: const Text(
+                                  'Revoke All Active Sessions',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFDC2626),
+                                  ),
+                                ),
+                                style: TextButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  minimumSize: Size.zero,
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               );

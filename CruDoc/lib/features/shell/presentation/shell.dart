@@ -106,49 +106,17 @@ class _ShellState extends State<Shell> {
                     },
                   ),
                 ),
-                // ---- Floating navigation bar (Mobile Only) ----
+                // ---- Floating navigation bar with embedded Chatbot (Mobile Only) ----
                 if (!kIsWeb)
                   Positioned(
-                    left: 20,
-                    right: 20,
+                    left: 16,
+                    right: 16,
                     bottom: 12,
                     child: BottomNavBar(
                       selectedIndex: _currentIndex,
                       onTap: _onNavTap,
                       enabledModules: enabledModules,
-                    ),
-                  ),
-                // ---- Floating Chat FAB (Mobile Only) ----
-                if (!kIsWeb)
-                  Positioned(
-                    right: 16,
-                    bottom: 90, // above the nav bar
-                    child: GestureDetector(
-                      onTap: () => ChatbotScreen.show(context),
-                      child: Container(
-                        width: 52,
-                        height: 52,
-                        decoration: BoxDecoration(
-                          gradient: const LinearGradient(
-                            colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(18),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFF1E78FF).withValues(alpha: 0.4),
-                              blurRadius: 12,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.smart_toy_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                      ),
+                      onChatbotTap: () => ChatbotScreen.show(context),
                     ),
                   ),
               ],

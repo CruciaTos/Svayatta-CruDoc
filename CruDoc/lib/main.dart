@@ -30,6 +30,32 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MoodyDashboardApp()));
 }
 
+final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
+    GlobalKey<ScaffoldMessengerState>();
+
+void _showForcedLogoutSnackBar(String reason) {
+  rootScaffoldMessengerKey.currentState?.showSnackBar(
+    SnackBar(
+      content: Row(
+        children: [
+          const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              reason,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+        ],
+      ),
+      backgroundColor: const Color(0xFFDC2626),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    ),
+  );
+}
+
 /// On Web there's no local SQLite cache to migrate or sync — repositories
 /// read/write Firestore directly (see e.g. PatientRepository's `kIsWeb`
 /// branches) — but those branches still call FieldCipher.encrypt/decrypt,
@@ -50,6 +76,7 @@ void _wireWebEncryptionKeyLoading() {
         user.uid,
         onForcedLogout: (reason) {
           debugPrint('Web forced logout: $reason');
+          _showForcedLogoutSnackBar(reason);
         },
       );
       if (lastHandledUid == user.uid) return;
@@ -96,6 +123,7 @@ void _wireDoctorScopedStartup() {
         user.uid,
         onForcedLogout: (reason) {
           debugPrint('Mobile forced logout: $reason');
+          _showForcedLogoutSnackBar(reason);
         },
       );
 
@@ -124,6 +152,7 @@ class MoodyDashboardApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp.router(
+      scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
       theme: ThemeData(

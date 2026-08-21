@@ -59,16 +59,16 @@ void main() {
       expect(DoctorFeatureGuard.isBaseModule('omnichannel_messaging'), isFalse);
     });
 
-    test('isEnabled always returns true for base modules regardless of enabled list', () {
-      final emptyModules = <String>[];
-      expect(DoctorFeatureGuard.isEnabled(emptyModules, 'dashboard'), isTrue);
-      expect(DoctorFeatureGuard.isEnabled(emptyModules, 'patients'), isTrue);
-      expect(DoctorFeatureGuard.isEnabled(emptyModules, 'appointments'), isTrue);
-      expect(DoctorFeatureGuard.isEnabled(emptyModules, 'inventory'), isTrue);
+    test('isEnabled strictly checks presence in enabledModules list', () {
+      final configuredModules = ['dashboard', 'revenue', 'patients'];
+      expect(DoctorFeatureGuard.isEnabled(configuredModules, 'dashboard'), isTrue);
+      expect(DoctorFeatureGuard.isEnabled(configuredModules, 'revenue'), isTrue);
+      expect(DoctorFeatureGuard.isEnabled(configuredModules, 'patients'), isTrue);
 
-      // Add-on requires explicit presence
-      expect(DoctorFeatureGuard.isEnabled(emptyModules, 'revenue'), isFalse);
-      expect(DoctorFeatureGuard.isEnabled(['revenue'], 'revenue'), isTrue);
+      // Disabled by admin
+      expect(DoctorFeatureGuard.isEnabled(configuredModules, 'inventory'), isFalse);
+      expect(DoctorFeatureGuard.isEnabled(configuredModules, 'appointments'), isFalse);
+      expect(DoctorFeatureGuard.isEnabled(configuredModules, 'ai_assistant'), isFalse);
     });
   });
 

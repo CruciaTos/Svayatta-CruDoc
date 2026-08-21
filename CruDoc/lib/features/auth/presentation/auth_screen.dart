@@ -438,6 +438,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       );
       if (credential.user != null) {
         await _syncUserProfile(credential.user!, name: name);
+        await DeviceSessionService.instance.registerNewSession(credential.user!.uid);
       }
       if (!mounted) return;
       _enterApp();
@@ -459,7 +460,11 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
     setState(() => _isLoading = true);
 
     try {
-      await _authService.signInWithGoogle();
+      final userCredential = await _authService.signInWithGoogle();
+      final user = userCredential.user;
+      if (user != null) {
+        await DeviceSessionService.instance.registerNewSession(user.uid);
+      }
       if (!mounted) return;
       _enterApp();
     } catch (e) {
@@ -483,8 +488,14 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       authService: _authService,
     );
 
-    if (result != null && mounted) {
-      _enterApp();
+    if (result != null) {
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (currentUser != null) {
+        await DeviceSessionService.instance.registerNewSession(currentUser.uid);
+      }
+      if (mounted) {
+        _enterApp();
+      }
     }
   }
 

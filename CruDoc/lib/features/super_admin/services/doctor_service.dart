@@ -336,6 +336,16 @@ class SuperAdminDoctorService {
       encryptedUpdates['lastModified'] = FieldValue.serverTimestamp();
       encryptedUpdates['modifiedBy'] = _fb.currentUserEmail;
       await _fb.usersCollection.doc(doctorId).update(encryptedUpdates);
+
+      if (updates.containsKey('enabledModules')) {
+        try {
+          await _fb.doctorSettingsCollection.doc(doctorId).set({
+            'doctorId': doctorId,
+            'enabledModules': updates['enabledModules'],
+            'lastModified': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        } catch (_) {}
+      }
     } catch (e) {
       throw Exception('Failed to update doctor: ${e.toString()}');
     }
@@ -414,6 +424,38 @@ class SuperAdminDoctorService {
       });
     } catch (e) {
       throw Exception('Failed to update multi-device access: ${e.toString()}');
+    }
+  }
+
+  /// Set the maximum number of simultaneous allowed devices for a doctor (0 = unlimited).
+  Future<void> setMaxDeviceLimit(String doctorId, int limit) async {
+    try {
+      await _fb.usersCollection.doc(doctorId).update({
+        'maxDeviceLimit': limit,
+        'lastModified': FieldValue.serverTimestamp(),
+        'modifiedBy': _fb.currentUserEmail,
+      });
+    } catch (e) {
+      throw Exception('Failed to update max device limit: ${e.toString()}');
+    }
+  }
+
+  /// Force-revoke all active sessions for a doctor.
+  Future<void> revokeAllSessions(String doctorId) async {
+    try {
+      final sessions = await _fb.usersCollection.doc(doctorId).collection('active_sessions').get();
+      final batch = _fb.batch();
+      for (final doc in sessions.docs) {
+        batch.delete(doc.reference);
+      }
+      batch.update(_fb.usersCollection.doc(doctorId), {
+        'currentSessionToken': FieldValue.delete(),
+        'lastModified': FieldValue.serverTimestamp(),
+        'modifiedBy': _fb.currentUserEmail,
+      });
+      await batch.commit();
+    } catch (e) {
+      throw Exception('Failed to revoke all doctor sessions: ${e.toString()}');
     }
   }
 

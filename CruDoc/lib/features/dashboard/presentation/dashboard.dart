@@ -14,7 +14,6 @@ import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
-import 'package:doctor_management_app/features/subscription/presentation/subscription_status_banner.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -292,9 +291,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
-                  const SubscriptionStatusBanner(),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 16),
                   if (isInventoryEnabled) ...[
                     LowStockBanner(
                       onTap: () => _navigateToTabOrExplain(

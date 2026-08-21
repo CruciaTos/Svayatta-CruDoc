@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/gmail_integration_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/letterhead_branding_card.dart';
+import 'package:doctor_management_app/features/profile/presentation/widgets/active_sessions_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -403,6 +404,10 @@ class ProfileScreen extends StatelessWidget {
                           const SizedBox(height: 10),
                           const GmailIntegrationCard(),
                         ],
+                        const SizedBox(height: 20),
+
+                        // ---- Active Device Sessions Section ----
+                        ActiveSessionsCard(doctorId: user?.uid ?? ''),
                         const SizedBox(height: 28),
 
                         // ---- Log Out Button ----

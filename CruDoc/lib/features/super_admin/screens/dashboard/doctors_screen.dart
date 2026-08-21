@@ -6,10 +6,8 @@ import '../../models/doctor_model.dart';
 import '../../config/enums.dart';
 import '../../services/doctor_service.dart';
 import '../../services/audit_log_service.dart';
-import '../../providers/feature_management_provider.dart';
 
-/// Doctor Management Screen with expandable feature‑locking rows.
-/// Multiple doctors’ feature panels can be expanded simultaneously.
+/// Doctor Management Screen for Super Admin.
 class SuperAdminDoctorsScreen extends ConsumerStatefulWidget {
   const SuperAdminDoctorsScreen({super.key});
 
@@ -25,15 +23,6 @@ class _SuperAdminDoctorsScreenState
 
   DoctorStatus? _selectedStatus;
   SubscriptionPlan? _selectedPlan;
-
-  // ── Feature locking ──────────────────────────────────────────
-  final SuperAdminDoctorService _doctorService = SuperAdminDoctorService();
-  
-  // Changed from single ID to a set to allow multiple open panels
-  final Set<String> _expandedDoctorIds = {};
-  
-  final Map<String, Set<FeatureModule>> _doctorFeatures = {};
-  final Set<String> _savingDoctorIds = {};
 
   @override
   void initState() {
@@ -72,197 +61,10 @@ class _SuperAdminDoctorsScreenState
     notifier.setStatusFilter(null);
   }
 
-  // ── Feature helpers ──────────────────────────────────────────
-  FeatureModule? _parseModule(String str) {
-    final clean = str.trim().toLowerCase();
-    switch (clean) {
-      case 'dashboard':
-        return FeatureModule.dashboard;
-      case 'revenue':
-      case 'revenue_page':
-        return FeatureModule.revenue;
-      case 'patients':
-      case 'patient_page':
-        return FeatureModule.patients;
-      case 'appointments':
-      case 'appointment':
-        return FeatureModule.appointments;
-      case 'inventory':
-      case 'inventory_management':
-        return FeatureModule.inventory;
-      case 'home_visits':
-      case 'visitation':
-        return FeatureModule.homeVisits;
-      case 'ai_assistant':
-        return FeatureModule.aiAssistant;
-      case 'ai_agentic_calling':
-        return FeatureModule.aiAgenticCalling;
-      case 'omnichannel_messaging':
-      case 'whatsapp_messaging':
-        return FeatureModule.omnichannelMessaging;
-      case 'multi_device_access':
-        return FeatureModule.multiDeviceAccess;
-      default:
-        return null;
-    }
-  }
-
-  String _moduleToString(FeatureModule module) {
-    switch (module) {
-      case FeatureModule.dashboard:
-        return 'dashboard';
-      case FeatureModule.revenue:
-        return 'revenue';
-      case FeatureModule.patients:
-        return 'patients';
-      case FeatureModule.appointments:
-        return 'appointments';
-      case FeatureModule.inventory:
-        return 'inventory';
-      case FeatureModule.homeVisits:
-        return 'home_visits';
-      case FeatureModule.aiAssistant:
-        return 'ai_assistant';
-      case FeatureModule.aiAgenticCalling:
-        return 'ai_agentic_calling';
-      case FeatureModule.omnichannelMessaging:
-        return 'omnichannel_messaging';
-      case FeatureModule.multiDeviceAccess:
-        return 'multi_device_access';
-    }
-  }
-
-  IconData _moduleIcon(FeatureModule module) {
-    switch (module) {
-      case FeatureModule.dashboard:
-        return Icons.dashboard_rounded;
-      case FeatureModule.revenue:
-        return Icons.account_balance_wallet_rounded;
-      case FeatureModule.patients:
-        return Icons.people_alt_rounded;
-      case FeatureModule.appointments:
-        return Icons.calendar_month_rounded;
-      case FeatureModule.inventory:
-        return Icons.inventory_2_rounded;
-      case FeatureModule.homeVisits:
-        return Icons.home_work_rounded;
-      case FeatureModule.aiAssistant:
-        return Icons.auto_awesome_rounded;
-      case FeatureModule.aiAgenticCalling:
-        return Icons.phone_in_talk_rounded;
-      case FeatureModule.omnichannelMessaging:
-        return Icons.mark_chat_read_rounded;
-      case FeatureModule.multiDeviceAccess:
-        return Icons.devices_rounded;
-    }
-  }
-
-  Set<FeatureModule> _getEnabledModules(DoctorModel doctor) {
-    if (!_doctorFeatures.containsKey(doctor.id)) {
-      final set = <FeatureModule>{};
-      for (final modStr in doctor.enabledModules) {
-        final parsed = _parseModule(modStr);
-        if (parsed != null) set.add(parsed);
-      }
-      _doctorFeatures[doctor.id] = set;
-    }
-    return _doctorFeatures[doctor.id]!;
-  }
-
-  Future<void> _toggleModule(
-      DoctorModel doctor, FeatureModule module, bool value) async {
-    final set = _getEnabledModules(doctor);
-    setState(() {
-      if (value) {
-        set.add(module);
-      } else {
-        set.remove(module);
-      }
-      _savingDoctorIds.add(doctor.id);
-    });
-
-    final updatedModuleStrings = set.map(_moduleToString).toList();
-
-    try {
-      await _doctorService.updateDoctor(doctor.id, {
-        'enabledModules': updatedModuleStrings,
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${module.label} updated for ${doctor.name}'),
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update feature: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _savingDoctorIds.remove(doctor.id));
-      }
-    }
-  }
-
-  Future<void> _toggleMultiDevice(DoctorModel doctor, bool allow) async {
-    setState(() => _savingDoctorIds.add(doctor.id));
-    try {
-      await _doctorService.toggleMultiDeviceAccess(doctor.id, allow);
-      if (!mounted) return;
-      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            allow
-                ? 'Multi-device login granted for ${doctor.name}'
-                : 'Single-device login enforced for ${doctor.name}',
-          ),
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update: $e')),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _savingDoctorIds.remove(doctor.id));
-      }
-    }
-  }
-
-  // Toggle a doctor’s feature panel (add/remove from set)
-  void _toggleExpanded(String doctorId) {
-    setState(() {
-      if (_expandedDoctorIds.contains(doctorId)) {
-        _expandedDoctorIds.remove(doctorId);
-      } else {
-        _expandedDoctorIds.add(doctorId);
-      }
-    });
-  }
-
-  double _calculateMonthlyTotal(Set<FeatureModule> enabled) {
-    double total = 0;
-    for (final module in enabled) {
-      total += module.defaultAddonPrice;
-    }
-    return total;
-  }
-
   @override
   Widget build(BuildContext context) {
     final doctorState = ref.watch(doctorListProvider);
     final notifier = ref.read(doctorListProvider.notifier);
-    final featureState = ref.watch(featureManagementProvider);
     final isMobile = MediaQuery.of(context).size.width < 768;
     final doctors = doctorState.doctors;
 
@@ -282,8 +84,8 @@ class _SuperAdminDoctorsScreenState
 
           const SizedBox(height: 24),
 
-          // ── 3. Doctors Table / List Card (with feature panels) ─
-          _buildDoctorsTableCard(context, doctorState, doctors, featureState, isMobile),
+          // ── 3. Doctors Table / List Card ───────────────────────
+          _buildDoctorsTableCard(context, doctorState, doctors, isMobile),
         ],
       ),
     );
@@ -548,12 +350,11 @@ class _SuperAdminDoctorsScreenState
     );
   }
 
-  // ==================== 3. DOCTORS TABLE CARD (WITH EXPAND) ======
+  // ==================== 3. DOCTORS TABLE CARD ====================
   Widget _buildDoctorsTableCard(
     BuildContext context,
     doctorState,
     List<DoctorModel> doctors,
-    FeatureManagementState featureState,
     bool isMobile,
   ) {
     return Container(
@@ -588,7 +389,7 @@ class _SuperAdminDoctorsScreenState
                   Expanded(flex: 2, child: Text('STATUS', style: _thStyle)),
                   Expanded(flex: 2, child: Text('STORAGE', style: _thStyle)),
                   SizedBox(
-                      width: 110,
+                      width: 90,
                       child: Text('ACTIONS',
                           style: _thStyle, textAlign: TextAlign.center)),
                 ],
@@ -637,9 +438,6 @@ class _SuperAdminDoctorsScreenState
                   isMobile
                       ? _buildMobileDoctorCard(context, doctors[i])
                       : _buildDesktopDoctorRow(context, doctors[i]),
-                  // Feature panel when expanded (check set membership)
-                  if (_expandedDoctorIds.contains(doctors[i].id))
-                    _buildFeaturePanel(context, doctors[i], featureState),
                 ],
                 if (doctorState.hasMore)
                   const Padding(
@@ -653,9 +451,8 @@ class _SuperAdminDoctorsScreenState
     );
   }
 
-  // Desktop Row with expand button
+  // Desktop Row
   Widget _buildDesktopDoctorRow(BuildContext context, DoctorModel doctor) {
-    final isExpanded = _expandedDoctorIds.contains(doctor.id);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: Row(
@@ -757,34 +554,22 @@ class _SuperAdminDoctorsScreenState
             ),
           ),
 
-          // Actions (Pop-up + Expand button)
+          // Actions
           SizedBox(
-            width: 110,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    isExpanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.keyboard_arrow_down_rounded,
-                    size: 22,
-                  ),
-                  onPressed: () => _toggleExpanded(doctor.id),
-                  tooltip: isExpanded ? 'Hide Features' : 'Manage Features',
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (v) => _handleDoctorAction(v, doctor),
-                  offset: const Offset(0, 40),
-                  itemBuilder: (_) => [
-                    const PopupMenuItem(value: 'edit', child: Text('Edit Details')),
-                    const PopupMenuItem(value: 'suspend', child: Text('Suspend Account')),
-                    const PopupMenuItem(value: 'reset_pwd', child: Text('Reset Password')),
-                    const PopupMenuItem(value: 'delete', child: Text('Delete Doctor')),
-                  ],
-                  icon: const Icon(Icons.more_vert_rounded),
-                ),
-              ],
+            width: 90,
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: PopupMenuButton<String>(
+                onSelected: (v) => _handleDoctorAction(v, doctor),
+                offset: const Offset(0, 40),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit Details')),
+                  const PopupMenuItem(value: 'suspend', child: Text('Suspend Account')),
+                  const PopupMenuItem(value: 'reset_pwd', child: Text('Reset Password')),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete Doctor')),
+                ],
+                icon: const Icon(Icons.more_vert_rounded),
+              ),
             ),
           ),
         ],
@@ -794,258 +579,87 @@ class _SuperAdminDoctorsScreenState
 
   // Mobile Card
   Widget _buildMobileDoctorCard(BuildContext context, DoctorModel doctor) {
-    final isExpanded = _expandedDoctorIds.contains(doctor.id);
-    return InkWell(
-      onTap: () => _toggleExpanded(doctor.id),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor:
-                      Theme.of(context).primaryColor.withValues(alpha: 0.12),
-                  child: Text(
-                    doctor.name.isNotEmpty
-                        ? doctor.name[0].toUpperCase()
-                        : '?',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        doctor.name,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.w700, fontSize: 15),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        doctor.email,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-                _statusBadge(doctor.status),
-                Icon(
-                  isExpanded
-                      ? Icons.keyboard_arrow_up_rounded
-                      : Icons.keyboard_arrow_down_rounded,
-                  color: Colors.grey,
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _planBadge(doctor.subscriptionPlan),
-                const SizedBox(width: 8),
-                if (doctor.clinicName.isNotEmpty)
-                  Text(
-                    doctor.clinicName,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: LinearProgressIndicator(
-                    value: doctor.storageUsagePercent / 100,
-                    backgroundColor: Colors.grey[200],
-                    color: doctor.storageUsagePercent > 90
-                        ? Colors.red
-                        : Theme.of(context).primaryColor,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  '${doctor.storageUsagePercent.toStringAsFixed(0)}%',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ── Feature Toggle Panel (uses provider's FeatureModuleItem directly) ──
-  Widget _buildFeaturePanel(
-    BuildContext context,
-    DoctorModel doctor,
-    FeatureManagementState featureState,
-  ) {
-    final enabledModules = _getEnabledModules(doctor);
-    // Use the provider's own feature list – no custom class needed
-    final features = featureState.features;
-
-    final isSaving = _savingDoctorIds.contains(doctor.id);
-    final total = _calculateMonthlyTotal(enabledModules);
-
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+    return Padding(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.toggle_on_rounded,
-                  color: Color(0xFF2563EB), size: 20),
-              const SizedBox(width: 8),
-              const Text(
-                'FEATURE MANAGEMENT',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2563EB),
-                  letterSpacing: 0.8,
-                ),
-              ),
-              if (isSaving) ...[
-                const SizedBox(width: 12),
-                const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              ],
-              const Spacer(),
-              Text(
-                'Total: \$${total.toStringAsFixed(2)}/mo',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF047857),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: features.map((feature) {
-              final isEnabled = enabledModules.contains(feature.module);
-              return SizedBox(
-                width: 220,
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: isEnabled
-                          ? const Color(0xFF10B981).withValues(alpha: 0.4)
-                          : Colors.grey.withValues(alpha: 0.2),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        _moduleIcon(feature.module),
-                        size: 18,
-                        color: isEnabled
-                            ? const Color(0xFF10B981)
-                            : Colors.grey[400],
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              feature.module.label,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: isEnabled ? null : Colors.grey[500],
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            Text(
-                              feature.monthlyPrice == 0
-                                  ? 'Free'
-                                  : '+\$${feature.monthlyPrice.toStringAsFixed(0)}/mo',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isEnabled
-                                    ? const Color(0xFF047857)
-                                    : Colors.grey[400],
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Switch(
-                        value: isEnabled,
-                        onChanged: isSaving
-                            ? null
-                            : (val) => _toggleModule(doctor, feature.module, val),
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        activeThumbColor: const Color(0xFF10B981),
-                      ),
-                    ],
+              CircleAvatar(
+                radius: 16,
+                backgroundColor:
+                    Theme.of(context).primaryColor.withValues(alpha: 0.12),
+                child: Text(
+                  doctor.name.isNotEmpty
+                      ? doctor.name[0].toUpperCase()
+                      : '?',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).primaryColor,
                   ),
                 ),
-              );
-            }).toList(),
-          ),
-          const Divider(height: 24, color: Color(0xFFE2E8F0)),
-          Row(
-            children: [
-              const Icon(Icons.devices_rounded,
-                  color: Color(0xFF2563EB), size: 18),
-              const SizedBox(width: 10),
+              ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Multi-Device Login Access',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
-                      ),
-                    ),
                     Text(
-                      doctor.allowMultiDevice
-                          ? 'Multi-device mode: Doctor can log in on multiple devices concurrently.'
-                          : 'Single-device mode: Logging in on a new device will sign out active sessions.',
+                      doctor.name,
                       style: const TextStyle(
-                        fontSize: 11,
-                        color: Color(0xFF64748B),
-                      ),
+                          fontWeight: FontWeight.w700, fontSize: 15),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      doctor.email,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
-              Switch(
-                value: doctor.allowMultiDevice,
-                onChanged: isSaving
-                    ? null
-                    : (val) => _toggleMultiDevice(doctor, val),
-                activeThumbColor: const Color(0xFF2563EB),
+              _statusBadge(doctor.status),
+              PopupMenuButton<String>(
+                onSelected: (v) => _handleDoctorAction(v, doctor),
+                offset: const Offset(0, 40),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'edit', child: Text('Edit Details')),
+                  const PopupMenuItem(value: 'suspend', child: Text('Suspend Account')),
+                  const PopupMenuItem(value: 'reset_pwd', child: Text('Reset Password')),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete Doctor')),
+                ],
+                icon: const Icon(Icons.more_vert_rounded),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              _planBadge(doctor.subscriptionPlan),
+              const SizedBox(width: 8),
+              if (doctor.clinicName.isNotEmpty)
+                Text(
+                  doctor.clinicName,
+                  style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: LinearProgressIndicator(
+                  value: doctor.storageUsagePercent / 100,
+                  backgroundColor: Colors.grey[200],
+                  color: doctor.storageUsagePercent > 90
+                      ? Colors.red
+                      : Theme.of(context).primaryColor,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${doctor.storageUsagePercent.toStringAsFixed(0)}%',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],
           ),

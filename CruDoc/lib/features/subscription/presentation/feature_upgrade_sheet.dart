@@ -35,7 +35,6 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
   final DoctorSubscriptionService _subscriptionService =
       DoctorSubscriptionService();
   final Set<String> _selectedModuleKeys = {};
-  bool _isSubmitting = false;
   String? _successMessage;
 
   @override
@@ -121,38 +120,6 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
           duration: const Duration(seconds: 4),
         ),
       );
-    }
-  }
-
-  Future<void> _submitRequest() async {
-    if (_selectedModuleKeys.isEmpty) return;
-
-    setState(() => _isSubmitting = true);
-    try {
-      final selectedList = _selectedModuleKeys.toList();
-      await _subscriptionService.submitUpgradeRequest(
-        requestedModules: selectedList,
-        totalMonthlyPrice: _calculatedTotal,
-        currentPlan: widget.subscriptionInfo.planName,
-      );
-
-      if (mounted) {
-        setState(() {
-          _isSubmitting = false;
-          _successMessage =
-              'Upgrade request submitted successfully! Please complete offline payment via UPI/Bank Transfer. Super Admin will verify and activate your modules.';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to submit request: $e'),
-            backgroundColor: Colors.redAccent,
-          ),
-        );
-      }
     }
   }
 

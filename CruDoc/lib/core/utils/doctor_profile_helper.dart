@@ -126,6 +126,19 @@ class DoctorProfileHelper {
     return 'General Physician';
   }
 
+  /// Formats the doctor's clinic / practice name from Firestore or default.
+  static String formatClinicName(User? user, Map<String, dynamic>? data) {
+    if (data != null) {
+      final rawClinic = (data['clinicName'] ??
+          data['practiceName'] ??
+          data['clinic_name']) as String?;
+      if (rawClinic != null && rawClinic.trim().isNotEmpty) {
+        return rawClinic.trim();
+      }
+    }
+    return 'CruDoc Healthcare';
+  }
+
   /// Updates the logged-in doctor's profile name and specialty in Cloud Firestore and Auth.
   static Future<void> updateProfile({
     required String doctorName,

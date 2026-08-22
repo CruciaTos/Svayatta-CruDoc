@@ -72,6 +72,9 @@ class GmailAuthService {
   /// Whether a connected Gmail account is available for sending emails.
   bool get isConnected => _connectedEmail != null && _connectedEmail!.isNotEmpty;
 
+  /// Alias for isConnected.
+  bool get isSignedIn => isConnected;
+
   /// The email address of the connected Gmail account.
   String? get connectedEmail => _connectedEmail;
 

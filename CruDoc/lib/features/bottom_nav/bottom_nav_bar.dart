@@ -32,6 +32,7 @@ class BottomNavBar extends ConsumerWidget {
     Icons.inventory_2_outlined,
     Icons.payments_outlined,
     Icons.calendar_today_outlined,
+    Icons.campaign_outlined,
   ];
 
   static const _activeIcons = [
@@ -40,6 +41,7 @@ class BottomNavBar extends ConsumerWidget {
     Icons.inventory_2,
     Icons.payments_outlined,
     Icons.calendar_today_outlined,
+    Icons.campaign_rounded,
   ];
 
   @override
@@ -78,6 +80,7 @@ class BottomNavBar extends ConsumerWidget {
                 final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(index);
                 final isEnabled = enabledModules == null ||
                     index == 0 ||
+                    index == 5 ||
                     DoctorFeatureGuard.isEnabled(enabledModules!, moduleKey);
 
                 return GestureDetector(
@@ -85,7 +88,7 @@ class BottomNavBar extends ConsumerWidget {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
+                      horizontal: 8,
                       vertical: 8,
                     ),
                     decoration: BoxDecoration(

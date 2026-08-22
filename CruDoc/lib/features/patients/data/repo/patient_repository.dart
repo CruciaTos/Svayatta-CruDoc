@@ -268,6 +268,11 @@ class PatientRepository {
     }
   }
 
+  /// Fetches all active patients once.
+  Future<List<Patient>> getAllPatients() async {
+    return watchPatients().first;
+  }
+
   /// Searches patients by name, phone, or exact patient id.
   Future<List<Patient>> searchPatients(
     String query, {

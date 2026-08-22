@@ -20,6 +20,8 @@ class AppColors {
   /// Used on amount text, filter chips, and avatar backgrounds.
   static const negativeRed = Color(0xFFEF5350);
   static const divider = Color(0xFFE2E8F0);
+  static const background = Color(0xFFF8FAFC);
+  static const inputBackground = Color(0xFFF1F5F9);
   static const textPrimary = Color.fromARGB(255, 0, 0, 0);
   static const textSecondary = Color(0xFF6B7280);
 

@@ -52,11 +52,20 @@ class GmailSendService {
     required String body,
     List<GeneratedDocument> attachments = const [],
     String? fromEmail,
+    bool? isHtml,
   }) async {
     // 1. Validate inputs and defend against header injection
     final cleanTo = _validateAndSanitizeRecipient(to);
     final cleanSubject = _sanitizeSubject(subject);
     final sender = fromEmail ?? _authService.connectedEmail ?? '';
+
+    // Auto-detect HTML if not explicitly specified
+    final bool htmlMode = isHtml ??
+        (body.trim().startsWith('<!DOCTYPE html>') ||
+            body.trim().startsWith('<html') ||
+            body.contains('</p>') ||
+            body.contains('</div>') ||
+            body.contains('<table'));
 
     // 2. Build RFC 2822 MIME message
     final mimeMessage = _buildMimeMessage(
@@ -65,6 +74,7 @@ class GmailSendService {
       subject: cleanSubject,
       body: body,
       attachments: attachments,
+      isHtml: htmlMode,
     );
 
     // 3. Base64url encode with no padding per Gmail API requirement
@@ -159,10 +169,15 @@ class GmailSendService {
     required String subject,
     required String body,
     required List<GeneratedDocument> attachments,
+    bool isHtml = false,
   }) {
     // RFC 2047 B-encoded subject for full Unicode safety
     final encodedSubject =
         '=?UTF-8?B?${base64Encode(utf8.encode(subject))}?=';
+
+    final contentType = isHtml
+        ? 'text/html; charset="UTF-8"'
+        : 'text/plain; charset="UTF-8"';
 
     final buffer = StringBuffer();
     if (from.isNotEmpty) {
@@ -173,8 +188,8 @@ class GmailSendService {
     buffer.writeln('MIME-Version: 1.0');
 
     if (attachments.isEmpty) {
-      // Plain text message
-      buffer.writeln('Content-Type: text/plain; charset="UTF-8"');
+      // Single part message (HTML or Plain text)
+      buffer.writeln('Content-Type: $contentType');
       buffer.writeln('Content-Transfer-Encoding: base64');
       buffer.writeln();
       buffer.writeln(_chunkBase64(base64Encode(utf8.encode(body))));
@@ -184,9 +199,9 @@ class GmailSendService {
       buffer.writeln('Content-Type: multipart/mixed; boundary="$boundary"');
       buffer.writeln();
 
-      // Text body part
+      // Body part
       buffer.writeln('--$boundary');
-      buffer.writeln('Content-Type: text/plain; charset="UTF-8"');
+      buffer.writeln('Content-Type: $contentType');
       buffer.writeln('Content-Transfer-Encoding: base64');
       buffer.writeln();
       buffer.writeln(_chunkBase64(base64Encode(utf8.encode(body))));

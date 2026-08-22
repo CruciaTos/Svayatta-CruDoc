@@ -150,4 +150,11 @@ class WhatsAppTemplateService {
 
     return Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
   }
+
+  /// Alias for buildDirectWhatsAppUrl.
+  static Uri? buildWhatsAppDirectUrl({
+    String? phone,
+    String? rawPhone,
+    required String message,
+  }) => buildDirectWhatsAppUrl(rawPhone: phone ?? rawPhone, message: message);
 }

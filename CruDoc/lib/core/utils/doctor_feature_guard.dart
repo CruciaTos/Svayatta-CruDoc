@@ -92,6 +92,8 @@ class DoctorFeatureGuard {
         return 'revenue'; // Revenue Analytics tab
       case 4:
         return 'appointments'; // Events / Visitation tab
+      case 5:
+        return 'campaigns'; // Patient Campaigns tab
       default:
         return 'dashboard';
     }
@@ -110,6 +112,8 @@ class DoctorFeatureGuard {
         return 'Revenue & Financials';
       case 4:
         return 'Appointments & Events';
+      case 5:
+        return 'Patient Campaigns';
       default:
         return 'Feature';
     }

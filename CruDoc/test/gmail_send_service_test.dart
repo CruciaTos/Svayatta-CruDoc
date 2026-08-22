@@ -153,6 +153,39 @@ void main() {
       expect(result.messageId, 'msg_unicode_1');
     });
 
+    test('sends HTML email with text/html Content-Type header', () async {
+      String? capturedRawPayload;
+      when(
+        () => mockHttpClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((invocation) async {
+        final bodyStr = invocation.namedArguments[const Symbol('body')] as String;
+        final json = jsonDecode(bodyStr) as Map<String, dynamic>;
+        capturedRawPayload = json['raw'] as String?;
+        return http.Response('{"id": "msg_html_1", "threadId": "th_html_1"}', 200);
+      });
+
+      final result = await sendService.sendEmail(
+        to: 'patient@example.com',
+        subject: 'Campaign Update',
+        body: '<!DOCTYPE html><html><body><h1>Health Alert</h1></body></html>',
+      );
+
+      expect(result.messageId, 'msg_html_1');
+      expect(capturedRawPayload, isNotNull);
+
+      // Decode base64url payload and check for text/html
+      var normalized = capturedRawPayload!.replaceAll('-', '+').replaceAll('_', '/');
+      while (normalized.length % 4 != 0) {
+        normalized += '=';
+      }
+      final decodedMime = utf8.decode(base64Decode(normalized));
+      expect(decodedMime, contains('Content-Type: text/html; charset="UTF-8"'));
+    });
+
     test('sends multipart email with multiple attachments', () async {
       when(
         () => mockHttpClient.post(

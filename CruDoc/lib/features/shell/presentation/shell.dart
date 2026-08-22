@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/inventory/presentation/inventory_
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
 import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/mobile_campaigns_screen.dart';
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -34,6 +35,7 @@ class _ShellState extends State<Shell> {
     Icons.inventory_2_outlined,
     Icons.payments_outlined,
     Icons.calendar_today_outlined,
+    Icons.campaign_rounded,
   ];
 
   @override
@@ -45,6 +47,7 @@ class _ShellState extends State<Shell> {
       const InventoryListScreen(),
       const RevenueScreen(),
       const EventsScreen(),
+      const MobileCampaignsScreen(),
     ];
   }
 
@@ -84,7 +87,7 @@ class _ShellState extends State<Shell> {
                     itemCount: _screens.length,
                     itemBuilder: (context, index) {
                       final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(index);
-                      final isTabEnabled = index == 0 || DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
+                      final isTabEnabled = index == 0 || index == 5 || DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
 
                       Widget content;
                       if (!isTabEnabled) {

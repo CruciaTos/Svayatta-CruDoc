@@ -7,11 +7,11 @@ import 'package:doctor_management_app/features/dashboard/presentation/web_dashbo
 import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
 import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
+import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
-import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 

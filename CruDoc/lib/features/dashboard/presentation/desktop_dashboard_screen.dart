@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 
 // Import all the widgets we created
 import '../widgets/ai_insight_widget.dart';
@@ -125,56 +127,72 @@ class _DashboardHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    final user = FirebaseAuth.instance.currentUser;
+
+    return StreamBuilder<Map<String, dynamic>?>(
+      stream: DoctorProfileHelper.watchDoctorProfile(user),
+      builder: (context, snapshot) {
+        final doctorName = DoctorProfileHelper.formatDoctorName(user, snapshot.data);
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Hey, Dr. Ronald!',
-              style: TextStyle(color: Colors.grey[600], fontSize: 16),
-            ),
-            const Text(
-              "Let's get to work",
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hey, $doctorName!',
+                  style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                ),
+                const Text(
+                  "Let's get to work",
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A1A),
                   ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.search, color: Colors.grey),
-                  const SizedBox(width: 8),
-                  Text('Search...', style: TextStyle(color: Colors.grey[600])),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            const CircleAvatar(
-              backgroundImage: NetworkImage('https://i.pravatar.cc/150?img=11'),
-              radius: 20,
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.search, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text('Search...', style: TextStyle(color: Colors.grey[600])),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                CircleAvatar(
+                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.12),
+                  radius: 20,
+                  child: Text(
+                    doctorName.isNotEmpty ? doctorName[0].toUpperCase() : 'Dr',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).primaryColor,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 }

@@ -1,9 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:doctor_management_app/core/pdf/models/pdf_document_models.dart';
+import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
@@ -77,13 +78,13 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
 
   @override
   void dispose() {
-    _patientNameCtrl.dispose;
-    _patientPhoneCtrl.dispose;
-    _billNumberCtrl.dispose;
-    _discountCtrl.dispose;
-    _taxPercentCtrl.dispose;
-    _paidAmountCtrl.dispose;
-    _notesCtrl.dispose;
+    _patientNameCtrl.dispose();
+    _patientPhoneCtrl.dispose();
+    _billNumberCtrl.dispose();
+    _discountCtrl.dispose();
+    _taxPercentCtrl.dispose();
+    _paidAmountCtrl.dispose();
+    _notesCtrl.dispose();
     super.dispose();
   }
 
@@ -611,14 +612,56 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
     );
   }
 
-  void _generateAndSaveBill() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Invoice ${_billNumberCtrl.text} saved! (Ready for PDF Generation)'),
-        backgroundColor: const Color(0xFF0D9488),
+  Future<void> _generateAndSaveBill() async {
+    final documentData = PdfInvoiceDocumentData(
+      letterheadConfig: widget.letterheadConfig,
+      patient: _buildPatientSnapshot(),
+      documentNumber: _billNumberCtrl.text.trim().isEmpty
+          ? 'INV-${DateTime.now().millisecondsSinceEpoch}'
+          : _billNumberCtrl.text.trim(),
+      documentDate: _billDate,
+      items: _items
+          .map(
+            (item) => PdfInvoiceLineItem(
+              description: item.description.trim(),
+              quantity: item.quantity <= 0 ? 1 : item.quantity,
+              unitPrice: item.unitPrice < 0 ? 0 : item.unitPrice,
+            ),
+          )
+          .toList(),
+      totals: PdfMoneyTotals(
+        subtotal: _subtotal,
+        discountAmount: _discount,
+        taxPercent: _taxPercent,
+        taxAmount: _taxAmount,
+        grandTotal: _grandTotal,
+        paidAmount: _paidAmount,
+        balanceDue: _balanceDue,
+        paymentMode: _selectedPaymentMode,
       ),
+      notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
     );
-    Navigator.pop(context);
+
+    await MedicalPdfPreviewScreen.open(context, documentData: documentData);
+  }
+
+  PdfPatientSnapshot _buildPatientSnapshot() {
+    final patient = widget.initialPatient;
+    final typedAgeGender = patient == null
+        ? null
+        : '${patient.age} Y / ${patient.gender.trim().isEmpty ? 'N/A' : patient.gender.trim()}';
+
+    return PdfPatientSnapshot(
+      fullName: _patientNameCtrl.text.trim().isEmpty
+          ? (patient?.fullName.trim().isNotEmpty == true ? patient!.fullName : 'Patient')
+          : _patientNameCtrl.text.trim(),
+      phone: _patientPhoneCtrl.text.trim().isEmpty
+          ? (patient?.phone.trim().isEmpty == true ? null : patient?.phone.trim())
+          : _patientPhoneCtrl.text.trim(),
+      ageGender: typedAgeGender,
+      email: patient?.email.trim().isEmpty == true ? null : patient?.email.trim(),
+      patientId: patient?.id.trim().isEmpty == true ? null : patient?.id.trim(),
+    );
   }
 
   Future<void> _shareBillWhatsApp() async {

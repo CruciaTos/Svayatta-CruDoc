@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/reports/presentation/medical_report_generation_sheet.dart';
 import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 
@@ -63,7 +63,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Bills & Prescription Branding',
+                        'Document Letterhead Branding',
                         style: TextStyle(
                           fontFamily: AppColors.headingFontFamily,
                           fontSize: 15,
@@ -73,7 +73,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Custom letterhead, clinic logo, & doctor credentials',
+                        'Custom logo, clinic details, doctor credentials, and footer notes',
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
@@ -219,6 +219,23 @@ class LetterheadBrandingCard extends StatelessWidget {
                       foregroundColor: const Color(0xFF8B5CF6),
                       side: const BorderSide(color: Color(0xFFDDD6FE)),
                       backgroundColor: const Color(0xFFF5F3FF),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => _openMedicalReportGenerator(context, config),
+                    icon: const Icon(Icons.description_rounded, size: 16),
+                    label: const Text('Report'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1E78FF),
+                      side: const BorderSide(color: Color(0xFFBFDBFE)),
+                      backgroundColor: const Color(0xFFEFF6FF),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -460,6 +477,15 @@ class LetterheadBrandingCard extends StatelessWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => PrescriptionGenerationSheet(letterheadConfig: config),
+    );
+  }
+
+  void _openMedicalReportGenerator(BuildContext context, DoctorLetterheadConfig config) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MedicalReportGenerationSheet(letterheadConfig: config),
     );
   }
 }

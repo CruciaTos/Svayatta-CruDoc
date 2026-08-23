@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/web_dashboard_view.dart';
@@ -516,15 +517,37 @@ class _TopBar extends StatelessWidget {
                   fontFamily: AppColors.headingFontFamily,
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                specialty.isNotEmpty ? specialty : '---',
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                  fontSize: 13,
-                ),
-              ),
+              const SizedBox(height: 4),
+              Builder(builder: (context) {
+                final specMeta = DoctorSpecialty.fromString(specialty);
+                return Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: specMeta.accentColor.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: specMeta.accentColor.withValues(alpha: 0.25),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(specMeta.icon, size: 13, color: specMeta.accentColor),
+                      const SizedBox(width: 5),
+                      Text(
+                        specialty.isNotEmpty ? specialty : '---',
+                        style: TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          color: specMeta.accentColor,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
             ],
           ),
         ),

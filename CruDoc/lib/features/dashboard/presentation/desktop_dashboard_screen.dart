@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 
 // Import all the widgets we created
@@ -132,7 +134,10 @@ class _DashboardHeader extends StatelessWidget {
     return StreamBuilder<Map<String, dynamic>?>(
       stream: DoctorProfileHelper.watchDoctorProfile(user),
       builder: (context, snapshot) {
-        final doctorName = DoctorProfileHelper.formatDoctorName(user, snapshot.data);
+        final profileData = snapshot.data;
+        final doctorName = DoctorProfileHelper.formatDoctorName(user, profileData);
+        final specialty = DoctorProfileHelper.formatSpecialty(profileData, user);
+        final specMeta = DoctorSpecialty.fromString(specialty);
 
         return Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -144,20 +149,56 @@ class _DashboardHeader extends StatelessWidget {
                   'Hey, $doctorName!',
                   style: TextStyle(color: Colors.grey[600], fontSize: 16),
                 ),
-                const Text(
-                  "Let's get to work",
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1A1A1A),
-                  ),
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    const Text(
+                      "Let's get to work",
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A1A1A),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: specMeta.accentColor.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: specMeta.accentColor.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(specMeta.icon,
+                              size: 14, color: specMeta.accentColor),
+                          const SizedBox(width: 5),
+                          Text(
+                            specialty,
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: specMeta.accentColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
             Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -172,21 +213,17 @@ class _DashboardHeader extends StatelessWidget {
                     children: [
                       const Icon(Icons.search, color: Colors.grey),
                       const SizedBox(width: 8),
-                      Text('Search...', style: TextStyle(color: Colors.grey[600])),
+                      Text('Search...',
+                          style: TextStyle(color: Colors.grey[600])),
                     ],
                   ),
                 ),
                 const SizedBox(width: 12),
                 CircleAvatar(
-                  backgroundColor: Theme.of(context).primaryColor.withOpacity(0.12),
+                  backgroundColor: specMeta.accentColor.withValues(alpha: 0.15),
                   radius: 20,
-                  child: Text(
-                    doctorName.isNotEmpty ? doctorName[0].toUpperCase() : 'Dr',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
+                  child: Icon(Icons.person_rounded,
+                      color: specMeta.accentColor, size: 22),
                 ),
               ],
             ),

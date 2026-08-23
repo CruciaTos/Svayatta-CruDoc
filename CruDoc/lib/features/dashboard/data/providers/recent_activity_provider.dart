@@ -14,7 +14,7 @@ import 'package:doctor_management_app/features/revenue/data/providers/revenue_pr
 
 /// How many rows the dashboard's "Recent Activity" card shows once
 /// patient/visit/inventory/revenue activity is merged into one feed.
-const int kRecentActivityDisplayLimit = 6;
+const int kRecentActivityDisplayLimit = 25;
 
 /// Merges patient, visit, inventory, and revenue activity into one
 /// chronological feed for the dashboard's "Recent Activity" card.

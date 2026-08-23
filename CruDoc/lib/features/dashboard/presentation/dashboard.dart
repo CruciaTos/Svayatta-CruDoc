@@ -263,7 +263,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
             }
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+              physics: const NeverScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(18, 6, 18, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -291,7 +292,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   if (isInventoryEnabled) ...[
                     LowStockBanner(
                       onTap: () => _navigateToTabOrExplain(
@@ -301,15 +302,15 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                             'Low-stock and expiring medicines are listed in the Inventory section.',
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 6),
                   ],
                   if (!isRevenueEnabled)
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(22),
+                      padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         color: AppColors.cardSurface,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(22),
                         border: Border.all(color: AppColors.divider),
                       ),
                       child: Column(
@@ -330,7 +331,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           Row(
                             children: [
                               const Icon(Icons.shield_outlined, color: Colors.amber, size: 20),
@@ -340,7 +341,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                                 style: TextStyle(
                                   fontFamily: AppColors.bodyFontFamily,
                                   color: AppColors.textPrimary.withValues(alpha: 0.8),
-                                  fontSize: 15,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),
@@ -393,9 +394,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         );
                       },
                     ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   _StatsGrid(stats: stats),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   QuickActionsRow(
                     onNewVisit: isAppointmentsEnabled
                         ? () => _navigateToTabOrExplain(
@@ -415,7 +416,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         ? () => AppointmentCalendarSheet.show(context)
                         : () => showLockedNotice('Appointments & Calendar'),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 12),
                   if (isAppointmentsEnabled)
                     TodaysVisitsCard(
                       onViewAll: () => _navigateToTabOrExplain(
@@ -428,7 +429,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   else
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: AppColors.cardSurface,
                         borderRadius: BorderRadius.circular(20),
@@ -436,22 +437,22 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.lock_rounded, color: Colors.amber.shade300, size: 20),
-                          const SizedBox(width: 10),
+                          Icon(Icons.lock_rounded, color: Colors.amber.shade300, size: 18),
+                          const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
                               "Today's Visits module is disabled",
                               style: TextStyle(
                                 fontFamily: AppColors.bodyFontFamily,
                                 color: AppColors.textSecondary,
-                                fontSize: 13.5,
+                                fontSize: 13,
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   const RecentActivityCard(),
                 ],
               ),

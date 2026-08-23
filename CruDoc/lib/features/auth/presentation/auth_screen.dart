@@ -1,24 +1,28 @@
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:go_router/go_router.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
+import 'package:doctor_management_app/features/auth/presentation/widgets/specialty_onboarding_dialog.dart';
 
-class AuthScreen extends StatefulWidget {
+class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
 
   @override
-  State<AuthScreen> createState() => _AuthScreenState();
+  ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
+class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStateMixin {
   // Mobile Controllers
   late final PageController _pageController;
   late final AnimationController _backgroundController;
@@ -39,10 +43,6 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
-
-  // Demo Credentials
-  static const _demoEmail = 'doctor@crudoc.com';
-  static const _demoPassword = 'demo1234';
 
   @override
   void initState() {
@@ -98,17 +98,18 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
   }
 
   void _fillDemoCredentials() {
+    final spec = ref.read(authSpecialtyProvider);
     setState(() {
-      _emailController.text = _demoEmail;
-      _passwordController.text = _demoPassword;
+      _emailController.text = spec.demoEmail;
+      _passwordController.text = spec.demoPassword;
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: const Row(
+        content: Row(
           children: [
-            Icon(Icons.bolt, color: Colors.amber, size: 18),
-            SizedBox(width: 8),
-            Text('Demo credentials pre-filled! Click Log in.'),
+            Icon(spec.icon, color: Colors.amber, size: 18),
+            const SizedBox(width: 8),
+            Text('${spec.label} demo credentials pre-filled! Click Log in.'),
           ],
         ),
         backgroundColor: const Color(0xFF0F172A),
@@ -464,6 +465,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       final user = userCredential.user;
       if (user != null) {
         await DeviceSessionService.instance.registerNewSession(user.uid);
+        if (mounted) await _maybeOnboardSpecialty(user);
       }
       if (!mounted) return;
       _enterApp();
@@ -492,11 +494,29 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         await DeviceSessionService.instance.registerNewSession(currentUser.uid);
+        if (mounted) await _maybeOnboardSpecialty(currentUser);
       }
       if (mounted) {
         _enterApp();
       }
     }
+  }
+
+  /// Shows the specialty onboarding dialog if the user has no specialty set.
+  Future<void> _maybeOnboardSpecialty(User user) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+      final data = doc.data();
+      final hasSpecialty = data != null &&
+          ((data['specialty'] as String?)?.trim().isNotEmpty == true ||
+           (data['specialization'] as String?)?.trim().isNotEmpty == true);
+      if (!hasSpecialty && mounted) {
+        await showSpecialtyOnboardingDialog(context);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -609,6 +629,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 
   Widget _buildWebAuthView(BuildContext context) {
     final screenSize = MediaQuery.of(context).size;
+    final selectedSpecialty = ref.watch(authSpecialtyProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -627,6 +648,10 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                       flex: 55,
                       child: _WebIllustrationPanel(
                         progress: _backgroundController.value,
+                        selectedSpecialty: selectedSpecialty,
+                        onSpecialtySelected: (spec) {
+                          ref.read(authSpecialtyProvider.notifier).select(spec);
+                        },
                       ),
                     ),
 
@@ -648,6 +673,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                             rememberMe: _rememberMe,
                             emailController: _emailController,
                             passwordController: _passwordController,
+                            selectedSpecialty: selectedSpecialty,
                             onObscureToggle: () => setState(
                                 () => _obscurePassword = !_obscurePassword),
                             onRememberMeToggle: () => setState(
@@ -724,18 +750,26 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
 // ==================== WEB ILLUSTRATION PANEL ====================
 
 class _WebIllustrationPanel extends StatelessWidget {
-  const _WebIllustrationPanel({required this.progress});
+  const _WebIllustrationPanel({
+    required this.progress,
+    required this.selectedSpecialty,
+    required this.onSpecialtySelected,
+  });
 
   final double progress;
+  final DoctorSpecialty selectedSpecialty;
+  final ValueChanged<DoctorSpecialty> onSpecialtySelected;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 500),
+      curve: Curves.easeInOut,
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFFE0F7FA), Color(0xFFB2EBF2), Color(0xFFE0F2FE)],
+          colors: selectedSpecialty.gradientColors,
         ),
       ),
       child: Stack(
@@ -744,11 +778,12 @@ class _WebIllustrationPanel extends StatelessWidget {
           Positioned(
             left: -60,
             top: -60,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                color: const Color(0xFF00ACC1).withValues(alpha: 0.08),
+                color: selectedSpecialty.accentColor.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
             ),
@@ -756,11 +791,12 @@ class _WebIllustrationPanel extends StatelessWidget {
           Positioned(
             right: -40,
             bottom: -40,
-            child: Container(
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 500),
               width: 240,
               height: 240,
               decoration: BoxDecoration(
-                color: const Color(0xFF0288D1).withValues(alpha: 0.06),
+                color: selectedSpecialty.accentColor.withValues(alpha: 0.06),
                 shape: BoxShape.circle,
               ),
             ),
@@ -769,7 +805,10 @@ class _WebIllustrationPanel extends StatelessWidget {
           // Animated ECG Line Painter
           Positioned.fill(
             child: CustomPaint(
-              painter: _WebIllustrationPainter(progress: progress),
+              painter: _WebIllustrationPainter(
+                progress: progress,
+                accentColor: selectedSpecialty.accentColor,
+              ),
             ),
           ),
 
@@ -778,8 +817,10 @@ class _WebIllustrationPanel extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Soft glass backdrop container for doctors & heart
-                Container(
+                // Soft glass backdrop container for specialty icon
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
                   width: 440,
                   height: 330,
                   decoration: BoxDecoration(
@@ -787,7 +828,7 @@ class _WebIllustrationPanel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(220),
                     boxShadow: [
                       BoxShadow(
-                        color: const Color(0xFF00ACC1).withValues(alpha: 0.12),
+                        color: selectedSpecialty.accentColor.withValues(alpha: 0.12),
                         blurRadius: 50,
                         spreadRadius: 6,
                       ),
@@ -798,36 +839,190 @@ class _WebIllustrationPanel extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       _DoctorFigure(isFemale: false),
-                      _HeartIcon(progress: progress),
+                      _SpecialtyHeroIcon(
+                        progress: progress,
+                        specialty: selectedSpecialty,
+                      ),
                       _DoctorFigure(isFemale: true),
                     ],
                   ),
                 ),
                 const SizedBox(height: 36),
 
-                const Text(
-                  'CruDoc Clinical Suite',
-                  style: TextStyle(
-                    color: Color(0xFF006064),
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                    fontFamily: AppColors.headingFontFamily,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  child: Text(
+                    'CruDoc ${selectedSpecialty.shortLabel} Suite',
+                    key: ValueKey(selectedSpecialty.type),
+                    style: TextStyle(
+                      color: HSLColor.fromColor(selectedSpecialty.accentColor)
+                          .withLightness(0.22)
+                          .toColor(),
+                      fontSize: 26,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                      fontFamily: AppColors.headingFontFamily,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Intelligent Practice Management for Modern Healthcare',
-                  style: TextStyle(
-                    color: Color(0xFF00838F),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 350),
+                  child: Text(
+                    selectedSpecialty.tagline,
+                    key: ValueKey(selectedSpecialty.tagline),
+                    style: TextStyle(
+                      color: HSLColor.fromColor(selectedSpecialty.accentColor)
+                          .withLightness(0.30)
+                          .toColor(),
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
             ),
           ),
+
+          // ── Specialty Selector Pills (bottom of panel) ──
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 24,
+            child: _SpecialtyPillBar(
+              selectedSpecialty: selectedSpecialty,
+              onSelected: onSpecialtySelected,
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Animated specialty icon that replaces the static heart.
+class _SpecialtyHeroIcon extends StatelessWidget {
+  const _SpecialtyHeroIcon({required this.progress, required this.specialty});
+
+  final double progress;
+  final DoctorSpecialty specialty;
+
+  @override
+  Widget build(BuildContext context) {
+    final double scale = 1.0 + math.sin(progress * math.pi * 2) * 0.04;
+    return Transform.scale(
+      scale: scale,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+        width: 110,
+        height: 110,
+        decoration: BoxDecoration(
+          color: specialty.accentColor,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: specialty.accentColor.withValues(alpha: 0.35),
+              blurRadius: 24,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Icon(
+            specialty.icon,
+            key: ValueKey(specialty.type),
+            color: Colors.white,
+            size: 52,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Horizontal scrollable pill bar for selecting a medical specialty.
+class _SpecialtyPillBar extends StatelessWidget {
+  const _SpecialtyPillBar({
+    required this.selectedSpecialty,
+    required this.onSelected,
+  });
+
+  final DoctorSpecialty selectedSpecialty;
+  final ValueChanged<DoctorSpecialty> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        children: DoctorSpecialty.all.map((spec) {
+          final isSelected = spec.type == selectedSpecialty.type;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () => onSelected(spec),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 260),
+                  curve: Curves.easeOut,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? spec.accentColor
+                        : Colors.white.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: isSelected
+                          ? spec.accentColor
+                          : Colors.black.withValues(alpha: 0.06),
+                      width: 1.5,
+                    ),
+                    boxShadow: isSelected
+                        ? [
+                            BoxShadow(
+                              color: spec.accentColor.withValues(alpha: 0.30),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ]
+                        : [],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        spec.icon,
+                        size: 15,
+                        color: isSelected
+                            ? Colors.white
+                            : spec.accentColor,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        spec.shortLabel,
+                        style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : const Color(0xFF334155),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: AppColors.bodyFontFamily,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
@@ -924,54 +1119,26 @@ class _DoctorFigure extends StatelessWidget {
   }
 }
 
-class _HeartIcon extends StatelessWidget {
-  const _HeartIcon({required this.progress});
-
-  final double progress;
-
-  @override
-  Widget build(BuildContext context) {
-    final double scale = 1.0 + math.sin(progress * math.pi * 2) * 0.04;
-    return Transform.scale(
-      scale: scale,
-      child: Container(
-        width: 110,
-        height: 110,
-        decoration: BoxDecoration(
-          color: const Color(0xFF00838F),
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF00ACC1).withValues(alpha: 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: const Icon(
-          Icons.favorite_rounded,
-          color: Colors.white,
-          size: 60,
-        ),
-      ),
-    );
-  }
-}
+// _HeartIcon replaced by _SpecialtyHeroIcon above.
 
 
 
 // ==================== WEB ILLUSTRATION PAINTER ====================
 
 class _WebIllustrationPainter extends CustomPainter {
-  _WebIllustrationPainter({required this.progress});
+  _WebIllustrationPainter({
+    required this.progress,
+    this.accentColor = const Color(0xFF00ACC1),
+  });
 
   final double progress;
+  final Color accentColor;
 
   @override
   void paint(Canvas canvas, Size size) {
     final double wave = math.sin(progress * math.pi * 2);
     final Paint ecgPaint = Paint()
-      ..color = const Color(0xFF00ACC1).withValues(alpha: 0.30)
+      ..color = accentColor.withValues(alpha: 0.30)
       ..strokeWidth = 2.5
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -995,7 +1162,7 @@ class _WebIllustrationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WebIllustrationPainter oldDelegate) =>
-      oldDelegate.progress != progress;
+      oldDelegate.progress != progress || oldDelegate.accentColor != accentColor;
 }
 
 // ==================== WEB AUTH PORTAL CARD (LOGIN ONLY) ====================
@@ -1007,6 +1174,7 @@ class _WebAuthPortalCard extends StatelessWidget {
     required this.rememberMe,
     required this.emailController,
     required this.passwordController,
+    required this.selectedSpecialty,
     required this.onObscureToggle,
     required this.onRememberMeToggle,
     required this.onPrimarySubmit,
@@ -1018,6 +1186,7 @@ class _WebAuthPortalCard extends StatelessWidget {
   final bool rememberMe;
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final DoctorSpecialty selectedSpecialty;
   final VoidCallback onObscureToggle;
   final VoidCallback onRememberMeToggle;
   final VoidCallback onPrimarySubmit;
@@ -1029,24 +1198,33 @@ class _WebAuthPortalCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Red Cross Logo Header
+        // Specialty-Themed Logo Header
         Row(
           children: [
-            Container(
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 400),
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: const Color(0xFFE53935),
+                color: selectedSpecialty.accentColor,
                 borderRadius: BorderRadius.circular(8),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFFE53935).withValues(alpha: 0.25),
+                    color: selectedSpecialty.accentColor.withValues(alpha: 0.25),
                     blurRadius: 10,
                     offset: const Offset(0, 3),
                   ),
                 ],
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 22),
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                child: Icon(
+                  selectedSpecialty.icon,
+                  key: ValueKey(selectedSpecialty.type),
+                  color: Colors.white,
+                  size: 20,
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Column(
@@ -1063,13 +1241,17 @@ class _WebAuthPortalCard extends StatelessWidget {
                     fontFamily: AppColors.headingFontFamily,
                   ),
                 ),
-                Text(
-                  'Clinical Suite & Management',
-                  style: TextStyle(
-                    color: const Color(0xFF00ACC1),
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 300),
+                  child: Text(
+                    '${selectedSpecialty.shortLabel} Clinical Suite',
+                    key: ValueKey(selectedSpecialty.shortLabel),
+                    style: TextStyle(
+                      color: selectedSpecialty.accentColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.3,
+                    ),
                   ),
                 ),
               ],
@@ -1078,7 +1260,7 @@ class _WebAuthPortalCard extends StatelessWidget {
         ),
         const SizedBox(height: 36),
 
-        // Welcome Doctor Title
+        // Welcome Doctor Title (specialty-adaptive)
         const Text(
           'Welcome Back Doctor !',
           style: TextStyle(
@@ -1090,12 +1272,16 @@ class _WebAuthPortalCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          "Let's get you logged in",
-          style: TextStyle(
-            color: Color(0xFF94A3B8),
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 300),
+          child: Text(
+            selectedSpecialty.tagline,
+            key: ValueKey(selectedSpecialty.tagline),
+            style: TextStyle(
+              color: selectedSpecialty.accentColor.withValues(alpha: 0.8),
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ),
         const SizedBox(height: 32),
@@ -1177,39 +1363,42 @@ class _WebAuthPortalCard extends StatelessWidget {
         ),
         const SizedBox(height: 28),
 
-        // Login Button
+        // Login Button — accent color matches selected specialty
         SizedBox(
           height: 52,
-          child: ElevatedButton(
-            onPressed: isLoading ? null : onPrimarySubmit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00ACC1),
-              foregroundColor: Colors.white,
-              disabledBackgroundColor:
-                  const Color(0xFF00ACC1).withValues(alpha: 0.6),
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 400),
+            child: ElevatedButton(
+              onPressed: isLoading ? null : onPrimarySubmit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: selectedSpecialty.accentColor,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor:
+                    selectedSpecialty.accentColor.withValues(alpha: 0.6),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
+              child: isLoading
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: Colors.white,
+                      ),
+                    )
+                  : Text(
+                      'Login as ${selectedSpecialty.label}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.3,
+                        fontFamily: AppColors.bodyFontFamily,
+                      ),
+                    ),
             ),
-            child: isLoading
-                ? const SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Text(
-                    'Login',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.3,
-                      fontFamily: AppColors.bodyFontFamily,
-                    ),
-                  ),
           ),
         ),
       ],

@@ -148,7 +148,7 @@ class PatientLocalService {
 
     final normalizedQuery = normalizeForSearch(query);
     final normalizedPhoneQuery = normalizePhoneDigits(query);
-    final canMatchPhone = normalizedPhoneQuery.length >= 1;
+    final canMatchPhone = normalizedPhoneQuery.isNotEmpty;
 
     for (final row in rows) {
       final patient = _fromRow(row);
@@ -193,7 +193,8 @@ class PatientLocalService {
     final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'patients',
-      where: 'isActive = 1 AND isArchived = 0 AND doctorId = ?',
+      where:
+          'isActive = 1 AND isArchived = 0 AND doctorId = ? AND NOT (firstName = "Patient" AND (lastName = "" OR lastName IS NULL) AND (phone = "" OR phone IS NULL) AND (gender = "" OR gender IS NULL))',
       whereArgs: [_currentDoctorId],
       orderBy: 'createdAt DESC',
     );

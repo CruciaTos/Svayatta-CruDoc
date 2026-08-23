@@ -588,8 +588,8 @@ class FirestoreSyncService {
       debugPrint('[FirestoreSync] Could not fetch missing parent patient $patientId from Firestore: $e');
     }
 
-    // Fallback: If patient document does not exist in Firestore, create a minimal stub
-    // to satisfy the SQLite foreign key constraint and prevent synchronization crashes.
+    // Fallback: If patient document cannot be fetched from Firestore, create an archived minimal stub
+    // to satisfy the SQLite foreign key constraint without displaying dummy data in the UI.
     final now = DateTime.now().millisecondsSinceEpoch;
     try {
       await db.insert(
@@ -606,17 +606,16 @@ class FirestoreSyncService {
           'diagnosis': '[]',
           'notes': '',
           'packageBalance': 0.0,
-          'isArchived': 0,
+          'isArchived': 1,
           'isActive': 1,
           'createdAt': now,
-          'updatedAt': now,
+          'updatedAt': 0,
           'syncStatus': 'synced',
           'pendingDelete': 0,
-          'lastSyncedAt': now,
+          'lastSyncedAt': 0,
         },
         conflictAlgorithm: LocalConflictAlgorithm.ignore,
       );
-      unawaited(PatientLocalService.instance.notifyPatientsChanged());
     } catch (_) {}
   }
 
@@ -647,11 +646,13 @@ class FirestoreSyncService {
         return;
       }
       // For synced rows, only overwrite if the remote data is at least as
-      // recent as the local copy.  This prevents an older batch download from
+      // recent as the local copy. This prevents an older batch download from
       // clobbering a fresher live-listener write.
+      // Exception: If local row is an un-synced stub (updatedAt <= 0), always overwrite.
       final localUpdatedAt = (local['updatedAt'] as num?)?.toInt() ?? 0;
       final remoteUpdatedAt = _timestampToMillis(data['updatedAt']);
-      if (remoteUpdatedAt > 0 && localUpdatedAt > remoteUpdatedAt) {
+      final isStub = localUpdatedAt <= 0 || (table == 'patients' && local['isArchived'] == 1 && local['firstName'] == 'Patient');
+      if (!isStub && remoteUpdatedAt > 0 && localUpdatedAt > remoteUpdatedAt) {
         // Local is newer — keep it.
         return;
       }

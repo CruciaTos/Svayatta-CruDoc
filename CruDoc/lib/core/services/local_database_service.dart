@@ -307,6 +307,18 @@ class LocalDatabaseService extends ChangeNotifier {
       );
 
       await _createIndexes(txn);
+
+      // Clean up any legacy placeholder stub patients that were created as unarchived
+      await txn.execute('''
+        UPDATE patients
+        SET isArchived = 1, updatedAt = 0
+        WHERE firstName = 'Patient'
+          AND (lastName = '' OR lastName IS NULL)
+          AND (phone = '' OR phone IS NULL)
+          AND (gender = '' OR gender IS NULL)
+          AND (notes = '' OR notes IS NULL)
+          AND isArchived = 0
+      ''');
     });
   }
 

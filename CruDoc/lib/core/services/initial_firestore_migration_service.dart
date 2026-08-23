@@ -205,7 +205,7 @@ class InitialFirestoreMigrationService {
       debugPrint('[InitialMigration] Could not fetch parent patient $patientId: $e');
     }
 
-    // Fallback: create a stub patient so FK constraint is satisfied
+    // Fallback: create an archived stub patient so FK constraint is satisfied without polluting the active patient UI.
     final now = DateTime.now().millisecondsSinceEpoch;
     try {
       await db.insert(
@@ -222,13 +222,13 @@ class InitialFirestoreMigrationService {
           'diagnosis': '[]',
           'notes': '',
           'packageBalance': 0.0,
-          'isArchived': 0,
+          'isArchived': 1,
           'isActive': 1,
           'createdAt': now,
-          'updatedAt': now,
+          'updatedAt': 0,
           'syncStatus': 'synced',
           'pendingDelete': 0,
-          'lastSyncedAt': now,
+          'lastSyncedAt': 0,
         },
         conflictAlgorithm: LocalConflictAlgorithm.ignore,
       );

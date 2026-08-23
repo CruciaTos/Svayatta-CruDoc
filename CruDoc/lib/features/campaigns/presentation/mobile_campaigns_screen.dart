@@ -59,59 +59,21 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ------ Top Header Row (Matching PatientRecords & VisitationScreen) ------
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Patient Campaigns',
-                        style: AppColors.pageHeading,
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        'Health alerts & updates across Email & WhatsApp',
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          fontSize: 12,
-                          color: AppColors.textSecondary,
-                        ),
-                      ),
-                    ],
+              // ------ Top Header Row ------
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'Patient Campaigns',
+                    style: AppColors.pageHeading,
                   ),
-                  GestureDetector(
-                    onTap: () => MobilePostCampaignSheet.show(context),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: AppColors.chartBarLight,
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.chartBarLight.withValues(alpha: 0.3),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add, color: Colors.white, size: 17),
-                          SizedBox(width: 4),
-                          Text(
-                            'Post',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: AppColors.bodyFontFamily,
-                            ),
-                          ),
-                        ],
-                      ),
+                  SizedBox(height: 2),
+                  Text(
+                    'Health alerts & updates across Email & WhatsApp',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -149,19 +111,10 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                     return CustomScrollView(
                       physics: const BouncingScrollPhysics(),
                       slivers: [
-                        // Overview KPI Tiles
-                        if (allCampaigns.isNotEmpty)
-                          SliverToBoxAdapter(
-                            child: Padding(
-                              padding: const EdgeInsets.only(bottom: 16),
-                              child: _buildOverviewKpi(allCampaigns),
-                            ),
-                          ),
-
                         // Section Heading
                         SliverToBoxAdapter(
                           child: Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
+                            padding: const EdgeInsets.only(top: 4, bottom: 10),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -171,17 +124,24 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                                       : '${_selectedCategory!.label} (${filtered.length})',
                                   style: AppColors.pageHeading.copyWith(
                                     fontSize: 16,
-                                    fontWeight: FontWeight.w600,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                                 if (allCampaigns.isNotEmpty)
-                                  Text(
-                                    '${allCampaigns.where((c) => c.status == CampaignStatus.completed).length} delivered',
-                                    style: const TextStyle(
-                                      fontFamily: AppColors.bodyFontFamily,
-                                      fontSize: 12,
-                                      color: AppColors.positiveGreen,
-                                      fontWeight: FontWeight.w600,
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.positiveGreen.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      '${allCampaigns.where((c) => c.status == CampaignStatus.completed).length} delivered',
+                                      style: const TextStyle(
+                                        fontFamily: AppColors.bodyFontFamily,
+                                        fontSize: 11.5,
+                                        color: AppColors.positiveGreen,
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                     ),
                                   ),
                               ],
@@ -263,7 +223,7 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
   }
 
   // ===========================================================================
-  // CATEGORY FILTER CHIPS
+  // CATEGORY FILTER CHIPS (High-Contrast & Highly Visible)
   // ===========================================================================
   Widget _buildCategoryChips() {
     return SingleChildScrollView(
@@ -271,186 +231,85 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
       physics: const BouncingScrollPhysics(),
       child: Row(
         children: [
-          _buildChip('All', _selectedCategory == null, () {
-            setState(() => _selectedCategory = null);
-          }),
+          _buildChip(
+            label: 'All Categories',
+            icon: Icons.grid_view_rounded,
+            color: AppColors.chartBarLight,
+            isSelected: _selectedCategory == null,
+            onTap: () => setState(() => _selectedCategory = null),
+          ),
           ...CampaignCategory.values.map((cat) {
             final isSelected = _selectedCategory == cat;
-            return _buildChip(cat.label, isSelected, () {
-              setState(() => _selectedCategory = isSelected ? null : cat);
-            });
+            return _buildChip(
+              label: cat.label,
+              icon: cat.icon,
+              color: cat.color,
+              isSelected: isSelected,
+              onTap: () {
+                setState(() => _selectedCategory = isSelected ? null : cat);
+              },
+            );
           }),
         ],
       ),
     );
   }
 
-  Widget _buildChip(String label, bool isSelected, VoidCallback onTap) {
+  Widget _buildChip({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
         onTap: onTap,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.chartBarLight : Colors.white,
-            borderRadius: BorderRadius.circular(20),
+            color: isSelected
+                ? color
+                : Colors.white,
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected ? AppColors.chartBarLight : AppColors.divider,
+              color: isSelected
+                  ? color
+                  : color.withValues(alpha: 0.3),
+              width: 1.2,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: AppColors.chartBarLight.withValues(alpha: 0.25),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              fontSize: 12,
-              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-              color: isSelected ? Colors.white : AppColors.textSecondary,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // OVERVIEW KPI TILES
-  // ===========================================================================
-  Widget _buildOverviewKpi(List<CampaignModel> campaigns) {
-    int totalRecipients = 0;
-    int totalEmailsSent = 0;
-    int totalEmailsFailed = 0;
-    int totalWaSent = 0;
-    int totalWaFailed = 0;
-
-    for (final c in campaigns) {
-      totalRecipients += c.totalRecipients;
-      totalEmailsSent += c.emailsSent;
-      totalEmailsFailed += c.emailsFailed;
-      totalWaSent += c.whatsAppSent;
-      totalWaFailed += c.whatsAppFailed;
-    }
-
-    final totalDispatches = (totalEmailsSent + totalEmailsFailed) + (totalWaSent + totalWaFailed);
-    final successfulDispatches = totalEmailsSent + totalWaSent;
-    final overallRate = totalDispatches > 0 ? (successfulDispatches / totalDispatches * 100).round() : 100;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: AppColors.chartBarLight.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.analytics_outlined, color: AppColors.chartBarLight, size: 18),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? color.withValues(alpha: 0.28)
+                    : Colors.black.withValues(alpha: 0.03),
+                blurRadius: isSelected ? 8 : 4,
+                offset: const Offset(0, 2),
               ),
-              const SizedBox(width: 8),
-              const Text(
-                'Broadcast Metrics',
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 15,
+                color: isSelected ? Colors.white : color,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: AppColors.positiveGreen.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  '$overallRate% Success',
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.positiveGreen,
-                  ),
+                  fontSize: 12.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                  color: isSelected ? Colors.white : AppColors.textPrimary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              _buildKpiCell('Campaigns', '${campaigns.length}', Icons.campaign_rounded, AppColors.chartBarLight),
-              _buildKpiCell('Targeted', '$totalRecipients', Icons.groups_rounded, const Color(0xFF0284C7)),
-              _buildKpiCell('Emails', '$totalEmailsSent', Icons.mark_email_read_rounded, const Color(0xFF2563EB)),
-              _buildKpiCell('WhatsApp', '$totalWaSent', Icons.chat_rounded, const Color(0xFF10B981)),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildKpiCell(String label, String value, IconData icon, Color color) {
-    return Expanded(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 15, color: color),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 1),
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 10,
-                color: AppColors.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
         ),
       ),
     );
@@ -493,21 +352,22 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
                       decoration: BoxDecoration(
                         color: cat.color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: cat.color.withValues(alpha: 0.25), width: 1),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(cat.icon, size: 13, color: cat.color),
+                          Icon(cat.icon, size: 14, color: cat.color),
                           const SizedBox(width: 5),
                           Text(
                             cat.label,
                             style: TextStyle(
                               fontFamily: AppColors.bodyFontFamily,
-                              fontSize: 11,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                               color: cat.color,
                             ),

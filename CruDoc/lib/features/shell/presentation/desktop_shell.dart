@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
+import 'package:doctor_management_app/features/shell/data/desktop_shell_preferences.dart';
 import 'package:doctor_management_app/features/chatbot/widgets/draggable_floating_chatbot_button.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/desktop_dashboard_screen.dart';
@@ -13,6 +17,17 @@ import 'package:doctor_management_app/features/inventory/presentation/desktop_in
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_events_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
+
+/// Intent for the Ctrl+B sidebar toggle shortcut.
+class _ToggleSidebarIntent extends Intent {
+  const _ToggleSidebarIntent();
+}
+
+/// Intent for the Ctrl+1..Ctrl+6 tab-switch shortcuts.
+class _NavigateToTabIntent extends Intent {
+  const _NavigateToTabIntent(this.index);
+  final int index;
+}
 
 /// Desktop layout with a custom sidebar that matches the Donezo dashboard style.
 /// Includes an immersive toggle between expanded (full-width) and collapsed (icon-only) states.
@@ -26,13 +41,35 @@ class DesktopShell extends StatefulWidget {
 class _DesktopShellState extends State<DesktopShell> {
   static const chartBarDim = Color.fromARGB(255, 140, 188, 255);
 
+  final DesktopShellPreferences _shellPrefs = DesktopShellPreferences();
+  final FocusNode _shortcutsFocusNode = FocusNode();
+
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreSidebarPreference();
+  }
+
+  @override
+  void dispose() {
+    _shortcutsFocusNode.dispose();
+    super.dispose();
+  }
+
+  Future<void> _restoreSidebarPreference() async {
+    final expanded = await _shellPrefs.getSidebarExpanded();
+    if (!mounted) return;
+    setState(() => _isSidebarExpanded = expanded);
+  }
 
   void _toggleSidebar() {
     setState(() {
       _isSidebarExpanded = !_isSidebarExpanded;
     });
+    unawaited(_shellPrefs.setSidebarExpanded(_isSidebarExpanded));
   }
 
   static const List<String> _labels = [
@@ -78,8 +115,59 @@ class _DesktopShellState extends State<DesktopShell> {
     }
   }
 
+  /// Keyboard shortcuts scoped to the desktop shell: Ctrl+B toggles the
+  /// sidebar and Ctrl+1..Ctrl+6 jump straight to a tab. Digit-only keys are
+  /// deliberately avoided so typing "1".."6" in a text field elsewhere on
+  /// screen never gets hijacked into a navigation action.
+  Map<ShortcutActivator, Intent> get _keyboardShortcuts => {
+        const SingleActivator(LogicalKeyboardKey.keyB, control: true):
+            const _ToggleSidebarIntent(),
+        for (var i = 0; i < _labels.length; i++)
+          SingleActivator(_digitKeyFor(i), control: true):
+              _NavigateToTabIntent(i),
+      };
+
+  static LogicalKeyboardKey _digitKeyFor(int index) {
+    const digitKeys = [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5,
+      LogicalKeyboardKey.digit6,
+    ];
+    return digitKeys[index];
+  }
+
   @override
   Widget build(BuildContext context) {
+    return Shortcuts(
+      shortcuts: _keyboardShortcuts,
+      child: Actions(
+        actions: <Type, Action<Intent>>{
+          _ToggleSidebarIntent: CallbackAction<_ToggleSidebarIntent>(
+            onInvoke: (intent) {
+              _toggleSidebar();
+              return null;
+            },
+          ),
+          _NavigateToTabIntent: CallbackAction<_NavigateToTabIntent>(
+            onInvoke: (intent) {
+              _onNavTap(intent.index);
+              return null;
+            },
+          ),
+        },
+        child: Focus(
+          focusNode: _shortcutsFocusNode,
+          autofocus: true,
+          child: _buildContent(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildContent(BuildContext context) {
     return StreamBuilder<List<String>>(
       stream: DoctorFeatureGuard.watchEnabledModules(),
       builder: (context, snapshot) {
@@ -215,6 +303,7 @@ class _DesktopSidebar extends StatelessWidget {
               : _CollapsedLayout(
                   key: const ValueKey('collapsed'),
                   currentIndex: currentIndex,
+                  labels: labels,
                   icons: icons,
                   onNavTap: onNavTap,
                   onToggle: onToggle,
@@ -348,6 +437,7 @@ class _ExpandedLayout extends StatelessWidget {
           alignment: Alignment.centerRight,
           child: IconButton(
             onPressed: onToggle,
+            tooltip: 'Collapse sidebar (Ctrl+B)',
             icon: const Icon(
               Icons.arrow_back_ios_new,
               size: 14,
@@ -432,12 +522,14 @@ class _ExpandedLayout extends StatelessWidget {
 
 class _CollapsedLayout extends StatelessWidget {
   final int currentIndex;
+  final List<String> labels;
   final List<IconData> icons;
   final Function(int) onNavTap;
   final VoidCallback onToggle;
 
   const _CollapsedLayout({
     required this.currentIndex,
+    required this.labels,
     required this.icons,
     required this.onNavTap,
     required this.onToggle,
@@ -480,6 +572,7 @@ class _CollapsedLayout extends StatelessWidget {
             color: Color(0xFF8E9BAB),
             size: 20,
           ),
+          tooltip: 'Profile',
           onPressed: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const ProfileScreen()),
@@ -495,6 +588,7 @@ class _CollapsedLayout extends StatelessWidget {
             color: Color(0xFF8E9BAB),
             size: 20,
           ),
+          tooltip: 'Settings',
           onPressed: () {},
           splashRadius: 20,
           padding: EdgeInsets.zero,
@@ -507,6 +601,7 @@ class _CollapsedLayout extends StatelessWidget {
             color: Color(0xFF8E9BAB),
             size: 20,
           ),
+          tooltip: 'Help',
           onPressed: () {},
           splashRadius: 20,
           padding: EdgeInsets.zero,
@@ -518,6 +613,7 @@ class _CollapsedLayout extends StatelessWidget {
         // --- Toggle Button (Expand) ---
         IconButton(
           onPressed: onToggle,
+          tooltip: 'Expand sidebar (Ctrl+B)',
           icon: const Icon(
             Icons.arrow_forward_ios,
             size: 14,
@@ -535,24 +631,30 @@ class _CollapsedLayout extends StatelessWidget {
     final bool isSelected = currentIndex == index;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: InkWell(
-        onTap: () => onNavTap(index),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: isSelected
-                ? const Color(0xFF0D422C).withOpacity(0.1)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(
-            icons[index],
-            color: isSelected
-                ? const Color(0xFF0D422C)
-                : const Color(0xFF8E9BAB),
-            size: 22,
+      child: Tooltip(
+        message: labels[index],
+        waitDuration: const Duration(milliseconds: 400),
+        child: InkWell(
+          onTap: () => onNavTap(index),
+          borderRadius: BorderRadius.circular(12),
+          hoverColor: const Color(0xFF0D422C).withOpacity(0.06),
+          mouseCursor: SystemMouseCursors.click,
+          child: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? const Color(0xFF0D422C).withOpacity(0.1)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              icons[index],
+              color: isSelected
+                  ? const Color(0xFF0D422C)
+                  : const Color(0xFF8E9BAB),
+              size: 22,
+            ),
           ),
         ),
       ),
@@ -586,6 +688,12 @@ class _SidebarItem extends StatelessWidget {
       child: InkWell(
         onTap: onTap ?? () {},
         borderRadius: BorderRadius.circular(10),
+        hoverColor: isSelected
+            ? const Color(0xFF0D422C).withOpacity(0.08)
+            : const Color(0xFF0D422C).withOpacity(0.05),
+        mouseCursor: onTap == null
+            ? SystemMouseCursors.basic
+            : SystemMouseCursors.click,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(

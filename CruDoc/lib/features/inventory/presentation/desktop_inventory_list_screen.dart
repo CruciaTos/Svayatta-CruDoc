@@ -610,6 +610,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
       case 2:
         return _OrdersTab(
           medications: widget.medications,
+          transactions: widget.transactions,
           repository: widget.repository,
           onOpenMedicineDetail: widget.onOpenMedicineDetail,
         );
@@ -624,6 +625,14 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
   }
 
   Widget _buildItemsTab() {
+    void openRestockDialog(MedicineModel medicine) {
+      showStockAdjustmentDialog(
+        context,
+        medicine: medicine,
+        repository: widget.repository,
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, bodyConstraints) {
         final bool isWideScreen = bodyConstraints.maxWidth > 1100;
@@ -639,6 +648,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
                   onAddMedicine: widget.onAddMedicine,
                   onEditMedicine: widget.onEditMedicine,
                   onOpenMedicineDetail: widget.onOpenMedicineDetail,
+                  onRestockMedicine: openRestockDialog,
                 ),
               ),
               const SizedBox(width: 24),
@@ -656,6 +666,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
                   onAddMedicine: widget.onAddMedicine,
                   onEditMedicine: widget.onEditMedicine,
                   onOpenMedicineDetail: widget.onOpenMedicineDetail,
+                  onRestockMedicine: openRestockDialog,
                 ),
               ),
               const SizedBox(height: 24),
@@ -948,17 +959,36 @@ class _NewStatCard extends StatelessWidget {
 // 2. FILTER + MEDICATION GRID (Items tab)
 // ==============================================================================
 
+/// Sort options for the Items grid. `expirySoonest` pushes items with no
+/// known expiry date to the end rather than treating them as "soonest".
+enum _InventorySortOption { nameAsc, stockLowHigh, stockHighLow, expirySoonest }
+
+/// Filter chip labels for the Items tab. These map to real, always-
+/// reachable states derived from stock data (unlike the old
+/// All/Active/Paused/Finished set, where "Paused" and "Finished" could
+/// never match anything since `MedicationData.status` only ever holds
+/// 'Active' or 'Expiring').
+const List<String> _inventoryFilterOptions = [
+  'All',
+  'In stock',
+  'Low stock',
+  'Out of stock',
+  'Expiring soon',
+];
+
 class _FilteredMedicationSection extends StatefulWidget {
   final List<MedicationData> medications;
   final VoidCallback onAddMedicine;
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
+  final ValueChanged<MedicineModel> onRestockMedicine;
 
   const _FilteredMedicationSection({
     required this.medications,
     required this.onAddMedicine,
     required this.onEditMedicine,
     required this.onOpenMedicineDetail,
+    required this.onRestockMedicine,
   });
 
   @override
@@ -968,40 +998,149 @@ class _FilteredMedicationSection extends StatefulWidget {
 
 class _FilteredMedicationSectionState
     extends State<_FilteredMedicationSection> {
+  final TextEditingController _searchController = TextEditingController();
   String _selectedFilter = 'All';
+  String _searchQuery = '';
+  _InventorySortOption _sortOption = _InventorySortOption.nameAsc;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  bool _matchesFilter(MedicationData m) {
+    final original = m.originalMedicine;
+    switch (_selectedFilter) {
+      case 'In stock':
+        return original != null &&
+            !original.isLowStock &&
+            original.currentStock > 0;
+      case 'Low stock':
+        return original?.isLowStock ?? false;
+      case 'Out of stock':
+        return original?.currentStock == 0;
+      case 'Expiring soon':
+        return m.status == 'Expiring';
+      case 'All':
+      default:
+        return true;
+    }
+  }
+
+  bool _matchesSearch(MedicationData m) {
+    if (_searchQuery.isEmpty) return true;
+    final query = _searchQuery.toLowerCase();
+    return m.name.toLowerCase().contains(query) ||
+        m.subtitle.toLowerCase().contains(query) ||
+        (m.originalMedicine?.supplierName?.toLowerCase().contains(query) ??
+            false);
+  }
 
   List<MedicationData> get _filteredMedications {
-    if (_selectedFilter == 'All') return widget.medications;
-    return widget.medications
-        .where((m) => m.status == _selectedFilter)
+    final result = widget.medications
+        .where(_matchesFilter)
+        .where(_matchesSearch)
         .toList();
+
+    result.sort((a, b) {
+      switch (_sortOption) {
+        case _InventorySortOption.nameAsc:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case _InventorySortOption.stockLowHigh:
+          return (a.originalMedicine?.currentStock ?? 0).compareTo(
+            b.originalMedicine?.currentStock ?? 0,
+          );
+        case _InventorySortOption.stockHighLow:
+          return (b.originalMedicine?.currentStock ?? 0).compareTo(
+            a.originalMedicine?.currentStock ?? 0,
+          );
+        case _InventorySortOption.expirySoonest:
+          final aDate = a.originalMedicine?.expiryDate;
+          final bDate = b.originalMedicine?.expiryDate;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return aDate.compareTo(bDate);
+      }
+    });
+
+    return result;
   }
 
   void _onFilterChanged(String filter) {
+    setState(() => _selectedFilter = filter);
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() => _searchQuery = value.trim());
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() => _searchQuery = '');
+  }
+
+  void _clearAllFilters() {
+    _searchController.clear();
     setState(() {
-      _selectedFilter = filter;
+      _searchQuery = '';
+      _selectedFilter = 'All';
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (widget.medications.isEmpty) {
+      return _PlaceholderScreen(
+        icon: Icons.inventory_2_outlined,
+        title: 'No items yet',
+        message: 'Add your first medicine to start tracking stock levels.',
+        actionLabel: 'Add item',
+        onAction: widget.onAddMedicine,
+      );
+    }
+
+    final filtered = _filteredMedications;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _FilterRow(
           selectedFilter: _selectedFilter,
           onFilterChanged: _onFilterChanged,
-          onAddMedicine: widget.onAddMedicine,
+          searchController: _searchController,
+          searchQuery: _searchQuery,
+          onSearchChanged: _onSearchChanged,
+          onClearSearch: _clearSearch,
+          sortOption: _sortOption,
+          onSortChanged: (option) => setState(() => _sortOption = option),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 12),
+        Text(
+          'Showing ${filtered.length} of ${widget.medications.length}'
+          ' item${widget.medications.length == 1 ? '' : 's'}',
+          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        ),
+        const SizedBox(height: 12),
         Expanded(
-          child: SingleChildScrollView(
-            child: _MedicationGrid(
-              medications: _filteredMedications,
-              onEditMedicine: widget.onEditMedicine,
-              onOpenMedicineDetail: widget.onOpenMedicineDetail,
-            ),
-          ),
+          child: filtered.isEmpty
+              ? _PlaceholderScreen(
+                  icon: Icons.search_off_rounded,
+                  title: 'No items match',
+                  message:
+                      'Try a different search term or clear the current filter.',
+                  actionLabel: 'Clear filters',
+                  onAction: _clearAllFilters,
+                )
+              : SingleChildScrollView(
+                  child: _MedicationGrid(
+                    medications: filtered,
+                    onEditMedicine: widget.onEditMedicine,
+                    onOpenMedicineDetail: widget.onOpenMedicineDetail,
+                    onRestockMedicine: widget.onRestockMedicine,
+                  ),
+                ),
         ),
       ],
     );
@@ -1011,17 +1150,30 @@ class _FilteredMedicationSectionState
 class _FilterRow extends StatelessWidget {
   final String selectedFilter;
   final ValueChanged<String> onFilterChanged;
-  final VoidCallback onAddMedicine;
+  final TextEditingController searchController;
+  final String searchQuery;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+  final _InventorySortOption sortOption;
+  final ValueChanged<_InventorySortOption> onSortChanged;
 
   const _FilterRow({
     required this.selectedFilter,
     required this.onFilterChanged,
-    required this.onAddMedicine,
+    required this.searchController,
+    required this.searchQuery,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+    required this.sortOption,
+    required this.onSortChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 12,
+      runSpacing: 12,
       children: [
         Container(
           padding: const EdgeInsets.all(4),
@@ -1030,49 +1182,134 @@ class _FilterRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(16),
           ),
           child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _FilterTab(
-                label: 'All',
-                isActive: selectedFilter == 'All',
-                onTap: () => onFilterChanged('All'),
-              ),
-              _FilterTab(
-                label: 'Active',
-                isActive: selectedFilter == 'Active',
-                onTap: () => onFilterChanged('Active'),
-              ),
-              _FilterTab(
-                label: 'Paused',
-                isActive: selectedFilter == 'Paused',
-                onTap: () => onFilterChanged('Paused'),
-              ),
-              _FilterTab(
-                label: 'Finished',
-                isActive: selectedFilter == 'Finished',
-                onTap: () => onFilterChanged('Finished'),
-              ),
+              for (final option in _inventoryFilterOptions)
+                _FilterTab(
+                  label: option,
+                  isActive: selectedFilter == option,
+                  onTap: () => onFilterChanged(option),
+                ),
             ],
           ),
         ),
-        const Spacer(),
-        ElevatedButton.icon(
-          onPressed: onAddMedicine,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1A1A1A),
-            foregroundColor: Colors.white,
-            elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
+        Container(
+          width: 240,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          decoration: BoxDecoration(
+            color: Colors.grey[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.grey.shade200),
           ),
-          icon: const Icon(Icons.add, size: 18),
-          label: const Text(
-            'Add Prescription',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+          child: Row(
+            children: [
+              const Icon(Icons.search_rounded, size: 16, color: Colors.grey),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: searchController,
+                  onChanged: onSearchChanged,
+                  decoration: const InputDecoration(
+                    hintText: 'Search items or vendor...',
+                    border: InputBorder.none,
+                    hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                  style: const TextStyle(fontSize: 13),
+                ),
+              ),
+              if (searchQuery.isNotEmpty)
+                IconButton(
+                  icon: const Icon(
+                    Icons.clear,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(
+                    minWidth: 24,
+                    minHeight: 24,
+                  ),
+                  onPressed: onClearSearch,
+                ),
+            ],
           ),
         ),
+        _InventorySortButton(currentOption: sortOption, onSelected: onSortChanged),
       ],
+    );
+  }
+}
+
+class _InventorySortButton extends StatelessWidget {
+  final _InventorySortOption currentOption;
+  final ValueChanged<_InventorySortOption> onSelected;
+
+  const _InventorySortButton({
+    required this.currentOption,
+    required this.onSelected,
+  });
+
+  String get _label {
+    switch (currentOption) {
+      case _InventorySortOption.nameAsc:
+        return 'Name A-Z';
+      case _InventorySortOption.stockLowHigh:
+        return 'Stock: Low-High';
+      case _InventorySortOption.stockHighLow:
+        return 'Stock: High-Low';
+      case _InventorySortOption.expirySoonest:
+        return 'Expiry: Soonest';
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<_InventorySortOption>(
+      tooltip: 'Sort',
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        const PopupMenuItem(
+          value: _InventorySortOption.nameAsc,
+          child: Text('Name A-Z'),
+        ),
+        const PopupMenuItem(
+          value: _InventorySortOption.stockLowHigh,
+          child: Text('Stock: Low to High'),
+        ),
+        const PopupMenuItem(
+          value: _InventorySortOption.stockHighLow,
+          child: Text('Stock: High to Low'),
+        ),
+        const PopupMenuItem(
+          value: _InventorySortOption.expirySoonest,
+          child: Text('Expiry: Soonest first'),
+        ),
+      ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.sort_rounded, size: 14, color: Colors.grey),
+            const SizedBox(width: 6),
+            Text(
+              _label,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
+            ),
+            const SizedBox(width: 4),
+            const Icon(
+              Icons.keyboard_arrow_down,
+              size: 14,
+              color: Colors.grey,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1123,21 +1360,37 @@ class _MedicationGrid extends StatelessWidget {
   final List<MedicationData> medications;
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
+  final ValueChanged<MedicineModel> onRestockMedicine;
 
   const _MedicationGrid({
     required this.medications,
     required this.onEditMedicine,
     required this.onOpenMedicineDetail,
+    required this.onRestockMedicine,
   });
+
+  static const double _spacing = 16;
+
+  /// Desktop windows range from a narrow split-pane to an ultra-wide
+  /// monitor, so columns scale with the space actually available instead
+  /// of a fixed 2-up layout that wastes space past ~1300px wide.
+  int _columnsForWidth(double width) {
+    if (width >= 1400) return 4;
+    if (width >= 1000) return 3;
+    if (width >= 620) return 2;
+    return 1;
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double cardWidth = (constraints.maxWidth - 16) / 2;
+        final int columns = _columnsForWidth(constraints.maxWidth);
+        final double cardWidth =
+            (constraints.maxWidth - _spacing * (columns - 1)) / columns;
         return Wrap(
-          spacing: 16,
-          runSpacing: 16,
+          spacing: _spacing,
+          runSpacing: _spacing,
           children: medications.map((med) {
             return SizedBox(
               width: cardWidth,
@@ -1151,6 +1404,11 @@ class _MedicationGrid extends StatelessWidget {
                 onTap: () {
                   if (med.originalMedicine != null) {
                     onOpenMedicineDetail(med.originalMedicine!);
+                  }
+                },
+                onRestock: () {
+                  if (med.originalMedicine != null) {
+                    onRestockMedicine(med.originalMedicine!);
                   }
                 },
               ),
@@ -1170,11 +1428,13 @@ class _MedicationCard extends StatelessWidget {
   final MedicationData medication;
   final VoidCallback onEdit;
   final VoidCallback onTap;
+  final VoidCallback onRestock;
 
   const _MedicationCard({
     required this.medication,
     required this.onEdit,
     required this.onTap,
+    required this.onRestock,
   });
 
   @override
@@ -1183,6 +1443,18 @@ class _MedicationCard extends StatelessWidget {
     final Color statusColor = isPaused
         ? const Color(0xFFFFA000)
         : const Color(0xFF00C853);
+    final MedicineModel? original = medication.originalMedicine;
+    final String? supplier = original?.supplierName?.trim();
+    final String vendorValue = (supplier == null || supplier.isEmpty)
+        ? 'No vendor'
+        : supplier;
+    final bool hasPrice = original?.unitPrice != null;
+    final String secondaryLabel = hasPrice ? 'Unit price' : 'Batch';
+    final String secondaryValue = hasPrice
+        ? _formatCurrency(original!.unitPrice!)
+        : (original?.batchNumber?.trim().isNotEmpty ?? false)
+        ? original!.batchNumber!
+        : '—';
 
     return GestureDetector(
       onTap: onTap,
@@ -1849,11 +2121,13 @@ List<_ReorderSuggestion> _buildReorderQueue(List<MedicationData> medications) {
 
 class _OrdersTab extends StatelessWidget {
   final List<MedicationData> medications;
+  final List<StockTransactionModel> transactions;
   final InventoryRepository repository;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
 
   const _OrdersTab({
     required this.medications,
+    required this.transactions,
     required this.repository,
     required this.onOpenMedicineDetail,
   });
@@ -1915,6 +2189,7 @@ class _OrdersTab extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) => _ReorderRow(
               suggestion: queue[index],
+              transactions: transactions,
               repository: repository,
               onOpenMedicineDetail: onOpenMedicineDetail,
             ),
@@ -1927,11 +2202,13 @@ class _OrdersTab extends StatelessWidget {
 
 class _ReorderRow extends StatelessWidget {
   final _ReorderSuggestion suggestion;
+  final List<StockTransactionModel> transactions;
   final InventoryRepository repository;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
 
   const _ReorderRow({
     required this.suggestion,
+    required this.transactions,
     required this.repository,
     required this.onOpenMedicineDetail,
   });
@@ -1940,6 +2217,24 @@ class _ReorderRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final medicine = suggestion.medicine;
     final isOut = medicine.currentStock == 0;
+
+    // Find the most recent restock transaction for this medicine.
+    final lastRestock = transactions
+        .where(
+          (t) =>
+              t.medicineId == medicine.id &&
+              t.type == StockTransactionType.restock,
+        )
+        .fold<StockTransactionModel?>(
+          null,
+          (latest, t) =>
+              latest == null || t.createdAt.isAfter(latest.createdAt)
+                  ? t
+                  : latest,
+        );
+    final daysSinceRestock = lastRestock != null
+        ? DateTime.now().difference(lastRestock.createdAt).inDays
+        : null;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -2001,6 +2296,31 @@ class _ReorderRow extends StatelessWidget {
                     '${suggestion.estimatedCost != null ? ' (${_formatCurrency(suggestion.estimatedCost!)})' : ''}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
+                  if (daysSinceRestock != null) ...
+                    [
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.history_rounded,
+                            size: 12,
+                            color: Colors.grey[400],
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            daysSinceRestock == 0
+                                ? 'Last restocked today'
+                                : daysSinceRestock == 1
+                                    ? 'Last restocked yesterday'
+                                    : 'Last restocked ${daysSinceRestock}d ago',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                 ],
               ),
             ),
@@ -2496,11 +2816,15 @@ class _PlaceholderScreen extends StatelessWidget {
   final IconData icon;
   final String title;
   final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
 
   const _PlaceholderScreen({
     required this.icon,
     required this.title,
     required this.message,
+    this.actionLabel,
+    this.onAction,
   });
 
   @override
@@ -2522,11 +2846,37 @@ class _PlaceholderScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             message,
+            textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade500,
             ),
           ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: onAction,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F2937),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: Text(
+                actionLabel!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

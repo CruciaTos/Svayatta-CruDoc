@@ -67,28 +67,43 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
 
   switch (range) {
     case FinancialRange.week:
-      startDate = DateTime(now.year, now.month, now.day)
-          .subtract(Duration(days: now.weekday - DateTime.monday));
+      startDate = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: now.weekday - DateTime.monday));
       pointCount = 7;
-      dates = List.generate(pointCount, (i) => startDate.add(Duration(days: i)));
+      dates = List.generate(
+        pointCount,
+        (i) => startDate.add(Duration(days: i)),
+      );
       labels = dates.map((d) => DateFormat('E').format(d)).toList();
       break;
     case FinancialRange.month:
       startDate = DateTime(now.year, now.month, 1);
       pointCount = DateTime(now.year, now.month + 1, 0).day;
-      dates = List.generate(pointCount, (i) => startDate.add(Duration(days: i)));
+      dates = List.generate(
+        pointCount,
+        (i) => startDate.add(Duration(days: i)),
+      );
       labels = dates.map((d) => d.day.toString()).toList();
       break;
     case FinancialRange.threeMonths:
       startDate = DateTime(now.year, now.month - 2, 1);
       pointCount = 3;
-      dates = List.generate(pointCount, (i) => DateTime(startDate.year, startDate.month + i, 1));
+      dates = List.generate(
+        pointCount,
+        (i) => DateTime(startDate.year, startDate.month + i, 1),
+      );
       labels = dates.map((d) => DateFormat('MMM').format(d)).toList();
       break;
     case FinancialRange.twelveMonths:
       startDate = DateTime(now.year, now.month - 11, 1);
       pointCount = 12;
-      dates = List.generate(pointCount, (i) => DateTime(startDate.year, startDate.month + i, 1));
+      dates = List.generate(
+        pointCount,
+        (i) => DateTime(startDate.year, startDate.month + i, 1),
+      );
       labels = dates.map((d) => DateFormat('MMM yy').format(d)).toList();
       break;
   }
@@ -105,7 +120,11 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
   final filteredInvoices = <InvoiceModel>[];
 
   for (final invoice in invoices) {
-    final invoiceDate = DateTime(invoice.date.year, invoice.date.month, invoice.date.day);
+    final invoiceDate = DateTime(
+      invoice.date.year,
+      invoice.date.month,
+      invoice.date.day,
+    );
     if (invoiceDate.isBefore(startDate) || invoiceDate.isAfter(now)) continue;
 
     filteredInvoices.add(invoice);
@@ -130,7 +149,9 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
         index = invoiceDate.month - startDate.month;
         break;
       case FinancialRange.twelveMonths:
-        index = (invoiceDate.year - startDate.year) * 12 + (invoiceDate.month - startDate.month);
+        index =
+            (invoiceDate.year - startDate.year) * 12 +
+            (invoiceDate.month - startDate.month);
         break;
     }
     if (index >= 0 && index < pointCount) {
@@ -155,7 +176,8 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
 
   final structures = serviceTotals.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  final structureTotal = structures.fold<double>(
+  // Calculate total based on the top 4 structures (matching the donut chart)
+  final top4Total = structures.take(4).fold<double>(
     0,
     (sum, entry) => sum + entry.value,
   );
@@ -182,9 +204,9 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
         return _StructureData(
           label: entry.value.key,
           amount: _formatCurrency(value),
-          percent: structureTotal <= 0
+          percent: top4Total <= 0
               ? 0
-              : ((value / structureTotal) * 100).round(),
+              : ((value / top4Total) * 100).round(),
           color: colors[entry.key % colors.length],
         );
       }),
@@ -387,9 +409,9 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
     }
   }
 
@@ -416,7 +438,10 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
               builder: (context, entriesSnapshot) {
                 final allEntries =
                     entriesSnapshot.data ?? const <RevenueEntry>[];
-                final filteredEntries = _filterEntries(allEntries, _selectedRange);
+                final filteredEntries = _filterEntries(
+                  allEntries,
+                  _selectedRange,
+                );
 
                 return Stack(
                   children: [
@@ -494,7 +519,9 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
   }
 
   List<RevenueEntry> _filterEntries(
-      List<RevenueEntry> entries, FinancialRange range) {
+    List<RevenueEntry> entries,
+    FinancialRange range,
+  ) {
     final now = DateTime.now();
     DateTime startDate;
     switch (range) {
@@ -518,10 +545,16 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
     }
     if (_searchQuery.isNotEmpty) {
       filtered = filtered
-          .where((e) =>
-              e.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-              (e.payer != null &&
-                  e.payer!.toLowerCase().contains(_searchQuery.toLowerCase())))
+          .where(
+            (e) =>
+                e.description.toLowerCase().contains(
+                  _searchQuery.toLowerCase(),
+                ) ||
+                (e.payer != null &&
+                    e.payer!.toLowerCase().contains(
+                      _searchQuery.toLowerCase(),
+                    )),
+          )
           .toList();
     }
     filtered.sort((a, b) => b.date.compareTo(a.date));
@@ -619,19 +652,15 @@ class _FinancialDashboardView extends StatefulWidget {
   });
 
   @override
-  State<_FinancialDashboardView> createState() => _FinancialDashboardViewState();
+  State<_FinancialDashboardView> createState() =>
+      _FinancialDashboardViewState();
 }
 
 class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
   int _selectedTabIndex = 0;
 
-  static const _tabLabels = [
-    'Overview',
-    'Operations',
-    'Source distribution',
-    'Insurance',
-    'Reports',
-  ];
+  // UPDATED TAB LIST: Removed Insurance and Reports
+  static const _tabLabels = ['Overview', 'Operations'];
 
   @override
   Widget build(BuildContext context) {
@@ -652,9 +681,7 @@ class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
             onTabSelected: (index) => setState(() => _selectedTabIndex = index),
           ),
           const SizedBox(height: 24),
-          Expanded(
-            child: _buildTabContent(),
-          ),
+          Expanded(child: _buildTabContent()),
         ],
       ),
     );
@@ -678,13 +705,9 @@ class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
           recentEntries: widget.recentEntries,
         );
       case 1:
+        // Over-Engineered Operations Tab
         return _OperationsTab(invoices: widget.viewData.allInvoices);
-      case 2:
-        return _SourceDistributionTab(structures: widget.viewData.structures);
-      case 3:
-        return const _InsuranceTab();
-      case 4:
-        return _ReportsTab(viewData: widget.viewData);
+
       default:
         return _OverviewTab(
           viewData: widget.viewData,
@@ -738,13 +761,16 @@ class _HeaderSection extends StatelessWidget {
               initialValue: selectedRange,
               onSelected: onRangeChanged,
               itemBuilder: (context) => FinancialRange.values
-                  .map((range) => PopupMenuItem(
-                        value: range,
-                        child: Text(range.label),
-                      ))
+                  .map(
+                    (range) =>
+                        PopupMenuItem(value: range, child: Text(range.label)),
+                  )
                   .toList(),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
@@ -753,10 +779,17 @@ class _HeaderSection extends StatelessWidget {
                   children: [
                     Text(
                       selectedRange.label,
-                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(width: 4),
-                    const Icon(Icons.keyboard_arrow_down, size: 16, color: Colors.grey),
+                    const Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: Colors.grey,
+                    ),
                   ],
                 ),
               ),
@@ -770,7 +803,10 @@ class _HeaderSection extends StatelessWidget {
                 backgroundColor: const Color(0xFF2196F3),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -783,7 +819,11 @@ class _HeaderSection extends StatelessWidget {
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.download_rounded, size: 20, color: Colors.grey),
+              child: const Icon(
+                Icons.download_rounded,
+                size: 20,
+                color: Colors.grey,
+              ),
             ),
             const SizedBox(width: 8),
             Container(
@@ -792,7 +832,11 @@ class _HeaderSection extends StatelessWidget {
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.settings_outlined, size: 20, color: Colors.grey),
+              child: const Icon(
+                Icons.settings_outlined,
+                size: 20,
+                color: Colors.grey,
+              ),
             ),
           ],
         ),
@@ -840,7 +884,9 @@ class _TabsSection extends StatelessWidget {
                   height: 2,
                   width: 40,
                   decoration: BoxDecoration(
-                    color: isActive ? const Color(0xFF1A1A1A) : Colors.transparent,
+                    color: isActive
+                        ? const Color(0xFF1A1A1A)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -854,7 +900,7 @@ class _TabsSection extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// OVERVIEW TAB
+// OVERVIEW TAB (Unchanged)
 // -----------------------------------------------------------------------------
 
 class _OverviewTab extends StatelessWidget {
@@ -937,19 +983,23 @@ class _OverviewTab extends StatelessWidget {
                       flex: 2,
                       child: _RecentTransactionsPanel(
                         transactions: recentEntries
-                            .map((e) => _TransactionData(
-                                  name: e.payer ?? e.description,
-                                  type: e.description,
-                                  amount: _formatCurrency(e.amount),
-                                  date: DateFormat('MMM d, h:mm a').format(e.date),
-                                  icon: e.kind == TransactionKind.income
-                                      ? Icons.arrow_upward
-                                      : Icons.arrow_downward,
-                                  color: e.kind == TransactionKind.income
-                                      ? Colors.green
-                                      : Colors.red,
-                                  isIncome: e.kind == TransactionKind.income,
-                                ))
+                            .map(
+                              (e) => _TransactionData(
+                                name: e.payer ?? e.description,
+                                type: e.description,
+                                amount: _formatCurrency(e.amount),
+                                date: DateFormat(
+                                  'MMM d, h:mm a',
+                                ).format(e.date),
+                                icon: e.kind == TransactionKind.income
+                                    ? Icons.arrow_upward
+                                    : Icons.arrow_downward,
+                                color: e.kind == TransactionKind.income
+                                    ? Colors.green
+                                    : Colors.red,
+                                isIncome: e.kind == TransactionKind.income,
+                              ),
+                            )
                             .toList(),
                         kindFilter: kindFilter,
                         onKindFilterChanged: onKindFilterChanged,
@@ -973,19 +1023,21 @@ class _OverviewTab extends StatelessWidget {
                   children: [
                     _RecentTransactionsPanel(
                       transactions: recentEntries
-                          .map((e) => _TransactionData(
-                                name: e.payer ?? e.description,
-                                type: e.description,
-                                amount: _formatCurrency(e.amount),
-                                date: DateFormat('MMM d, h:mm a').format(e.date),
-                                icon: e.kind == TransactionKind.income
-                                    ? Icons.arrow_upward
-                                    : Icons.arrow_downward,
-                                color: e.kind == TransactionKind.income
-                                    ? Colors.green
-                                    : Colors.red,
-                                isIncome: e.kind == TransactionKind.income,
-                              ))
+                          .map(
+                            (e) => _TransactionData(
+                              name: e.payer ?? e.description,
+                              type: e.description,
+                              amount: _formatCurrency(e.amount),
+                              date: DateFormat('MMM d, h:mm a').format(e.date),
+                              icon: e.kind == TransactionKind.income
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              color: e.kind == TransactionKind.income
+                                  ? Colors.green
+                                  : Colors.red,
+                              isIncome: e.kind == TransactionKind.income,
+                            ),
+                          )
                           .toList(),
                       kindFilter: kindFilter,
                       onKindFilterChanged: onKindFilterChanged,
@@ -1065,7 +1117,10 @@ class _PendingPaymentsPanel extends StatelessWidget {
                       return GestureDetector(
                         onTap: () => onPendingTap(pending),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
                             border: Border(
                               bottom: BorderSide(
@@ -1082,8 +1137,11 @@ class _PendingPaymentsPanel extends StatelessWidget {
                                   color: Colors.amber.withValues(alpha: 0.15),
                                   borderRadius: BorderRadius.circular(8),
                                 ),
-                                child: const Icon(Icons.hourglass_empty,
-                                    size: 18, color: Colors.amber),
+                                child: const Icon(
+                                  Icons.hourglass_empty,
+                                  size: 18,
+                                  color: Colors.amber,
+                                ),
                               ),
                               const SizedBox(width: 12),
                               Expanded(
@@ -1103,7 +1161,9 @@ class _PendingPaymentsPanel extends StatelessWidget {
                                     Text(
                                       DateFormat.yMMMd().format(pending.date),
                                       style: TextStyle(
-                                          color: Colors.grey[600], fontSize: 12),
+                                        color: Colors.grey[600],
+                                        fontSize: 12,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -1123,8 +1183,11 @@ class _PendingPaymentsPanel extends StatelessWidget {
                                   const SizedBox(height: 4),
                                   GestureDetector(
                                     onTap: () => onMarkPendingPaid(pending),
-                                    child: const Icon(Icons.check_circle_outline,
-                                        size: 18, color: Color(0xFF4CAF50)),
+                                    child: const Icon(
+                                      Icons.check_circle_outline,
+                                      size: 18,
+                                      color: Color(0xFF4CAF50),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -1194,7 +1257,8 @@ class _RecentTransactionsPanel extends StatelessWidget {
                   label: 'Expense',
                   selected: kindFilter == TransactionKind.expense,
                   selectedColor: Colors.red,
-                  onSelected: () => onKindFilterChanged(TransactionKind.expense),
+                  onSelected: () =>
+                      onKindFilterChanged(TransactionKind.expense),
                 ),
               ],
             ),
@@ -1214,7 +1278,9 @@ class _RecentTransactionsPanel extends StatelessWidget {
                       final transaction = transactions[index];
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         decoration: BoxDecoration(
                           border: Border(
                             bottom: BorderSide(
@@ -1228,11 +1294,16 @@ class _RecentTransactionsPanel extends StatelessWidget {
                               width: 36,
                               height: 36,
                               decoration: BoxDecoration(
-                                color: transaction.color.withValues(alpha: 0.15),
+                                color: transaction.color.withValues(
+                                  alpha: 0.15,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: Icon(transaction.icon,
-                                  size: 18, color: transaction.color),
+                              child: Icon(
+                                transaction.icon,
+                                size: 18,
+                                color: transaction.color,
+                              ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
@@ -1252,7 +1323,9 @@ class _RecentTransactionsPanel extends StatelessWidget {
                                   Text(
                                     transaction.type,
                                     style: TextStyle(
-                                        color: Colors.grey[600], fontSize: 12),
+                                      color: Colors.grey[600],
+                                      fontSize: 12,
+                                    ),
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                   ),
@@ -1277,7 +1350,9 @@ class _RecentTransactionsPanel extends StatelessWidget {
                                 Text(
                                   transaction.date,
                                   style: TextStyle(
-                                      color: Colors.grey[500], fontSize: 11),
+                                    color: Colors.grey[500],
+                                    fontSize: 11,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1320,13 +1395,54 @@ class _KindFilterChip extends StatelessWidget {
       onSelected: (_) => onSelected(),
       backgroundColor: Colors.white,
       selectedColor: effectiveColor,
-      side: BorderSide(
-        color: selected ? effectiveColor : Colors.grey.shade300,
-      ),
+      side: BorderSide(color: selected ? effectiveColor : Colors.grey.shade300),
       labelStyle: TextStyle(
         color: selected ? Colors.white : Colors.black,
         fontSize: 13,
         fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+}
+
+// -----------------------------------------------------------------------------
+// STATUS FILTER CHIP (used by _OperationsTab)
+// -----------------------------------------------------------------------------
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor = Color(0xFF2196F3);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? activeColor : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? activeColor : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : Colors.black87,
+          ),
+        ),
       ),
     );
   }
@@ -1559,11 +1675,13 @@ class _ChartSectionState extends State<_ChartSection> {
                       if (_hoveredIndex != null && count > 0) ...[
                         Positioned(
                           left: xPositions[_hoveredIndex!] - 4,
-                          top: _yPosition(
-                            widget.weeklyData.revenue[_hoveredIndex!],
-                            widget.weeklyData,
-                            200,
-                          ) - 4,
+                          top:
+                              _yPosition(
+                                widget.weeklyData.revenue[_hoveredIndex!],
+                                widget.weeklyData,
+                                200,
+                              ) -
+                              4,
                           child: Container(
                             width: 8,
                             height: 8,
@@ -1575,11 +1693,13 @@ class _ChartSectionState extends State<_ChartSection> {
                         ),
                         Positioned(
                           left: xPositions[_hoveredIndex!] - 4,
-                          top: _yPosition(
-                            widget.weeklyData.expenses[_hoveredIndex!],
-                            widget.weeklyData,
-                            200,
-                          ) - 4,
+                          top:
+                              _yPosition(
+                                widget.weeklyData.expenses[_hoveredIndex!],
+                                widget.weeklyData,
+                                200,
+                              ) -
+                              4,
                           child: Container(
                             width: 8,
                             height: 8,
@@ -1591,11 +1711,13 @@ class _ChartSectionState extends State<_ChartSection> {
                         ),
                         Positioned(
                           left: xPositions[_hoveredIndex!] - 4,
-                          top: _yPosition(
-                            widget.weeklyData.profit[_hoveredIndex!],
-                            widget.weeklyData,
-                            200,
-                          ) - 4,
+                          top:
+                              _yPosition(
+                                widget.weeklyData.profit[_hoveredIndex!],
+                                widget.weeklyData,
+                                200,
+                              ) -
+                              4,
                           child: Container(
                             width: 8,
                             height: 8,
@@ -1648,7 +1770,9 @@ class _ChartSectionState extends State<_ChartSection> {
                                   widget.weeklyData.dates.isEmpty
                                       ? 'No date'
                                       : DateFormat('EEE, MMM d, yyyy').format(
-                                          widget.weeklyData.dates[_hoveredIndex!],
+                                          widget
+                                              .weeklyData
+                                              .dates[_hoveredIndex!],
                                         ),
                                   style: const TextStyle(
                                     color: Colors.white70,
@@ -1783,7 +1907,8 @@ class _LineChartPainter extends CustomPainter {
 
       final points = List<Offset>.generate(count, (i) {
         final x = count == 1 ? 0.0 : w * (i / (count - 1));
-        final y = (h - 22) - ((values[i] / chartMax).clamp(0.0, 1.0) * (h - 42));
+        final y =
+            (h - 22) - ((values[i] / chartMax).clamp(0.0, 1.0) * (h - 42));
         return Offset(x, y);
       });
 
@@ -1852,10 +1977,7 @@ class _LineChartPainter extends CustomPainter {
     for (int i = 0; i < yLabels.length; i++) {
       textPainter.text = TextSpan(text: yLabels[i], style: style);
       textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(0, i * (h / (yLabels.length - 1)) - 6),
-      );
+      textPainter.paint(canvas, Offset(0, i * (h / (yLabels.length - 1)) - 6));
     }
 
     final List<String> xLabels = weeklyData.labels;
@@ -1875,64 +1997,315 @@ class _LineChartPainter extends CustomPainter {
       oldDelegate.weeklyData != weeklyData;
 }
 
-// -----------------------------------------------------------------------------
-// OPERATIONS TAB
-// -----------------------------------------------------------------------------
+// ==============================================================================
+// OPERATIONS TAB (Over-Engineered)
+// ==============================================================================
 
-class _OperationsTab extends StatelessWidget {
+class _OperationsTab extends StatefulWidget {
   final List<InvoiceModel> invoices;
 
   const _OperationsTab({required this.invoices});
 
   @override
+  State<_OperationsTab> createState() => _OperationsTabState();
+}
+
+class _OperationsTabState extends State<_OperationsTab> {
+  String _statusFilter = 'All';
+  String _searchQuery = '';
+
+  List<InvoiceModel> get _filteredInvoices {
+    return widget.invoices.where((invoice) {
+      bool matchesStatus = false;
+      switch (_statusFilter) {
+        case 'Paid':
+          matchesStatus = invoice.isPaid;
+          break;
+        case 'Pending':
+          matchesStatus = !invoice.isPaid && !invoice.isOverdue;
+          break;
+        case 'Overdue':
+          matchesStatus = invoice.isOverdue;
+          break;
+        default:
+          matchesStatus = true;
+      }
+      if (!matchesStatus) return false;
+
+      if (_searchQuery.isNotEmpty) {
+        final query = _searchQuery.toLowerCase();
+        return invoice.patientName.toLowerCase().contains(query) ||
+            invoice.service.toLowerCase().contains(query) ||
+            invoice.status.toLowerCase().contains(query);
+      }
+      return true;
+    }).toList();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'All Invoices',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+    final totalInvoices = widget.invoices.length;
+    final totalPaid = widget.invoices.where((e) => e.isPaid).length;
+    final totalPending = widget.invoices
+        .where((e) => !e.isPaid && !e.isOverdue)
+        .length;
+    final totalOverdue = widget.invoices.where((e) => e.isOverdue).length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Top Dashboard Stats
+        Row(
+          children: [
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Total Invoices',
+                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$totalInvoices',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: invoices.isEmpty
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.green.shade100),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Paid',
+                      style: TextStyle(
+                        color: Colors.green.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$totalPaid',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.green,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.amber.shade100),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Pending',
+                      style: TextStyle(
+                        color: Colors.amber.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$totalPending',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.amber,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade100),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Overdue',
+                      style: TextStyle(
+                        color: Colors.red.shade700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      '$totalOverdue',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Filters and Search
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 300,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: TextField(
+                onChanged: (value) => setState(() => _searchQuery = value),
+                decoration: const InputDecoration(
+                  hintText: 'Search patient, service, status...',
+                  icon: Icon(Icons.search, size: 18, color: Colors.grey),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                _FilterChip(
+                  label: 'All',
+                  active: _statusFilter == 'All',
+                  onTap: () => setState(() => _statusFilter = 'All'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Paid',
+                  active: _statusFilter == 'Paid',
+                  onTap: () => setState(() => _statusFilter = 'Paid'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Pending',
+                  active: _statusFilter == 'Pending',
+                  onTap: () => setState(() => _statusFilter = 'Pending'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Overdue',
+                  active: _statusFilter == 'Overdue',
+                  onTap: () => setState(() => _statusFilter = 'Overdue'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Main Table / List
+        Expanded(
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: _filteredInvoices.isEmpty
                 ? Center(
                     child: Text(
-                      'No invoices for this period',
+                      'No invoices found',
                       style: TextStyle(color: Colors.grey[500], fontSize: 13),
                     ),
                   )
                 : SingleChildScrollView(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
+                    scrollDirection: Axis.horizontal,
+                    child: SizedBox(
+                      width:
+                          MediaQuery.of(context).size.width -
+                          100, // Add width for table
                       child: DataTable(
-                        headingRowHeight: 40,
-                        dataRowMinHeight: 56,
-                        dataRowMaxHeight: 56,
+                        headingRowHeight: 44,
+                        dataRowMinHeight: 60,
+                        dataRowMaxHeight: 60,
+                        columnSpacing: 24,
                         columns: const [
                           DataColumn(label: Text('Patient')),
                           DataColumn(label: Text('Service')),
                           DataColumn(label: Text('Date')),
                           DataColumn(label: Text('Amount')),
                           DataColumn(label: Text('Status')),
+                          DataColumn(label: Text('Actions')),
                         ],
-                        rows: invoices.map((invoice) {
+                        rows: _filteredInvoices.map((invoice) {
                           return DataRow(
                             cells: [
-                              DataCell(Text(invoice.patientName.isEmpty
-                                  ? 'General Patient'
-                                  : invoice.patientName)),
-                              DataCell(Text(invoice.service.isEmpty ? '—' : invoice.service)),
-                              DataCell(Text(DateFormat('dd/MM/yyyy').format(invoice.date))),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 16,
+                                      backgroundColor: Colors.grey.shade200,
+                                      child: const Icon(
+                                        Icons.person,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Text(
+                                      invoice.patientName.isEmpty
+                                          ? 'General Patient'
+                                          : invoice.patientName,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  invoice.service.isEmpty
+                                      ? '—'
+                                      : invoice.service,
+                                ),
+                              ),
+                              DataCell(
+                                Text(
+                                  DateFormat('dd/MM/yyyy').format(invoice.date),
+                                ),
+                              ),
                               DataCell(Text(_formatCurrency(invoice.amount))),
                               DataCell(
                                 Container(
@@ -1944,26 +2317,50 @@ class _OperationsTab extends StatelessWidget {
                                     color: invoice.isPaid
                                         ? const Color(0xFFE8F5E9)
                                         : invoice.isOverdue
-                                            ? const Color(0xFFFFEBEE)
-                                            : const Color(0xFFFFF3E0),
+                                        ? const Color(0xFFFFEBEE)
+                                        : const Color(0xFFFFF3E0),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
                                     invoice.isPaid
                                         ? 'Paid'
                                         : invoice.isOverdue
-                                            ? 'Overdue'
-                                            : 'Pending',
+                                        ? 'Overdue'
+                                        : 'Pending',
                                     style: TextStyle(
                                       color: invoice.isPaid
                                           ? const Color(0xFF00C853)
                                           : invoice.isOverdue
-                                              ? const Color(0xFFFF1744)
-                                              : const Color(0xFFFFAA00),
+                                          ? const Color(0xFFFF1744)
+                                          : const Color(0xFFFFAA00),
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
+                                ),
+                              ),
+                              DataCell(
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.visibility_outlined,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () {},
+                                      tooltip: 'View',
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(
+                                        Icons.edit_outlined,
+                                        size: 16,
+                                        color: Colors.grey,
+                                      ),
+                                      onPressed: () {},
+                                      tooltip: 'Edit',
+                                    ),
+                                  ],
                                 ),
                               ),
                             ],
@@ -1973,286 +2370,14 @@ class _OperationsTab extends StatelessWidget {
                     ),
                   ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// SOURCE DISTRIBUTION TAB
-// -----------------------------------------------------------------------------
-
-class _SourceDistributionTab extends StatelessWidget {
-  final List<_StructureData> structures;
-
-  const _SourceDistributionTab({required this.structures});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Revenue by Service Category',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: structures.isEmpty
-                ? Center(
-                    child: Text(
-                      'No revenue data for this period',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                  )
-                : ListView.separated(
-                    itemCount: structures.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final structure = structures[index];
-                      return Row(
-                        children: [
-                          Container(
-                            width: 12,
-                            height: 12,
-                            decoration: BoxDecoration(
-                              color: structure.color,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  structure.label,
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.w500,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: structure.percent / 100,
-                                    backgroundColor: Colors.grey[200],
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      structure.color,
-                                    ),
-                                    minHeight: 6,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                structure.amount,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${structure.percent}%',
-                                style: TextStyle(
-                                  color: Colors.grey[500],
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// INSURANCE TAB
-// -----------------------------------------------------------------------------
-
-class _InsuranceTab extends StatelessWidget {
-  const _InsuranceTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shield_outlined, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text(
-            'Insurance Management',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2937),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Insurance tracking will be available in a future update.',
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// REPORTS TAB
-// -----------------------------------------------------------------------------
-
-class _ReportsTab extends StatelessWidget {
-  final _FinancialDashboardViewData viewData;
-
-  const _ReportsTab({required this.viewData});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Financial Reports',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              _ReportCard(
-                title: 'Revenue',
-                value: viewData.revenue,
-                icon: Icons.trending_up,
-                color: const Color(0xFF00C853),
-              ),
-              const SizedBox(width: 12),
-              _ReportCard(
-                title: 'Outstanding',
-                value: viewData.outstandingInvoices,
-                icon: Icons.pending_actions,
-                color: const Color(0xFFFFAA00),
-              ),
-              const SizedBox(width: 12),
-              _ReportCard(
-                title: 'Profit',
-                value: viewData.profit,
-                icon: Icons.savings,
-                color: const Color(0xFF7B61FF),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Export Options',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.picture_as_pdf, size: 18),
-                label: const Text('Export PDF'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.table_chart, size: 18),
-                label: const Text('Export CSV'),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReportCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _ReportCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.grey[50],
-          borderRadius: BorderRadius.circular(12),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 13,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1A1A1A),
-              ),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
 
 // -----------------------------------------------------------------------------
-// BOTTOM SHEET FORMS
+// BOTTOM SHEET FORMS (Unchanged)
 // -----------------------------------------------------------------------------
 
 class _TransactionFormSheet extends StatefulWidget {
@@ -2294,8 +2419,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
 
     final desc = _descController.text.trim();
     final amount = double.parse(_amountController.text.trim());
-    final payerText =
-        widget.includePayerField ? _payerController.text.trim() : null;
+    final payerText = widget.includePayerField
+        ? _payerController.text.trim()
+        : null;
     final kind = widget.includeKindToggle ? _selectedKind : null;
     final now = DateTime.now();
 
@@ -2318,9 +2444,11 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(kind == TransactionKind.income
-                ? 'Income recorded'
-                : 'Expense recorded'),
+            content: Text(
+              kind == TransactionKind.income
+                  ? 'Income recorded'
+                  : 'Expense recorded',
+            ),
           ),
         );
       } else {
@@ -2335,15 +2463,16 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
           ),
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pending payment added')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pending payment added')));
       }
       if (mounted) Navigator.pop(context);
     } on RevenueException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e, stack) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2449,10 +2578,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
-                children: const [
-                  Text('Income'),
-                  Text('Expense'),
-                ],
+                children: const [Text('Income'), Text('Expense')],
               ),
               const SizedBox(height: 16),
             ],
@@ -2559,8 +2685,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
             TextFormField(
               controller: _amountController,
               enabled: !_isSaving,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
@@ -2673,7 +2800,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text(
                           'Save',
@@ -2768,14 +2897,15 @@ class _PendingPaymentDetailsSheetState
         'date': _selectedDate,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pending payment updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pending payment updated')));
       Navigator.pop(context);
     } on RevenueException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e, stack) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2931,8 +3061,9 @@ class _PendingPaymentDetailsSheetState
             TextFormField(
               controller: _amountController,
               enabled: !_isSaving,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
@@ -3085,7 +3216,9 @@ class _PendingPaymentDetailsSheetState
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text(
                           'Save Changes',

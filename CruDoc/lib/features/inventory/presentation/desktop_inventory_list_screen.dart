@@ -9,8 +9,7 @@ import 'package:doctor_management_app/features/inventory/presentation/add_edit_m
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 
-/// Rupee currency formatter — matches the convention used across the
-/// revenue screens (`desktop_revenue_screen.dart`).
+/// Rupee currency formatter
 final _currencyFormatter = NumberFormat.currency(
   locale: 'en_IN',
   symbol: '₹',
@@ -84,7 +83,6 @@ class DesktopInventoryScreen extends ConsumerWidget {
 
     return Stack(
       children: [
-        // Full‑width white card matching the revenue screen
         SizedBox.expand(
           child: Container(
             decoration: BoxDecoration(
@@ -361,9 +359,7 @@ Color _stockLevelColor(MedicineModel medicine, double progress) {
 }
 
 // -----------------------------------------------------------------------------
-// MONTHLY USAGE STAT — real dispensed value over the trailing 30 days,
-// compared against the 30 days before that. Replaces the old hardcoded
-// '—' value and fake '+12%' badge.
+// MONTHLY USAGE STAT
 // -----------------------------------------------------------------------------
 
 class _MonthlyUsageStat {
@@ -420,7 +416,7 @@ _MonthlyUsageStat _computeMonthlyUsageStat(
 }
 
 // -----------------------------------------------------------------------------
-// DATA MODELS (updated with originalMedicine)
+// DATA MODELS
 // -----------------------------------------------------------------------------
 
 class MedicationData {
@@ -522,7 +518,7 @@ class AlertData {
 }
 
 // ==============================================================================
-// MAIN DASHBOARD VIEW (now with tab management)
+// MAIN DASHBOARD VIEW
 // ==============================================================================
 
 class _InventoryDashboardView extends StatefulWidget {
@@ -680,7 +676,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
 }
 
 // ==============================================================================
-// 1. HEADER, TABS & STATS
+// 1. HEADER
 // ==============================================================================
 
 class _InventoryHeaderSection extends StatelessWidget {
@@ -777,56 +773,51 @@ class _InventoryHeaderSection extends StatelessWidget {
           }),
         ),
         const SizedBox(height: 24),
-        // Only show stats for Items tab (or you can keep them always)
         if (selectedTabIndex == 0)
-          LayoutBuilder(
-            builder: (context, constraints) {
-              return Row(
-                children: [
-                  Expanded(
-                    child: _NewStatCard(
-                      title: 'Total items',
-                      value: totalItems,
-                      subtext: 'across all locations',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _NewStatCard(
-                      title: 'Low stock alerts',
-                      value: lowStockAlerts,
-                      subtext: 'needs restocking soon',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _NewStatCard(
-                      title: 'Out of stock',
-                      value: outOfStock,
-                      subtext: 'immediate attention',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _NewStatCard(
-                      title: 'Inventory value',
-                      value: inventoryValue,
-                      subtext: 'estimated total value',
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _NewStatCard(
-                      title: 'Monthly usage',
-                      value: monthlyUsage,
-                      subtext: 'dispensed value · 30d',
-                      growthLabel: monthlyUsageGrowthLabel,
-                      growthPositive: monthlyUsageGrowthPositive,
-                    ),
-                  ),
-                ],
-              );
-            },
+          Row(
+            children: [
+              Expanded(
+                child: _NewStatCard(
+                  title: 'Total items',
+                  value: totalItems,
+                  subtext: 'across all locations',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _NewStatCard(
+                  title: 'Low stock alerts',
+                  value: lowStockAlerts,
+                  subtext: 'needs restocking soon',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _NewStatCard(
+                  title: 'Out of stock',
+                  value: outOfStock,
+                  subtext: 'immediate attention',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _NewStatCard(
+                  title: 'Inventory value',
+                  value: inventoryValue,
+                  subtext: 'estimated total value',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _NewStatCard(
+                  title: 'Monthly usage',
+                  value: monthlyUsage,
+                  subtext: 'dispensed value · 30d',
+                  growthLabel: monthlyUsageGrowthLabel,
+                  growthPositive: monthlyUsageGrowthPositive,
+                ),
+              ),
+            ],
           ),
       ],
     );
@@ -953,18 +944,11 @@ class _NewStatCard extends StatelessWidget {
 }
 
 // ==============================================================================
-// 2. FILTER + MEDICATION GRID (Items tab)
+// 2. ITEMS TAB
 // ==============================================================================
 
-/// Sort options for the Items grid. `expirySoonest` pushes items with no
-/// known expiry date to the end rather than treating them as "soonest".
 enum _InventorySortOption { nameAsc, stockLowHigh, stockHighLow, expirySoonest }
 
-/// Filter chip labels for the Items tab. These map to real, always-
-/// reachable states derived from stock data (unlike the old
-/// All/Active/Paused/Finished set, where "Paused" and "Finished" could
-/// never match anything since `MedicationData.status` only ever holds
-/// 'Active' or 'Expiring').
 const List<String> _inventoryFilterOptions = [
   'All',
   'In stock',
@@ -1039,7 +1023,6 @@ class _FilteredMedicationSectionState
         .where(_matchesFilter)
         .where(_matchesSearch)
         .toList();
-
     result.sort((a, b) {
       switch (_sortOption) {
         case _InventorySortOption.nameAsc:
@@ -1061,18 +1044,13 @@ class _FilteredMedicationSectionState
           return aDate.compareTo(bDate);
       }
     });
-
     return result;
   }
 
-  void _onFilterChanged(String filter) {
-    setState(() => _selectedFilter = filter);
-  }
-
-  void _onSearchChanged(String value) {
-    setState(() => _searchQuery = value.trim());
-  }
-
+  void _onFilterChanged(String filter) =>
+      setState(() => _selectedFilter = filter);
+  void _onSearchChanged(String value) =>
+      setState(() => _searchQuery = value.trim());
   void _clearSearch() {
     _searchController.clear();
     setState(() => _searchQuery = '');
@@ -1115,8 +1093,7 @@ class _FilteredMedicationSectionState
         ),
         const SizedBox(height: 12),
         Text(
-          'Showing ${filtered.length} of ${widget.medications.length}'
-          ' item${widget.medications.length == 1 ? '' : 's'}',
+          'Showing ${filtered.length} of ${widget.medications.length} item${widget.medications.length == 1 ? '' : 's'}',
           style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
         ),
         const SizedBox(height: 12),
@@ -1265,7 +1242,6 @@ class _InventorySortButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopupMenuButton<_InventorySortOption>(
-      tooltip: 'Sort',
       onSelected: onSelected,
       itemBuilder: (context) => [
         const PopupMenuItem(
@@ -1367,9 +1343,6 @@ class _MedicationGrid extends StatelessWidget {
 
   static const double _spacing = 16;
 
-  /// Desktop windows range from a narrow split-pane to an ultra-wide
-  /// monitor, so columns scale with the space actually available instead
-  /// of a fixed 2-up layout that wastes space past ~1300px wide.
   int _columnsForWidth(double width) {
     if (width >= 1400) return 4;
     if (width >= 1000) return 3;
@@ -1393,19 +1366,16 @@ class _MedicationGrid extends StatelessWidget {
               child: _MedicationCard(
                 medication: med,
                 onEdit: () {
-                  if (med.originalMedicine != null) {
+                  if (med.originalMedicine != null)
                     onEditMedicine(med.originalMedicine!);
-                  }
                 },
                 onTap: () {
-                  if (med.originalMedicine != null) {
+                  if (med.originalMedicine != null)
                     onOpenMedicineDetail(med.originalMedicine!);
-                  }
                 },
                 onRestock: () {
-                  if (med.originalMedicine != null) {
+                  if (med.originalMedicine != null)
                     onRestockMedicine(med.originalMedicine!);
-                  }
                 },
               ),
             );
@@ -1415,10 +1385,6 @@ class _MedicationGrid extends StatelessWidget {
     );
   }
 }
-
-// ==============================================================================
-// 3. MEDICATION CARD (now tappable and with edit icon)
-// ==============================================================================
 
 class _MedicationCard extends StatelessWidget {
   final MedicationData medication;
@@ -1699,10 +1665,6 @@ class _StripePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ==============================================================================
-// 4. SCROLLABLE ALERTS PANEL
-// ==============================================================================
-
 class _ScrollableAlertsPanel extends StatelessWidget {
   final List<AlertData> alerts;
 
@@ -1835,9 +1797,7 @@ class _AlertItem extends StatelessWidget {
 }
 
 // ==============================================================================
-// 5. VENDORS TAB — grouped from each medicine's supplier field (no new
-// backend entity; there is no vendor collection, so this is the real data
-// that already exists, rolled up).
+// 5. VENDORS TAB (Over-Engineered)
 // ==============================================================================
 
 class _VendorSummary {
@@ -1908,7 +1868,7 @@ List<_VendorSummary> _buildVendorSummaries(List<MedicationData> medications) {
   return summaries;
 }
 
-class _VendorsTab extends StatelessWidget {
+class _VendorsTab extends StatefulWidget {
   final List<MedicationData> medications;
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
@@ -1920,8 +1880,32 @@ class _VendorsTab extends StatelessWidget {
   });
 
   @override
+  State<_VendorsTab> createState() => _VendorsTabState();
+}
+
+class _VendorsTabState extends State<_VendorsTab> {
+  String _searchQuery = '';
+  String _filter = 'All';
+
+  @override
   Widget build(BuildContext context) {
-    if (medications.isEmpty) {
+    // 1. Vendor Dashboard Header
+    final vendors = _buildVendorSummaries(widget.medications);
+    final totalValue = vendors.fold<double>(0, (sum, v) => sum + v.stockValue);
+    final totalItems = vendors.fold<int>(0, (sum, v) => sum + v.itemCount);
+
+    // 2. Filtered Vendors
+    final filteredVendors = vendors
+        .where((v) {
+          if (_filter == 'All') return true;
+          if (_filter == 'Low Stock') return v.lowStockCount > 0;
+          if (_filter == 'Expiring') return v.expiringCount > 0;
+          return true;
+        })
+        .where((v) => v.name.toLowerCase().contains(_searchQuery.toLowerCase()))
+        .toList();
+
+    if (widget.medications.isEmpty) {
       return const _PlaceholderScreen(
         icon: Icons.storefront_outlined,
         title: 'No vendors yet',
@@ -1929,15 +1913,216 @@ class _VendorsTab extends StatelessWidget {
       );
     }
 
-    final vendors = _buildVendorSummaries(medications);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header Stats
+        Row(
+          children: [
+            Expanded(
+              child: _NewStatCard(
+                title: 'Total Vendors',
+                value: vendors.length.toString(),
+                subtext: 'Active Suppliers',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _NewStatCard(
+                title: 'Total Value',
+                value: _formatCurrency(totalValue),
+                subtext: 'inventory held',
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _NewStatCard(
+                title: 'Total Items',
+                value: totalItems.toString(),
+                subtext: 'across vendors',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
 
-    return ListView.separated(
-      itemCount: vendors.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) => _VendorCard(
-        vendor: vendors[index],
-        onEditMedicine: onEditMedicine,
-        onOpenMedicineDetail: onOpenMedicineDetail,
+        // Vendor Health Panel
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF9FAFB),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Vendor Health',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              const SizedBox(height: 12),
+              if (vendors.isEmpty)
+                const Text(
+                  'No vendor data yet',
+                  style: TextStyle(color: Colors.grey),
+                )
+              else
+                ...vendors
+                    .take(3)
+                    .map(
+                      (v) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.storefront,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    v.name,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  _StripedProgressBar(
+                                    value: totalValue > 0
+                                        ? (v.stockValue / totalValue).clamp(
+                                            0.0,
+                                            1.0,
+                                          )
+                                        : 0.0,
+                                    color: v.lowStockCount > 0
+                                        ? Colors.orange
+                                        : Colors.green,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Text(
+                              _formatCurrency(v.stockValue),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+
+        // Controls
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 300,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: TextField(
+                onChanged: (v) => setState(() => _searchQuery = v),
+                decoration: const InputDecoration(
+                  hintText: 'Search vendors...',
+                  icon: Icon(Icons.search, size: 18, color: Colors.grey),
+                  border: InputBorder.none,
+                ),
+              ),
+            ),
+            Row(
+              children: [
+                _FilterChip(
+                  label: 'All',
+                  active: _filter == 'All',
+                  onTap: () => setState(() => _filter = 'All'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Low Stock',
+                  active: _filter == 'Low Stock',
+                  onTap: () => setState(() => _filter = 'Low Stock'),
+                ),
+                const SizedBox(width: 8),
+                _FilterChip(
+                  label: 'Expiring',
+                  active: _filter == 'Expiring',
+                  onTap: () => setState(() => _filter = 'Expiring'),
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // List of Vendor Cards
+        Expanded(
+          child: ListView.separated(
+            itemCount: filteredVendors.length,
+            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _VendorCard(
+              vendor: filteredVendors[index],
+              onEditMedicine: widget.onEditMedicine,
+              onOpenMedicineDetail: widget.onOpenMedicineDetail,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FilterChip extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _FilterChip({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF1F2937) : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: active ? Colors.transparent : Colors.grey.shade300,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: active ? Colors.white : Colors.grey[600],
+          ),
+        ),
       ),
     );
   }
@@ -2004,30 +2189,30 @@ class _VendorCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${vendor.itemCount} item${vendor.itemCount == 1 ? '' : 's'}'
-                      '${vendor.hasKnownValue ? ' · ${_formatCurrency(vendor.stockValue)} in stock' : ''}',
+                      '${vendor.itemCount} item${vendor.itemCount == 1 ? '' : 's'}${vendor.hasKnownValue ? ' · ${_formatCurrency(vendor.stockValue)} in stock' : ''}',
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              if (vendor.lowStockCount > 0)
+              if (vendor.lowStockCount > 0) ...[
                 _VendorCountBadge(
                   label: '${vendor.lowStockCount} low',
                   color: Colors.red.shade700,
                   backgroundColor: Colors.red.shade50,
                 ),
-              if (vendor.expiringCount > 0) ...[
                 const SizedBox(width: 6),
+              ],
+              if (vendor.expiringCount > 0)
                 _VendorCountBadge(
-                  label: '${vendor.expiringCount} expiring',
+                  label: '${vendor.expiringCount} exp',
                   color: Colors.orange.shade700,
                   backgroundColor: Colors.orange.shade50,
                 ),
-              ],
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
+          // Expanded Medications Row
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -2037,25 +2222,35 @@ class _VendorCard extends StatelessWidget {
                 onTap: () {
                   final original = med.originalMedicine;
                   if (original == null) return;
-                  if (isUnassigned) {
+                  if (isUnassigned)
                     onEditMedicine(original);
-                  } else {
+                  else
                     onOpenMedicineDetail(original);
-                  }
                 },
               );
             }).toList(),
           ),
           const SizedBox(height: 8),
-          Text(
-            isUnassigned
-                ? 'Tap an item to add its vendor.'
-                : 'Tap an item to view details.',
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade500,
-              fontStyle: FontStyle.italic,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isUnassigned
+                    ? 'Tap an item to add its vendor.'
+                    : 'Tap an item to view details.',
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade500,
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+              if (!isUnassigned)
+                TextButton.icon(
+                  onPressed: () {}, // Mock action for adding item to vendor
+                  icon: const Icon(Icons.add_shopping_cart, size: 14),
+                  label: const Text('Add Item', style: TextStyle(fontSize: 12)),
+                ),
+            ],
           ),
         ],
       ),
@@ -2145,10 +2340,7 @@ class _VendorMedicineChip extends StatelessWidget {
 }
 
 // ==============================================================================
-// 6. ORDERS TAB — a real reorder queue driven by each medicine's own
-// threshold/price, not a fabricated purchase-order backend. Restocking a
-// row calls the existing StockAdjustmentDialog + InventoryRepository, so
-// it actually moves stock instead of doing nothing.
+// 6. ORDERS TAB (Over-Engineered)
 // ==============================================================================
 
 class _ReorderSuggestion {
@@ -2165,11 +2357,9 @@ class _ReorderSuggestion {
 
 List<_ReorderSuggestion> _buildReorderQueue(List<MedicationData> medications) {
   final suggestions = <_ReorderSuggestion>[];
-
   for (final med in medications) {
     final original = med.originalMedicine;
     if (original == null || !original.isLowStock) continue;
-
     final target = original.reorderThreshold > 0
         ? original.reorderThreshold * 2
         : 10;
@@ -2178,7 +2368,6 @@ List<_ReorderSuggestion> _buildReorderQueue(List<MedicationData> medications) {
     final estimatedCost = original.unitPrice != null
         ? original.unitPrice! * suggestedQty
         : null;
-
     suggestions.add(
       _ReorderSuggestion(
         medicine: original,
@@ -2187,18 +2376,16 @@ List<_ReorderSuggestion> _buildReorderQueue(List<MedicationData> medications) {
       ),
     );
   }
-
   suggestions.sort((a, b) {
     final aOut = a.medicine.currentStock == 0;
     final bOut = b.medicine.currentStock == 0;
     if (aOut != bOut) return aOut ? -1 : 1;
     return a.medicine.currentStock.compareTo(b.medicine.currentStock);
   });
-
   return suggestions;
 }
 
-class _OrdersTab extends StatelessWidget {
+class _OrdersTab extends StatefulWidget {
   final List<MedicationData> medications;
   final List<StockTransactionModel> transactions;
   final InventoryRepository repository;
@@ -2212,8 +2399,27 @@ class _OrdersTab extends StatelessWidget {
   });
 
   @override
+  State<_OrdersTab> createState() => _OrdersTabState();
+}
+
+class _OrdersTabState extends State<_OrdersTab> {
+  String _filter = 'All';
+
+  @override
   Widget build(BuildContext context) {
-    final queue = _buildReorderQueue(medications);
+    final queue = _buildReorderQueue(widget.medications);
+    final totalCost = queue.fold<double>(
+      0,
+      (sum, s) => sum + (s.estimatedCost ?? 0),
+    );
+    final hasAnyCost = queue.any((s) => s.estimatedCost != null);
+
+    final filteredQueue = queue.where((q) {
+      if (_filter == 'All') return true;
+      if (_filter == 'Urgent') return q.medicine.currentStock == 0;
+      if (_filter == 'Low') return q.medicine.currentStock > 0;
+      return true;
+    }).toList();
 
     if (queue.isEmpty) {
       return const _PlaceholderScreen(
@@ -2223,54 +2429,76 @@ class _OrdersTab extends StatelessWidget {
       );
     }
 
-    final totalCost = queue.fold<double>(
-      0,
-      (sum, s) => sum + (s.estimatedCost ?? 0),
-    );
-    final hasAnyCost = queue.any((s) => s.estimatedCost != null);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF7ED),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.orange.shade100),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.receipt_long_rounded,
-                color: Colors.orange.shade700,
-                size: 22,
+        // Order Header Stats
+        Row(
+          children: [
+            Expanded(
+              child: _NewStatCard(
+                title: 'Needs Attention',
+                value: queue.length.toString(),
+                subtext: 'items below threshold',
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '${queue.length} item${queue.length == 1 ? '' : 's'} need reordering'
-                  '${hasAnyCost ? ' · est. ${_formatCurrency(totalCost)}' : ''}',
-                  style: TextStyle(
-                    color: Colors.orange.shade900,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 13,
-                  ),
-                ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _NewStatCard(
+                title: 'Est. Cost',
+                value: hasAnyCost ? _formatCurrency(totalCost) : '—',
+                subtext: 'to restock all',
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _NewStatCard(
+                title: 'Urgent',
+                value: queue
+                    .where((q) => q.medicine.currentStock == 0)
+                    .length
+                    .toString(),
+                subtext: 'Out of Stock',
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // Order Filtering
+        Row(
+          children: [
+            _FilterChip(
+              label: 'All',
+              active: _filter == 'All',
+              onTap: () => setState(() => _filter = 'All'),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: 'Urgent',
+              active: _filter == 'Urgent',
+              onTap: () => setState(() => _filter = 'Urgent'),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: 'Low Stock',
+              active: _filter == 'Low',
+              onTap: () => setState(() => _filter = 'Low'),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
+
+        // Existing Orders
         Expanded(
           child: ListView.separated(
-            itemCount: queue.length,
+            itemCount: filteredQueue.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, index) => _ReorderRow(
-              suggestion: queue[index],
-              transactions: transactions,
-              repository: repository,
-              onOpenMedicineDetail: onOpenMedicineDetail,
+              suggestion: filteredQueue[index],
+              transactions: widget.transactions,
+              repository: widget.repository,
+              onOpenMedicineDetail: widget.onOpenMedicineDetail,
             ),
           ),
         ),
@@ -2297,7 +2525,6 @@ class _ReorderRow extends StatelessWidget {
     final medicine = suggestion.medicine;
     final isOut = medicine.currentStock == 0;
 
-    // Find the most recent restock transaction for this medicine.
     final lastRestock = transactions
         .where(
           (t) =>
@@ -2314,12 +2541,18 @@ class _ReorderRow extends StatelessWidget {
         ? DateTime.now().difference(lastRestock.createdAt).inDays
         : null;
 
+    final reorderProgress = medicine.reorderThreshold > 0
+        ? (medicine.currentStock / medicine.reorderThreshold).clamp(0.0, 1.0)
+        : 0.0;
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: isOut ? Colors.red.shade100 : Colors.grey.shade200,
+        ),
       ),
       child: Row(
         children: [
@@ -2367,10 +2600,14 @@ class _ReorderRow extends StatelessWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
+                  _StripedProgressBar(
+                    value: reorderProgress,
+                    color: isOut ? Colors.red : Colors.amber,
+                  ),
+                  const SizedBox(height: 6),
                   Text(
-                    '${medicine.currentStock} ${medicine.unit} left · reorder at ${medicine.reorderThreshold}'
-                    ' · suggest +${suggestion.suggestedQty} ${medicine.unit}'
+                    '${medicine.currentStock} ${medicine.unit} left · Suggest +${suggestion.suggestedQty} ${medicine.unit}'
                     '${suggestion.estimatedCost != null ? ' (${_formatCurrency(suggestion.estimatedCost!)})' : ''}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
@@ -2386,10 +2623,8 @@ class _ReorderRow extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           daysSinceRestock == 0
-                              ? 'Last restocked today'
-                              : daysSinceRestock == 1
-                              ? 'Last restocked yesterday'
-                              : 'Last restocked ${daysSinceRestock}d ago',
+                              ? 'Restocked today'
+                              : 'Restocked ${daysSinceRestock}d ago',
                           style: TextStyle(
                             fontSize: 11,
                             color: Colors.grey[400],
@@ -2430,9 +2665,7 @@ class _ReorderRow extends StatelessWidget {
 }
 
 // ==============================================================================
-// 7. USAGE ANALYTICS TAB — real numbers from the stock-transaction ledger
-// (recentStockTransactionsProvider), capped at the same 50-transaction
-// window the rest of the app uses for "recent activity".
+// 7. USAGE ANALYTICS TAB (Over-Engineered)
 // ==============================================================================
 
 class _MedicineUsage {
@@ -2450,6 +2683,7 @@ class _UsageAnalyticsData {
   final List<double> dailyDispensed7d;
   final List<_MedicineUsage> topMedicines;
   final List<StockTransactionModel> recentTransactions;
+  final Map<String, double> categoryBreakdown; // Added for category analytics
 
   const _UsageAnalyticsData({
     required this.dispensedQty30d,
@@ -2459,6 +2693,7 @@ class _UsageAnalyticsData {
     required this.dailyDispensed7d,
     required this.topMedicines,
     required this.recentTransactions,
+    required this.categoryBreakdown,
   });
 }
 
@@ -2476,6 +2711,7 @@ _UsageAnalyticsData _buildUsageAnalytics(
   double dispensedValue30 = 0;
   final dailyBuckets = List<double>.filled(7, 0);
   final usageByMedicine = <String, int>{};
+  final categoryTotals = <String, double>{};
 
   for (final tx in transactions) {
     if (tx.createdAt.isBefore(since30)) continue;
@@ -2483,21 +2719,30 @@ _UsageAnalyticsData _buildUsageAnalytics(
     switch (tx.type) {
       case StockTransactionType.dispense:
         dispensed30 += tx.quantity;
-        final price = medicineById[tx.medicineId]?.unitPrice;
+        final med = medicineById[tx.medicineId];
+        final price = med?.unitPrice;
         if (price != null) dispensedValue30 += price * tx.quantity;
 
-        final name = medicineById[tx.medicineId]?.name ?? 'Unknown item';
+        final name = med?.name ?? 'Unknown item';
         usageByMedicine.update(
           name,
           (existing) => existing + tx.quantity,
           ifAbsent: () => tx.quantity,
         );
 
+        // Add category data
+        if (med != null && med.category.isNotEmpty) {
+          categoryTotals.update(
+            med.category,
+            (existing) => existing + (price ?? 0) * tx.quantity,
+            ifAbsent: () => (price ?? 0) * tx.quantity,
+          );
+        }
+
         if (!tx.createdAt.isBefore(since7)) {
           final dayIndex = 6 - now.difference(tx.createdAt).inDays;
-          if (dayIndex >= 0 && dayIndex < 7) {
+          if (dayIndex >= 0 && dayIndex < 7)
             dailyBuckets[dayIndex] += tx.quantity;
-          }
         }
         break;
       case StockTransactionType.restock:
@@ -2528,10 +2773,11 @@ _UsageAnalyticsData _buildUsageAnalytics(
     dailyDispensed7d: dailyBuckets,
     topMedicines: topMedicines.take(5).toList(),
     recentTransactions: recent.take(8).toList(),
+    categoryBreakdown: categoryTotals,
   );
 }
 
-class _UsageAnalyticsTab extends StatelessWidget {
+class _UsageAnalyticsTab extends StatefulWidget {
   final List<StockTransactionModel> transactions;
   final Map<String, MedicineModel> medicineById;
 
@@ -2541,8 +2787,26 @@ class _UsageAnalyticsTab extends StatelessWidget {
   });
 
   @override
+  State<_UsageAnalyticsTab> createState() => _UsageAnalyticsTabState();
+}
+
+class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
+  bool _isLast7Days = false;
+
+  @override
   Widget build(BuildContext context) {
-    if (transactions.isEmpty) {
+    final data = _buildUsageAnalytics(widget.transactions, widget.medicineById);
+
+    // Turnover rate metric
+    final totalStockValue = widget.medicineById.values.fold<double>(
+      0,
+      (sum, m) => sum + (m.unitPrice ?? 0) * m.currentStock,
+    );
+    final turnoverRate = totalStockValue > 0
+        ? (data.dispensedValue30d / totalStockValue) * 100
+        : 0.0;
+
+    if (widget.transactions.isEmpty) {
       return const _PlaceholderScreen(
         icon: Icons.insights_outlined,
         title: 'No activity yet',
@@ -2550,77 +2814,109 @@ class _UsageAnalyticsTab extends StatelessWidget {
       );
     }
 
-    final data = _buildUsageAnalytics(transactions, medicineById);
-
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Based on the most recent stock activity',
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          // Header Controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Usage Analytics',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1F2937),
+                ),
+              ),
+              Row(
+                children: [
+                  _FilterChip(
+                    label: '7 Days',
+                    active: _isLast7Days,
+                    onTap: () => setState(() => _isLast7Days = true),
+                  ),
+                  const SizedBox(width: 8),
+                  _FilterChip(
+                    label: '30 Days',
+                    active: !_isLast7Days,
+                    onTap: () => setState(() => _isLast7Days = false),
+                  ),
+                ],
+              ),
+            ],
           ),
           const SizedBox(height: 16),
+
+          // Header Stats
           Row(
             children: [
               Expanded(
                 child: _UsageStatChip(
-                  label: 'Dispensed',
+                  label: 'Units Dispensed',
                   value: '${data.dispensedQty30d}',
-                  sublabel: 'units · 30d',
+                  sublabel: '30d',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _UsageStatChip(
-                  label: 'Restocked',
+                  label: 'Units Restocked',
                   value: '${data.restockedQty30d}',
-                  sublabel: 'units · 30d',
+                  sublabel: '30d',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: _UsageStatChip(
-                  label: 'Written off',
-                  value: '${data.writeOffQty30d}',
-                  sublabel: 'units · 30d',
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _UsageStatChip(
-                  label: 'Dispensed value',
+                  label: 'Value Used',
                   value: _formatCurrency(data.dispensedValue30d),
                   sublabel: '30d',
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _UsageStatChip(
+                  label: 'Turnover Rate',
+                  value: '${turnoverRate.toStringAsFixed(1)}%',
+                  sublabel: 'of inventory',
                 ),
               ),
             ],
           ),
           const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Dispensed, last 7 days',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _WeeklyUsageBars(values: data.dailyDispensed7d),
-              ],
-            ),
+
+          // Main Analytics Row (split into two columns)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth > 1000) {
+                return Row(
+                  children: [
+                    Expanded(
+                      child: _WeeklyUsageChart(
+                        data: data,
+                        is7Days: _isLast7Days,
+                      ),
+                    ),
+                    const SizedBox(width: 24),
+                    Expanded(child: _CategoryBreakdownPanel(data: data)),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
+                    _WeeklyUsageChart(data: data, is7Days: _isLast7Days),
+                    const SizedBox(height: 24),
+                    _CategoryBreakdownPanel(data: data),
+                  ],
+                );
+              }
+            },
           ),
           const SizedBox(height: 24),
+
+          // Top Items
           if (data.topMedicines.isNotEmpty)
             Container(
               padding: const EdgeInsets.all(16),
@@ -2633,7 +2929,7 @@ class _UsageAnalyticsTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'Top dispensed items',
+                    'Top Dispensed Items',
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -2645,12 +2941,18 @@ class _UsageAnalyticsTab extends StatelessWidget {
                     (m) => _TopMedicineRow(
                       usage: m,
                       maxQuantity: data.topMedicines.first.quantity,
+                      unitValue: widget.medicineById.entries
+                          .where((e) => e.value.name == m.name)
+                          .map((e) => e.value.unitPrice ?? 0)
+                          .fold(0.0, (a, b) => a + b),
                     ),
                   ),
                 ],
               ),
             ),
           const SizedBox(height: 24),
+
+          // Recent Transactions
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -2674,13 +2976,187 @@ class _UsageAnalyticsTab extends StatelessWidget {
                   (tx) => _UsageTransactionRow(
                     transaction: tx,
                     medicineName:
-                        medicineById[tx.medicineId]?.name ?? 'Unknown item',
+                        widget.medicineById[tx.medicineId]?.name ??
+                        'Unknown item',
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeeklyUsageChart extends StatelessWidget {
+  final _UsageAnalyticsData data;
+  final bool is7Days;
+
+  const _WeeklyUsageChart({required this.data, required this.is7Days});
+
+  @override
+  Widget build(BuildContext context) {
+    final values = is7Days
+        ? data.dailyDispensed7d
+        : List<double>.filled(30, 0); // Mocking 30d data not in model
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Dispensed Volume',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+          // Greatly expanded bars
+          SizedBox(
+            height: 160,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: values.asMap().entries.map((entry) {
+                final index = entry.key;
+                final value = entry.value;
+                final maxValue = values.fold<double>(
+                  0,
+                  (m, v) => v > m ? v : m,
+                );
+                final heightFactor = maxValue > 0 ? value / maxValue : 0.0;
+                return Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 3),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Text(
+                          value > 0 ? value.toStringAsFixed(0) : '',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          height: 120 * heightFactor + 4,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2563EB),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          is7Days
+                              ? [
+                                  '6d',
+                                  '5d',
+                                  '4d',
+                                  '3d',
+                                  '2d',
+                                  '1d',
+                                  'Today',
+                                ][index % 7]
+                              : '${index + 1}',
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryBreakdownPanel extends StatelessWidget {
+  final _UsageAnalyticsData data;
+
+  const _CategoryBreakdownPanel({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final categories = data.categoryBreakdown.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    final maxValue = categories.isEmpty ? 1.0 : categories.first.value;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Category Breakdown',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 16),
+          if (categories.isEmpty)
+            const Text(
+              'No category data yet',
+              style: TextStyle(color: Colors.grey),
+            )
+          else
+            ...categories.take(6).map((entry) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 120,
+                      child: Text(
+                        entry.key,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _StripedProgressBar(
+                        value: (entry.value / maxValue).clamp(0.0, 1.0),
+                        color: Colors.purple.shade300,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      _formatCurrency(entry.value),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
         ],
       ),
     );
@@ -2738,61 +3214,16 @@ class _UsageStatChip extends StatelessWidget {
   }
 }
 
-class _WeeklyUsageBars extends StatelessWidget {
-  final List<double> values;
-
-  const _WeeklyUsageBars({required this.values});
-
-  static const _labels = ['6d', '5d', '4d', '3d', '2d', '1d', 'Today'];
-
-  @override
-  Widget build(BuildContext context) {
-    final maxValue = values.fold<double>(0, (m, v) => v > m ? v : m);
-
-    return SizedBox(
-      height: 120,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: List.generate(values.length, (i) {
-          final heightFactor = maxValue > 0 ? values[i] / maxValue : 0.0;
-          return Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    values[i] > 0 ? values[i].toStringAsFixed(0) : '',
-                    style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-                  ),
-                  const SizedBox(height: 4),
-                  Container(
-                    height: 70 * heightFactor + 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _labels[i],
-                    style: TextStyle(fontSize: 10, color: Colors.grey[500]),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
 class _TopMedicineRow extends StatelessWidget {
   final _MedicineUsage usage;
   final int maxQuantity;
+  final double unitValue;
 
-  const _TopMedicineRow({required this.usage, required this.maxQuantity});
+  const _TopMedicineRow({
+    required this.usage,
+    required this.maxQuantity,
+    required this.unitValue,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -2818,7 +3249,7 @@ class _TopMedicineRow extends StatelessWidget {
                 ),
               ),
               Text(
-                '${usage.quantity} units',
+                '${usage.quantity} units · ${_formatCurrency(usage.quantity * unitValue)}',
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
             ],

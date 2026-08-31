@@ -17,6 +17,9 @@ import 'package:doctor_management_app/features/inventory/presentation/desktop_in
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_events_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
+import 'package:doctor_management_app/features/campaigns/presentation/desktop_campaigns_screen.dart';
+import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
+import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -43,6 +46,7 @@ class _DesktopShellState extends State<DesktopShell> {
 
   final DesktopShellPreferences _shellPrefs = DesktopShellPreferences();
   final FocusNode _shortcutsFocusNode = FocusNode();
+  final InvoiceRepository _invoiceRepository = InvoiceRepository();
 
   int _currentIndex = 0;
   bool _isSidebarExpanded = true;
@@ -50,7 +54,7 @@ class _DesktopShellState extends State<DesktopShell> {
   @override
   void initState() {
     super.initState();
-    _restoreSidebarPreference();
+    _restorePreferences();
   }
 
   @override
@@ -59,10 +63,16 @@ class _DesktopShellState extends State<DesktopShell> {
     super.dispose();
   }
 
-  Future<void> _restoreSidebarPreference() async {
+  Future<void> _restorePreferences() async {
     final expanded = await _shellPrefs.getSidebarExpanded();
+    final lastTabIndex = await _shellPrefs.getLastTabIndex();
     if (!mounted) return;
-    setState(() => _isSidebarExpanded = expanded);
+    setState(() {
+      _isSidebarExpanded = expanded;
+      if (lastTabIndex >= 0 && lastTabIndex < _labels.length) {
+        _currentIndex = lastTabIndex;
+      }
+    });
   }
 
   void _toggleSidebar() {
@@ -79,6 +89,7 @@ class _DesktopShellState extends State<DesktopShell> {
     'Inventory',
     'Revenue',
     'Appointments',
+    'Campaigns',
   ];
 
   static const List<IconData> _icons = [
@@ -88,11 +99,13 @@ class _DesktopShellState extends State<DesktopShell> {
     Icons.inventory_2_outlined,
     Icons.payments_outlined,
     Icons.calendar_today_outlined,
+    Icons.campaign_rounded,
   ];
 
   void _onNavTap(int index) {
     if (index < 0 || index >= _labels.length) return;
     setState(() => _currentIndex = index);
+    unawaited(_shellPrefs.setLastTabIndex(index));
   }
 
   /// Builds only the screen that's actually selected.
@@ -110,6 +123,8 @@ class _DesktopShellState extends State<DesktopShell> {
         return const DesktopRevenueScreen();
       case 5:
         return const DesktopEventsScreen();
+      case 6:
+        return const DesktopCampaignsScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -135,6 +150,7 @@ class _DesktopShellState extends State<DesktopShell> {
       LogicalKeyboardKey.digit4,
       LogicalKeyboardKey.digit5,
       LogicalKeyboardKey.digit6,
+      LogicalKeyboardKey.digit7,
     ];
     return digitKeys[index];
   }
@@ -173,73 +189,96 @@ class _DesktopShellState extends State<DesktopShell> {
       builder: (context, snapshot) {
         final enabledModules =
             snapshot.data ?? DoctorFeatureGuard.defaultModules;
-        final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(_currentIndex);
+        // Desktop has its own tab order (Invoices at index 1, Campaigns
+        // appended at the end), so it needs the desktop-specific mapping —
+        // see DoctorFeatureGuard.getModuleKeyForDesktopTab for why.
+        final moduleKey =
+            DoctorFeatureGuard.getModuleKeyForDesktopTab(_currentIndex);
+        // Dashboard (0) and Campaigns (6) are always reachable, mirroring
+        // the mobile shell's bypass for those same two tabs.
         final isTabEnabled =
             _currentIndex == 0 ||
+            _currentIndex == 6 ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
 
-        return InventoryAlertListener(
-          child: Scaffold(
-            backgroundColor: Colors.white,
-            body: Stack(
-              children: [
-                Container(
-                  width: double.infinity,
-                  height: double.infinity,
-                  color: chartBarDim,
-                  child: Row(
-                    children: [
-                      // ---------- Left: Animated Custom Sidebar ----------
-                      Padding(
-                        padding: const EdgeInsets.only(
-                          top: 16,
-                          bottom: 16,
-                          left: 16,
-                        ),
-                        child: _DesktopSidebar(
-                          currentIndex: _currentIndex,
-                          labels: _labels,
-                          icons: _icons,
-                          onNavTap: _onNavTap,
-                          isExpanded: _isSidebarExpanded,
-                          onToggle: _toggleSidebar,
-                        ),
-                      ),
+        return StreamBuilder<List<InvoiceModel>>(
+          stream: _invoiceRepository.watchInvoices(),
+          builder: (context, invoiceSnapshot) {
+            final pendingInvoiceCount = (invoiceSnapshot.data ?? const [])
+                .where((invoice) => invoice.isPending || invoice.isOverdue)
+                .length;
 
-                      const SizedBox(width: 16),
-
-                      // ---------- Right: Main Content Area ----------
-                      // [FIXED] Removed the clipping Container wrapper to let the inner screen
-                      // fill the exact space with its own 24px border radius and shadow.
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(
-                            top: 16,
-                            bottom: 16,
-                            right: 16,
+            return InventoryAlertListener(
+              child: Scaffold(
+                backgroundColor: Colors.white,
+                body: Stack(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      height: double.infinity,
+                      color: chartBarDim,
+                      child: Row(
+                        children: [
+                          // ---------- Left: Animated Custom Sidebar ----------
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              top: 16,
+                              bottom: 16,
+                              left: 16,
+                            ),
+                            child: _DesktopSidebar(
+                              currentIndex: _currentIndex,
+                              labels: _labels,
+                              icons: _icons,
+                              onNavTap: _onNavTap,
+                              isExpanded: _isSidebarExpanded,
+                              onToggle: _toggleSidebar,
+                              invoiceBadgeCount: pendingInvoiceCount,
+                            ),
                           ),
-                          child: isTabEnabled
-                              ? SizedBox.expand(child: _buildScreen(_currentIndex))
-                              : SizedBox.expand(
-                                  child: MobileFeatureDisabledView(
-                                    featureTitle: DoctorFeatureGuard.getTabTitle(
-                                      _currentIndex,
-                                    ),
-                                    icon: _icons[_currentIndex],
-                                    onBackToDashboard: () => _onNavTap(0),
-                                  ),
-                                ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
 
-                // ---- Free-Floating / Draggable Chat FAB ----
-                const DraggableFloatingChatbotButton(initialBottom: 32, initialRight: 32),
-              ],
-            ),
-          ),
+                          const SizedBox(width: 16),
+
+                          // ---------- Right: Main Content Area ----------
+                          // [FIXED] Removed the clipping Container wrapper to let the inner screen
+                          // fill the exact space with its own 24px border radius and shadow.
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.only(
+                                top: 16,
+                                bottom: 16,
+                                right: 16,
+                              ),
+                              child: isTabEnabled
+                                  ? SizedBox.expand(
+                                      child: _buildScreen(_currentIndex),
+                                    )
+                                  : SizedBox.expand(
+                                      child: MobileFeatureDisabledView(
+                                        featureTitle:
+                                            DoctorFeatureGuard.getDesktopTabTitle(
+                                          _currentIndex,
+                                        ),
+                                        icon: _icons[_currentIndex],
+                                        onBackToDashboard: () => _onNavTap(0),
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // ---- Free-Floating / Draggable Chat FAB ----
+                    const DraggableFloatingChatbotButton(
+                      initialBottom: 32,
+                      initialRight: 32,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -257,6 +296,7 @@ class _DesktopSidebar extends StatelessWidget {
   final Function(int) onNavTap;
   final bool isExpanded;
   final VoidCallback onToggle;
+  final int invoiceBadgeCount;
 
   const _DesktopSidebar({
     required this.currentIndex,
@@ -265,6 +305,7 @@ class _DesktopSidebar extends StatelessWidget {
     required this.onNavTap,
     required this.isExpanded,
     required this.onToggle,
+    this.invoiceBadgeCount = 0,
   });
 
   @override
@@ -299,6 +340,7 @@ class _DesktopSidebar extends StatelessWidget {
                   icons: icons,
                   onNavTap: onNavTap,
                   onToggle: onToggle,
+                  invoiceBadgeCount: invoiceBadgeCount,
                 )
               : _CollapsedLayout(
                   key: const ValueKey('collapsed'),
@@ -324,6 +366,7 @@ class _ExpandedLayout extends StatelessWidget {
   final List<IconData> icons;
   final Function(int) onNavTap;
   final VoidCallback onToggle;
+  final int invoiceBadgeCount;
 
   const _ExpandedLayout({
     required this.currentIndex,
@@ -331,6 +374,7 @@ class _ExpandedLayout extends StatelessWidget {
     required this.icons,
     required this.onNavTap,
     required this.onToggle,
+    this.invoiceBadgeCount = 0,
     super.key,
   });
 
@@ -378,11 +422,19 @@ class _ExpandedLayout extends StatelessWidget {
                 _buildSectionHeader('MENU'),
                 const SizedBox(height: 8),
                 ...List.generate(labels.length, (index) {
+                  // Invoices (index 1): surface the live count of
+                  // Pending + Overdue invoices instead of a hardcoded
+                  // placeholder, so the badge actually means something.
+                  final badge = index == 1 && invoiceBadgeCount > 0
+                      ? (invoiceBadgeCount > 99
+                          ? '99+'
+                          : invoiceBadgeCount.toString())
+                      : null;
                   return _SidebarItem(
                     icon: icons[index],
                     label: labels[index],
                     isSelected: currentIndex == index,
-                    badge: index == 1 ? '12' : null,
+                    badge: badge,
                     onTap: () => onNavTap(index),
                   );
                 }),
@@ -398,17 +450,23 @@ class _ExpandedLayout extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const ProfileScreen()),
                   ),
                 ),
-                const _SidebarItem(
+                _SidebarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
                   isSelected: false,
-                  onTap: null,
+                  // Account-level settings (Gmail integration, letterhead
+                  // branding, active sessions) live on the profile hub —
+                  // route here instead of leaving the item dead.
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                  ),
                 ),
-                const _SidebarItem(
+                _SidebarItem(
                   icon: Icons.help_outline,
                   label: 'Help',
                   isSelected: false,
-                  onTap: null,
+                  onTap: () => showDesktopShellHelpDialog(context),
                 ),
                 _SidebarItem(
                   icon: Icons.logout,
@@ -589,7 +647,10 @@ class _CollapsedLayout extends StatelessWidget {
             size: 20,
           ),
           tooltip: 'Settings',
-          onPressed: () {},
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ProfileScreen()),
+          ),
           splashRadius: 20,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -602,7 +663,7 @@ class _CollapsedLayout extends StatelessWidget {
             size: 20,
           ),
           tooltip: 'Help',
-          onPressed: () {},
+          onPressed: () => showDesktopShellHelpDialog(context),
           splashRadius: 20,
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -749,6 +810,101 @@ class _SidebarItem extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ------------------------------------------------------------------------------
+// HELP & SUPPORT DIALOG
+// ------------------------------------------------------------------------------
+
+/// Lightweight, self-contained help dialog for the desktop shell.
+///
+/// The "Help" sidebar/icon button used to be wired to `onPressed: () {}` and
+/// did nothing when clicked. Rather than invent a support inbox that doesn't
+/// exist, this points at real, already-shipped functionality: the AI chat
+/// assistant and the keyboard shortcuts registered in [_DesktopShellState].
+void showDesktopShellHelpDialog(BuildContext context) {
+  showDialog<void>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text('Help & Support'),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: const [
+            Text(
+              'Stuck on something? The chat bubble in the bottom-right '
+              'corner can answer questions about any screen or feature.',
+              style: TextStyle(fontSize: 13.5, height: 1.4),
+            ),
+            SizedBox(height: 18),
+            Text(
+              'KEYBOARD SHORTCUTS',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                color: Color(0xFF8E9BAB),
+              ),
+            ),
+            SizedBox(height: 10),
+            _ShortcutRow(keys: 'Ctrl + B', description: 'Show or hide the sidebar'),
+            _ShortcutRow(keys: 'Ctrl + 1 – 7', description: 'Jump straight to a tab'),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Got it'),
+        ),
+      ],
+    ),
+  );
+}
+
+class _ShortcutRow extends StatelessWidget {
+  final String keys;
+  final String description;
+
+  const _ShortcutRow({required this.keys, required this.description});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              keys,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'monospace',
+                color: Color(0xFF334A5E),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              description,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF334A5E)),
+            ),
+          ),
+        ],
       ),
     );
   }

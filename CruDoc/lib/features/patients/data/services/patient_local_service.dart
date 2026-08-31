@@ -194,7 +194,7 @@ class PatientLocalService {
     final rows = await db.query(
       'patients',
       where:
-          'isActive = 1 AND isArchived = 0 AND doctorId = ? AND NOT (firstName = "Patient" AND (lastName = "" OR lastName IS NULL) AND (phone = "" OR phone IS NULL) AND (gender = "" OR gender IS NULL))',
+          'isActive = 1 AND isArchived = 0 AND doctorId = ? AND NOT (firstName = \'Patient\' AND (lastName = \'\' OR lastName IS NULL) AND (phone = \'\' OR phone IS NULL) AND (gender = \'\' OR gender IS NULL))',
       whereArgs: [_currentDoctorId],
       orderBy: 'createdAt DESC',
     );

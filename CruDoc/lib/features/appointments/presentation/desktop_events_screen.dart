@@ -1,5 +1,6 @@
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/appointments/presentation/schedule_visit_flow.dart';
 import 'package:doctor_management_app/features/messaging/data/models/whatsapp_notification_log.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/whatsapp_providers.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
@@ -133,12 +134,23 @@ class _CalendarDashboardViewState
   late int _month;
   String? _hoveredDateKey;
 
+  bool _isSearchExpanded = false;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  VisitStatus? _statusFilter;
+
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _year = now.year;
     _month = now.month;
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _changeMonth(int delta) {
@@ -153,6 +165,61 @@ class _CalendarDashboardViewState
       }
       _hoveredDateKey = null;
     });
+  }
+
+  void _jumpToToday() {
+    final now = DateTime.now();
+    setState(() {
+      _year = now.year;
+      _month = now.month;
+      _hoveredDateKey = null;
+    });
+  }
+
+  void _jumpToMonth(DateTime date) {
+    setState(() {
+      _year = date.year;
+      _month = date.month;
+      _hoveredDateKey = null;
+    });
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _isSearchExpanded = !_isSearchExpanded;
+      if (!_isSearchExpanded) {
+        _searchController.clear();
+        _searchQuery = '';
+      }
+    });
+  }
+
+  Future<void> _createNewAppointment() async {
+    await promptScheduleVisit(
+      context,
+      pickerTitle: 'Schedule an appointment for',
+    );
+  }
+
+  /// Applies the search text and status filter before the visits ever
+  /// reach [_groupEvents]/the calendar grid.
+  List<VisitWithPatient> _applyFilters(List<VisitWithPatient> visits) {
+    var result = visits;
+
+    if (_statusFilter != null) {
+      result = result.where((v) => v.visit.status == _statusFilter).toList();
+    }
+
+    final query = _searchQuery.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      result = result.where((v) {
+        final patientName = v.patient?.fullName.toLowerCase() ?? '';
+        final treatment = v.visit.treatmentType?.toLowerCase() ?? '';
+        return patientName.contains(query) || treatment.contains(query);
+      }).toList();
+    }
+
+    return result;
   }
 
   String _getMonthName(int month) {
@@ -235,7 +302,8 @@ class _CalendarDashboardViewState
         eventsData: const <String, List<_CalendarEvent>>{},
         error: error,
       ),
-      data: (visits) => _buildCalendar(eventsData: _groupEvents(visits)),
+      data: (visits) =>
+          _buildCalendar(eventsData: _groupEvents(_applyFilters(visits))),
     );
   }
 
@@ -248,6 +316,8 @@ class _CalendarDashboardViewState
     final hoveredEvents = _hoveredDateKey == null
         ? null
         : eventsData[_hoveredDateKey];
+    final hasActiveFilter =
+        _statusFilter != null || _searchQuery.trim().isNotEmpty;
 
     return Stack(
       children: [
@@ -258,6 +328,17 @@ class _CalendarDashboardViewState
               monthText: '${_getMonthName(_month)} $_year',
               onPrev: () => _changeMonth(-1),
               onNext: () => _changeMonth(1),
+              onJumpToToday: _jumpToToday,
+              onJumpToMonth: _jumpToMonth,
+              isSearchExpanded: _isSearchExpanded,
+              onToggleSearch: _toggleSearch,
+              searchController: _searchController,
+              onSearchChanged: (value) =>
+                  setState(() => _searchQuery = value),
+              statusFilter: _statusFilter,
+              onStatusFilterChanged: (value) =>
+                  setState(() => _statusFilter = value),
+              onNewAppointment: _createNewAppointment,
             ),
             const SizedBox(height: 12),
             if (isLoading) const LinearProgressIndicator(minHeight: 2),
@@ -275,10 +356,12 @@ class _CalendarDashboardViewState
               },
             ),
             if (!isLoading && error == null && eventsData.isEmpty)
-              const _CalendarMessage(
+              _CalendarMessage(
                 icon: Icons.event_busy_rounded,
-                color: Color(0xFF6B7280),
-                text: 'No appointments or visitations scheduled yet.',
+                color: const Color(0xFF6B7280),
+                text: hasActiveFilter
+                    ? 'No appointments match your search or filter.'
+                    : 'No appointments or visitations scheduled yet.',
               ),
           ],
         ),
@@ -340,128 +423,229 @@ class _CalendarHeader extends StatelessWidget {
   final String monthText;
   final VoidCallback onPrev;
   final VoidCallback onNext;
+  final VoidCallback onJumpToToday;
+  final ValueChanged<DateTime> onJumpToMonth;
+  final bool isSearchExpanded;
+  final VoidCallback onToggleSearch;
+  final TextEditingController searchController;
+  final ValueChanged<String> onSearchChanged;
+  final VisitStatus? statusFilter;
+  final ValueChanged<VisitStatus?> onStatusFilterChanged;
+  final VoidCallback onNewAppointment;
 
   const _CalendarHeader({
     required this.monthText,
     required this.onPrev,
     required this.onNext,
+    required this.onJumpToToday,
+    required this.onJumpToMonth,
+    required this.isSearchExpanded,
+    required this.onToggleSearch,
+    required this.searchController,
+    required this.onSearchChanged,
+    required this.statusFilter,
+    required this.onStatusFilterChanged,
+    required this.onNewAppointment,
   });
+
+  String _statusLabel(VisitStatus? status) {
+    switch (status) {
+      case null:
+        return 'All statuses';
+      case VisitStatus.scheduled:
+        return 'Scheduled';
+      case VisitStatus.completed:
+        return 'Completed';
+      case VisitStatus.cancelled:
+        return 'Cancelled';
+      case VisitStatus.missed:
+        return 'Missed';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    final filterActive = statusFilter != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            InkWell(
-              onTap: onPrev,
-              borderRadius: BorderRadius.circular(50),
-              child: const Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(
-                  Icons.arrow_back_ios_new,
-                  size: 16,
-                  color: Color(0xFF4B5563),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              monthText,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1F2937),
-              ),
-            ),
-            const SizedBox(width: 8),
-            InkWell(
-              onTap: onNext,
-              borderRadius: BorderRadius.circular(50),
-              child: const Padding(
-                padding: EdgeInsets.all(8),
-                child: Icon(
-                  Icons.arrow_forward_ios,
-                  size: 16,
-                  color: Color(0xFF4B5563),
-                ),
-              ),
-            ),
-          ],
-        ),
-        Row(
-          children: [
-            IconButton(
-              onPressed: () => _showDemoDialog(context, 'Search functionality'),
-              icon: const Icon(
-                Icons.search_rounded,
-                size: 20,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            IconButton(
-              onPressed: () =>
-                  _showDemoDialog(context, 'Filter & tune options'),
-              icon: const Icon(
-                Icons.tune_rounded,
-                size: 20,
-                color: Color(0xFF6B7280),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade200),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: InkWell(
-                onTap: () =>
-                    _showDemoDialog(context, 'Monthly dropdown clicked'),
-                child: const Row(
-                  children: [
-                    Text(
-                      'Monthly',
-                      style: TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
-                    ),
-                    SizedBox(width: 4),
-                    Icon(
-                      Icons.keyboard_arrow_down,
+            Row(
+              children: [
+                InkWell(
+                  onTap: onPrev,
+                  borderRadius: BorderRadius.circular(50),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.arrow_back_ios_new,
                       size: 16,
-                      color: Color(0xFF6B7280),
+                      color: Color(0xFF4B5563),
                     ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  monthText,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: onNext,
+                  borderRadius: BorderRadius.circular(50),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(
+                      Icons.arrow_forward_ios,
+                      size: 16,
+                      color: Color(0xFF4B5563),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                IconButton(
+                  onPressed: onToggleSearch,
+                  tooltip: isSearchExpanded
+                      ? 'Close search'
+                      : 'Search appointments',
+                  icon: Icon(
+                    isSearchExpanded ? Icons.close_rounded : Icons.search_rounded,
+                    size: 20,
+                    color: isSearchExpanded
+                        ? const Color(0xFF7C3AED)
+                        : const Color(0xFF6B7280),
+                  ),
+                ),
+                PopupMenuButton<VisitStatus?>(
+                  tooltip: 'Filter by status',
+                  initialValue: statusFilter,
+                  onSelected: onStatusFilterChanged,
+                  icon: Icon(
+                    Icons.tune_rounded,
+                    size: 20,
+                    color: filterActive
+                        ? const Color(0xFF7C3AED)
+                        : const Color(0xFF6B7280),
+                  ),
+                  itemBuilder: (context) => <PopupMenuEntry<VisitStatus?>>[
+                    for (final status in const <VisitStatus?>[
+                      null,
+                      VisitStatus.scheduled,
+                      VisitStatus.completed,
+                      VisitStatus.cancelled,
+                      VisitStatus.missed,
+                    ])
+                      PopupMenuItem<VisitStatus?>(
+                        value: status,
+                        child: Row(
+                          children: [
+                            if (status == statusFilter)
+                              const Icon(Icons.check, size: 16)
+                            else
+                              const SizedBox(width: 16),
+                            const SizedBox(width: 8),
+                            Text(_statusLabel(status)),
+                          ],
+                        ),
+                      ),
                   ],
                 ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: () => _showDemoDialog(context, 'More options'),
-              icon: const Icon(
-                Icons.more_horiz,
-                size: 20,
-                color: Color(0xFF6B7280),
-              ),
+                PopupMenuButton<String>(
+                  tooltip: 'Jump to',
+                  onSelected: (value) async {
+                    if (value == 'today') {
+                      onJumpToToday();
+                    } else if (value == 'pick') {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate: now,
+                        firstDate: DateTime(now.year - 5),
+                        lastDate: DateTime(now.year + 5),
+                        helpText: 'Jump to month',
+                      );
+                      if (picked != null) onJumpToMonth(picked);
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'today', child: Text('Jump to today')),
+                    PopupMenuItem(value: 'pick', child: Text('Jump to month…')),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade200),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Row(
+                      children: [
+                        Text(
+                          'Monthly',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Color(0xFF1F2937),
+                          ),
+                        ),
+                        SizedBox(width: 4),
+                        Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: onNewAppointment,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('New appointment'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF7C3AED),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
-      ],
-    );
-  }
-
-  void _showDemoDialog(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Feature Demo'),
-        content: Text('You clicked: $message'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
+        if (isSearchExpanded) ...[
+          const SizedBox(height: 10),
+          TextField(
+            controller: searchController,
+            autofocus: true,
+            onChanged: onSearchChanged,
+            decoration: InputDecoration(
+              hintText: 'Search by patient name or appointment type…',
+              prefixIcon: const Icon(Icons.search, size: 20),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           ),
         ],
-      ),
+      ],
     );
   }
 }

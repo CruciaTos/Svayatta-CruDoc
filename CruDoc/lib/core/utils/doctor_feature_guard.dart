@@ -119,6 +119,59 @@ class DoctorFeatureGuard {
     }
   }
 
+  /// Maps a **desktop shell** tab index to its feature module key.
+  ///
+  /// The desktop shell's tab order does not match the mobile shell's
+  /// (an "Invoices" tab is inserted at index 1 and "Campaigns" is appended
+  /// at the end), so it cannot reuse [getModuleKeyForTab] — doing so
+  /// silently gated every desktop tab against the wrong module (e.g. the
+  /// desktop "Patients" tab was being locked/unlocked based on whether
+  /// `inventory` was enabled, not `patients`).
+  static String getModuleKeyForDesktopTab(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return 'dashboard';
+      case 1:
+        return 'revenue'; // Invoices tab — billing lives under Revenue & Financials
+      case 2:
+        return 'patients';
+      case 3:
+        return 'inventory';
+      case 4:
+        return 'revenue';
+      case 5:
+        return 'appointments';
+      case 6:
+        return 'campaigns'; // Patient Campaigns tab
+      default:
+        return 'dashboard';
+    }
+  }
+
+  /// Returns the user-friendly title for a **desktop shell** tab. Companion
+  /// to [getModuleKeyForDesktopTab] — see that method for why this can't
+  /// share [getTabTitle]'s mobile tab order.
+  static String getDesktopTabTitle(int tabIndex) {
+    switch (tabIndex) {
+      case 0:
+        return 'Dashboard';
+      case 1:
+        return 'Invoices';
+      case 2:
+        return 'Patient Records';
+      case 3:
+        return 'Inventory Management';
+      case 4:
+        return 'Revenue & Financials';
+      case 5:
+        return 'Appointments & Events';
+      case 6:
+        return 'Patient Campaigns';
+      default:
+        return 'Feature';
+    }
+  }
+
   /// Checks if a module is enabled in the active modules list.
   /// Strictly respects what the Super Admin configures in `enabledModules`.
   static bool isEnabled(List<String> enabledModules, String moduleKey) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
@@ -8,6 +9,16 @@ import 'package:doctor_management_app/features/inventory/data/providers/inventor
 import 'package:doctor_management_app/features/inventory/presentation/add_edit_medicine_form.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+
+/// Rupee currency formatter — matches the convention used across the
+/// revenue and desktop inventory screens.
+final _currencyFormatter = NumberFormat.currency(
+  locale: 'en_IN',
+  symbol: '₹',
+  decimalDigits: 0,
+);
+
+String _formatCurrency(double value) => _currencyFormatter.format(value);
 
 /// Full detail view for a single medicine: current stock, expiry, and the
 /// complete transaction history, newest first.
@@ -296,6 +307,29 @@ class _SummaryCard extends StatelessWidget {
                   child: _StatColumn(
                     label: 'Batch',
                     value: medicine.batchNumber ?? '—',
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (medicine.unitPrice != null) ...[
+            const SizedBox(height: 14),
+            const Divider(height: 1, color: Color(0xFFDDE6F0)),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                Expanded(
+                  child: _StatColumn(
+                    label: 'Unit Price',
+                    value: _formatCurrency(medicine.unitPrice!),
+                  ),
+                ),
+                Expanded(
+                  child: _StatColumn(
+                    label: 'Stock Value',
+                    value: _formatCurrency(
+                      medicine.unitPrice! * medicine.currentStock,
+                    ),
                   ),
                 ),
               ],

@@ -335,9 +335,7 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
     }
   }
 
-  final inventoryValue = hasAnyPrice
-      ? _formatCurrency(inventoryTotal)
-      : '₹0';
+  final inventoryValue = hasAnyPrice ? _formatCurrency(inventoryTotal) : '₹0';
 
   return _DesktopInventoryViewData(
     totalItems: medicines.length.toString(),
@@ -591,9 +589,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
           onTabSelected: (index) => setState(() => _selectedTabIndex = index),
         ),
         const SizedBox(height: 32),
-        Expanded(
-          child: _buildTabContent(),
-        ),
+        Expanded(child: _buildTabContent()),
       ],
     );
   }
@@ -606,6 +602,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
         return _VendorsTab(
           medications: widget.medications,
           onEditMedicine: widget.onEditMedicine,
+          onOpenMedicineDetail: widget.onOpenMedicineDetail,
         );
       case 2:
         return _OrdersTab(
@@ -1234,7 +1231,10 @@ class _FilterRow extends StatelessWidget {
             ],
           ),
         ),
-        _InventorySortButton(currentOption: sortOption, onSelected: onSortChanged),
+        _InventorySortButton(
+          currentOption: sortOption,
+          onSelected: onSortChanged,
+        ),
       ],
     );
   }
@@ -1302,11 +1302,7 @@ class _InventorySortButton extends StatelessWidget {
               style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
             ),
             const SizedBox(width: 4),
-            const Icon(
-              Icons.keyboard_arrow_down,
-              size: 14,
-              color: Colors.grey,
-            ),
+            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
           ],
         ),
       ),
@@ -1534,10 +1530,17 @@ class _MedicationCard extends StatelessWidget {
                   ],
                 ),
                 IconButton(
-                  icon: const Icon(Icons.edit_outlined, size: 16, color: Colors.grey),
+                  icon: const Icon(
+                    Icons.edit_outlined,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
                   onPressed: onEdit,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                  constraints: const BoxConstraints(
+                    minWidth: 30,
+                    minHeight: 30,
+                  ),
                 ),
               ],
             ),
@@ -1569,12 +1572,13 @@ class _MedicationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Synced from',
+                        'Vendor',
                         style: TextStyle(color: Colors.grey[400], fontSize: 10),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        medication.synced,
+                        vendorValue,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
@@ -1589,12 +1593,13 @@ class _MedicationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Next dose',
+                        secondaryLabel,
                         style: TextStyle(color: Colors.grey[400], fontSize: 10),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        medication.nextDose,
+                        secondaryValue,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
@@ -1605,29 +1610,35 @@ class _MedicationCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: medication.buttonFilled
-                        ? const Color(0xFF1A1A1A)
-                        : Colors.white,
-                    shape: BoxShape.circle,
-                    boxShadow: medication.buttonFilled
-                        ? []
-                        : [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.05),
-                              blurRadius: 4,
-                            ),
-                          ],
-                  ),
-                  child: Icon(
-                    Icons.arrow_outward_rounded,
-                    size: 16,
-                    color: medication.buttonFilled
-                        ? Colors.white
-                        : Colors.grey[700],
+                Tooltip(
+                  message: 'Restock',
+                  child: GestureDetector(
+                    onTap: onRestock,
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: medication.buttonFilled
+                            ? const Color(0xFF1A1A1A)
+                            : Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: medication.buttonFilled
+                            ? []
+                            : [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                ),
+                              ],
+                      ),
+                      child: Icon(
+                        Icons.add_rounded,
+                        size: 18,
+                        color: medication.buttonFilled
+                            ? Colors.white
+                            : Colors.grey[700],
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -1833,17 +1844,19 @@ class _VendorSummary {
   final String name;
   final int itemCount;
   final int lowStockCount;
+  final int expiringCount;
   final double stockValue;
   final bool hasKnownValue;
-  final List<String> medicineNames;
+  final List<MedicationData> medications;
 
   const _VendorSummary({
     required this.name,
     required this.itemCount,
     required this.lowStockCount,
+    required this.expiringCount,
     required this.stockValue,
     required this.hasKnownValue,
-    required this.medicineNames,
+    required this.medications,
   });
 }
 
@@ -1860,12 +1873,14 @@ List<_VendorSummary> _buildVendorSummaries(List<MedicationData> medications) {
   final summaries = <_VendorSummary>[];
   grouped.forEach((name, meds) {
     int lowStock = 0;
+    int expiring = 0;
     double value = 0;
     bool hasKnownValue = false;
     for (final med in meds) {
       final original = med.originalMedicine;
       if (original == null) continue;
       if (original.isLowStock) lowStock += 1;
+      if (original.isExpiringSoon) expiring += 1;
       if (original.unitPrice != null) {
         hasKnownValue = true;
         value += original.unitPrice! * original.currentStock;
@@ -1876,9 +1891,10 @@ List<_VendorSummary> _buildVendorSummaries(List<MedicationData> medications) {
         name: name,
         itemCount: meds.length,
         lowStockCount: lowStock,
+        expiringCount: expiring,
         stockValue: value,
         hasKnownValue: hasKnownValue,
-        medicineNames: meds.map((m) => m.name).toList(),
+        medications: meds,
       ),
     );
   });
@@ -1895,8 +1911,13 @@ List<_VendorSummary> _buildVendorSummaries(List<MedicationData> medications) {
 class _VendorsTab extends StatelessWidget {
   final List<MedicationData> medications;
   final ValueChanged<MedicineModel> onEditMedicine;
+  final ValueChanged<MedicineModel> onOpenMedicineDetail;
 
-  const _VendorsTab({required this.medications, required this.onEditMedicine});
+  const _VendorsTab({
+    required this.medications,
+    required this.onEditMedicine,
+    required this.onOpenMedicineDetail,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1915,8 +1936,8 @@ class _VendorsTab extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, index) => _VendorCard(
         vendor: vendors[index],
-        medications: medications,
         onEditMedicine: onEditMedicine,
+        onOpenMedicineDetail: onOpenMedicineDetail,
       ),
     );
   }
@@ -1924,24 +1945,14 @@ class _VendorsTab extends StatelessWidget {
 
 class _VendorCard extends StatelessWidget {
   final _VendorSummary vendor;
-  final List<MedicationData> medications;
   final ValueChanged<MedicineModel> onEditMedicine;
+  final ValueChanged<MedicineModel> onOpenMedicineDetail;
 
   const _VendorCard({
     required this.vendor,
-    required this.medications,
     required this.onEditMedicine,
+    required this.onOpenMedicineDetail,
   });
-
-  void _editByName(String name) {
-    final match = medications.firstWhere(
-      (m) => m.name == name,
-      orElse: () => medications.first,
-    );
-    if (match.originalMedicine != null) {
-      onEditMedicine(match.originalMedicine!);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -2001,65 +2012,133 @@ class _VendorCard extends StatelessWidget {
                 ),
               ),
               if (vendor.lowStockCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${vendor.lowStockCount} low',
-                    style: TextStyle(
-                      color: Colors.red.shade700,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                _VendorCountBadge(
+                  label: '${vendor.lowStockCount} low',
+                  color: Colors.red.shade700,
+                  backgroundColor: Colors.red.shade50,
                 ),
+              if (vendor.expiringCount > 0) ...[
+                const SizedBox(width: 6),
+                _VendorCountBadge(
+                  label: '${vendor.expiringCount} expiring',
+                  color: Colors.orange.shade700,
+                  backgroundColor: Colors.orange.shade50,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: vendor.medicineNames.map((name) {
-              return GestureDetector(
-                onTap: isUnassigned ? () => _editByName(name) : null,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9FAFB),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF374151),
-                    ),
-                  ),
-                ),
+            children: vendor.medications.map((med) {
+              return _VendorMedicineChip(
+                medication: med,
+                onTap: () {
+                  final original = med.originalMedicine;
+                  if (original == null) return;
+                  if (isUnassigned) {
+                    onEditMedicine(original);
+                  } else {
+                    onOpenMedicineDetail(original);
+                  }
+                },
               );
             }).toList(),
           ),
-          if (isUnassigned) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Tap an item to add its vendor.',
-              style: TextStyle(
-                fontSize: 11,
-                color: Colors.grey.shade500,
-                fontStyle: FontStyle.italic,
+          const SizedBox(height: 8),
+          Text(
+            isUnassigned
+                ? 'Tap an item to add its vendor.'
+                : 'Tap an item to view details.',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VendorCountBadge extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color backgroundColor;
+
+  const _VendorCountBadge({
+    required this.label,
+    required this.color,
+    required this.backgroundColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _VendorMedicineChip extends StatelessWidget {
+  final MedicationData medication;
+  final VoidCallback onTap;
+
+  const _VendorMedicineChip({required this.medication, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final original = medication.originalMedicine;
+    final bool isLowStock = original?.isLowStock ?? false;
+    final bool isExpiring = original?.isExpiringSoon ?? false;
+    final Color? dotColor = isLowStock
+        ? Colors.red.shade600
+        : isExpiring
+        ? Colors.orange.shade700
+        : null;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (dotColor != null) ...[
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  color: dotColor,
+                  shape: BoxShape.circle,
+                ),
               ),
+              const SizedBox(width: 6),
+            ],
+            Text(
+              medication.name,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
             ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -2227,10 +2306,9 @@ class _ReorderRow extends StatelessWidget {
         )
         .fold<StockTransactionModel?>(
           null,
-          (latest, t) =>
-              latest == null || t.createdAt.isAfter(latest.createdAt)
-                  ? t
-                  : latest,
+          (latest, t) => latest == null || t.createdAt.isAfter(latest.createdAt)
+              ? t
+              : latest,
         );
     final daysSinceRestock = lastRestock != null
         ? DateTime.now().difference(lastRestock.createdAt).inDays
@@ -2296,31 +2374,30 @@ class _ReorderRow extends StatelessWidget {
                     '${suggestion.estimatedCost != null ? ' (${_formatCurrency(suggestion.estimatedCost!)})' : ''}',
                     style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                   ),
-                  if (daysSinceRestock != null) ...
-                    [
-                      const SizedBox(height: 6),
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.history_rounded,
-                            size: 12,
+                  if (daysSinceRestock != null) ...[
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.history_rounded,
+                          size: 12,
+                          color: Colors.grey[400],
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          daysSinceRestock == 0
+                              ? 'Last restocked today'
+                              : daysSinceRestock == 1
+                              ? 'Last restocked yesterday'
+                              : 'Last restocked ${daysSinceRestock}d ago',
+                          style: TextStyle(
+                            fontSize: 11,
                             color: Colors.grey[400],
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            daysSinceRestock == 0
-                                ? 'Last restocked today'
-                                : daysSinceRestock == 1
-                                    ? 'Last restocked yesterday'
-                                    : 'Last restocked ${daysSinceRestock}d ago',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey[400],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -2336,10 +2413,7 @@ class _ReorderRow extends StatelessWidget {
               backgroundColor: const Color(0xFF1F2937),
               foregroundColor: Colors.white,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
               ),
@@ -2437,10 +2511,11 @@ _UsageAnalyticsData _buildUsageAnalytics(
     }
   }
 
-  final topMedicines = usageByMedicine.entries
-      .map((e) => _MedicineUsage(name: e.key, quantity: e.value))
-      .toList()
-    ..sort((a, b) => b.quantity.compareTo(a.quantity));
+  final topMedicines =
+      usageByMedicine.entries
+          .map((e) => _MedicineUsage(name: e.key, quantity: e.value))
+          .toList()
+        ..sort((a, b) => b.quantity.compareTo(a.quantity));
 
   final recent = List<StockTransactionModel>.from(transactions)
     ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -2653,7 +2728,10 @@ class _UsageStatChip extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(sublabel, style: TextStyle(fontSize: 11, color: Colors.grey[400])),
+          Text(
+            sublabel,
+            style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+          ),
         ],
       ),
     );
@@ -2847,10 +2925,7 @@ class _PlaceholderScreen extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade500,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade500),
           ),
           if (actionLabel != null && onAction != null) ...[
             const SizedBox(height: 20),

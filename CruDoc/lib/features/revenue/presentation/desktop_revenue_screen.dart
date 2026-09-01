@@ -177,10 +177,9 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
   final structures = serviceTotals.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
   // Calculate total based on the top 4 structures (matching the donut chart)
-  final top4Total = structures.take(4).fold<double>(
-    0,
-    (sum, entry) => sum + entry.value,
-  );
+  final top4Total = structures
+      .take(4)
+      .fold<double>(0, (sum, entry) => sum + entry.value);
   final colors = <Color>[
     const Color(0xFF7B61FF),
     const Color(0xFFBDA6FF),
@@ -204,9 +203,7 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
         return _StructureData(
           label: entry.value.key,
           amount: _formatCurrency(value),
-          percent: top4Total <= 0
-              ? 0
-              : ((value / top4Total) * 100).round(),
+          percent: top4Total <= 0 ? 0 : ((value / top4Total) * 100).round(),
           color: colors[entry.key % colors.length],
         );
       }),
@@ -446,42 +443,50 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
                 return Stack(
                   children: [
                     SizedBox.expand(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withValues(alpha: 0.05),
-                              blurRadius: 20,
-                              offset: const Offset(0, 10),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: BackdropFilter(
+                          filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: const Color.fromARGB(
+                                255,
+                                247,
+                                252,
+                                255,
+                              ).withValues(alpha: 0.8),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: const Color.fromARGB(255, 150, 150, 150),
+                                width: 0.25,
+                              ),
                             ),
-                          ],
-                        ),
-                        child: _FinancialDashboardView(
-                          viewData: viewData,
-                          selectedRange: _selectedRange,
-                          onRangeChanged: (range) =>
-                              setState(() => _selectedRange = range),
-                          pendingPayments: pendingPayments,
-                          onAddPending: _openAddPendingSheet,
-                          onPendingTap: _openPendingPaymentDetails,
-                          onMarkPendingPaid: _markAsPaid,
-                          onAddTransaction: _openAddTransactionSheet,
-                          kindFilter: _kindFilter,
-                          onKindFilterChanged: (kind) =>
-                              setState(() => _kindFilter = kind),
-                          searchController: _searchController,
-                          searchQuery: _searchQuery,
-                          onSearchChanged: (value) =>
-                              setState(() => _searchQuery = value),
-                          onClearSearch: () {
-                            setState(() {
-                              _searchController.clear();
-                              _searchQuery = '';
-                            });
-                          },
-                          recentEntries: filteredEntries,
+                            child: _FinancialDashboardView(
+                              viewData: viewData,
+                              selectedRange: _selectedRange,
+                              onRangeChanged: (range) =>
+                                  setState(() => _selectedRange = range),
+                              pendingPayments: pendingPayments,
+                              onAddPending: _openAddPendingSheet,
+                              onPendingTap: _openPendingPaymentDetails,
+                              onMarkPendingPaid: _markAsPaid,
+                              onAddTransaction: _openAddTransactionSheet,
+                              kindFilter: _kindFilter,
+                              onKindFilterChanged: (kind) =>
+                                  setState(() => _kindFilter = kind),
+                              searchController: _searchController,
+                              searchQuery: _searchQuery,
+                              onSearchChanged: (value) =>
+                                  setState(() => _searchQuery = value),
+                              onClearSearch: () {
+                                setState(() {
+                                  _searchController.clear();
+                                  _searchQuery = '';
+                                });
+                              },
+                              recentEntries: filteredEntries,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -774,6 +779,7 @@ class _HeaderSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
                 ),
                 child: Row(
                   children: [
@@ -818,6 +824,7 @@ class _HeaderSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
               ),
               child: const Icon(
                 Icons.download_rounded,
@@ -831,6 +838,7 @@ class _HeaderSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.grey[50],
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade300),
               ),
               child: const Icon(
                 Icons.settings_outlined,
@@ -1084,7 +1092,7 @@ class _PendingPaymentsPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1226,7 +1234,7 @@ class _RecentTransactionsPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1530,7 +1538,7 @@ class _StatsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1601,7 +1609,7 @@ class _ChartSectionState extends State<_ChartSection> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        border: Border.all(color: Colors.grey.shade300),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

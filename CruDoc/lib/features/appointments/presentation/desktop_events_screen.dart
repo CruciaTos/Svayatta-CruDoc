@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/messaging/data/providers/whatsapp
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,20 +21,28 @@ class DesktopEventsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox.expand(
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withValues(alpha: 0.05),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color.fromARGB(
+                255,
+                247,
+                252,
+                255,
+              ).withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color.fromARGB(255, 150, 150, 150),
+                width: 0.25,
+              ),
             ),
-          ],
+            padding: const EdgeInsets.all(20),
+            child: const SingleChildScrollView(child: _CalendarDashboardView()),
+          ),
         ),
-        padding: const EdgeInsets.all(20),
-        child: const SingleChildScrollView(child: _CalendarDashboardView()),
       ),
     );
   }

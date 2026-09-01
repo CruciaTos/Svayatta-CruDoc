@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:firebase_auth/firebase_auth.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_enums.dart';
@@ -23,56 +24,68 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
   CampaignCategory? _selectedCategoryFilter;
   CampaignStatus? _selectedStatusFilter;
 
-  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+  String get _currentDoctorId =>
+      FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color.fromARGB(
+              255,
+              247,
+              252,
+              255,
+            ).withValues(alpha: 0.8),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color.fromARGB(255, 150, 150, 150),
+              width: 0.25,
+            ),
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: StreamBuilder<List<CampaignModel>>(
-          stream: _campaignRepository.watchDoctorCampaigns(_currentDoctorId),
-          builder: (context, snapshot) {
-            final allCampaigns = snapshot.data ?? [];
-            final filteredCampaigns = _filterCampaigns(allCampaigns);
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 1. Top Header with "Post Campaign" Button
-                _buildHeaderBar(context),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: StreamBuilder<List<CampaignModel>>(
+              stream: _campaignRepository.watchDoctorCampaigns(
+                _currentDoctorId,
+              ),
+              builder: (context, snapshot) {
+                final allCampaigns = snapshot.data ?? [];
+                final filteredCampaigns = _filterCampaigns(allCampaigns);
 
-                // 2. Summary KPI Metric Tiles
-                _buildSummaryKpiRow(allCampaigns),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // 1. Top Header with "Post Campaign" Button
+                    _buildHeaderBar(context),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
-                // 3. Search & Filter Bar
-                _buildSearchAndFilters(),
-                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    // 2. Summary KPI Metric Tiles
+                    _buildSummaryKpiRow(allCampaigns),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
 
-                // 4. Campaign Cards List / Table
-                Expanded(
-                  child: snapshot.connectionState == ConnectionState.waiting
-                      ? const Center(child: CircularProgressIndicator())
-                      : filteredCampaigns.isEmpty
+                    // 3. Search & Filter Bar
+                    _buildSearchAndFilters(),
+                    const Divider(height: 1, color: Color(0xFFF1F5F9)),
+
+                    // 4. Campaign Cards List / Table
+                    Expanded(
+                      child: snapshot.connectionState == ConnectionState.waiting
+                          ? const Center(child: CircularProgressIndicator())
+                          : filteredCampaigns.isEmpty
                           ? _buildEmptyState(allCampaigns.isEmpty)
                           : _buildCampaignsList(filteredCampaigns),
-                ),
-              ],
-            );
-          },
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -95,7 +108,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 26),
+            child: const Icon(
+              Icons.campaign_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -131,7 +148,9 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
               backgroundColor: const Color(0xFF2563EB),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               elevation: 2,
             ),
           ),
@@ -158,18 +177,45 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
 
     final totalSent = totalEmails + totalWhatsApp;
     final totalAttempts = totalSent + totalFailed;
-    final successRate = totalAttempts > 0 ? (totalSent / totalAttempts) * 100.0 : 100.0;
+    final successRate = totalAttempts > 0
+        ? (totalSent / totalAttempts) * 100.0
+        : 100.0;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
       color: const Color(0xFFF8FAFC),
       child: Row(
         children: [
-          _buildKpiTile('Total Campaigns', '${campaigns.length}', Icons.auto_stories_rounded, const Color(0xFF0F172A)),
-          _buildKpiTile('Patients Reached', '$totalRecipients', Icons.groups_rounded, const Color(0xFF2563EB)),
-          _buildKpiTile('Overall Delivery Rate', '${successRate.toStringAsFixed(1)}%', Icons.check_circle_rounded, const Color(0xFF16A34A)),
-          _buildKpiTile('Emails Sent', '$totalEmails', Icons.email_rounded, const Color(0xFF0284C7)),
-          _buildKpiTile('WhatsApp Sent', '$totalWhatsApp', Icons.chat_rounded, const Color(0xFF059669)),
+          _buildKpiTile(
+            'Total Campaigns',
+            '${campaigns.length}',
+            Icons.auto_stories_rounded,
+            const Color(0xFF0F172A),
+          ),
+          _buildKpiTile(
+            'Patients Reached',
+            '$totalRecipients',
+            Icons.groups_rounded,
+            const Color(0xFF2563EB),
+          ),
+          _buildKpiTile(
+            'Overall Delivery Rate',
+            '${successRate.toStringAsFixed(1)}%',
+            Icons.check_circle_rounded,
+            const Color(0xFF16A34A),
+          ),
+          _buildKpiTile(
+            'Emails Sent',
+            '$totalEmails',
+            Icons.email_rounded,
+            const Color(0xFF0284C7),
+          ),
+          _buildKpiTile(
+            'WhatsApp Sent',
+            '$totalWhatsApp',
+            Icons.chat_rounded,
+            const Color(0xFF059669),
+          ),
         ],
       ),
     );
@@ -200,9 +246,23 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                  Text(
+                    label,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: color)),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -226,10 +286,15 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
             child: SizedBox(
               height: 40,
               child: TextField(
-                onChanged: (q) => setState(() => _searchQuery = q.trim().toLowerCase()),
+                onChanged: (q) =>
+                    setState(() => _searchQuery = q.trim().toLowerCase()),
                 decoration: InputDecoration(
                   hintText: 'Search campaigns by title or topic...',
-                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
+                  prefixIcon: const Icon(
+                    Icons.search_rounded,
+                    size: 18,
+                    color: Color(0xFF64748B),
+                  ),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14),
@@ -250,10 +315,18 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
           // Category Dropdown
           DropdownButton<CampaignCategory?>(
             value: _selectedCategoryFilter,
-            hint: const Text('All Categories', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+            hint: const Text(
+              'All Categories',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
             items: [
-              const DropdownMenuItem(value: null, child: Text('All Categories')),
-              ...CampaignCategory.values.map((c) => DropdownMenuItem(value: c, child: Text(c.label))),
+              const DropdownMenuItem(
+                value: null,
+                child: Text('All Categories'),
+              ),
+              ...CampaignCategory.values.map(
+                (c) => DropdownMenuItem(value: c, child: Text(c.label)),
+              ),
             ],
             onChanged: (cat) => setState(() => _selectedCategoryFilter = cat),
           ),
@@ -262,10 +335,15 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
           // Status Dropdown
           DropdownButton<CampaignStatus?>(
             value: _selectedStatusFilter,
-            hint: const Text('All Statuses', style: TextStyle(fontSize: 13, color: Color(0xFF64748B))),
+            hint: const Text(
+              'All Statuses',
+              style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            ),
             items: [
               const DropdownMenuItem(value: null, child: Text('All Statuses')),
-              ...CampaignStatus.values.map((s) => DropdownMenuItem(value: s, child: Text(s.label))),
+              ...CampaignStatus.values.map(
+                (s) => DropdownMenuItem(value: s, child: Text(s.label)),
+              ),
             ],
             onChanged: (s) => setState(() => _selectedStatusFilter = s),
           ),
@@ -276,10 +354,12 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
 
   List<CampaignModel> _filterCampaigns(List<CampaignModel> all) {
     return all.where((c) {
-      if (_searchQuery.isNotEmpty && !c.title.toLowerCase().contains(_searchQuery)) {
+      if (_searchQuery.isNotEmpty &&
+          !c.title.toLowerCase().contains(_searchQuery)) {
         return false;
       }
-      if (_selectedCategoryFilter != null && c.category != _selectedCategoryFilter) {
+      if (_selectedCategoryFilter != null &&
+          c.category != _selectedCategoryFilter) {
         return false;
       }
       if (_selectedStatusFilter != null && c.status != _selectedStatusFilter) {
@@ -316,7 +396,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       child: Row(
@@ -342,28 +426,42 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: cat.color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         cat.label,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: cat.color),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: cat.color,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),
                     _buildChannelBadge(campaign.channels),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: campaign.status.color.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         campaign.status.label,
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: campaign.status.color),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: campaign.status.color,
+                        ),
                       ),
                     ),
                   ],
@@ -371,30 +469,52 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                 const SizedBox(height: 8),
                 Text(
                   campaign.title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   campaign.message,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF64748B), height: 1.4),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF64748B),
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Row(
                   children: [
-                    const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 14,
+                      color: Color(0xFF94A3B8),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Published ${campaign.formattedCreatedAt}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
                     const SizedBox(width: 16),
-                    const Icon(Icons.groups_rounded, size: 14, color: Color(0xFF94A3B8)),
+                    const Icon(
+                      Icons.groups_rounded,
+                      size: 14,
+                      color: Color(0xFF94A3B8),
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       'Audience: ${campaign.audienceType.label}',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF94A3B8),
+                      ),
                     ),
                   ],
                 ),
@@ -413,13 +533,24 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Delivery Rate', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B))),
+                    const Text(
+                      'Delivery Rate',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
                     Text(
                       '${successRate.toStringAsFixed(0)}%',
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w800,
-                        color: successRate >= 90 ? const Color(0xFF16A34A) : (successRate > 50 ? const Color(0xFFD97706) : const Color(0xFFDC2626)),
+                        color: successRate >= 90
+                            ? const Color(0xFF16A34A)
+                            : (successRate > 50
+                                  ? const Color(0xFFD97706)
+                                  : const Color(0xFFDC2626)),
                       ),
                     ),
                   ],
@@ -432,19 +563,29 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                     minHeight: 6,
                     backgroundColor: const Color(0xFFE2E8F0),
                     valueColor: AlwaysStoppedAnimation<Color>(
-                      successRate >= 90 ? const Color(0xFF16A34A) : const Color(0xFF2563EB),
+                      successRate >= 90
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF2563EB),
                     ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   '📧 ${campaign.emailsSent} sent • 💬 ${campaign.whatsAppSent} sent',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF334155),
+                  ),
                 ),
                 if (hasFailures)
                   Text(
                     '⚠️ ${campaign.totalFailed} delivery errors',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFDC2626),
+                    ),
                   ),
               ],
             ),
@@ -456,12 +597,18 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
           Column(
             children: [
               OutlinedButton.icon(
-                onPressed: () => CampaignAnalyticsDialog.show(context, campaign: campaign),
+                onPressed: () =>
+                    CampaignAnalyticsDialog.show(context, campaign: campaign),
                 icon: const Icon(Icons.insights_rounded, size: 16),
                 label: const Text('View Logs'),
                 style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
               const SizedBox(height: 6),
@@ -478,11 +625,19 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                       context: context,
                       builder: (ctx) => AlertDialog(
                         title: const Text('Delete Campaign?'),
-                        content: const Text('This will delete the campaign record and its recipient delivery logs.'),
+                        content: const Text(
+                          'This will delete the campaign record and its recipient delivery logs.',
+                        ),
                         actions: [
-                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
                           ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                            ),
                             onPressed: () => Navigator.pop(ctx, true),
                             child: const Text('Delete'),
                           ),
@@ -490,16 +645,31 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                       ),
                     );
                     if (confirmed == true) {
-                      await _campaignRepository.deleteCampaign(campaign.doctorId, campaign.id);
+                      await _campaignRepository.deleteCampaign(
+                        campaign.doctorId,
+                        campaign.id,
+                      );
                     }
                   }
                 },
                 itemBuilder: (_) => [
                   if (hasFailures)
-                    const PopupMenuItem(value: 'retry', child: Text('Retry Failed Recipients')),
-                  const PopupMenuItem(value: 'delete', child: Text('Delete Campaign', style: TextStyle(color: Colors.red))),
+                    const PopupMenuItem(
+                      value: 'retry',
+                      child: Text('Retry Failed Recipients'),
+                    ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      'Delete Campaign',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  ),
                 ],
-                icon: const Icon(Icons.more_vert_rounded, color: Color(0xFF64748B)),
+                icon: const Icon(
+                  Icons.more_vert_rounded,
+                  color: Color(0xFF64748B),
+                ),
               ),
             ],
           ),
@@ -518,7 +688,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
       ),
       child: Text(
         channel.label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF475569)),
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF475569),
+        ),
       ),
     );
   }
@@ -536,12 +710,22 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                 shape: BoxShape.circle,
                 color: Color(0xFFEFF6FF),
               ),
-              child: const Icon(Icons.campaign_outlined, size: 54, color: Color(0xFF2563EB)),
+              child: const Icon(
+                Icons.campaign_outlined,
+                size: 54,
+                color: Color(0xFF2563EB),
+              ),
             ),
             const SizedBox(height: 18),
             Text(
-              isCompletelyEmpty ? 'No Campaigns Created Yet' : 'No Campaigns Match Your Filters',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              isCompletelyEmpty
+                  ? 'No Campaigns Created Yet'
+                  : 'No Campaigns Match Your Filters',
+              style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 6),
             Text(
@@ -559,8 +743,13 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],

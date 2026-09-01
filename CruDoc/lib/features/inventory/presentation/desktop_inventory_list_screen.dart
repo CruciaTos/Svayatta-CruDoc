@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
@@ -84,35 +85,43 @@ class DesktopInventoryScreen extends ConsumerWidget {
     return Stack(
       children: [
         SizedBox.expand(
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withValues(alpha: 0.05),
-                  blurRadius: 20,
-                  offset: const Offset(0, 10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color.fromARGB(
+                    255,
+                    247,
+                    252,
+                    255,
+                  ).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: const Color.fromARGB(255, 150, 150, 150),
+                    width: 0.25,
+                  ),
                 ),
-              ],
-            ),
-            padding: const EdgeInsets.all(20),
-            child: _InventoryDashboardView(
-              totalItems: inventoryViewData.totalItems,
-              lowStockAlerts: inventoryViewData.lowStockAlerts,
-              outOfStock: inventoryViewData.outOfStock,
-              inventoryValue: inventoryViewData.inventoryValue,
-              monthlyUsage: monthlyUsageStat.value,
-              monthlyUsageGrowthLabel: monthlyUsageStat.growthLabel,
-              monthlyUsageGrowthPositive: monthlyUsageStat.growthPositive,
-              medications: inventoryViewData.medications,
-              alerts: inventoryViewData.alerts,
-              transactions: transactions,
-              medicineById: medicineById,
-              repository: repository,
-              onAddMedicine: openAddMedicine,
-              onEditMedicine: openEditMedicine,
-              onOpenMedicineDetail: openMedicineDetail,
+                padding: const EdgeInsets.all(20),
+                child: _InventoryDashboardView(
+                  totalItems: inventoryViewData.totalItems,
+                  lowStockAlerts: inventoryViewData.lowStockAlerts,
+                  outOfStock: inventoryViewData.outOfStock,
+                  inventoryValue: inventoryViewData.inventoryValue,
+                  monthlyUsage: monthlyUsageStat.value,
+                  monthlyUsageGrowthLabel: monthlyUsageStat.growthLabel,
+                  monthlyUsageGrowthPositive: monthlyUsageStat.growthPositive,
+                  medications: inventoryViewData.medications,
+                  alerts: inventoryViewData.alerts,
+                  transactions: transactions,
+                  medicineById: medicineById,
+                  repository: repository,
+                  onAddMedicine: openAddMedicine,
+                  onEditMedicine: openEditMedicine,
+                  onOpenMedicineDetail: openMedicineDetail,
+                ),
+              ),
             ),
           ),
         ),
@@ -296,8 +305,29 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
       ),
     );
 
+    // Severity levels for alerts: an item that's fully out of stock or
+    // already expired is a critical alert; low stock / expiring-soon are
+    // warnings the doctor should act on but aren't yet urgent.
+    final bool isExpired = expiryDays != null && expiryDays < 0;
+
     if (isLowStock) {
       lowStockCount += 1;
+    }
+
+    if (isOutOfStock) {
+      outOfStockCount += 1;
+      alerts.add(
+        AlertData(
+          icon: Icons.remove_shopping_cart_rounded,
+          iconColor: Colors.red.shade700,
+          bgColor: Colors.red.shade50,
+          title: medicine.name,
+          subtitle: 'Out of stock · reorder now',
+          actionLabel: 'Restock',
+          level: AlertLevel.critical,
+        ),
+      );
+    } else if (isLowStock) {
       alerts.add(
         AlertData(
           icon: Icons.warning_amber_rounded,
@@ -306,25 +336,40 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
           title: medicine.name,
           subtitle: 'Low stock: ${medicine.currentStock} ${medicine.unit}',
           actionLabel: 'Restock',
+          level: AlertLevel.warning,
         ),
       );
     }
 
-    if (isExpiringSoon) {
+    if (isExpired) {
+      final daysPast = -expiryDays!;
+      alerts.add(
+        AlertData(
+          icon: Icons.event_busy_rounded,
+          iconColor: Colors.red.shade700,
+          bgColor: Colors.red.shade50,
+          title: medicine.name,
+          subtitle: daysPast == 0
+              ? 'Expired today'
+              : 'Expired $daysPast day${daysPast == 1 ? '' : 's'} ago',
+          actionLabel: 'View',
+          level: AlertLevel.critical,
+        ),
+      );
+    } else if (isExpiringSoon) {
       alerts.add(
         AlertData(
           icon: Icons.timer_outlined,
           iconColor: Colors.orange.shade700,
           bgColor: Colors.orange.shade50,
           title: medicine.name,
-          subtitle: 'Expiring soon',
+          subtitle: expiryDays == 0
+              ? 'Expires today'
+              : 'Expires in $expiryDays day${expiryDays == 1 ? '' : 's'}',
           actionLabel: 'View',
+          level: AlertLevel.warning,
         ),
       );
-    }
-
-    if (isOutOfStock) {
-      outOfStockCount += 1;
     }
 
     if (medicine.unitPrice != null) {
@@ -334,6 +379,10 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
   }
 
   final inventoryValue = hasAnyPrice ? _formatCurrency(inventoryTotal) : '₹0';
+
+  // Show the most urgent alerts first: critical (out of stock / expired)
+  // ahead of warnings (low stock / expiring soon).
+  alerts.sort((a, b) => a.level.index.compareTo(b.level.index));
 
   return _DesktopInventoryViewData(
     totalItems: medicines.length.toString(),
@@ -483,6 +532,10 @@ class MedicationData {
   );
 }
 
+/// Severity level for an inventory alert. Ordered from most to least
+/// urgent so alert lists can be sorted by `level.index`.
+enum AlertLevel { critical, warning, info }
+
 class AlertData {
   final IconData icon;
   final Color iconColor;
@@ -490,6 +543,7 @@ class AlertData {
   final String title;
   final String subtitle;
   final String actionLabel;
+  final AlertLevel level;
 
   const AlertData({
     required this.icon,
@@ -498,7 +552,19 @@ class AlertData {
     required this.title,
     required this.subtitle,
     required this.actionLabel,
+    this.level = AlertLevel.warning,
   });
+
+  String get levelLabel {
+    switch (level) {
+      case AlertLevel.critical:
+        return 'Critical';
+      case AlertLevel.warning:
+        return 'Warning';
+      case AlertLevel.info:
+        return 'Info';
+    }
+  }
 
   @override
   bool operator ==(Object other) {
@@ -509,12 +575,20 @@ class AlertData {
             other.bgColor == bgColor &&
             other.title == title &&
             other.subtitle == subtitle &&
-            other.actionLabel == actionLabel;
+            other.actionLabel == actionLabel &&
+            other.level == level;
   }
 
   @override
-  int get hashCode =>
-      Object.hash(icon, iconColor, bgColor, title, subtitle, actionLabel);
+  int get hashCode => Object.hash(
+    icon,
+    iconColor,
+    bgColor,
+    title,
+    subtitle,
+    actionLabel,
+    level,
+  );
 }
 
 // ==============================================================================
@@ -579,7 +653,6 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
           monthlyUsage: widget.monthlyUsage,
           monthlyUsageGrowthLabel: widget.monthlyUsageGrowthLabel,
           monthlyUsageGrowthPositive: widget.monthlyUsageGrowthPositive,
-          onAddMedicine: widget.onAddMedicine,
           selectedTabIndex: _selectedTabIndex,
           tabLabels: _tabLabels,
           onTabSelected: (index) => setState(() => _selectedTabIndex = index),
@@ -687,7 +760,6 @@ class _InventoryHeaderSection extends StatelessWidget {
   final String monthlyUsage;
   final String? monthlyUsageGrowthLabel;
   final bool monthlyUsageGrowthPositive;
-  final VoidCallback onAddMedicine;
   final int selectedTabIndex;
   final List<String> tabLabels;
   final ValueChanged<int> onTabSelected;
@@ -700,7 +772,6 @@ class _InventoryHeaderSection extends StatelessWidget {
     required this.monthlyUsage,
     this.monthlyUsageGrowthLabel,
     this.monthlyUsageGrowthPositive = true,
-    required this.onAddMedicine,
     required this.selectedTabIndex,
     required this.tabLabels,
     required this.onTabSelected,
@@ -722,43 +793,18 @@ class _InventoryHeaderSection extends StatelessWidget {
                 color: Color(0xFF1F2937),
               ),
             ),
-            Row(
-              children: [
-                ElevatedButton.icon(
-                  onPressed: onAddMedicine,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1F2937),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 14,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text(
-                    'Add item',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.settings_outlined,
-                    size: 20,
-                    color: Color(0xFF4B5563),
-                  ),
-                ),
-              ],
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                border: Border.all(color: Colors.grey.shade200),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.settings_outlined,
+                size: 20,
+                color: Color(0xFF4B5563),
+              ),
             ),
           ],
         ),
@@ -886,59 +932,73 @@ class _NewStatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            color: const Color(0xFF6B7280),
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Text(
-              subtext,
-              style: TextStyle(color: const Color(0xFF6B7280), fontSize: 12),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              color: const Color(0xFF6B7280),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
             ),
-            if (growthLabel != null) ...[
-              const SizedBox(width: 8),
-              Icon(
-                growthPositive
-                    ? Icons.arrow_upward_rounded
-                    : Icons.arrow_downward_rounded,
-                size: 12,
-                color: growthPositive
-                    ? const Color(0xFF00C853)
-                    : const Color(0xFFDC2626),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF1F2937),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  subtext,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: const Color(0xFF6B7280),
+                    fontSize: 12,
+                  ),
+                ),
               ),
-              const SizedBox(width: 4),
-              Text(
-                growthLabel!,
-                style: TextStyle(
+              if (growthLabel != null) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  growthPositive
+                      ? Icons.arrow_upward_rounded
+                      : Icons.arrow_downward_rounded,
+                  size: 12,
                   color: growthPositive
                       ? const Color(0xFF00C853)
                       : const Color(0xFFDC2626),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
                 ),
-              ),
+                const SizedBox(width: 4),
+                Text(
+                  growthLabel!,
+                  style: TextStyle(
+                    color: growthPositive
+                        ? const Color(0xFF00C853)
+                        : const Color(0xFFDC2626),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
             ],
-          ],
-        ),
-      ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -948,6 +1008,10 @@ class _NewStatCard extends StatelessWidget {
 // ==============================================================================
 
 enum _InventorySortOption { nameAsc, stockLowHigh, stockHighLow, expirySoonest }
+
+/// How the item list is laid out: a multi-column grid of compact cards,
+/// or a single-column list of full-width rows (like an Amazon listing).
+enum _InventoryViewMode { compact, fullWidth }
 
 const List<String> _inventoryFilterOptions = [
   'All',
@@ -983,6 +1047,7 @@ class _FilteredMedicationSectionState
   String _selectedFilter = 'All';
   String _searchQuery = '';
   _InventorySortOption _sortOption = _InventorySortOption.nameAsc;
+  _InventoryViewMode _viewMode = _InventoryViewMode.compact;
 
   @override
   void dispose() {
@@ -1090,6 +1155,9 @@ class _FilteredMedicationSectionState
           onClearSearch: _clearSearch,
           sortOption: _sortOption,
           onSortChanged: (option) => setState(() => _sortOption = option),
+          onAddMedicine: widget.onAddMedicine,
+          viewMode: _viewMode,
+          onViewModeChanged: (mode) => setState(() => _viewMode = mode),
         ),
         const SizedBox(height: 12),
         Text(
@@ -1113,6 +1181,7 @@ class _FilteredMedicationSectionState
                     onEditMedicine: widget.onEditMedicine,
                     onOpenMedicineDetail: widget.onOpenMedicineDetail,
                     onRestockMedicine: widget.onRestockMedicine,
+                    viewMode: _viewMode,
                   ),
                 ),
         ),
@@ -1130,6 +1199,9 @@ class _FilterRow extends StatelessWidget {
   final VoidCallback onClearSearch;
   final _InventorySortOption sortOption;
   final ValueChanged<_InventorySortOption> onSortChanged;
+  final VoidCallback onAddMedicine;
+  final _InventoryViewMode viewMode;
+  final ValueChanged<_InventoryViewMode> onViewModeChanged;
 
   const _FilterRow({
     required this.selectedFilter,
@@ -1140,20 +1212,150 @@ class _FilterRow extends StatelessWidget {
     required this.onClearSearch,
     required this.sortOption,
     required this.onSortChanged,
+    required this.onAddMedicine,
+    required this.viewMode,
+    required this.onViewModeChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      crossAxisAlignment: WrapCrossAlignment.center,
-      spacing: 12,
-      runSpacing: 12,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Row 1: search bar (with sort & filter tucked inside it) + view
+        // toggle + add item — kept together so "add" always sits right
+        // next to where the person is searching.
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final searchBar = Container(
+              constraints: const BoxConstraints(minWidth: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.search_rounded,
+                    size: 16,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      onChanged: onSearchChanged,
+                      decoration: const InputDecoration(
+                        hintText: 'Search items or vendor...',
+                        border: InputBorder.none,
+                        hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
+                      ),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                  ),
+                  if (searchQuery.isNotEmpty)
+                    IconButton(
+                      icon: const Icon(
+                        Icons.clear,
+                        size: 16,
+                        color: Color(0xFF64748B),
+                      ),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 24,
+                        minHeight: 24,
+                      ),
+                      onPressed: onClearSearch,
+                    ),
+                  Container(
+                    height: 20,
+                    width: 1,
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    color: Colors.grey.shade200,
+                  ),
+                  _ViewModeButton(
+                    icon: Icons.grid_view_rounded,
+                    tooltip: 'Compact grid view',
+                    isActive: viewMode == _InventoryViewMode.compact,
+                    onTap: () => onViewModeChanged(_InventoryViewMode.compact),
+                  ),
+                  const SizedBox(width: 4),
+                  _ViewModeButton(
+                    icon: Icons.view_agenda_outlined,
+                    tooltip: 'Full-width list view',
+                    isActive: viewMode == _InventoryViewMode.fullWidth,
+                    onTap: () =>
+                        onViewModeChanged(_InventoryViewMode.fullWidth),
+                  ),
+                  Container(
+                    height: 20,
+                    width: 1,
+                    margin: const EdgeInsets.symmetric(horizontal: 6),
+                    color: Colors.grey.shade200,
+                  ),
+                  _SortFilterButton(
+                    sortOption: sortOption,
+                    onSortChanged: onSortChanged,
+                    selectedFilter: selectedFilter,
+                    onFilterChanged: onFilterChanged,
+                  ),
+                ],
+              ),
+            );
+
+            final addButton = ElevatedButton.icon(
+              onPressed: onAddMedicine,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1F2937),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text(
+                'Add item',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            );
+
+            final bool isNarrow = constraints.maxWidth < 560;
+            if (isNarrow) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  searchBar,
+                  const SizedBox(height: 12),
+                  SizedBox(width: double.infinity, child: addButton),
+                ],
+              );
+            }
+
+            return Row(
+              children: [
+                Expanded(child: searchBar),
+                const SizedBox(width: 12),
+                addButton,
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        // Row 2: quick status filters, now below the search bar instead
+        // of crowding it.
         Container(
           padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
-            color: Colors.grey[100],
+            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color.fromARGB(255, 116, 116, 116)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1167,119 +1369,165 @@ class _FilterRow extends StatelessWidget {
             ],
           ),
         ),
-        Container(
-          width: 240,
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-          decoration: BoxDecoration(
-            color: Colors.grey[50],
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.search_rounded, size: 16, color: Colors.grey),
-              const SizedBox(width: 8),
-              Expanded(
-                child: TextField(
-                  controller: searchController,
-                  onChanged: onSearchChanged,
-                  decoration: const InputDecoration(
-                    hintText: 'Search items or vendor...',
-                    border: InputBorder.none,
-                    hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  style: const TextStyle(fontSize: 13),
-                ),
-              ),
-              if (searchQuery.isNotEmpty)
-                IconButton(
-                  icon: const Icon(
-                    Icons.clear,
-                    size: 16,
-                    color: Color(0xFF64748B),
-                  ),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 24,
-                    minHeight: 24,
-                  ),
-                  onPressed: onClearSearch,
-                ),
-            ],
-          ),
-        ),
-        _InventorySortButton(
-          currentOption: sortOption,
-          onSelected: onSortChanged,
-        ),
       ],
     );
   }
 }
 
-class _InventorySortButton extends StatelessWidget {
-  final _InventorySortOption currentOption;
-  final ValueChanged<_InventorySortOption> onSelected;
+/// Small icon-only trigger tucked into the right edge of the search bar.
+/// Combines sort order and the same quick-status filters into one compact
+/// menu, so they're reachable without taking up extra row space.
+class _SortFilterButton extends StatelessWidget {
+  final _InventorySortOption sortOption;
+  final ValueChanged<_InventorySortOption> onSortChanged;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
 
-  const _InventorySortButton({
-    required this.currentOption,
-    required this.onSelected,
+  const _SortFilterButton({
+    required this.sortOption,
+    required this.onSortChanged,
+    required this.selectedFilter,
+    required this.onFilterChanged,
   });
 
-  String get _label {
-    switch (currentOption) {
-      case _InventorySortOption.nameAsc:
-        return 'Name A-Z';
-      case _InventorySortOption.stockLowHigh:
-        return 'Stock: Low-High';
-      case _InventorySortOption.stockHighLow:
-        return 'Stock: High-Low';
-      case _InventorySortOption.expirySoonest:
-        return 'Expiry: Soonest';
-    }
-  }
+  static const Map<_InventorySortOption, String> _sortLabels = {
+    _InventorySortOption.nameAsc: 'Name A-Z',
+    _InventorySortOption.stockLowHigh: 'Stock: Low to High',
+    _InventorySortOption.stockHighLow: 'Stock: High to Low',
+    _InventorySortOption.expirySoonest: 'Expiry: Soonest first',
+  };
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<_InventorySortOption>(
-      onSelected: onSelected,
+    return PopupMenuButton<Object>(
+      tooltip: 'Sort & filter',
+      offset: const Offset(0, 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        if (value is _InventorySortOption) {
+          onSortChanged(value);
+        } else if (value is String) {
+          onFilterChanged(value);
+        }
+      },
       itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: _InventorySortOption.nameAsc,
-          child: Text('Name A-Z'),
+        const PopupMenuItem<Object>(
+          enabled: false,
+          height: 26,
+          child: Text(
+            'SORT BY',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey,
+              letterSpacing: 0.4,
+            ),
+          ),
         ),
-        const PopupMenuItem(
-          value: _InventorySortOption.stockLowHigh,
-          child: Text('Stock: Low to High'),
+        for (final entry in _sortLabels.entries)
+          PopupMenuItem<Object>(
+            value: entry.key,
+            child: Row(
+              children: [
+                Icon(
+                  entry.key == sortOption
+                      ? Icons.radio_button_checked
+                      : Icons.radio_button_unchecked,
+                  size: 16,
+                  color: entry.key == sortOption
+                      ? const Color(0xFF1F2937)
+                      : Colors.grey,
+                ),
+                const SizedBox(width: 10),
+                Text(entry.value, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<Object>(
+          enabled: false,
+          height: 26,
+          child: Text(
+            'FILTER',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey,
+              letterSpacing: 0.4,
+            ),
+          ),
         ),
-        const PopupMenuItem(
-          value: _InventorySortOption.stockHighLow,
-          child: Text('Stock: High to Low'),
-        ),
-        const PopupMenuItem(
-          value: _InventorySortOption.expirySoonest,
-          child: Text('Expiry: Soonest first'),
-        ),
+        for (final option in _inventoryFilterOptions)
+          PopupMenuItem<Object>(
+            value: option,
+            child: Row(
+              children: [
+                Icon(
+                  option == selectedFilter
+                      ? Icons.check_box_rounded
+                      : Icons.check_box_outline_blank_rounded,
+                  size: 16,
+                  color: option == selectedFilter
+                      ? const Color(0xFF1F2937)
+                      : Colors.grey,
+                ),
+                const SizedBox(width: 10),
+                Text(option, style: const TextStyle(fontSize: 13)),
+              ],
+            ),
+          ),
       ],
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        width: 32,
+        height: 32,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(7),
+          color: Colors.grey.shade100,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.sort_rounded, size: 14, color: Colors.grey),
-            const SizedBox(width: 6),
-            Text(
-              _label,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
-            ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
-          ],
+        child: const Icon(
+          Icons.tune_rounded,
+          size: 16,
+          color: Color(0xFF4B5563),
+        ),
+      ),
+    );
+  }
+}
+
+class _ViewModeButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _ViewModeButton({
+    required this.icon,
+    required this.tooltip,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: Container(
+          width: 32,
+          height: 32,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isActive ? Colors.grey.shade100 : Colors.transparent,
+            borderRadius: BorderRadius.circular(7),
+          ),
+          child: Icon(
+            icon,
+            size: 16,
+            color: isActive ? const Color(0xFF1F2937) : Colors.grey[600],
+          ),
         ),
       ),
     );
@@ -1304,16 +1552,8 @@ class _FilterTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? Colors.white : Colors.transparent,
+          color: isActive ? Colors.grey.shade100 : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
-          boxShadow: isActive
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                  ),
-                ]
-              : [],
         ),
         child: Text(
           label,
@@ -1333,12 +1573,14 @@ class _MedicationGrid extends StatelessWidget {
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
   final ValueChanged<MedicineModel> onRestockMedicine;
+  final _InventoryViewMode viewMode;
 
   const _MedicationGrid({
     required this.medications,
     required this.onEditMedicine,
     required this.onOpenMedicineDetail,
     required this.onRestockMedicine,
+    this.viewMode = _InventoryViewMode.compact,
   });
 
   static const double _spacing = 16;
@@ -1352,6 +1594,33 @@ class _MedicationGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (viewMode == _InventoryViewMode.fullWidth) {
+      // One item per row, each spanning the full available width —
+      // similar to a marketplace product listing.
+      return Column(
+        children: [
+          for (int i = 0; i < medications.length; i++) ...[
+            if (i > 0) const SizedBox(height: 12),
+            _MedicationRowCard(
+              medication: medications[i],
+              onEdit: () {
+                final med = medications[i].originalMedicine;
+                if (med != null) onEditMedicine(med);
+              },
+              onTap: () {
+                final med = medications[i].originalMedicine;
+                if (med != null) onOpenMedicineDetail(med);
+              },
+              onRestock: () {
+                final med = medications[i].originalMedicine;
+                if (med != null) onRestockMedicine(med);
+              },
+            ),
+          ],
+        ],
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final int columns = _columnsForWidth(constraints.maxWidth);
@@ -1423,8 +1692,9 @@ class _MedicationCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8F9FA),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1436,14 +1706,8 @@ class _MedicationCard extends StatelessWidget {
                   height: 40,
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.03),
-                        blurRadius: 4,
-                      ),
-                    ],
                   ),
                   child: const Icon(
                     Icons.medication,
@@ -1608,6 +1872,291 @@ class _MedicationCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Full-width item row for the "list" view mode — one item spans the
+/// entire available width (image/icon block on the left, details filling
+/// the rest), stacked vertically like a marketplace product listing.
+class _MedicationRowCard extends StatelessWidget {
+  final MedicationData medication;
+  final VoidCallback onEdit;
+  final VoidCallback onTap;
+  final VoidCallback onRestock;
+
+  const _MedicationRowCard({
+    required this.medication,
+    required this.onEdit,
+    required this.onTap,
+    required this.onRestock,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool isPaused = medication.isPaused;
+    final Color statusColor = isPaused
+        ? const Color(0xFFFFA000)
+        : const Color(0xFF00C853);
+    final MedicineModel? original = medication.originalMedicine;
+    final String? supplier = original?.supplierName?.trim();
+    final String vendorValue = (supplier == null || supplier.isEmpty)
+        ? 'No vendor'
+        : supplier;
+    final bool hasPrice = original?.unitPrice != null;
+    final String secondaryLabel = hasPrice ? 'Unit price' : 'Batch';
+    final String secondaryValue = hasPrice
+        ? _formatCurrency(original!.unitPrice!)
+        : (original?.batchNumber?.trim().isNotEmpty ?? false)
+        ? original!.batchNumber!
+        : '—';
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.grey.shade200),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 88,
+              height: 88,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade50,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.medication,
+                color: Color(0xFFD17A28),
+                size: 36,
+              ),
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              medication.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                            if (medication.subtitle.isNotEmpty) ...[
+                              const SizedBox(height: 2),
+                              Text(
+                                medication.subtitle,
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            medication.status,
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                            onPressed: onEdit,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(
+                              minWidth: 32,
+                              minHeight: 32,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Text(
+                        medication.dose,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                      const Spacer(),
+                      Text(
+                        medication.daysLeft,
+                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  _StripedProgressBar(
+                    value: medication.progress,
+                    color: medication.progressColor,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Vendor',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 10,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              vendorValue,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              secondaryLabel,
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 10,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              secondaryValue,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'In stock',
+                              style: TextStyle(
+                                color: Colors.grey[400],
+                                fontSize: 10,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              medication.dose,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w500,
+                                fontSize: 13,
+                                color: Color(0xFF1A1A1A),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Tooltip(
+                        message: 'Restock',
+                        child: GestureDetector(
+                          onTap: onRestock,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
+                              color: medication.buttonFilled
+                                  ? const Color(0xFF1A1A1A)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                              border: medication.buttonFilled
+                                  ? null
+                                  : Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.add_rounded,
+                                  size: 16,
+                                  color: medication.buttonFilled
+                                      ? Colors.white
+                                      : Colors.grey[800],
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  'Restock',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: medication.buttonFilled
+                                        ? Colors.white
+                                        : Colors.grey[800],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ],
         ),

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:intl/intl.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
@@ -184,18 +185,24 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
         return Stack(
           children: [
             SizedBox.expand(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.grey.withValues(alpha: 0.05),
-                      blurRadius: 20,
-                      offset: const Offset(0, 10),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: BackdropFilter(
+                  filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: const Color.fromARGB(
+                        255,
+                        247,
+                        252,
+                        255,
+                      ).withValues(alpha: 0.8),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: const Color.fromARGB(255, 150, 150, 150),
+                        width: 0.25,
+                      ),
                     ),
-                  ],
-                ),
                 child: _InvoicesDashboardView(
                   viewData: viewData,
                   selectedFilter: _selectedFilter,
@@ -210,7 +217,9 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
                 ),
               ),
             ),
-            if (snapshot.hasError)
+          ),
+        ),
+        if (snapshot.hasError)
               Positioned(
                 top: 16,
                 right: 16,

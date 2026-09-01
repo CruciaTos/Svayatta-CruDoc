@@ -27,12 +27,7 @@ class DesktopEventsScreen extends StatelessWidget {
           filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color.fromARGB(
-                255,
-                247,
-                252,
-                255,
-              ).withValues(alpha: 0.8),
+              color: const Color(0xFFF0F9FF), // Light blue background
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: const Color.fromARGB(255, 150, 150, 150),

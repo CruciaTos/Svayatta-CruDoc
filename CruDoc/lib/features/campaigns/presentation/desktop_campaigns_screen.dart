@@ -35,12 +35,7 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
         filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
         child: Container(
           decoration: BoxDecoration(
-            color: const Color.fromARGB(
-              255,
-              247,
-              252,
-              255,
-            ).withValues(alpha: 0.8),
+            color: const Color(0xFFF0F9FF), // Light blue background
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: const Color.fromARGB(255, 150, 150, 150),
@@ -394,12 +389,12 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: Colors.grey.shade300),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),

@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
 
 const _emptyFinancialDashboardData = _FinancialDashboardViewData(
   revenue: '₹0',
@@ -176,7 +177,6 @@ _FinancialDashboardViewData _mapInvoicesToFinancialData(
 
   final structures = serviceTotals.entries.toList()
     ..sort((a, b) => b.value.compareTo(a.value));
-  // Calculate total based on the top 4 structures (matching the donut chart)
   final top4Total = structures
       .take(4)
       .fold<double>(0, (sum, entry) => sum + entry.value);
@@ -446,15 +446,13 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: BackdropFilter(
-                          filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                          filter: ui.ImageFilter.blur(
+                            sigmaX: 10.0,
+                            sigmaY: 10.0,
+                          ),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: const Color.fromARGB(
-                                255,
-                                247,
-                                252,
-                                255,
-                              ).withValues(alpha: 0.8),
+                              color: const Color(0xFFF0F9FF), // Light blue background
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: const Color.fromARGB(255, 150, 150, 150),
@@ -664,8 +662,8 @@ class _FinancialDashboardView extends StatefulWidget {
 class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
   int _selectedTabIndex = 0;
 
-  // UPDATED TAB LIST: Removed Insurance and Reports
-  static const _tabLabels = ['Overview', 'Operations'];
+  // UPDATED TAB LIST: Added Invoices
+  static const _tabLabels = ['Overview', 'Operations', 'Invoices'];
 
   @override
   Widget build(BuildContext context) {
@@ -712,6 +710,8 @@ class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
       case 1:
         // Over-Engineered Operations Tab
         return _OperationsTab(invoices: widget.viewData.allInvoices);
+      case 2:
+        return const DesktopInvoicesScreen(isSubScreen: true);
 
       default:
         return _OverviewTab(
@@ -908,7 +908,7 @@ class _TabsSection extends StatelessWidget {
 }
 
 // -----------------------------------------------------------------------------
-// OVERVIEW TAB (Unchanged)
+// OVERVIEW TAB (Updated Grid Layout)
 // -----------------------------------------------------------------------------
 
 class _OverviewTab extends StatelessWidget {
@@ -946,89 +946,105 @@ class _OverviewTab extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 250,
-              child: TextField(
-                controller: searchController,
-                onChanged: onSearchChanged,
-                decoration: InputDecoration(
-                  hintText: 'Search transactions...',
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  suffixIcon: searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: onClearSearch,
-                        )
-                      : null,
-                  isDense: true,
-                  filled: true,
-                  fillColor: Colors.grey[50],
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _StatsRow(viewData: viewData),
-          const SizedBox(height: 24),
-          _ChartSection(weeklyData: viewData.weeklyData),
-          const SizedBox(height: 24),
-          // Side-by-side panels: Recent Transactions LEFT, Pending Payments RIGHT
+          // GRID LAYOUT
           LayoutBuilder(
             builder: (context, constraints) {
               final bool isWide = constraints.maxWidth > 800;
+
               if (isWide) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Recent Transactions (left, wider)
+                    // LEFT COLUMN (Flex 2) - Chart, Stats, Recent Transactions
                     Expanded(
                       flex: 2,
-                      child: _RecentTransactionsPanel(
-                        transactions: recentEntries
-                            .map(
-                              (e) => _TransactionData(
-                                name: e.payer ?? e.description,
-                                type: e.description,
-                                amount: _formatCurrency(e.amount),
-                                date: DateFormat(
-                                  'MMM d, h:mm a',
-                                ).format(e.date),
-                                icon: e.kind == TransactionKind.income
-                                    ? Icons.arrow_upward
-                                    : Icons.arrow_downward,
-                                color: e.kind == TransactionKind.income
-                                    ? Colors.green
-                                    : Colors.red,
-                                isIncome: e.kind == TransactionKind.income,
-                              ),
-                            )
-                            .toList(),
-                        kindFilter: kindFilter,
-                        onKindFilterChanged: onKindFilterChanged,
+                      child: Column(
+                        children: [
+                          _ChartSection(weeklyData: viewData.weeklyData),
+                          const SizedBox(height: 16),
+                          _StatsRow(viewData: viewData),
+                          const SizedBox(height: 16),
+                          // Recent Transactions (Fixed height to avoid layout issues inside SingleChildScrollView)
+                          SizedBox(
+                            height: 400,
+                            child: _RecentTransactionsPanel(
+                              transactions: recentEntries
+                                  .map(
+                                    (e) => _TransactionData(
+                                      name: e.payer ?? e.description,
+                                      type: e.description,
+                                      amount: _formatCurrency(e.amount),
+                                      date: DateFormat(
+                                        'MMM d, h:mm a',
+                                      ).format(e.date),
+                                      icon: e.kind == TransactionKind.income
+                                          ? Icons.arrow_upward
+                                          : Icons.arrow_downward,
+                                      color: e.kind == TransactionKind.income
+                                          ? Colors.green
+                                          : Colors.red,
+                                      isIncome:
+                                          e.kind == TransactionKind.income,
+                                    ),
+                                  )
+                                  .toList(),
+                              kindFilter: kindFilter,
+                              onKindFilterChanged: onKindFilterChanged,
+                              searchController: searchController,
+                              searchQuery: searchQuery,
+                              onSearchChanged: onSearchChanged,
+                              onClearSearch: onClearSearch,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(width: 16),
-                    // Pending Payments (right, narrower)
+
+                    // RIGHT COLUMN (Flex 1) - Pending Payments, Placeholders
                     Expanded(
                       flex: 1,
-                      child: _PendingPaymentsPanel(
-                        pendingPayments: pendingPayments,
-                        onAddPending: onAddPending,
-                        onPendingTap: onPendingTap,
-                        onMarkPendingPaid: onMarkPendingPaid,
+                      child: Column(
+                        children: [
+                          _PendingPaymentsPanel(
+                            pendingPayments: pendingPayments,
+                            onAddPending: onAddPending,
+                            onPendingTap: onPendingTap,
+                            onMarkPendingPaid: onMarkPendingPaid,
+                          ),
+                          const SizedBox(height: 16),
+                          // Placeholder 1 (Fill with any widget)
+                          Container(
+                            height: 180,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          // Placeholder 2 (Fill with any widget)
+                          Container(
+                            height: 180,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 );
               } else {
+                // For narrow screens, stack vertically
                 return Column(
                   children: [
+                    _ChartSection(weeklyData: viewData.weeklyData),
+                    const SizedBox(height: 16),
+                    _StatsRow(viewData: viewData),
+                    const SizedBox(height: 16),
                     _RecentTransactionsPanel(
                       transactions: recentEntries
                           .map(
@@ -1049,6 +1065,10 @@ class _OverviewTab extends StatelessWidget {
                           .toList(),
                       kindFilter: kindFilter,
                       onKindFilterChanged: onKindFilterChanged,
+                      searchController: searchController,
+                      searchQuery: searchQuery,
+                      onSearchChanged: onSearchChanged,
+                      onClearSearch: onClearSearch,
                     ),
                     const SizedBox(height: 16),
                     _PendingPaymentsPanel(
@@ -1091,8 +1111,15 @@ class _PendingPaymentsPanel extends StatelessWidget {
       height: 300, // reduced from 400
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1220,11 +1247,19 @@ class _RecentTransactionsPanel extends StatelessWidget {
   final List<_TransactionData> transactions;
   final TransactionKind? kindFilter;
   final ValueChanged<TransactionKind?> onKindFilterChanged;
+  final TextEditingController searchController;
+  final String searchQuery;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
 
   const _RecentTransactionsPanel({
     required this.transactions,
     required this.kindFilter,
     required this.onKindFilterChanged,
+    required this.searchController,
+    required this.searchQuery,
+    required this.onSearchChanged,
+    required this.onClearSearch,
   });
 
   @override
@@ -1240,12 +1275,57 @@ class _RecentTransactionsPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             child: Row(
               children: [
                 const Text(
                   'Recent Transactions',
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 12),
+                // Search box inline with the panel header
+                SizedBox(
+                  width: 200,
+                  height: 34,
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: onSearchChanged,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Search...',
+                      hintStyle: const TextStyle(fontSize: 13),
+                      prefixIcon: const Icon(Icons.search, size: 16),
+                      suffixIcon: searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 14),
+                              onPressed: onClearSearch,
+                              padding: EdgeInsets.zero,
+                            )
+                          : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 8,
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2196F3),
+                          width: 1.5,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
                 const Spacer(),
                 _KindFilterChip(
@@ -1553,9 +1633,13 @@ class _StatsCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                subtitle,
-                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
               const SizedBox(width: 8),
               Icon(
@@ -2249,8 +2333,15 @@ class _OperationsTabState extends State<_OperationsTab> {
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade300),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: _filteredInvoices.isEmpty
                 ? Center(

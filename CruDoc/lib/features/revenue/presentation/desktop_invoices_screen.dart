@@ -15,7 +15,8 @@ import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_
 /// Uses the same outer white rounded container, inner 20px padding,
 /// header + tabs + stat cards, and a scrollable content area for the table.
 class DesktopInvoicesScreen extends StatefulWidget {
-  const DesktopInvoicesScreen({super.key});
+  final bool isSubScreen;
+  const DesktopInvoicesScreen({super.key, this.isSubScreen = false});
 
   @override
   State<DesktopInvoicesScreen> createState() => _DesktopInvoicesScreenState();
@@ -27,6 +28,7 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
 
   String _selectedFilter = 'All'; // 'All', 'Paid', 'Pending', 'Overdue'
   String _searchQuery = '';
+  InvoiceModel? _selectedInvoice;
 
   Future<void> _seedSampleInvoicesToFirebase() async {
     try {
@@ -117,30 +119,11 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
   }
 
   void _showInvoiceDetails(InvoiceModel invoice) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.all(32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 500),
-          child: _InvoiceDetailsDialog(
-            invoice: invoice,
-            onStatusChanged: (newStatus) async {
-              if (invoice.doctorId != 'sample') {
-                await _repository.updateInvoiceStatus(invoice.id, newStatus);
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            onDelete: () async {
-              if (invoice.doctorId != 'sample') {
-                await _repository.deleteInvoice(invoice.id);
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-          ),
-        ),
-      ),
-    );
+    setState(() => _selectedInvoice = invoice);
+  }
+
+  void _closeInvoiceDetails() {
+    setState(() => _selectedInvoice = null);
   }
 
   @override
@@ -182,43 +165,60 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
           filteredInvoices: filteredInvoices,
         );
 
+        final activeSelectedInvoice = _selectedInvoice != null
+            ? allInvoices.firstWhere(
+                (inv) => inv.id == _selectedInvoice!.id,
+                orElse: () => _selectedInvoice!,
+              )
+            : null;
+
+        final innerContent = _InvoicesDashboardView(
+          viewData: viewData,
+          selectedFilter: _selectedFilter,
+          onFilterChanged: (filter) =>
+              setState(() => _selectedFilter = filter),
+          searchController: _searchController,
+          onSearchChanged: (val) =>
+              setState(() => _searchQuery = _repository.sanitizeInput(val)),
+          onNewInvoice: _openCreateInvoiceDialog,
+          onSeedData: _seedSampleInvoicesToFirebase,
+          onInvoiceTap: _showInvoiceDetails,
+          selectedInvoice: activeSelectedInvoice,
+          onCloseInvoice: _closeInvoiceDetails,
+          onStatusChanged: (newStatus) async {
+            if (activeSelectedInvoice != null && activeSelectedInvoice.doctorId != 'sample') {
+              await _repository.updateInvoiceStatus(activeSelectedInvoice.id, newStatus);
+            }
+          },
+          onDeleteInvoice: () async {
+            if (activeSelectedInvoice != null && activeSelectedInvoice.doctorId != 'sample') {
+              await _repository.deleteInvoice(activeSelectedInvoice.id);
+            }
+            _closeInvoiceDetails();
+          },
+          isSubScreen: widget.isSubScreen,
+        );
+
         return Stack(
           children: [
             SizedBox.expand(
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(16),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color.fromARGB(
-                        255,
-                        247,
-                        252,
-                        255,
-                      ).withValues(alpha: 0.8),
+              child: widget.isSubScreen
+                  ? innerContent
+                  : ClipRRect(
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: const Color.fromARGB(255, 150, 150, 150),
-                        width: 0.25,
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF0F9FF), // Light blue background
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color.fromARGB(255, 150, 150, 150), width: 0.25),
+                          ),
+                          child: innerContent,
+                        ),
                       ),
                     ),
-                child: _InvoicesDashboardView(
-                  viewData: viewData,
-                  selectedFilter: _selectedFilter,
-                  onFilterChanged: (filter) =>
-                      setState(() => _selectedFilter = filter),
-                  searchController: _searchController,
-                  onSearchChanged: (val) =>
-                      setState(() => _searchQuery = _repository.sanitizeInput(val)),
-                  onNewInvoice: _openCreateInvoiceDialog,
-                  onSeedData: _seedSampleInvoicesToFirebase,
-                  onInvoiceTap: _showInvoiceDetails,
-                ),
-              ),
             ),
-          ),
-        ),
         if (snapshot.hasError)
               Positioned(
                 top: 16,
@@ -275,6 +275,11 @@ class _InvoicesDashboardView extends StatelessWidget {
   final VoidCallback onNewInvoice;
   final VoidCallback? onSeedData;
   final ValueChanged<InvoiceModel> onInvoiceTap;
+  final InvoiceModel? selectedInvoice;
+  final VoidCallback onCloseInvoice;
+  final Function(String) onStatusChanged;
+  final VoidCallback onDeleteInvoice;
+  final bool isSubScreen;
 
   const _InvoicesDashboardView({
     required this.viewData,
@@ -285,36 +290,77 @@ class _InvoicesDashboardView extends StatelessWidget {
     required this.onNewInvoice,
     this.onSeedData,
     required this.onInvoiceTap,
+    this.selectedInvoice,
+    required this.onCloseInvoice,
+    required this.onStatusChanged,
+    required this.onDeleteInvoice,
+    this.isSubScreen = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(20),
+      padding: isSubScreen ? EdgeInsets.zero : const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InvoicesHeader(
-            onNewInvoice: onNewInvoice,
-            onSeedData: onSeedData,
-          ),
-          const SizedBox(height: 24),
-          _InvoicesTabsSection(
-            selectedFilter: selectedFilter,
-            onFilterChanged: onFilterChanged,
-          ),
-          const SizedBox(height: 24),
+          if (!isSubScreen) ...[
+            const Text(
+              'Invoices & Billing',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A1A),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           _InvoiceStatsRow(viewData: viewData),
           const SizedBox(height: 24),
           _InvoicesSearchBar(
             controller: searchController,
             onChanged: onSearchChanged,
+            selectedFilter: selectedFilter,
+            onFilterChanged: onFilterChanged,
+            onNewInvoice: onNewInvoice,
+            onSeedData: onSeedData,
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: _InvoicesTableSection(
-              invoices: viewData.filteredInvoices,
-              onTap: onInvoiceTap,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch, // Stretch to full height
+              children: [
+                Expanded(
+                  child: _InvoicesTableSection(
+                    invoices: viewData.filteredInvoices,
+                    onTap: onInvoiceTap,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 380,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade300),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: selectedInvoice != null
+                      ? _InvoiceDetailsDialog(
+                          invoice: selectedInvoice!,
+                          onStatusChanged: onStatusChanged,
+                          onDelete: onDeleteInvoice,
+                          onClose: onCloseInvoice,
+                        )
+                      : const _EmptyInvoicePanel(),
+                ),
+              ],
             ),
           ),
         ],
@@ -323,84 +369,6 @@ class _InvoicesDashboardView extends StatelessWidget {
   }
 }
 
-// ---------- Header (matching revenue) ----------
-class _InvoicesHeader extends StatelessWidget {
-  final VoidCallback onNewInvoice;
-  final VoidCallback? onSeedData;
-
-  const _InvoicesHeader({required this.onNewInvoice, this.onSeedData});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        const Text(
-          'Invoices & Billing',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
-          ),
-        ),
-        Row(
-          children: [
-            if (onSeedData != null)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: InkWell(
-                  onTap: onSeedData,
-                  child: Row(
-                    children: [
-                      const Icon(Icons.cloud_upload_outlined, size: 16, color: Color(0xFF2563EB)),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Seed Data',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.grey[700],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: InkWell(
-                onTap: onNewInvoice,
-                child: Row(
-                  children: [
-                    const Icon(Icons.add_rounded, size: 16, color: Color(0xFF2563EB)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'New Invoice',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey[700],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-}
 
 // ---------- Tabs (All, Paid, Pending, Overdue) ----------
 class _InvoicesTabsSection extends StatelessWidget {
@@ -586,10 +554,18 @@ class _StatsCard extends StatelessWidget {
 class _InvoicesSearchBar extends StatelessWidget {
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final String selectedFilter;
+  final ValueChanged<String> onFilterChanged;
+  final VoidCallback onNewInvoice;
+  final VoidCallback? onSeedData;
 
   const _InvoicesSearchBar({
     required this.controller,
     required this.onChanged,
+    required this.selectedFilter,
+    required this.onFilterChanged,
+    required this.onNewInvoice,
+    this.onSeedData,
   });
 
   @override
@@ -626,6 +602,89 @@ class _InvoicesSearchBar extends StatelessWidget {
                 onChanged('');
               },
             ),
+          const SizedBox(width: 4),
+          Container(
+            height: 24,
+            width: 1,
+            color: const Color(0xFFE2E8F0),
+          ),
+          const SizedBox(width: 4),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.filter_list_rounded, size: 20, color: Color(0xFF64748B)),
+            tooltip: 'Filter by Status',
+            initialValue: selectedFilter,
+            onSelected: onFilterChanged,
+            itemBuilder: (context) => ['All', 'Paid', 'Pending', 'Overdue']
+                .map((filter) => PopupMenuItem(
+                      value: filter,
+                      child: Text(
+                        filter,
+                        style: TextStyle(
+                          fontWeight: selectedFilter == filter ? FontWeight.w600 : FontWeight.w400,
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            height: 24,
+            width: 1,
+            color: const Color(0xFFE2E8F0),
+          ),
+          const SizedBox(width: 8),
+          if (onSeedData != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: InkWell(
+                onTap: onSeedData,
+                child: Row(
+                  children: [
+                    const Icon(Icons.cloud_upload_outlined, size: 16, color: Color(0xFF2563EB)),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Seed Data',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey[700],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF2563EB),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: InkWell(
+              onTap: onNewInvoice,
+              child: const Row(
+                children: [
+                  Icon(Icons.add_rounded, size: 16, color: Colors.white),
+                  SizedBox(width: 6),
+                  Text(
+                    'New Invoice',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -647,8 +706,15 @@ class _InvoicesTableSection extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: invoices.isEmpty
           ? Center(
@@ -669,7 +735,7 @@ class _InvoicesTableSection extends StatelessWidget {
               ),
             )
           : ClipRRect(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
               child: SingleChildScrollView(
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
@@ -691,7 +757,7 @@ class _InvoicesTableSection extends StatelessWidget {
                       DataColumn(label: Text('AMOUNT')),
                       DataColumn(label: Text('DATE')),
                       DataColumn(label: Text('STATUS')),
-                      DataColumn(label: Text(''), numeric: true),
+                      // Removed the empty column that contained the view icon
                     ],
                     rows: invoices.map((inv) {
                       final isPaid = inv.isPaid;
@@ -708,7 +774,7 @@ class _InvoicesTableSection extends StatelessWidget {
                               : const Color(0xFFB91C1C));
 
                       return DataRow(
-                        onSelectChanged: (_) => onTap(inv),
+                        onSelectChanged: (_) => onTap(inv), // Row click still opens details
                         cells: [
                           DataCell(Text(inv.id,
                               style: const TextStyle(
@@ -754,14 +820,7 @@ class _InvoicesTableSection extends StatelessWidget {
                               ),
                             ),
                           ),
-                          DataCell(
-                            IconButton(
-                              icon: const Icon(Icons.visibility_outlined,
-                                  size: 20, color: Color(0xFF64748B)),
-                              onPressed: () => onTap(inv),
-                              tooltip: 'View Details',
-                            ),
-                          ),
+                          // Removed the DataCell with the IconButton
                         ],
                       );
                     }).toList(),
@@ -2055,90 +2114,185 @@ class _InvoiceDetailsDialog extends StatelessWidget {
   final InvoiceModel invoice;
   final Function(String newStatus) onStatusChanged;
   final VoidCallback onDelete;
+  final VoidCallback? onClose;
 
   const _InvoiceDetailsDialog({
     required this.invoice,
     required this.onStatusChanged,
     required this.onDelete,
+    this.onClose,
   });
 
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM dd, yyyy');
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      color: Colors.white,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(invoice.id,
-                  style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A))),
-              IconButton(
-                icon: const Icon(Icons.delete_outline,
-                    color: Colors.red),
-                onPressed: onDelete,
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header – compact
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: const BoxDecoration(
+            border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
           ),
-          const Divider(),
-          const SizedBox(height: 8),
-          _detailRow('Patient Name', invoice.patientName),
-          _detailRow('Service / Description', invoice.service),
-          _detailRow(
-              'Amount Charged', '₹${invoice.amount.toInt()}'),
-          _detailRow(
-              'Date Created', dateFormat.format(invoice.date)),
-          if (invoice.dueDate != null)
-            _detailRow(
-                'Due Date', dateFormat.format(invoice.dueDate!)),
-          _detailRow('Current Status', invoice.status),
-          if (invoice.notes.isNotEmpty)
-            _detailRow('Notes', invoice.notes),
-          const SizedBox(height: 20),
-          if (!invoice.isPaid)
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => onStatusChanged('Paid'),
-                icon: const Icon(Icons.check_circle,
-                    color: Colors.white),
-                label: const Text('Mark as Paid'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF16A34A),
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  invoice.id,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF0F172A),
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ),
-        ],
-      ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                onPressed: onDelete,
+              ),
+              if (onClose != null)
+                IconButton(
+                  icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                  onPressed: onClose,
+                ),
+            ],
+          ),
+        ),
+
+        // Body – no scrolling needed, all content condensed
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Two-column grid for most fields
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _detailField('Patient Name', invoice.patientName)),
+                  const SizedBox(width: 12),
+                  Expanded(child: _detailField('Amount', '₹${invoice.amount.toInt()}')),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _detailField('Date Created', dateFormat.format(invoice.date))),
+                  if (invoice.dueDate != null) ...[
+                    const SizedBox(width: 12),
+                    Expanded(child: _detailField('Due Date', dateFormat.format(invoice.dueDate!))),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              _detailField('Service / Description', invoice.service),
+              const SizedBox(height: 12),
+              _detailField('Status', invoice.status),
+              const SizedBox(height: 12),
+              // Notes – truncated with tooltip
+              _detailField('Notes', invoice.notes.isEmpty ? '—' : invoice.notes),
+              const SizedBox(height: 16),
+              // Action button (only if unpaid)
+              if (!invoice.isPaid)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => onStatusChanged('Paid'),
+                    icon: const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                    label: const Text('Mark as Paid'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _detailRow(String title, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  // Helper to create a compact label/value pair
+  Widget _detailField(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Color(0xFF64748B),
+            fontWeight: FontWeight.w500,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF0F172A),
+          ),
+          maxLines: 3, // Allow up to 3 lines for notes, service, etc.
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyInvoicePanel extends StatelessWidget {
+  const _EmptyInvoicePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(title,
-              style: const TextStyle(
-                  fontSize: 13, color: Color(0xFF64748B))),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF0F172A))),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEFF6FF),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.receipt_long_outlined,
+              size: 40,
+              color: Color(0xFF94A3B8),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'Select an invoice',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF64748B),
+            ),
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'Details will appear here',
+            style: TextStyle(
+              fontSize: 13,
+              color: Color(0xFF94A3B8),
+            ),
+          ),
         ],
       ),
     );

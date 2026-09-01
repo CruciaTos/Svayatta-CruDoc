@@ -726,8 +726,8 @@ class _CollapsedSidebarItem extends StatelessWidget {
           onTap: onTap ?? () {},
           borderRadius: BorderRadius.circular(10),
           hoverColor: isSelected
-              ? const Color(0xFF0D422C).withOpacity(0.08)
-              : const Color(0xFF0D422C).withOpacity(0.05),
+              ? const Color(0xFF2563EB).withOpacity(0.08)
+              : const Color(0xFF2563EB).withOpacity(0.05),
           mouseCursor: onTap == null
               ? SystemMouseCursors.basic
               : SystemMouseCursors.click,
@@ -735,7 +735,7 @@ class _CollapsedSidebarItem extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isSelected ? const Color(0xFF0D422C) : Colors.transparent,
+              color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Stack(
@@ -805,15 +805,15 @@ class _SidebarItem extends StatelessWidget {
         onTap: onTap ?? () {},
         borderRadius: BorderRadius.circular(10),
         hoverColor: isSelected
-            ? const Color(0xFF0D422C).withOpacity(0.08)
-            : const Color(0xFF0D422C).withOpacity(0.05),
+            ? const Color(0xFF2563EB).withOpacity(0.08)
+            : const Color(0xFF2563EB).withOpacity(0.05),
         mouseCursor: onTap == null
             ? SystemMouseCursors.basic
             : SystemMouseCursors.click,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0D422C) : Colors.transparent,
+            color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(

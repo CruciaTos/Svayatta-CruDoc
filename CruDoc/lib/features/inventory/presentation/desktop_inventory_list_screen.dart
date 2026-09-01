@@ -63,7 +63,7 @@ const _clrPurpleTint = Color(0xFFEDE7F6);
 const _clrPurple = Color(0xFF673AB7);
 
 /// The main screen background (near-white with a faint blue cast).
-const _clrScreenBg = Color.fromARGB(255, 237, 249, 255);
+const _clrScreenBg = Color.fromARGB(255, 250, 253, 255);
 
 /// Thin outer border of the screen container.
 const _clrScreenBorder = Color.fromARGB(255, 150, 150, 150);
@@ -154,9 +154,9 @@ class DesktopInventoryScreen extends ConsumerWidget {
               filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: _clrScreenBg.withValues(alpha: 0.8),
+                  color: const Color(0xFFF0F9FF), // Light blue background
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: _clrScreenBorder, width: 0.25),
+                  border: Border.all(color: const Color.fromARGB(255, 150, 150, 150), width: 0.25),
                 ),
                 padding: const EdgeInsets.all(20),
                 child: _InventoryDashboardView(
@@ -989,8 +989,15 @@ class _NewStatCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1280,7 +1287,6 @@ class _FilterRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: Colors.grey.shade200),
               ),
               child: Row(
                 children: [
@@ -1348,24 +1354,26 @@ class _FilterRow extends StatelessWidget {
               ),
             );
 
-            final addButton = ElevatedButton.icon(
-              onPressed: onAddMedicine,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _clrPrimary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
+            final addButton = SizedBox(
+              height: 46,
+              child: ElevatedButton.icon(
+                onPressed: onAddMedicine,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _clrPrimary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                icon: const Icon(Icons.add, size: 18),
+                label: const Text(
+                  'Add item',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-              ),
-              icon: const Icon(Icons.add, size: 18),
-              label: const Text(
-                'Add item',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
               ),
             );
 
@@ -1735,7 +1743,14 @@ class _MedicationCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1962,7 +1977,14 @@ class _MedicationRowCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: Colors.grey.shade300),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

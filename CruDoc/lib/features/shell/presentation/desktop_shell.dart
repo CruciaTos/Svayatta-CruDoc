@@ -90,7 +90,6 @@ class _DesktopShellState extends State<DesktopShell> {
 
   static const List<String> _labels = [
     'Dashboard',
-    'Invoices',
     'Patients',
     'Inventory',
     'Revenue',
@@ -100,7 +99,6 @@ class _DesktopShellState extends State<DesktopShell> {
 
   static const List<IconData> _icons = [
     Icons.grid_view_rounded,
-    Icons.receipt_long_outlined,
     Icons.groups_rounded,
     Icons.inventory_2_outlined,
     Icons.payments_outlined,
@@ -120,16 +118,14 @@ class _DesktopShellState extends State<DesktopShell> {
       case 0:
         return DesktopDashboardScreen(onNavigateToTab: _onNavTap);
       case 1:
-        return const DesktopInvoicesScreen();
-      case 2:
         return const DesktopPatientRecordsScreen();
-      case 3:
+      case 2:
         return const DesktopInventoryScreen();
-      case 4:
+      case 3:
         return const DesktopRevenueScreen();
-      case 5:
+      case 4:
         return const DesktopEventsScreen();
-      case 6:
+      case 5:
         return const DesktopCampaignsScreen();
       default:
         return const SizedBox.shrink();
@@ -153,7 +149,6 @@ class _DesktopShellState extends State<DesktopShell> {
       LogicalKeyboardKey.digit4,
       LogicalKeyboardKey.digit5,
       LogicalKeyboardKey.digit6,
-      LogicalKeyboardKey.digit7,
     ];
     return digitKeys[index];
   }
@@ -197,7 +192,7 @@ class _DesktopShellState extends State<DesktopShell> {
         );
         final isTabEnabled =
             _currentIndex == 0 ||
-            _currentIndex == 6 ||
+            _currentIndex == 5 ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
 
         return StreamBuilder<List<InvoiceModel>>(
@@ -419,7 +414,7 @@ class _ExpandedLayout extends StatelessWidget {
                 _buildSectionHeader('MENU'),
                 const SizedBox(height: 8),
                 ...List.generate(labels.length, (index) {
-                  final badge = index == 1 && invoiceBadgeCount > 0
+                  final badge = index == 3 && invoiceBadgeCount > 0
                       ? (invoiceBadgeCount > 99
                             ? '99+'
                             : invoiceBadgeCount.toString())
@@ -616,7 +611,7 @@ class _CollapsedLayout extends StatelessWidget {
               children: [
                 // Main navigation items (icons only)
                 ...List.generate(labels.length, (index) {
-                  final badge = index == 1 && invoiceBadgeCount > 0
+                  final badge = index == 3 && invoiceBadgeCount > 0
                       ? (invoiceBadgeCount > 99
                             ? '99+'
                             : invoiceBadgeCount.toString())

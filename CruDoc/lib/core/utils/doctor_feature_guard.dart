@@ -132,16 +132,14 @@ class DoctorFeatureGuard {
       case 0:
         return 'dashboard';
       case 1:
-        return 'revenue'; // Invoices tab — billing lives under Revenue & Financials
-      case 2:
         return 'patients';
-      case 3:
+      case 2:
         return 'inventory';
-      case 4:
+      case 3:
         return 'revenue';
-      case 5:
+      case 4:
         return 'appointments';
-      case 6:
+      case 5:
         return 'campaigns'; // Patient Campaigns tab
       default:
         return 'dashboard';
@@ -156,16 +154,14 @@ class DoctorFeatureGuard {
       case 0:
         return 'Dashboard';
       case 1:
-        return 'Invoices';
-      case 2:
         return 'Patient Records';
-      case 3:
+      case 2:
         return 'Inventory Management';
-      case 4:
+      case 3:
         return 'Revenue & Financials';
-      case 5:
+      case 4:
         return 'Appointments & Events';
-      case 6:
+      case 5:
         return 'Patient Campaigns';
       default:
         return 'Feature';

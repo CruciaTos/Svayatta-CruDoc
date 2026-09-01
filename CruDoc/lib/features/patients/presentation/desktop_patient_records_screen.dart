@@ -122,6 +122,58 @@ class _BreakdownItem {
 /// A fully realized, interactive patient management dashboard matching the
 /// provided design. Includes a donut chart, stats cards, a searchable toolbar,
 /// and a rich data table with status chips.
+enum PatientDurationFilter {
+  allTime,
+  today,
+  thisWeek,
+  thisMonth,
+  thisYear,
+}
+
+extension PatientDurationFilterExt on PatientDurationFilter {
+  String get label {
+    switch (this) {
+      case PatientDurationFilter.allTime:
+        return 'All Time';
+      case PatientDurationFilter.today:
+        return 'Today';
+      case PatientDurationFilter.thisWeek:
+        return 'Weekly';
+      case PatientDurationFilter.thisMonth:
+        return 'Monthly';
+      case PatientDurationFilter.thisYear:
+        return 'Yearly';
+    }
+  }
+}
+
+List<Patient> _filterPatientsByDuration(
+  List<Patient> patients,
+  PatientDurationFilter duration,
+) {
+  if (duration == PatientDurationFilter.allTime) return patients;
+  final now = DateTime.now();
+  return patients.where((patient) {
+    final created = patient.createdAt;
+    switch (duration) {
+      case PatientDurationFilter.allTime:
+        return true;
+      case PatientDurationFilter.today:
+        return created.year == now.year &&
+            created.month == now.month &&
+            created.day == now.day;
+      case PatientDurationFilter.thisWeek:
+        final startOfWeek = DateTime(now.year, now.month, now.day)
+            .subtract(Duration(days: now.weekday - 1));
+        return !created.isBefore(startOfWeek);
+      case PatientDurationFilter.thisMonth:
+        return created.year == now.year && created.month == now.month;
+      case PatientDurationFilter.thisYear:
+        return created.year == now.year;
+    }
+  }).toList();
+}
+
 /// Non‑scrollable outer container – the table scrolls internally.
 class DesktopPatientRecordsScreen extends StatefulWidget {
   const DesktopPatientRecordsScreen({super.key});
@@ -136,9 +188,10 @@ class _DesktopPatientRecordsScreenState
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
-  // Sort and filter states
+  // Sort, filter, and duration states
   PatientSortOption _sortOption = PatientSortOption.nameAsc;
   PatientFilterOption _filterOption = PatientFilterOption.all;
+  PatientDurationFilter _durationFilter = PatientDurationFilter.allTime;
 
   // When non-null, shows PatientDetailsBody instead of the dashboard.
   Patient? _selectedPatient;
@@ -267,10 +320,14 @@ class _DesktopPatientRecordsScreenState
 
         final isWaiting = snapshot.connectionState == ConnectionState.waiting;
         final hasError = snapshot.hasError;
-        final patients = snapshot.data ?? <Patient>[];
-        final viewData = patients.isEmpty
+        final rawPatients = snapshot.data ?? <Patient>[];
+        final durationPatients = _filterPatientsByDuration(
+          rawPatients,
+          _durationFilter,
+        );
+        final viewData = durationPatients.isEmpty
             ? _emptyDesktopPatientViewData
-            : _mapPatientsToViewData(patients);
+            : _mapPatientsToViewData(durationPatients);
         final filteredBySearch = _filterPatients(
           viewData.patients,
           _searchQuery,
@@ -299,6 +356,10 @@ class _DesktopPatientRecordsScreenState
                       patients: displayPatients,
                       searchController: _searchController,
                       searchQuery: _searchQuery,
+                      durationFilter: _durationFilter,
+                      onDurationChanged: (filter) {
+                        setState(() => _durationFilter = filter);
+                      },
                       onSearchChanged: (value) {
                         setState(() => _searchQuery = value.trim());
                       },
@@ -427,6 +488,8 @@ class _PatientDashboardView extends StatelessWidget {
   final List<Patient> patients;
   final TextEditingController searchController;
   final String searchQuery;
+  final PatientDurationFilter durationFilter;
+  final ValueChanged<PatientDurationFilter> onDurationChanged;
   final ValueChanged<String> onSearchChanged;
   final VoidCallback onClearSearch;
   final VoidCallback onAddPatient;
@@ -444,6 +507,8 @@ class _PatientDashboardView extends StatelessWidget {
     required this.patients,
     required this.searchController,
     required this.searchQuery,
+    required this.durationFilter,
+    required this.onDurationChanged,
     required this.onSearchChanged,
     required this.onClearSearch,
     required this.onAddPatient,
@@ -461,7 +526,10 @@ class _PatientDashboardView extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // --- Header (fixed) ---
-        const _HeaderSection(),
+        _HeaderSection(
+          durationFilter: durationFilter,
+          onDurationChanged: onDurationChanged,
+        ),
         const SizedBox(height: 24),
 
         // --- Remaining area: chart/stats + toolbar + scrollable table ---
@@ -542,7 +610,13 @@ class _PatientDashboardView extends StatelessWidget {
 // ==============================================================================
 
 class _HeaderSection extends StatelessWidget {
-  const _HeaderSection();
+  final PatientDurationFilter durationFilter;
+  final ValueChanged<PatientDurationFilter> onDurationChanged;
+
+  const _HeaderSection({
+    required this.durationFilter,
+    required this.onDurationChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -557,64 +631,84 @@ class _HeaderSection extends StatelessWidget {
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
-                color: Colors.white,
+                color: Color(0xFF1F2937),
               ),
             ),
             const SizedBox(height: 4),
             Text(
-              'Overview of registered patients and their current status.',
-              style: TextStyle(color: Colors.grey[400], fontSize: 14),
+              'Overview of registered patients (${durationFilter.label.toLowerCase()}).',
+              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
             ),
           ],
         ),
         Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white24),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: const [
-                  Icon(
-                    Icons.calendar_today_outlined,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Monthly',
-                    style: TextStyle(fontSize: 13, color: Colors.white),
-                  ),
-                  SizedBox(width: 4),
-                  Icon(
-                    Icons.keyboard_arrow_down,
-                    size: 16,
-                    color: Colors.white,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 12),
-            ElevatedButton.icon(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2196F3),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 10,
-                ),
-                shape: RoundedRectangleBorder(
+            PopupMenuButton<PatientDurationFilter>(
+              tooltip: 'Select duration filter',
+              initialValue: durationFilter,
+              onSelected: onDurationChanged,
+              itemBuilder: (context) => PatientDurationFilter.values
+                  .map(
+                    (f) => PopupMenuItem<PatientDurationFilter>(
+                      value: f,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            f.label,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: f == durationFilter
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: f == durationFilter
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF1F2937),
+                            ),
+                          ),
+                          if (f == durationFilter)
+                            const Icon(
+                              Icons.check_rounded,
+                              size: 16,
+                              color: Color(0xFF2563EB),
+                            ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: Colors.grey.shade300),
                   borderRadius: BorderRadius.circular(8),
                 ),
-              ),
-              icon: const Icon(Icons.upload_rounded, size: 16),
-              label: const Text(
-                'Export',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.calendar_today_outlined,
+                      size: 16,
+                      color: Color(0xFF4B5563),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      durationFilter.label,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1F2937),
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: Color(0xFF4B5563),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1030,6 +1124,46 @@ class _ToolbarSection extends StatelessWidget {
     required this.onFilterChanged,
   });
 
+  bool get _isFilterActive =>
+      filterOption != PatientFilterOption.all ||
+      sortOption != PatientSortOption.nameAsc;
+
+  String _filterOptionLabel(PatientFilterOption option) {
+    switch (option) {
+      case PatientFilterOption.all:
+        return 'All';
+      case PatientFilterOption.male:
+        return 'Male';
+      case PatientFilterOption.female:
+        return 'Female';
+      case PatientFilterOption.notSpecified:
+        return 'Not Specified';
+      case PatientFilterOption.active:
+        return 'Active';
+      case PatientFilterOption.stable:
+        return 'Stable';
+      case PatientFilterOption.critical:
+        return 'Critical';
+    }
+  }
+
+  String _sortOptionLabel(PatientSortOption option) {
+    switch (option) {
+      case PatientSortOption.nameAsc:
+        return 'Name A-Z';
+      case PatientSortOption.nameDesc:
+        return 'Name Z-A';
+      case PatientSortOption.newest:
+        return 'Newest';
+      case PatientSortOption.oldest:
+        return 'Oldest';
+      case PatientSortOption.packageHigh:
+        return 'Package High';
+      case PatientSortOption.packageLow:
+        return 'Package Low';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -1041,85 +1175,311 @@ class _ToolbarSection extends StatelessWidget {
           spacing: 16,
           runSpacing: 16,
           children: [
-            Container(
-              width: isWide ? 340 : 240,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.search_rounded,
-                    size: 18,
-                    color: Colors.grey,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: controller,
-                      onChanged: onChanged,
-                      decoration: const InputDecoration(
-                        hintText:
-                            'Search patient name, phone, diagnosis or ID...',
-                        border: InputBorder.none,
-                        hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
-                      ),
+            // --- Search Bar with Integrated Filter Icon & Active Filter Chips ---
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: isWide ? 420 : 300,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: _isFilterActive
+                          ? const Color(0xFF2563EB).withValues(alpha: 0.5)
+                          : Colors.grey.shade300,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.03),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  if (searchQuery.isNotEmpty)
-                    IconButton(
-                      icon: const Icon(
-                        Icons.clear,
-                        size: 16,
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.search_rounded,
+                        size: 18,
                         color: Color(0xFF64748B),
                       ),
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 24,
-                        minHeight: 24,
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: controller,
+                          onChanged: onChanged,
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Search patient name, phone, diagnosis or ID...',
+                            border: InputBorder.none,
+                            isDense: true,
+                            hintStyle: TextStyle(
+                              fontSize: 13,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ),
+                        ),
                       ),
-                      onPressed: onClear,
+                      if (searchQuery.isNotEmpty)
+                        IconButton(
+                          icon: const Icon(
+                            Icons.clear_rounded,
+                            size: 16,
+                            color: Color(0xFF64748B),
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 24,
+                            minHeight: 24,
+                          ),
+                          onPressed: onClear,
+                        ),
+                      const SizedBox(width: 4),
+                      Container(
+                        height: 20,
+                        width: 1,
+                        color: Colors.grey.shade200,
+                      ),
+                      const SizedBox(width: 4),
+
+                      // Filter Icon directly in the Search Bar
+                      PopupMenuButton<dynamic>(
+                        tooltip: 'Filter & Sort Patients',
+                        onSelected: (value) {
+                          if (value is PatientFilterOption) {
+                            onFilterChanged(value);
+                          } else if (value is PatientSortOption) {
+                            onSortChanged(value);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          const PopupMenuItem<dynamic>(
+                            enabled: false,
+                            height: 28,
+                            child: Text(
+                              'FILTER BY GENDER',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF94A3B8),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.all,
+                            label: 'All Patients',
+                            isSelected: filterOption == PatientFilterOption.all,
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.male,
+                            label: 'Male',
+                            isSelected: filterOption == PatientFilterOption.male,
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.female,
+                            label: 'Female',
+                            isSelected: filterOption == PatientFilterOption.female,
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.notSpecified,
+                            label: 'Not Specified',
+                            isSelected:
+                                filterOption == PatientFilterOption.notSpecified,
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem<dynamic>(
+                            enabled: false,
+                            height: 28,
+                            child: Text(
+                              'FILTER BY STATUS',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF94A3B8),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.active,
+                            label: 'Active',
+                            isSelected: filterOption == PatientFilterOption.active,
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.stable,
+                            label: 'Stable',
+                            isSelected: filterOption == PatientFilterOption.stable,
+                          ),
+                          _buildFilterMenuItem(
+                            option: PatientFilterOption.critical,
+                            label: 'Critical',
+                            isSelected:
+                                filterOption == PatientFilterOption.critical,
+                          ),
+                          const PopupMenuDivider(),
+                          const PopupMenuItem<dynamic>(
+                            enabled: false,
+                            height: 28,
+                            child: Text(
+                              'SORT BY',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF94A3B8),
+                                letterSpacing: 0.8,
+                              ),
+                            ),
+                          ),
+                          _buildSortMenuItem(
+                            option: PatientSortOption.nameAsc,
+                            label: 'Name (A-Z)',
+                            isSelected: sortOption == PatientSortOption.nameAsc,
+                          ),
+                          _buildSortMenuItem(
+                            option: PatientSortOption.nameDesc,
+                            label: 'Name (Z-A)',
+                            isSelected: sortOption == PatientSortOption.nameDesc,
+                          ),
+                          _buildSortMenuItem(
+                            option: PatientSortOption.newest,
+                            label: 'Newest First',
+                            isSelected: sortOption == PatientSortOption.newest,
+                          ),
+                          _buildSortMenuItem(
+                            option: PatientSortOption.oldest,
+                            label: 'Oldest First',
+                            isSelected: sortOption == PatientSortOption.oldest,
+                          ),
+                          _buildSortMenuItem(
+                            option: PatientSortOption.packageHigh,
+                            label: 'Package Balance (High-Low)',
+                            isSelected:
+                                sortOption == PatientSortOption.packageHigh,
+                          ),
+                          _buildSortMenuItem(
+                            option: PatientSortOption.packageLow,
+                            label: 'Package Balance (Low-High)',
+                            isSelected:
+                                sortOption == PatientSortOption.packageLow,
+                          ),
+                        ],
+                        child: Tooltip(
+                          message: 'Filter & Sort Options',
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: _isFilterActive
+                                  ? const Color(0xFFEFF6FF)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: [
+                                Icon(
+                                  Icons.tune_rounded,
+                                  size: 18,
+                                  color: _isFilterActive
+                                      ? const Color(0xFF2563EB)
+                                      : const Color(0xFF64748B),
+                                ),
+                                if (_isFilterActive)
+                                  Positioned(
+                                    top: -2,
+                                    right: -2,
+                                    child: Container(
+                                      width: 7,
+                                      height: 7,
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFF2563EB),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (filterOption != PatientFilterOption.all) ...[
+                  const SizedBox(width: 8),
+                  Chip(
+                    label: Text(
+                      _filterOptionLabel(filterOption),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF2563EB),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    side: const BorderSide(color: Color(0xFF2563EB), width: 0.5),
+                    deleteIcon: const Icon(
+                      Icons.close,
+                      size: 14,
+                      color: Color(0xFF2563EB),
+                    ),
+                    onDeleted: () => onFilterChanged(PatientFilterOption.all),
+                  ),
                 ],
-              ),
-            ),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _SortButton(
-                  currentOption: sortOption,
-                  onSelected: onSortChanged,
-                ),
-                const SizedBox(width: 8),
-                _FilterButton(
-                  currentOption: filterOption,
-                  onSelected: onFilterChanged,
-                ),
+                if (sortOption != PatientSortOption.nameAsc) ...[
+                  const SizedBox(width: 8),
+                  Chip(
+                    label: Text(
+                      _sortOptionLabel(sortOption),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF2563EB),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    backgroundColor: const Color(0xFFEFF6FF),
+                    side: const BorderSide(color: Color(0xFF2563EB), width: 0.5),
+                    deleteIcon: const Icon(
+                      Icons.close,
+                      size: 14,
+                      color: Color(0xFF2563EB),
+                    ),
+                    onDeleted: () => onSortChanged(PatientSortOption.nameAsc),
+                  ),
+                ],
               ],
             ),
+
+            // Action Buttons
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextButton.icon(
+                OutlinedButton.icon(
                   onPressed: () {},
-                  icon: const Icon(
-                    Icons.download_rounded,
-                    size: 16,
-                    color: Colors.white,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF4B5563),
+                    side: BorderSide(color: Colors.grey.shade300),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
+                  icon: const Icon(Icons.download_rounded, size: 16),
                   label: const Text(
                     'Import/Export',
-                    style: TextStyle(color: Colors.white, fontSize: 13),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(
-                  onPressed: onAddPatient, // <-- Add Patient opens modal sheet
+                  onPressed: onAddPatient,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2196F3),
+                    backgroundColor: const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(
@@ -1143,170 +1503,65 @@ class _ToolbarSection extends StatelessWidget {
       },
     );
   }
-}
 
-// Reusable sort button
-class _SortButton extends StatelessWidget {
-  final PatientSortOption currentOption;
-  final ValueChanged<PatientSortOption> onSelected;
-
-  const _SortButton({required this.currentOption, required this.onSelected});
-
-  String get _label {
-    switch (currentOption) {
-      case PatientSortOption.nameAsc:
-        return 'Name A-Z';
-      case PatientSortOption.nameDesc:
-        return 'Name Z-A';
-      case PatientSortOption.newest:
-        return 'Newest';
-      case PatientSortOption.oldest:
-        return 'Oldest';
-      case PatientSortOption.packageHigh:
-        return 'Package High';
-      case PatientSortOption.packageLow:
-        return 'Package Low';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<PatientSortOption>(
-      tooltip: 'Sort',
-      onSelected: onSelected,
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: PatientSortOption.nameAsc,
-          child: Text('Name A-Z'),
-        ),
-        const PopupMenuItem(
-          value: PatientSortOption.nameDesc,
-          child: Text('Name Z-A'),
-        ),
-        const PopupMenuItem(
-          value: PatientSortOption.newest,
-          child: Text('Newest First'),
-        ),
-        const PopupMenuItem(
-          value: PatientSortOption.oldest,
-          child: Text('Oldest First'),
-        ),
-        const PopupMenuItem(
-          value: PatientSortOption.packageHigh,
-          child: Text('Package Balance (High-Low)'),
-        ),
-        const PopupMenuItem(
-          value: PatientSortOption.packageLow,
-          child: Text('Package Balance (Low-High)'),
-        ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.sort_rounded, size: 14, color: Colors.grey),
-            const SizedBox(width: 6),
-            Text(
-              _label,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
+  PopupMenuItem<dynamic> _buildFilterMenuItem({
+    required PatientFilterOption option,
+    required String label,
+    required bool isSelected,
+  }) {
+    return PopupMenuItem<dynamic>(
+      value: option,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFF1F2937),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
-          ],
-        ),
+          ),
+          if (isSelected)
+            const Icon(
+              Icons.check_rounded,
+              size: 16,
+              color: Color(0xFF2563EB),
+            ),
+        ],
       ),
     );
   }
-}
 
-// Reusable filter button
-class _FilterButton extends StatelessWidget {
-  final PatientFilterOption currentOption;
-  final ValueChanged<PatientFilterOption> onSelected;
-
-  const _FilterButton({required this.currentOption, required this.onSelected});
-
-  String get _label {
-    switch (currentOption) {
-      case PatientFilterOption.all:
-        return 'All';
-      case PatientFilterOption.male:
-        return 'Male';
-      case PatientFilterOption.female:
-        return 'Female';
-      case PatientFilterOption.notSpecified:
-        return 'Not Specified';
-      case PatientFilterOption.active:
-        return 'Active';
-      case PatientFilterOption.stable:
-        return 'Stable';
-      case PatientFilterOption.critical:
-        return 'Critical';
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<PatientFilterOption>(
-      tooltip: 'Filter',
-      onSelected: onSelected,
-      itemBuilder: (context) => [
-        const PopupMenuItem(
-          value: PatientFilterOption.all,
-          child: Text('All Patients'),
-        ),
-        const PopupMenuItem(
-          value: PatientFilterOption.male,
-          child: Text('Male'),
-        ),
-        const PopupMenuItem(
-          value: PatientFilterOption.female,
-          child: Text('Female'),
-        ),
-        const PopupMenuItem(
-          value: PatientFilterOption.notSpecified,
-          child: Text('Not Specified'),
-        ),
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: PatientFilterOption.active,
-          child: Text('Active'),
-        ),
-        const PopupMenuItem(
-          value: PatientFilterOption.stable,
-          child: Text('Stable'),
-        ),
-        const PopupMenuItem(
-          value: PatientFilterOption.critical,
-          child: Text('Critical'),
-        ),
-      ],
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.filter_list_rounded, size: 14, color: Colors.grey),
-            const SizedBox(width: 6),
-            Text(
-              _label,
-              style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
+  PopupMenuItem<dynamic> _buildSortMenuItem({
+    required PatientSortOption option,
+    required String label,
+    required bool isSelected,
+  }) {
+    return PopupMenuItem<dynamic>(
+      value: option,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+              color: isSelected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFF1F2937),
             ),
-            const SizedBox(width: 4),
-            const Icon(Icons.keyboard_arrow_down, size: 14, color: Colors.grey),
-          ],
-        ),
+          ),
+          if (isSelected)
+            const Icon(
+              Icons.check_rounded,
+              size: 16,
+              color: Color(0xFF2563EB),
+            ),
+        ],
       ),
     );
   }
@@ -1570,6 +1825,10 @@ class _StatusChip extends StatelessWidget {
     Color bgColor;
 
     switch (status) {
+      case 'Active':
+        color = const Color(0xFF2563EB);
+        bgColor = const Color(0xFFEFF6FF);
+        break;
       case 'Stable':
         color = const Color(0xFF00C853);
         bgColor = const Color(0xFFE8F5E9);
@@ -1579,12 +1838,12 @@ class _StatusChip extends StatelessWidget {
         bgColor = const Color(0xFFFFF3E0);
         break;
       case 'Critical':
-        color = const Color(0xFFD32F2F);
-        bgColor = const Color(0xFFFFEBEE);
+        color = const Color(0xFFDC2626);
+        bgColor = const Color(0xFFFEE2E2);
         break;
       default:
-        color = Colors.grey;
-        bgColor = Colors.grey[100]!;
+        color = const Color(0xFF6B7280);
+        bgColor = const Color(0xFFF3F4F6);
     }
 
     return Container(

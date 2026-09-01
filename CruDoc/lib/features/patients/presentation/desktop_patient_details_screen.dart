@@ -12,16 +12,17 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 
-// ---------- Desktop dashboard palette (matches desktop_patient_records_screen.dart) ----------
-const Color _kTextPrimary = Color(0xFF0F172A);
-const Color _kTextSecondary = Color(0xFF64748B);
-const Color _kTextMuted = Color(0xFF94A3B8);
+// ---------- Desktop dashboard palette (matches desktop_inventory_list_screen.dart) ----------
+const Color _kTextPrimary = Color(0xFF1F2937); // Primary dark text (charcoal)
+const Color _kTextDark = Color(0xFF1A1A1A);    // Near-black card body text
+const Color _kTextSecondary = Color(0xFF6B7280); // Medium grey for subtext and labels
+const Color _kTextMuted = Color(0xFF64748B);   // Slate text
 const Color _kBorder = Color(0xFFE2E8F0);
 const Color _kAccentBlue = Color(0xFF2563EB);
 const Color _kAccentBlueBg = Color(0xFFEFF6FF);
 const Color _kSuccess = Color(0xFF00C853);
 const Color _kAmber = Color(0xFFFFA000);
-const Color _kRed = Color(0xFFD32F2F);
+const Color _kRed = Color(0xFFDC2626);
 
 /// Embeddable patient-details body.
 ///

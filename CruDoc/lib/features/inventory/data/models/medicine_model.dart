@@ -19,6 +19,8 @@ class MedicineModel {
   final String? batchNumber;
   final DateTime? expiryDate;
 
+  final String? imageUrl;
+
   /// Dedup flags so the low-stock/expiry alert only fires once per crossing
   /// instead of refiring on every rebuild.
   final DateTime? lowStockNotifiedAt;
@@ -40,6 +42,7 @@ class MedicineModel {
     this.supplierName,
     this.batchNumber,
     this.expiryDate,
+    this.imageUrl,
     this.lowStockNotifiedAt,
     this.expiryNotifiedAt,
     this.isActive = true,
@@ -78,6 +81,7 @@ class MedicineModel {
       supplierName: map['supplierName'] as String?,
       batchNumber: map['batchNumber'] as String?,
       expiryDate: _toDate(map['expiryDate']),
+      imageUrl: map['imageUrl'] as String?,
       lowStockNotifiedAt: _toDate(map['lowStockNotifiedAt']),
       expiryNotifiedAt: _toDate(map['expiryNotifiedAt']),
       isActive: map['isActive'] as bool? ?? true,
@@ -100,6 +104,7 @@ class MedicineModel {
       'supplierName': supplierName,
       'batchNumber': batchNumber,
       'expiryDate': expiryDate != null ? Timestamp.fromDate(expiryDate!) : null,
+      'imageUrl': imageUrl,
       'lowStockNotifiedAt': lowStockNotifiedAt != null
           ? Timestamp.fromDate(lowStockNotifiedAt!)
           : null,
@@ -124,6 +129,8 @@ class MedicineModel {
     String? batchNumber,
     DateTime? expiryDate,
     bool clearExpiryDate = false,
+    String? imageUrl,
+    bool clearImageUrl = false,
     DateTime? lowStockNotifiedAt,
     bool clearLowStockNotifiedAt = false,
     DateTime? expiryNotifiedAt,
@@ -143,6 +150,7 @@ class MedicineModel {
       supplierName: supplierName ?? this.supplierName,
       batchNumber: batchNumber ?? this.batchNumber,
       expiryDate: clearExpiryDate ? null : (expiryDate ?? this.expiryDate),
+      imageUrl: clearImageUrl ? null : (imageUrl ?? this.imageUrl),
       lowStockNotifiedAt: clearLowStockNotifiedAt
           ? null
           : (lowStockNotifiedAt ?? this.lowStockNotifiedAt),

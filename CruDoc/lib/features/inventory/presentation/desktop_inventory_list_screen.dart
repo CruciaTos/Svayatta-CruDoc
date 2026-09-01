@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
@@ -41,9 +44,6 @@ const _clrRed = Color(0xFFDC2626);
 /// Amber used for paused / low-stock status dot.
 const _clrAmber = Color(0xFFFFA000);
 
-/// Warm orange for the medication icon.
-const _clrOrangeIcon = Color(0xFFD17A28);
-
 /// Blue used for syncing banner text, chart bars, and the active vendor icon.
 const _clrBlue = Color(0xFF2563EB);
 
@@ -61,12 +61,6 @@ const _clrPurpleTint = Color(0xFFEDE7F6);
 
 /// Purple used on alert-action button text.
 const _clrPurple = Color(0xFF673AB7);
-
-/// The main screen background (near-white with a faint blue cast).
-const _clrScreenBg = Color.fromARGB(255, 250, 253, 255);
-
-/// Thin outer border of the screen container.
-const _clrScreenBorder = Color.fromARGB(255, 150, 150, 150);
 
 /// Border used on the filter-tab strip.
 const _clrFilterBorder = Color.fromARGB(255, 116, 116, 116);
@@ -399,8 +393,8 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
       );
     }
 
-    if (isExpired) {
-      final daysPast = -expiryDays!;
+    if (isExpired && expiryDays != null) {
+      final daysPast = -expiryDays;
       alerts.add(
         AlertData(
           icon: Icons.event_busy_rounded,
@@ -769,6 +763,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
                 flex: 3,
                 child: _FilteredMedicationSection(
                   medications: widget.medications,
+                  repository: widget.repository,
                   onAddMedicine: widget.onAddMedicine,
                   onEditMedicine: widget.onEditMedicine,
                   onOpenMedicineDetail: widget.onOpenMedicineDetail,
@@ -787,6 +782,7 @@ class _InventoryDashboardViewState extends State<_InventoryDashboardView> {
                 flex: 3,
                 child: _FilteredMedicationSection(
                   medications: widget.medications,
+                  repository: widget.repository,
                   onAddMedicine: widget.onAddMedicine,
                   onEditMedicine: widget.onEditMedicine,
                   onOpenMedicineDetail: widget.onOpenMedicineDetail,
@@ -1079,6 +1075,7 @@ const List<String> _inventoryFilterOptions = [
 
 class _FilteredMedicationSection extends StatefulWidget {
   final List<MedicationData> medications;
+  final InventoryRepository repository;
   final VoidCallback onAddMedicine;
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
@@ -1086,6 +1083,7 @@ class _FilteredMedicationSection extends StatefulWidget {
 
   const _FilteredMedicationSection({
     required this.medications,
+    required this.repository,
     required this.onAddMedicine,
     required this.onEditMedicine,
     required this.onOpenMedicineDetail,
@@ -1198,6 +1196,12 @@ class _FilteredMedicationSectionState
     }
 
     final filtered = _filteredMedications;
+    final int maxStock = widget.medications.fold<int>(
+      1,
+      (max, m) => (m.originalMedicine?.currentStock ?? 0) > max
+          ? (m.originalMedicine?.currentStock ?? 0)
+          : max,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1231,6 +1235,8 @@ class _FilteredMedicationSectionState
               : SingleChildScrollView(
                   child: _MedicationGrid(
                     medications: filtered,
+                    repository: widget.repository,
+                    maxStock: maxStock,
                     onEditMedicine: widget.onEditMedicine,
                     onOpenMedicineDetail: widget.onOpenMedicineDetail,
                     onRestockMedicine: widget.onRestockMedicine,
@@ -1622,8 +1628,161 @@ class _FilterTab extends StatelessWidget {
   }
 }
 
+Future<void> _pickImageForMedicine({
+  required BuildContext context,
+  required MedicineModel medicine,
+  required InventoryRepository repository,
+}) async {
+  try {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(source: ImageSource.gallery);
+    if (picked != null) {
+      await repository.updateMedicine(medicine.id, {'imageUrl': picked.path});
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Updated image for ${medicine.name}'),
+            backgroundColor: _clrBlue,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  } catch (e) {
+    debugPrint('Error picking image: $e');
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to pick image: $e'),
+          backgroundColor: _clrRed,
+        ),
+      );
+    }
+  }
+}
+
+class _MedicineImageWidget extends StatelessWidget {
+  final MedicineModel? medicine;
+  final InventoryRepository repository;
+  final double size;
+  final double? width; // ADDED
+  final double? height; // ADDED
+
+  const _MedicineImageWidget({
+    required this.medicine,
+    required this.repository,
+    this.size = 96,
+    this.width,
+    this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final imageUrl = medicine?.imageUrl?.trim();
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+    
+    // Use width/height if provided, otherwise fallback to size
+    final double w = width ?? size;
+    final double h = height ?? size;
+
+    return Tooltip(
+      message: hasImage ? 'Click to change image' : 'Click to upload image',
+      child: GestureDetector(
+        onTap: medicine != null
+            ? () => _pickImageForMedicine(
+                  context: context,
+                  medicine: medicine!,
+                  repository: repository,
+                )
+            : null,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: w,
+            height: h,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(11),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (hasImage) ...[
+                    if (kIsWeb || imageUrl.startsWith('http'))
+                      Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _buildPlaceholder(),
+                      )
+                    else
+                      Image.file(
+                        File(imageUrl),
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _buildPlaceholder(),
+                      ),
+                    Positioned(
+                      bottom: 4,
+                      right: 4,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.65),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt_outlined,
+                          size: 11,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                  ] else
+                    _buildPlaceholder(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Container(
+      color: const Color(0xFFF8FAFC),
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.add_a_photo_outlined,
+            size: 24,
+            color: _clrBlue.withValues(alpha: 0.75),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Upload Image',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: _clrBlue.withValues(alpha: 0.85),
+              height: 1.1,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MedicationGrid extends StatelessWidget {
   final List<MedicationData> medications;
+  final InventoryRepository repository;
+  final int maxStock;
   final ValueChanged<MedicineModel> onEditMedicine;
   final ValueChanged<MedicineModel> onOpenMedicineDetail;
   final ValueChanged<MedicineModel> onRestockMedicine;
@@ -1631,6 +1790,8 @@ class _MedicationGrid extends StatelessWidget {
 
   const _MedicationGrid({
     required this.medications,
+    required this.repository,
+    required this.maxStock,
     required this.onEditMedicine,
     required this.onOpenMedicineDetail,
     required this.onRestockMedicine,
@@ -1640,23 +1801,22 @@ class _MedicationGrid extends StatelessWidget {
   static const double _spacing = 16;
 
   int _columnsForWidth(double width) {
-    if (width >= 1400) return 4;
-    if (width >= 1000) return 3;
-    if (width >= 620) return 2;
+    if (width >= 1400) return 3;
+    if (width >= 850) return 2;
     return 1;
   }
 
   @override
   Widget build(BuildContext context) {
     if (viewMode == _InventoryViewMode.fullWidth) {
-      // One item per row, each spanning the full available width —
-      // similar to a marketplace product listing.
       return Column(
         children: [
           for (int i = 0; i < medications.length; i++) ...[
-            if (i > 0) const SizedBox(height: 12),
+            if (i > 0) const SizedBox(height: 14),
             _MedicationRowCard(
               medication: medications[i],
+              repository: repository,
+              maxStock: maxStock,
               onEdit: () {
                 final med = medications[i].originalMedicine;
                 if (med != null) onEditMedicine(med);
@@ -1678,8 +1838,9 @@ class _MedicationGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final int columns = _columnsForWidth(constraints.maxWidth);
-        final double cardWidth =
-            (constraints.maxWidth - _spacing * (columns - 1)) / columns;
+        final double cardWidth = columns > 1
+            ? (constraints.maxWidth - _spacing * (columns - 1)) / columns
+            : constraints.maxWidth;
         return Wrap(
           spacing: _spacing,
           runSpacing: _spacing,
@@ -1688,17 +1849,22 @@ class _MedicationGrid extends StatelessWidget {
               width: cardWidth,
               child: _MedicationCard(
                 medication: med,
+                repository: repository,
+                maxStock: maxStock,
                 onEdit: () {
-                  if (med.originalMedicine != null)
+                  if (med.originalMedicine != null) {
                     onEditMedicine(med.originalMedicine!);
+                  }
                 },
                 onTap: () {
-                  if (med.originalMedicine != null)
+                  if (med.originalMedicine != null) {
                     onOpenMedicineDetail(med.originalMedicine!);
+                  }
                 },
                 onRestock: () {
-                  if (med.originalMedicine != null)
+                  if (med.originalMedicine != null) {
                     onRestockMedicine(med.originalMedicine!);
+                  }
                 },
               ),
             );
@@ -1709,14 +1875,19 @@ class _MedicationGrid extends StatelessWidget {
   }
 }
 
+/// Compact Grid Card layout — optimized for multi-column grid view
 class _MedicationCard extends StatelessWidget {
   final MedicationData medication;
+  final InventoryRepository repository;
+  final int maxStock;
   final VoidCallback onEdit;
   final VoidCallback onTap;
   final VoidCallback onRestock;
 
   const _MedicationCard({
     required this.medication,
+    required this.repository,
+    required this.maxStock,
     required this.onEdit,
     required this.onTap,
     required this.onRestock,
@@ -1724,232 +1895,361 @@ class _MedicationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isPaused = medication.isPaused;
-    final Color statusColor = isPaused ? _clrAmber : _clrGreen;
     final MedicineModel? original = medication.originalMedicine;
     final String? supplier = original?.supplierName?.trim();
     final String vendorValue = (supplier == null || supplier.isEmpty)
-        ? 'No vendor'
+        ? 'No supplier'
         : supplier;
-    final bool hasPrice = original?.unitPrice != null;
-    final String secondaryLabel = hasPrice ? 'Unit price' : 'Batch';
-    final String secondaryValue = hasPrice
-        ? _formatCurrency(original!.unitPrice!)
-        : (original?.batchNumber?.trim().isNotEmpty ?? false)
-        ? original!.batchNumber!
-        : '—';
+    final String brandTypeValue =
+        (original?.category != null && original!.category.trim().isNotEmpty)
+        ? original.category.trim()
+        : 'General';
+    final int currentStock = original?.currentStock ?? 0;
+    final String unitText =
+        (original?.unit != null && original!.unit.trim().isNotEmpty)
+        ? original.unit.trim()
+        : 'units';
+    final bool isLowStock = original?.isLowStock ?? false;
+    final bool isOutOfStock = currentStock == 0;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.medication,
-                    color: _clrOrangeIcon,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        medication.name,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: _clrTextDark,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        medication.subtitle,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
+    final effectiveMaxStock = maxStock > 0 ? maxStock : 1;
+    final double stockRatio = (currentStock / effectiveMaxStock).clamp(
+      0.0,
+      1.0,
+    );
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Top Horizontal Card Section
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: statusColor,
-                        shape: BoxShape.circle,
-                      ),
+                    // Image placeholder on the left (supports custom uploads)
+                    _MedicineImageWidget(
+                      medicine: original,
+                      repository: repository,
+                      size: 74,
                     ),
-                    const SizedBox(width: 4),
-                    Text(
-                      medication.status,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                    const SizedBox(width: 12),
+                    // Right side stacked with: Product Name (Bold), Brand/Type, Supplier, Stock (prominent)
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  original?.name ?? medication.name,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: _clrTextDark,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  size: 14,
+                                  color: Colors.grey,
+                                ),
+                                onPressed: onEdit,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(
+                                  minWidth: 22,
+                                  minHeight: 22,
+                                ),
+                                tooltip: 'Edit item',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Text(
+                                'Brand/Type: ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: _clrTextMedium,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  brandTypeValue,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _clrTextDark,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Text(
+                                'Supplier: ',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w500,
+                                  color: _clrTextMedium,
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  vendorValue,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: _clrTextDark,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          // Stock (prominent) + mini Restock button
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 7,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isOutOfStock
+                                      ? Colors.red.shade50
+                                      : isLowStock
+                                      ? Colors.amber.shade50
+                                      : const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: isOutOfStock
+                                        ? Colors.red.shade200
+                                        : isLowStock
+                                        ? Colors.amber.shade200
+                                        : const Color(0xFFBFDBFE),
+                                  ),
+                                ),
+                                child: Text(
+                                  'Stock: $currentStock $unitText',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: isOutOfStock
+                                        ? _clrRed
+                                        : isLowStock
+                                        ? const Color(0xFFB45309)
+                                        : _clrBlue,
+                                  ),
+                                ),
+                              ),
+                              const Spacer(),
+                              InkWell(
+                                onTap: onRestock,
+                                borderRadius: BorderRadius.circular(6),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: _clrPrimary,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: const Text(
+                                    'Restock',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-                IconButton(
-                  icon: const Icon(
-                    Icons.edit_outlined,
-                    size: 16,
-                    color: Colors.grey,
-                  ),
-                  onPressed: onEdit,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 30,
-                    minHeight: 30,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Text(
-                  medication.dose,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-                const Spacer(),
-                Text(
-                  medication.daysLeft,
-                  style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _StripedProgressBar(
-              value: medication.progress,
-              color: medication.progressColor,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Vendor',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 10),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        vendorValue,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: _clrTextDark,
+              ),
+
+              // Blue Progress Bar (At bottom of card)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Stock capacity',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade500,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        secondaryLabel,
-                        style: TextStyle(color: Colors.grey[400], fontSize: 10),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        secondaryValue,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w500,
-                          fontSize: 12,
-                          color: _clrTextDark,
+                        Text(
+                          '${(stockRatio * 100).toStringAsFixed(0)}% (max $effectiveMaxStock)',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: _clrBlue,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Tooltip(
-                  message: 'Restock',
-                  child: GestureDetector(
-                    onTap: onRestock,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: medication.buttonFilled
-                            ? _clrTextDark
-                            : Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: medication.buttonFilled
-                            ? []
-                            : [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 4,
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: SizedBox(
+                        height: 5,
+                        child: Stack(
+                          children: [
+                            Container(color: const Color(0xFFE2E8F0)),
+                            FractionallySizedBox(
+                              widthFactor: stockRatio,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: _clrBlue,
+                                  borderRadius: BorderRadius.circular(4),
                                 ),
-                              ],
-                      ),
-                      child: Icon(
-                        Icons.add_rounded,
-                        size: 18,
-                        color: medication.buttonFilled
-                            ? Colors.white
-                            : Colors.grey[700],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          ],
+              ),
+
+              // Below Card: Detailed breakdown row with: Item, Price, Specifics (pack size), Supplier, and Stock
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: const BorderRadius.vertical(
+                    bottom: Radius.circular(13),
+                  ),
+                  border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                ),
+                child: Row(
+                  children: [
+                    _buildCompactColumn(
+                      'Item',
+                      original?.name ?? medication.name,
+                    ),
+                    _buildCompactColumn(
+                      'Price',
+                      original?.unitPrice != null
+                          ? _formatCurrency(original!.unitPrice!)
+                          : '—',
+                    ),
+                    _buildCompactColumn(
+                      'Specifics',
+                      (original?.unit != null && original!.unit.isNotEmpty)
+                          ? original.unit
+                          : '—',
+                    ),
+                    _buildCompactColumn('Supplier', vendorValue),
+                    _buildCompactColumn('Stock', '$currentStock $unitText'),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildCompactColumn(String label, String value) {
+    return Expanded(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: Colors.grey.shade500,
+              letterSpacing: 0.3,
+            ),
+          ),
+          const SizedBox(height: 1),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.w600,
+              color: _clrTextDark,
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-/// Full-width item row for the "list" view mode — one item spans the
-/// entire available width (image/icon block on the left, details filling
-/// the rest), stacked vertically like a marketplace product listing.
+/// Full-Width List Row Card — optimized for full width row view
 class _MedicationRowCard extends StatelessWidget {
   final MedicationData medication;
+  final InventoryRepository repository;
+  final int maxStock;
   final VoidCallback onEdit;
   final VoidCallback onTap;
   final VoidCallback onRestock;
 
   const _MedicationRowCard({
     required this.medication,
+    required this.repository,
+    required this.maxStock,
     required this.onEdit,
     required this.onTap,
     required this.onRestock,
@@ -1957,272 +2257,235 @@ class _MedicationRowCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool isPaused = medication.isPaused;
-    final Color statusColor = isPaused ? _clrAmber : _clrGreen;
     final MedicineModel? original = medication.originalMedicine;
     final String? supplier = original?.supplierName?.trim();
-    final String vendorValue = (supplier == null || supplier.isEmpty)
-        ? 'No vendor'
-        : supplier;
-    final bool hasPrice = original?.unitPrice != null;
-    final String secondaryLabel = hasPrice ? 'Unit price' : 'Batch';
-    final String secondaryValue = hasPrice
-        ? _formatCurrency(original!.unitPrice!)
-        : (original?.batchNumber?.trim().isNotEmpty ?? false)
-        ? original!.batchNumber!
-        : '—';
+    final String vendorValue = (supplier == null || supplier.isEmpty) ? 'No supplier' : supplier;
+    final int currentStock = original?.currentStock ?? 0;
+    final double? price = original?.unitPrice;
+    final String priceText = price != null ? price.toStringAsFixed(2) : '—';
+    
+    // FM is a placeholder - replace with actual model field if it exists
+    final String fmValue = '76.5%'; 
+    final String idValue = original?.id ?? '—';
+    
+    // Stock logic
+    final int effectiveMaxStock = maxStock > 0 ? maxStock : 1;
+    final double stockRatio = (currentStock / effectiveMaxStock).clamp(0.0, 1.0);
+    final double cardHeight = 210;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
+    return Container(
+      width: double.infinity,
+      height: cardHeight,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade300),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade300),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 88,
-              height: 88,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.medication,
-                color: _clrOrangeIcon,
-                size: 36,
-              ),
-            ),
-            const SizedBox(width: 20),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Square image that fills height minus padding
+                SizedBox(
+                  width: cardHeight - 28,
+                  height: cardHeight - 28,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: _MedicineImageWidget(
+                      medicine: original,
+                      repository: repository,
+                      size: cardHeight - 28,
+                      width: cardHeight - 28,
+                      height: cardHeight - 28,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Right side info properly formatted in structured layout
+                Expanded(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              medication.name,
+                      // Header Row: Medicine Name & Stock count
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              original?.name ?? medication.name,
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
                                 color: _clrTextDark,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            if (medication.subtitle.isNotEmpty) ...[
+                          ),
+                          const SizedBox(width: 12),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Stock',
+                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                              ),
                               const SizedBox(height: 2),
                               Text(
-                                medication.subtitle,
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 13,
+                                '$currentStock',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: _clrTextDark,
                                 ),
                               ),
                             ],
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(height: 6),
+                      // Meta Row 1: RRP & FM
                       Row(
-                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: statusColor,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 5),
                           Text(
-                            medication.status,
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
+                            'RRP: $priceText',
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                          ),
+                          const SizedBox(width: 20),
+                          Text(
+                            'FM: $fmValue',
+                            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      // Meta Row 2: ID & Supplier
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'ID: $idValue',
+                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                'Supplier: ',
+                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                              ),
+                              Text(
+                                vendorValue,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _clrTextDark,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Divider(height: 1, color: Colors.grey.shade200),
+                      const SizedBox(height: 10),
+                      // Bottom Row: Stock Capacity Progress Bar & Restock Action Button
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Stock capacity',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.grey.shade500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${(stockRatio * 100).toStringAsFixed(0)}%',
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: _clrBlue,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 5),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: SizedBox(
+                                    height: 6,
+                                    child: Stack(
+                                      children: [
+                                        Container(color: const Color(0xFFE2E8F0)),
+                                        FractionallySizedBox(
+                                          widthFactor: stockRatio,
+                                          child: Container(
+                                            decoration: BoxDecoration(
+                                              color: _clrBlue,
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              size: 16,
-                              color: Colors.grey,
-                            ),
-                            onPressed: onEdit,
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 32,
-                              minHeight: 32,
+                          const SizedBox(width: 20),
+                          SizedBox(
+                            height: 32,
+                            child: ElevatedButton.icon(
+                              onPressed: onRestock,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: _clrPrimary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(horizontal: 14),
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              icon: const Icon(Icons.add_rounded, size: 14),
+                              label: const Text(
+                                'Restock',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  Row(
-                    children: [
-                      Text(
-                        medication.dose,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                      const Spacer(),
-                      Text(
-                        medication.daysLeft,
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  _StripedProgressBar(
-                    value: medication.progress,
-                    color: medication.progressColor,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Vendor',
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 10,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              vendorValue,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                                color: _clrTextDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              secondaryLabel,
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 10,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              secondaryValue,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                                color: _clrTextDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'In stock',
-                              style: TextStyle(
-                                color: Colors.grey[400],
-                                fontSize: 10,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              medication.dose,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                                fontSize: 13,
-                                color: _clrTextDark,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Tooltip(
-                        message: 'Restock',
-                        child: GestureDetector(
-                          onTap: onRestock,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              color: medication.buttonFilled
-                                  ? _clrTextDark
-                                  : Colors.white,
-                              borderRadius: BorderRadius.circular(10),
-                              border: medication.buttonFilled
-                                  ? null
-                                  : Border.all(color: Colors.grey.shade300),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.add_rounded,
-                                  size: 16,
-                                  color: medication.buttonFilled
-                                      ? Colors.white
-                                      : Colors.grey[800],
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  'Restock',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: medication.buttonFilled
-                                        ? Colors.white
-                                        : Colors.grey[800],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -2687,7 +2950,7 @@ class _VendorsTabState extends State<_VendorsTab> {
         Expanded(
           child: ListView.separated(
             itemCount: filteredVendors.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) => _VendorCard(
               vendor: filteredVendors[index],
               onEditMedicine: widget.onEditMedicine,
@@ -2827,10 +3090,11 @@ class _VendorCard extends StatelessWidget {
                 onTap: () {
                   final original = med.originalMedicine;
                   if (original == null) return;
-                  if (isUnassigned)
+                  if (isUnassigned) {
                     onEditMedicine(original);
-                  else
+                  } else {
                     onOpenMedicineDetail(original);
+                  }
                 },
               );
             }).toList(),
@@ -3098,7 +3362,7 @@ class _OrdersTabState extends State<_OrdersTab> {
         Expanded(
           child: ListView.separated(
             itemCount: filteredQueue.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            separatorBuilder: (_, _) => const SizedBox(height: 10),
             itemBuilder: (context, index) => _ReorderRow(
               suggestion: filteredQueue[index],
               transactions: widget.transactions,
@@ -3346,8 +3610,9 @@ _UsageAnalyticsData _buildUsageAnalytics(
 
         if (!tx.createdAt.isBefore(since7)) {
           final dayIndex = 6 - now.difference(tx.createdAt).inDays;
-          if (dayIndex >= 0 && dayIndex < 7)
+          if (dayIndex >= 0 && dayIndex < 7) {
             dailyBuckets[dayIndex] += tx.quantity;
+          }
         }
         break;
       case StockTransactionType.restock:

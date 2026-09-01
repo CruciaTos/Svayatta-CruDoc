@@ -76,6 +76,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
   );
 
   DateTime? _expiryDate;
+  String? _imageUrl;
   bool _isSaving = false;
   bool _isScanning = false;
   String? _errorText;
@@ -90,6 +91,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
   void initState() {
     super.initState();
     _expiryDate = widget.medicine?.expiryDate;
+    _imageUrl = widget.medicine?.imageUrl;
   }
 
   @override
@@ -427,6 +429,113 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
     );
   }
 
+  Future<void> _pickItemImage() async {
+    if (_isSaving) return;
+    try {
+      final picked = await _imagePicker.pickImage(source: ImageSource.gallery);
+      if (picked != null) {
+        setState(() => _imageUrl = picked.path);
+      }
+    } catch (e) {
+      debugPrint('Error picking item image: $e');
+    }
+  }
+
+  Widget _buildItemImageSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _label('Item Photo (optional)'),
+        const SizedBox(height: 4),
+        Text(
+          'Upload a custom image for this item card',
+          style: AppColors.bodyMedium.copyWith(
+            fontSize: 12,
+            color: AppColors.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 8),
+        GestureDetector(
+          onTap: _isSaving ? null : _pickItemImage,
+          child: Container(
+            width: double.infinity,
+            height: 100,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: Colors.grey.shade300,
+              ),
+            ),
+            child: _imageUrl != null && _imageUrl!.isNotEmpty
+                ? Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(15),
+                        child: Center(
+                          child: kIsWeb || _imageUrl!.startsWith('http')
+                              ? Image.network(
+                                  _imageUrl!,
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                )
+                              : Image.file(
+                                  File(_imageUrl!),
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                ),
+                        ),
+                      ),
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: GestureDetector(
+                          onTap: _isSaving
+                              ? null
+                              : () => setState(() => _imageUrl = null),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Colors.black54,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.add_photo_alternate_outlined,
+                        size: 24,
+                        color: AppColors.chartBarLight.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Upload custom item photo',
+                        style: AppColors.bodyMedium.copyWith(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+        const SizedBox(height: 14),
+      ],
+    );
+  }
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -458,6 +567,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
           'supplierName': supplier.isEmpty ? null : supplier,
           'batchNumber': batch.isEmpty ? null : batch,
           'expiryDate': _expiryDate,
+          'imageUrl': _imageUrl,
         });
       } else {
         final now = DateTime.now();
@@ -473,6 +583,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
             supplierName: supplier.isEmpty ? null : supplier,
             batchNumber: batch.isEmpty ? null : batch,
             expiryDate: _expiryDate,
+            imageUrl: _imageUrl,
             createdAt: now,
             updatedAt: now,
           ),
@@ -542,6 +653,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 16),
+                _buildItemImageSection(),
                 if (!_isEditing) _buildReceiptUploadSection(),
                 _label('Name'),
                 const SizedBox(height: 8),

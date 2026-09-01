@@ -51,6 +51,7 @@ class InventoryRepository {
       supplierName: medicine.supplierName,
       batchNumber: medicine.batchNumber,
       expiryDate: medicine.expiryDate,
+      imageUrl: medicine.imageUrl,
       isActive: true,
       createdAt: now,
       updatedAt: now,

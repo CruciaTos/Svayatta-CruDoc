@@ -311,6 +311,7 @@ class InventoryLocalService {
       'expiryDate': medicine.expiryDate == null
           ? null
           : _dateTimeToMillis(medicine.expiryDate!),
+      'imageUrl': medicine.imageUrl,
       'lowStockNotifiedAt': medicine.lowStockNotifiedAt == null
           ? null
           : _dateTimeToMillis(medicine.lowStockNotifiedAt!),
@@ -356,6 +357,7 @@ class InventoryLocalService {
         case 'supplierName':
         case 'batchNumber':
         case 'doctorId':
+        case 'imageUrl':
           row[entry.key] = entry.value;
           break;
         case 'currentStock':
@@ -385,6 +387,7 @@ class InventoryLocalService {
       supplierName: row['supplierName'] as String?,
       batchNumber: row['batchNumber'] as String?,
       expiryDate: _millisToDateTimeOrNull(row['expiryDate']),
+      imageUrl: row['imageUrl'] as String?,
       lowStockNotifiedAt: _millisToDateTimeOrNull(row['lowStockNotifiedAt']),
       expiryNotifiedAt: _millisToDateTimeOrNull(row['expiryNotifiedAt']),
       isActive: row['isActive'] == 1,

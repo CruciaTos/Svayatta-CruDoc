@@ -10,6 +10,69 @@ import 'package:doctor_management_app/features/inventory/presentation/add_edit_m
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 
+// =============================================================================
+// COLOR PALETTE
+// =============================================================================
+
+/// Primary dark text / button fill (charcoal).
+const _clrPrimary = Color(0xFF1F2937);
+
+/// Near-black used on card body text.
+const _clrTextDark = Color(0xFF1A1A1A);
+
+/// Medium grey for subtext and secondary labels.
+const _clrTextMedium = Color(0xFF6B7280);
+
+/// Darker grey for icons inside controls.
+const _clrIcon = Color(0xFF4B5563);
+
+/// Slate used on the clear-search icon.
+const _clrSlate = Color(0xFF64748B);
+
+/// Dark muted grey for vendor chip labels.
+const _clrTextSubtle = Color(0xFF374151);
+
+/// Positive / in-stock green.
+const _clrGreen = Color(0xFF00C853);
+
+/// Negative / loss red.
+const _clrRed = Color(0xFFDC2626);
+
+/// Amber used for paused / low-stock status dot.
+const _clrAmber = Color(0xFFFFA000);
+
+/// Warm orange for the medication icon.
+const _clrOrangeIcon = Color(0xFFD17A28);
+
+/// Blue used for syncing banner text, chart bars, and the active vendor icon.
+const _clrBlue = Color(0xFF2563EB);
+
+/// Light-blue tint background (syncing banner bg, vendor icon bg).
+const _clrBlueTint = Color(0xFFEFF6FF);
+
+/// Very light grey for alert item rows and vendor medicine chips.
+const _clrSurfaceLight = Color(0xFFF9FAFB);
+
+/// Slightly darker light grey for the alerts-panel icon container.
+const _clrSurfaceMid = Color(0xFFF3F4F6);
+
+/// Lavender tint for alert-action button background.
+const _clrPurpleTint = Color(0xFFEDE7F6);
+
+/// Purple used on alert-action button text.
+const _clrPurple = Color(0xFF673AB7);
+
+/// The main screen background (near-white with a faint blue cast).
+const _clrScreenBg = Color.fromARGB(255, 237, 249, 255);
+
+/// Thin outer border of the screen container.
+const _clrScreenBorder = Color.fromARGB(255, 150, 150, 150);
+
+/// Border used on the filter-tab strip.
+const _clrFilterBorder = Color.fromARGB(255, 116, 116, 116);
+
+// =============================================================================
+
 /// Rupee currency formatter
 final _currencyFormatter = NumberFormat.currency(
   locale: 'en_IN',
@@ -91,17 +154,9 @@ class DesktopInventoryScreen extends ConsumerWidget {
               filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color.fromARGB(
-                    255,
-                    247,
-                    252,
-                    255,
-                  ).withValues(alpha: 0.8),
+                  color: _clrScreenBg.withValues(alpha: 0.8),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color.fromARGB(255, 150, 150, 150),
-                    width: 0.25,
-                  ),
+                  border: Border.all(color: _clrScreenBorder, width: 0.25),
                 ),
                 padding: const EdgeInsets.all(20),
                 child: _InventoryDashboardView(
@@ -143,8 +198,8 @@ class DesktopInventoryScreen extends ConsumerWidget {
             child: _InventoryStatusBanner(
               icon: Icons.sync_rounded,
               message: 'Syncing inventory...',
-              color: Color(0xFF2563EB),
-              backgroundColor: Color(0xFFEFF6FF),
+              color: _clrBlue,
+              backgroundColor: _clrBlueTint,
             ),
           ),
       ],
@@ -319,7 +374,7 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
       alerts.add(
         AlertData(
           icon: Icons.remove_shopping_cart_rounded,
-          iconColor: Colors.red.shade700,
+          iconColor: _clrRed,
           bgColor: Colors.red.shade50,
           title: medicine.name,
           subtitle: 'Out of stock · reorder now',
@@ -331,7 +386,7 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
       alerts.add(
         AlertData(
           icon: Icons.warning_amber_rounded,
-          iconColor: Colors.amber.shade700,
+          iconColor: _clrAmber,
           bgColor: Colors.amber.shade50,
           title: medicine.name,
           subtitle: 'Low stock: ${medicine.currentStock} ${medicine.unit}',
@@ -346,7 +401,7 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
       alerts.add(
         AlertData(
           icon: Icons.event_busy_rounded,
-          iconColor: Colors.red.shade700,
+          iconColor: _clrRed,
           bgColor: Colors.red.shade50,
           title: medicine.name,
           subtitle: daysPast == 0
@@ -397,14 +452,14 @@ _DesktopInventoryViewData _mapMedicinesToViewData(
 
 Color _stockLevelColor(MedicineModel medicine, double progress) {
   if (medicine.isLowStock) {
-    return Colors.red.shade600;
+    return _clrRed;
   }
 
   if (progress < 0.6) {
-    return Colors.amber.shade700;
+    return _clrAmber;
   }
 
-  return const Color(0xFF00C853);
+  return _clrGreen;
 }
 
 // -----------------------------------------------------------------------------
@@ -790,7 +845,7 @@ class _InventoryHeaderSection extends StatelessWidget {
               style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF1F2937),
+                color: _clrPrimary,
               ),
             ),
             Container(
@@ -803,7 +858,7 @@ class _InventoryHeaderSection extends StatelessWidget {
               child: const Icon(
                 Icons.settings_outlined,
                 size: 20,
-                color: Color(0xFF4B5563),
+                color: _clrIcon,
               ),
             ),
           ],
@@ -892,9 +947,7 @@ class _TabItem extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                color: isActive
-                    ? const Color(0xFF1F2937)
-                    : const Color(0xFF6B7280),
+                color: isActive ? _clrPrimary : _clrTextMedium,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                 fontSize: 15,
               ),
@@ -904,7 +957,7 @@ class _TabItem extends StatelessWidget {
               height: 2,
               width: 24,
               decoration: BoxDecoration(
-                color: isActive ? const Color(0xFF1F2937) : Colors.transparent,
+                color: isActive ? _clrPrimary : Colors.transparent,
                 borderRadius: BorderRadius.circular(1),
               ),
             ),
@@ -945,7 +998,7 @@ class _NewStatCard extends StatelessWidget {
           Text(
             title,
             style: TextStyle(
-              color: const Color(0xFF6B7280),
+              color: _clrTextMedium,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -956,7 +1009,7 @@ class _NewStatCard extends StatelessWidget {
             style: const TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1F2937),
+              color: _clrPrimary,
             ),
           ),
           const SizedBox(height: 6),
@@ -966,10 +1019,7 @@ class _NewStatCard extends StatelessWidget {
                 child: Text(
                   subtext,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: const Color(0xFF6B7280),
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: _clrTextMedium, fontSize: 12),
                 ),
               ),
               if (growthLabel != null) ...[
@@ -979,17 +1029,13 @@ class _NewStatCard extends StatelessWidget {
                       ? Icons.arrow_upward_rounded
                       : Icons.arrow_downward_rounded,
                   size: 12,
-                  color: growthPositive
-                      ? const Color(0xFF00C853)
-                      : const Color(0xFFDC2626),
+                  color: growthPositive ? _clrGreen : _clrRed,
                 ),
                 const SizedBox(width: 4),
                 Text(
                   growthLabel!,
                   style: TextStyle(
-                    color: growthPositive
-                        ? const Color(0xFF00C853)
-                        : const Color(0xFFDC2626),
+                    color: growthPositive ? _clrGreen : _clrRed,
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
                   ),
@@ -1158,11 +1204,8 @@ class _FilteredMedicationSectionState
           onAddMedicine: widget.onAddMedicine,
           viewMode: _viewMode,
           onViewModeChanged: (mode) => setState(() => _viewMode = mode),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Showing ${filtered.length} of ${widget.medications.length} item${widget.medications.length == 1 ? '' : 's'}',
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+          filteredCount: filtered.length,
+          totalCount: widget.medications.length,
         ),
         const SizedBox(height: 12),
         Expanded(
@@ -1202,6 +1245,8 @@ class _FilterRow extends StatelessWidget {
   final VoidCallback onAddMedicine;
   final _InventoryViewMode viewMode;
   final ValueChanged<_InventoryViewMode> onViewModeChanged;
+  final int filteredCount;
+  final int totalCount;
 
   const _FilterRow({
     required this.selectedFilter,
@@ -1215,6 +1260,8 @@ class _FilterRow extends StatelessWidget {
     required this.onAddMedicine,
     required this.viewMode,
     required this.onViewModeChanged,
+    required this.filteredCount,
+    required this.totalCount,
   });
 
   @override
@@ -1257,11 +1304,7 @@ class _FilterRow extends StatelessWidget {
                   ),
                   if (searchQuery.isNotEmpty)
                     IconButton(
-                      icon: const Icon(
-                        Icons.clear,
-                        size: 16,
-                        color: Color(0xFF64748B),
-                      ),
+                      icon: const Icon(Icons.clear, size: 16, color: _clrSlate),
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(
                         minWidth: 24,
@@ -1308,7 +1351,7 @@ class _FilterRow extends StatelessWidget {
             final addButton = ElevatedButton.icon(
               onPressed: onAddMedicine,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1F2937),
+                backgroundColor: _clrPrimary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(
@@ -1348,26 +1391,34 @@ class _FilterRow extends StatelessWidget {
           },
         ),
         const SizedBox(height: 12),
-        // Row 2: quick status filters, now below the search bar instead
-        // of crowding it.
-        Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color.fromARGB(255, 116, 116, 116)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (final option in _inventoryFilterOptions)
-                _FilterTab(
-                  label: option,
-                  isActive: selectedFilter == option,
-                  onTap: () => onFilterChanged(option),
-                ),
-            ],
-          ),
+        // Row 2: quick status filters + showing count on the right.
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: _clrFilterBorder),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final option in _inventoryFilterOptions)
+                    _FilterTab(
+                      label: option,
+                      isActive: selectedFilter == option,
+                      onTap: () => onFilterChanged(option),
+                    ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            Text(
+              'Showing $filteredCount of $totalCount item${totalCount == 1 ? '' : 's'}',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+          ],
         ),
       ],
     );
@@ -1434,9 +1485,7 @@ class _SortFilterButton extends StatelessWidget {
                       ? Icons.radio_button_checked
                       : Icons.radio_button_unchecked,
                   size: 16,
-                  color: entry.key == sortOption
-                      ? const Color(0xFF1F2937)
-                      : Colors.grey,
+                  color: entry.key == sortOption ? _clrPrimary : Colors.grey,
                 ),
                 const SizedBox(width: 10),
                 Text(entry.value, style: const TextStyle(fontSize: 13)),
@@ -1467,9 +1516,7 @@ class _SortFilterButton extends StatelessWidget {
                       ? Icons.check_box_rounded
                       : Icons.check_box_outline_blank_rounded,
                   size: 16,
-                  color: option == selectedFilter
-                      ? const Color(0xFF1F2937)
-                      : Colors.grey,
+                  color: option == selectedFilter ? _clrPrimary : Colors.grey,
                 ),
                 const SizedBox(width: 10),
                 Text(option, style: const TextStyle(fontSize: 13)),
@@ -1485,11 +1532,7 @@ class _SortFilterButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(7),
           color: Colors.grey.shade100,
         ),
-        child: const Icon(
-          Icons.tune_rounded,
-          size: 16,
-          color: Color(0xFF4B5563),
-        ),
+        child: const Icon(Icons.tune_rounded, size: 16, color: _clrIcon),
       ),
     );
   }
@@ -1526,7 +1569,7 @@ class _ViewModeButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 16,
-            color: isActive ? const Color(0xFF1F2937) : Colors.grey[600],
+            color: isActive ? _clrPrimary : Colors.grey[600],
           ),
         ),
       ),
@@ -1552,13 +1595,13 @@ class _FilterTab extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isActive ? Colors.grey.shade100 : Colors.transparent,
+          color: isActive ? _clrBlue : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.black : Colors.grey[600],
+            color: isActive ? Colors.white : Colors.grey[600],
             fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
             fontSize: 13,
           ),
@@ -1671,9 +1714,7 @@ class _MedicationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isPaused = medication.isPaused;
-    final Color statusColor = isPaused
-        ? const Color(0xFFFFA000)
-        : const Color(0xFF00C853);
+    final Color statusColor = isPaused ? _clrAmber : _clrGreen;
     final MedicineModel? original = medication.originalMedicine;
     final String? supplier = original?.supplierName?.trim();
     final String vendorValue = (supplier == null || supplier.isEmpty)
@@ -1711,7 +1752,7 @@ class _MedicationCard extends StatelessWidget {
                   ),
                   child: const Icon(
                     Icons.medication,
-                    color: Color(0xFFD17A28),
+                    color: _clrOrangeIcon,
                     size: 22,
                   ),
                 ),
@@ -1725,7 +1766,7 @@ class _MedicationCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
-                          color: Color(0xFF1A1A1A),
+                          color: _clrTextDark,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -1812,7 +1853,7 @@ class _MedicationCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
-                          color: Color(0xFF1A1A1A),
+                          color: _clrTextDark,
                         ),
                       ),
                     ],
@@ -1833,7 +1874,7 @@ class _MedicationCard extends StatelessWidget {
                         style: const TextStyle(
                           fontWeight: FontWeight.w500,
                           fontSize: 12,
-                          color: Color(0xFF1A1A1A),
+                          color: _clrTextDark,
                         ),
                       ),
                     ],
@@ -1849,7 +1890,7 @@ class _MedicationCard extends StatelessWidget {
                       height: 36,
                       decoration: BoxDecoration(
                         color: medication.buttonFilled
-                            ? const Color(0xFF1A1A1A)
+                            ? _clrTextDark
                             : Colors.white,
                         shape: BoxShape.circle,
                         boxShadow: medication.buttonFilled
@@ -1899,9 +1940,7 @@ class _MedicationRowCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool isPaused = medication.isPaused;
-    final Color statusColor = isPaused
-        ? const Color(0xFFFFA000)
-        : const Color(0xFF00C853);
+    final Color statusColor = isPaused ? _clrAmber : _clrGreen;
     final MedicineModel? original = medication.originalMedicine;
     final String? supplier = original?.supplierName?.trim();
     final String vendorValue = (supplier == null || supplier.isEmpty)
@@ -1938,7 +1977,7 @@ class _MedicationRowCard extends StatelessWidget {
               ),
               child: const Icon(
                 Icons.medication,
-                color: Color(0xFFD17A28),
+                color: _clrOrangeIcon,
                 size: 36,
               ),
             ),
@@ -1959,7 +1998,7 @@ class _MedicationRowCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 16,
-                                color: Color(0xFF1A1A1A),
+                                color: _clrTextDark,
                               ),
                             ),
                             if (medication.subtitle.isNotEmpty) ...[
@@ -2055,7 +2094,7 @@ class _MedicationRowCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 13,
-                                color: Color(0xFF1A1A1A),
+                                color: _clrTextDark,
                               ),
                             ),
                           ],
@@ -2079,7 +2118,7 @@ class _MedicationRowCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 13,
-                                color: Color(0xFF1A1A1A),
+                                color: _clrTextDark,
                               ),
                             ),
                           ],
@@ -2103,7 +2142,7 @@ class _MedicationRowCard extends StatelessWidget {
                               style: const TextStyle(
                                 fontWeight: FontWeight.w500,
                                 fontSize: 13,
-                                color: Color(0xFF1A1A1A),
+                                color: _clrTextDark,
                               ),
                             ),
                           ],
@@ -2120,7 +2159,7 @@ class _MedicationRowCard extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: medication.buttonFilled
-                                  ? const Color(0xFF1A1A1A)
+                                  ? _clrTextDark
                                   : Colors.white,
                               borderRadius: BorderRadius.circular(10),
                               border: medication.buttonFilled
@@ -2239,20 +2278,16 @@ class _ScrollableAlertsPanel extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: _clrPrimary,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F4F6),
+                  color: _clrSurfaceMid,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
-                  Icons.more_horiz,
-                  size: 20,
-                  color: Color(0xFF4B5563),
-                ),
+                child: const Icon(Icons.more_horiz, size: 20, color: _clrIcon),
               ),
             ],
           ),
@@ -2287,7 +2322,7 @@ class _AlertItem extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
       decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
+        color: _clrSurfaceLight,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -2311,7 +2346,7 @@ class _AlertItem extends StatelessWidget {
                   style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
-                    color: Color(0xFF1F2937),
+                    color: _clrPrimary,
                   ),
                 ),
                 if (alert.subtitle.isNotEmpty) ...[
@@ -2327,13 +2362,13 @@ class _AlertItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: const Color(0xFFEDE7F6),
+              color: _clrPurpleTint,
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
               alert.actionLabel,
               style: const TextStyle(
-                color: Color(0xFF673AB7),
+                color: _clrPurple,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -2499,7 +2534,7 @@ class _VendorsTabState extends State<_VendorsTab> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFFF9FAFB),
+            color: _clrSurfaceLight,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.grey.shade200),
           ),
@@ -2511,7 +2546,7 @@ class _VendorsTabState extends State<_VendorsTab> {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: _clrPrimary,
                 ),
               ),
               const SizedBox(height: 12),
@@ -2555,7 +2590,7 @@ class _VendorsTabState extends State<_VendorsTab> {
                                         : 0.0,
                                     color: v.lowStockCount > 0
                                         ? Colors.orange
-                                        : Colors.green,
+                                        : _clrGreen,
                                   ),
                                 ],
                               ),
@@ -2658,7 +2693,7 @@ class _FilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: active ? const Color(0xFF1F2937) : Colors.transparent,
+          color: active ? _clrPrimary : Colors.transparent,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: active ? Colors.transparent : Colors.grey.shade300,
@@ -2669,7 +2704,7 @@ class _FilterChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: active ? Colors.white : Colors.grey[600],
+            color: active ? Colors.white : _clrTextMedium,
           ),
         ),
       ),
@@ -2708,9 +2743,7 @@ class _VendorCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: isUnassigned
-                      ? Colors.grey.shade100
-                      : const Color(0xFFEFF6FF),
+                  color: isUnassigned ? Colors.grey.shade100 : _clrBlueTint,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
@@ -2718,9 +2751,7 @@ class _VendorCard extends StatelessWidget {
                       ? Icons.help_outline_rounded
                       : Icons.storefront_rounded,
                   size: 20,
-                  color: isUnassigned
-                      ? Colors.grey.shade500
-                      : const Color(0xFF2563EB),
+                  color: isUnassigned ? Colors.grey.shade500 : _clrBlue,
                 ),
               ),
               const SizedBox(width: 12),
@@ -2733,7 +2764,7 @@ class _VendorCard extends StatelessWidget {
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF1F2937),
+                        color: _clrPrimary,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -2860,7 +2891,7 @@ class _VendorMedicineChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFF9FAFB),
+          color: _clrSurfaceLight,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Row(
@@ -2879,7 +2910,7 @@ class _VendorMedicineChip extends StatelessWidget {
             ],
             Text(
               medication.name,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF374151)),
+              style: const TextStyle(fontSize: 12, color: _clrTextSubtle),
             ),
           ],
         ),
@@ -3119,7 +3150,7 @@ class _ReorderRow extends StatelessWidget {
                           style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
-                            color: Color(0xFF1F2937),
+                            color: _clrPrimary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -3152,7 +3183,7 @@ class _ReorderRow extends StatelessWidget {
                   const SizedBox(height: 6),
                   _StripedProgressBar(
                     value: reorderProgress,
-                    color: isOut ? Colors.red : Colors.amber,
+                    color: isOut ? _clrRed : _clrAmber,
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -3194,7 +3225,7 @@ class _ReorderRow extends StatelessWidget {
               repository: repository,
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1F2937),
+              backgroundColor: _clrPrimary,
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -3376,7 +3407,7 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1F2937),
+                  color: _clrPrimary,
                 ),
               ),
               Row(
@@ -3482,7 +3513,7 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F2937),
+                      color: _clrPrimary,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -3517,7 +3548,7 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2937),
+                    color: _clrPrimary,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -3566,7 +3597,7 @@ class _WeeklyUsageChart extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1F2937),
+              color: _clrPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -3600,7 +3631,7 @@ class _WeeklyUsageChart extends StatelessWidget {
                         Container(
                           height: 120 * heightFactor + 4,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB),
+                            color: _clrBlue,
                             borderRadius: BorderRadius.circular(4),
                           ),
                         ),
@@ -3661,7 +3692,7 @@ class _CategoryBreakdownPanel extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1F2937),
+              color: _clrPrimary,
             ),
           ),
           const SizedBox(height: 16),
@@ -3749,7 +3780,7 @@ class _UsageStatChip extends StatelessWidget {
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
-              color: Color(0xFF1F2937),
+              color: _clrPrimary,
             ),
           ),
           const SizedBox(height: 2),
@@ -3792,7 +3823,7 @@ class _TopMedicineRow extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
+                    color: _clrPrimary,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -3804,7 +3835,7 @@ class _TopMedicineRow extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          _StripedProgressBar(value: progress, color: const Color(0xFF2563EB)),
+          _StripedProgressBar(value: progress, color: _clrBlue),
         ],
       ),
     );
@@ -3839,7 +3870,7 @@ class _UsageTransactionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final dt = transaction.createdAt;
     final dateLabel = '${dt.day}/${dt.month}/${dt.year}';
-    final color = _isIncrease ? const Color(0xFF00C853) : Colors.grey.shade700;
+    final color = _isIncrease ? _clrGreen : Colors.grey.shade700;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -3856,7 +3887,7 @@ class _UsageTransactionRow extends StatelessWidget {
           Expanded(
             child: Text(
               '${_label()} $medicineName',
-              style: const TextStyle(fontSize: 12, color: Color(0xFF1F2937)),
+              style: const TextStyle(fontSize: 12, color: _clrPrimary),
               overflow: TextOverflow.ellipsis,
             ),
           ),
@@ -3898,7 +3929,7 @@ class _PlaceholderScreen extends StatelessWidget {
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1F2937),
+              color: _clrPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -3912,7 +3943,7 @@ class _PlaceholderScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: onAction,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1F2937),
+                backgroundColor: _clrPrimary,
                 foregroundColor: Colors.white,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(

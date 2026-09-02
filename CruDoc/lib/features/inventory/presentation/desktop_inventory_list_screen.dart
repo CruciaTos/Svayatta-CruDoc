@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/inventory/data/models/stock_trans
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
 import 'package:doctor_management_app/features/inventory/presentation/add_edit_medicine_form.dart';
+import 'package:doctor_management_app/features/inventory/presentation/desktop_add_edit_medicine_dialog.dart';
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
 
@@ -119,11 +120,11 @@ class DesktopInventoryScreen extends ConsumerWidget {
     );
 
     void openAddMedicine() {
-      showAddEditMedicineForm(context, repository: repository);
+      showDesktopAddEditMedicineDialog(context, repository: repository);
     }
 
     void openEditMedicine(MedicineModel medicine) {
-      showAddEditMedicineForm(
+      showDesktopAddEditMedicineDialog(
         context,
         medicine: medicine,
         repository: repository,

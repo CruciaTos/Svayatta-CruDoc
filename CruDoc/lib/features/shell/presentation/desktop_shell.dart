@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/shell/components/mobile_feature_d
 import 'package:doctor_management_app/features/shell/data/desktop_shell_preferences.dart';
 import 'package:doctor_management_app/features/chatbot/widgets/draggable_floating_chatbot_button.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
+import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/desktop_dashboard_screen.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_patient_records_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_revenue_screen.dart';
@@ -477,7 +478,9 @@ class _ExpandedLayout extends StatelessWidget {
                   isSelected: false,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const DesktopSettingsScreen(),
+                    ),
                   ),
                 ),
                 _SidebarItem(
@@ -675,7 +678,9 @@ class _CollapsedLayout extends StatelessWidget {
                   isSelected: false,
                   onTap: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const DesktopSettingsScreen(),
+                    ),
                   ),
                 ),
                 _CollapsedSidebarItem(

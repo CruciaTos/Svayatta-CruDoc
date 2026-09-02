@@ -29,19 +29,6 @@ class BarData {
   });
 }
 
-class StatItem {
-  final String label;
-  final String value;
-  final String delta;
-  final bool deltaPositive;
-
-  const StatItem({
-    required this.label,
-    required this.value,
-    required this.delta,
-    required this.deltaPositive,
-  });
-}
 
 // ---------- Home Dashboard Screen (Stateful for local UI state) ----------
 class HomeDashboardScreen extends StatefulWidget {
@@ -222,11 +209,6 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       return WebDashboardView(onNavigateToTab: widget.onNavigateToTab);
     }
 
-    // ---- Stats (replace with real data) ----
-    final List<StatItem> stats = [
-      // TODO: populate with actual values
-      // const StatItem(label: 'Active Patients', value: '38', delta: '+3 this month', deltaPositive: true),
-    ];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -395,8 +377,7 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         );
                       },
                     ),
-                  const SizedBox(height: 10),
-                  _StatsGrid(stats: stats),
+
                   const SizedBox(height: 12),
                   QuickActionsRow(
                     onNewVisit: isAppointmentsEnabled
@@ -836,111 +817,4 @@ class _RevenueSnapshotCard extends StatelessWidget {
     );
   }
 }
-
-// ---------- STATS GRID (parameterised) ----------
-class _StatsGrid extends StatelessWidget {
-  final List<StatItem> stats;
-
-  const _StatsGrid({required this.stats});
-
-  @override
-  Widget build(BuildContext context) {
-    if (stats.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    // Arrange into pairs for two columns
-    final int half = (stats.length / 2).ceil();
-    final leftStats = stats.sublist(0, half);
-    final rightStats = stats.sublist(half);
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Column(
-            children: [
-              for (final stat in leftStats) ...[
-                _StatCard(stat: stat),
-                const SizedBox(height: 14),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            children: [
-              for (final stat in rightStats) ...[
-                _StatCard(stat: stat),
-                const SizedBox(height: 14),
-              ],
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final StatItem stat;
-
-  const _StatCard({required this.stat});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardSurface,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.divider),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            stat.label,
-            style: const TextStyle(
-              fontFamily: AppColors.bodyFontFamily,
-              color: AppColors.textSecondary,
-              fontSize: 13,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                stat.value,
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 3),
-                child: Text(
-                  stat.delta,
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: stat.deltaPositive
-                        ? AppColors.positiveGreen
-                        : Colors.redAccent.withValues(alpha: 0.8),
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+

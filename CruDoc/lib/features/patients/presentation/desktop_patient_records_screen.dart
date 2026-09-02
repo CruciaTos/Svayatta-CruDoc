@@ -537,10 +537,10 @@ class _PatientDashboardView extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Chart & Stats Row (fixed)
+              // Chart & Stats Row (responsive to sidebar expanded/collapsed)
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final bool isWide = constraints.maxWidth > 850;
+                  final bool isWide = constraints.maxWidth > 780;
                   if (isWide) {
                     return Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,7 +552,7 @@ class _PatientDashboardView extends StatelessWidget {
                             breakdown: viewData.genderBreakdown,
                           ),
                         ),
-                        const SizedBox(width: 24),
+                        const SizedBox(width: 16),
                         Expanded(
                           flex: 7,
                           child: _StatsGridSection(viewData: viewData),
@@ -566,14 +566,14 @@ class _PatientDashboardView extends StatelessWidget {
                           totalPatients: viewData.patients.length,
                           breakdown: viewData.genderBreakdown,
                         ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 16),
                         _StatsGridSection(viewData: viewData),
                       ],
                     );
                   }
                 },
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
               // Toolbar (fixed)
               _ToolbarSection(
@@ -939,48 +939,56 @@ class _StatsGridSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double width = (constraints.maxWidth / 2) - 8;
-        return Wrap(
-          spacing: 16,
-          runSpacing: 16,
+    return Column(
+      children: [
+        Row(
           children: [
-            _StatCard(
-              title: 'Total Patients',
-              count: viewData.totalPatients,
-              change: 'Live',
-              icon: Icons.person_outline_rounded,
-              color: const Color(0xFF2196F3),
-              width: width,
+            Expanded(
+              child: _StatCard(
+                title: 'Total Patients',
+                count: viewData.totalPatients,
+                change: 'Live',
+                icon: Icons.person_outline_rounded,
+                color: const Color(0xFF2196F3),
+              ),
             ),
-            _StatCard(
-              title: 'New This Month',
-              count: viewData.newThisMonth,
-              change: 'Created',
-              icon: Icons.person_add_alt_1_outlined,
-              color: const Color(0xFF4CAF50),
-              width: width,
-            ),
-            _StatCard(
-              title: 'With Diagnosis',
-              count: viewData.withDiagnosis,
-              change: 'Recorded',
-              icon: Icons.medical_services_outlined,
-              color: const Color(0xFF9C27B0),
-              width: width,
-            ),
-            _StatCard(
-              title: 'Package Balance',
-              count: viewData.packageBalance,
-              change: 'Total',
-              icon: Icons.account_balance_wallet_outlined,
-              color: const Color(0xFFFF9800),
-              width: width,
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                title: 'New This Month',
+                count: viewData.newThisMonth,
+                change: 'Created',
+                icon: Icons.person_add_alt_1_outlined,
+                color: const Color(0xFF4CAF50),
+              ),
             ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                title: 'With Diagnosis',
+                count: viewData.withDiagnosis,
+                change: 'Recorded',
+                icon: Icons.medical_services_outlined,
+                color: const Color(0xFF9C27B0),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StatCard(
+                title: 'Package Balance',
+                count: viewData.packageBalance,
+                change: 'Total',
+                icon: Icons.account_balance_wallet_outlined,
+                color: const Color(0xFFFF9800),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -991,7 +999,7 @@ class _StatCard extends StatelessWidget {
   final String change;
   final IconData icon;
   final Color color;
-  final double width;
+  final double? width;
 
   const _StatCard({
     required this.title,
@@ -999,7 +1007,7 @@ class _StatCard extends StatelessWidget {
     required this.change,
     required this.icon,
     required this.color,
-    required this.width,
+    this.width,
   });
 
   @override
@@ -1571,7 +1579,7 @@ class _ToolbarSection extends StatelessWidget {
 // 5. PATIENT DATA TABLE (scrollable in both directions, white background added)
 // ==============================================================================
 
-class _PatientTable extends StatelessWidget {
+class _PatientTable extends StatefulWidget {
   final List<Patient> patients;
   final ValueChanged<Patient> onEditPatient;
   final ValueChanged<Patient> onPatientSelected;
@@ -1583,222 +1591,413 @@ class _PatientTable extends StatelessWidget {
   });
 
   @override
+  State<_PatientTable> createState() => _PatientTableState();
+}
+
+class _PatientTableState extends State<_PatientTable> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white, // Add explicit white background for readability
+        color: Colors.white,
         border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: patients.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
-                  Icon(
-                    Icons.people_outline_rounded,
-                    size: 48,
-                    color: Color(0xFFCBD5E1),
-                  ),
-                  SizedBox(height: 12),
-                  Text(
-                    'No patients found',
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 15),
-                  ),
-                ],
-              ),
-            )
-          : SingleChildScrollView(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  showCheckboxColumn: false,
-                  headingRowColor: WidgetStateProperty.all(Colors.grey[50]),
-                  headingTextStyle: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1F2937),
-                    fontSize: 13,
-                  ),
-                  dataRowMinHeight: 60,
-                  dataRowMaxHeight: 60,
-                  columnSpacing: 16,
-                  columns: const [
-                    DataColumn(
-                      label: Text(
-                        '#',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(15.5),
+        child: widget.patients.isEmpty
+            ? Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Icon(
+                      Icons.people_outline_rounded,
+                      size: 48,
+                      color: Color(0xFFCBD5E1),
+                    ),
+                    SizedBox(height: 12),
+                    Text(
+                      'No patients found',
+                      style: TextStyle(color: Color(0xFF64748B), fontSize: 15),
+                    ),
+                  ],
+                ),
+              )
+            : Column(
+                children: [
+                  // --- Pinned Header Row ---
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      border: Border(
+                        bottom: BorderSide(color: Colors.grey.shade200),
                       ),
                     ),
-                    DataColumn(label: Text('Patient')),
-                    DataColumn(label: Text('Date of Birth')),
-                    DataColumn(label: Text('Gender')),
-                    DataColumn(label: Text('Phone')),
-                    DataColumn(label: Text('Diagnosis')),
-                    DataColumn(label: Text('Package Balance')),
-                    DataColumn(label: Text('Updated')),
-                    DataColumn(label: Text('Status')),
-                    DataColumn(label: Text('Action')),
-                  ],
-                  rows: patients.asMap().entries.map((entry) {
-                    final index = entry.key + 1;
-                    final patient = entry.value;
-                    final status = _statusForPatient(patient);
-                    final initial = patient.firstName.isNotEmpty
-                        ? patient.firstName[0].toUpperCase()
-                        : 'P';
-                    return DataRow(
-                      onSelectChanged: (_) => onPatientSelected(patient),
-                      cells: [
-                        DataCell(
-                          Row(
-                            children: [
-                              Text(
-                                '#$index',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        DataCell(
-                          Row(
-                            children: [
-                              CircleAvatar(
-                                radius: 14,
-                                backgroundColor: const Color(0xFFEFF6FF),
-                                child: Text(
-                                  initial,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF2563EB),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    patient.fullName.trim().isEmpty
-                                        ? 'Unnamed Patient'
-                                        : patient.fullName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                  Text(
-                                    patient.id,
-                                    style: TextStyle(
-                                      color: Colors.grey[500],
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            _patientDateFormatter.format(patient.dateOfBirth),
+                    child: Row(
+                      children: const [
+                        SizedBox(
+                          width: 36,
+                          child: Text(
+                            'No.',
                             style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                        DataCell(
-                          Text(
-                            patient.gender.isEmpty ? '—' : patient.gender,
+                        Expanded(
+                          flex: 6,
+                          child: Text(
+                            'Patient',
                             style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                        DataCell(
-                          Text(
-                            patient.phone.isEmpty ? '—' : patient.phone,
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Date of Birth',
                             style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                        DataCell(
-                          Text(
-                            patient.diagnosisDisplay.isEmpty
-                                ? '—'
-                                : patient.diagnosisDisplay,
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            'Gender',
                             style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                        DataCell(
-                          Text(
-                            _patientCurrencyFormatter.format(
-                              patient.packageBalance,
-                            ),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            _patientDateFormatter.format(patient.updatedAt),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Phone',
                             style: TextStyle(
-                              color: Colors.grey[700],
-                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
                             ),
                           ),
                         ),
-                        DataCell(_StatusChip(status: status)),
-                        DataCell(
-                          Row(
-                            children: [
-                              IconButton(
-                                icon: const Icon(
-                                  Icons.visibility_outlined,
-                                  size: 18,
-                                  color: Colors.grey,
-                                ),
-                                tooltip: 'View details',
-                                onPressed: () => onPatientSelected(patient),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.edit_outlined,
-                                  size: 18,
-                                  color: Colors.grey,
-                                ),
-                                tooltip: 'Edit patient',
-                                onPressed: () => onEditPatient(patient),
-                              ),
-                            ],
+                        Expanded(
+                          flex: 4,
+                          child: Text(
+                            'Diagnosis',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Package Balance',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Text(
+                            'Updated',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 2,
+                          child: Text(
+                            'Status',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        SizedBox(
+                          width: 68,
+                          child: Text(
+                            'Action',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF64748B),
+                              fontSize: 12,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
-                    );
-                  }).toList(),
-                ),
+                    ),
+                  ),
+
+                  // --- Scrollable Vertical Data Rows ---
+                  Expanded(
+                    child: Scrollbar(
+                      controller: _scrollController,
+                      thumbVisibility: true,
+                      child: ListView.separated(
+                        controller: _scrollController,
+                        itemCount: widget.patients.length,
+                        separatorBuilder: (context, index) => Divider(
+                          height: 1,
+                          thickness: 1,
+                          color: Colors.grey.shade100,
+                        ),
+                        itemBuilder: (context, index) {
+                          final patient = widget.patients[index];
+                          final status = _statusForPatient(patient);
+                          final initial = patient.firstName.isNotEmpty
+                              ? patient.firstName[0].toUpperCase()
+                              : 'P';
+
+                          return Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              hoverColor: const Color(0xFFF8FAFC),
+                              onTap: () => widget.onPatientSelected(patient),
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 10,
+                                ),
+                                child: Row(
+                                  children: [
+                                    // Index Number
+                                    SizedBox(
+                                      width: 36,
+                                      child: Text(
+                                        '${index + 1}',
+                                        style: TextStyle(
+                                          color: Colors.grey[600],
+                                          fontSize: 12.5,
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Patient Name + Avatar (No ID)
+                                    Expanded(
+                                      flex: 6,
+                                      child: Row(
+                                        children: [
+                                          CircleAvatar(
+                                            radius: 13,
+                                            backgroundColor:
+                                                const Color(0xFFEFF6FF),
+                                            child: Text(
+                                              initial,
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: Color(0xFF2563EB),
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              patient.fullName.trim().isEmpty
+                                                  ? 'Unnamed Patient'
+                                                  : patient.fullName,
+                                              style: const TextStyle(
+                                                fontWeight: FontWeight.w600,
+                                                fontSize: 13,
+                                                color: Color(0xFF1F2937),
+                                              ),
+                                              overflow:
+                                                  TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+
+                                    // DOB
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        _patientDateFormatter
+                                            .format(patient.dateOfBirth),
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 12.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+
+                                    // Gender
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        patient.gender.isEmpty
+                                            ? '—'
+                                            : patient.gender,
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 12.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+
+                                    // Phone
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        patient.phone.isEmpty
+                                            ? '—'
+                                            : patient.phone,
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 12.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+
+                                    // Diagnosis
+                                    Expanded(
+                                      flex: 4,
+                                      child: Text(
+                                        patient.diagnosisDisplay.isEmpty
+                                            ? '—'
+                                            : patient.diagnosisDisplay,
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 12.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+
+                                    // Package Balance
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        _patientCurrencyFormatter
+                                            .format(patient.packageBalance),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 12.5,
+                                          color: Color(0xFF1F2937),
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+
+                                    // Updated
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        _patientDateFormatter
+                                            .format(patient.updatedAt),
+                                        style: TextStyle(
+                                          color: Colors.grey[700],
+                                          fontSize: 12.5,
+                                        ),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+
+                                    // Status
+                                    Expanded(
+                                      flex: 2,
+                                      child: Align(
+                                        alignment: Alignment.centerLeft,
+                                        child: _StatusChip(status: status),
+                                      ),
+                                    ),
+
+                                    // Actions
+                                    SizedBox(
+                                      width: 68,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.visibility_outlined,
+                                              size: 17,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                            tooltip: 'View details',
+                                            padding: EdgeInsets.zero,
+                                            constraints:
+                                                const BoxConstraints(
+                                              minWidth: 28,
+                                              minHeight: 28,
+                                            ),
+                                            onPressed: () =>
+                                                widget.onPatientSelected(patient),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 17,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                            tooltip: 'Edit patient',
+                                            padding: EdgeInsets.zero,
+                                            constraints:
+                                                const BoxConstraints(
+                                              minWidth: 28,
+                                              minHeight: 28,
+                                            ),
+                                            onPressed: () =>
+                                                widget.onEditPatient(patient),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
+      ),
     );
   }
 }

@@ -20,6 +20,7 @@ import 'package:doctor_management_app/features/inventory/presentation/inventory_
 import 'package:doctor_management_app/features/appointments/presentation/desktop_events_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/desktop_campaigns_screen.dart';
+import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 
@@ -95,6 +96,7 @@ class _DesktopShellState extends State<DesktopShell> {
     'Revenue',
     'Appointments',
     'Campaigns',
+    'Scribe',
   ];
 
   static const List<IconData> _icons = [
@@ -104,6 +106,7 @@ class _DesktopShellState extends State<DesktopShell> {
     Icons.payments_outlined,
     Icons.calendar_today_outlined,
     Icons.campaign_rounded,
+    Icons.mic_rounded,
   ];
 
   void _onNavTap(int index) {
@@ -127,6 +130,8 @@ class _DesktopShellState extends State<DesktopShell> {
         return const DesktopEventsScreen();
       case 5:
         return const DesktopCampaignsScreen();
+      case 6:
+        return const DesktopScribeScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -137,7 +142,8 @@ class _DesktopShellState extends State<DesktopShell> {
   Map<ShortcutActivator, Intent> get _keyboardShortcuts => {
     const SingleActivator(LogicalKeyboardKey.keyB, control: true):
         const _ToggleSidebarIntent(),
-    for (var i = 0; i < _labels.length; i++)
+    // Ctrl+1..7 — only bind for indices that have a digit key (0-6 = 7 tabs)
+    for (var i = 0; i < _labels.length && i < 7; i++)
       SingleActivator(_digitKeyFor(i), control: true): _NavigateToTabIntent(i),
   };
 
@@ -149,6 +155,7 @@ class _DesktopShellState extends State<DesktopShell> {
       LogicalKeyboardKey.digit4,
       LogicalKeyboardKey.digit5,
       LogicalKeyboardKey.digit6,
+      LogicalKeyboardKey.digit7,
     ];
     return digitKeys[index];
   }
@@ -317,31 +324,51 @@ class _DesktopSidebar extends StatelessWidget {
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(12.0),
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 350),
-          switchInCurve: Curves.easeInOutCubic,
-          switchOutCurve: Curves.easeInOutCubic,
-          child: isExpanded
-              ? _ExpandedLayout(
-                  key: const ValueKey('expanded'),
-                  currentIndex: currentIndex,
-                  labels: labels,
-                  icons: icons,
-                  onNavTap: onNavTap,
-                  onToggle: onToggle,
-                  invoiceBadgeCount: invoiceBadgeCount,
-                )
-              : _CollapsedLayout(
-                  key: const ValueKey('collapsed'),
-                  currentIndex: currentIndex,
-                  labels: labels,
-                  icons: icons,
-                  onNavTap: onNavTap,
-                  onToggle: onToggle,
-                  invoiceBadgeCount: invoiceBadgeCount,
-                ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 350),
+            switchInCurve: Curves.easeInOutCubic,
+            switchOutCurve: Curves.easeInOutCubic,
+            layoutBuilder: (currentChild, previousChildren) {
+              return Stack(
+                alignment: Alignment.topLeft,
+                children: <Widget>[
+                  ...previousChildren,
+                  if (currentChild != null) currentChild,
+                ],
+              );
+            },
+            child: isExpanded
+                ? SizedBox(
+                    key: const ValueKey('expanded'),
+                    width: 196,
+                    height: double.infinity,
+                    child: _ExpandedLayout(
+                      currentIndex: currentIndex,
+                      labels: labels,
+                      icons: icons,
+                      onNavTap: onNavTap,
+                      onToggle: onToggle,
+                      invoiceBadgeCount: invoiceBadgeCount,
+                    ),
+                  )
+                : SizedBox(
+                    key: const ValueKey('collapsed'),
+                    width: 52,
+                    height: double.infinity,
+                    child: _CollapsedLayout(
+                      currentIndex: currentIndex,
+                      labels: labels,
+                      icons: icons,
+                      onNavTap: onNavTap,
+                      onToggle: onToggle,
+                      invoiceBadgeCount: invoiceBadgeCount,
+                    ),
+                  ),
+          ),
         ),
       ),
     );
@@ -377,6 +404,7 @@ class _ExpandedLayout extends StatelessWidget {
       children: [
         // --- Logo Area ---
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Container(
               width: 28,
@@ -392,13 +420,17 @@ class _ExpandedLayout extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
-              'CruDoc',
-              style: TextStyle(
-                color: Color(0xFF0D422C),
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                fontFamily: AppColors.headingFontFamily,
+            const Flexible(
+              child: Text(
+                'CruDoc',
+                style: TextStyle(
+                  color: Color(0xFF0D422C),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  fontFamily: AppColors.headingFontFamily,
+                ),
+                overflow: TextOverflow.clip,
+                maxLines: 1,
               ),
             ),
           ],

@@ -1,3 +1,21 @@
+// desktop_scribe_recording_screen.dart
+//
+// Desktop-native replacement for [ScribeRecordingSheet]. Same underlying
+// flow and the exact same service/repo/provider layer — only the shell
+// changes: a centered, fixed-width dialog that matches the rest of the
+// desktop app (see desktop_patient_details_screen.dart's colour tokens)
+// instead of a full-width bottom sheet.
+//
+// Flow (identical to the mobile version):
+//   1. Consent checkbox + explainer → doctor must check before recording
+//   2. Tap "Start Recording" → mic permission prompt → recording starts
+//   3. Animated waveform + elapsed timer shown during recording
+//   4. Tap "Stop" → audio written to local storage → processing begins
+//   5. On processing complete → the desktop draft review dialog opens
+//      automatically, replacing this one.
+//
+// Nothing is written to the patient record here. That only happens if
+// the doctor taps Confirm on the review dialog.
 import 'dart:async';
 import 'dart:io';
 
@@ -8,40 +26,54 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
-import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_review_screen.dart';
+import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_draft_review_screen.dart';
 
-/// Bottom sheet that handles patient consent capture and audio recording
-/// for the AI Voice Scribe feature.
+// ---------- Desktop dashboard palette (matches desktop_patient_details_screen.dart) ----------
+const Color _kTextPrimary = Color(0xFF1F2937);
+const Color _kTextSecondary = Color(0xFF6B7280);
+const Color _kBorder = Color(0xFFE2E8F0);
+const Color _kAccentBlue = Color(0xFF2563EB);
+const Color _kAccentBlueBg = Color(0xFFEFF6FF);
+const Color _kRed = Color(0xFFDC2626);
+const Color _kRedBg = Color(0xFFFEF2F2);
+
+/// Opens the desktop AI Voice Scribe flow for [visit] / [patient].
 ///
-/// Flow:
-///   1. Consent checkbox + explainer → doctor must check before recording
-///   2. Tap "Start Recording" → mic permission prompt → recording starts
-///   3. Animated waveform + elapsed timer shown during recording
-///   4. Tap "Stop" → audio written to local storage → processing begins
-///   5. On processing complete → navigate to [ScribeDraftReviewScreen]
-///
-/// Nothing is written to the patient record here. That only happens if
-/// the doctor taps Confirm on the review screen.
-class ScribeRecordingSheet extends ConsumerStatefulWidget {
+/// Returns `true` if a note was ultimately reviewed and confirmed into
+/// the patient record (via the chained draft review dialog), `false`
+/// if the doctor cancelled or discarded at any point.
+Future<bool> showDesktopScribeRecordingDialog(
+  BuildContext context, {
+  required Visit visit,
+  required Patient? patient,
+}) async {
+  final result = await showDialog<bool>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _DesktopScribeRecordingDialog(visit: visit, patient: patient),
+  );
+  return result ?? false;
+}
+
+class _DesktopScribeRecordingDialog extends ConsumerStatefulWidget {
   final Visit visit;
   final Patient? patient;
 
-  const ScribeRecordingSheet({
-    super.key,
+  const _DesktopScribeRecordingDialog({
     required this.visit,
     required this.patient,
   });
 
   @override
-  ConsumerState<ScribeRecordingSheet> createState() =>
-      _ScribeRecordingSheetState();
+  ConsumerState<_DesktopScribeRecordingDialog> createState() =>
+      _DesktopScribeRecordingDialogState();
 }
 
-class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
+class _DesktopScribeRecordingDialogState
+    extends ConsumerState<_DesktopScribeRecordingDialog>
     with TickerProviderStateMixin {
   // ---- State ----
   bool _consentGiven = false;
@@ -59,10 +91,8 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
   // ---- Animations ----
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
-  late AnimationController _waveController;
 
-  // Waveform bar heights (animated)
-  final List<double> _waveHeights = List.filled(20, 0.3);
+  final List<double> _waveHeights = List.filled(24, 0.3);
 
   @override
   void initState() {
@@ -71,12 +101,8 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     );
-    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.18).animate(
+    _pulseAnimation = Tween<double>(begin: 1.0, end: 1.16).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 150),
     );
   }
 
@@ -84,12 +110,9 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
   void dispose() {
     _timer?.cancel();
     _pulseController.dispose();
-    _waveController.dispose();
     _recorder.dispose();
     super.dispose();
   }
-
-  // ---- Helpers ----
 
   String get _timerLabel {
     final m = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
@@ -97,27 +120,24 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     return '$m:$s';
   }
 
-  String get _patientName =>
-      widget.patient?.fullName ?? 'Unknown Patient';
+  String get _patientName => widget.patient?.fullName ?? 'Unknown Patient';
 
-  // ---- Recording logic ----
+  // ---- Recording logic (identical to the mobile sheet) ----
 
   Future<void> _startRecording() async {
     if (!_consentGiven) return;
 
-    // Check mic permission
     final hasPermission = await _recorder.hasPermission();
     if (!hasPermission) {
       if (mounted) {
         setState(() {
           _errorMessage =
-              'Microphone permission denied. Please grant it in Settings.';
+              'Microphone permission denied. Please grant it in system settings.';
         });
       }
       return;
     }
 
-    // Create output path
     final dir = await getApplicationDocumentsDirectory();
     final id = const Uuid().v4();
     _audioPath = '${dir.path}/scribe_$id.m4a';
@@ -126,8 +146,8 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     await _recorder.start(
       const RecordConfig(
         encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        sampleRate: 44100,
+        bitRate: 64000,
+        sampleRate: 16000,
       ),
       path: _audioPath!,
     );
@@ -140,11 +160,8 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
       }
       setState(() {
         _elapsedSeconds++;
-        // Animate waveform bars with pseudo-random heights
         for (var i = 0; i < _waveHeights.length; i++) {
-          _waveHeights[i] = 0.2 +
-              0.8 *
-                  (((_elapsedSeconds * 7 + i * 13) % 10) / 10.0);
+          _waveHeights[i] = 0.2 + 0.8 * (((_elapsedSeconds * 7 + i * 13) % 10) / 10.0);
         }
       });
     });
@@ -188,7 +205,6 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    // Validate audio length before calling AI
     final validationError = await processingService.validateAudio(audioPath);
     if (validationError != null && mounted) {
       setState(() {
@@ -201,7 +217,6 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     try {
       final noteId = const Uuid().v4();
 
-      // Call Gemini directly with the recorded local audio (instant, local-first)
       final draft = await processingService.processAudio(
         localAudioPath: audioPath,
         audioStoragePath: null,
@@ -212,27 +227,28 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
         consentAt: _consentAt ?? DateTime.now(),
       );
 
-      // Clean up local temp file after processing
       try {
         await File(audioPath).delete();
       } catch (_) {}
 
-      // Save draft locally
       await repo.saveNote(draft);
 
       if (!mounted) return;
 
-      // Pop the recording sheet and push the draft review screen
-      Navigator.pop(context);
-      await Navigator.push(
+      // Close this dialog and immediately open the draft review dialog —
+      // the doctor never leaves dialog-space, and the shell/sidebar stay
+      // visible behind the scrim the whole time.
+      Navigator.of(context).pop(false);
+      final confirmed = await showDesktopScribeDraftReviewDialog(
         context,
-        MaterialPageRoute(
-          builder: (_) => ScribeDraftReviewScreen(
-            note: draft,
-            patient: widget.patient,
-          ),
-        ),
+        note: draft,
+        patient: widget.patient,
       );
+      if (context.mounted && confirmed == true) {
+        // Nothing further to do here — the caller of
+        // showDesktopScribeRecordingDialog already awaits this whole
+        // chain and gets `true` back via the outer wrapper.
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -250,25 +266,20 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
       _pulseController.stop();
       _recorder.stop();
     }
-    Navigator.pop(context);
+    Navigator.of(context).pop(false);
   }
 
   // ---- UI ----
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Color(0xFF1B2430),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: SafeArea(
-        top: false,
+    return Dialog(
+      backgroundColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 12, 24, 28),
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
           child: _isProcessing ? _buildProcessingView() : _buildMainView(),
         ),
       ),
@@ -280,35 +291,17 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Drag handle
-        Center(
-          child: Container(
-            width: 40,
-            height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-        ),
-
-        // Header
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: const Color(0xFF4A90D9).withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
+                color: _kAccentBlueBg,
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(
-                Icons.mic_rounded,
-                color: Color(0xFF4A90D9),
-                size: 22,
-              ),
+              child: const Icon(Icons.mic_rounded, color: _kAccentBlue, size: 22),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,47 +309,39 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
                   const Text(
                     'AI Voice Scribe',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: _kTextPrimary,
                       fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: AppColors.headingFontFamily,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   Text(
                     _patientName,
-                    style: const TextStyle(
-                      color: Color(0xFF8A9BB0),
-                      fontSize: 13,
-                      fontFamily: AppColors.bodyFontFamily,
-                    ),
+                    style: const TextStyle(color: _kTextSecondary, fontSize: 13),
                   ),
                 ],
               ),
             ),
+            if (!_isRecording)
+              IconButton(
+                icon: const Icon(Icons.close_rounded, color: _kTextSecondary),
+                onPressed: _cancel,
+                tooltip: 'Close',
+              ),
           ],
         ),
-
-        const SizedBox(height: 24),
-
+        const SizedBox(height: 22),
         if (!_isRecording) ...[
-          // Consent section
           _buildConsentCard(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
         ],
-
-        // Error message
         if (_errorMessage != null) ...[
           _buildErrorBanner(),
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
         ],
-
-        // Recording indicator / waveform
         if (_isRecording) ...[
           _buildRecordingView(),
-          const SizedBox(height: 24),
+          const SizedBox(height: 22),
         ],
-
-        // Action buttons
         _buildActions(),
       ],
     );
@@ -366,12 +351,10 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF2A313C),
+        color: const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: _consentGiven
-              ? const Color(0xFF4A90D9).withValues(alpha: 0.4)
-              : Colors.white12,
+          color: _consentGiven ? _kAccentBlue.withValues(alpha: 0.4) : _kBorder,
         ),
       ),
       child: Column(
@@ -380,10 +363,9 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
           const Text(
             'Patient Consent',
             style: TextStyle(
-              color: Colors.white,
+              color: _kTextPrimary,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
-              fontFamily: AppColors.headingFontFamily,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 8),
@@ -391,12 +373,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
             'Recording a clinical consultation requires the patient\'s '
             'knowledge and agreement. By starting this recording, you '
             'confirm the patient has been informed and has agreed.',
-            style: TextStyle(
-              color: Color(0xFF8A9BB0),
-              fontSize: 12.5,
-              fontFamily: AppColors.bodyFontFamily,
-              height: 1.5,
-            ),
+            style: TextStyle(color: _kTextSecondary, fontSize: 12.5, height: 1.5),
           ),
           const SizedBox(height: 12),
           InkWell(
@@ -409,13 +386,9 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
                   width: 22,
                   height: 22,
                   decoration: BoxDecoration(
-                    color: _consentGiven
-                        ? const Color(0xFF4A90D9)
-                        : Colors.transparent,
+                    color: _consentGiven ? _kAccentBlue : Colors.transparent,
                     border: Border.all(
-                      color: _consentGiven
-                          ? const Color(0xFF4A90D9)
-                          : Colors.white38,
+                      color: _consentGiven ? _kAccentBlue : const Color(0xFFCBD5E1),
                       width: 2,
                     ),
                     borderRadius: BorderRadius.circular(5),
@@ -428,11 +401,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
                 const Expanded(
                   child: Text(
                     'Patient has been informed and consents to this recording',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 13,
-                      fontFamily: AppColors.bodyFontFamily,
-                    ),
+                    style: TextStyle(color: _kTextPrimary, fontSize: 13),
                   ),
                 ),
               ],
@@ -447,67 +416,50 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     return Center(
       child: Column(
         children: [
-          // Pulsing mic
           AnimatedBuilder(
             animation: _pulseAnimation,
             builder: (context, child) => Transform.scale(
               scale: _pulseAnimation.value,
               child: Container(
-                width: 80,
-                height: 80,
+                width: 76,
+                height: 76,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFFE53935).withValues(alpha: 0.15),
-                  border: Border.all(
-                    color: const Color(0xFFE53935).withValues(alpha: 0.5),
-                    width: 2,
-                  ),
+                  color: _kRed.withValues(alpha: 0.1),
+                  border: Border.all(color: _kRed.withValues(alpha: 0.4), width: 2),
                 ),
-                child: const Icon(
-                  Icons.mic,
-                  color: Color(0xFFE53935),
-                  size: 36,
-                ),
+                child: const Icon(Icons.mic, color: _kRed, size: 32),
               ),
             ),
           ),
           const SizedBox(height: 16),
-          // Timer
           Text(
             _timerLabel,
             style: const TextStyle(
-              color: Colors.white,
-              fontSize: 28,
+              color: _kTextPrimary,
+              fontSize: 26,
               fontWeight: FontWeight.w300,
-              fontFamily: AppColors.headingFontFamily,
               letterSpacing: 2,
             ),
           ),
           const SizedBox(height: 4),
           const Text(
             'Recording in progress…',
-            style: TextStyle(
-              color: Color(0xFF8A9BB0),
-              fontSize: 12,
-              fontFamily: AppColors.bodyFontFamily,
-            ),
+            style: TextStyle(color: _kTextSecondary, fontSize: 12),
           ),
-          const SizedBox(height: 20),
-          // Waveform
+          const SizedBox(height: 18),
           SizedBox(
-            height: 40,
+            height: 38,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(_waveHeights.length, (i) {
                 return AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   width: 3,
-                  height: 8 + 32 * _waveHeights[i],
+                  height: 8 + 30 * _waveHeights[i],
                   margin: const EdgeInsets.symmetric(horizontal: 2),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE53935).withValues(alpha:
-                      0.4 + 0.6 * _waveHeights[i],
-                    ),
+                    color: _kRed.withValues(alpha: 0.35 + 0.55 * _waveHeights[i]),
                     borderRadius: BorderRadius.circular(2),
                   ),
                 );
@@ -523,23 +475,18 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: const Color(0xFFE53935).withValues(alpha: 0.12),
+        color: _kRedBg,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE53935).withValues(alpha: 0.3)),
+        border: Border.all(color: _kRed.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: Color(0xFFE57373), size: 18),
+          const Icon(Icons.warning_amber_rounded, color: _kRed, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               _errorMessage ?? '',
-              style: const TextStyle(
-                color: Color(0xFFE57373),
-                fontSize: 13,
-                fontFamily: AppColors.bodyFontFamily,
-              ),
+              style: const TextStyle(color: _kRed, fontSize: 13),
             ),
           ),
         ],
@@ -549,48 +496,37 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
 
   Widget _buildProcessingView() {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 32),
+      padding: const EdgeInsets.symmetric(vertical: 28),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Center(
-            child: Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: const Color(0xFF4A90D9).withValues(alpha: 0.12),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(
-                  strokeWidth: 3,
-                  color: Color(0xFF4A90D9),
-                ),
-              ),
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _kAccentBlueBg,
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(strokeWidth: 3, color: _kAccentBlue),
             ),
           ),
           const SizedBox(height: 20),
           const Text(
             'Analysing consultation…',
             style: TextStyle(
-              color: Colors.white,
+              color: _kTextPrimary,
               fontSize: 16,
-              fontWeight: FontWeight.w500,
-              fontFamily: AppColors.headingFontFamily,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
-            'The AI is reviewing the recording and extracting the '
-            'clinical note. This usually takes 15–30 seconds.',
+            'The AI is reviewing the recording and extracting the clinical '
+            'note. This usually takes 15–30 seconds.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              color: Color(0xFF8A9BB0),
-              fontSize: 13,
-              fontFamily: AppColors.bodyFontFamily,
-              height: 1.5,
-            ),
+            style: TextStyle(color: _kTextSecondary, fontSize: 13, height: 1.5),
           ),
         ],
       ),
@@ -601,65 +537,50 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet>
     if (_isRecording) {
       return SizedBox(
         width: double.infinity,
-        height: 52,
+        height: 48,
         child: ElevatedButton.icon(
           onPressed: _stopRecording,
-          icon: const Icon(Icons.stop_rounded, size: 20),
-          label: const Text(
-            'Stop Recording',
-            style: TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              fontFamily: AppColors.bodyFontFamily,
-            ),
-          ),
+          icon: const Icon(Icons.stop_rounded, size: 18),
+          label: const Text('Stop Recording',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFE53935),
+            backgroundColor: _kRed,
             foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       );
     }
 
-    return Column(
+    return Row(
       children: [
-        SizedBox(
-          width: double.infinity,
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: _consentGiven ? _startRecording : null,
-            icon: const Icon(Icons.mic_rounded, size: 20),
-            label: const Text(
-              'Start Recording',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                fontFamily: AppColors.bodyFontFamily,
-              ),
+        Expanded(
+          child: OutlinedButton(
+            onPressed: _cancel,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _kTextSecondary,
+              side: const BorderSide(color: _kBorder),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF4A90D9),
-              foregroundColor: Colors.white,
-              disabledBackgroundColor: Colors.white12,
-              disabledForegroundColor: Colors.white38,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-            ),
+            child: const Text('Cancel', style: TextStyle(fontSize: 14)),
           ),
         ),
-        const SizedBox(height: 12),
-        TextButton(
-          onPressed: _cancel,
-          child: const Text(
-            'Cancel',
-            style: TextStyle(
-              color: Color(0xFF8A9BB0),
-              fontSize: 14,
-              fontFamily: AppColors.bodyFontFamily,
+        const SizedBox(width: 12),
+        Expanded(
+          flex: 2,
+          child: ElevatedButton.icon(
+            onPressed: _consentGiven ? _startRecording : null,
+            icon: const Icon(Icons.mic_rounded, size: 18),
+            label: const Text('Start Recording',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _kAccentBlue,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: const Color(0xFFE2E8F0),
+              disabledForegroundColor: const Color(0xFF94A3B8),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
           ),
         ),

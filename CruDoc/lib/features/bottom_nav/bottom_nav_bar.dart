@@ -80,6 +80,11 @@ class _BottomNavBarState extends ConsumerState<BottomNavBar>
       icon: Icons.campaign_outlined,
       activeIcon: Icons.campaign_rounded,
     ),
+    _NavItemData(
+      label: 'Queue',
+      icon: Icons.format_list_numbered_rounded,
+      activeIcon: Icons.format_list_numbered_rounded,
+    ),
   ];
 
   @override

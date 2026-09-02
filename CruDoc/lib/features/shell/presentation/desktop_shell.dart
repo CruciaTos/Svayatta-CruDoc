@@ -19,9 +19,9 @@ import 'package:doctor_management_app/features/revenue/presentation/desktop_reve
 import 'package:doctor_management_app/features/inventory/presentation/desktop_inventory_list_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_events_screen.dart';
-import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/desktop_campaigns_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
+import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 
@@ -98,6 +98,7 @@ class _DesktopShellState extends State<DesktopShell> {
     'Appointments',
     'Campaigns',
     'Scribe',
+    'Queue',
   ];
 
   static const List<IconData> _icons = [
@@ -108,6 +109,7 @@ class _DesktopShellState extends State<DesktopShell> {
     Icons.calendar_today_outlined,
     Icons.campaign_rounded,
     Icons.mic_rounded,
+    Icons.format_list_numbered_rounded,
   ];
 
   void _onNavTap(int index) {
@@ -133,18 +135,19 @@ class _DesktopShellState extends State<DesktopShell> {
         return const DesktopCampaignsScreen();
       case 6:
         return const DesktopScribeScreen();
+      case 7:
+        return const DesktopQueueScreen();
       default:
         return const SizedBox.shrink();
     }
   }
 
   /// Keyboard shortcuts scoped to the desktop shell: Ctrl+B toggles the
-  /// sidebar and Ctrl+1..Ctrl+6 jump straight to a tab.
+  /// sidebar and Ctrl+1..Ctrl+8 jump straight to a tab.
   Map<ShortcutActivator, Intent> get _keyboardShortcuts => {
     const SingleActivator(LogicalKeyboardKey.keyB, control: true):
         const _ToggleSidebarIntent(),
-    // Ctrl+1..7 — only bind for indices that have a digit key (0-6 = 7 tabs)
-    for (var i = 0; i < _labels.length && i < 7; i++)
+    for (var i = 0; i < _labels.length && i < 8; i++)
       SingleActivator(_digitKeyFor(i), control: true): _NavigateToTabIntent(i),
   };
 
@@ -157,6 +160,7 @@ class _DesktopShellState extends State<DesktopShell> {
       LogicalKeyboardKey.digit5,
       LogicalKeyboardKey.digit6,
       LogicalKeyboardKey.digit7,
+      LogicalKeyboardKey.digit8,
     ];
     return digitKeys[index];
   }
@@ -494,8 +498,10 @@ class _ExpandedLayout extends StatelessWidget {
                   label: 'Logout',
                   isSelected: false,
                   onTap: () async {
-                    final authService = AuthService();
-                    await authService.signOut();
+                    try {
+                      final authService = AuthService();
+                      await authService.signOut();
+                    } catch (_) {}
                     if (!context.mounted) return;
                     context.go('/auth');
                   },
@@ -694,8 +700,10 @@ class _CollapsedLayout extends StatelessWidget {
                   label: 'Logout',
                   isSelected: false,
                   onTap: () async {
-                    final authService = AuthService();
-                    await authService.signOut();
+                    try {
+                      final authService = AuthService();
+                      await authService.signOut();
+                    } catch (_) {}
                     if (!context.mounted) return;
                     context.go('/auth');
                   },

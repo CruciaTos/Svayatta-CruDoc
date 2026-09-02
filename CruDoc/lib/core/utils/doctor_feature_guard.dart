@@ -23,6 +23,7 @@ class DoctorFeatureGuard {
     'ai_agentic_calling',
     'omnichannel_messaging',
     'multi_device_access',
+    'queue',
   ];
 
   /// Checks if a module is a core base module.
@@ -76,6 +77,8 @@ class DoctorFeatureGuard {
       }
 
       return modulesList;
+    }).handleError((error) {
+      return defaultModules;
     });
   }
 
@@ -94,6 +97,8 @@ class DoctorFeatureGuard {
         return 'appointments'; // Events / Visitation tab
       case 5:
         return 'campaigns'; // Patient Campaigns tab
+      case 6:
+        return 'queue'; // Walk-in Queue tab
       default:
         return 'dashboard';
     }
@@ -114,6 +119,8 @@ class DoctorFeatureGuard {
         return 'Appointments & Events';
       case 5:
         return 'Patient Campaigns';
+      case 6:
+        return 'Walk-in Queue';
       default:
         return 'Feature';
     }
@@ -141,6 +148,10 @@ class DoctorFeatureGuard {
         return 'appointments';
       case 5:
         return 'campaigns'; // Patient Campaigns tab
+      case 6:
+        return 'ai_assistant'; // Scribe tab
+      case 7:
+        return 'queue'; // Walk-in Queue tab
       default:
         return 'dashboard';
     }
@@ -163,6 +174,10 @@ class DoctorFeatureGuard {
         return 'Appointments & Events';
       case 5:
         return 'Patient Campaigns';
+      case 6:
+        return 'Voice Scribe';
+      case 7:
+        return 'Walk-in Queue';
       default:
         return 'Feature';
     }

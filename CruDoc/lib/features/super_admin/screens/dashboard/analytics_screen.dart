@@ -75,6 +75,9 @@ class _SuperAdminAnalyticsScreenState
         return FeatureModule.omnichannelMessaging;
       case 'multi_device_access':
         return FeatureModule.multiDeviceAccess;
+      case 'queue':
+      case 'walk_in_queue':
+        return FeatureModule.queue;
       default:
         return null;
     }
@@ -709,6 +712,8 @@ class _SuperAdminAnalyticsScreenState
         return const Color(0xFF14B8A6); // teal
       case FeatureModule.multiDeviceAccess:
         return AppColors.slateBlue;
+      case FeatureModule.queue:
+        return const Color(0xFF2563EB); // blue
     }
   }
 

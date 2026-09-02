@@ -94,9 +94,6 @@ class AuthService {
     try {
       await _googleSignIn.signOut();
     } catch (_) {}
-    try {
-      await const FlutterSecureStorage().deleteAll();
-    } catch (_) {}
     await _auth.signOut();
   }
 }

@@ -13,26 +13,36 @@ class DoctorProfileHelper {
       return;
     }
 
-    final uidDocRef =
-        FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
-    await for (final snap in uidDocRef.snapshots()) {
-      if (snap.exists && snap.data() != null) {
-        yield snap.data();
-      } else {
-        // Fallback query by email if document ID isn't UID
-        final email = currentUser.email?.trim();
-        if (email != null && email.isNotEmpty) {
-          final q1 = await FirebaseFirestore.instance
-              .collection('users')
-              .where('email', isEqualTo: email.toLowerCase())
-              .get();
-          if (q1.docs.isNotEmpty) {
-            yield q1.docs.first.data();
-            continue;
-          }
+    try {
+      final uidDocRef =
+          FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+      await for (final snap in uidDocRef.snapshots()) {
+        if (FirebaseAuth.instance.currentUser == null) {
+          yield null;
+          break;
         }
-        yield null;
+        if (snap.exists && snap.data() != null) {
+          yield snap.data();
+        } else {
+          // Fallback query by email if document ID isn't UID
+          final email = currentUser.email?.trim();
+          if (email != null && email.isNotEmpty) {
+            try {
+              final q1 = await FirebaseFirestore.instance
+                  .collection('users')
+                  .where('email', isEqualTo: email.toLowerCase())
+                  .get();
+              if (q1.docs.isNotEmpty) {
+                yield q1.docs.first.data();
+                continue;
+              }
+            } catch (_) {}
+          }
+          yield null;
+        }
       }
+    } catch (_) {
+      yield null;
     }
   }
 

@@ -246,6 +246,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createStockTransactionsTable(txn);
       await _createEmailLogTable(txn);
       await _createConsultationNotesTable(txn);
+      await _createWalkInQueueTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
       await _createIndexes(txn);
@@ -265,6 +266,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createStockTransactionsTable(txn);
       await _createEmailLogTable(txn);
       await _createConsultationNotesTable(txn);
+      await _createWalkInQueueTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
 
@@ -299,6 +301,11 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'consultation_notes',
         columns: _consultationNotesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'walk_in_queue',
+        columns: _walkInQueueColumns,
       );
       await _ensureColumns(
         txn,
@@ -571,6 +578,7 @@ class LocalDatabaseService extends ChangeNotifier {
         'stock_transactions',
         'email_log',
         'consultation_notes',
+        'walk_in_queue',
         'sync_state',
       ]) {
         await txn.delete(table);
@@ -736,6 +744,14 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_consultation_notes_status
       ON consultation_notes (visitId, status)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_walk_in_queue_doctor_date
+      ON walk_in_queue (doctorId, queueDate, isDeleted)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_walk_in_queue_status
+      ON walk_in_queue (doctorId, queueDate, status)
     ''');
   }
 
@@ -983,5 +999,57 @@ class LocalDatabaseService extends ChangeNotifier {
     'attemptedAt': 'attemptedAt INTEGER NOT NULL DEFAULT 0',
     'sentAt': 'sentAt INTEGER',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+  };
+
+  Future<void> _createWalkInQueueTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS walk_in_queue (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT,
+        walkInName TEXT,
+        walkInPhone TEXT,
+        tokenNumber INTEGER NOT NULL DEFAULT 0,
+        queueDate TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'waiting',
+        priority TEXT NOT NULL DEFAULT 'normal',
+        reason TEXT,
+        checkedInAt INTEGER NOT NULL,
+        calledAt INTEGER,
+        consultationStartedAt INTEGER,
+        completedAt INTEGER,
+        linkedVisitId TEXT,
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced',
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _walkInQueueColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': 'patientId TEXT',
+    'walkInName': 'walkInName TEXT',
+    'walkInPhone': 'walkInPhone TEXT',
+    'tokenNumber': 'tokenNumber INTEGER NOT NULL DEFAULT 0',
+    'queueDate': "queueDate TEXT NOT NULL DEFAULT ''",
+    'status': "status TEXT NOT NULL DEFAULT 'waiting'",
+    'priority': "priority TEXT NOT NULL DEFAULT 'normal'",
+    'reason': 'reason TEXT',
+    'checkedInAt': 'checkedInAt INTEGER NOT NULL DEFAULT 0',
+    'calledAt': 'calledAt INTEGER',
+    'consultationStartedAt': 'consultationStartedAt INTEGER',
+    'completedAt': 'completedAt INTEGER',
+    'linkedVisitId': 'linkedVisitId TEXT',
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
   };
 }

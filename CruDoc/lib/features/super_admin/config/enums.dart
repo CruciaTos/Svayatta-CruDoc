@@ -149,6 +149,7 @@ enum SubscriptionPlan {
       'inventory',
       'reports',
       'multi_device_access',
+      'queue',
     ];
     switch (this) {
       case SubscriptionPlan.starter:
@@ -334,7 +335,8 @@ enum FeatureModule {
   aiAssistant,
   aiAgenticCalling,
   omnichannelMessaging,
-  multiDeviceAccess;
+  multiDeviceAccess,
+  queue;
 
   String get label {
     switch (this) {
@@ -358,6 +360,8 @@ enum FeatureModule {
         return 'WhatsApp, Email & SMS Messaging';
       case FeatureModule.multiDeviceAccess:
         return 'Multi-Device Account Access';
+      case FeatureModule.queue:
+        return 'Walk-in Queue Management';
     }
   }
 
@@ -371,6 +375,8 @@ enum FeatureModule {
       case FeatureModule.appointments:
         return 0.0; // Included in base plan
       case FeatureModule.inventory:
+        return 0.0; // Included in base plan
+      case FeatureModule.queue:
         return 0.0; // Included in base plan
       case FeatureModule.revenue:
         return 15.0;

@@ -243,6 +243,16 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
         totalDoctors: _totalDoctors,
         planAvailability: planMap(FeatureModule.multiDeviceAccess),
       ),
+      FeatureModuleItem(
+        module: FeatureModule.queue,
+        description:
+            'Live walk-in patient token numbering, emergency line-jump priority triage, and consultation room call management.',
+        iconCategory: IconCategory.clinical,
+        isGloballyEnabled: true,
+        enabledDoctorsCount: 48,
+        totalDoctors: _totalDoctors,
+        planAvailability: planMap(FeatureModule.queue),
+      ),
     ];
   }
 

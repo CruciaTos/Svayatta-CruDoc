@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/patients/data/services/patient_lo
 import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
+import 'package:doctor_management_app/features/queue/data/services/queue_local_service.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
@@ -40,6 +41,7 @@ class FirestoreSyncService {
     'pending_payments',
     'medicines',
     'stock_transactions',
+    'walk_in_queue',
   ];
 
   /// Visit-specific Firestore collections.
@@ -533,6 +535,32 @@ class FirestoreSyncService {
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
+      case 'walk_in_queue':
+        return {
+          'doctorId': doctorId,
+          'patientId': row['patientId'] as String?,
+          'walkInName': row['walkInName'] as String?,
+          'walkInPhone': row['walkInPhone'] as String?,
+          'tokenNumber': (row['tokenNumber'] as num?)?.toInt() ?? 0,
+          'queueDate': row['queueDate'] as String? ?? '',
+          'status': row['status'] as String? ?? 'waiting',
+          'priority': row['priority'] as String? ?? 'normal',
+          'reason': row['reason'] as String?,
+          'checkedInAt': _timestampFromMillis(row['checkedInAt']),
+          'calledAt': row['calledAt'] == null
+              ? null
+              : _timestampFromMillis(row['calledAt']),
+          'consultationStartedAt': row['consultationStartedAt'] == null
+              ? null
+              : _timestampFromMillis(row['consultationStartedAt']),
+          'completedAt': row['completedAt'] == null
+              ? null
+              : _timestampFromMillis(row['completedAt']),
+          'linkedVisitId': row['linkedVisitId'] as String?,
+          'isDeleted': row['isDeleted'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
       default:
         throw ArgumentError('Unsupported sync collection: $collection');
     }
@@ -862,6 +890,36 @@ class FirestoreSyncService {
           'pendingDelete': 0,
           'lastSyncedAt': now,
         };
+      case 'walk_in_queue':
+        return {
+          'id': id,
+          'doctorId': doctorId,
+          'patientId': data['patientId'] as String?,
+          'walkInName': data['walkInName'] as String?,
+          'walkInPhone': data['walkInPhone'] as String?,
+          'tokenNumber': (data['tokenNumber'] as num?)?.toInt() ?? 0,
+          'queueDate': data['queueDate'] as String? ?? '',
+          'status': data['status'] as String? ?? 'waiting',
+          'priority': data['priority'] as String? ?? 'normal',
+          'reason': data['reason'] as String?,
+          'checkedInAt': _timestampToMillis(data['checkedInAt'], fallback: now),
+          'calledAt': data['calledAt'] == null
+              ? null
+              : _timestampToMillis(data['calledAt'], fallback: now),
+          'consultationStartedAt': data['consultationStartedAt'] == null
+              ? null
+              : _timestampToMillis(data['consultationStartedAt'], fallback: now),
+          'completedAt': data['completedAt'] == null
+              ? null
+              : _timestampToMillis(data['completedAt'], fallback: now),
+          'linkedVisitId': data['linkedVisitId'] as String?,
+          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
       default:
         throw ArgumentError('Unsupported sync collection: $collection');
     }
@@ -1039,6 +1097,9 @@ class FirestoreSyncService {
         break;
       case 'pending_payments':
         unawaited(RevenueLocalService.instance.notifyPendingPaymentsChanged());
+        break;
+      case 'walk_in_queue':
+        unawaited(QueueLocalService.instance.notifyQueueChanged());
         break;
       default:
         break;

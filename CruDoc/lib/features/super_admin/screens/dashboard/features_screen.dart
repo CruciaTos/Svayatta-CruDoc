@@ -62,6 +62,9 @@ class _SuperAdminFeaturesScreenState
         return FeatureModule.omnichannelMessaging;
       case 'multi_device_access':
         return FeatureModule.multiDeviceAccess;
+      case 'queue':
+      case 'walk_in_queue':
+        return FeatureModule.queue;
       default:
         return null;
     }
@@ -89,6 +92,8 @@ class _SuperAdminFeaturesScreenState
         return 'omnichannel_messaging';
       case FeatureModule.multiDeviceAccess:
         return 'multi_device_access';
+      case FeatureModule.queue:
+        return 'queue';
     }
   }
 
@@ -849,6 +854,8 @@ class _SuperAdminFeaturesScreenState
         return Icons.mark_chat_read_rounded;
       case FeatureModule.multiDeviceAccess:
         return Icons.devices_rounded;
+      case FeatureModule.queue:
+        return Icons.format_list_numbered_rounded;
     }
   }
 }

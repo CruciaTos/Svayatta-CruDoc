@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/inventory/presentation/inventory_
 import 'package:doctor_management_app/features/appointments/presentation/visitation_screen.dart';
 import 'package:doctor_management_app/features/chatbot/presentation/chatbot_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/mobile_campaigns_screen.dart';
+import 'package:doctor_management_app/features/queue/presentation/queue_screen.dart';
 
 class Shell extends StatefulWidget {
   const Shell({super.key});
@@ -36,6 +37,7 @@ class _ShellState extends State<Shell> {
     Icons.payments_outlined,
     Icons.calendar_today_outlined,
     Icons.campaign_rounded,
+    Icons.format_list_numbered_rounded,
   ];
 
   @override
@@ -48,6 +50,7 @@ class _ShellState extends State<Shell> {
       const RevenueScreen(),
       const EventsScreen(),
       const MobileCampaignsScreen(),
+      const QueueScreen(),
     ];
   }
 

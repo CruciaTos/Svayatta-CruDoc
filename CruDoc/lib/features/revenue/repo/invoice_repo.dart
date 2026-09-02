@@ -74,6 +74,9 @@ class InvoiceRepository {
   /// Watches invoices belonging to the signed-in doctor directly from Cloud Firestore.
   Stream<List<InvoiceModel>> watchInvoices() {
     final doctorId = _currentDoctorId;
+    if (doctorId == 'anonymous' || _auth.currentUser == null) {
+      return Stream.value(<InvoiceModel>[]);
+    }
 
     return _firestore
         .collection('invoices')
@@ -101,6 +104,8 @@ class InvoiceRepository {
 
       list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
       return list;
+    }).handleError((error) {
+      return <InvoiceModel>[];
     });
   }
 

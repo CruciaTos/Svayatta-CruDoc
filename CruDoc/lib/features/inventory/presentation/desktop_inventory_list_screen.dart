@@ -1433,7 +1433,11 @@ class _FilterRow extends StatelessWidget {
             const Spacer(),
             Text(
               'Showing $filteredCount of $totalCount item${totalCount == 1 ? '' : 's'}',
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.black,
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ],
         ),
@@ -1680,7 +1684,7 @@ class _MedicineImageWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final imageUrl = medicine?.imageUrl?.trim();
     final hasImage = imageUrl != null && imageUrl.isNotEmpty;
-    
+
     // Use width/height if provided, otherwise fallback to size
     final double w = width ?? size;
     final double h = height ?? size;
@@ -1690,10 +1694,10 @@ class _MedicineImageWidget extends StatelessWidget {
       child: GestureDetector(
         onTap: medicine != null
             ? () => _pickImageForMedicine(
-                  context: context,
-                  medicine: medicine!,
-                  repository: repository,
-                )
+                context: context,
+                medicine: medicine!,
+                repository: repository,
+              )
             : null,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
@@ -2259,19 +2263,31 @@ class _MedicationRowCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final MedicineModel? original = medication.originalMedicine;
     final String? supplier = original?.supplierName?.trim();
-    final String vendorValue = (supplier == null || supplier.isEmpty) ? 'No supplier' : supplier;
+    final String vendorValue = (supplier == null || supplier.isEmpty)
+        ? 'No supplier'
+        : supplier;
     final int currentStock = original?.currentStock ?? 0;
     final double? price = original?.unitPrice;
     final String priceText = price != null ? price.toStringAsFixed(2) : '—';
-    
+
     // FM is a placeholder - replace with actual model field if it exists
-    final String fmValue = '76.5%'; 
+    final String fmValue = '76.5%';
     final String idValue = original?.id ?? '—';
-    
+
     // Stock logic
     final int effectiveMaxStock = maxStock > 0 ? maxStock : 1;
-    final double stockRatio = (currentStock / effectiveMaxStock).clamp(0.0, 1.0);
-    final double cardHeight = 210;
+    final double stockRatio = (currentStock / effectiveMaxStock).clamp(
+      0.0,
+      1.0,
+    );
+
+    // MODIFY THIS anytime to change the card height (e.g. 150, 165, 180, 210, etc.)
+    final double cardHeight = 165;
+    const double paddingVal = 14;
+    final double imageDimension = (cardHeight - (paddingVal * 2)).clamp(
+      40.0,
+      500.0,
+    );
 
     return Container(
       width: double.infinity,
@@ -2295,192 +2311,231 @@ class _MedicationRowCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(paddingVal),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Square image that fills height minus padding
+                // Square image that automatically scales with cardHeight
                 SizedBox(
-                  width: cardHeight - 28,
-                  height: cardHeight - 28,
+                  width: imageDimension,
+                  height: imageDimension,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(12),
                     child: _MedicineImageWidget(
                       medicine: original,
                       repository: repository,
-                      size: cardHeight - 28,
-                      width: cardHeight - 28,
-                      height: cardHeight - 28,
+                      size: imageDimension,
+                      width: imageDimension,
+                      height: imageDimension,
                     ),
                   ),
                 ),
                 const SizedBox(width: 16),
-                // Right side info properly formatted in structured layout
+                // Right side info that dynamically adapts to cardHeight without overflow
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Header Row: Medicine Name & Stock count
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              original?.name ?? medication.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
-                                color: _clrTextDark,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Stock',
-                                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$currentStock',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 16,
-                                  color: _clrTextDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      // Meta Row 1: RRP & FM
-                      Row(
-                        children: [
-                          Text(
-                            'RRP: $priceText',
-                            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                          ),
-                          const SizedBox(width: 20),
-                          Text(
-                            'FM: $fmValue',
-                            style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      // Meta Row 2: ID & Supplier
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'ID: $idValue',
-                            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                'Supplier: ',
-                                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                              ),
-                              Text(
-                                vendorValue,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: _clrTextDark,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Divider(height: 1, color: Colors.grey.shade200),
-                      const SizedBox(height: 10),
-                      // Bottom Row: Stock Capacity Progress Bar & Restock Action Button
-                      Row(
-                        children: [
-                          Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return SizedBox(
+                        height: constraints.maxHeight,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: SizedBox(
+                            width: constraints.maxWidth,
+                            height: constraints.maxHeight > 140
+                                ? constraints.maxHeight
+                                : 140,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
+                                // Header Row: Medicine Name & Stock count
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      'Stock capacity',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey.shade500,
+                                    Expanded(
+                                      child: Text(
+                                        original?.name ?? medication.name,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: _clrTextDark,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    Text(
-                                      '${(stockRatio * 100).toStringAsFixed(0)}%',
-                                      style: const TextStyle(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
-                                        color: _clrBlue,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 5),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: SizedBox(
-                                    height: 6,
-                                    child: Stack(
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.end,
                                       children: [
-                                        Container(color: const Color(0xFFE2E8F0)),
-                                        FractionallySizedBox(
-                                          widthFactor: stockRatio,
-                                          child: Container(
-                                            decoration: BoxDecoration(
-                                              color: _clrBlue,
-                                              borderRadius: BorderRadius.circular(4),
-                                            ),
+                                        Text(
+                                          'Stock',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: Colors.grey.shade600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          '$currentStock',
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 16,
+                                            color: _clrTextDark,
                                           ),
                                         ),
                                       ],
                                     ),
-                                  ),
+                                  ],
+                                ),
+                                // Meta Row 1: RRP & FM
+                                Row(
+                                  children: [
+                                    Text(
+                                      'RRP: $priceText',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    Text(
+                                      'FM: $fmValue',
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: Colors.grey.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                // Meta Row 2: Supplier
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Supplier: ',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                    Text(
+                                      vendorValue,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: _clrTextDark,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Divider(height: 1, color: Colors.grey.shade200),
+                                // Bottom Row: Stock Capacity Progress Bar & Restock Action Button
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                'Stock capacity',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w500,
+                                                  color: Colors.grey.shade500,
+                                                ),
+                                              ),
+                                              Text(
+                                                '${(stockRatio * 100).toStringAsFixed(0)}%',
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: _clrBlue,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 5),
+                                          ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                            child: SizedBox(
+                                              height: 6,
+                                              child: Stack(
+                                                children: [
+                                                  Container(
+                                                    color: const Color(
+                                                      0xFFE2E8F0,
+                                                    ),
+                                                  ),
+                                                  FractionallySizedBox(
+                                                    widthFactor: stockRatio,
+                                                    child: Container(
+                                                      decoration: BoxDecoration(
+                                                        color: _clrBlue,
+                                                        borderRadius:
+                                                            BorderRadius.circular(
+                                                              4,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(width: 20),
+                                    SizedBox(
+                                      height: 32,
+                                      child: ElevatedButton.icon(
+                                        onPressed: onRestock,
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: _clrPrimary,
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 14,
+                                          ),
+                                          minimumSize: Size.zero,
+                                          tapTargetSize:
+                                              MaterialTapTargetSize.shrinkWrap,
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
+                                        ),
+                                        icon: const Icon(
+                                          Icons.add_rounded,
+                                          size: 14,
+                                        ),
+                                        label: const Text(
+                                          'Restock',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
-                          const SizedBox(width: 20),
-                          SizedBox(
-                            height: 32,
-                            child: ElevatedButton.icon(
-                              onPressed: onRestock,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: _clrPrimary,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(horizontal: 14),
-                                minimumSize: Size.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                              ),
-                              icon: const Icon(Icons.add_rounded, size: 14),
-                              label: const Text(
-                                'Restock',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],

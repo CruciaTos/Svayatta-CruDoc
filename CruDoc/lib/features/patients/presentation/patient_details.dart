@@ -10,6 +10,9 @@ import 'package:doctor_management_app/features/appointments/presentation/session
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_patient_details_screen.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -179,6 +182,16 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final specialtyAsync = ref.watch(activeDoctorSpecialtyProvider);
+    final specialty = specialtyAsync.maybeWhen(
+      data: (s) => s,
+      orElse: () => DoctorSpecialty.defaultSpecialty,
+    );
+
+    if (specialty.type == DoctorSpecialtyType.homeopathy) {
+      return HomeopathyPatientDetailsScreen(patient: widget.patient);
+    }
+
     final patientsAsync = ref.watch(patientsStreamProvider);
     final patient = patientsAsync.maybeWhen(
       data: (list) {
@@ -199,6 +212,7 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
           child: Column(
             children: [
               _TopBar(
+                specialty: specialty,
                 onEdit: () => _editPatient(patient),
                 onDelete: () => _deletePatient(patient),
               ),
@@ -211,7 +225,7 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                     const SizedBox(height: 16),
                     visitsAsync.when(
                       loading: () => const _StatsRowSkeleton(),
-                      error: (_, __) => const SizedBox.shrink(),
+                      error: (e, st) => const SizedBox.shrink(),
                       data: (visits) {
                         final completedCount = visits
                             .where((v) => v.status == VisitStatus.completed)
@@ -292,10 +306,12 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
 // ---------- Top Bar ----------
 class _TopBar extends StatelessWidget {
   const _TopBar({
+    required this.specialty,
     required this.onEdit,
     required this.onDelete,
   });
 
+  final DoctorSpecialty specialty;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -322,6 +338,29 @@ class _TopBar extends StatelessWidget {
               ),
             ),
           ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: specialty.accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(specialty.icon, size: 14, color: specialty.accentColor),
+                const SizedBox(width: 4),
+                Text(
+                  specialty.shortLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: specialty.accentColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
           IconButton(
             icon: const Icon(Icons.edit_outlined,
                 color: AppColors.textPrimary, size: 22),

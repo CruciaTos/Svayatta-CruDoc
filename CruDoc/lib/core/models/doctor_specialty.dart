@@ -10,6 +10,8 @@ enum DoctorSpecialtyType {
   orthopedic,
   gynecologist,
   psychiatrist,
+  physiotherapy,
+  homeopathy,
 }
 
 /// Metadata, theming, and demo presets for each specialty.
@@ -57,6 +59,8 @@ class DoctorSpecialty {
 
   static const List<DoctorSpecialty> all = [
     _generalPhysician,
+    _physiotherapist,
+    _homeopath,
     _cardiologist,
     _pediatrician,
     _dentist,
@@ -69,14 +73,14 @@ class DoctorSpecialty {
   static const _generalPhysician = DoctorSpecialty._(
     type: DoctorSpecialtyType.generalPhysician,
     label: 'General Physician',
-    shortLabel: 'General',
-    tagline: 'Comprehensive Primary Care Management',
+    shortLabel: 'General Physician',
+    tagline: 'Comprehensive Primary Care, Diagnosis & Internal Medicine',
     icon: Icons.medical_services_rounded,
     accentColor: Color(0xFF2563EB),
     gradientColors: [Color(0xFFDBEAFE), Color(0xFFBFDBFE), Color(0xFFE0F2FE)],
     demoEmail: 'doctor@crudoc.com',
     demoPassword: 'demo1234',
-    quickActions: ['Quick Vitals', 'Rx Generator', 'Lab Order', 'Follow-up'],
+    quickActions: ['Quick Vitals', 'Prescription Pad', 'Lab Order', 'Consultation'],
   );
 
   static const _cardiologist = DoctorSpecialty._(
@@ -86,10 +90,10 @@ class DoctorSpecialty {
     tagline: 'Cardiovascular Care & Monitoring',
     icon: Icons.favorite_rounded,
     accentColor: Color(0xFFDC2626),
-    gradientColors: [Color(0xFFFEE2E2), Color(0xFFFECACA), Color(0xFFFFE4E6)],
+    gradientColors: [Color(0xFFFEE2E2), Color(0xFFFECACA), Color(0xFFFDE8E8)],
     demoEmail: 'cardio@crudoc.com',
     demoPassword: 'demo1234',
-    quickActions: ['ECG Log', 'BP Tracker', 'Lipid Panel', 'Cardiac Risk'],
+    quickActions: ['ECG Log', 'BP Trend', 'Echo Report', 'Lipid Panel'],
   );
 
   static const _pediatrician = DoctorSpecialty._(
@@ -170,6 +174,32 @@ class DoctorSpecialty {
     quickActions: ['PHQ-9 / GAD-7', 'Session Log', 'Mood Chart', 'Rx Monitor'],
   );
 
+  static const _physiotherapist = DoctorSpecialty._(
+    type: DoctorSpecialtyType.physiotherapy,
+    label: 'Physiotherapist',
+    shortLabel: 'Physiotherapy',
+    tagline: 'Physical Rehabilitation, Mobility & Musculoskeletal Care',
+    icon: Icons.accessibility_rounded,
+    accentColor: Color(0xFF0D9488),
+    gradientColors: [Color(0xFFCCFBF1), Color(0xFF99F6E4), Color(0xFFE6FFFA)],
+    demoEmail: 'physio@crudoc.com',
+    demoPassword: 'demo1234',
+    quickActions: ['Rehab Session', 'ROM Evaluation', 'Exercise Rx', 'Package Balance'],
+  );
+
+  static const _homeopath = DoctorSpecialty._(
+    type: DoctorSpecialtyType.homeopathy,
+    label: 'Homeopath',
+    shortLabel: 'Homeopathy',
+    tagline: 'Holistic Homeopathic Case Taking & Constitutional Care',
+    icon: Icons.spa_rounded,
+    accentColor: Color(0xFF059669),
+    gradientColors: [Color(0xFFD1FAE5), Color(0xFFA7F3D0), Color(0xFFECFDF5)],
+    demoEmail: 'homeo@crudoc.com',
+    demoPassword: 'demo1234',
+    quickActions: ['Case Sheet', 'Repertorize', 'Remedy Rx', 'SRP Symptoms'],
+  );
+
   // ─────────────────────────── Helpers ───────────────────────────
 
   /// Resolve a specialty from a raw string stored in Firestore.
@@ -186,7 +216,27 @@ class DoctorSpecialty {
       }
     }
 
-    // Fuzzy fallback: check if the raw string *contains* a known keyword.
+    // Explicit keyword matching for each distinct clinical discipline:
+    if (lower.contains('homeo') || lower.contains('bhms')) {
+      return _homeopath;
+    }
+    if (lower.contains('physio') ||
+        lower.contains('physical ther') ||
+        lower.contains('rehab') ||
+        lower.contains('kinesio') ||
+        lower.contains('bpt') ||
+        lower.contains('mpt')) {
+      return _physiotherapist;
+    }
+    if (lower.contains('physician') ||
+        lower.contains('general med') ||
+        lower.contains('internal med') ||
+        lower.contains('family doc') ||
+        lower.contains('primary care') ||
+        lower.contains('general practice') ||
+        lower.contains('mbbs')) {
+      return _generalPhysician;
+    }
     if (lower.contains('cardio') || lower.contains('heart')) {
       return _cardiologist;
     }

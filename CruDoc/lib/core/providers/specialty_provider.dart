@@ -34,9 +34,7 @@ final activeDoctorSpecialtyProvider = StreamProvider<DoctorSpecialty>((ref) {
   if (user == null) return Stream.value(DoctorSpecialty.defaultSpecialty);
 
   return DoctorProfileHelper.watchDoctorProfile(user).map((data) {
-    final rawSpecialty = data?['specialty'] as String? ??
-        data?['specialization'] as String? ??
-        '';
+    final rawSpecialty = DoctorProfileHelper.formatSpecialty(data, user);
     return DoctorSpecialty.fromString(rawSpecialty);
   });
 });

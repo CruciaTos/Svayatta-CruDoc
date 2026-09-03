@@ -247,6 +247,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createEmailLogTable(txn);
       await _createConsultationNotesTable(txn);
       await _createWalkInQueueTable(txn);
+      await _createHomeopathyCaseSheetsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
       await _createIndexes(txn);
@@ -267,6 +268,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createEmailLogTable(txn);
       await _createConsultationNotesTable(txn);
       await _createWalkInQueueTable(txn);
+      await _createHomeopathyCaseSheetsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
 
@@ -306,6 +308,11 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'walk_in_queue',
         columns: _walkInQueueColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'homeopathy_case_sheets',
+        columns: _homeopathyCaseSheetsColumns,
       );
       await _ensureColumns(
         txn,
@@ -753,6 +760,14 @@ class LocalDatabaseService extends ChangeNotifier {
       CREATE INDEX IF NOT EXISTS idx_walk_in_queue_status
       ON walk_in_queue (doctorId, queueDate, status)
     ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_homeopathy_case_sheets_patient
+      ON homeopathy_case_sheets (patientId, doctorId, caseDate DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_homeopathy_case_sheets_doctor
+      ON homeopathy_case_sheets (doctorId, updatedAt DESC)
+    ''');
   }
 
   Future<void> _ensureColumns(
@@ -1046,6 +1061,88 @@ class LocalDatabaseService extends ChangeNotifier {
     'completedAt': 'completedAt INTEGER',
     'linkedVisitId': 'linkedVisitId TEXT',
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createHomeopathyCaseSheetsTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS homeopathy_case_sheets (
+        id TEXT PRIMARY KEY,
+        patientId TEXT NOT NULL DEFAULT '',
+        doctorId TEXT NOT NULL DEFAULT '',
+        caseDate INTEGER NOT NULL,
+        caseType TEXT NOT NULL DEFAULT 'chronic',
+        isCompleted INTEGER NOT NULL DEFAULT 0,
+        chiefProblem TEXT NOT NULL DEFAULT '',
+        priority TEXT NOT NULL DEFAULT 'normal',
+        consultationReason TEXT NOT NULL DEFAULT '',
+        referralSource TEXT NOT NULL DEFAULT '',
+        priorHomeopathyExperience TEXT NOT NULL DEFAULT '',
+        patientPerceivedCause TEXT NOT NULL DEFAULT '',
+        overview TEXT NOT NULL DEFAULT '{}',
+        chiefComplaint TEXT NOT NULL DEFAULT '{}',
+        modalities TEXT NOT NULL DEFAULT '{}',
+        generalSymptoms TEXT NOT NULL DEFAULT '{}',
+        physicalSymptoms TEXT NOT NULL DEFAULT '{}',
+        femaleReproductive TEXT NOT NULL DEFAULT '{}',
+        mentalEmotional TEXT NOT NULL DEFAULT '{}',
+        dreamsSleep TEXT NOT NULL DEFAULT '{}',
+        sexualHistory TEXT NOT NULL DEFAULT '{}',
+        medicalHistory TEXT NOT NULL DEFAULT '{}',
+        physicalExamination TEXT NOT NULL DEFAULT '{}',
+        investigations TEXT NOT NULL DEFAULT '{}',
+        peculiarSymptoms TEXT NOT NULL DEFAULT '',
+        prescriptionNotes TEXT NOT NULL DEFAULT '{}',
+        repertorizationNotes TEXT NOT NULL DEFAULT '',
+        miasmaticTendency TEXT NOT NULL DEFAULT '',
+        suggestedRemedies TEXT NOT NULL DEFAULT '',
+        followUp TEXT NOT NULL DEFAULT '{}',
+        additionalNotes TEXT NOT NULL DEFAULT '',
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced',
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _homeopathyCaseSheetsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'caseDate': 'caseDate INTEGER NOT NULL DEFAULT 0',
+    'caseType': "caseType TEXT NOT NULL DEFAULT 'chronic'",
+    'isCompleted': 'isCompleted INTEGER NOT NULL DEFAULT 0',
+    'chiefProblem': "chiefProblem TEXT NOT NULL DEFAULT ''",
+    'priority': "priority TEXT NOT NULL DEFAULT 'normal'",
+    'consultationReason': "consultationReason TEXT NOT NULL DEFAULT ''",
+    'referralSource': "referralSource TEXT NOT NULL DEFAULT ''",
+    'priorHomeopathyExperience': "priorHomeopathyExperience TEXT NOT NULL DEFAULT ''",
+    'patientPerceivedCause': "patientPerceivedCause TEXT NOT NULL DEFAULT ''",
+    'overview': "overview TEXT NOT NULL DEFAULT '{}'",
+    'chiefComplaint': "chiefComplaint TEXT NOT NULL DEFAULT '{}'",
+    'modalities': "modalities TEXT NOT NULL DEFAULT '{}'",
+    'generalSymptoms': "generalSymptoms TEXT NOT NULL DEFAULT '{}'",
+    'physicalSymptoms': "physicalSymptoms TEXT NOT NULL DEFAULT '{}'",
+    'femaleReproductive': "femaleReproductive TEXT NOT NULL DEFAULT '{}'",
+    'mentalEmotional': "mentalEmotional TEXT NOT NULL DEFAULT '{}'",
+    'dreamsSleep': "dreamsSleep TEXT NOT NULL DEFAULT '{}'",
+    'sexualHistory': "sexualHistory TEXT NOT NULL DEFAULT '{}'",
+    'medicalHistory': "medicalHistory TEXT NOT NULL DEFAULT '{}'",
+    'physicalExamination': "physicalExamination TEXT NOT NULL DEFAULT '{}'",
+    'investigations': "investigations TEXT NOT NULL DEFAULT '{}'",
+    'peculiarSymptoms': "peculiarSymptoms TEXT NOT NULL DEFAULT ''",
+    'prescriptionNotes': "prescriptionNotes TEXT NOT NULL DEFAULT '{}'",
+    'repertorizationNotes': "repertorizationNotes TEXT NOT NULL DEFAULT ''",
+    'miasmaticTendency': "miasmaticTendency TEXT NOT NULL DEFAULT ''",
+    'suggestedRemedies': "suggestedRemedies TEXT NOT NULL DEFAULT ''",
+    'followUp': "followUp TEXT NOT NULL DEFAULT '{}'",
+    'additionalNotes': "additionalNotes TEXT NOT NULL DEFAULT ''",
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",

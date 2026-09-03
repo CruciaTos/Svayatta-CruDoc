@@ -224,8 +224,12 @@ class DeviceSessionService {
     String doctorId,
     void Function(String reason) onForcedLogout,
   ) async {
-    final token = await getLocalSessionToken();
-    if (token == null || token.isEmpty) return;
+    String? token = await getLocalSessionToken();
+    if (token == null || token.isEmpty) {
+      token = await registerNewSession(doctorId);
+    }
+
+    bool hasEverExisted = false;
 
     _sessionSub?.cancel();
     _sessionSub = FirebaseFirestore.instance
@@ -238,15 +242,22 @@ class DeviceSessionService {
       (snapshot) async {
         if (_isRegistering) return;
         if (!snapshot.exists) {
-          // Session document was deleted (revoked remotely)
-          debugPrint('DeviceSessionService: Session doc deleted remotely.');
-          await _handleForcedLogout(
-            'Your session was ended remotely.',
-            onForcedLogout,
-          );
+          if (hasEverExisted) {
+            // Session document was deleted (revoked remotely)
+            debugPrint('DeviceSessionService: Session doc deleted remotely.');
+            await _handleForcedLogout(
+              'Your session was ended remotely.',
+              onForcedLogout,
+            );
+          } else {
+            // Session doc was not found on startup — register it seamlessly
+            debugPrint('DeviceSessionService: Session doc missing on startup, registering session...');
+            await registerNewSession(doctorId);
+          }
           return;
         }
 
+        hasEverExisted = true;
         final data = snapshot.data();
         if (data != null && data['status'] == 'revoked') {
           debugPrint('DeviceSessionService: Session marked as revoked.');

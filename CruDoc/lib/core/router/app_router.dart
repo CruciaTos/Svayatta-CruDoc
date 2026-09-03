@@ -36,8 +36,7 @@ GoRouter _createAppRouter() {
     initialLocation: '/',
     refreshListenable: _firebaseAuthListenable,
     redirect: (context, state) async {
-      final currentUser = FirebaseAuth.instance.currentUser;
-      final user = currentUser ?? await FirebaseAuth.instance.authStateChanges().first;
+      final user = FirebaseAuth.instance.currentUser;
       final isLoggedIn = user != null;
       final path = state.matchedLocation;
       final isAuthRoute = path == '/' || path == '/auth';
@@ -61,7 +60,8 @@ GoRouter _createAppRouter() {
           final doc = await FirebaseFirestore.instance
               .collection('users')
               .doc(user.uid)
-              .get();
+              .get()
+              .timeout(const Duration(seconds: 2));
 
           if (doc.exists && doc.data() != null) {
             role = doc.data()!['role'] as String?;

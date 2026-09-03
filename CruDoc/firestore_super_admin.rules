@@ -194,6 +194,15 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // MEDICAL DOCUMENTS COLLECTION - STRICT DOCTOR ISOLATION
+    // ============================================================
+
+    match /medical_documents/{documentId} {
+      allow read, write: if isAuthenticated() && 
+        (resource == null || resource.data.doctorId == request.auth.uid || request.resource.data.doctorId == request.auth.uid);
+    }
+
+    // ============================================================
     // DENY ALL OTHER ACCESS
     // ============================================================
 

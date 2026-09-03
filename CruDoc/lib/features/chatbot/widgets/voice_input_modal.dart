@@ -1,11 +1,17 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/chatbot/services/voice_transcription_service.dart';
 
-/// Modal dialog for voice input dictation in the AI Chatbot.
+/// Production-grade Voice Input modal dialog for the CruDoc Mobile AI Chatbot.
 ///
-/// Provides a rich animated listening UI with pulsing mic rings, audio wave
-/// animations, live transcript display, and quick voice dictation presets.
+/// Features:
+/// - Real microphone audio capture via [VoiceTranscriptionService].
+/// - Dynamic audio amplitude visualizer driven by live microphone levels.
+/// - Live recording timer.
+/// - Fast speech-to-text processing using Gemini 2.0 Flash multimodal audio.
+/// - Review & edit transcribed query before sending.
+/// - WhatsApp & ChatGPT-style UX states (Listening / Transcribing / Review / Error).
 class VoiceInputModal extends StatefulWidget {
   final ValueChanged<String> onSpeechRecognized;
 
@@ -14,7 +20,7 @@ class VoiceInputModal extends StatefulWidget {
     required this.onSpeechRecognized,
   });
 
-  /// Static helper to show the voice input modal sheet.
+  /// Helper to present the voice input modal sheet on mobile.
   static Future<void> show(
     BuildContext context, {
     required ValueChanged<String> onSpeechRecognized,
@@ -35,20 +41,26 @@ class VoiceInputModal extends StatefulWidget {
 
 class _VoiceInputModalState extends State<VoiceInputModal>
     with TickerProviderStateMixin {
+  final _transcriptionService = VoiceTranscriptionService.instance;
+  final TextEditingController _textController = TextEditingController();
+
   late AnimationController _pulseController;
   late AnimationController _waveController;
-  Timer? _transcriptionTimer;
+  Timer? _timer;
+  Timer? _amplitudeTimer;
 
-  String _transcribedText = '';
-  bool _isListening = true;
-  int _sampleIndex = 0;
+  bool _isListening = false;
+  bool _isTranscribing = false;
+  String? _errorMessage;
+  int _secondsRecorded = 0;
+  List<double> _amplitudeBars = List.filled(7, 0.2);
 
-  static const List<String> _sampleDictations = [
-    'How do I add a new patient to records?',
-    'How to create an invoice for a patient?',
-    'How to check low stock medicines in inventory?',
-    'How do I schedule a visit for today?',
-    'How to hide revenue amount on dashboard?',
+  static const List<String> _quickSuggestions = [
+    'How do I add a new patient?',
+    'How to create an invoice?',
+    'How to check low stock medicines?',
+    'How do I schedule a visit today?',
+    'How to hide revenue on dashboard?',
   ];
 
   @override
@@ -57,46 +69,144 @@ class _VoiceInputModalState extends State<VoiceInputModal>
 
     _pulseController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    )..repeat();
+      duration: const Duration(milliseconds: 1200),
+    );
 
     _waveController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 600),
     )..repeat(reverse: true);
 
-    _startListeningSimulation();
+    _startListening();
   }
 
   @override
   void dispose() {
+    _stopTimers();
     _pulseController.dispose();
     _waveController.dispose();
-    _transcriptionTimer?.cancel();
+    _textController.dispose();
     super.dispose();
   }
 
-  void _startListeningSimulation() {
-    setState(() {
-      _isListening = true;
-      _transcribedText = 'Listening to doctor...';
-    });
-
-    // Simulate realistic voice speech recognition transcription
-    _transcriptionTimer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
-      setState(() {
-        _transcribedText = _sampleDictations[_sampleIndex % _sampleDictations.length];
-        _sampleIndex++;
-        _isListening = false;
-      });
-    });
+  void _stopTimers() {
+    _timer?.cancel();
+    _timer = null;
+    _amplitudeTimer?.cancel();
+    _amplitudeTimer = null;
   }
 
-  void _confirmAndSend() {
-    if (_transcribedText.isNotEmpty &&
-        _transcribedText != 'Listening to doctor...') {
-      widget.onSpeechRecognized(_transcribedText);
+  String get _formattedTimer {
+    final m = (_secondsRecorded ~/ 60).toString().padLeft(2, '0');
+    final s = (_secondsRecorded % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  Future<void> _startListening() async {
+    _stopTimers();
+    setState(() {
+      _isListening = true;
+      _isTranscribing = false;
+      _errorMessage = null;
+      _secondsRecorded = 0;
+    });
+
+    try {
+      await _transcriptionService.startRecording();
+      _pulseController.repeat(reverse: true);
+
+      // Timer to track duration
+      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() {
+          _secondsRecorded++;
+        });
+        // Auto-stop after 30 seconds of speech
+        if (_secondsRecorded >= 30) {
+          _stopAndTranscribe();
+        }
+      });
+
+      // Amplitude polling timer for real waveform animation
+      _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 100), (_) async {
+        if (!mounted || !_isListening) return;
+        final amp = await _transcriptionService.getAmplitude();
+        // Convert current dBFS (-160 to 0) to normalized factor (0.1 to 1.0)
+        final normalized = ((amp.current + 60) / 60).clamp(0.12, 1.0);
+
+        setState(() {
+          _amplitudeBars = List.generate(7, (i) {
+            final variance = (i - 3).abs() * 0.1;
+            return (normalized - variance).clamp(0.15, 1.0);
+          });
+        });
+      });
+    } on VoiceTranscriptionException catch (e) {
+      _stopTimers();
+      _pulseController.stop();
+      if (!mounted) return;
+      setState(() {
+        _isListening = false;
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      _stopTimers();
+      _pulseController.stop();
+      if (!mounted) return;
+      setState(() {
+        _isListening = false;
+        _errorMessage = 'Could not access microphone: $e';
+      });
+    }
+  }
+
+  Future<void> _stopAndTranscribe() async {
+    if (!_isListening) return;
+    _stopTimers();
+    _pulseController.stop();
+    _pulseController.reset();
+
+    setState(() {
+      _isListening = false;
+      _isTranscribing = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final text = await _transcriptionService.stopAndTranscribe();
+      if (!mounted) return;
+      setState(() {
+        _isTranscribing = false;
+        _textController.text = text;
+      });
+    } on VoiceTranscriptionException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isTranscribing = false;
+        _errorMessage = e.message;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isTranscribing = false;
+        _errorMessage = 'Voice transcription error: $e';
+      });
+    }
+  }
+
+  Future<void> _cancelRecording() async {
+    _stopTimers();
+    _pulseController.stop();
+    await _transcriptionService.cancelRecording();
+    if (mounted) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _sendQuery() {
+    final text = _textController.text.trim();
+    if (text.isNotEmpty) {
+      widget.onSpeechRecognized(text);
       Navigator.pop(context);
     }
   }
@@ -106,15 +216,15 @@ class _VoiceInputModalState extends State<VoiceInputModal>
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
-      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottomInset),
+      padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: [
           BoxShadow(
             color: Colors.black26,
-            blurRadius: 20,
-            offset: Offset(0, -5),
+            blurRadius: 24,
+            offset: Offset(0, -6),
           ),
         ],
       ),
@@ -123,223 +233,341 @@ class _VoiceInputModalState extends State<VoiceInputModal>
         children: [
           // Drag handle
           Container(
-            width: 40,
+            width: 42,
             height: 4,
             decoration: BoxDecoration(
-              color: Colors.grey.shade300,
+              color: const Color(0xFFCBD5E1),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
 
-          // Title header
+          // Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(
-                Icons.mic_rounded,
-                color: _isListening ? const Color(0xFF1E78FF) : AppColors.textPrimary,
-                size: 22,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.mic_rounded,
+                      color: _isListening ? const Color(0xFF1E78FF) : AppColors.slateBlue,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    _isListening
+                        ? 'Listening to Doctor...'
+                        : (_isTranscribing
+                            ? 'Processing Speech...'
+                            : (_textController.text.isNotEmpty
+                                ? 'Query Ready'
+                                : 'Voice Dictation')),
+                    style: const TextStyle(
+                      fontFamily: AppColors.headingFontFamily,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              Text(
-                _isListening ? 'Listening to Voice Input...' : 'Voice Query Captured',
-                style: const TextStyle(
-                  fontFamily: AppColors.headingFontFamily,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+              if (_isListening)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _formattedTimer,
+                        style: TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.red.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
 
-          // Pulsing Mic Animation Ring
-          GestureDetector(
-            onTap: () {
-              if (!_isListening) {
-                _startListeningSimulation();
-              }
-            },
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer pulsing ring
-                if (_isListening)
+          // Core Interactive Center: Mic button / Transcribing spinner / Waveform
+          if (_isListening) ...[
+            GestureDetector(
+              onTap: _stopAndTranscribe,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
                   AnimatedBuilder(
                     animation: _pulseController,
                     builder: (context, _) {
                       return Container(
-                        width: 100 + (_pulseController.value * 30),
-                        height: 100 + (_pulseController.value * 30),
+                        width: 86 + (_pulseController.value * 28),
+                        height: 86 + (_pulseController.value * 28),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: const Color(0xFF1E78FF)
-                              .withValues(alpha: 0.2 * (1 - _pulseController.value)),
+                              .withValues(alpha: 0.18 * (1 - _pulseController.value)),
                         ),
                       );
                     },
                   ),
-                // Inner gradient button
-                Container(
-                  width: 84,
-                  height: 84,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: _isListening
-                          ? [const Color(0xFF1E78FF), const Color(0xFF00C6FF)]
-                          : [const Color(0xFF22C55E), const Color(0xFF16A34A)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
+                  Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFF1E78FF).withValues(alpha: 0.4),
+                          blurRadius: 16,
+                          offset: const Offset(0, 5),
+                        ),
+                      ],
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: (_isListening
-                                ? const Color(0xFF1E78FF)
-                                : const Color(0xFF22C55E))
-                            .withValues(alpha: 0.4),
-                        blurRadius: 16,
-                        offset: const Offset(0, 6),
-                      ),
-                    ],
+                    child: const Icon(
+                      Icons.stop_rounded,
+                      color: Colors.white,
+                      size: 36,
+                    ),
                   ),
-                  child: Icon(
-                    _isListening ? Icons.mic_rounded : Icons.check_rounded,
-                    color: Colors.white,
-                    size: 38,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Audio Waveform Animation Bars
-          if (_isListening)
-            AnimatedBuilder(
-              animation: _waveController,
-              builder: (context, _) {
-                return Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: List.generate(5, (index) {
-                    final heights = [12.0, 24.0, 36.0, 20.0, 14.0];
-                    final factor = index % 2 == 0
-                        ? _waveController.value
-                        : (1 - _waveController.value);
-                    return Container(
-                      width: 4,
-                      height: (heights[index] * (0.5 + factor * 0.8)).clamp(8.0, 40.0),
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E78FF),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    );
-                  }),
-                );
-              },
-            )
-          else
+            const SizedBox(height: 16),
             const Text(
-              'Tap mic again to re-record',
+              'Speak your question naturally • Tap stop when finished',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 12,
                 color: AppColors.textSecondary,
+                fontWeight: FontWeight.w500,
               ),
             ),
+            const SizedBox(height: 14),
 
-          const SizedBox(height: 20),
-
-          // Transcribed Text Container
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+            // Live Audio Waveform Bars
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(_amplitudeBars.length, (index) {
+                final barHeight = (_amplitudeBars[index] * 38).clamp(8.0, 38.0);
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 90),
+                  width: 4.5,
+                  height: barHeight,
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E78FF),
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                );
+              }),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.record_voice_over_rounded, size: 16, color: AppColors.slateBlue),
-                    SizedBox(width: 6),
-                    Text(
-                      'TRANSCRIPT',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.1,
-                        color: AppColors.slateBlue,
+          ] else if (_isTranscribing) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Column(
+                children: [
+                  const SizedBox(
+                    width: 44,
+                    height: 44,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 3,
+                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E78FF)),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Transcribing voice with Gemini AI...',
+                    style: TextStyle(
+                      fontFamily: AppColors.headingFontFamily,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Converting your clinical voice query to text',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else if (_errorMessage != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.red.shade200),
+              ),
+              child: Column(
+                children: [
+                  Icon(Icons.mic_off_rounded, color: Colors.red.shade700, size: 28),
+                  const SizedBox(height: 8),
+                  Text(
+                    _errorMessage!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 13,
+                      color: Colors.red.shade900,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ElevatedButton.icon(
+                    onPressed: _startListening,
+                    icon: const Icon(Icons.refresh_rounded, size: 16),
+                    label: const Text('Try Again'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E78FF),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            // Transcribed Text review box
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: TextField(
+                controller: _textController,
+                maxLines: 3,
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.textPrimary,
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  _transcribedText,
-                  style: TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w500,
-                    color: _isListening
-                        ? AppColors.textSecondary
-                        : AppColors.textPrimary,
-                    fontStyle: _isListening ? FontStyle.italic : FontStyle.normal,
+                decoration: const InputDecoration(
+                  border: InputBorder.none,
+                  hintText: 'Edit or type your query...',
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton.icon(
+                  onPressed: _startListening,
+                  icon: const Icon(Icons.mic_rounded, size: 16, color: Color(0xFF1E78FF)),
+                  label: const Text(
+                    'Re-record Voice',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF1E78FF),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
+          ],
 
           const SizedBox(height: 16),
 
-          // Preset Voice Suggestions Row
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _sampleDictations.map((dictation) {
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ActionChip(
-                    avatar: const Icon(Icons.graphic_eq_rounded, size: 14, color: AppColors.chartBarLight),
-                    label: Text(
-                      dictation,
-                      style: const TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 12,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    backgroundColor: const Color(0xFFEFF6FF),
-                    side: BorderSide(color: AppColors.chartBarLight.withValues(alpha: 0.3)),
-                    onPressed: () {
-                      setState(() {
-                        _transcribedText = dictation;
-                        _isListening = false;
-                      });
-                    },
-                  ),
-                );
-              }).toList(),
+          // Preset Quick Suggestions
+          if (!_isListening && !_isTranscribing) ...[
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Or choose a common question:',
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.grey.shade600,
+                ),
+              ),
             ),
-          ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: _quickSuggestions.map((suggestion) {
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      avatar: const Icon(Icons.chat_bubble_outline_rounded,
+                          size: 13, color: AppColors.chartBarLight),
+                      label: Text(
+                        suggestion,
+                        style: const TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      backgroundColor: const Color(0xFFEFF6FF),
+                      side: BorderSide(
+                        color: AppColors.chartBarLight.withValues(alpha: 0.25),
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _textController.text = suggestion;
+                        });
+                      },
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
 
-          const SizedBox(height: 24),
-
-          // Action Buttons: Send Voice Query & Cancel
+          // Footer Action Buttons
           Row(
             children: [
               Expanded(
                 child: TextButton(
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: _cancelRecording,
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -350,7 +578,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                     'Cancel',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
-                      fontSize: 15,
+                      fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.textSecondary,
                     ),
@@ -375,7 +603,11 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                     ],
                   ),
                   child: ElevatedButton.icon(
-                    onPressed: _isListening ? null : _confirmAndSend,
+                    onPressed: _isListening
+                        ? _stopAndTranscribe
+                        : (_isTranscribing || _textController.text.trim().isEmpty
+                            ? null
+                            : _sendQuery),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
@@ -384,12 +616,16 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    icon: const Icon(Icons.send_rounded, color: Colors.white, size: 18),
-                    label: const Text(
-                      'Send Voice Query',
-                      style: TextStyle(
+                    icon: Icon(
+                      _isListening ? Icons.stop_rounded : Icons.send_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
+                    label: Text(
+                      _isListening ? 'Done Speaking' : 'Send to Assistant',
+                      style: const TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 15,
+                        fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
                       ),

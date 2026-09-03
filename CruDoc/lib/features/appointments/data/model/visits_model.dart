@@ -21,7 +21,8 @@ const int kMaxVisitDurationMinutes = 480; // 8 hours
 /// Kept as a plain constant here — matching this file's existing flat
 /// constant style above — to avoid introducing a new config file for a
 /// single key.
-const String kGoogleMapsApiKey = 'AIzaSyCvA7zLFFwUdL5xN9iqYy2uULtNnjH-NWo';
+const String kGoogleMapsApiKey =
+    String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: '');
 
 /// Builds a Google Static Maps image URL for the given coordinates, or
 /// `null` if either coordinate is missing.

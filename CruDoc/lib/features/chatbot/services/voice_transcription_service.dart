@@ -35,11 +35,13 @@ class VoiceTranscriptionService {
       'https://generativelanguage.googleapis.com/v1beta/models';
 
   String get _apiKey {
+    const envKey = String.fromEnvironment('GEMINI_API_KEY');
+    if (envKey.isNotEmpty) return envKey;
     try {
       final key = DefaultFirebaseOptions.currentPlatform.apiKey;
       if (key.isNotEmpty) return key;
     } catch (_) {}
-    return 'AIzaSyCvX8gBK3vr399J3OnzEDbGYmv6PIIShyk';
+    return '';
   }
 
   /// Checks if microphone permission is granted. Requests permission if not.

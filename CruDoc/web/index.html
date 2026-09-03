@@ -41,9 +41,18 @@
     For more details:
     * https://docs.flutter.dev/platform-integration/web/initialization
   -->
-  <!-- Google Maps JavaScript SDK — required for Flutter Web Maps and Places Autocomplete. -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCvA7zLFFwUdL5xN9iqYy2uULtNnjH-NWo&libraries=places"></script>
-  
+  <!-- Google Maps JavaScript SDK — dynamically loaded to prevent committing secret keys to source control. -->
+  <script>
+    (function() {
+      var mapsApiKey = window.GOOGLE_MAPS_API_KEY || (new URLSearchParams(window.location.search)).get('gmaps_key') || '';
+      if (mapsApiKey) {
+        var s = document.createElement('script');
+        s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(mapsApiKey) + '&libraries=places';
+        s.async = true;
+        document.head.appendChild(s);
+      }
+    })();
+  </script>
   <script>
     window.googlePlacesAutocomplete = function(input, callback) {
       if (typeof google === 'undefined' || !google.maps || !google.maps.places) {

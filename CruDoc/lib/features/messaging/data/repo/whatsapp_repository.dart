@@ -374,8 +374,17 @@ class WhatsAppRepository {
     } catch (_) {}
 
     // 2. Direct Meta WhatsApp Business Cloud API Dispatch
-    const metaToken = 'EAAPCogiyZB7ABSYHA4gCGCPrajtLVHsPQlNEZBrV1ZACvYcyQto0cCDEI7nv9fZBaZCLYoEZA8eNCFlMZBbma4PC1OUSBDzHQ6OFYD7JIsg8wlX1QPmKSEkZBa8qKfpsQmySWzzbkzzqZCa8lE0U4ipJBC0Fj5iZCEyK7tBG7c9W7f0sZCDlHZCYebXSHaH4ax87nP5SZAGkmUeMuGK4BcxUvsl3GWh2dCZBU0Rp2VqYqsNnrWaRWsbMvxJCILOHaoZB0o3EYANsZBKXJvD9ZBEIrVFkwlgZADcvXJ';
-    const metaPhoneId = '1260194177180019';
+    const metaToken = String.fromEnvironment('WHATSAPP_ACCESS_TOKEN', defaultValue: '');
+    const metaPhoneId = String.fromEnvironment('WHATSAPP_PHONE_NUMBER_ID', defaultValue: '1260194177180019');
+
+    if (metaToken.isEmpty) {
+      debugPrint('[WhatsApp] No Meta WhatsApp Access Token configured (WHATSAPP_ACCESS_TOKEN). Skipping direct Meta dispatch.');
+      return (
+        success: false,
+        messageId: null,
+        error: 'Meta WhatsApp Access Token not configured in environment.',
+      );
+    }
 
     try {
       final normalizedTo = WhatsAppTemplateService.normalizePhone(phone) ?? phone;

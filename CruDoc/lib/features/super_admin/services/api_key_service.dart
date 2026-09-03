@@ -290,9 +290,9 @@ class SuperAdminApiKeyService {
       if (!doc.exists) {
         // Return default/seeded keys if not yet stored
         return {
-          'googleMapsApiKey': 'AIzaSyCvA7zLFFwUdL5xN9iqYy2uULtNnjH-NWo',
-          'chatbotGeminiApiKey': 'AIzaSyCvX8gBK3vr399J3OnzEDbGYmv6PIIShyk',
-          'sarvamApiKey': '',
+          'googleMapsApiKey': const String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: ''),
+          'chatbotGeminiApiKey': const String.fromEnvironment('GEMINI_API_KEY', defaultValue: ''),
+          'sarvamApiKey': const String.fromEnvironment('SARVAM_API_KEY', defaultValue: ''),
           'voiceGeminiApiKey': '',
           'twilioAccountSid': '',
           'twilioAuthToken': '',

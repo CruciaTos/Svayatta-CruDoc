@@ -21,9 +21,8 @@ class CampaignDispatchService {
   final GmailSendService _gmailSendService;
   final http.Client _httpClient;
 
-  static const _metaToken =
-      'EAAPCogiyZB7ABSYHA4gCGCPrajtLVHsPQlNEZBrV1ZACvYcyQto0cCDEI7nv9fZBaZCLYoEZA8eNCFlMZBbma4PC1OUSBDzHQ6OFYD7JIsg8wlX1QPmKSEkZBa8qKfpsQmySWzzbkzzqZCa8lE0U4ipJBC0Fj5iZCEyK7tBG7c9W7f0sZCDlHZCYebXSHaH4ax87nP5SZAGkmUeMuGK4BcxUvsl3GWh2dCZBU0Rp2VqYqsNnrWaRWsbMvxJCILOHaoZB0o3EYANsZBKXJvD9ZBEIrVFkwlgZADcvXJ';
-  static const _metaPhoneId = '1260194177180019';
+  static const _metaToken = String.fromEnvironment('WHATSAPP_ACCESS_TOKEN', defaultValue: '');
+  static const _metaPhoneId = String.fromEnvironment('WHATSAPP_PHONE_NUMBER_ID', defaultValue: '1260194177180019');
 
   CampaignDispatchService({
     CampaignRepository? campaignRepository,
@@ -456,6 +455,11 @@ class CampaignDispatchService {
     required String formattedText,
   }) async {
     final normalizedPhone = WhatsAppTemplateService.normalizePhone(phone) ?? phone;
+    if (_metaToken.isEmpty) {
+      debugPrint('[Campaign WhatsApp] No Meta WhatsApp Access Token configured in environment.');
+      return (success: false, messageId: null, error: 'WhatsApp Access Token not configured in environment.');
+    }
+
     final metaUrl = Uri.parse('https://graph.facebook.com/v20.0/$_metaPhoneId/messages');
     String? lastError;
 

@@ -57,7 +57,7 @@ Backend Cloud Functions and the app read credentials from `CruDoc/functions/.env
 WHATSAPP_MODE=production
 
 # Meta WhatsApp Cloud API Access Token
-WHATSAPP_ACCESS_TOKEN=EAAPCogiyZB7ABSL1...
+WHATSAPP_ACCESS_TOKEN=your_meta_whatsapp_access_token_here
 
 # Meta Phone Number ID (from WhatsApp API Setup or Production Phone Numbers)
 WHATSAPP_PHONE_NUMBER_ID=1260194177180019

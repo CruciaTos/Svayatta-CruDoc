@@ -1,5 +1,21 @@
-*.json
+# ============================================================
+# Secrets, Keys & Credentials (NEVER COMMIT)
+# ============================================================
+*.env
+*.env.*
 .env
+.env.*
+serviceAccountKey.json
+google-services.json
+GoogleService-Info.plist
+*.key
+*.keystore
+*.jks
+*.p12
+*.pfx
+
+# Application specifics
+*.json
 CruDoc/lib/firebase_options.dart
 .agents/
 .cursor/

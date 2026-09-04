@@ -49,7 +49,12 @@ class LocalDatabaseService extends ChangeNotifier {
       throw UnsupportedError('SQLite is disabled on Web. Repositories read directly from Cloud Firestore on Web.');
     }
 
-    final requestedDoctorId = FirebaseAuth.instance.currentUser?.uid ?? 'signed_out';
+    String requestedDoctorId = 'signed_out';
+    try {
+      requestedDoctorId = FirebaseAuth.instance.currentUser?.uid ?? 'signed_out';
+    } catch (_) {
+      requestedDoctorId = 'signed_out';
+    }
     final existing = _database;
     if (existing != null && _databaseDoctorId == requestedDoctorId) {
       return existing;
@@ -194,8 +199,13 @@ class LocalDatabaseService extends ChangeNotifier {
   /// this project already depends on and already uses for other
   /// Windows-specific paths (see `windows_update_installer.dart`).
   Future<String> _windowsDatabasePath(String fileName) async {
-    final supportDir = await getApplicationSupportDirectory();
-    final dbDir = Directory(p.join(supportDir.path, 'databases'));
+    Directory baseDir;
+    try {
+      baseDir = await getApplicationSupportDirectory();
+    } catch (_) {
+      baseDir = Directory.systemTemp;
+    }
+    final dbDir = Directory(p.join(baseDir.path, 'databases'));
     if (!await dbDir.exists()) {
       await dbDir.create(recursive: true);
     }
@@ -248,6 +258,11 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createConsultationNotesTable(txn);
       await _createWalkInQueueTable(txn);
       await _createHomeopathyCaseSheetsTable(txn);
+      await _createDentalProcedureCatalogTable(txn);
+      await _createToothChartEntriesTable(txn);
+      await _createProcedureLogEntriesTable(txn);
+      await _createSterilizationLogEntriesTable(txn);
+      await _createTreatmentPlanLineItemsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
       await _createIndexes(txn);
@@ -269,6 +284,11 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createConsultationNotesTable(txn);
       await _createWalkInQueueTable(txn);
       await _createHomeopathyCaseSheetsTable(txn);
+      await _createDentalProcedureCatalogTable(txn);
+      await _createToothChartEntriesTable(txn);
+      await _createProcedureLogEntriesTable(txn);
+      await _createSterilizationLogEntriesTable(txn);
+      await _createTreatmentPlanLineItemsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
 
@@ -313,6 +333,31 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'homeopathy_case_sheets',
         columns: _homeopathyCaseSheetsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'dental_procedure_catalog',
+        columns: _dentalProcedureCatalogColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'tooth_chart_entries',
+        columns: _toothChartEntriesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'procedure_log_entries',
+        columns: _procedureLogEntriesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'sterilization_log_entries',
+        columns: _sterilizationLogEntriesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'treatment_plan_line_items',
+        columns: _treatmentPlanLineItemsColumns,
       );
       await _ensureColumns(
         txn,
@@ -586,6 +631,12 @@ class LocalDatabaseService extends ChangeNotifier {
         'email_log',
         'consultation_notes',
         'walk_in_queue',
+        'homeopathy_case_sheets',
+        'dental_procedure_catalog',
+        'tooth_chart_entries',
+        'procedure_log_entries',
+        'sterilization_log_entries',
+        'treatment_plan_line_items',
         'sync_state',
       ]) {
         await txn.delete(table);
@@ -1143,6 +1194,219 @@ class LocalDatabaseService extends ChangeNotifier {
     'suggestedRemedies': "suggestedRemedies TEXT NOT NULL DEFAULT ''",
     'followUp': "followUp TEXT NOT NULL DEFAULT '{}'",
     'additionalNotes': "additionalNotes TEXT NOT NULL DEFAULT ''",
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createDentalProcedureCatalogTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS dental_procedure_catalog (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        code TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL DEFAULT '',
+        category TEXT NOT NULL DEFAULT 'general',
+        defaultPrice REAL,
+        defaultDurationMinutes INTEGER,
+        requiresToothSelection INTEGER NOT NULL DEFAULT 1,
+        isActive INTEGER NOT NULL DEFAULT 1,
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _dentalProcedureCatalogColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'code': "code TEXT NOT NULL DEFAULT ''",
+    'name': "name TEXT NOT NULL DEFAULT ''",
+    'category': "category TEXT NOT NULL DEFAULT 'general'",
+    'defaultPrice': 'defaultPrice REAL',
+    'defaultDurationMinutes': 'defaultDurationMinutes INTEGER',
+    'requiresToothSelection': 'requiresToothSelection INTEGER NOT NULL DEFAULT 1',
+    'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createToothChartEntriesTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS tooth_chart_entries (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL DEFAULT '',
+        toothNumber TEXT NOT NULL DEFAULT '',
+        notationSystem TEXT NOT NULL DEFAULT 'fdi',
+        surface TEXT,
+        condition TEXT,
+        treatment TEXT,
+        procedureLogId TEXT,
+        notes TEXT NOT NULL DEFAULT '',
+        recordedAt INTEGER NOT NULL,
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _toothChartEntriesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'toothNumber': "toothNumber TEXT NOT NULL DEFAULT ''",
+    'notationSystem': "notationSystem TEXT NOT NULL DEFAULT 'fdi'",
+    'surface': 'surface TEXT',
+    'condition': 'condition TEXT',
+    'treatment': 'treatment TEXT',
+    'procedureLogId': 'procedureLogId TEXT',
+    'notes': "notes TEXT NOT NULL DEFAULT ''",
+    'recordedAt': 'recordedAt INTEGER NOT NULL DEFAULT 0',
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createProcedureLogEntriesTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS procedure_log_entries (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL DEFAULT '',
+        visitId TEXT,
+        procedureCatalogId TEXT,
+        procedureName TEXT NOT NULL DEFAULT '',
+        toothNumbers TEXT NOT NULL DEFAULT '[]',
+        notationSystem TEXT NOT NULL DEFAULT 'fdi',
+        status TEXT NOT NULL DEFAULT 'completed',
+        notes TEXT NOT NULL DEFAULT '',
+        materials TEXT,
+        performedAt INTEGER NOT NULL,
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _procedureLogEntriesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'visitId': 'visitId TEXT',
+    'procedureCatalogId': 'procedureCatalogId TEXT',
+    'procedureName': "procedureName TEXT NOT NULL DEFAULT ''",
+    'toothNumbers': "toothNumbers TEXT NOT NULL DEFAULT '[]'",
+    'notationSystem': "notationSystem TEXT NOT NULL DEFAULT 'fdi'",
+    'status': "status TEXT NOT NULL DEFAULT 'completed'",
+    'notes': "notes TEXT NOT NULL DEFAULT ''",
+    'materials': 'materials TEXT',
+    'performedAt': 'performedAt INTEGER NOT NULL DEFAULT 0',
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createSterilizationLogEntriesTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sterilization_log_entries (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        cycleDate INTEGER NOT NULL,
+        operatorName TEXT NOT NULL DEFAULT '',
+        loadDescription TEXT NOT NULL DEFAULT '',
+        result TEXT NOT NULL DEFAULT 'pass',
+        notes TEXT NOT NULL DEFAULT '',
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _sterilizationLogEntriesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'cycleDate': 'cycleDate INTEGER NOT NULL DEFAULT 0',
+    'operatorName': "operatorName TEXT NOT NULL DEFAULT ''",
+    'loadDescription': "loadDescription TEXT NOT NULL DEFAULT ''",
+    'result': "result TEXT NOT NULL DEFAULT 'pass'",
+    'notes': "notes TEXT NOT NULL DEFAULT ''",
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createTreatmentPlanLineItemsTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS treatment_plan_line_items (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL DEFAULT '',
+        treatmentPlanId TEXT NOT NULL DEFAULT '',
+        procedureCatalogId TEXT,
+        procedureName TEXT NOT NULL DEFAULT '',
+        toothNumbers TEXT NOT NULL DEFAULT '[]',
+        estimatedPrice REAL NOT NULL DEFAULT 0,
+        sequence INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'proposed',
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'synced'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _treatmentPlanLineItemsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'treatmentPlanId': "treatmentPlanId TEXT NOT NULL DEFAULT ''",
+    'procedureCatalogId': 'procedureCatalogId TEXT',
+    'procedureName': "procedureName TEXT NOT NULL DEFAULT ''",
+    'toothNumbers': "toothNumbers TEXT NOT NULL DEFAULT '[]'",
+    'estimatedPrice': 'estimatedPrice REAL NOT NULL DEFAULT 0',
+    'sequence': 'sequence INTEGER NOT NULL DEFAULT 0',
+    'status': "status TEXT NOT NULL DEFAULT 'proposed'",
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",

@@ -15,6 +15,7 @@ import '../widgets/quick_actions_widget.dart';
 import '../widgets/recent_patients_widget.dart';
 import '../widgets/activity_logs_widget.dart';
 import '../widgets/pending_tasks_suggestions_widget.dart';
+import 'package:doctor_management_app/features/dental/presentation/widgets/dental_quick_actions_row.dart';
 
 /// Desktop version of the Dashboard tab.
 /// 
@@ -66,6 +67,19 @@ class DesktopDashboardScreen extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            StreamBuilder<Map<String, dynamic>?>(
+                              stream: DoctorProfileHelper.watchDoctorProfile(),
+                              builder: (context, profileSnapshot) {
+                                final rawSpecialty = DoctorProfileHelper.formatSpecialty(profileSnapshot.data);
+                                final isDentist = rawSpecialty.toLowerCase().contains('dent');
+                                if (!isDentist) return const SizedBox.shrink();
+
+                                return const Padding(
+                                  padding: EdgeInsets.only(bottom: 16),
+                                  child: DentalQuickActionsRow(),
+                                );
+                              },
+                            ),
                             const QuickActionsWidget(),
                             const SizedBox(height: 16),
                             const RecentPatientsWidget(),
@@ -97,18 +111,31 @@ class DesktopDashboardScreen extends StatelessWidget {
                 } else {
                   // Mobile / Narrow window fallback
                   return Column(
-                    children: const [
-                      QuickActionsWidget(),
-                      SizedBox(height: 16),
-                      UpcomingAppointmentsWidget(),
-                      SizedBox(height: 16),
-                      RecentPatientsWidget(),
-                      SizedBox(height: 16),
-                      AiInsightWidget(),
-                      SizedBox(height: 16),
-                      PendingTasksSuggestionsWidget(),
-                      SizedBox(height: 16),
-                      ActivityLogsWidget(),
+                    children: [
+                      StreamBuilder<Map<String, dynamic>?>(
+                        stream: DoctorProfileHelper.watchDoctorProfile(),
+                        builder: (context, profileSnapshot) {
+                          final rawSpecialty = DoctorProfileHelper.formatSpecialty(profileSnapshot.data);
+                          final isDentist = rawSpecialty.toLowerCase().contains('dent');
+                          if (!isDentist) return const SizedBox.shrink();
+
+                          return const Padding(
+                            padding: EdgeInsets.only(bottom: 16),
+                            child: DentalQuickActionsRow(),
+                          );
+                        },
+                      ),
+                      const QuickActionsWidget(),
+                      const SizedBox(height: 16),
+                      const UpcomingAppointmentsWidget(),
+                      const SizedBox(height: 16),
+                      const RecentPatientsWidget(),
+                      const SizedBox(height: 16),
+                      const AiInsightWidget(),
+                      const SizedBox(height: 16),
+                      const PendingTasksSuggestionsWidget(),
+                      const SizedBox(height: 16),
+                      const ActivityLogsWidget(),
                     ],
                   );
                 }

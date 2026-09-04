@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/patients/data/providers/patient_p
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_patient_details_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/dental_patient_details_screen.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -190,6 +191,10 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
 
     if (specialty.type == DoctorSpecialtyType.homeopathy) {
       return HomeopathyPatientDetailsScreen(patient: widget.patient);
+    }
+
+    if (specialty.type == DoctorSpecialtyType.dentist) {
+      return DentalPatientDetailsScreen(patient: widget.patient);
     }
 
     final patientsAsync = ref.watch(patientsStreamProvider);

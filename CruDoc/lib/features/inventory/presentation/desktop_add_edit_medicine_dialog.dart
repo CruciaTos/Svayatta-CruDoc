@@ -94,6 +94,11 @@ class _DesktopAddEditMedicineDialogState
     'Antihistamine',
     'Vaccine',
     'Consumable',
+    'Dental Consumable',
+    'Dental Restorative',
+    'Dental Anesthetic',
+    'Dental Endodontic',
+    'Dental Surgical',
   ];
 
   static const List<String> _unitPresets = [
@@ -108,6 +113,10 @@ class _DesktopAddEditMedicineDialogState
     'Bottles',
     'Sachets',
     'Pcs',
+    'Cartridges',
+    'Burs',
+    'Pouches',
+    'Syringes',
   ];
 
   final _currencyFormatter = NumberFormat.currency(

@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
+import 'package:doctor_management_app/features/dental/presentation/widgets/dental_quick_actions_row.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -377,6 +378,20 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         );
                       },
                     ),
+
+                  StreamBuilder<Map<String, dynamic>?>(
+                    stream: DoctorProfileHelper.watchDoctorProfile(),
+                    builder: (context, profileSnapshot) {
+                      final rawSpecialty = DoctorProfileHelper.formatSpecialty(profileSnapshot.data);
+                      final isDentist = rawSpecialty.toLowerCase().contains('dent');
+                      if (!isDentist) return const SizedBox.shrink();
+
+                      return const Padding(
+                        padding: EdgeInsets.only(top: 12),
+                        child: DentalQuickActionsRow(),
+                      );
+                    },
+                  ),
 
                   const SizedBox(height: 12),
                   QuickActionsRow(

@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 
 import '../../features/auth/presentation/auth_screen.dart';
 import '../../features/shell/presentation/responsive_shell.dart';
@@ -18,6 +19,7 @@ class _FirebaseAuthListenable extends ChangeNotifier {
     _subscription = FirebaseAuth.instance.authStateChanges().listen((_) {
       notifyListeners();
     });
+    DemoSessionService.sessionStateNotifier.addListener(notifyListeners);
   }
 
   late final StreamSubscription<User?> _subscription;
@@ -25,6 +27,7 @@ class _FirebaseAuthListenable extends ChangeNotifier {
   @override
   void dispose() {
     _subscription.cancel();
+    DemoSessionService.sessionStateNotifier.removeListener(notifyListeners);
     super.dispose();
   }
 }
@@ -37,7 +40,8 @@ GoRouter _createAppRouter() {
     refreshListenable: _firebaseAuthListenable,
     redirect: (context, state) async {
       final user = FirebaseAuth.instance.currentUser;
-      final isLoggedIn = user != null;
+      final isDemo = DemoSessionService.isDemoMode;
+      final isLoggedIn = user != null || isDemo;
       final path = state.matchedLocation;
       final isAuthRoute = path == '/' || path == '/auth';
       final isAdminRoute = path.startsWith('/admin');
@@ -51,8 +55,15 @@ GoRouter _createAppRouter() {
         return '/auth';
       }
 
-      // If user is logged in, check their role to enforce strict role-based route separation
-      if (isLoggedIn) {
+      // If user is logged in via Demo Session (instant dev bypass)
+      if (isDemo) {
+        if (isAdminRoute) return '/dashboard';
+        if (isAuthRoute) return '/dashboard';
+        return null;
+      }
+
+      // If user is logged in via Firebase Auth, check their role to enforce strict role-based route separation
+      if (isLoggedIn && user != null) {
         String? role;
         bool isActiveAdmin = true;
 

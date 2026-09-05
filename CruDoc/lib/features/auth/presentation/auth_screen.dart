@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,6 +12,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
 import 'package:doctor_management_app/features/auth/presentation/widgets/specialty_onboarding_dialog.dart';
@@ -118,6 +120,63 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
+  }
+
+  /// 1-Click fast login into the Trial Demo account for developers.
+  /// Activates an instant local demo session (rate-limit immune) and syncs with Firebase in background.
+  Future<void> _handleTrialDemoLogin() async {
+    final spec = ref.read(authSpecialtyProvider);
+    _emailController.text = spec.demoEmail;
+    _passwordController.text = spec.demoPassword;
+
+    // 1. Activate trial demo session immediately (bypasses Firebase network rate-limits)
+    DemoSessionService.startDemoSession(spec);
+
+    // 2. Background attempt to authenticate with Firebase if available
+    unawaited(() async {
+      try {
+        UserCredential userCred;
+        try {
+          userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
+            email: spec.demoEmail,
+            password: spec.demoPassword,
+          );
+        } catch (_) {
+          userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+            email: spec.demoEmail,
+            password: spec.demoPassword,
+          );
+        }
+
+        final user = userCred.user;
+        if (user != null) {
+          final docRef =
+              FirebaseFirestore.instance.collection('users').doc(user.uid);
+          await docRef.set({
+            'uid': user.uid,
+            'email': spec.demoEmail,
+            'displayName': 'Dr. Demo Doctor',
+            'doctorName': 'Dr. Demo Doctor',
+            'specialty': spec.label,
+            'specialization': spec.label,
+            'status': 'Active',
+            'role': 'doctor',
+            'updatedAt': FieldValue.serverTimestamp(),
+          }, SetOptions(merge: true));
+        }
+      } catch (e) {
+        debugPrint('Trial demo background auth note: $e');
+      }
+    }());
+
+    if (_rememberMe) {
+      unawaited(_secureStorage.write(
+          key: 'remembered_email', value: spec.demoEmail));
+      unawaited(_secureStorage.write(key: 'remember_me', value: 'true'));
+    }
+
+    if (!mounted) return;
+    _enterApp();
   }
 
   void _goToPage(int index) {
@@ -577,6 +636,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                       onObscureToggle: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
                       onPrimary: _handleEmailLogin,
+                      onTrialDemoLogin: _handleTrialDemoLogin,
                       onSecondary: () => _goToPage(2),
                       onGoogleSignIn: _handleGoogleSignIn,
                       onPhoneSignIn: _handlePhoneSignIn,
@@ -679,6 +739,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                             onRememberMeToggle: () => setState(
                                 () => _rememberMe = !_rememberMe),
                             onPrimarySubmit: _handleEmailLogin,
+                            onTrialDemoLogin: _handleTrialDemoLogin,
                             onDemoFill: _fillDemoCredentials,
                           ),
                         ),
@@ -1178,6 +1239,7 @@ class _WebAuthPortalCard extends StatelessWidget {
     required this.onObscureToggle,
     required this.onRememberMeToggle,
     required this.onPrimarySubmit,
+    required this.onTrialDemoLogin,
     required this.onDemoFill,
   });
 
@@ -1190,6 +1252,7 @@ class _WebAuthPortalCard extends StatelessWidget {
   final VoidCallback onObscureToggle;
   final VoidCallback onRememberMeToggle;
   final VoidCallback onPrimarySubmit;
+  final VoidCallback onTrialDemoLogin;
   final VoidCallback onDemoFill;
 
   @override
@@ -1401,6 +1464,33 @@ class _WebAuthPortalCard extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        // 1-Click Trial Demo Mode Button
+        SizedBox(
+          height: 46,
+          child: OutlinedButton.icon(
+            onPressed: isLoading ? null : onTrialDemoLogin,
+            icon: const Icon(Icons.bolt_rounded,
+                color: Color(0xFF059669), size: 20),
+            label: const Text(
+              'Launch Trial Demo Mode (Dev Account)',
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF059669),
+                fontFamily: AppColors.bodyFontFamily,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              backgroundColor:
+                  const Color(0xFF059669).withValues(alpha: 0.06),
+              side: const BorderSide(color: Color(0xFF059669), width: 1.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1563,6 +1653,7 @@ enum _AuthMode { login, signup }
 
 class _AuthFormPanel extends StatelessWidget {
   const _AuthFormPanel({
+    super.key,
     required this.progress,
     required this.mode,
     required this.obscurePassword,
@@ -1573,6 +1664,7 @@ class _AuthFormPanel extends StatelessWidget {
     required this.onBack,
     required this.onObscureToggle,
     required this.onPrimary,
+    this.onTrialDemoLogin,
     required this.onSecondary,
     required this.onGoogleSignIn,
     required this.onPhoneSignIn,
@@ -1588,6 +1680,7 @@ class _AuthFormPanel extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
+  final VoidCallback? onTrialDemoLogin;
   final VoidCallback onSecondary;
   final VoidCallback onGoogleSignIn;
   final VoidCallback onPhoneSignIn;
@@ -1608,15 +1701,14 @@ class _AuthFormPanel extends StatelessWidget {
               onPressed: onBack,
               icon: const Icon(Icons.chevron_left_rounded, color: Colors.white),
               style: IconButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.12),
-                minimumSize: const Size(34, 34),
+                backgroundColor: Colors.white.withValues(alpha: 0.16),
+                padding: const EdgeInsets.all(8),
               ),
             ),
           ),
           Positioned(
-            left: 24,
-            right: 24,
-            top: 56,
+            top: 18,
+            right: 20,
             child: TweenAnimationBuilder<double>(
               key: ValueKey(mode),
               tween: Tween(begin: 0, end: 1),
@@ -1673,6 +1765,7 @@ class _AuthFormPanel extends StatelessWidget {
                   nameController: nameController,
                   onObscureToggle: onObscureToggle,
                   onPrimary: onPrimary,
+                  onTrialDemoLogin: onTrialDemoLogin,
                   onSecondary: onSecondary,
                   onGoogleSignIn: onGoogleSignIn,
                   onPhoneSignIn: onPhoneSignIn,
@@ -1699,6 +1792,7 @@ class _AuthForm extends StatelessWidget {
     required this.nameController,
     required this.onObscureToggle,
     required this.onPrimary,
+    this.onTrialDemoLogin,
     required this.onSecondary,
     required this.onGoogleSignIn,
     required this.onPhoneSignIn,
@@ -1712,6 +1806,7 @@ class _AuthForm extends StatelessWidget {
   final TextEditingController nameController;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
+  final VoidCallback? onTrialDemoLogin;
   final VoidCallback onSecondary;
   final VoidCallback onGoogleSignIn;
   final VoidCallback onPhoneSignIn;
@@ -1784,6 +1879,34 @@ class _AuthForm extends StatelessWidget {
           isLoading: isLoading,
           onPressed: onPrimary,
         ),
+        if (_isLogin && onTrialDemoLogin != null) ...[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            height: 42,
+            child: OutlinedButton.icon(
+              onPressed: isLoading ? null : onTrialDemoLogin,
+              icon: const Icon(Icons.bolt_rounded,
+                  color: Color(0xFF059669), size: 18),
+              label: const Text(
+                'Launch Trial Demo Mode',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF059669),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor:
+                    const Color(0xFF059669).withValues(alpha: 0.08),
+                side: const BorderSide(color: Color(0xFF059669), width: 1.1),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         const _DividerLabel(),
         const SizedBox(height: 10),

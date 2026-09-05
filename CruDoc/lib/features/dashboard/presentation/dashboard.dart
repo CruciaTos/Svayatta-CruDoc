@@ -16,6 +16,7 @@ import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 import 'package:doctor_management_app/features/dental/presentation/widgets/dental_quick_actions_row.dart';
+import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -516,31 +517,47 @@ class _TopBar extends StatelessWidget {
               const SizedBox(height: 4),
               Builder(builder: (context) {
                 final specMeta = DoctorSpecialty.fromString(specialty);
-                return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: specMeta.accentColor.withValues(alpha: 0.10),
+                return Tooltip(
+                  message: 'Tap to switch specialty',
+                  waitDuration: const Duration(milliseconds: 300),
+                  child: InkWell(
+                    onTap: () => showSpecialtySwitcherDialog(context),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: specMeta.accentColor.withValues(alpha: 0.25),
-                      width: 1,
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(specMeta.icon, size: 13, color: specMeta.accentColor),
-                      const SizedBox(width: 5),
-                      Text(
-                        specialty.isNotEmpty ? specialty : '---',
-                        style: TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          color: specMeta.accentColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: specMeta.accentColor.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: specMeta.accentColor.withValues(alpha: 0.25),
+                          width: 1,
                         ),
                       ),
-                    ],
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(specMeta.icon,
+                              size: 13, color: specMeta.accentColor),
+                          const SizedBox(width: 5),
+                          Text(
+                            specialty.isNotEmpty ? specialty : '---',
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: specMeta.accentColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const SizedBox(width: 3),
+                          Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 13,
+                            color: specMeta.accentColor,
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                 );
               }),

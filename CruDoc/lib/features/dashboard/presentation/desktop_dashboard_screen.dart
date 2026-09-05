@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 
 // Import all the widgets we created
 import '../widgets/ai_insight_widget.dart';
@@ -189,33 +189,47 @@ class _DashboardHeader extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: specMeta.accentColor.withValues(alpha: 0.10),
+                    Tooltip(
+                      message: 'Click to switch specialty',
+                      waitDuration: const Duration(milliseconds: 300),
+                      child: InkWell(
+                        onTap: () => showSpecialtySwitcherDialog(context),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: specMeta.accentColor.withValues(alpha: 0.25),
-                          width: 1,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(specMeta.icon,
-                              size: 14, color: specMeta.accentColor),
-                          const SizedBox(width: 5),
-                          Text(
-                            specialty,
-                            style: TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              color: specMeta.accentColor,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: specMeta.accentColor.withValues(alpha: 0.10),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: specMeta.accentColor.withValues(alpha: 0.25),
+                              width: 1,
                             ),
                           ),
-                        ],
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(specMeta.icon,
+                                  size: 14, color: specMeta.accentColor),
+                              const SizedBox(width: 5),
+                              Text(
+                                specialty,
+                                style: TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  color: specMeta.accentColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                size: 14,
+                                color: specMeta.accentColor,
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ],

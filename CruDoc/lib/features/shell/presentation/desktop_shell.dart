@@ -24,6 +24,9 @@ import 'package:doctor_management_app/features/scribe/presentation/desktop_scrib
 import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
+import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -448,6 +451,11 @@ class _ExpandedLayout extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // --- Specialty Switcher Card (Dev / Trial Mode) ---
+                SidebarSpecialtyCard(
+                  onSwitchTap: () => showSpecialtySwitcherDialog(context),
+                ),
+                const SizedBox(height: 14),
                 _buildSectionHeader('MENU'),
                 const SizedBox(height: 8),
                 ...List.generate(labels.length, (index) {
@@ -666,7 +674,47 @@ class _CollapsedLayout extends StatelessWidget {
                   );
                 }),
                 // Spacing equivalent to section header + gap in expanded
-                const SizedBox(height: 18),
+                const SizedBox(height: 12),
+
+                // Specialty Quick Switcher Button (Collapsed)
+                StreamBuilder<Map<String, dynamic>?>(
+                  stream: DoctorProfileHelper.watchDoctorProfile(),
+                  builder: (context, snapshot) {
+                    final profileData = snapshot.data;
+                    final rawSpecialty =
+                        DoctorProfileHelper.formatSpecialty(profileData);
+                    final spec = DoctorSpecialty.fromString(rawSpecialty);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 8.0),
+                      child: Tooltip(
+                        message: 'Switch Specialty (${spec.shortLabel})',
+                        waitDuration: const Duration(milliseconds: 300),
+                        child: InkWell(
+                          onTap: () => showSpecialtySwitcherDialog(context),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: spec.accentColor.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: spec.accentColor.withValues(alpha: 0.4),
+                                width: 1.2,
+                              ),
+                            ),
+                            child: Icon(
+                              spec.icon,
+                              color: spec.accentColor,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 6),
 
                 // General items (icons only)
                 _CollapsedSidebarItem(

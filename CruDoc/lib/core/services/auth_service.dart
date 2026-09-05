@@ -1,6 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 
 /// Thin wrapper around [FirebaseAuth] that centralises every
 /// authentication flow the app supports (Google, Phone OTP).
@@ -91,6 +91,7 @@ class AuthService {
   // --------------- Sign Out ---------------
 
   Future<void> signOut() async {
+    DemoSessionService.endDemoSession();
     try {
       await _googleSignIn.signOut();
     } catch (_) {}

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/doctor_encryption_service.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 
@@ -7,6 +8,12 @@ import 'package:doctor_management_app/core/services/field_cipher.dart';
 class DoctorProfileHelper {
   /// Stream of current doctor's profile document from Firestore `users/{uid}`
   static Stream<Map<String, dynamic>?> watchDoctorProfile([User? user]) async* {
+    if (DemoSessionService.isDemoMode) {
+      yield DemoSessionService.currentMockProfile;
+      yield* DemoSessionService.profileStream;
+      return;
+    }
+
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       yield null;

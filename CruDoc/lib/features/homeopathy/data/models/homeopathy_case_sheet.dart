@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_extended_sections.dart';
+export 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_extended_sections.dart';
 
 /// Thermal reaction state in Classical Homeopathy.
 enum HomeopathyThermalState {
@@ -288,6 +290,12 @@ class HomeopathyGeneralSymptoms {
   final String perspiration;
   final String perspirationLocation;
   final String perspirationOdour;
+  final String hungerTime;
+  final String hungerReaction;
+  final String eatingSpeed;
+  final String thirstTime;
+  final String tasteChanges;
+  final Map<String, String> foodPreferences;
 
   const HomeopathyGeneralSymptoms({
     this.appetite = '',
@@ -304,13 +312,22 @@ class HomeopathyGeneralSymptoms {
     this.perspiration = '',
     this.perspirationLocation = '',
     this.perspirationOdour = '',
+    this.hungerTime = '',
+    this.hungerReaction = '',
+    this.eatingSpeed = '',
+    this.thirstTime = '',
+    this.tasteChanges = '',
+    this.foodPreferences = const {},
   });
 
   bool get isCompleted =>
       thermalState != HomeopathyThermalState.unspecified ||
       cravingsDesires.isNotEmpty ||
       thirst.trim().isNotEmpty ||
-      thirstStyle.trim().isNotEmpty;
+      thirstStyle.trim().isNotEmpty ||
+      hungerTime.trim().isNotEmpty ||
+      thirstTime.trim().isNotEmpty ||
+      tasteChanges.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
         'appetite': appetite,
@@ -327,6 +344,12 @@ class HomeopathyGeneralSymptoms {
         'perspiration': perspiration,
         'perspirationLocation': perspirationLocation,
         'perspirationOdour': perspirationOdour,
+        'hungerTime': hungerTime,
+        'hungerReaction': hungerReaction,
+        'eatingSpeed': eatingSpeed,
+        'thirstTime': thirstTime,
+        'tasteChanges': tasteChanges,
+        'foodPreferences': foodPreferences,
       };
 
   factory HomeopathyGeneralSymptoms.fromMap(Map<String, dynamic> map) =>
@@ -352,6 +375,14 @@ class HomeopathyGeneralSymptoms {
         perspiration: map['perspiration'] as String? ?? '',
         perspirationLocation: map['perspirationLocation'] as String? ?? '',
         perspirationOdour: map['perspirationOdour'] as String? ?? '',
+        hungerTime: map['hungerTime'] as String? ?? '',
+        hungerReaction: map['hungerReaction'] as String? ?? '',
+        eatingSpeed: map['eatingSpeed'] as String? ?? '',
+        thirstTime: map['thirstTime'] as String? ?? '',
+        tasteChanges: map['tasteChanges'] as String? ?? '',
+        foodPreferences: (map['foodPreferences'] as Map<String, dynamic>?)
+                ?.map((k, v) => MapEntry(k, v.toString())) ??
+            const {},
       );
 
   HomeopathyGeneralSymptoms copyWith({
@@ -369,6 +400,12 @@ class HomeopathyGeneralSymptoms {
     String? perspiration,
     String? perspirationLocation,
     String? perspirationOdour,
+    String? hungerTime,
+    String? hungerReaction,
+    String? eatingSpeed,
+    String? thirstTime,
+    String? tasteChanges,
+    Map<String, String>? foodPreferences,
   }) =>
       HomeopathyGeneralSymptoms(
         appetite: appetite ?? this.appetite,
@@ -385,6 +422,12 @@ class HomeopathyGeneralSymptoms {
         perspiration: perspiration ?? this.perspiration,
         perspirationLocation: perspirationLocation ?? this.perspirationLocation,
         perspirationOdour: perspirationOdour ?? this.perspirationOdour,
+        hungerTime: hungerTime ?? this.hungerTime,
+        hungerReaction: hungerReaction ?? this.hungerReaction,
+        eatingSpeed: eatingSpeed ?? this.eatingSpeed,
+        thirstTime: thirstTime ?? this.thirstTime,
+        tasteChanges: tasteChanges ?? this.tasteChanges,
+        foodPreferences: foodPreferences ?? this.foodPreferences,
       );
 }
 
@@ -612,6 +655,23 @@ class HomeopathyMentalEmotional {
   final String facialExpression;
   final String mentalShiftSinceIllness;
 
+  // --- PDF General Case Sheet Q1–Q18 personality questions ---
+  final String upsetWorryTriggers; // Q1
+  final String fearDetails; // Q3 — detailed text beyond fears list
+  final String introvertExtrovert; // Q4
+  final String stressHistory; // Q5
+  final String stressCopingMethods; // Q7
+  final String sensitivityDetails; // Q8
+  final String fixedHabits; // Q9
+  final String angerBodySymptoms; // Q10
+  final String disorderSensitivity; // Q12
+  final String greatestGrief; // Q13
+  final String greatestJoys; // Q14
+  final String deeplyLikedActivities; // Q15
+  final String deeplyDislikedMatters; // Q16
+  final String disagreeableMindAspects; // Q17
+  final String lifeSituationPicture; // Q18
+
   const HomeopathyMentalEmotional({
     this.disposition = '',
     this.fears = const [],
@@ -631,6 +691,21 @@ class HomeopathyMentalEmotional {
     this.dullnessVsRestlessness = '',
     this.facialExpression = '',
     this.mentalShiftSinceIllness = '',
+    this.upsetWorryTriggers = '',
+    this.fearDetails = '',
+    this.introvertExtrovert = '',
+    this.stressHistory = '',
+    this.stressCopingMethods = '',
+    this.sensitivityDetails = '',
+    this.fixedHabits = '',
+    this.angerBodySymptoms = '',
+    this.disorderSensitivity = '',
+    this.greatestGrief = '',
+    this.greatestJoys = '',
+    this.deeplyLikedActivities = '',
+    this.deeplyDislikedMatters = '',
+    this.disagreeableMindAspects = '',
+    this.lifeSituationPicture = '',
   });
 
   bool get isCompleted =>
@@ -638,7 +713,10 @@ class HomeopathyMentalEmotional {
       fears.isNotEmpty ||
       familyDynamics.trim().isNotEmpty ||
       reactionToDisease.trim().isNotEmpty ||
-      reactionToConsolation.trim().isNotEmpty;
+      reactionToConsolation.trim().isNotEmpty ||
+      upsetWorryTriggers.trim().isNotEmpty ||
+      fearDetails.trim().isNotEmpty ||
+      greatestGrief.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
         'disposition': disposition,
@@ -659,6 +737,21 @@ class HomeopathyMentalEmotional {
         'dullnessVsRestlessness': dullnessVsRestlessness,
         'facialExpression': facialExpression,
         'mentalShiftSinceIllness': mentalShiftSinceIllness,
+        'upsetWorryTriggers': upsetWorryTriggers,
+        'fearDetails': fearDetails,
+        'introvertExtrovert': introvertExtrovert,
+        'stressHistory': stressHistory,
+        'stressCopingMethods': stressCopingMethods,
+        'sensitivityDetails': sensitivityDetails,
+        'fixedHabits': fixedHabits,
+        'angerBodySymptoms': angerBodySymptoms,
+        'disorderSensitivity': disorderSensitivity,
+        'greatestGrief': greatestGrief,
+        'greatestJoys': greatestJoys,
+        'deeplyLikedActivities': deeplyLikedActivities,
+        'deeplyDislikedMatters': deeplyDislikedMatters,
+        'disagreeableMindAspects': disagreeableMindAspects,
+        'lifeSituationPicture': lifeSituationPicture,
       };
 
   factory HomeopathyMentalEmotional.fromMap(Map<String, dynamic> map) =>
@@ -685,6 +778,21 @@ class HomeopathyMentalEmotional {
         facialExpression: map['facialExpression'] as String? ?? '',
         mentalShiftSinceIllness:
             map['mentalShiftSinceIllness'] as String? ?? '',
+        upsetWorryTriggers: map['upsetWorryTriggers'] as String? ?? '',
+        fearDetails: map['fearDetails'] as String? ?? '',
+        introvertExtrovert: map['introvertExtrovert'] as String? ?? '',
+        stressHistory: map['stressHistory'] as String? ?? '',
+        stressCopingMethods: map['stressCopingMethods'] as String? ?? '',
+        sensitivityDetails: map['sensitivityDetails'] as String? ?? '',
+        fixedHabits: map['fixedHabits'] as String? ?? '',
+        angerBodySymptoms: map['angerBodySymptoms'] as String? ?? '',
+        disorderSensitivity: map['disorderSensitivity'] as String? ?? '',
+        greatestGrief: map['greatestGrief'] as String? ?? '',
+        greatestJoys: map['greatestJoys'] as String? ?? '',
+        deeplyLikedActivities: map['deeplyLikedActivities'] as String? ?? '',
+        deeplyDislikedMatters: map['deeplyDislikedMatters'] as String? ?? '',
+        disagreeableMindAspects: map['disagreeableMindAspects'] as String? ?? '',
+        lifeSituationPicture: map['lifeSituationPicture'] as String? ?? '',
       );
 
   HomeopathyMentalEmotional copyWith({
@@ -706,6 +814,21 @@ class HomeopathyMentalEmotional {
     String? dullnessVsRestlessness,
     String? facialExpression,
     String? mentalShiftSinceIllness,
+    String? upsetWorryTriggers,
+    String? fearDetails,
+    String? introvertExtrovert,
+    String? stressHistory,
+    String? stressCopingMethods,
+    String? sensitivityDetails,
+    String? fixedHabits,
+    String? angerBodySymptoms,
+    String? disorderSensitivity,
+    String? greatestGrief,
+    String? greatestJoys,
+    String? deeplyLikedActivities,
+    String? deeplyDislikedMatters,
+    String? disagreeableMindAspects,
+    String? lifeSituationPicture,
   }) =>
       HomeopathyMentalEmotional(
         disposition: disposition ?? this.disposition,
@@ -731,6 +854,21 @@ class HomeopathyMentalEmotional {
         facialExpression: facialExpression ?? this.facialExpression,
         mentalShiftSinceIllness:
             mentalShiftSinceIllness ?? this.mentalShiftSinceIllness,
+        upsetWorryTriggers: upsetWorryTriggers ?? this.upsetWorryTriggers,
+        fearDetails: fearDetails ?? this.fearDetails,
+        introvertExtrovert: introvertExtrovert ?? this.introvertExtrovert,
+        stressHistory: stressHistory ?? this.stressHistory,
+        stressCopingMethods: stressCopingMethods ?? this.stressCopingMethods,
+        sensitivityDetails: sensitivityDetails ?? this.sensitivityDetails,
+        fixedHabits: fixedHabits ?? this.fixedHabits,
+        angerBodySymptoms: angerBodySymptoms ?? this.angerBodySymptoms,
+        disorderSensitivity: disorderSensitivity ?? this.disorderSensitivity,
+        greatestGrief: greatestGrief ?? this.greatestGrief,
+        greatestJoys: greatestJoys ?? this.greatestJoys,
+        deeplyLikedActivities: deeplyLikedActivities ?? this.deeplyLikedActivities,
+        deeplyDislikedMatters: deeplyDislikedMatters ?? this.deeplyDislikedMatters,
+        disagreeableMindAspects: disagreeableMindAspects ?? this.disagreeableMindAspects,
+        lifeSituationPicture: lifeSituationPicture ?? this.lifeSituationPicture,
       );
 }
 
@@ -740,22 +878,37 @@ class HomeopathyDreamsSleep {
   final String sleepDisturbances;
   final List<String> recurringDreams;
   final String dreamCharacteristics;
+  final String sleepPosture; // Q19 — back, side, abdomen, etc.
+  final String sleepPositionRestrictions; // Q20 — can’t sleep in which position?
+  final String sleepBehaviors; // Q21 — snore/grind teeth/drool/walk/talk/moan/etc.
+  final String childhoodDreams; // Q24
 
   const HomeopathyDreamsSleep({
     this.sleepQuality = '',
     this.sleepDisturbances = '',
     this.recurringDreams = const [],
     this.dreamCharacteristics = '',
+    this.sleepPosture = '',
+    this.sleepPositionRestrictions = '',
+    this.sleepBehaviors = '',
+    this.childhoodDreams = '',
   });
 
   bool get isCompleted =>
-      sleepQuality.trim().isNotEmpty || recurringDreams.isNotEmpty;
+      sleepQuality.trim().isNotEmpty ||
+      recurringDreams.isNotEmpty ||
+      sleepPosture.trim().isNotEmpty ||
+      sleepBehaviors.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
         'sleepQuality': sleepQuality,
         'sleepDisturbances': sleepDisturbances,
         'recurringDreams': recurringDreams,
         'dreamCharacteristics': dreamCharacteristics,
+        'sleepPosture': sleepPosture,
+        'sleepPositionRestrictions': sleepPositionRestrictions,
+        'sleepBehaviors': sleepBehaviors,
+        'childhoodDreams': childhoodDreams,
       };
 
   factory HomeopathyDreamsSleep.fromMap(Map<String, dynamic> map) =>
@@ -767,6 +920,10 @@ class HomeopathyDreamsSleep {
                 .toList() ??
             const [],
         dreamCharacteristics: map['dreamCharacteristics'] as String? ?? '',
+        sleepPosture: map['sleepPosture'] as String? ?? '',
+        sleepPositionRestrictions: map['sleepPositionRestrictions'] as String? ?? '',
+        sleepBehaviors: map['sleepBehaviors'] as String? ?? '',
+        childhoodDreams: map['childhoodDreams'] as String? ?? '',
       );
 
   HomeopathyDreamsSleep copyWith({
@@ -774,6 +931,10 @@ class HomeopathyDreamsSleep {
     String? sleepDisturbances,
     List<String>? recurringDreams,
     String? dreamCharacteristics,
+    String? sleepPosture,
+    String? sleepPositionRestrictions,
+    String? sleepBehaviors,
+    String? childhoodDreams,
   }) =>
       HomeopathyDreamsSleep(
         sleepQuality: sleepQuality ?? this.sleepQuality,
@@ -781,6 +942,11 @@ class HomeopathyDreamsSleep {
         recurringDreams: recurringDreams ?? this.recurringDreams,
         dreamCharacteristics:
             dreamCharacteristics ?? this.dreamCharacteristics,
+        sleepPosture: sleepPosture ?? this.sleepPosture,
+        sleepPositionRestrictions:
+            sleepPositionRestrictions ?? this.sleepPositionRestrictions,
+        sleepBehaviors: sleepBehaviors ?? this.sleepBehaviors,
+        childhoodDreams: childhoodDreams ?? this.childhoodDreams,
       );
 }
 
@@ -1169,6 +1335,13 @@ class HomeopathyCaseSheet {
   final HomeopathyFollowUp followUp;
   final String additionalNotes;
 
+  // --- Extended sections from PDF questionnaires ---
+  final HomeopathyCaseSheetCategory caseSheetCategory;
+  final HomeopathyChildhoodHistory childhoodHistory;
+  final HomeopathyChildrenCaseSheet childrenCaseSheet;
+  final HomeopathyFemaleEndocrine femaleEndocrine;
+  final HomeopathyAcuteSheet acuteSheet;
+
   final DateTime createdAt;
   final DateTime updatedAt;
   final String syncStatus;
@@ -1194,6 +1367,11 @@ class HomeopathyCaseSheet {
     required this.prescriptionNotes,
     this.followUp = const HomeopathyFollowUp(),
     this.additionalNotes = '',
+    this.caseSheetCategory = HomeopathyCaseSheetCategory.general,
+    this.childhoodHistory = const HomeopathyChildhoodHistory(),
+    this.childrenCaseSheet = const HomeopathyChildrenCaseSheet(),
+    this.femaleEndocrine = const HomeopathyFemaleEndocrine(),
+    this.acuteSheet = const HomeopathyAcuteSheet(),
     required this.createdAt,
     required this.updatedAt,
     this.syncStatus = 'synced',
@@ -1217,10 +1395,23 @@ class HomeopathyCaseSheet {
     if (peculiarSymptoms.isCompleted) count++;
     if (prescriptionNotes.isCompleted) count++;
     if (followUp.isCompleted) count++;
+    if (childhoodHistory.isCompleted) count++;
+    if (category == HomeopathyCaseSheetCategory.children && childrenCaseSheet.isCompleted) count++;
+    if (category == HomeopathyCaseSheetCategory.femaleEndocrine && femaleEndocrine.isCompleted) count++;
+    if (category == HomeopathyCaseSheetCategory.acute && acuteSheet.isCompleted) count++;
     return count;
   }
 
-  int totalSectionsCount({bool isFemale = false}) => isFemale ? 15 : 14;
+  HomeopathyCaseSheetCategory get category => caseSheetCategory;
+
+  int totalSectionsCount({bool isFemale = false}) {
+    int base = isFemale ? 15 : 14;
+    base++; // childhoodHistory
+    if (caseSheetCategory == HomeopathyCaseSheetCategory.children) base++;
+    if (caseSheetCategory == HomeopathyCaseSheetCategory.femaleEndocrine) base++;
+    if (caseSheetCategory == HomeopathyCaseSheetCategory.acute) base++;
+    return base;
+  }
 
   factory HomeopathyCaseSheet.empty({
     required String id,
@@ -1249,6 +1440,11 @@ class HomeopathyCaseSheet {
       prescriptionNotes: const HomeopathyPrescriptionNotes(),
       followUp: const HomeopathyFollowUp(),
       additionalNotes: '',
+      caseSheetCategory: HomeopathyCaseSheetCategory.general,
+      childhoodHistory: const HomeopathyChildhoodHistory(),
+      childrenCaseSheet: const HomeopathyChildrenCaseSheet(),
+      femaleEndocrine: const HomeopathyFemaleEndocrine(),
+      acuteSheet: const HomeopathyAcuteSheet(),
       createdAt: now,
       updatedAt: now,
     );
@@ -1286,6 +1482,11 @@ class HomeopathyCaseSheet {
         'suggestedRemedies': prescriptionNotes.prescribedRemedy,
         'followUp': jsonEncode(followUp.toMap()),
         'additionalNotes': additionalNotes,
+        'caseSheetCategory': caseSheetCategory.name,
+        'childhoodHistory': jsonEncode(childhoodHistory.toMap()),
+        'childrenCaseSheet': jsonEncode(childrenCaseSheet.toMap()),
+        'femaleEndocrine': jsonEncode(femaleEndocrine.toMap()),
+        'acuteSheet': jsonEncode(acuteSheet.toMap()),
         'createdAt': createdAt.millisecondsSinceEpoch,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
         'syncStatus': syncStatus,
@@ -1371,6 +1572,16 @@ class HomeopathyCaseSheet {
             ),
       followUp: HomeopathyFollowUp.fromMap(parseSection(map['followUp'])),
       additionalNotes: map['additionalNotes'] as String? ?? '',
+      caseSheetCategory: HomeopathyCaseSheetCategory.fromString(
+          map['caseSheetCategory'] as String?),
+      childhoodHistory: HomeopathyChildhoodHistory.fromMap(
+          parseSection(map['childhoodHistory'])),
+      childrenCaseSheet: HomeopathyChildrenCaseSheet.fromMap(
+          parseSection(map['childrenCaseSheet'])),
+      femaleEndocrine: HomeopathyFemaleEndocrine.fromMap(
+          parseSection(map['femaleEndocrine'])),
+      acuteSheet: HomeopathyAcuteSheet.fromMap(
+          parseSection(map['acuteSheet'])),
       createdAt: DateTime.fromMillisecondsSinceEpoch(createdMillis),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(updatedMillis),
       syncStatus: map['syncStatus'] as String? ?? 'synced',
@@ -1403,6 +1614,11 @@ class HomeopathyCaseSheet {
     HomeopathyPrescriptionNotes? prescriptionNotes,
     HomeopathyFollowUp? followUp,
     String? additionalNotes,
+    HomeopathyCaseSheetCategory? caseSheetCategory,
+    HomeopathyChildhoodHistory? childhoodHistory,
+    HomeopathyChildrenCaseSheet? childrenCaseSheet,
+    HomeopathyFemaleEndocrine? femaleEndocrine,
+    HomeopathyAcuteSheet? acuteSheet,
     DateTime? createdAt,
     DateTime? updatedAt,
     String? syncStatus,
@@ -1428,6 +1644,11 @@ class HomeopathyCaseSheet {
         prescriptionNotes: prescriptionNotes ?? this.prescriptionNotes,
         followUp: followUp ?? this.followUp,
         additionalNotes: additionalNotes ?? this.additionalNotes,
+        caseSheetCategory: caseSheetCategory ?? this.caseSheetCategory,
+        childhoodHistory: childhoodHistory ?? this.childhoodHistory,
+        childrenCaseSheet: childrenCaseSheet ?? this.childrenCaseSheet,
+        femaleEndocrine: femaleEndocrine ?? this.femaleEndocrine,
+        acuteSheet: acuteSheet ?? this.acuteSheet,
         createdAt: createdAt ?? this.createdAt,
         updatedAt: updatedAt ?? this.updatedAt,
         syncStatus: syncStatus ?? this.syncStatus,

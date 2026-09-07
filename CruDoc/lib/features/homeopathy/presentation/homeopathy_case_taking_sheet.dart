@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_form_helpers.dart';
+import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_extended_form_sections.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_dictation_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_scribe_modal.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -42,6 +44,8 @@ class HomeopathyCaseTakingSheet extends ConsumerStatefulWidget {
 class _HomeopathyCaseTakingSheetState
     extends ConsumerState<HomeopathyCaseTakingSheet> {
   late HomeopathyCaseSheet _sheet;
+  late HomeopathyCaseSheetCategory _category;
+  late final ExtendedCaseSheetControllers _extCtrl;
   bool _isSaving = false;
   bool _sexualHistoryUnlocked = false;
 
@@ -196,6 +200,8 @@ class _HomeopathyCaseTakingSheetState
           doctorId: widget.patient.doctorId,
         );
     _sheet = initial;
+    _category = initial.caseSheetCategory;
+    _extCtrl = ExtendedCaseSheetControllers.fromSheet(initial);
 
     // Initialize controllers
     _chiefProblemCtrl =
@@ -535,12 +541,64 @@ class _HomeopathyCaseTakingSheetState
     _nextPrescriptionPlanCtrl.dispose();
     _followUpNotesCtrl.dispose();
     _additionalNotesCtrl.dispose();
+    _extCtrl.dispose();
     super.dispose();
   }
 
   HomeopathyCaseSheet _buildSheetFromForm({required bool isCompleted}) {
+    final genSymptoms = _extCtrl.updateGeneralSymptoms(
+      _sheet.generalSymptoms.copyWith(
+        appetite: _appetiteCtrl.text.trim(),
+        thirst: _thirstCtrl.text.trim(),
+        thirstStyle: _thirstStyleCtrl.text.trim(),
+        stools: _stoolsCtrl.text.trim(),
+        urine: _urineCtrl.text.trim(),
+        skinState: _skinCtrl.text.trim(),
+        perspiration: _perspirationCtrl.text.trim(),
+        perspirationLocation: _perspLocationCtrl.text.trim(),
+        perspirationOdour: _perspOdourCtrl.text.trim(),
+        energyWeakness: _energyCtrl.text.trim(),
+      ),
+    );
+
+    final mindSymptoms = _extCtrl.updateMentalEmotional(
+      _sheet.mentalEmotional.copyWith(
+        disposition: _dispositionCtrl.text.trim(),
+        anxietyTriggers: _anxietyCtrl.text.trim(),
+        companyVsSolitude: _companySolitudeCtrl.text.trim(),
+        reactionToConsolation: _consolationCtrl.text.trim(),
+        emotionalAetiology: _emotionalTriggersCtrl.text.trim(),
+        timeOfDayMood: _timeMoodCtrl.text.trim(),
+        behavioralChanges: _behavioralCtrl.text.trim(),
+        reactionToDisease: _reactionToDiseaseCtrl.text.trim(),
+        dullnessVsRestlessness: _dullnessRestlessCtrl.text.trim(),
+        facialExpression: _facialExpressionCtrl.text.trim(),
+        mentalShiftSinceIllness: _mentalShiftCtrl.text.trim(),
+        familyDynamics: _familyDynamicsCtrl.text.trim(),
+        spouseRelationship: _spouseRelCtrl.text.trim(),
+        childrenRelationship: _childrenRelCtrl.text.trim(),
+        inlawsRelationship: _inlawsRelCtrl.text.trim(),
+        colleaguesWorkStress: _colleaguesCtrl.text.trim(),
+        majorTensions: _majorTensionsCtrl.text.trim(),
+      ),
+    );
+
+    final dreamsSymptoms = _extCtrl.updateDreamsSleep(
+      _sheet.dreamsSleep.copyWith(
+        sleepQuality: _sleepQualityCtrl.text.trim(),
+        sleepDisturbances: _sleepDisturbancesCtrl.text.trim(),
+        dreamCharacteristics: _dreamCharCtrl.text.trim(),
+      ),
+    );
+
+    final childHist = _extCtrl.buildChildhoodHistory(_sheet.childhoodHistory);
+    final pediaSheet = _extCtrl.buildChildrenCaseSheet(_sheet.childrenCaseSheet);
+    final femEndo = _extCtrl.buildFemaleEndocrine(_sheet.femaleEndocrine);
+    final acute = _extCtrl.buildAcuteSheet(_sheet.acuteSheet);
+
     return _sheet.copyWith(
       isCompleted: isCompleted,
+      caseSheetCategory: _category,
       overview: _sheet.overview.copyWith(
         chiefProblem: _chiefProblemCtrl.text.trim(),
         consultationReason: _consultationReasonCtrl.text.trim(),
@@ -569,18 +627,7 @@ class _HomeopathyCaseTakingSheetState
         foodDrinkModalities: _foodDrinkModalitiesCtrl.text.trim(),
         otherTriggers: _otherTriggersCtrl.text.trim(),
       ),
-      generalSymptoms: _sheet.generalSymptoms.copyWith(
-        appetite: _appetiteCtrl.text.trim(),
-        thirst: _thirstCtrl.text.trim(),
-        thirstStyle: _thirstStyleCtrl.text.trim(),
-        stools: _stoolsCtrl.text.trim(),
-        urine: _urineCtrl.text.trim(),
-        skinState: _skinCtrl.text.trim(),
-        perspiration: _perspirationCtrl.text.trim(),
-        perspirationLocation: _perspLocationCtrl.text.trim(),
-        perspirationOdour: _perspOdourCtrl.text.trim(),
-        energyWeakness: _energyCtrl.text.trim(),
-      ),
+      generalSymptoms: genSymptoms,
       physicalSymptoms: _sheet.physicalSymptoms.copyWith(
         rheumatologyJoints: _rheumatologyCtrl.text.trim(),
         cnsNervous: _cnsCtrl.text.trim(),
@@ -609,30 +656,12 @@ class _HomeopathyCaseTakingSheetState
         leucorrhoeaDetails: _leucorrhoeaCtrl.text.trim(),
         obstetricHistory: _obstetricCtrl.text.trim(),
       ),
-      mentalEmotional: _sheet.mentalEmotional.copyWith(
-        disposition: _dispositionCtrl.text.trim(),
-        anxietyTriggers: _anxietyCtrl.text.trim(),
-        companyVsSolitude: _companySolitudeCtrl.text.trim(),
-        reactionToConsolation: _consolationCtrl.text.trim(),
-        emotionalAetiology: _emotionalTriggersCtrl.text.trim(),
-        timeOfDayMood: _timeMoodCtrl.text.trim(),
-        behavioralChanges: _behavioralCtrl.text.trim(),
-        reactionToDisease: _reactionToDiseaseCtrl.text.trim(),
-        dullnessVsRestlessness: _dullnessRestlessCtrl.text.trim(),
-        facialExpression: _facialExpressionCtrl.text.trim(),
-        mentalShiftSinceIllness: _mentalShiftCtrl.text.trim(),
-        familyDynamics: _familyDynamicsCtrl.text.trim(),
-        spouseRelationship: _spouseRelCtrl.text.trim(),
-        childrenRelationship: _childrenRelCtrl.text.trim(),
-        inlawsRelationship: _inlawsRelCtrl.text.trim(),
-        colleaguesWorkStress: _colleaguesCtrl.text.trim(),
-        majorTensions: _majorTensionsCtrl.text.trim(),
-      ),
-      dreamsSleep: _sheet.dreamsSleep.copyWith(
-        sleepQuality: _sleepQualityCtrl.text.trim(),
-        sleepDisturbances: _sleepDisturbancesCtrl.text.trim(),
-        dreamCharacteristics: _dreamCharCtrl.text.trim(),
-      ),
+      mentalEmotional: mindSymptoms,
+      dreamsSleep: dreamsSymptoms,
+      childhoodHistory: childHist,
+      childrenCaseSheet: pediaSheet,
+      femaleEndocrine: femEndo,
+      acuteSheet: acute,
       sexualHistory: _sheet.sexualHistory.copyWith(
         desireLevel: _desireLevelCtrl.text.trim(),
         complaintsConcerns: _sexualConcernsCtrl.text.trim(),
@@ -855,6 +884,8 @@ class _HomeopathyCaseTakingSheetState
     _followUpNotesCtrl.text = s.followUp.followUpNotes;
     _nextFollowUpDate = s.followUp.nextFollowUpDate;
     _additionalNotesCtrl.text = s.additionalNotes;
+    _category = s.caseSheetCategory;
+    _extCtrl.populateFromSheet(s);
   }
 
   @override
@@ -952,6 +983,26 @@ class _HomeopathyCaseTakingSheetState
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
         children: [
+          // Category Selector: General, Children, Female & Endocrine, Acute
+          HomeopathyCategorySelector(
+            selectedCategory: _category,
+            patientAge: widget.patient.age,
+            isFemale: _isPatientFemale,
+            onCategoryChanged: (cat) {
+              setState(() {
+                _category = cat;
+                if (cat == HomeopathyCaseSheetCategory.acute &&
+                    _sheet.overview.caseType != HomeopathyCaseType.acute) {
+                  _sheet = _sheet.copyWith(
+                    overview: _sheet.overview.copyWith(
+                      caseType: HomeopathyCaseType.acute,
+                    ),
+                  );
+                }
+              });
+            },
+          ),
+
           // Section A: Case Overview
           _buildAccordionCard(
             title: 'A. Case Overview',
@@ -1043,7 +1094,19 @@ class _HomeopathyCaseTakingSheetState
             ],
           ),
 
+          // Specialized Questionnaires (Children, Female & Endocrine, Acute)
+          if (_category == HomeopathyCaseSheetCategory.children)
+            _buildChildrenPediatricCard(),
+
+          if (_category == HomeopathyCaseSheetCategory.femaleEndocrine)
+            _buildFemaleEndocrineCard(),
+
+          if (_category == HomeopathyCaseSheetCategory.acute)
+            _buildAcuteCaseSheetCard(),
+
           // Section B: Chief Complaint
+          if (_category == HomeopathyCaseSheetCategory.general ||
+              _category == HomeopathyCaseSheetCategory.femaleEndocrine)
           _buildAccordionCard(
             title: 'B. Chief Complaint & Description',
             subtitle: 'Location, Sensation, Onset, Progression',
@@ -1132,6 +1195,7 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section C: Modalities (< Aggravations & > Ameliorations)
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'C. Modalities (< Aggravations & > Ameliorations)',
             subtitle: 'Time, Position, Weather, Temperature, Motion',
@@ -1201,6 +1265,7 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section D: General Symptoms & Thermal State
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'D. General Symptoms & Thermal State',
             subtitle: 'Thermal reaction, Cravings, Aversions, Thirst, Sleep',
@@ -1314,6 +1379,26 @@ class _HomeopathyCaseTakingSheetState
                 label: 'Manner of Drinking Water',
                 hint: 'e.g. Sips frequently (Ars), large gulps at long intervals (Bry), gulps rapidly',
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _extCtrl.thirstTimeCtrl,
+                      label: 'Thirst Time / Modal Hour',
+                      hint: 'Night, morning, during chill/heat',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _extCtrl.tasteChangesCtrl,
+                      label: 'Taste in Mouth / Changes',
+                      hint: 'Bitter, metallic, salty, sour, sweet, lost',
+                    ),
+                  ),
+                ],
+              ),
               const SizedBox(height: 14),
               // Food Cravings & Aversions
               const Text(
@@ -1386,6 +1471,32 @@ class _HomeopathyCaseTakingSheetState
                 children: [
                   Expanded(
                     child: _buildTextField(
+                      controller: _extCtrl.hungerTimeCtrl,
+                      label: 'Hunger Time & Fasting Effect',
+                      hint: 'Aggravation from fasting, 11 AM hunger (Sulph)',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _extCtrl.eatingSpeedCtrl,
+                      label: 'Eating Speed',
+                      hint: 'Eats hastily/in hurry, slow eater',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                controller: _extCtrl.hungerReactionCtrl,
+                label: 'Reaction if Meal Delayed',
+                hint: 'Headache, trembling, irritability, faintness (Lyc, Sulph)',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
                       controller: _perspLocationCtrl,
                       label: 'Perspiration Location',
                       hint: 'Head/occiput, palms, soles, chest, axillae',
@@ -1445,6 +1556,7 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section E: Physical Symptoms
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'E. Physical Symptoms by Systems',
             subtitle: 'Joints, Respiratory, ENT, Headaches, Fever, Pain',
@@ -1594,7 +1706,9 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section F: Female / Reproductive History (Conditional / Adaptive)
-          if (_isPatientFemale)
+          if (_isPatientFemale &&
+              (_category == HomeopathyCaseSheetCategory.general ||
+                  _category == HomeopathyCaseSheetCategory.femaleEndocrine))
             _buildAccordionCard(
               title: 'F. Female / Reproductive History',
               subtitle: 'Menstrual cycle, Menopause, Leucorrhoea',
@@ -1670,6 +1784,7 @@ class _HomeopathyCaseTakingSheetState
             ),
 
           // Section G: Mental & Emotional State
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'G. Mental & Emotional State',
             subtitle: 'Disposition, Fears, Anxiety, Consolation, Aetiology',
@@ -1955,7 +2070,12 @@ class _HomeopathyCaseTakingSheetState
             ],
           ),
 
+          // Detailed Mind & Personality Questionnaire (Q1–Q18)
+          if (_category == HomeopathyCaseSheetCategory.general)
+            _buildExpandedMindPersonalityCard(),
+
           // Section H: Dreams & Sleep
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'H. Dreams & Sleep Profile',
             subtitle: 'Sleep quality, disturbances, recurring dreams',
@@ -2034,10 +2154,47 @@ class _HomeopathyCaseTakingSheetState
                 label: 'Dream Characteristics & Feelings upon waking',
                 hint: 'Anxious, vivid, frightful, pleasant',
               ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _extCtrl.sleepPostureCtrl,
+                      label: 'Sleep Posture',
+                      hint: 'On back, abdomen, right side, left side',
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _buildTextField(
+                      controller: _extCtrl.sleepRestrictionsCtrl,
+                      label: 'Position Restrictions',
+                      hint: 'Cannot lie on left side (heart), flat',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                controller: _extCtrl.sleepBehaviorsCtrl,
+                label: 'Sleep Behaviors',
+                hint: 'Grinding teeth, talking, laughing, snoring, twitching, starts in sleep',
+              ),
+              const SizedBox(height: 12),
+              _buildTextField(
+                controller: _extCtrl.childhoodDreamsCtrl,
+                label: 'Childhood Dreams (if recurring)',
+                hint: 'Monsters, falling, ghosts, animals, exams',
+              ),
             ],
           ),
 
+          // Childhood History (General Case Sheet Q25)
+          if (_category == HomeopathyCaseSheetCategory.general)
+            _buildChildhoodHistoryCard(),
+
           // Section I: Sexual History (Discreet & Collapsible with privacy lock)
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'I. Sexual History (Privacy Protected)',
             subtitle: 'Desire level, complaints, sensitive concerns',
@@ -2088,6 +2245,7 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section J: Medical / Health History
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'J. Past Medical & Family History',
             subtitle: 'Illnesses, Surgeries, Medications, Allergies, Family',
@@ -2184,6 +2342,7 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section L: Investigations & Diagnostics
+          if (_category != HomeopathyCaseSheetCategory.acute)
           _buildAccordionCard(
             title: 'L. Investigations & Lab Reports',
             subtitle: 'Blood tests, imaging, scan findings',
@@ -2207,6 +2366,7 @@ class _HomeopathyCaseTakingSheetState
           ),
 
           // Section M: Peculiar Symptoms (SRP Keynotes)
+          if (_category == HomeopathyCaseSheetCategory.general)
           _buildAccordionCard(
             title: 'M. Strange, Rare & Peculiar (SRP) Symptoms',
             subtitle: 'Unusual symptom patterns, Keynotes, Idiosyncrasies',
@@ -2750,4 +2910,118 @@ class _HomeopathyCaseTakingSheetState
       ],
     );
   }
+
+  Widget _buildChildrenPediatricCard() {
+    return ChildrenPediatricFormCard(
+      coldHeatCtrl: _extCtrl.childColdHeatCtrl,
+      behaviorWhenUpsetCtrl: _extCtrl.childBehaviorUpsetCtrl,
+      whatMakesHappyCtrl: _extCtrl.childWhatMakesHappyCtrl,
+      schoolBehaviorCtrl: _extCtrl.childSchoolBehaviorCtrl,
+      graspingScoreCtrl: _extCtrl.childGraspingScoreCtrl,
+      childTypeCtrl: _extCtrl.childTypeCtrl,
+      vaccinationCtrl: _extCtrl.childVaccinationCtrl,
+      favoriteSportCtrl: _extCtrl.childFavoriteSportCtrl,
+      attitudeParentsCtrl: _extCtrl.childAttitudeParentsCtrl,
+      medicalHistoryCtrl: _extCtrl.childMedicalHistoryCtrl,
+      maturityCtrl: _extCtrl.childMaturityCtrl,
+      familyProblemsCtrl: _extCtrl.childFamilyProblemsCtrl,
+      introvertExtrovertCtrl: _extCtrl.childIntrovertCtrl,
+      independenceCtrl: _extCtrl.childIndependenceCtrl,
+      waterIntakeCtrl: _extCtrl.childWaterIntakeCtrl,
+      birthComplicationsCtrl: _extCtrl.childBirthComplicationsCtrl,
+      motherPregnancyCtrl: _extCtrl.childMotherPregnancyCtrl,
+      motherMedicalCtrl: _extCtrl.childMotherMedicalCtrl,
+      familyHereditaryCtrl: _extCtrl.childFamilyHereditaryCtrl,
+      walkingTeethingCtrl: _extCtrl.childWalkingTeethingCtrl,
+      abnormalBehaviorsCtrl: _extCtrl.childAbnormalBehaviorsCtrl,
+      childFearsCtrl: _extCtrl.childFearsSpecificCtrl,
+      sleepingHabitsCtrl: _extCtrl.childSleepingHabitsCtrl,
+      abnormalCravingsCtrl: _extCtrl.abnormalCravingsCtrl,
+      wormsCtrl: _extCtrl.childWormsCtrl,
+      headCtrl: _extCtrl.childHeadCtrl,
+      coughCtrl: _extCtrl.childCoughAsthmaCtrl,
+      stomachCtrl: _extCtrl.childStomachCtrl,
+      stoolCtrl: _extCtrl.childStoolRectumCtrl,
+      sexualAwarenessCtrl: _extCtrl.childSexualAwarenessCtrl,
+      additionalInfoCtrl: _extCtrl.childAdditionalInfoCtrl,
+      isComplete: _sheet.childrenCaseSheet.isCompleted,
+    );
+  }
+
+  Widget _buildFemaleEndocrineCard() {
+    return FemaleEndocrineFormCard(
+      diagnosisCtrl: _extCtrl.endoDiagnosisCtrl,
+      howStartedCtrl: _extCtrl.endoHowStartedCtrl,
+      physioTriggerCtrl: _extCtrl.endoPhysioTriggerCtrl,
+      emotionalTriggerCtrl: _extCtrl.endoEmotionalTriggerCtrl,
+      manifestationLocCtrl: _extCtrl.endoManifestationLocCtrl,
+      otherOrgansCtrl: _extCtrl.endoOtherOrgansCtrl,
+      goitreCtrl: _extCtrl.endoGoitreCtrl,
+      glandsCtrl: _extCtrl.endoGlandsCtrl,
+      skinCtrl: _extCtrl.endoSkinCtrl,
+      cardiacCtrl: _extCtrl.endoCardiacCtrl,
+      stagesOfLifeCtrl: _extCtrl.endoStagesOfLifeCtrl,
+      menstrualCtrl: _extCtrl.endoMenstrualCtrl,
+      weaknessCtrl: _extCtrl.endoWeaknessCtrl,
+      relationshipsCtrl: _extCtrl.endoRelationshipsCtrl,
+      isComplete: _sheet.femaleEndocrine.isCompleted,
+    );
+  }
+
+  Widget _buildAcuteCaseSheetCard() {
+    return AcuteCaseSheetCard(
+      complaintCtrl: _extCtrl.acuteComplaintCtrl,
+      causeCtrl: _extCtrl.acuteCauseCtrl,
+      worseCtrl: _extCtrl.acuteWorseCtrl,
+      betterCtrl: _extCtrl.acuteBetterCtrl,
+      mentalConditionCtrl: _extCtrl.acuteMentalConditionCtrl,
+      waterReqCtrl: _extCtrl.acuteWaterReqCtrl,
+      sweatCtrl: _extCtrl.acuteSweatCtrl,
+      postureCtrl: _extCtrl.acutePostureCtrl,
+      feverCtrl: _extCtrl.acuteFeverCtrl,
+      coughCtrl: _extCtrl.acuteCoughCtrl,
+      looseDryCoughCtrl: _extCtrl.acuteLooseDryCoughCtrl,
+      diarrheaCtrl: _extCtrl.acuteDiarrheaCtrl,
+      painCtrl: _extCtrl.acutePainCtrl,
+      uncommonSymptomsCtrl: _extCtrl.acuteUncommonSymptomsCtrl,
+      additionalInfoCtrl: _extCtrl.acuteAdditionalInfoCtrl,
+      isComplete: _sheet.acuteSheet.isCompleted,
+    );
+  }
+
+  Widget _buildExpandedMindPersonalityCard() {
+    return ExpandedMindPersonalityCard(
+      upsetWorryCtrl: _extCtrl.upsetWorryCtrl,
+      fearDetailsCtrl: _extCtrl.fearDetailsCtrl,
+      introvertExtrovertCtrl: _extCtrl.introvertExtrovertCtrl,
+      stressHistoryCtrl: _extCtrl.stressHistoryCtrl,
+      stressCopingCtrl: _extCtrl.stressCopingCtrl,
+      sensitivityDetailsCtrl: _extCtrl.sensitivityDetailsCtrl,
+      fixedHabitsCtrl: _extCtrl.fixedHabitsCtrl,
+      angerBodyCtrl: _extCtrl.angerBodyCtrl,
+      disorderSensitivityCtrl: _extCtrl.disorderSensitivityCtrl,
+      greatestGriefCtrl: _extCtrl.greatestGriefCtrl,
+      greatestJoysCtrl: _extCtrl.greatestJoysCtrl,
+      deeplyLikedCtrl: _extCtrl.deeplyLikedCtrl,
+      deeplyDislikedCtrl: _extCtrl.deeplyDislikedCtrl,
+      disagreeableMindCtrl: _extCtrl.disagreeableMindCtrl,
+      lifeSituationCtrl: _extCtrl.lifeSituationCtrl,
+      isComplete: _extCtrl.upsetWorryCtrl.text.trim().isNotEmpty ||
+          _extCtrl.stressHistoryCtrl.text.trim().isNotEmpty ||
+          _extCtrl.greatestGriefCtrl.text.trim().isNotEmpty,
+    );
+  }
+
+  Widget _buildChildhoodHistoryCard() {
+    return ChildhoodHistoryCard(
+      natureCtrl: _extCtrl.childhoodNatureCtrl,
+      habitsCtrl: _extCtrl.childhoodHabitsCtrl,
+      fearsCtrl: _extCtrl.childhoodFearsCtrl,
+      dreamsCtrl: _extCtrl.childhoodDreamsHistoryCtrl,
+      relationshipsCtrl: _extCtrl.childhoodRelationshipsCtrl,
+      sensitivitiesCtrl: _extCtrl.childhoodSensitivitiesCtrl,
+      isComplete: _sheet.childhoodHistory.isCompleted,
+    );
+  }
 }
+

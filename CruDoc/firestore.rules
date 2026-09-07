@@ -40,9 +40,9 @@ service cloud.firestore {
 
       // Super Admin can read/write all user documents (metadata only)
       // Doctors can only read/write their own document
-      allow read: if isSuperAdmin() || isDoctor(userId);
+      allow read: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId);
       allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin() || isDoctor(userId);
+      allow update: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId);
       allow delete: if isSuperAdmin();
 
       // ============================================================

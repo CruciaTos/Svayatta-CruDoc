@@ -68,11 +68,17 @@ JSON SCHEMA STRUCTURE:
     "foodDrinkModalities": "string",
     "otherTriggers": "string"
   },
+  "caseSheetCategory": "general" | "children" | "femaleEndocrine" | "acute",
   "generalSymptoms": {
     "thermalState": "chilly" | "hot" | "ambithermal" | "unspecified",
     "appetite": "string",
     "thirst": "string",
     "thirstStyle": "string",
+    "hungerTime": "string",
+    "hungerReaction": "string",
+    "eatingSpeed": "string",
+    "thirstTime": "string",
+    "tasteChanges": "string",
     "cravingsDesires": ["string"],
     "aversionsDislikes": ["string"],
     "perspiration": "string",
@@ -117,7 +123,112 @@ JSON SCHEMA STRUCTURE:
     "childrenRelationship": "string",
     "inlawsRelationship": "string",
     "colleaguesWorkStress": "string",
-    "majorTensions": "string"
+    "majorTensions": "string",
+    "upsetWorryTriggers": "string",
+    "fearDetails": "string",
+    "introvertExtrovert": "string",
+    "stressHistory": "string",
+    "relationshipStress": "string",
+    "stressCopingMethods": "string",
+    "sensitivityDetails": "string",
+    "fixedHabits": "string",
+    "angerBodySymptoms": "string",
+    "companyPreference": "string",
+    "disorderSensitivity": "string",
+    "greatestGrief": "string",
+    "greatestJoys": "string",
+    "deeplyLikedActivities": "string",
+    "deeplyDislikedMatters": "string",
+    "disagreeableMindAspects": "string",
+    "lifeSituationPicture": "string"
+  },
+  "dreamsSleep": {
+    "sleepQuality": "string",
+    "sleepDisturbances": "string",
+    "dreamCharacteristics": "string",
+    "sleepPosture": "string",
+    "sleepPositionRestrictions": "string",
+    "sleepBehaviors": "string",
+    "childhoodDreams": "string"
+  },
+  "childhoodHistory": {
+    "childhoodNature": "string",
+    "childhoodHabits": "string",
+    "childhoodFears": "string",
+    "childhoodDreams": "string",
+    "childhoodRelationships": "string",
+    "childhoodSensitivities": "string"
+  },
+  "childrenCaseSheet": {
+    "coldOrHeatSensitive": "string",
+    "behaviorWhenUpset": "string",
+    "whatMakesHappy": "string",
+    "schoolBehavior": "string",
+    "graspingIntelligenceScore": "number 1-10",
+    "childTypeDescription": "string",
+    "vaccinationHistory": "string",
+    "favoriteSport": "string",
+    "attitudeToParents": "string",
+    "pastMedicalHistory": "string",
+    "maturityLevel": "string",
+    "familyProblemsReaction": "string",
+    "introvertExtrovert": "string",
+    "independenceLevel": "string",
+    "dailyWaterIntake": "string",
+    "birthComplications": "string",
+    "motherPregnancyHistory": "string",
+    "motherMedicalHistory": "string",
+    "familyHealthHereditary": "string",
+    "walkingTeethingAge": "string",
+    "abnormalBehaviors": "string",
+    "childFears": "string",
+    "sleepingHabits": "string",
+    "abnormalCravings": "string",
+    "wormsProblems": "string",
+    "headNoseThroat": "string",
+    "coughRespiration": "string",
+    "stomachAppetite": "string",
+    "stoolUrinary": "string",
+    "sexualAwareness": "string",
+    "additionalChildInfo": "string"
+  },
+  "femaleEndocrine": {
+    "medicalDiagnosis": "string",
+    "howAndWhenStarted": "string",
+    "physiologicalCauseTrigger": "string",
+    "emotionalTriggers": "string",
+    "diseaseManifestationLocation": "string",
+    "otherOrgansInvolved": "string",
+    "goitreDetails": "string",
+    "glandsProblems": "string",
+    "skinSymptoms": "string",
+    "cardiacCirculatorySymptoms": "string",
+    "stagesOfLifeChildhood": "string",
+    "stagesOfLifePuberty": "string",
+    "stagesOfLifePregnancy": "string",
+    "stagesOfLifePostPartum": "string",
+    "stagesOfLifeMenopause": "string",
+    "physicalWeakness": "string"
+  },
+  "acuteSheet": {
+    "howKnewAboutUs": "string",
+    "priorHomeopathyUse": "string",
+    "causeOfComplaint": "string",
+    "otherProblems": "string",
+    "mentalConditionDuringSuffering": "string",
+    "waterRequirement": "string",
+    "sweatDetails": "string",
+    "postureModalities": "string",
+    "sleepStoolUrination": "string",
+    "overallHealthHistory": "string",
+    "feverDetails": "string",
+    "specialUncommonSymptoms": "string",
+    "coughRespirationDetails": "string",
+    "additionalCoughInfo": "string",
+    "looseDryCough": "string",
+    "diarrheaDysenteryConstipation": "string",
+    "bodyPains": "string",
+    "additionalInfo": "string"
   },
   "prescriptionNotes": {
     "prescribedRemedy": "string",
@@ -356,6 +467,17 @@ JSON SCHEMA STRUCTURE:
             existingSheet.generalSymptoms.thirst, genData['thirst']),
         thirstStyle: _mergeString(
             existingSheet.generalSymptoms.thirstStyle, genData['thirstStyle']),
+        hungerTime: _mergeString(
+            existingSheet.generalSymptoms.hungerTime, genData['hungerTime']),
+        hungerReaction: _mergeString(
+            existingSheet.generalSymptoms.hungerReaction,
+            genData['hungerReaction']),
+        eatingSpeed: _mergeString(
+            existingSheet.generalSymptoms.eatingSpeed, genData['eatingSpeed']),
+        thirstTime: _mergeString(
+            existingSheet.generalSymptoms.thirstTime, genData['thirstTime']),
+        tasteChanges: _mergeString(
+            existingSheet.generalSymptoms.tasteChanges, genData['tasteChanges']),
         cravingsDesires: _mergeList(
             existingSheet.generalSymptoms.cravingsDesires,
             genData['cravingsDesires']),
@@ -479,6 +601,294 @@ JSON SCHEMA STRUCTURE:
         majorTensions: _mergeString(
             existingSheet.mentalEmotional.majorTensions,
             mindData['majorTensions']),
+        upsetWorryTriggers: _mergeString(
+            existingSheet.mentalEmotional.upsetWorryTriggers,
+            mindData['upsetWorryTriggers']),
+        fearDetails: _mergeString(
+            existingSheet.mentalEmotional.fearDetails, mindData['fearDetails']),
+        introvertExtrovert: _mergeString(
+            existingSheet.mentalEmotional.introvertExtrovert,
+            mindData['introvertExtrovert']),
+        stressHistory: _mergeString(
+            existingSheet.mentalEmotional.stressHistory,
+            mindData['stressHistory']),
+        stressCopingMethods: _mergeString(
+            existingSheet.mentalEmotional.stressCopingMethods,
+            mindData['stressCopingMethods']),
+        sensitivityDetails: _mergeString(
+            existingSheet.mentalEmotional.sensitivityDetails,
+            mindData['sensitivityDetails']),
+        fixedHabits: _mergeString(
+            existingSheet.mentalEmotional.fixedHabits, mindData['fixedHabits']),
+        angerBodySymptoms: _mergeString(
+            existingSheet.mentalEmotional.angerBodySymptoms,
+            mindData['angerBodySymptoms']),
+        disorderSensitivity: _mergeString(
+            existingSheet.mentalEmotional.disorderSensitivity,
+            mindData['disorderSensitivity']),
+        greatestGrief: _mergeString(
+            existingSheet.mentalEmotional.greatestGrief,
+            mindData['greatestGrief']),
+        greatestJoys: _mergeString(
+            existingSheet.mentalEmotional.greatestJoys,
+            mindData['greatestJoys']),
+        deeplyLikedActivities: _mergeString(
+            existingSheet.mentalEmotional.deeplyLikedActivities,
+            mindData['deeplyLikedActivities']),
+        deeplyDislikedMatters: _mergeString(
+            existingSheet.mentalEmotional.deeplyDislikedMatters,
+            mindData['deeplyDislikedMatters']),
+        disagreeableMindAspects: _mergeString(
+            existingSheet.mentalEmotional.disagreeableMindAspects,
+            mindData['disagreeableMindAspects']),
+        lifeSituationPicture: _mergeString(
+            existingSheet.mentalEmotional.lifeSituationPicture,
+            mindData['lifeSituationPicture']),
+      );
+
+      // Dreams & Sleep
+      final sleepData = data['dreamsSleep'] as Map<String, dynamic>? ?? {};
+      final updatedSleep = existingSheet.dreamsSleep.copyWith(
+        sleepQuality: _mergeString(
+            existingSheet.dreamsSleep.sleepQuality, sleepData['sleepQuality']),
+        sleepDisturbances: _mergeString(
+            existingSheet.dreamsSleep.sleepDisturbances,
+            sleepData['sleepDisturbances']),
+        dreamCharacteristics: _mergeString(
+            existingSheet.dreamsSleep.dreamCharacteristics,
+            sleepData['dreamCharacteristics']),
+        sleepPosture: _mergeString(
+            existingSheet.dreamsSleep.sleepPosture, sleepData['sleepPosture']),
+        sleepPositionRestrictions: _mergeString(
+            existingSheet.dreamsSleep.sleepPositionRestrictions,
+            sleepData['sleepPositionRestrictions']),
+        sleepBehaviors: _mergeString(
+            existingSheet.dreamsSleep.sleepBehaviors,
+            sleepData['sleepBehaviors']),
+        childhoodDreams: _mergeString(
+            existingSheet.dreamsSleep.childhoodDreams,
+            sleepData['childhoodDreams']),
+      );
+
+      // Childhood History
+      final childHistData =
+          data['childhoodHistory'] as Map<String, dynamic>? ?? {};
+      final updatedChildHist = existingSheet.childhoodHistory.copyWith(
+        childhoodNature: _mergeString(
+            existingSheet.childhoodHistory.childhoodNature,
+            childHistData['childhoodNature']),
+        childhoodHabits: _mergeString(
+            existingSheet.childhoodHistory.childhoodHabits,
+            childHistData['childhoodHabits']),
+        childhoodFears: _mergeString(
+            existingSheet.childhoodHistory.childhoodFears,
+            childHistData['childhoodFears']),
+        childhoodDreams: _mergeString(
+            existingSheet.childhoodHistory.childhoodDreams,
+            childHistData['childhoodDreams']),
+        childhoodRelationships: _mergeString(
+            existingSheet.childhoodHistory.childhoodRelationships,
+            childHistData['childhoodRelationships']),
+        childhoodSensitivities: _mergeString(
+            existingSheet.childhoodHistory.childhoodSensitivities,
+            childHistData['childhoodSensitivities']),
+      );
+
+      // Children Case Sheet
+      final pediaData =
+          data['childrenCaseSheet'] as Map<String, dynamic>? ?? {};
+      final scoreVal =
+          (pediaData['graspingIntelligenceScore'] as num?)?.toInt();
+      final updatedPedia = existingSheet.childrenCaseSheet.copyWith(
+        coldOrHeatSensitive: _mergeString(
+            existingSheet.childrenCaseSheet.coldOrHeatSensitive,
+            pediaData['coldOrHeatSensitive']),
+        behaviorWhenUpset: _mergeString(
+            existingSheet.childrenCaseSheet.behaviorWhenUpset,
+            pediaData['behaviorWhenUpset']),
+        whatMakesHappy: _mergeString(
+            existingSheet.childrenCaseSheet.whatMakesHappy,
+            pediaData['whatMakesHappy']),
+        schoolBehavior: _mergeString(
+            existingSheet.childrenCaseSheet.schoolBehavior,
+            pediaData['schoolBehavior']),
+        graspingIntelligenceScore: scoreVal ??
+            existingSheet.childrenCaseSheet.graspingIntelligenceScore,
+        childTypeDescription: _mergeString(
+            existingSheet.childrenCaseSheet.childTypeDescription,
+            pediaData['childTypeDescription']),
+        vaccinationHistory: _mergeString(
+            existingSheet.childrenCaseSheet.vaccinationHistory,
+            pediaData['vaccinationHistory']),
+        favoriteSportActivity: _mergeString(
+            existingSheet.childrenCaseSheet.favoriteSportActivity,
+            pediaData['favoriteSportActivity'] ?? pediaData['favoriteSport']),
+        attitudeToParents: _mergeString(
+            existingSheet.childrenCaseSheet.attitudeToParents,
+            pediaData['attitudeToParents']),
+        childMedicalHistory: _mergeString(
+            existingSheet.childrenCaseSheet.childMedicalHistory,
+            pediaData['childMedicalHistory'] ?? pediaData['pastMedicalHistory']),
+        maturityLevel: _mergeString(
+            existingSheet.childrenCaseSheet.maturityLevel,
+            pediaData['maturityLevel']),
+        familyProblemsReaction: _mergeString(
+            existingSheet.childrenCaseSheet.familyProblemsReaction,
+            pediaData['familyProblemsReaction']),
+        childIntrovertExtrovert: _mergeString(
+            existingSheet.childrenCaseSheet.childIntrovertExtrovert,
+            pediaData['childIntrovertExtrovert'] ?? pediaData['introvertExtrovert']),
+        independenceLevel: _mergeString(
+            existingSheet.childrenCaseSheet.independenceLevel,
+            pediaData['independenceLevel']),
+        dailyWaterIntake: _mergeString(
+            existingSheet.childrenCaseSheet.dailyWaterIntake,
+            pediaData['dailyWaterIntake']),
+        birthComplications: _mergeString(
+            existingSheet.childrenCaseSheet.birthComplications,
+            pediaData['birthComplications']),
+        motherPregnancyHistory: _mergeString(
+            existingSheet.childrenCaseSheet.motherPregnancyHistory,
+            pediaData['motherPregnancyHistory']),
+        motherMedicalHistory: _mergeString(
+            existingSheet.childrenCaseSheet.motherMedicalHistory,
+            pediaData['motherMedicalHistory']),
+        familyHealthHereditary: _mergeString(
+            existingSheet.childrenCaseSheet.familyHealthHereditary,
+            pediaData['familyHealthHereditary']),
+        walkingTeethingAge: _mergeString(
+            existingSheet.childrenCaseSheet.walkingTeethingAge,
+            pediaData['walkingTeethingAge']),
+        abnormalBehaviors: _mergeString(
+            existingSheet.childrenCaseSheet.abnormalBehaviors,
+            pediaData['abnormalBehaviors']),
+        childFears: _mergeString(existingSheet.childrenCaseSheet.childFears,
+            pediaData['childFears']),
+        childSleepingHabits: _mergeString(
+            existingSheet.childrenCaseSheet.childSleepingHabits,
+            pediaData['childSleepingHabits'] ?? pediaData['sleepingHabits']),
+        abnormalCravings: _mergeString(
+            existingSheet.childrenCaseSheet.abnormalCravings,
+            pediaData['abnormalCravings']),
+        wormsProblems: _mergeString(
+            existingSheet.childrenCaseSheet.wormsProblems,
+            pediaData['wormsProblems']),
+        headSymptoms: _mergeString(
+            existingSheet.childrenCaseSheet.headSymptoms,
+            pediaData['headSymptoms'] ?? pediaData['headNoseThroat']),
+        coughAsthmaDetails: _mergeString(
+            existingSheet.childrenCaseSheet.coughAsthmaDetails,
+            pediaData['coughAsthmaDetails'] ?? pediaData['coughRespiration']),
+        stomachSymptoms: _mergeString(
+            existingSheet.childrenCaseSheet.stomachSymptoms,
+            pediaData['stomachSymptoms'] ?? pediaData['stomachAppetite']),
+        stoolRectumSymptoms: _mergeString(
+            existingSheet.childrenCaseSheet.stoolRectumSymptoms,
+            pediaData['stoolRectumSymptoms'] ?? pediaData['stoolUrinary']),
+        sexualAwareness: _mergeString(
+            existingSheet.childrenCaseSheet.sexualAwareness,
+            pediaData['sexualAwareness']),
+        additionalChildInfo: _mergeString(
+            existingSheet.childrenCaseSheet.additionalChildInfo,
+            pediaData['additionalChildInfo']),
+      );
+
+      // Female & Endocrine
+      final femEndoData =
+          data['femaleEndocrine'] as Map<String, dynamic>? ?? {};
+      final updatedFemEndo = existingSheet.femaleEndocrine.copyWith(
+        medicalDiagnosis: _mergeString(
+            existingSheet.femaleEndocrine.medicalDiagnosis,
+            femEndoData['medicalDiagnosis']),
+        howAndWhenStarted: _mergeString(
+            existingSheet.femaleEndocrine.howAndWhenStarted,
+            femEndoData['howAndWhenStarted']),
+        physiologicalCauseTrigger: _mergeString(
+            existingSheet.femaleEndocrine.physiologicalCauseTrigger,
+            femEndoData['physiologicalCauseTrigger']),
+        emotionalTriggers: _mergeString(
+            existingSheet.femaleEndocrine.emotionalTriggers,
+            femEndoData['emotionalTriggers']),
+        diseaseManifestationLocation: _mergeString(
+            existingSheet.femaleEndocrine.diseaseManifestationLocation,
+            femEndoData['diseaseManifestationLocation']),
+        otherOrgansInvolved: _mergeString(
+            existingSheet.femaleEndocrine.otherOrgansInvolved,
+            femEndoData['otherOrgansInvolved']),
+        goitreDetails: _mergeString(
+            existingSheet.femaleEndocrine.goitreDetails,
+            femEndoData['goitreDetails']),
+        glandsProblems: _mergeString(
+            existingSheet.femaleEndocrine.glandsProblems,
+            femEndoData['glandsProblems']),
+        skinSymptoms: _mergeString(
+            existingSheet.femaleEndocrine.skinSymptoms,
+            femEndoData['skinSymptoms']),
+        cardiacCirculatorySymptoms: _mergeString(
+            existingSheet.femaleEndocrine.cardiacCirculatorySymptoms,
+            femEndoData['cardiacCirculatorySymptoms']),
+        stagesOfLife: _mergeString(
+            existingSheet.femaleEndocrine.stagesOfLife,
+            femEndoData['stagesOfLife'] ??
+                femEndoData['stagesOfLifeChildhood']),
+        physicalWeakness: _mergeString(
+            existingSheet.femaleEndocrine.physicalWeakness,
+            femEndoData['physicalWeakness']),
+      );
+
+      // Acute Sheet
+      final acuteData = data['acuteSheet'] as Map<String, dynamic>? ?? {};
+      final updatedAcute = existingSheet.acuteSheet.copyWith(
+        howKnewAboutUs: _mergeString(existingSheet.acuteSheet.howKnewAboutUs,
+            acuteData['howKnewAboutUs']),
+        priorHomeopathyUse: _mergeString(
+            existingSheet.acuteSheet.priorHomeopathyUse,
+            acuteData['priorHomeopathyUse']),
+        causeOfComplaint: _mergeString(
+            existingSheet.acuteSheet.causeOfComplaint,
+            acuteData['causeOfComplaint']),
+        otherProblems: _mergeString(
+            existingSheet.acuteSheet.otherProblems, acuteData['otherProblems']),
+        mentalConditionDuringSuffering: _mergeString(
+            existingSheet.acuteSheet.mentalConditionDuringSuffering,
+            acuteData['mentalConditionDuringSuffering']),
+        waterRequirement: _mergeString(
+            existingSheet.acuteSheet.waterRequirement,
+            acuteData['waterRequirement']),
+        sweatDetails: _mergeString(
+            existingSheet.acuteSheet.sweatDetails, acuteData['sweatDetails']),
+        postureModalities: _mergeString(
+            existingSheet.acuteSheet.postureModalities,
+            acuteData['postureModalities']),
+        sleepStoolUrination: _mergeString(
+            existingSheet.acuteSheet.sleepStoolUrination,
+            acuteData['sleepStoolUrination']),
+        overallHealthHistory: _mergeString(
+            existingSheet.acuteSheet.overallHealthHistory,
+            acuteData['overallHealthHistory']),
+        acuteFeverDetails: _mergeString(
+            existingSheet.acuteSheet.acuteFeverDetails,
+            acuteData['acuteFeverDetails'] ?? acuteData['feverDetails']),
+        specialUncommonSymptoms: _mergeString(
+            existingSheet.acuteSheet.specialUncommonSymptoms,
+            acuteData['specialUncommonSymptoms']),
+        coughRespirationDetail: _mergeString(
+            existingSheet.acuteSheet.coughRespirationDetail,
+            acuteData['coughRespirationDetail'] ?? acuteData['coughRespirationDetails']),
+        additionalCoughInfo: _mergeString(
+            existingSheet.acuteSheet.additionalCoughInfo,
+            acuteData['additionalCoughInfo']),
+        looseDryCoughDetails: _mergeString(
+            existingSheet.acuteSheet.looseDryCoughDetails,
+            acuteData['looseDryCoughDetails'] ?? acuteData['looseDryCough']),
+        diarrheaConstipationDetails: _mergeString(
+            existingSheet.acuteSheet.diarrheaConstipationDetails,
+            acuteData['diarrheaConstipationDetails'] ?? acuteData['diarrheaDysenteryConstipation']),
+        bodyPainDetails: _mergeString(
+            existingSheet.acuteSheet.bodyPainDetails,
+            acuteData['bodyPainDetails'] ?? acuteData['bodyPains']),
+        additionalInfo: _mergeString(
+            existingSheet.acuteSheet.additionalInfo, acuteData['additionalInfo']),
       );
 
       // Prescription & Totality
@@ -526,13 +936,25 @@ JSON SCHEMA STRUCTURE:
             existingSheet.followUp.followUpNotes, fuData['followUpNotes']),
       );
 
+      // Case Category
+      final catStr = data['caseSheetCategory']?.toString();
+      final parsedCategory = catStr != null && catStr.isNotEmpty
+          ? HomeopathyCaseSheetCategory.fromString(catStr)
+          : existingSheet.caseSheetCategory;
+
       return existingSheet.copyWith(
+        caseSheetCategory: parsedCategory,
         overview: updatedOverview,
         chiefComplaint: updatedCC,
         modalities: updatedMod,
         generalSymptoms: updatedGen,
         physicalSymptoms: updatedPhys,
         mentalEmotional: updatedMind,
+        dreamsSleep: updatedSleep,
+        childhoodHistory: updatedChildHist,
+        childrenCaseSheet: updatedPedia,
+        femaleEndocrine: updatedFemEndo,
+        acuteSheet: updatedAcute,
         prescriptionNotes: updatedRx,
         followUp: updatedFu,
         updatedAt: DateTime.now(),

@@ -136,8 +136,8 @@ void main() {
       expect(sheet.generalSymptoms.thermalState,
           HomeopathyThermalState.unspecified);
       expect(sheet.completedSectionsCount(), 0);
-      expect(sheet.totalSectionsCount(isFemale: false), 14);
-      expect(sheet.totalSectionsCount(isFemale: true), 15);
+      expect(sheet.totalSectionsCount(isFemale: false), 15);
+      expect(sheet.totalSectionsCount(isFemale: true), 16);
     });
 
     test('serializes to map and deserializes without data loss', () {
@@ -383,6 +383,11 @@ void main() {
           suggestedRemedies TEXT NOT NULL DEFAULT '',
           followUp TEXT NOT NULL DEFAULT '{}',
           additionalNotes TEXT NOT NULL DEFAULT '',
+          caseSheetCategory TEXT NOT NULL DEFAULT 'general',
+          childhoodHistory TEXT NOT NULL DEFAULT '{}',
+          childrenCaseSheet TEXT NOT NULL DEFAULT '{}',
+          femaleEndocrine TEXT NOT NULL DEFAULT '{}',
+          acuteSheet TEXT NOT NULL DEFAULT '{}',
           createdAt INTEGER NOT NULL,
           updatedAt INTEGER NOT NULL,
           syncStatus TEXT NOT NULL DEFAULT 'synced',
@@ -661,6 +666,133 @@ void main() {
 
       // New voice data populated
       expect(parsed.chiefComplaint.complaint, 'New acute symptom described in voice');
+    });
+  });
+
+  group('Homeopathy 4 Clinical Questionnaires Extended Models Tests', () {
+    test('category enum correctly resolves from various string formats', () {
+      expect(HomeopathyCaseSheetCategory.fromString('general'),
+          HomeopathyCaseSheetCategory.general);
+      expect(HomeopathyCaseSheetCategory.fromString('children'),
+          HomeopathyCaseSheetCategory.children);
+      expect(HomeopathyCaseSheetCategory.fromString('femaleEndocrine'),
+          HomeopathyCaseSheetCategory.femaleEndocrine);
+      expect(HomeopathyCaseSheetCategory.fromString('female_endocrine'),
+          HomeopathyCaseSheetCategory.femaleEndocrine);
+      expect(HomeopathyCaseSheetCategory.fromString('acute'),
+          HomeopathyCaseSheetCategory.acute);
+      expect(HomeopathyCaseSheetCategory.fromString(null),
+          HomeopathyCaseSheetCategory.general);
+    });
+
+    test('serializes and deserializes extended sections accurately', () {
+      const childhood = HomeopathyChildhoodHistory(
+        childhoodNature: 'Shy and reserved',
+        childhoodHabits: 'Nail biting',
+        childhoodFears: 'Dark and dogs',
+        childhoodDreams: 'Monsters chasing',
+        childhoodRelationships: 'Close to mother',
+        childhoodSensitivities: 'Cries easily when scolded',
+      );
+
+      const childrenSheet = HomeopathyChildrenCaseSheet(
+        coldOrHeatSensitive: 'Very chilly, easily catches colds',
+        behaviorWhenUpset: 'Sulks in corner, stubborn',
+        whatMakesHappy: 'Storytelling, drawing',
+        schoolBehavior: 'Attentive, quiet',
+        graspingIntelligenceScore: 8,
+        childTypeDescription: 'Delicate, fair, easily fatigued',
+        vaccinationHistory: 'Mild fever after MMR',
+        favoriteSportActivity: 'Swimming',
+        attitudeToParents: 'Affectionate',
+      );
+
+      const endocrine = HomeopathyFemaleEndocrine(
+        medicalDiagnosis: 'Hypothyroidism (Hashimoto\'s)',
+        howAndWhenStarted: 'After pregnancy 3 years ago',
+        physiologicalCauseTrigger: 'Postpartum hormone shift',
+        emotionalTriggers: 'Severe grief after parent demise',
+        diseaseManifestationLocation: 'Thyroid gland, neck fullness',
+        stagesOfLife: 'Menarche at 14, two full-term pregnancies',
+        physicalWeakness: 'Extreme morning fatigue, puffy face',
+      );
+
+      const acute = HomeopathyAcuteSheet(
+        detailedComplaint: 'Sudden onset high fever at midnight with delirium',
+        causeOfComplaint: 'Exposure to chilling north wind',
+        whatMakesWorse: 'Motion, noise, bright light',
+        whatMakesBetter: 'Lying in dark quiet room, cold compress',
+        mentalConditionDuringSuffering: 'High restlessness and panic',
+        waterRequirement: 'Unquenchable thirst for cold water in large gulps',
+        sweatDetails: 'Scanty sweat during fever',
+        acuteFeverDetails: 'Chill at 10 PM followed by burning heat at 1 AM',
+        coughRespirationDetail: 'Dry whistling cough, throat constriction',
+        looseDryCoughDetails: 'Dry barking',
+        bodyPainDetails: 'Sore bruised pain all over',
+      );
+
+      final now = DateTime.now();
+      final caseSheet = HomeopathyCaseSheet(
+        id: 'case-ext-001',
+        patientId: 'patient-ext-100',
+        doctorId: 'doctor-ext-200',
+        overview: HomeopathyCaseOverview(caseDate: now),
+        chiefComplaint: const HomeopathyChiefComplaint(),
+        modalities: const HomeopathyModalities(),
+        generalSymptoms: const HomeopathyGeneralSymptoms(
+          hungerTime: '11 AM hunger sinking sensation',
+          hungerReaction: 'Severe headache if meal is delayed',
+          eatingSpeed: 'Eats hastily in hurry',
+          thirstTime: 'Night 2 AM thirst',
+          tasteChanges: 'Bitter metallic taste in morning',
+        ),
+        physicalSymptoms: const HomeopathyPhysicalSymptoms(),
+        femaleReproductive: const HomeopathyFemaleHistory(),
+        mentalEmotional: const HomeopathyMentalEmotional(
+          upsetWorryTriggers: 'Injustice and family disharmony',
+          fearDetails: 'Fear of narrow spaces and elevators',
+          introvertExtrovert: 'Introvert, keeps grief to oneself',
+          greatestGrief: 'Loss of father in 2020',
+        ),
+        dreamsSleep: const HomeopathyDreamsSleep(
+          sleepPosture: 'Lies on right side with arms folded',
+          sleepPositionRestrictions: 'Cannot lie on left side due to heart palpitations',
+          sleepBehaviors: 'Grinds teeth in sleep',
+          childhoodDreams: 'Falling from cliff',
+        ),
+        sexualHistory: const HomeopathySexualHistory(),
+        medicalHistory: const HomeopathyMedicalHistory(),
+        physicalExamination: const HomeopathyPhysicalExam(),
+        investigations: const HomeopathyInvestigations(),
+        peculiarSymptoms: const HomeopathyPeculiarSymptoms(),
+        prescriptionNotes: const HomeopathyPrescriptionNotes(),
+        caseSheetCategory: HomeopathyCaseSheetCategory.femaleEndocrine,
+        childhoodHistory: childhood,
+        childrenCaseSheet: childrenSheet,
+        femaleEndocrine: endocrine,
+        acuteSheet: acute,
+        createdAt: now,
+        updatedAt: now,
+      );
+
+      // Verify toMap & fromMap
+      final map = caseSheet.toMap();
+      final restored = HomeopathyCaseSheet.fromMap(map);
+
+      expect(restored.caseSheetCategory, HomeopathyCaseSheetCategory.femaleEndocrine);
+      expect(restored.childhoodHistory.childhoodNature, 'Shy and reserved');
+      expect(restored.childhoodHistory.childhoodFears, 'Dark and dogs');
+      expect(restored.childrenCaseSheet.coldOrHeatSensitive, 'Very chilly, easily catches colds');
+      expect(restored.childrenCaseSheet.graspingIntelligenceScore, 8);
+      expect(restored.femaleEndocrine.medicalDiagnosis, contains('Hashimoto\'s'));
+      expect(restored.femaleEndocrine.stagesOfLife, contains('Menarche at 14'));
+      expect(restored.acuteSheet.detailedComplaint, contains('Sudden onset high fever'));
+      expect(restored.acuteSheet.waterRequirement, contains('large gulps'));
+      expect(restored.generalSymptoms.hungerTime, '11 AM hunger sinking sensation');
+      expect(restored.generalSymptoms.tasteChanges, 'Bitter metallic taste in morning');
+      expect(restored.mentalEmotional.upsetWorryTriggers, 'Injustice and family disharmony');
+      expect(restored.dreamsSleep.sleepPosture, contains('right side'));
+      expect(restored.completedSectionsCount(isFemale: true), greaterThanOrEqualTo(5));
     });
   });
 }

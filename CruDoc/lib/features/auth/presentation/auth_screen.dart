@@ -444,7 +444,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
       }
     } catch (e) {
       debugPrint('Login auth exception: $e');
-      
+
       // Enforce timing floor (500ms) to guard against response-timing side channel attacks
       final elapsed = DateTime.now().difference(startTime).inMilliseconds;
       if (elapsed < 500) {
@@ -452,10 +452,53 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
       }
 
       if (!mounted) return;
+
+      String errorTitle = 'Authentication Error';
+      String errorMessage =
+          'Unable to sign in. Please check your credentials or contact Super Admin.';
+
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'user-not-found':
+            errorTitle = 'User Does Not Exist';
+            errorMessage =
+                'User does not exist in database. Please contact Super Admin to create your account.';
+            break;
+          case 'wrong-password':
+          case 'invalid-credential':
+            errorTitle = 'Invalid Credentials';
+            errorMessage =
+                'Invalid email or password. Please check your credentials and try again.';
+            break;
+          case 'user-disabled':
+            errorTitle = 'Account Disabled';
+            errorMessage =
+                'Your account has been disabled by Super Admin.';
+            break;
+          case 'too-many-requests':
+            errorTitle = 'Too Many Requests';
+            errorMessage =
+                'Too many failed login attempts. Please wait a few minutes before trying again.';
+            break;
+          case 'network-request-failed':
+            errorTitle = 'Network Error';
+            errorMessage =
+                'Network connection failed. Please check your internet connection.';
+            break;
+          default:
+            if (e.message != null && e.message!.contains('API key expired')) {
+              errorTitle = 'Firebase Configuration Error';
+              errorMessage =
+                  'Firebase API key has expired. Please renew the API key in Firebase Console.';
+            } else {
+              errorMessage = e.message ?? errorMessage;
+            }
+        }
+      }
+
       _showUserDoesNotExistDialog(
-        title: 'User Does Not Exist',
-        message:
-            'User does not exist in database. Please contact Super Admin to create your account.',
+        title: errorTitle,
+        message: errorMessage,
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

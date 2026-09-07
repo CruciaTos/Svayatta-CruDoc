@@ -173,6 +173,9 @@ class QueueEntry {
   bool get isActiveServing =>
       status == QueueStatus.called || status == QueueStatus.inConsultation;
 
+  /// True when this queue token is linked to a pre-booked clinic [Visit].
+  bool get isPrebooked => linkedVisitId != null && linkedVisitId!.isNotEmpty;
+
   /// Builds a [QueueEntry] from a Firestore document snapshot.
   factory QueueEntry.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> doc,

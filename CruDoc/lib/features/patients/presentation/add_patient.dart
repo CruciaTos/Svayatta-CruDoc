@@ -6,10 +6,15 @@ import 'package:doctor_management_app/features/patients/presentation/patient_for
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 
+export 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
+
 Future<bool?> showAddPatientSheet(
   BuildContext context, {
   PatientRepository? repository,
 }) {
+  if (MediaQuery.of(context).size.width >= 800) {
+    return showDesktopAddEditPatientDialog(context, repository: repository);
+  }
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -28,6 +33,13 @@ Future<bool?> showEditPatientSheet(
   required Patient patient,
   PatientRepository? repository,
 }) {
+  if (MediaQuery.of(context).size.width >= 800) {
+    return showDesktopAddEditPatientDialog(
+      context,
+      patient: patient,
+      repository: repository,
+    );
+  }
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,

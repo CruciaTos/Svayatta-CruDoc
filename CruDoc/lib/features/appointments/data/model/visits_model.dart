@@ -291,6 +291,8 @@ class Visit {
   }
 
   Visit copyWith({
+    String? id,
+    String? doctorId,
     String? patientId,
     DateTime? scheduledStart,
     int? durationMinutes,
@@ -313,8 +315,8 @@ class Visit {
     DateTime? updatedAt,
   }) {
     return Visit(
-      id: id,
-      doctorId: doctorId,
+      id: id ?? this.id,
+      doctorId: doctorId ?? this.doctorId,
       patientId: patientId ?? this.patientId,
       scheduledStart: scheduledStart ?? this.scheduledStart,
       durationMinutes: durationMinutes ?? this.durationMinutes,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
@@ -58,6 +59,8 @@ class QueueTokenCard extends StatelessWidget {
   final QueueStatus status;
   final QueuePriority priority;
   final DateTime checkedInAt;
+  final bool isPrebooked;
+  final DateTime? appointmentTime;
   final VoidCallback? onTap;
 
   /// Action callbacks — pass only the ones that make sense for
@@ -67,6 +70,7 @@ class QueueTokenCard extends StatelessWidget {
   final VoidCallback? onSkip;
   final VoidCallback? onRequeue;
   final VoidCallback? onCancel;
+  final VoidCallback? onCheckIn;
 
   const QueueTokenCard({
     super.key,
@@ -76,12 +80,15 @@ class QueueTokenCard extends StatelessWidget {
     required this.status,
     this.priority = QueuePriority.normal,
     required this.checkedInAt,
+    this.isPrebooked = false,
+    this.appointmentTime,
     this.onTap,
     this.onStartConsultation,
     this.onComplete,
     this.onSkip,
     this.onRequeue,
     this.onCancel,
+    this.onCheckIn,
   });
 
   String get _waitLabel {
@@ -97,6 +104,13 @@ class QueueTokenCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = _statusColor(status);
     final actions = <Widget>[
+      if (onCheckIn != null)
+        _ActionChip(
+          label: 'Check In',
+          icon: Icons.how_to_reg_rounded,
+          color: const Color(0xFF6366F1),
+          onTap: onCheckIn!,
+        ),
       if (onStartConsultation != null)
         _ActionChip(
           label: 'Start',
@@ -151,7 +165,11 @@ class QueueTokenCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TokenBadge(tokenNumber: tokenNumber, color: color),
+                _TokenBadge(
+                  tokenNumber: tokenNumber,
+                  color: isPrebooked ? const Color(0xFF6366F1) : color,
+                  isPrebooked: isPrebooked,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -174,6 +192,44 @@ class QueueTokenCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
+                          if (isPrebooked) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.28),
+                                  width: 0.75,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(
+                                    Icons.event_available_rounded,
+                                    size: 11,
+                                    color: Color(0xFF6366F1),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    appointmentTime != null
+                                        ? 'Pre-booked • ${DateFormat('h:mm a').format(appointmentTime!)}'
+                                        : 'Pre-booked',
+                                    style: const TextStyle(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF6366F1),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: 2),
@@ -205,7 +261,13 @@ class QueueTokenCard extends StatelessWidget {
 class _TokenBadge extends StatelessWidget {
   final int tokenNumber;
   final Color color;
-  const _TokenBadge({required this.tokenNumber, required this.color});
+  final bool isPrebooked;
+
+  const _TokenBadge({
+    required this.tokenNumber,
+    required this.color,
+    this.isPrebooked = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -217,15 +279,30 @@ class _TokenBadge extends StatelessWidget {
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Text(
-        '#$tokenNumber',
-        style: TextStyle(
-          fontFamily: AppColors.headingFontFamily,
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
+      child: tokenNumber > 0
+          ? Text(
+              '#$tokenNumber',
+              style: TextStyle(
+                fontFamily: AppColors.headingFontFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
+            )
+          : (isPrebooked
+              ? Icon(
+                  Icons.calendar_month_rounded,
+                  size: 20,
+                  color: color,
+                )
+              : Text(
+                  '—',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
+                )),
     );
   }
 }

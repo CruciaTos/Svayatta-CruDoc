@@ -16,6 +16,8 @@ import 'package:doctor_management_app/features/scribe/presentation/scribe_record
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
+import 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
+export 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 
 // ---------- Accent colours (mirrors visit_details.dart) ----------
 const Color _accentBlue = Color(0xFF5DADE2);
@@ -54,12 +56,14 @@ String _labelForStatus(VisitStatus status) {
 /// Shows the Appointment Details layout for clinic visits
 /// ([VisitType.clinic]) or the Visitation Details layout for home visits
 /// ([VisitType.home]) — whichever matches the underlying visit. Pops up
-/// from the bottom, same presentation as the "Add Transaction" sheet on
-/// the Revenue screen, rather than pushing a full-screen page.
+/// from the bottom on mobile, or shows a dedicated desktop dialog on desktop.
 Future<void> showSessionDetailsSheet(
   BuildContext context,
   VisitWithPatient vw,
 ) {
+  if (MediaQuery.of(context).size.width >= 800) {
+    return showDesktopSessionDetailsDialog(context, vw);
+  }
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,

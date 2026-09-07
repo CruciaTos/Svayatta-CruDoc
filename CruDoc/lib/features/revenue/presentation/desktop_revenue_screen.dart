@@ -1,6 +1,5 @@
-import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
@@ -11,25 +10,32 @@ import 'package:doctor_management_app/features/appointments/data/repo/visits_rep
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_invoices_screen.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
+export 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
 
-const _emptyFinancialDashboardData = _FinancialDashboardViewData(
-  revenue: '₹0',
-  expenses: '₹0',
-  profit: '₹0',
-  outstandingInvoices: '₹0',
-  invoiceSubtitle: '0 invoices this period',
-  outstandingSubtitle: '0 unpaid invoices',
-  recentTransactions: <_TransactionData>[],
-  structures: <_StructureData>[],
-  weeklyData: _WeeklyFinancialData(
-    labels: <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    dates: <DateTime>[],
-    revenue: <double>[0, 0, 0, 0, 0, 0, 0],
-    expenses: <double>[0, 0, 0, 0, 0, 0, 0],
-    profit: <double>[0, 0, 0, 0, 0, 0, 0],
-  ),
-  allInvoices: <InvoiceModel>[],
-);
+// =============================================================================
+// COLOR PALETTE & DESIGN TOKENS
+// =============================================================================
+
+/// Primary accent color used for main actions, active states, and focal points.
+const _kPrimaryAccent = Color(0xFF2563EB); // Royal cobalt blue
+const _kAccentTint = Color(0xFFEFF6FF); // Soft blue wash
+
+/// Semantic colors for financial states.
+const _kSuccessGreen = Color(0xFF10B981); // Positive / Income
+const _kSuccessTint = Color(0xFFECFDF5);
+const _kDangerRose = Color(0xFFF43F5E); // Negative / Expense
+const _kDangerTint = Color(0xFFFFF1F2);
+const _kWarningAmber = Color(0xFFF59E0B); // Pending / Outstanding
+const _kWarningTint = Color(0xFFFFFBEB);
+
+/// Neutral typography and surface hierarchy.
+const _kTextDark = Color(0xFF0F172A); // High-contrast charcoal
+const _kTextMedium = Color(0xFF334155); // Subheadings and labels
+const _kTextMuted = Color(0xFF64748B); // Subtext and timestamps
+const _kBorderLight = Color(0xFFE2E8F0); // Modular card border
+const _kCardBg = Colors.white; // Solid crisp card background
+const _kInnerSurface = Color(0xFFF8FAFC); // Nested surface wash
 
 final _currencyFormatter = NumberFormat.currency(
   locale: 'en_IN',
@@ -39,221 +45,54 @@ final _currencyFormatter = NumberFormat.currency(
 
 String _formatCurrency(double value) => _currencyFormatter.format(value);
 
-enum FinancialRange { week, month, threeMonths, twelveMonths }
+// =============================================================================
+// TIME RANGE DEFINITION
+// =============================================================================
+
+enum FinancialRange { today, threeMonths, sixMonths, twelveMonths }
 
 extension FinancialRangeExtension on FinancialRange {
   String get label {
     switch (this) {
-      case FinancialRange.week:
-        return 'This week';
-      case FinancialRange.month:
-        return 'This month';
+      case FinancialRange.today:
+        return 'Today';
       case FinancialRange.threeMonths:
-        return 'Last 3 months';
+        return '3 Months';
+      case FinancialRange.sixMonths:
+        return '6 Months';
       case FinancialRange.twelveMonths:
-        return 'Last 12 months';
+        return '12 Months';
     }
   }
-}
 
-_FinancialDashboardViewData _mapInvoicesToFinancialData(
-  List<InvoiceModel> invoices,
-  FinancialRange range,
-) {
-  final now = DateTime.now();
-  DateTime startDate;
-  List<DateTime> dates;
-  List<String> labels;
-  int pointCount;
-
-  switch (range) {
-    case FinancialRange.week:
-      startDate = DateTime(
-        now.year,
-        now.month,
-        now.day,
-      ).subtract(Duration(days: now.weekday - DateTime.monday));
-      pointCount = 7;
-      dates = List.generate(
-        pointCount,
-        (i) => startDate.add(Duration(days: i)),
-      );
-      labels = dates.map((d) => DateFormat('E').format(d)).toList();
-      break;
-    case FinancialRange.month:
-      startDate = DateTime(now.year, now.month, 1);
-      pointCount = DateTime(now.year, now.month + 1, 0).day;
-      dates = List.generate(
-        pointCount,
-        (i) => startDate.add(Duration(days: i)),
-      );
-      labels = dates.map((d) => d.day.toString()).toList();
-      break;
-    case FinancialRange.threeMonths:
-      startDate = DateTime(now.year, now.month - 2, 1);
-      pointCount = 3;
-      dates = List.generate(
-        pointCount,
-        (i) => DateTime(startDate.year, startDate.month + i, 1),
-      );
-      labels = dates.map((d) => DateFormat('MMM').format(d)).toList();
-      break;
-    case FinancialRange.twelveMonths:
-      startDate = DateTime(now.year, now.month - 11, 1);
-      pointCount = 12;
-      dates = List.generate(
-        pointCount,
-        (i) => DateTime(startDate.year, startDate.month + i, 1),
-      );
-      labels = dates.map((d) => DateFormat('MMM yy').format(d)).toList();
-      break;
-  }
-
-  final weekRevenue = List<double>.filled(pointCount, 0);
-  final weekExpenses = List<double>.filled(pointCount, 0);
-  final weekProfit = List<double>.filled(pointCount, 0);
-
-  double paidTotal = 0;
-  double outstandingTotal = 0;
-  int unpaidCount = 0;
-  int invoicesThisPeriod = 0;
-  final serviceTotals = <String, double>{};
-  final filteredInvoices = <InvoiceModel>[];
-
-  for (final invoice in invoices) {
-    final invoiceDate = DateTime(
-      invoice.date.year,
-      invoice.date.month,
-      invoice.date.day,
-    );
-    if (invoiceDate.isBefore(startDate) || invoiceDate.isAfter(now)) continue;
-
-    filteredInvoices.add(invoice);
-    invoicesThisPeriod++;
-
-    if (invoice.isPaid) {
-      paidTotal += invoice.amount;
-    } else {
-      outstandingTotal += invoice.amount;
-      unpaidCount++;
-    }
-
-    int index;
-    switch (range) {
-      case FinancialRange.week:
-        index = invoiceDate.difference(startDate).inDays;
-        break;
-      case FinancialRange.month:
-        index = invoiceDate.day - 1;
-        break;
+  String get shortLabel {
+    switch (this) {
+      case FinancialRange.today:
+        return 'Today';
       case FinancialRange.threeMonths:
-        index = invoiceDate.month - startDate.month;
-        break;
+        return '90 Days';
+      case FinancialRange.sixMonths:
+        return '180 Days';
       case FinancialRange.twelveMonths:
-        index =
-            (invoiceDate.year - startDate.year) * 12 +
-            (invoiceDate.month - startDate.month);
-        break;
-    }
-    if (index >= 0 && index < pointCount) {
-      if (invoice.isPaid) {
-        weekRevenue[index] += invoice.amount;
-      }
-    }
-
-    if (invoice.isPaid) {
-      final category = _categoryForService(invoice.service);
-      serviceTotals.update(
-        category,
-        (value) => value + invoice.amount,
-        ifAbsent: () => invoice.amount,
-      );
+        return '1 Year';
     }
   }
-
-  for (var i = 0; i < pointCount; i++) {
-    weekProfit[i] = weekRevenue[i] - weekExpenses[i];
-  }
-
-  final structures = serviceTotals.entries.toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
-  final top4Total = structures
-      .take(4)
-      .fold<double>(0, (sum, entry) => sum + entry.value);
-  final colors = <Color>[
-    const Color(0xFF7B61FF),
-    const Color(0xFFBDA6FF),
-    const Color(0xFFE2D5FF),
-    const Color(0xFFFFAA00),
-  ];
-
-  return _FinancialDashboardViewData(
-    revenue: _formatCurrency(paidTotal),
-    expenses: _formatCurrency(0),
-    profit: _formatCurrency(paidTotal),
-    outstandingInvoices: _formatCurrency(outstandingTotal),
-    invoiceSubtitle: '$invoicesThisPeriod invoices this period',
-    outstandingSubtitle: '$unpaidCount unpaid invoices',
-    recentTransactions: List.unmodifiable(
-      filteredInvoices.take(6).map(_mapInvoiceToTransaction),
-    ),
-    structures: List.unmodifiable(
-      structures.take(4).toList().asMap().entries.map((entry) {
-        final value = entry.value.value;
-        return _StructureData(
-          label: entry.value.key,
-          amount: _formatCurrency(value),
-          percent: top4Total <= 0 ? 0 : ((value / top4Total) * 100).round(),
-          color: colors[entry.key % colors.length],
-        );
-      }),
-    ),
-    weeklyData: _WeeklyFinancialData(
-      labels: labels,
-      dates: dates,
-      revenue: weekRevenue,
-      expenses: weekExpenses,
-      profit: weekProfit,
-    ),
-    allInvoices: List.unmodifiable(filteredInvoices),
-  );
 }
 
-String _categoryForService(String rawService) {
-  final service = rawService.trim();
-  if (service.isEmpty) return 'Clinical services';
-  if (service.length <= 24) return service;
-  return '${service.substring(0, 21)}...';
-}
-
-_TransactionData _mapInvoiceToTransaction(InvoiceModel invoice) {
-  final statusColor = invoice.isPaid
-      ? const Color(0xFF00C853)
-      : (invoice.isOverdue ? const Color(0xFFFF1744) : const Color(0xFFFFAA00));
-  return _TransactionData(
-    name: invoice.patientName.isEmpty ? 'General Patient' : invoice.patientName,
-    type: invoice.service.isEmpty
-        ? invoice.status
-        : '${invoice.service} • ${invoice.status}',
-    amount: _formatCurrency(invoice.amount),
-    date: DateFormat('MMM d, h:mm a').format(invoice.date),
-    icon: invoice.isPaid ? Icons.person : Icons.receipt_long_outlined,
-    color: statusColor,
-    isIncome: invoice.isPaid,
-  );
-}
-
-// -----------------------------------------------------------------------------
-// VIEW DATA MODELS
-// -----------------------------------------------------------------------------
+// =============================================================================
+// VIEW MODELS
+// =============================================================================
 
 class _FinancialDashboardViewData {
   final String revenue;
   final String expenses;
   final String profit;
+  final String profitMargin;
   final String outstandingInvoices;
   final String invoiceSubtitle;
+  final String expenseSubtitle;
   final String outstandingSubtitle;
+  final int pendingCount;
   final List<_TransactionData> recentTransactions;
   final List<_StructureData> structures;
   final _WeeklyFinancialData weeklyData;
@@ -263,9 +102,12 @@ class _FinancialDashboardViewData {
     required this.revenue,
     required this.expenses,
     required this.profit,
+    required this.profitMargin,
     required this.outstandingInvoices,
     required this.invoiceSubtitle,
+    required this.expenseSubtitle,
     required this.outstandingSubtitle,
+    required this.pendingCount,
     required this.recentTransactions,
     required this.structures,
     required this.weeklyData,
@@ -297,6 +139,7 @@ class _TransactionData {
   final IconData icon;
   final Color color;
   final bool isIncome;
+  final TransactionKind kind;
 
   const _TransactionData({
     required this.name,
@@ -306,26 +149,283 @@ class _TransactionData {
     required this.icon,
     required this.color,
     required this.isIncome,
+    required this.kind,
   });
 }
 
 class _StructureData {
   final String label;
   final String amount;
+  final double rawAmount;
   final int percent;
   final Color color;
 
   const _StructureData({
     required this.label,
     required this.amount,
+    required this.rawAmount,
     required this.percent,
     required this.color,
   });
 }
 
-// -----------------------------------------------------------------------------
-// SCREEN WIDGET
-// -----------------------------------------------------------------------------
+// =============================================================================
+// DATA MAPPING & AGGREGATION LOGIC
+// =============================================================================
+
+_FinancialDashboardViewData _mapFinancialData({
+  required List<InvoiceModel> invoices,
+  required List<RevenueEntry> entries,
+  required List<PendingPayment> pendingPayments,
+  required FinancialRange range,
+}) {
+  final now = DateTime.now();
+  DateTime startDate;
+  List<DateTime> dates;
+  List<String> labels;
+  int pointCount;
+
+  switch (range) {
+    case FinancialRange.today:
+      startDate = DateTime(now.year, now.month, now.day);
+      pointCount = 6;
+      dates = List.generate(
+        pointCount,
+        (i) => DateTime(now.year, now.month, now.day, 8 + i * 3),
+      );
+      labels = dates.map((d) => DateFormat('h a').format(d)).toList();
+      break;
+
+    case FinancialRange.threeMonths:
+      startDate = DateTime(now.year, now.month - 2, 1);
+      pointCount = 3;
+      dates = List.generate(
+        pointCount,
+        (i) => DateTime(startDate.year, startDate.month + i, 1),
+      );
+      labels = dates.map((d) => DateFormat('MMM').format(d)).toList();
+      break;
+
+    case FinancialRange.sixMonths:
+      startDate = DateTime(now.year, now.month - 5, 1);
+      pointCount = 6;
+      dates = List.generate(
+        pointCount,
+        (i) => DateTime(startDate.year, startDate.month + i, 1),
+      );
+      labels = dates.map((d) => DateFormat('MMM').format(d)).toList();
+      break;
+
+    case FinancialRange.twelveMonths:
+      startDate = DateTime(now.year, now.month - 11, 1);
+      pointCount = 12;
+      dates = List.generate(
+        pointCount,
+        (i) => DateTime(startDate.year, startDate.month + i, 1),
+      );
+      labels = dates.map((d) => DateFormat('MMM yy').format(d)).toList();
+      break;
+  }
+
+  final bucketRevenue = List<double>.filled(pointCount, 0);
+  final bucketExpenses = List<double>.filled(pointCount, 0);
+  final bucketProfit = List<double>.filled(pointCount, 0);
+
+  double paidInvoiceTotal = 0;
+  double outstandingInvoiceTotal = 0;
+  int unpaidInvoiceCount = 0;
+  int paidInvoiceCount = 0;
+  final serviceTotals = <String, double>{};
+  final filteredInvoices = <InvoiceModel>[];
+
+  // Process Invoices
+  for (final invoice in invoices) {
+    final invoiceDate = DateTime(
+      invoice.date.year,
+      invoice.date.month,
+      invoice.date.day,
+    );
+    if (invoiceDate.isBefore(startDate) || invoiceDate.isAfter(now)) continue;
+
+    filteredInvoices.add(invoice);
+
+    if (invoice.isPaid) {
+      paidInvoiceTotal += invoice.amount;
+      paidInvoiceCount++;
+    } else {
+      outstandingInvoiceTotal += invoice.amount;
+      unpaidInvoiceCount++;
+    }
+
+    int index = -1;
+    switch (range) {
+      case FinancialRange.today:
+        final hour = invoice.date.hour;
+        index = ((hour - 8) / 3).floor().clamp(0, pointCount - 1);
+        break;
+      case FinancialRange.threeMonths:
+        index = (invoiceDate.year - startDate.year) * 12 + (invoiceDate.month - startDate.month);
+        break;
+      case FinancialRange.sixMonths:
+        index = (invoiceDate.year - startDate.year) * 12 + (invoiceDate.month - startDate.month);
+        break;
+      case FinancialRange.twelveMonths:
+        index = (invoiceDate.year - startDate.year) * 12 + (invoiceDate.month - startDate.month);
+        break;
+    }
+
+    if (index >= 0 && index < pointCount) {
+      if (invoice.isPaid) {
+        bucketRevenue[index] += invoice.amount;
+      }
+    }
+
+    if (invoice.isPaid) {
+      final category = _categoryForService(invoice.service);
+      serviceTotals.update(
+        category,
+        (value) => value + invoice.amount,
+        ifAbsent: () => invoice.amount,
+      );
+    }
+  }
+
+  // Process Revenue Entries (Expenses & Miscellaneous Income)
+  double totalExpenses = 0;
+  int expenseCount = 0;
+  double additionalIncomeTotal = 0;
+
+  for (final entry in entries) {
+    final entryDate = DateTime(entry.date.year, entry.date.month, entry.date.day);
+    if (entryDate.isBefore(startDate) || entryDate.isAfter(now)) continue;
+
+    int index = -1;
+    switch (range) {
+      case FinancialRange.today:
+        final hour = entry.date.hour;
+        index = ((hour - 8) / 3).floor().clamp(0, pointCount - 1);
+        break;
+      case FinancialRange.threeMonths:
+        index = (entryDate.year - startDate.year) * 12 + (entryDate.month - startDate.month);
+        break;
+      case FinancialRange.sixMonths:
+        index = (entryDate.year - startDate.year) * 12 + (entryDate.month - startDate.month);
+        break;
+      case FinancialRange.twelveMonths:
+        index = (entryDate.year - startDate.year) * 12 + (entryDate.month - startDate.month);
+        break;
+    }
+
+    if (entry.kind == TransactionKind.expense) {
+      totalExpenses += entry.amount;
+      expenseCount++;
+      if (index >= 0 && index < pointCount) {
+        bucketExpenses[index] += entry.amount;
+      }
+    } else {
+      // Miscellaneous income entry outside invoices
+      additionalIncomeTotal += entry.amount;
+      if (index >= 0 && index < pointCount) {
+        bucketRevenue[index] += entry.amount;
+      }
+    }
+  }
+
+  // Calculate Net Totals
+  final double totalRevenue = paidInvoiceTotal + additionalIncomeTotal;
+  final double netProfit = totalRevenue - totalExpenses;
+  final int profitMarginPercent = totalRevenue > 0
+      ? ((netProfit / totalRevenue) * 100).clamp(-100, 100).round()
+      : 0;
+
+  // Process Pending Payments
+  double pendingPaymentsSum = 0;
+  for (final p in pendingPayments) {
+    pendingPaymentsSum += p.amount;
+  }
+  final double totalOutstanding = outstandingInvoiceTotal + pendingPaymentsSum;
+  final int totalPendingCount = unpaidInvoiceCount + pendingPayments.length;
+
+  // Compute Weekly / Interval Profits
+  for (var i = 0; i < pointCount; i++) {
+    bucketProfit[i] = bucketRevenue[i] - bucketExpenses[i];
+  }
+
+  // Service Breakdown Structures
+  final structuresList = serviceTotals.entries.toList()
+    ..sort((a, b) => b.value.compareTo(a.value));
+  final top4Total = structuresList.take(4).fold<double>(0, (sum, e) => sum + e.value);
+
+  const breakdownColors = <Color>[
+    Color(0xFF2563EB), // Primary Cobalt
+    Color(0xFF10B981), // Emerald
+    Color(0xFF8B5CF6), // Purple
+    Color(0xFFF59E0B), // Amber
+    Color(0xFF06B6D4), // Cyan
+  ];
+
+  final structures = structuresList.take(4).toList().asMap().entries.map((entry) {
+    final value = entry.value.value;
+    return _StructureData(
+      label: entry.value.key,
+      amount: _formatCurrency(value),
+      rawAmount: value,
+      percent: top4Total <= 0 ? 0 : ((value / top4Total) * 100).round(),
+      color: breakdownColors[entry.key % breakdownColors.length],
+    );
+  }).toList();
+
+  return _FinancialDashboardViewData(
+    revenue: _formatCurrency(totalRevenue),
+    expenses: _formatCurrency(totalExpenses),
+    profit: _formatCurrency(netProfit),
+    profitMargin: '$profitMarginPercent%',
+    outstandingInvoices: _formatCurrency(totalOutstanding),
+    invoiceSubtitle: '$paidInvoiceCount paid invoices this period',
+    expenseSubtitle: '$expenseCount logged operating expenses',
+    outstandingSubtitle: '$totalPendingCount pending accounts',
+    pendingCount: totalPendingCount,
+    recentTransactions: List.unmodifiable(
+      filteredInvoices.take(6).map(_mapInvoiceToTransaction),
+    ),
+    structures: List.unmodifiable(structures),
+    weeklyData: _WeeklyFinancialData(
+      labels: labels,
+      dates: dates,
+      revenue: bucketRevenue,
+      expenses: bucketExpenses,
+      profit: bucketProfit,
+    ),
+    allInvoices: List.unmodifiable(filteredInvoices),
+  );
+}
+
+String _categoryForService(String rawService) {
+  final service = rawService.trim();
+  if (service.isEmpty) return 'Clinical Consultations';
+  if (service.length <= 24) return service;
+  return '${service.substring(0, 21)}...';
+}
+
+_TransactionData _mapInvoiceToTransaction(InvoiceModel invoice) {
+  final statusColor = invoice.isPaid
+      ? _kSuccessGreen
+      : (invoice.isOverdue ? _kDangerRose : _kWarningAmber);
+  return _TransactionData(
+    name: invoice.patientName.isEmpty ? 'General Patient' : invoice.patientName,
+    type: invoice.service.isEmpty ? 'Consultation' : invoice.service,
+    amount: _formatCurrency(invoice.amount),
+    date: DateFormat('MMM d, yyyy').format(invoice.date),
+    icon: invoice.isPaid ? Icons.arrow_downward_rounded : Icons.pending_actions_rounded,
+    color: statusColor,
+    isIncome: true,
+    kind: TransactionKind.income,
+  );
+}
+
+// =============================================================================
+// MAIN SCREEN WIDGET
+// =============================================================================
 
 class DesktopRevenueScreen extends StatefulWidget {
   const DesktopRevenueScreen({super.key});
@@ -339,7 +439,7 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
   final RevenueRepository _revenueRepository = RevenueRepository();
   final VisitRepository _visitRepository = VisitRepository();
 
-  FinancialRange _selectedRange = FinancialRange.week;
+  FinancialRange _selectedRange = FinancialRange.today;
   TransactionKind? _kindFilter;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -351,49 +451,51 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
   }
 
   void _openAddTransactionSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.cardSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => const _TransactionFormSheet(
-        includeKindToggle: true,
-        includePayerField: true,
-        title: 'Add Transaction',
-      ),
+    showDesktopAddTransactionDialog(
+      context,
+      repository: _revenueRepository,
     );
   }
 
   void _openAddPendingSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.cardSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      builder: (_) => const _TransactionFormSheet(
-        includeKindToggle: false,
-        includePayerField: false,
-        title: 'Add Pending Payment',
-      ),
+    showDesktopAddTransactionDialog(
+      context,
+      isPending: true,
+      repository: _revenueRepository,
     );
   }
 
   void _openPendingPaymentDetails(PendingPayment pending) {
-    showModalBottomSheet<void>(
+    showDialog<void>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: AppColors.cardSurface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      barrierDismissible: true,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: _kBorderLight),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1A0F172A),
+                  blurRadius: 32,
+                  offset: Offset(0, 16),
+                ),
+              ],
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: SingleChildScrollView(
+                child: _PendingPaymentDetailsSheet(pending: pending),
+              ),
+            ),
+          ),
+        ),
       ),
-      builder: (_) => _PendingPaymentDetailsSheet(pending: pending),
     );
   }
 
@@ -402,14 +504,68 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
       await _visitRepository.markVisitationPaymentPaid(pending.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Marked "${pending.description}" as paid')),
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text('Marked "${pending.description}" as paid'),
+            ],
+          ),
+          backgroundColor: _kSuccessGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update: $e'),
+          backgroundColor: _kDangerRose,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
+  }
+
+  List<RevenueEntry> _filterEntries(
+    List<RevenueEntry> entries,
+    FinancialRange range,
+  ) {
+    final now = DateTime.now();
+    DateTime startDate;
+    switch (range) {
+      case FinancialRange.today:
+        startDate = DateTime(now.year, now.month, now.day);
+        break;
+      case FinancialRange.threeMonths:
+        startDate = DateTime(now.year, now.month - 2, 1);
+        break;
+      case FinancialRange.sixMonths:
+        startDate = DateTime(now.year, now.month - 5, 1);
+        break;
+      case FinancialRange.twelveMonths:
+        startDate = DateTime(now.year - 1, now.month, now.day);
+        break;
+    }
+
+    var filtered = entries.where((e) => e.date.isAfter(startDate)).toList();
+    if (_kindFilter != null) {
+      filtered = filtered.where((e) => e.kind == _kindFilter).toList();
+    }
+    if (_searchQuery.isNotEmpty) {
+      final q = _searchQuery.toLowerCase();
+      filtered = filtered
+          .where(
+            (e) =>
+                e.description.toLowerCase().contains(q) ||
+                (e.payer != null && e.payer!.toLowerCase().contains(q)),
+          )
+          .toList();
+    }
+    filtered.sort((a, b) => b.date.compareTo(a.date));
+    return filtered;
   }
 
   @override
@@ -417,28 +573,24 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
     return StreamBuilder<List<InvoiceModel>>(
       stream: _invoiceRepository.watchInvoices(),
       builder: (context, invoiceSnapshot) {
-        final viewData = invoiceSnapshot.hasData
-            ? _mapInvoicesToFinancialData(
-                invoiceSnapshot.data ?? const <InvoiceModel>[],
-                _selectedRange,
-              )
-            : _emptyFinancialDashboardData;
-
         return StreamBuilder<List<PendingPayment>>(
           stream: _revenueRepository.watchPendingPayments(),
           builder: (context, pendingSnapshot) {
-            final pendingPayments =
-                pendingSnapshot.data ?? const <PendingPayment>[];
-
             return StreamBuilder<List<RevenueEntry>>(
               stream: _revenueRepository.watchRevenueEntries(),
               builder: (context, entriesSnapshot) {
-                final allEntries =
-                    entriesSnapshot.data ?? const <RevenueEntry>[];
-                final filteredEntries = _filterEntries(
-                  allEntries,
-                  _selectedRange,
+                final invoices = invoiceSnapshot.data ?? const <InvoiceModel>[];
+                final pendingPayments = pendingSnapshot.data ?? const <PendingPayment>[];
+                final allEntries = entriesSnapshot.data ?? const <RevenueEntry>[];
+
+                final viewData = _mapFinancialData(
+                  invoices: invoices,
+                  entries: allEntries,
+                  pendingPayments: pendingPayments,
+                  range: _selectedRange,
                 );
+
+                final filteredEntries = _filterEntries(allEntries, _selectedRange);
 
                 return Stack(
                   children: [
@@ -446,36 +598,37 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(16),
                         child: BackdropFilter(
-                          filter: ui.ImageFilter.blur(
-                            sigmaX: 10.0,
-                            sigmaY: 10.0,
-                          ),
+                          filter: ui.ImageFilter.blur(sigmaX: 12.0, sigmaY: 12.0),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF0F9FF), // Light blue background
+                              color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
-                                color: const Color.fromARGB(255, 150, 150, 150),
-                                width: 0.25,
+                                color: const Color(0xFFCBD5E1),
+                                width: 0.75,
                               ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x0C000000),
+                                  blurRadius: 20,
+                                  offset: Offset(0, 4),
+                                ),
+                              ],
                             ),
                             child: _FinancialDashboardView(
                               viewData: viewData,
                               selectedRange: _selectedRange,
-                              onRangeChanged: (range) =>
-                                  setState(() => _selectedRange = range),
+                              onRangeChanged: (range) => setState(() => _selectedRange = range),
                               pendingPayments: pendingPayments,
                               onAddPending: _openAddPendingSheet,
                               onPendingTap: _openPendingPaymentDetails,
                               onMarkPendingPaid: _markAsPaid,
                               onAddTransaction: _openAddTransactionSheet,
                               kindFilter: _kindFilter,
-                              onKindFilterChanged: (kind) =>
-                                  setState(() => _kindFilter = kind),
+                              onKindFilterChanged: (kind) => setState(() => _kindFilter = kind),
                               searchController: _searchController,
                               searchQuery: _searchQuery,
-                              onSearchChanged: (value) =>
-                                  setState(() => _searchQuery = value),
+                              onSearchChanged: (value) => setState(() => _searchQuery = value),
                               onClearSearch: () {
                                 setState(() {
                                   _searchController.clear();
@@ -488,27 +641,27 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
                         ),
                       ),
                     ),
-                    if (invoiceSnapshot.hasError)
+                    if (invoiceSnapshot.hasError || entriesSnapshot.hasError)
                       Positioned(
                         top: 16,
                         right: 16,
                         child: _RevenueStatusBanner(
                           icon: Icons.error_outline_rounded,
-                          message: 'Failed to load revenue data',
-                          color: Colors.red.shade700,
-                          backgroundColor: Colors.red.shade50,
+                          message: 'Failed to sync live revenue data',
+                          color: _kDangerRose,
+                          backgroundColor: _kDangerTint,
                         ),
                       )
-                    else if (invoiceSnapshot.connectionState ==
-                        ConnectionState.waiting)
+                    else if (invoiceSnapshot.connectionState == ConnectionState.waiting &&
+                        !invoiceSnapshot.hasData)
                       const Positioned(
                         top: 16,
                         right: 16,
                         child: _RevenueStatusBanner(
                           icon: Icons.sync_rounded,
-                          message: 'Syncing revenue...',
-                          color: Color(0xFF2563EB),
-                          backgroundColor: Color(0xFFEFF6FF),
+                          message: 'Updating financial data...',
+                          color: _kPrimaryAccent,
+                          backgroundColor: _kAccentTint,
                         ),
                       ),
                   ],
@@ -520,50 +673,11 @@ class _DesktopRevenueScreenState extends State<DesktopRevenueScreen> {
       },
     );
   }
-
-  List<RevenueEntry> _filterEntries(
-    List<RevenueEntry> entries,
-    FinancialRange range,
-  ) {
-    final now = DateTime.now();
-    DateTime startDate;
-    switch (range) {
-      case FinancialRange.week:
-        startDate = now.subtract(const Duration(days: 7));
-        break;
-      case FinancialRange.month:
-        startDate = DateTime(now.year, now.month, 1);
-        break;
-      case FinancialRange.threeMonths:
-        startDate = DateTime(now.year, now.month - 2, 1);
-        break;
-      case FinancialRange.twelveMonths:
-        startDate = DateTime(now.year - 1, now.month, now.day);
-        break;
-    }
-
-    var filtered = entries.where((e) => e.date.isAfter(startDate)).toList();
-    if (_kindFilter != null) {
-      filtered = filtered.where((e) => e.kind == _kindFilter).toList();
-    }
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered
-          .where(
-            (e) =>
-                e.description.toLowerCase().contains(
-                  _searchQuery.toLowerCase(),
-                ) ||
-                (e.payer != null &&
-                    e.payer!.toLowerCase().contains(
-                      _searchQuery.toLowerCase(),
-                    )),
-          )
-          .toList();
-    }
-    filtered.sort((a, b) => b.date.compareTo(a.date));
-    return filtered;
-  }
 }
+
+// =============================================================================
+// STATUS BANNER
+// =============================================================================
 
 class _RevenueStatusBanner extends StatelessWidget {
   final IconData icon;
@@ -584,17 +698,17 @@ class _RevenueStatusBanner extends StatelessWidget {
       decoration: BoxDecoration(
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.18)),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -603,9 +717,10 @@ class _RevenueStatusBanner extends StatelessWidget {
             Text(
               message,
               style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
                 color: color,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -615,9 +730,9 @@ class _RevenueStatusBanner extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
+// =============================================================================
 // MAIN DASHBOARD VIEW
-// -----------------------------------------------------------------------------
+// =============================================================================
 
 class _FinancialDashboardView extends StatefulWidget {
   final _FinancialDashboardViewData viewData;
@@ -655,14 +770,13 @@ class _FinancialDashboardView extends StatefulWidget {
   });
 
   @override
-  State<_FinancialDashboardView> createState() =>
-      _FinancialDashboardViewState();
+  State<_FinancialDashboardView> createState() => _FinancialDashboardViewState();
 }
 
 class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
   int _selectedTabIndex = 0;
 
-  static const _tabLabels = ['Overview', 'Invoices'];
+  static const _tabLabels = ['Financial Overview', 'Invoice Management'];
 
   @override
   Widget build(BuildContext context) {
@@ -671,18 +785,24 @@ class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 1. Unified Header Bar
           _HeaderSection(
             selectedRange: widget.selectedRange,
             onRangeChanged: widget.onRangeChanged,
             onAddTransaction: widget.onAddTransaction,
+            onAddPending: widget.onAddPending,
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
+
+          // 2. Navigation Tabs
           _TabsSection(
             tabLabels: _tabLabels,
             selectedIndex: _selectedTabIndex,
             onTabSelected: (index) => setState(() => _selectedTabIndex = index),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
+
+          // 3. Tab Body
           Expanded(child: _buildTabContent()),
         ],
       ),
@@ -694,6 +814,7 @@ class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
       case 0:
         return _OverviewTab(
           viewData: widget.viewData,
+          selectedRange: widget.selectedRange,
           pendingPayments: widget.pendingPayments,
           onAddPending: widget.onAddPending,
           onPendingTap: widget.onPendingTap,
@@ -708,39 +829,27 @@ class _FinancialDashboardViewState extends State<_FinancialDashboardView> {
         );
       case 1:
         return const DesktopInvoicesScreen(isSubScreen: true);
-
       default:
-        return _OverviewTab(
-          viewData: widget.viewData,
-          pendingPayments: widget.pendingPayments,
-          onAddPending: widget.onAddPending,
-          onPendingTap: widget.onPendingTap,
-          onMarkPendingPaid: widget.onMarkPendingPaid,
-          kindFilter: widget.kindFilter,
-          onKindFilterChanged: widget.onKindFilterChanged,
-          searchController: widget.searchController,
-          searchQuery: widget.searchQuery,
-          onSearchChanged: widget.onSearchChanged,
-          onClearSearch: widget.onClearSearch,
-          recentEntries: widget.recentEntries,
-        );
+        return const SizedBox.shrink();
     }
   }
 }
 
-// -----------------------------------------------------------------------------
-// HEADER
-// -----------------------------------------------------------------------------
+// =============================================================================
+// HEADER SECTION
+// =============================================================================
 
 class _HeaderSection extends StatelessWidget {
   final FinancialRange selectedRange;
   final ValueChanged<FinancialRange> onRangeChanged;
   final VoidCallback onAddTransaction;
+  final VoidCallback onAddPending;
 
   const _HeaderSection({
     required this.selectedRange,
     required this.onRangeChanged,
     required this.onAddTransaction,
+    required this.onAddPending,
   });
 
   @override
@@ -748,98 +857,73 @@ class _HeaderSection extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text(
-          'Finances',
-          style: TextStyle(
-            fontSize: 26,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
-          ),
+        // Title & Context
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Finances & Revenue',
+              style: TextStyle(
+                fontFamily: AppColors.headingFontFamily,
+                fontSize: 24,
+                fontWeight: FontWeight.w700,
+                color: _kTextDark,
+                letterSpacing: -0.5,
+              ),
+            ),
+          ],
         ),
+
+        // Controls
         Row(
           children: [
-            PopupMenuButton<FinancialRange>(
-              initialValue: selectedRange,
-              onSelected: onRangeChanged,
-              itemBuilder: (context) => FinancialRange.values
-                  .map(
-                    (range) =>
-                        PopupMenuItem(value: range, child: Text(range.label)),
-                  )
-                  .toList(),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
+            // Period Segmented Selector with smooth horizontal sliding pill
+            _SlidingPeriodSelector(
+              selectedRange: selectedRange,
+              onRangeChanged: onRangeChanged,
+            ),
+            const SizedBox(width: 12),
+
+            // Secondary: Add Pending
+            OutlinedButton.icon(
+              onPressed: onAddPending,
+              icon: const Icon(Icons.hourglass_empty_rounded, size: 16),
+              label: const Text('Add Pending'),
+              style: OutlinedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: _kTextDark,
+                side: const BorderSide(color: _kBorderLight),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      selectedRange.label,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 16,
-                      color: Colors.grey,
-                    ),
-                  ],
+                textStyle: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
+
+            // Primary Action: Add Transaction
             ElevatedButton.icon(
               onPressed: onAddTransaction,
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('Add Transaction'),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Record Transaction'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2196F3),
+                backgroundColor: _kPrimaryAccent,
                 foregroundColor: Colors.white,
                 elevation: 0,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
                 ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: const Icon(
-                Icons.download_rounded,
-                size: 20,
-                color: Colors.grey,
-              ),
-            ),
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade300),
-              ),
-              child: const Icon(
-                Icons.settings_outlined,
-                size: 20,
-                color: Colors.grey,
+                textStyle: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ],
@@ -849,9 +933,121 @@ class _HeaderSection extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// TABS
-// -----------------------------------------------------------------------------
+// =============================================================================
+// SLIDING PERIOD SELECTOR (Smooth Horizontal Pill Indicator)
+// =============================================================================
+
+class _SlidingPeriodSelector extends StatelessWidget {
+  final FinancialRange selectedRange;
+  final ValueChanged<FinancialRange> onRangeChanged;
+
+  const _SlidingPeriodSelector({
+    required this.selectedRange,
+    required this.onRangeChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final ranges = FinancialRange.values;
+    final selectedIndex = ranges.indexOf(selectedRange).clamp(0, ranges.length - 1);
+    const double itemWidth = 88.0;
+    const double itemHeight = 34.0;
+    const double padding = 3.0;
+
+    return Container(
+      height: itemHeight + (padding * 2),
+      padding: const EdgeInsets.all(padding),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _kBorderLight, width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x06000000),
+            blurRadius: 4,
+            offset: Offset(0, 1.5),
+          ),
+        ],
+      ),
+      child: SizedBox(
+        width: itemWidth * ranges.length,
+        height: itemHeight,
+        child: Stack(
+          children: [
+            // Sliding Pill (Continuous Horizontal Glide Across Intermediate Options)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 320),
+              curve: Curves.easeInOutCubic,
+              left: selectedIndex * itemWidth,
+              top: 0,
+              bottom: 0,
+              width: itemWidth,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: _kPrimaryAccent,
+                  borderRadius: BorderRadius.circular(7.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _kPrimaryAccent.withValues(alpha: 0.32),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Foreground Clickable Labels
+            Row(
+              children: ranges.map((range) {
+                final isSelected = selectedRange == range;
+                return SizedBox(
+                  width: itemWidth,
+                  height: itemHeight,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () => onRangeChanged(range),
+                      borderRadius: BorderRadius.circular(7.5),
+                      hoverColor: isSelected
+                          ? Colors.transparent
+                          : _kPrimaryAccent.withValues(alpha: 0.05),
+                      splashColor: isSelected
+                          ? Colors.transparent
+                          : _kPrimaryAccent.withValues(alpha: 0.1),
+                      child: Center(
+                        child: AnimatedDefaultTextStyle(
+                          duration: const Duration(milliseconds: 220),
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
+                            fontSize: 12,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                            color: isSelected ? Colors.white : _kTextMedium,
+                            letterSpacing: -0.1,
+                          ),
+                          child: Text(
+                            range.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// TABS SECTION
+// =============================================================================
 
 class _TabsSection extends StatelessWidget {
   final List<String> tabLabels;
@@ -866,49 +1062,56 @@ class _TabsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: List.generate(tabLabels.length, (index) {
-        final bool isActive = selectedIndex == index;
-        return GestureDetector(
-          onTap: () => onTabSelected(index),
-          child: Padding(
-            padding: const EdgeInsets.only(right: 24.0),
-            child: Column(
-              children: [
-                Text(
-                  tabLabels[index],
-                  style: TextStyle(
-                    color: isActive ? const Color(0xFF1A1A1A) : Colors.grey,
-                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                    fontSize: 14,
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: _kBorderLight, width: 1)),
+      ),
+      child: Row(
+        children: List.generate(tabLabels.length, (index) {
+          final bool isActive = selectedIndex == index;
+          return InkWell(
+            onTap: () => onTabSelected(index),
+            hoverColor: Colors.transparent,
+            splashColor: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 32.0, bottom: 10.0),
+              child: Column(
+                children: [
+                  Text(
+                    tabLabels[index],
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: isActive ? _kTextDark : _kTextMuted,
+                      fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                      fontSize: 14,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Container(
-                  height: 2,
-                  width: 40,
-                  decoration: BoxDecoration(
-                    color: isActive
-                        ? const Color(0xFF1A1A1A)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(2),
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 2.5,
+                    width: 48,
+                    decoration: BoxDecoration(
+                      color: isActive ? _kPrimaryAccent : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        );
-      }),
+          );
+        }),
+      ),
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// OVERVIEW TAB (Updated Grid Layout)
-// -----------------------------------------------------------------------------
+// =============================================================================
+// OVERVIEW TAB (Responsive Grid System)
+// =============================================================================
 
 class _OverviewTab extends StatelessWidget {
   final _FinancialDashboardViewData viewData;
+  final FinancialRange selectedRange;
   final List<PendingPayment> pendingPayments;
   final VoidCallback onAddPending;
   final ValueChanged<PendingPayment> onPendingTap;
@@ -923,6 +1126,7 @@ class _OverviewTab extends StatelessWidget {
 
   const _OverviewTab({
     required this.viewData,
+    required this.selectedRange,
     required this.pendingPayments,
     required this.onAddPending,
     required this.onPendingTap,
@@ -939,126 +1143,98 @@ class _OverviewTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // GRID LAYOUT
+          // 1. Hero KPI Row (Content Primacy)
+          _HeroStatsRow(viewData: viewData),
+          const SizedBox(height: 18),
+
+          // 2. Middle Row: Financial Trends Chart (2/3) + Service Breakdown (1/3)
           LayoutBuilder(
             builder: (context, constraints) {
-              final bool isWide = constraints.maxWidth > 800;
-
+              final isWide = constraints.maxWidth > 880;
               if (isWide) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // LEFT COLUMN (Flex 2) - Chart, Stats, Recent Transactions
                     Expanded(
-                      flex: 2,
-                      child: Column(
-                        children: [
-                          _ChartSection(weeklyData: viewData.weeklyData),
-                          const SizedBox(height: 16),
-                          _StatsRow(viewData: viewData),
-                          const SizedBox(height: 16),
-                          // Recent Transactions (Fixed height to avoid layout issues inside SingleChildScrollView)
-                          SizedBox(
-                            height: 400,
-                            child: _RecentTransactionsPanel(
-                              transactions: recentEntries
-                                  .map(
-                                    (e) => _TransactionData(
-                                      name: e.payer ?? e.description,
-                                      type: e.description,
-                                      amount: _formatCurrency(e.amount),
-                                      date: DateFormat(
-                                        'MMM d, h:mm a',
-                                      ).format(e.date),
-                                      icon: e.kind == TransactionKind.income
-                                          ? Icons.arrow_upward
-                                          : Icons.arrow_downward,
-                                      color: e.kind == TransactionKind.income
-                                          ? Colors.green
-                                          : Colors.red,
-                                      isIncome:
-                                          e.kind == TransactionKind.income,
-                                    ),
-                                  )
-                                  .toList(),
-                              kindFilter: kindFilter,
-                              onKindFilterChanged: onKindFilterChanged,
-                              searchController: searchController,
-                              searchQuery: searchQuery,
-                              onSearchChanged: onSearchChanged,
-                              onClearSearch: onClearSearch,
-                            ),
-                          ),
-                        ],
+                      flex: 5,
+                      child: _ChartSection(
+                        weeklyData: viewData.weeklyData,
+                        selectedRange: selectedRange,
                       ),
                     ),
-                    const SizedBox(width: 16),
-
-                    // RIGHT COLUMN (Flex 1) - Pending Payments, Placeholders
+                    const SizedBox(width: 18),
                     Expanded(
-                      flex: 1,
-                      child: Column(
-                        children: [
-                          _PendingPaymentsPanel(
-                            pendingPayments: pendingPayments,
-                            onAddPending: onAddPending,
-                            onPendingTap: onPendingTap,
-                            onMarkPendingPaid: onMarkPendingPaid,
-                          ),
-                          const SizedBox(height: 16),
-                          // Placeholder 1 (Fill with any widget)
-                          Container(
-                            height: 180,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          // Placeholder 2 (Fill with any widget)
-                          Container(
-                            height: 180,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.grey.shade300),
-                            ),
-                          ),
-                        ],
+                      flex: 3,
+                      child: _ServiceBreakdownSection(
+                        structures: viewData.structures,
                       ),
                     ),
                   ],
                 );
               } else {
-                // For narrow screens, stack vertically
                 return Column(
                   children: [
-                    _ChartSection(weeklyData: viewData.weeklyData),
-                    const SizedBox(height: 16),
-                    _StatsRow(viewData: viewData),
-                    const SizedBox(height: 16),
+                    _ChartSection(
+                      weeklyData: viewData.weeklyData,
+                      selectedRange: selectedRange,
+                    ),
+                    const SizedBox(height: 18),
+                    _ServiceBreakdownSection(
+                      structures: viewData.structures,
+                    ),
+                  ],
+                );
+              }
+            },
+          ),
+          const SizedBox(height: 18),
+
+          // 3. Lower Row: Transaction Ledger (2/3) + Pending Collections (1/3)
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth > 880;
+              if (isWide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: _RecentTransactionsPanel(
+                        transactions: recentEntries.isNotEmpty
+                            ? recentEntries.map((e) => _mapEntryToTransaction(e)).toList()
+                            : viewData.recentTransactions,
+                        kindFilter: kindFilter,
+                        onKindFilterChanged: onKindFilterChanged,
+                        searchController: searchController,
+                        searchQuery: searchQuery,
+                        onSearchChanged: onSearchChanged,
+                        onClearSearch: onClearSearch,
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      flex: 3,
+                      child: _PendingPaymentsPanel(
+                        pendingPayments: pendingPayments,
+                        totalOutstanding: viewData.outstandingInvoices,
+                        onAddPending: onAddPending,
+                        onPendingTap: onPendingTap,
+                        onMarkPendingPaid: onMarkPendingPaid,
+                      ),
+                    ),
+                  ],
+                );
+              } else {
+                return Column(
+                  children: [
                     _RecentTransactionsPanel(
-                      transactions: recentEntries
-                          .map(
-                            (e) => _TransactionData(
-                              name: e.payer ?? e.description,
-                              type: e.description,
-                              amount: _formatCurrency(e.amount),
-                              date: DateFormat('MMM d, h:mm a').format(e.date),
-                              icon: e.kind == TransactionKind.income
-                                  ? Icons.arrow_upward
-                                  : Icons.arrow_downward,
-                              color: e.kind == TransactionKind.income
-                                  ? Colors.green
-                                  : Colors.red,
-                              isIncome: e.kind == TransactionKind.income,
-                            ),
-                          )
-                          .toList(),
+                      transactions: recentEntries.isNotEmpty
+                          ? recentEntries.map((e) => _mapEntryToTransaction(e)).toList()
+                          : viewData.recentTransactions,
                       kindFilter: kindFilter,
                       onKindFilterChanged: onKindFilterChanged,
                       searchController: searchController,
@@ -1066,9 +1242,10 @@ class _OverviewTab extends StatelessWidget {
                       onSearchChanged: onSearchChanged,
                       onClearSearch: onClearSearch,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 18),
                     _PendingPaymentsPanel(
                       pendingPayments: pendingPayments,
+                      totalOutstanding: viewData.outstandingInvoices,
                       onAddPending: onAddPending,
                       onPendingTap: onPendingTap,
                       onMarkPendingPaid: onMarkPendingPaid,
@@ -1078,508 +1255,82 @@ class _OverviewTab extends StatelessWidget {
               }
             },
           ),
+          const SizedBox(height: 24),
         ],
       ),
     );
   }
-}
 
-// -----------------------------------------------------------------------------
-// PENDING PAYMENTS PANEL (smaller height)
-// -----------------------------------------------------------------------------
-
-class _PendingPaymentsPanel extends StatelessWidget {
-  final List<PendingPayment> pendingPayments;
-  final VoidCallback onAddPending;
-  final ValueChanged<PendingPayment> onPendingTap;
-  final ValueChanged<PendingPayment> onMarkPendingPaid;
-
-  const _PendingPaymentsPanel({
-    required this.pendingPayments,
-    required this.onAddPending,
-    required this.onPendingTap,
-    required this.onMarkPendingPaid,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 300, // reduced from 400
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Pending Payments',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                TextButton.icon(
-                  onPressed: onAddPending,
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Add'),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: pendingPayments.isEmpty
-                ? Center(child: Text('No pending payments'))
-                : ListView.builder(
-                    itemCount: pendingPayments.length,
-                    itemBuilder: (_, index) {
-                      final pending = pendingPayments[index];
-                      return GestureDetector(
-                        onTap: () => onPendingTap(pending),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            border: Border(
-                              bottom: BorderSide(
-                                color: Colors.grey.withValues(alpha: 0.1),
-                              ),
-                            ),
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: Colors.amber.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: const Icon(
-                                  Icons.hourglass_empty,
-                                  size: 18,
-                                  color: Colors.amber,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      pending.description,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      DateFormat.yMMMd().format(pending.date),
-                                      style: TextStyle(
-                                        color: Colors.grey[600],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    '₹${pending.amount.toStringAsFixed(0)}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                      color: Colors.amber,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  GestureDetector(
-                                    onTap: () => onMarkPendingPaid(pending),
-                                    child: const Icon(
-                                      Icons.check_circle_outline,
-                                      size: 18,
-                                      color: Color(0xFF4CAF50),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
+  static _TransactionData _mapEntryToTransaction(RevenueEntry e) {
+    final isIncome = e.kind == TransactionKind.income;
+    return _TransactionData(
+      name: (e.payer != null && e.payer!.trim().isNotEmpty)
+          ? e.payer!
+          : (isIncome ? 'Direct Revenue' : 'Operating Expense'),
+      type: e.description,
+      amount: '${isIncome ? '+' : '-'}₹${e.amount.toInt()}',
+      date: DateFormat('MMM d, h:mm a').format(e.date),
+      icon: isIncome ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+      color: isIncome ? _kSuccessGreen : _kDangerRose,
+      isIncome: isIncome,
+      kind: e.kind,
     );
   }
 }
 
-// -----------------------------------------------------------------------------
-// RECENT TRANSACTIONS PANEL (kept height 400)
-// -----------------------------------------------------------------------------
+// =============================================================================
+// HERO STATS ROW (Modular Consistency & Content Primacy)
+// =============================================================================
 
-class _RecentTransactionsPanel extends StatelessWidget {
-  final List<_TransactionData> transactions;
-  final TransactionKind? kindFilter;
-  final ValueChanged<TransactionKind?> onKindFilterChanged;
-  final TextEditingController searchController;
-  final String searchQuery;
-  final ValueChanged<String> onSearchChanged;
-  final VoidCallback onClearSearch;
-
-  const _RecentTransactionsPanel({
-    required this.transactions,
-    required this.kindFilter,
-    required this.onKindFilterChanged,
-    required this.searchController,
-    required this.searchQuery,
-    required this.onSearchChanged,
-    required this.onClearSearch,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 400,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                const Text(
-                  'Recent Transactions',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(width: 12),
-                // Search box inline with the panel header
-                SizedBox(
-                  width: 200,
-                  height: 34,
-                  child: TextField(
-                    controller: searchController,
-                    onChanged: onSearchChanged,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Search...',
-                      hintStyle: const TextStyle(fontSize: 13),
-                      prefixIcon: const Icon(Icons.search, size: 16),
-                      suffixIcon: searchQuery.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 14),
-                              onPressed: onClearSearch,
-                              padding: EdgeInsets.zero,
-                            )
-                          : null,
-                      isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 8,
-                      ),
-                      filled: true,
-                      fillColor: Colors.grey[50],
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: const BorderSide(
-                          color: Color(0xFF2196F3),
-                          width: 1.5,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                _KindFilterChip(
-                  label: 'All',
-                  selected: kindFilter == null,
-                  onSelected: () => onKindFilterChanged(null),
-                ),
-                const SizedBox(width: 8),
-                _KindFilterChip(
-                  label: 'Income',
-                  selected: kindFilter == TransactionKind.income,
-                  selectedColor: Colors.green,
-                  onSelected: () => onKindFilterChanged(TransactionKind.income),
-                ),
-                const SizedBox(width: 8),
-                _KindFilterChip(
-                  label: 'Expense',
-                  selected: kindFilter == TransactionKind.expense,
-                  selectedColor: Colors.red,
-                  onSelected: () =>
-                      onKindFilterChanged(TransactionKind.expense),
-                ),
-              ],
-            ),
-          ),
-          const Divider(height: 1),
-          Expanded(
-            child: transactions.isEmpty
-                ? Center(
-                    child: Text(
-                      'No transactions found',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                  )
-                : ListView.builder(
-                    itemCount: transactions.length,
-                    itemBuilder: (context, index) {
-                      final transaction = transactions[index];
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: Colors.grey.withValues(alpha: 0.1),
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                color: transaction.color.withValues(
-                                  alpha: 0.15,
-                                ),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(
-                                transaction.icon,
-                                size: 18,
-                                color: transaction.color,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    transaction.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 14,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    transaction.type,
-                                    style: TextStyle(
-                                      color: Colors.grey[600],
-                                      fontSize: 12,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  transaction.amount,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
-                                    color: transaction.isIncome
-                                        ? const Color(0xFF00C853)
-                                        : const Color(0xFFFF1744),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  transaction.date,
-                                  style: TextStyle(
-                                    color: Colors.grey[500],
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// KIND FILTER CHIP
-// -----------------------------------------------------------------------------
-
-class _KindFilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final Color? selectedColor;
-  final VoidCallback onSelected;
-
-  const _KindFilterChip({
-    required this.label,
-    required this.selected,
-    this.selectedColor,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final effectiveColor = selectedColor ?? const Color(0xFF2196F3);
-    return ChoiceChip(
-      label: Text(label),
-      selected: selected,
-      showCheckmark: false,
-      onSelected: (_) => onSelected(),
-      backgroundColor: Colors.white,
-      selectedColor: effectiveColor,
-      side: BorderSide(color: selected ? effectiveColor : Colors.grey.shade300),
-      labelStyle: TextStyle(
-        color: selected ? Colors.white : Colors.black,
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// STATUS FILTER CHIP (used by _OperationsTab)
-// -----------------------------------------------------------------------------
-
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-
-  const _FilterChip({
-    required this.label,
-    required this.active,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const activeColor = Color(0xFF2196F3);
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: active ? activeColor : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: active ? activeColor : Colors.grey.shade300,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: active ? Colors.white : Colors.black87,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// -----------------------------------------------------------------------------
-// STATS ROW
-// -----------------------------------------------------------------------------
-
-class _StatsRow extends StatelessWidget {
+class _HeroStatsRow extends StatelessWidget {
   final _FinancialDashboardViewData viewData;
 
-  const _StatsRow({required this.viewData});
+  const _HeroStatsRow({required this.viewData});
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double width = (constraints.maxWidth / 4) - 12;
+        // Responsive 4-card layout
+        final double width = (constraints.maxWidth - (16 * 3)) / 4;
         return Wrap(
           spacing: 16,
           runSpacing: 16,
           children: [
-            _StatsCard(
-              title: 'Revenue',
+            _MetricCard(
+              title: 'Total Revenue',
               amount: viewData.revenue,
               subtitle: viewData.invoiceSubtitle,
-              percentage: 'Live',
-              isPositive: true,
+              badgeText: 'Collected',
+              badgeColor: _kSuccessGreen,
+              badgeBg: _kSuccessTint,
               width: width,
             ),
-            _StatsCard(
-              title: 'Expenses',
-              amount: viewData.expenses,
-              subtitle: 'tracked invoices only',
-              percentage: '—',
-              isPositive: true,
-              width: width,
-            ),
-            _StatsCard(
-              title: 'Profit',
+            _MetricCard(
+              title: 'Net Profit',
               amount: viewData.profit,
-              subtitle: 'paid invoices less expenses',
-              percentage: 'Live',
-              isPositive: true,
+              subtitle: '${viewData.profitMargin} net margin',
+              badgeText: 'Live Margin',
+              badgeColor: _kSuccessGreen,
+              badgeBg: _kSuccessTint,
               width: width,
             ),
-            _StatsCard(
-              title: 'Outstanding Invoices',
+            _MetricCard(
+              title: 'Operating Expenses',
+              amount: viewData.expenses,
+              subtitle: viewData.expenseSubtitle,
+              badgeText: 'Expenses',
+              badgeColor: _kDangerRose,
+              badgeBg: _kDangerTint,
+              width: width,
+            ),
+            _MetricCard(
+              title: 'Accounts Receivable',
               amount: viewData.outstandingInvoices,
               subtitle: viewData.outstandingSubtitle,
-              percentage: 'Due',
-              isPositive: false,
+              badgeText: 'Pending',
+              badgeColor: _kWarningAmber,
+              badgeBg: _kWarningTint,
               width: width,
             ),
           ],
@@ -1589,73 +1340,99 @@ class _StatsRow extends StatelessWidget {
   }
 }
 
-class _StatsCard extends StatelessWidget {
+class _MetricCard extends StatelessWidget {
   final String title;
   final String amount;
   final String subtitle;
-  final String percentage;
-  final bool isPositive;
+  final String badgeText;
+  final Color badgeColor;
+  final Color badgeBg;
   final double width;
 
-  const _StatsCard({
+  const _MetricCard({
     required this.title,
     required this.amount,
     required this.subtitle,
-    required this.percentage,
-    required this.isPositive,
+    required this.badgeText,
+    required this.badgeColor,
+    required this.badgeBg,
     required this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
-      padding: const EdgeInsets.all(16),
+      width: width.clamp(230.0, double.infinity),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorderLight, width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          // Top row: Metric title
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              color: _kTextMuted,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 12),
+
+          // Big bold number (Content Primacy)
           Text(
             amount,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontFamily: AppColors.headingFontFamily,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: _kTextDark,
+              letterSpacing: -0.5,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
+
+          // Bottom row: Subtitle & status pill
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Flexible(
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Text(
-                  subtitle,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+                  badgeText,
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: badgeColor,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(
-                isPositive
-                    ? Icons.arrow_upward_rounded
-                    : Icons.arrow_downward_rounded,
-                size: 14,
-                color: isPositive
-                    ? const Color(0xFF00C853)
-                    : const Color(0xFFFF1744),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                percentage,
-                style: TextStyle(
-                  color: isPositive
-                      ? const Color(0xFF00C853)
-                      : const Color(0xFFFF1744),
-                  fontWeight: FontWeight.w600,
-                  fontSize: 12,
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: _kTextMuted,
+                    fontSize: 11.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
@@ -1666,14 +1443,18 @@ class _StatsCard extends StatelessWidget {
   }
 }
 
-// -----------------------------------------------------------------------------
-// CHART SECTION
-// -----------------------------------------------------------------------------
+// =============================================================================
+// FINANCIAL TRENDS CHART SECTION
+// =============================================================================
 
 class _ChartSection extends StatefulWidget {
   final _WeeklyFinancialData weeklyData;
+  final FinancialRange selectedRange;
 
-  const _ChartSection({required this.weeklyData});
+  const _ChartSection({
+    required this.weeklyData,
+    required this.selectedRange,
+  });
 
   @override
   State<_ChartSection> createState() => _ChartSectionState();
@@ -1685,54 +1466,80 @@ class _ChartSectionState extends State<_ChartSection> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorderLight, width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header & Legends
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Financial trends',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Financial Trajectory',
+                    style: TextStyle(
+                      fontFamily: AppColors.headingFontFamily,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _kTextDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Revenue vs Operating Expenses vs Net Profit',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12,
+                      color: _kTextMuted,
+                    ),
+                  ),
+                ],
               ),
               Row(
-                children: [
-                  _LegendItem(color: const Color(0xFF7B61FF), label: 'Revenue'),
-                  const SizedBox(width: 16),
-                  _LegendItem(
-                    color: const Color(0xFFFFAA00),
-                    label: 'Expenses',
-                  ),
-                  const SizedBox(width: 16),
-                  _LegendItem(color: const Color(0xFF3F51B5), label: 'Profit'),
+                children: const [
+                  _LegendPill(color: _kPrimaryAccent, label: 'Revenue'),
+                  SizedBox(width: 12),
+                  _LegendPill(color: _kDangerRose, label: 'Expenses'),
+                  SizedBox(width: 12),
+                  _LegendPill(color: _kSuccessGreen, label: 'Profit'),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+
+          // Custom Painted Chart Area
           SizedBox(
-            height: 200,
+            height: 220,
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final width = constraints.maxWidth;
                 final count = widget.weeklyData.revenue.length;
                 final xPositions = List<double>.generate(count, (i) {
-                  return count == 1 ? width / 2 : width * (i / (count - 1));
+                  return count <= 1 ? width / 2 : width * (i / (count - 1));
                 });
 
                 return MouseRegion(
                   onHover: (event) {
-                    final localX = event.localPosition.dx;
                     if (count == 0) {
                       setState(() => _hoveredIndex = null);
                       return;
                     }
+                    final localX = event.localPosition.dx;
                     int nearest = 0;
                     double minDist = double.infinity;
                     for (int i = 0; i < count; i++) {
@@ -1742,136 +1549,29 @@ class _ChartSectionState extends State<_ChartSection> {
                         nearest = i;
                       }
                     }
-                    if (minDist < 20) {
+                    if (minDist < 35) {
                       setState(() => _hoveredIndex = nearest);
                     } else {
                       setState(() => _hoveredIndex = null);
                     }
                   },
-                  onExit: (event) {
-                    setState(() => _hoveredIndex = null);
-                  },
+                  onExit: (_) => setState(() => _hoveredIndex = null),
                   child: Stack(
+                    clipBehavior: Clip.none,
                     children: [
+                      // Smooth Custom Line Chart
                       CustomPaint(
-                        size: Size(width, 200),
-                        painter: _LineChartPainter(
+                        size: Size(width, 220),
+                        painter: _EnhancedChartPainter(
                           width: width,
                           weeklyData: widget.weeklyData,
+                          hoveredIndex: _hoveredIndex,
                         ),
                       ),
-                      if (_hoveredIndex != null && count > 0) ...[
-                        Positioned(
-                          left: xPositions[_hoveredIndex!] - 4,
-                          top:
-                              _yPosition(
-                                widget.weeklyData.revenue[_hoveredIndex!],
-                                widget.weeklyData,
-                                200,
-                              ) -
-                              4,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF7B61FF),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: xPositions[_hoveredIndex!] - 4,
-                          top:
-                              _yPosition(
-                                widget.weeklyData.expenses[_hoveredIndex!],
-                                widget.weeklyData,
-                                200,
-                              ) -
-                              4,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFFFAA00),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: xPositions[_hoveredIndex!] - 4,
-                          top:
-                              _yPosition(
-                                widget.weeklyData.profit[_hoveredIndex!],
-                                widget.weeklyData,
-                                200,
-                              ) -
-                              4,
-                          child: Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF3F51B5),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          left: (xPositions[_hoveredIndex!] + 60) > width
-                              ? xPositions[_hoveredIndex!] - 120
-                              : xPositions[_hoveredIndex!] + 10,
-                          top: 10,
-                          child: Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF1C1E2E),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.2),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _TooltipRow(
-                                  color: const Color(0xFF7B61FF),
-                                  text: _formatCurrency(
-                                    widget.weeklyData.revenue[_hoveredIndex!],
-                                  ),
-                                ),
-                                _TooltipRow(
-                                  color: const Color(0xFFFFAA00),
-                                  text: _formatCurrency(
-                                    widget.weeklyData.expenses[_hoveredIndex!],
-                                  ),
-                                ),
-                                _TooltipRow(
-                                  color: const Color(0xFF3F51B5),
-                                  text: _formatCurrency(
-                                    widget.weeklyData.profit[_hoveredIndex!],
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  widget.weeklyData.dates.isEmpty
-                                      ? 'No date'
-                                      : DateFormat('EEE, MMM d, yyyy').format(
-                                          widget
-                                              .weeklyData
-                                              .dates[_hoveredIndex!],
-                                        ),
-                                  style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+
+                      // Tooltip Overlay
+                      if (_hoveredIndex != null && count > 0)
+                        _buildFloatingTooltip(width, xPositions[_hoveredIndex!]),
                     ],
                   ),
                 );
@@ -1883,120 +1583,199 @@ class _ChartSectionState extends State<_ChartSection> {
     );
   }
 
-  double _yPosition(double value, _WeeklyFinancialData data, double height) {
-    final maxValue = <double>[
-      ...data.revenue,
-      ...data.expenses,
-      ...data.profit,
-    ].fold<double>(0, (max, v) => v > max ? v : max);
-    final chartMax = maxValue <= 0 ? 1.0 : maxValue;
-    return (height - 22) - ((value / chartMax).clamp(0.0, 1.0) * (height - 42));
-  }
-}
+  Widget _buildFloatingTooltip(double chartWidth, double xPos) {
+    final idx = _hoveredIndex!;
+    final revenue = widget.weeklyData.revenue[idx];
+    final expenses = widget.weeklyData.expenses[idx];
+    final profit = widget.weeklyData.profit[idx];
 
-class _LegendItem extends StatelessWidget {
-  final Color color;
-  final String label;
+    final dateLabel = widget.weeklyData.dates.isNotEmpty && idx < widget.weeklyData.dates.length
+        ? DateFormat('EEE, MMM d, yyyy').format(widget.weeklyData.dates[idx])
+        : widget.weeklyData.labels[idx];
 
-  const _LegendItem({required this.color, required this.label});
+    final isRightSide = (xPos + 180) > chartWidth;
+    final tooltipLeft = isRightSide ? (xPos - 170) : (xPos + 14);
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 10,
-          height: 10,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: Colors.grey[700], fontSize: 12)),
-      ],
-    );
-  }
-}
-
-class _TooltipRow extends StatelessWidget {
-  final Color color;
-  final String text;
-
-  const _TooltipRow({required this.color, required this.text});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2.0),
-      child: Row(
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+    return Positioned(
+      left: tooltipLeft.clamp(8.0, chartWidth - 170.0),
+      top: 10,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: _kTextDark.withValues(alpha: 0.94),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x22000000),
+              blurRadius: 16,
+              offset: Offset(0, 6),
             ),
-          ),
-        ],
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              dateLabel,
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 6),
+            _TooltipMetricRow(
+              color: _kPrimaryAccent,
+              label: 'Revenue',
+              value: _formatCurrency(revenue),
+            ),
+            const SizedBox(height: 3),
+            _TooltipMetricRow(
+              color: _kDangerRose,
+              label: 'Expenses',
+              value: _formatCurrency(expenses),
+            ),
+            const SizedBox(height: 3),
+            _TooltipMetricRow(
+              color: _kSuccessGreen,
+              label: 'Net Profit',
+              value: _formatCurrency(profit),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _LineChartPainter extends CustomPainter {
+class _LegendPill extends StatelessWidget {
+  final Color color;
+  final String label;
+
+  const _LegendPill({required this.color, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: color,
+            shape: BoxShape.circle,
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          label,
+          style: const TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: _kTextMedium,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TooltipMetricRow extends StatelessWidget {
+  final Color color;
+  final String label;
+  final String value;
+
+  const _TooltipMetricRow({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 6,
+          height: 6,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: Colors.white70,
+            fontSize: 11,
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: Colors.white,
+            fontSize: 11.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EnhancedChartPainter extends CustomPainter {
   final double width;
   final _WeeklyFinancialData weeklyData;
+  final int? hoveredIndex;
 
-  _LineChartPainter({required this.width, required this.weeklyData});
+  _EnhancedChartPainter({
+    required this.width,
+    required this.weeklyData,
+    this.hoveredIndex,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint purplePaint = Paint()
-      ..color = const Color(0xFF7B61FF)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final Paint orangePaint = Paint()
-      ..color = const Color(0xFFFFAA00)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    final Paint bluePaint = Paint()
-      ..color = const Color(0xFF3F51B5)
-      ..strokeWidth = 2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final Paint purpleFill = Paint()
-      ..color = const Color(0xFF7B61FF).withValues(alpha: 0.06)
-      ..style = PaintingStyle.fill;
-
     final double w = size.width;
     final double h = size.height;
+
     final maxValue = <double>[
       ...weeklyData.revenue,
       ...weeklyData.expenses,
       ...weeklyData.profit,
-    ].fold<double>(0, (max, value) => value > max ? value : max);
-    final chartMax = maxValue <= 0 ? 1.0 : maxValue;
+    ].fold<double>(0, (max, v) => v > max ? v : max);
 
+    final chartMax = maxValue <= 0 ? 1000.0 : maxValue;
+    final double chartBottom = h - 24;
+    final double chartTop = 14;
+
+    // Draw horizontal dashed grid lines
+    final gridPaint = Paint()
+      ..color = _kBorderLight
+      ..strokeWidth = 1
+      ..style = PaintingStyle.stroke;
+
+    const int gridRows = 4;
+    for (int i = 0; i <= gridRows; i++) {
+      final y = chartTop + (i * ((chartBottom - chartTop) / gridRows));
+      canvas.drawLine(Offset(0, y), Offset(w, y), gridPaint);
+    }
+
+    // Smooth Path Builder
     Path buildSmoothPath(List<double> values) {
       final path = Path();
       final count = values.length;
       if (count == 0) return path;
 
       final points = List<Offset>.generate(count, (i) {
-        final x = count == 1 ? 0.0 : w * (i / (count - 1));
-        final y =
-            (h - 22) - ((values[i] / chartMax).clamp(0.0, 1.0) * (h - 42));
+        final x = count <= 1 ? w / 2 : w * (i / (count - 1));
+        final normalized = (values[i] / chartMax).clamp(0.0, 1.0);
+        final y = chartBottom - (normalized * (chartBottom - chartTop));
         return Offset(x, y);
       });
 
@@ -2007,7 +1786,6 @@ class _LineChartPainter extends CustomPainter {
       }
 
       path.moveTo(points[0].dx, points[0].dy);
-
       const double smoothness = 0.25;
 
       for (int i = 0; i < count - 1; i++) {
@@ -2037,500 +1815,825 @@ class _LineChartPainter extends CustomPainter {
       return path;
     }
 
-    final Path pathPurple = buildSmoothPath(weeklyData.revenue);
-    final Path pathOrange = buildSmoothPath(weeklyData.expenses);
-    final Path pathBlue = buildSmoothPath(weeklyData.profit);
+    final pathRevenue = buildSmoothPath(weeklyData.revenue);
+    final pathExpenses = buildSmoothPath(weeklyData.expenses);
+    final pathProfit = buildSmoothPath(weeklyData.profit);
 
+    // Draw Subtle Revenue Gradient Fill
     if (weeklyData.revenue.isNotEmpty) {
-      final Path fillPurple = Path.from(pathPurple);
-      fillPurple.lineTo(w, h);
-      fillPurple.lineTo(0, h);
-      fillPurple.close();
-      canvas.drawPath(fillPurple, purpleFill);
+      final fillPath = Path.from(pathRevenue)
+        ..lineTo(w, chartBottom)
+        ..lineTo(0, chartBottom)
+        ..close();
+
+      final fillPaint = Paint()
+        ..shader = ui.Gradient.linear(
+          Offset(0, chartTop),
+          Offset(0, chartBottom),
+          [
+            _kPrimaryAccent.withValues(alpha: 0.14),
+            _kPrimaryAccent.withValues(alpha: 0.0),
+          ],
+        )
+        ..style = PaintingStyle.fill;
+
+      canvas.drawPath(fillPath, fillPaint);
     }
 
-    canvas.drawPath(pathPurple, purplePaint);
-    canvas.drawPath(pathOrange, orangePaint);
-    canvas.drawPath(pathBlue, bluePaint);
+    // Draw Series Lines
+    final revenuePaint = Paint()
+      ..color = _kPrimaryAccent
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final textPainter = TextPainter(textDirection: ui.TextDirection.ltr);
-    final TextStyle style = TextStyle(color: Colors.grey[500], fontSize: 10);
-    final int yLabelCount = 7;
-    final List<String> yLabels = List<String>.generate(yLabelCount, (index) {
-      final value = chartMax * ((yLabelCount - 1 - index) / (yLabelCount - 1));
-      if (value >= 100000) return '${(value / 100000).toStringAsFixed(1)}L';
-      if (value >= 1000) return '${(value / 1000).round()}k';
-      return value.round().toString();
-    });
-    for (int i = 0; i < yLabels.length; i++) {
-      textPainter.text = TextSpan(text: yLabels[i], style: style);
-      textPainter.layout();
-      textPainter.paint(canvas, Offset(0, i * (h / (yLabels.length - 1)) - 6));
-    }
+    final expensesPaint = Paint()
+      ..color = _kDangerRose
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-    final List<String> xLabels = weeklyData.labels;
-    final int step = (xLabels.length > 15) ? (xLabels.length ~/ 7) : 1;
-    for (int i = 0; i < xLabels.length; i += step) {
-      textPainter.text = TextSpan(text: xLabels[i], style: style);
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(w * (i / (xLabels.length - 1)) - 10, h - 12),
-      );
-    }
-  }
+    final profitPaint = Paint()
+      ..color = _kSuccessGreen
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
 
-  @override
-  bool shouldRepaint(covariant _LineChartPainter oldDelegate) =>
-      oldDelegate.weeklyData != weeklyData;
-}
+    canvas.drawPath(pathRevenue, revenuePaint);
+    canvas.drawPath(pathExpenses, expensesPaint);
+    canvas.drawPath(pathProfit, profitPaint);
 
+    // Draw Vertical Crosshair & Highlight Dots when hovered
+    final count = weeklyData.revenue.length;
+    if (hoveredIndex != null && hoveredIndex! < count) {
+      final x = count <= 1 ? w / 2 : w * (hoveredIndex! / (count - 1));
 
+      final crosshairPaint = Paint()
+        ..color = _kPrimaryAccent.withValues(alpha: 0.3)
+        ..strokeWidth = 1.2
+        ..style = PaintingStyle.stroke;
+      canvas.drawLine(Offset(x, chartTop), Offset(x, chartBottom), crosshairPaint);
 
-// -----------------------------------------------------------------------------
-// BOTTOM SHEET FORMS (Unchanged)
-// -----------------------------------------------------------------------------
-
-class _TransactionFormSheet extends StatefulWidget {
-  const _TransactionFormSheet({
-    required this.includeKindToggle,
-    required this.includePayerField,
-    required this.title,
-  });
-
-  final bool includeKindToggle;
-  final bool includePayerField;
-  final String title;
-
-  @override
-  State<_TransactionFormSheet> createState() => _TransactionFormSheetState();
-}
-
-class _TransactionFormSheetState extends State<_TransactionFormSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _descController = TextEditingController();
-  final _amountController = TextEditingController();
-  final _payerController = TextEditingController();
-  TransactionKind _selectedKind = TransactionKind.income;
-  DateTime _selectedDate = DateTime.now();
-  bool _isSaving = false;
-
-  @override
-  void dispose() {
-    _descController.dispose();
-    _amountController.dispose();
-    _payerController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _handleSave() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSaving = true);
-
-    final desc = _descController.text.trim();
-    final amount = double.parse(_amountController.text.trim());
-    final payerText = widget.includePayerField
-        ? _payerController.text.trim()
-        : null;
-    final kind = widget.includeKindToggle ? _selectedKind : null;
-    final now = DateTime.now();
-
-    try {
-      final repo = RevenueRepository();
-      if (widget.includeKindToggle) {
-        await repo.createRevenueEntry(
-          RevenueEntry(
-            id: '',
-            date: _selectedDate,
-            description: desc,
-            amount: amount,
-            type: RevenueType.miscellaneous,
-            kind: kind!,
-            payer: payerText?.isEmpty == true ? null : payerText,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              kind == TransactionKind.income
-                  ? 'Income recorded'
-                  : 'Expense recorded',
-            ),
-          ),
-        );
-      } else {
-        await repo.createPendingPayment(
-          PendingPayment(
-            id: '',
-            date: _selectedDate,
-            description: desc,
-            amount: amount,
-            createdAt: now,
-            updatedAt: now,
-          ),
-        );
-        if (!mounted) return;
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Pending payment added')));
+      // Draw anchor circles
+      void drawDot(double value, Color color) {
+        final normalized = (value / chartMax).clamp(0.0, 1.0);
+        final y = chartBottom - (normalized * (chartBottom - chartTop));
+        canvas.drawCircle(Offset(x, y), 5.0, Paint()..color = Colors.white);
+        canvas.drawCircle(Offset(x, y), 3.5, Paint()..color = color);
       }
-      if (mounted) Navigator.pop(context);
-    } on RevenueException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (e, stack) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Something went wrong. Please try again.')),
+
+      drawDot(weeklyData.revenue[hoveredIndex!], _kPrimaryAccent);
+      drawDot(weeklyData.expenses[hoveredIndex!], _kDangerRose);
+      drawDot(weeklyData.profit[hoveredIndex!], _kSuccessGreen);
+    }
+
+    // Bottom X-Axis Labels
+    final textPainter = TextPainter(textDirection: ui.TextDirection.ltr);
+    final xLabels = weeklyData.labels;
+    final int step = (xLabels.length > 15) ? (xLabels.length ~/ 7) : 1;
+
+    for (int i = 0; i < xLabels.length; i += step) {
+      final x = count <= 1 ? w / 2 : w * (i / (count - 1));
+      textPainter.text = TextSpan(
+        text: xLabels[i],
+        style: const TextStyle(
+          fontFamily: AppColors.bodyFontFamily,
+          color: _kTextMuted,
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+        ),
       );
-      debugPrint('Error in _TransactionFormSheet: $e\n$stack');
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
+      textPainter.layout();
+      textPainter.paint(canvas, Offset(x - (textPainter.width / 2), chartBottom + 6));
     }
   }
 
-  Future<void> _pickDate() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime.now(),
-    );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
-  }
+  @override
+  bool shouldRepaint(covariant _EnhancedChartPainter oldDelegate) =>
+      oldDelegate.weeklyData != weeklyData || oldDelegate.hoveredIndex != hoveredIndex;
+}
+
+// =============================================================================
+// REVENUE BY SERVICE BREAKDOWN (Replaces Old Placeholders!)
+// =============================================================================
+
+class _ServiceBreakdownSection extends StatelessWidget {
+  final List<_StructureData> structures;
+
+  const _ServiceBreakdownSection({required this.structures});
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 16,
-        bottom: 24 + bottomInset,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorderLight, width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              widget.title,
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              widget.includeKindToggle
-                  ? 'Record an income or expense transaction.'
-                  : 'Add a pending payment to track.',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            if (widget.includeKindToggle) ...[
-              Text(
-                'Type',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              ToggleButtons(
-                isSelected: [
-                  _selectedKind == TransactionKind.income,
-                  _selectedKind == TransactionKind.expense,
-                ],
-                onPressed: _isSaving
-                    ? null
-                    : (index) {
-                        setState(() {
-                          _selectedKind = index == 0
-                              ? TransactionKind.income
-                              : TransactionKind.expense;
-                        });
-                      },
-                borderRadius: BorderRadius.circular(16),
-                selectedColor: Colors.white,
-                fillColor: _selectedKind == TransactionKind.income
-                    ? AppColors.positiveGreen
-                    : AppColors.negativeRed,
-                color: AppColors.textSecondary,
-                constraints: const BoxConstraints(minWidth: 100, minHeight: 42),
-                textStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-                children: const [Text('Income'), Text('Expense')],
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            if (widget.includePayerField) ...[
-              Text(
-                _selectedKind == TransactionKind.expense
-                    ? 'Paid To'
-                    : 'Received From',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const SizedBox(height: 8),
-              TextFormField(
-                controller: _payerController,
-                enabled: !_isSaving,
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
-                ),
-                decoration: InputDecoration(
-                  hintText: _selectedKind == TransactionKind.expense
-                      ? 'e.g. "Staff salary — Priya" (optional)'
-                      : 'e.g. "Patient name" (optional)',
-                  hintStyle: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textSecondary,
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-            ],
-
-            Text(
-              'Description',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _descController,
-              enabled: !_isSaving,
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: widget.includeKindToggle
-                    ? 'e.g. "Consultation fee"'
-                    : 'e.g. "Lab test"',
-                hintStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a description';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            Text(
-              'Amount',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _amountController,
-              enabled: !_isSaving,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
-              ),
-              decoration: InputDecoration(
-                hintText: '₹0.00',
-                hintStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
-                ),
-              ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter an amount';
-                }
-                final amount = double.tryParse(value.trim());
-                if (amount == null || amount <= 0) {
-                  return 'Enter a valid positive amount';
-                }
-                return null;
-              },
-            ),
-
-            const SizedBox(height: 16),
-
-            Text(
-              'Date',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            InkWell(
-              borderRadius: BorderRadius.circular(16),
-              onTap: _isSaving ? null : _pickDate,
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 18,
-                      color: AppColors.textSecondary,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Revenue by Service',
+                    style: TextStyle(
+                      fontFamily: AppColors.headingFontFamily,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: _kTextDark,
                     ),
-                    const SizedBox(width: 10),
-                    Text(
-                      DateFormat('d MMM yyyy').format(_selectedDate),
-                      style: const TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: _isSaving ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    'Cancel',
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Clinical stream contribution',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.slateBlue,
+                      fontSize: 12,
+                      color: _kTextMuted,
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: _kAccentTint,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Top Streams',
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: _kPrimaryAccent,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+
+          if (structures.isEmpty)
+            Container(
+              height: 190,
+              alignment: Alignment.center,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.pie_chart_outline_rounded, size: 36, color: _kTextMuted.withValues(alpha: 0.4)),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'No invoice collections recorded yet',
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: _kTextMuted,
+                      fontSize: 12.5,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            Column(
+              children: structures.map((item) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 14.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: BoxDecoration(
+                                  color: item.color,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                item.label,
+                                style: const TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  color: _kTextDark,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                item.amount,
+                                style: const TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  color: _kTextDark,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${item.percent}%',
+                                style: const TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  color: _kTextMuted,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 7),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (item.percent / 100.0).clamp(0.0, 1.0),
+                          backgroundColor: _kInnerSurface,
+                          color: item.color,
+                          minHeight: 6,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// RECENT TRANSACTIONS PANEL (Ledger View)
+// =============================================================================
+
+class _RecentTransactionsPanel extends StatelessWidget {
+  final List<_TransactionData> transactions;
+  final TransactionKind? kindFilter;
+  final ValueChanged<TransactionKind?> onKindFilterChanged;
+  final TextEditingController searchController;
+  final String searchQuery;
+  final ValueChanged<String> onSearchChanged;
+  final VoidCallback onClearSearch;
+
+  const _RecentTransactionsPanel({
+    required this.transactions,
+    required this.kindFilter,
+    required this.onKindFilterChanged,
+    required this.searchController,
+    required this.searchQuery,
+    required this.onSearchChanged,
+    required this.onClearSearch,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 440,
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorderLight, width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with search & filter chips
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              children: [
+                const Text(
+                  'Transaction Ledger',
+                  style: TextStyle(
+                    fontFamily: AppColors.headingFontFamily,
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: _kTextDark,
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Search Input
+                SizedBox(
+                  width: 210,
+                  height: 34,
+                  child: TextField(
+                    controller: searchController,
+                    onChanged: onSearchChanged,
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12.5,
+                      color: _kTextDark,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Search payer or note...',
+                      hintStyle: const TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        fontSize: 12,
+                        color: _kTextMuted,
+                      ),
+                      prefixIcon: const Icon(Icons.search_rounded, size: 16, color: _kTextMuted),
+                      suffixIcon: searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear_rounded, size: 14, color: _kTextMuted),
+                              onPressed: onClearSearch,
+                              padding: EdgeInsets.zero,
+                            )
+                          : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      filled: true,
+                      fillColor: _kInnerSurface,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none,
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: const BorderSide(color: _kPrimaryAccent, width: 1.2),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-                FilledButton(
-                  onPressed: _isSaving ? null : _handleSave,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
-                    ),
-                    backgroundColor: AppColors.chartBarLight,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Save',
-                          style: TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                const Spacer(),
+
+                // Filter Chips
+                _ModernFilterChip(
+                  label: 'All',
+                  isSelected: kindFilter == null,
+                  onTap: () => onKindFilterChanged(null),
+                ),
+                const SizedBox(width: 6),
+                _ModernFilterChip(
+                  label: 'Income',
+                  isSelected: kindFilter == TransactionKind.income,
+                  selectedColor: _kSuccessGreen,
+                  selectedBg: _kSuccessTint,
+                  onTap: () => onKindFilterChanged(TransactionKind.income),
+                ),
+                const SizedBox(width: 6),
+                _ModernFilterChip(
+                  label: 'Expense',
+                  isSelected: kindFilter == TransactionKind.expense,
+                  selectedColor: _kDangerRose,
+                  selectedBg: _kDangerTint,
+                  onTap: () => onKindFilterChanged(TransactionKind.expense),
                 ),
               ],
             ),
-          ],
+          ),
+          const Divider(height: 1, color: _kBorderLight),
+
+          // Scrollable List
+          Expanded(
+            child: transactions.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_outlined, size: 34, color: _kTextMuted.withValues(alpha: 0.4)),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'No transactions match your filter',
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
+                            color: _kTextMuted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: transactions.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: _kBorderLight),
+                    itemBuilder: (context, index) {
+                      final item = transactions[index];
+                      return Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        child: Row(
+                          children: [
+                            // Direction Avatar
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: item.isIncome ? _kSuccessTint : _kDangerTint,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                item.icon,
+                                size: 18,
+                                color: item.isIncome ? _kSuccessGreen : _kDangerRose,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+
+                            // Payer & Description
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.name,
+                                    style: const TextStyle(
+                                      fontFamily: AppColors.bodyFontFamily,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13.5,
+                                      color: _kTextDark,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    item.type,
+                                    style: const TextStyle(
+                                      fontFamily: AppColors.bodyFontFamily,
+                                      color: _kTextMuted,
+                                      fontSize: 12,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 14),
+
+                            // Amount & Timestamp
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  item.amount,
+                                  style: TextStyle(
+                                    fontFamily: AppColors.headingFontFamily,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: item.isIncome ? _kSuccessGreen : _kDangerRose,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  item.date,
+                                  style: const TextStyle(
+                                    fontFamily: AppColors.bodyFontFamily,
+                                    color: _kTextMuted,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModernFilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final Color? selectedColor;
+  final Color? selectedBg;
+  final VoidCallback onTap;
+
+  const _ModernFilterChip({
+    required this.label,
+    required this.isSelected,
+    this.selectedColor,
+    this.selectedBg,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final activeColor = selectedColor ?? _kPrimaryAccent;
+    final activeBg = selectedBg ?? _kAccentTint;
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? activeBg : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: isSelected ? activeColor.withValues(alpha: 0.4) : _kBorderLight,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: isSelected ? activeColor : _kTextMedium,
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+          ),
         ),
       ),
     );
   }
 }
+
+// =============================================================================
+// PENDING PAYMENTS PANEL (Receivables View)
+// =============================================================================
+
+class _PendingPaymentsPanel extends StatelessWidget {
+  final List<PendingPayment> pendingPayments;
+  final String totalOutstanding;
+  final VoidCallback onAddPending;
+  final ValueChanged<PendingPayment> onPendingTap;
+  final ValueChanged<PendingPayment> onMarkPendingPaid;
+
+  const _PendingPaymentsPanel({
+    required this.pendingPayments,
+    required this.totalOutstanding,
+    required this.onAddPending,
+    required this.onPendingTap,
+    required this.onMarkPendingPaid,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 440,
+      decoration: BoxDecoration(
+        color: _kCardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _kBorderLight, width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with count badge and Add button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Text(
+                      'Pending Collections',
+                      style: TextStyle(
+                        fontFamily: AppColors.headingFontFamily,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w700,
+                        color: _kTextDark,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _kWarningTint,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        '${pendingPayments.length}',
+                        style: const TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          color: _kWarningAmber,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton.icon(
+                  onPressed: onAddPending,
+                  icon: const Icon(Icons.add_rounded, size: 16),
+                  label: const Text('Add'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _kPrimaryAccent,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    visualDensity: VisualDensity.compact,
+                    textStyle: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: _kBorderLight),
+
+          // Outstanding Highlight Bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            color: _kInnerSurface,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Total Outstanding',
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: _kTextMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  totalOutstanding,
+                  style: const TextStyle(
+                    fontFamily: AppColors.headingFontFamily,
+                    color: _kWarningAmber,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1, color: _kBorderLight),
+
+          // Pending List
+          Expanded(
+            child: pendingPayments.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.check_circle_outline_rounded, size: 34, color: _kSuccessGreen.withValues(alpha: 0.5)),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'All payments settled',
+                          style: TextStyle(
+                            fontFamily: AppColors.bodyFontFamily,
+                            color: _kTextMuted,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    itemCount: pendingPayments.length,
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: _kBorderLight),
+                    itemBuilder: (_, index) {
+                      final pending = pendingPayments[index];
+                      return InkWell(
+                        onTap: () => onPendingTap(pending),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: _kWarningTint,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.hourglass_empty_rounded,
+                                  size: 16,
+                                  color: _kWarningAmber,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      pending.description,
+                                      style: const TextStyle(
+                                        fontFamily: AppColors.bodyFontFamily,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 13,
+                                        color: _kTextDark,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      DateFormat('MMM d, yyyy').format(pending.date),
+                                      style: const TextStyle(
+                                        fontFamily: AppColors.bodyFontFamily,
+                                        color: _kTextMuted,
+                                        fontSize: 11,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _formatCurrency(pending.amount),
+                                    style: const TextStyle(
+                                      fontFamily: AppColors.headingFontFamily,
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 13.5,
+                                      color: _kWarningAmber,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  InkWell(
+                                    onTap: () => onMarkPendingPaid(pending),
+                                    borderRadius: BorderRadius.circular(6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _kSuccessTint,
+                                        borderRadius: BorderRadius.circular(5),
+                                        border: Border.all(color: _kSuccessGreen.withValues(alpha: 0.3)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: const [
+                                          Icon(Icons.check_rounded, size: 12, color: _kSuccessGreen),
+                                          SizedBox(width: 3),
+                                          Text(
+                                            'Mark Paid',
+                                            style: TextStyle(
+                                              fontFamily: AppColors.bodyFontFamily,
+                                              color: _kSuccessGreen,
+                                              fontSize: 10.5,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// PENDING PAYMENT DETAILS MODAL
+// =============================================================================
 
 class _PendingPaymentDetailsSheet extends StatefulWidget {
   const _PendingPaymentDetailsSheet({required this.pending});
@@ -2538,12 +2641,10 @@ class _PendingPaymentDetailsSheet extends StatefulWidget {
   final PendingPayment pending;
 
   @override
-  State<_PendingPaymentDetailsSheet> createState() =>
-      _PendingPaymentDetailsSheetState();
+  State<_PendingPaymentDetailsSheet> createState() => _PendingPaymentDetailsSheetState();
 }
 
-class _PendingPaymentDetailsSheetState
-    extends State<_PendingPaymentDetailsSheet> {
+class _PendingPaymentDetailsSheetState extends State<_PendingPaymentDetailsSheet> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _descController;
   late final TextEditingController _amountController;
@@ -2556,7 +2657,9 @@ class _PendingPaymentDetailsSheetState
     super.initState();
     _descController = TextEditingController(text: widget.pending.description);
     _amountController = TextEditingController(
-      text: _formatAmountForEditing(widget.pending.amount),
+      text: widget.pending.amount == widget.pending.amount.roundToDouble()
+          ? widget.pending.amount.toStringAsFixed(0)
+          : widget.pending.amount.toString(),
     );
     _notesController = TextEditingController(text: widget.pending.notes ?? '');
     _selectedDate = widget.pending.date;
@@ -2568,12 +2671,6 @@ class _PendingPaymentDetailsSheetState
     _amountController.dispose();
     _notesController.dispose();
     super.dispose();
-  }
-
-  String _formatAmountForEditing(double amount) {
-    return amount == amount.roundToDouble()
-        ? amount.toStringAsFixed(0)
-        : amount.toString();
   }
 
   Future<void> _pickDate() async {
@@ -2608,21 +2705,24 @@ class _PendingPaymentDetailsSheetState
         'date': _selectedDate,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Pending payment updated')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Pending payment updated successfully'),
+          backgroundColor: _kSuccessGreen,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
       Navigator.pop(context);
     } on RevenueException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.message), backgroundColor: _kDangerRose),
+      );
     } catch (e, stack) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
-        ),
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
       );
       debugPrint('Error in _PendingPaymentDetailsSheet: $e\n$stack');
     } finally {
@@ -2640,7 +2740,7 @@ class _PendingPaymentDetailsSheetState
       padding: EdgeInsets.only(
         left: 24,
         right: 24,
-        top: 16,
+        top: 20,
         bottom: 24 + bottomInset,
       ),
       child: Form(
@@ -2649,41 +2749,65 @@ class _PendingPaymentDetailsSheetState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(2),
+            // Header
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _kWarningTint,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.hourglass_top_rounded,
+                    color: _kWarningAmber,
+                    size: 20,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        'Pending Collection Details',
+                        style: TextStyle(
+                          fontFamily: AppColors.headingFontFamily,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: _kTextDark,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Review or modify receivable details before recording collection.',
+                        style: TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          fontSize: 12,
+                          color: _kTextMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: _kTextMuted, size: 20),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
             ),
+            const SizedBox(height: 16),
+            const Divider(height: 1, color: _kBorderLight),
             const SizedBox(height: 20),
-            Text(
-              'Pending Payment',
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Review and edit the details before collecting payment.',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                fontSize: 13,
-                color: AppColors.textSecondary,
-                height: 1.4,
-              ),
-            ),
-            const SizedBox(height: 24),
 
             if (hasPatientName) ...[
-              Text(
+              const Text(
                 'Patient Name',
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: _kTextDark,
                 ),
               ),
               const SizedBox(height: 8),
@@ -2692,61 +2816,52 @@ class _PendingPaymentDetailsSheetState
                 enabled: false,
                 style: const TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
+                  color: _kTextDark,
                 ),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.6),
-                  suffixIcon: const Icon(
-                    Icons.lock_outline,
-                    size: 16,
-                    color: AppColors.textSecondary,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
+                  fillColor: _kInnerSurface,
+                  suffixIcon: const Icon(Icons.lock_outline_rounded, size: 16, color: _kTextMuted),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                   border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: _kBorderLight),
                   ),
                 ),
               ),
               const SizedBox(height: 16),
             ],
 
-            Text(
+            const Text(
               'Description',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: _kTextDark,
               ),
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _descController,
               enabled: !_isSaving,
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
-              ),
+              style: const TextStyle(fontFamily: AppColors.bodyFontFamily, color: _kTextDark),
               decoration: InputDecoration(
-                hintText: 'e.g. "Payment Received for Visitation"',
-                hintStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                ),
+                hintText: 'e.g. "Consultation fee"',
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorderLight),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorderLight),
                 ),
               ),
               validator: (value) {
@@ -2756,44 +2871,35 @@ class _PendingPaymentDetailsSheetState
                 return null;
               },
             ),
-
             const SizedBox(height: 16),
 
-            Text(
+            const Text(
               'Amount',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: _kTextDark,
               ),
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _amountController,
               enabled: !_isSaving,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              style: const TextStyle(fontFamily: AppColors.bodyFontFamily, color: _kTextDark),
               decoration: InputDecoration(
                 hintText: '₹0.00',
-                hintStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                ),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorderLight),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorderLight),
                 ),
               ),
               validator: (value) {
@@ -2807,16 +2913,15 @@ class _PendingPaymentDetailsSheetState
                 return null;
               },
             ),
-
             const SizedBox(height: 16),
 
-            Text(
-              'Notes',
+            const Text(
+              'Notes (Optional)',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: _kTextDark,
               ),
             ),
             const SizedBox(height: 8),
@@ -2824,112 +2929,95 @@ class _PendingPaymentDetailsSheetState
               controller: _notesController,
               enabled: !_isSaving,
               minLines: 2,
-              maxLines: 4,
-              style: const TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
-              ),
+              maxLines: 3,
+              style: const TextStyle(fontFamily: AppColors.bodyFontFamily, color: _kTextDark),
               decoration: InputDecoration(
-                hintText: 'Add any additional notes (optional)',
-                hintStyle: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
-                ),
+                hintText: 'Add additional collection details...',
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorderLight),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: _kBorderLight),
                 ),
               ),
             ),
-
             const SizedBox(height: 16),
 
-            Text(
+            const Text(
               'Date',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: _kTextDark,
               ),
             ),
             const SizedBox(height: 8),
             InkWell(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(10),
               onTap: _isSaving ? null : _pickDate,
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 14,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _kBorderLight),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 18,
-                      color: AppColors.textSecondary,
-                    ),
+                    const Icon(Icons.calendar_today_rounded, size: 16, color: _kTextMuted),
                     const SizedBox(width: 10),
                     Text(
                       DateFormat('d MMM yyyy').format(_selectedDate),
                       style: const TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        color: AppColors.textPrimary,
+                        color: _kTextDark,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
               ),
             ),
-
             const SizedBox(height: 24),
 
+            // Footer Actions
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
                   onPressed: _isSaving ? null : () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: _kTextMedium,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                  ),
                   child: const Text(
                     'Cancel',
-                    style: TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.slateBlue,
-                    ),
+                    style: TextStyle(fontFamily: AppColors.bodyFontFamily, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(width: 12),
                 FilledButton(
                   onPressed: _isSaving ? null : _handleSave,
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
-                    ),
-                    backgroundColor: AppColors.chartBarLight,
+                    padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                    backgroundColor: _kPrimaryAccent,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(10),
                     ),
                   ),
                   child: _isSaving
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : const Text(
                           'Save Changes',

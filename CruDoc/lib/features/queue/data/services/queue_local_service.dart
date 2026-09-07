@@ -37,6 +37,9 @@ class QueueLocalService {
   final StreamController<List<QueueEntry>> _queueController =
       StreamController<List<QueueEntry>>.broadcast();
 
+  final StreamController<List<QueueEntry>> _allQueueController =
+      StreamController<List<QueueEntry>>.broadcast();
+
   String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
 
   Future<void> notifyQueueChanged() => _emitTodaysQueue();
@@ -146,6 +149,93 @@ class QueueLocalService {
     return rows.map(_fromRow).toList();
   }
 
+  /// Fetches non-deleted queue entries for the signed-in doctor within a date range (inclusive).
+  Future<List<QueueEntry>> getQueueForDateRange(DateTime start, DateTime end) async {
+    final db = await _databaseService.localDatabase;
+    await ensureTableCreated(db);
+
+    final startKey = queueDateKeyFor(start);
+    final endKey = queueDateKeyFor(end);
+    final doctorId = _currentDoctorId;
+
+    final rows = await db.query(
+      tableName,
+      where: 'doctorId = ? AND queueDate >= ? AND queueDate <= ? AND isDeleted = 0',
+      whereArgs: [doctorId, startKey, endKey],
+      orderBy: 'queueDate ASC, tokenNumber ASC',
+    );
+
+    return rows.map(_fromRow).toList();
+  }
+
+  /// Fetches all non-deleted queue entries for the signed-in doctor across all dates.
+  Future<List<QueueEntry>> getAllQueue() async {
+    final db = await _databaseService.localDatabase;
+    await ensureTableCreated(db);
+
+    final doctorId = _currentDoctorId;
+    final rows = await db.query(
+      tableName,
+      where: 'doctorId = ? AND isDeleted = 0',
+      whereArgs: [doctorId],
+      orderBy: 'queueDate DESC, tokenNumber ASC',
+    );
+
+    return rows.map(_fromRow).toList();
+  }
+
+  /// Finds a queue entry linked to a specific appointment [visitId], if any.
+  Future<QueueEntry?> getEntryByLinkedVisitId(String visitId) async {
+    final db = await _databaseService.localDatabase;
+    await ensureTableCreated(db);
+
+    final doctorId = _currentDoctorId;
+    final rows = await db.query(
+      tableName,
+      where: 'doctorId = ? AND linkedVisitId = ? AND isDeleted = 0',
+      whereArgs: [doctorId, visitId],
+      limit: 1,
+    );
+
+    if (rows.isEmpty) return null;
+    return _fromRow(rows.first);
+  }
+
+  /// Ensures that a pre-booked clinic visit has a corresponding queue entry.
+  /// If an active token already exists for [visitId], it returns that entry.
+  /// Otherwise, it atomically assigns the next token for that date and inserts it.
+  Future<QueueEntry> ensureVisitInQueue({
+    required String visitId,
+    required String patientId,
+    required DateTime scheduledStart,
+    String? reason,
+    QueuePriority priority = QueuePriority.normal,
+    QueueStatus status = QueueStatus.waiting,
+  }) async {
+    final existing = await getEntryByLinkedVisitId(visitId);
+    if (existing != null) return existing;
+
+    final dateKey = queueDateKeyFor(scheduledStart);
+    final draft = QueueEntry(
+      id: 'queue_appt_$visitId',
+      doctorId: _currentDoctorId,
+      patientId: patientId,
+      walkInName: null,
+      walkInPhone: null,
+      tokenNumber: 0, // assigned atomically by checkIn
+      queueDate: dateKey,
+      status: status,
+      priority: priority,
+      reason: reason?.trim().isEmpty == true ? 'Pre-booked Appointment' : reason?.trim(),
+      checkedInAt: scheduledStart,
+      linkedVisitId: visitId,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
+
+    return checkIn(draft);
+  }
+
   /// Fetches a single queue entry by [entryId].
   Future<QueueEntry?> getEntry(String entryId) async {
     final db = await _databaseService.localDatabase;
@@ -252,16 +342,29 @@ class QueueLocalService {
     return _queueController.stream;
   }
 
+  /// Streams all active walk-in queue entries in real-time.
+  Stream<List<QueueEntry>> watchAllQueue() {
+    Future<void>.microtask(() => _emitTodaysQueue());
+    return _allQueueController.stream;
+  }
+
   Future<void> _emitTodaysQueue([DateTime? date]) async {
-    if (_queueController.isClosed) return;
     try {
-      final entries = await getTodaysQueue(date);
       if (!_queueController.isClosed) {
-        _queueController.add(entries);
+        final entries = await getTodaysQueue(date);
+        if (!_queueController.isClosed) {
+          _queueController.add(entries);
+        }
+      }
+      if (!_allQueueController.isClosed) {
+        final allEntries = await getAllQueue();
+        if (!_allQueueController.isClosed) {
+          _allQueueController.add(allEntries);
+        }
       }
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('Error emitting today\'s queue: $e');
+        debugPrint('Error emitting queue: $e');
       }
     }
   }

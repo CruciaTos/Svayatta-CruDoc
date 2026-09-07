@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/errors/queue_exceptions.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
+import 'package:doctor_management_app/features/appointments/data/services/visits_local_service.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/services/queue_local_service.dart';
@@ -23,13 +25,16 @@ class QueueRepository {
     QueueLocalService? localService,
     FirestoreSyncService? syncService,
     PatientRepository? patientRepository,
+    VisitLocalService? visitLocalService,
   }) : _localService = localService ?? QueueLocalService(),
        _syncService = syncService ?? FirestoreSyncService.instance,
-       _patientRepository = patientRepository ?? PatientRepository();
+       _patientRepository = patientRepository ?? PatientRepository(),
+       _visitLocalService = visitLocalService ?? VisitLocalService();
 
   final QueueLocalService _localService;
   final FirestoreSyncService _syncService;
   final PatientRepository _patientRepository;
+  final VisitLocalService _visitLocalService;
 
   /// The signed-in doctor's UID — see PatientRepository for why this
   /// matters and what it guards against.
@@ -191,6 +196,19 @@ class QueueRepository {
     await _updateStatus(entryId, QueueStatus.completed, extra: {
       'completedAt': completedAt,
     });
+
+    // If linked to a pre-booked appointment, synchronize its status in visits.
+    if (entry.linkedVisitId != null && entry.linkedVisitId!.isNotEmpty) {
+      try {
+        await _visitLocalService.updateVisit(entry.linkedVisitId!, {
+          'status': VisitStatus.completed.value,
+          'updatedAt': completedAt,
+        });
+      } catch (_) {
+        // Best-effort sync to visit record
+      }
+    }
+
     unawaited(_syncService.triggerPostWriteSync());
     return entry.copyWith(status: QueueStatus.completed, completedAt: completedAt);
   }
@@ -233,8 +251,43 @@ class QueueRepository {
   /// by mistake. Distinct from [skip]: a cancelled token is done for
   /// the day and [requeue] won't bring it back.
   Future<void> cancel(String entryId) async {
+    final entry = await _localService.getEntry(entryId);
+    if (entry != null &&
+        entry.linkedVisitId != null &&
+        entry.linkedVisitId!.isNotEmpty) {
+      try {
+        await _visitLocalService.updateVisit(entry.linkedVisitId!, {
+          'status': VisitStatus.cancelled.value,
+          'updatedAt': DateTime.now(),
+        });
+      } catch (_) {
+        // Best-effort sync
+      }
+    }
     await _updateStatus(entryId, QueueStatus.cancelled);
     unawaited(_syncService.triggerPostWriteSync());
+  }
+
+  /// Checks a pre-booked clinic appointment into the queue if not already
+  /// queued, or returns the existing linked token.
+  Future<QueueEntry> checkInVisit(
+    Visit visit, {
+    QueuePriority priority = QueuePriority.normal,
+  }) async {
+    final created = await _localService.ensureVisitInQueue(
+      visitId: visit.id,
+      patientId: visit.patientId,
+      scheduledStart: visit.scheduledStart,
+      reason: visit.treatmentType ?? visit.therapistNotes,
+      priority: priority,
+      status: visit.status == VisitStatus.completed
+          ? QueueStatus.completed
+          : (visit.status == VisitStatus.cancelled
+              ? QueueStatus.cancelled
+              : QueueStatus.waiting),
+    );
+    unawaited(_syncService.triggerPostWriteSync());
+    return created;
   }
 
   /// Soft-deletes a queue entry (e.g. a mis-entered check-in). Hidden
@@ -249,10 +302,15 @@ class QueueRepository {
   }
 
   /// Streams today's queue — every non-deleted token whose
-  /// [QueueEntry.queueDate] is today, in every status. The presentation
-  /// layer (see queue_providers.dart) splits this into "now serving",
-  /// "waiting", and "resolved" views.
+  /// [QueueEntry.queueDate] is today, in every status.
   Stream<List<QueueEntry>> watchTodaysQueue() => _localService.watchTodaysQueue();
+
+  /// Streams all non-deleted queue tokens across all dates in real-time.
+  Stream<List<QueueEntry>> watchAllQueue() => _localService.watchAllQueue();
+
+  /// Queries non-deleted queue tokens within a date range (inclusive).
+  Future<List<QueueEntry>> getQueueForDateRange(DateTime start, DateTime end) =>
+      _localService.getQueueForDateRange(start, end);
 
   Future<QueueEntry?> getEntry(String entryId) => _localService.getEntry(entryId);
 

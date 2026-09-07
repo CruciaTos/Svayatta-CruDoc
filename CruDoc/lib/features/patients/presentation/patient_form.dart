@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+export 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 
 // ==============================================================================
 // 1. PATIENT FORM RESULT & FORM WIDGET
@@ -622,11 +624,14 @@ class _DateOfBirthField extends StatelessWidget {
 // 2. TOP-LEVEL SHEET FUNCTIONS
 // ==============================================================================
 
-/// Shows the bottom sheet for adding a new patient.
+/// Shows the bottom sheet for adding a new patient (or desktop dialog if screen is wide).
 Future<bool?> showAddPatientSheet(
   BuildContext context, {
   PatientRepository? repository,
 }) {
+  if (MediaQuery.of(context).size.width >= 800) {
+    return showDesktopAddEditPatientDialog(context, repository: repository);
+  }
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,
@@ -639,12 +644,19 @@ Future<bool?> showAddPatientSheet(
   );
 }
 
-/// Shows the bottom sheet for editing an existing patient.
+/// Shows the bottom sheet for editing an existing patient (or desktop dialog if screen is wide).
 Future<bool?> showEditPatientSheet(
   BuildContext context, {
   required Patient patient,
   PatientRepository? repository,
 }) {
+  if (MediaQuery.of(context).size.width >= 800) {
+    return showDesktopAddEditPatientDialog(
+      context,
+      patient: patient,
+      repository: repository,
+    );
+  }
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,

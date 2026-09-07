@@ -9,6 +9,9 @@ import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
+import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
+export 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 
 /// Desktop version of the Invoices tab – redesigned to match Revenue & Financials.
 ///
@@ -94,27 +97,9 @@ class _DesktopInvoicesScreenState extends State<DesktopInvoicesScreen> {
   }
 
   void _openCreateInvoiceDialog() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.all(32),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 800),
-          child: _CreateInvoiceDialog(
-            onSave: (name, service, amount, status, notes, dueDate, patientId) async {
-              await _repository.createInvoice(
-                patientName: name,
-                service: service,
-                amount: amount,
-                status: status,
-                notes: notes,
-                dueDate: dueDate,
-                patientId: patientId,
-              );
-            },
-          ),
-        ),
-      ),
+    showDesktopCreateInvoiceDialog(
+      context,
+      repository: _repository,
     );
   }
 
@@ -316,7 +301,7 @@ class _InvoicesDashboardView extends StatelessWidget {
             const SizedBox(height: 24),
           ],
           _InvoiceStatsRow(viewData: viewData),
-          const SizedBox(height: 24),
+          const SizedBox(height: 18),
           _InvoicesSearchBar(
             controller: searchController,
             onChanged: onSearchChanged,
@@ -334,6 +319,7 @@ class _InvoicesDashboardView extends StatelessWidget {
                   child: _InvoicesTableSection(
                     invoices: viewData.filteredInvoices,
                     onTap: onInvoiceTap,
+                    selectedInvoice: selectedInvoice,
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -430,7 +416,7 @@ class _InvoiceStatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double width = (constraints.maxWidth / 4) - 12;
+        final double width = (constraints.maxWidth - (16 * 3)) / 4;
         return Wrap(
           spacing: 16,
           runSpacing: 16,
@@ -439,32 +425,36 @@ class _InvoiceStatsRow extends StatelessWidget {
               title: 'Total Invoiced',
               amount: viewData.totalInvoiced,
               subtitle: 'All invoices',
-              percentage: '',
-              isPositive: true,
+              badgeText: 'Invoiced',
+              badgeColor: const Color(0xFF2563EB),
+              badgeBg: const Color(0xFFEFF6FF),
               width: width,
             ),
             _StatsCard(
               title: 'Paid',
               amount: viewData.paidTotal,
               subtitle: 'Collected',
-              percentage: '',
-              isPositive: true,
+              badgeText: 'Collected',
+              badgeColor: const Color(0xFF10B981),
+              badgeBg: const Color(0xFFECFDF5),
               width: width,
             ),
             _StatsCard(
               title: 'Pending',
               amount: viewData.pendingTotal,
               subtitle: 'Awaiting payment',
-              percentage: '',
-              isPositive: false,
+              badgeText: 'Awaiting',
+              badgeColor: const Color(0xFFF59E0B),
+              badgeBg: const Color(0xFFFFFBEB),
               width: width,
             ),
             _StatsCard(
               title: 'Overdue',
               amount: viewData.overdueTotal,
               subtitle: 'Past due date',
-              percentage: '',
-              isPositive: false,
+              badgeText: 'Overdue',
+              badgeColor: const Color(0xFFF43F5E),
+              badgeBg: const Color(0xFFFFF1F2),
               width: width,
             ),
           ],
@@ -479,69 +469,97 @@ class _StatsCard extends StatelessWidget {
   final String title;
   final String amount;
   final String subtitle;
-  final String percentage;
-  final bool isPositive;
+  final String badgeText;
+  final Color badgeColor;
+  final Color badgeBg;
   final double width;
 
   const _StatsCard({
     required this.title,
     required this.amount,
     required this.subtitle,
-    required this.percentage,
-    required this.isPositive,
+    required this.badgeText,
+    required this.badgeColor,
+    required this.badgeBg,
     required this.width,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: width,
-      padding: const EdgeInsets.all(16),
+      width: width.clamp(230.0, double.infinity),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.1)),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.8),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x060F172A),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+          // Top row: Metric title
+          Text(
+            title,
+            style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              color: Color(0xFF64748B),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 12),
+
+          // Big bold number
           Text(
             amount,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontFamily: AppColors.headingFontFamily,
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+              letterSpacing: -0.5,
+            ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
+
+          // Bottom row: Subtitle & status pill
           Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(
-                subtitle,
-                style: TextStyle(color: Colors.grey[500], fontSize: 11),
-              ),
-              if (percentage.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                Icon(
-                  isPositive
-                      ? Icons.arrow_upward_rounded
-                      : Icons.arrow_downward_rounded,
-                  size: 14,
-                  color: isPositive
-                      ? const Color(0xFF00C853)
-                      : const Color(0xFFFF1744),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                decoration: BoxDecoration(
+                  color: badgeBg,
+                  borderRadius: BorderRadius.circular(6),
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  percentage,
+                child: Text(
+                  badgeText,
                   style: TextStyle(
-                    color: isPositive
-                        ? const Color(0xFF00C853)
-                        : const Color(0xFFFF1744),
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: badgeColor,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    fontSize: 12,
                   ),
                 ),
-              ],
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  subtitle,
+                  style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: Color(0xFF64748B),
+                    fontSize: 11.5,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ],
           ),
         ],
@@ -691,15 +709,32 @@ class _InvoicesSearchBar extends StatelessWidget {
   }
 }
 
-// ---------- Data table section (scrollable) ----------
-class _InvoicesTableSection extends StatelessWidget {
+// ---------- Data table section (scrollable, responsive & stretched) ----------
+class _InvoicesTableSection extends StatefulWidget {
   final List<InvoiceModel> invoices;
   final ValueChanged<InvoiceModel> onTap;
+  final InvoiceModel? selectedInvoice;
 
   const _InvoicesTableSection({
     required this.invoices,
     required this.onTap,
+    this.selectedInvoice,
   });
+
+  @override
+  State<_InvoicesTableSection> createState() => _InvoicesTableSectionState();
+}
+
+class _InvoicesTableSectionState extends State<_InvoicesTableSection> {
+  final ScrollController _verticalScrollController = ScrollController();
+  final ScrollController _horizontalScrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _verticalScrollController.dispose();
+    _horizontalScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -716,7 +751,7 @@ class _InvoicesTableSection extends StatelessWidget {
           ),
         ],
       ),
-      child: invoices.isEmpty
+      child: widget.invoices.isEmpty
           ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -735,99 +770,274 @@ class _InvoicesTableSection extends StatelessWidget {
               ),
             )
           : ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: SingleChildScrollView(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowColor:
-                        MaterialStateProperty.all(const Color(0xFFF8FAFC)),
-                    headingTextStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF64748B),
-                      fontSize: 12,
-                    ),
-                    dataRowHeight: 68,
-                    columnSpacing: 24,
-                    horizontalMargin: 16,
-                    columns: const [
-                      DataColumn(label: Text('INVOICE ID')),
-                      DataColumn(label: Text('PATIENT')),
-                      DataColumn(label: Text('SERVICE')),
-                      DataColumn(label: Text('AMOUNT')),
-                      DataColumn(label: Text('DATE')),
-                      DataColumn(label: Text('STATUS')),
-                      // Removed the empty column that contained the view icon
-                    ],
-                    rows: invoices.map((inv) {
-                      final isPaid = inv.isPaid;
-                      final isPending = inv.isPending;
-                      final statusBg = isPaid
-                          ? const Color(0xFFDCFCE7)
-                          : (isPending
-                              ? const Color(0xFFFEF3C7)
-                              : const Color(0xFFFEE2E2));
-                      final statusText = isPaid
-                          ? const Color(0xFF15803D)
-                          : (isPending
-                              ? const Color(0xFFB45309)
-                              : const Color(0xFFB91C1C));
+              borderRadius: BorderRadius.circular(15.5),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  // Ensure table never squishes below readable width on very narrow viewports
+                  const double minTableWidth = 680.0;
+                  final double tableWidth = constraints.maxWidth > minTableWidth
+                      ? constraints.maxWidth
+                      : minTableWidth;
 
-                      return DataRow(
-                        onSelectChanged: (_) => onTap(inv), // Row click still opens details
-                        cells: [
-                          DataCell(Text(inv.id,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                  color: Color(0xFF0F172A)))),
-                          DataCell(Text(
-                              inv.patientName.isEmpty
-                                  ? 'General Patient'
-                                  : inv.patientName,
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13,
-                                  color: Color(0xFF334155)))),
-                          DataCell(Text(inv.service,
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFF475569)))),
-                          DataCell(Text('₹${inv.amount.toInt()}',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: 14,
-                                  color: Color(0xFF0F172A)))),
-                          DataCell(Text(
-                              DateFormat('MMM dd, yyyy').format(inv.date),
-                              style: const TextStyle(
-                                  fontSize: 13,
-                                  color: Color(0xFF64748B)))),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: statusBg,
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                inv.status,
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: statusText),
+                  return Scrollbar(
+                    controller: _horizontalScrollController,
+                    notificationPredicate: (notif) => notif.depth == 1,
+                    child: SingleChildScrollView(
+                      controller: _horizontalScrollController,
+                      scrollDirection: Axis.horizontal,
+                      child: SizedBox(
+                        width: tableWidth,
+                        child: Column(
+                          children: [
+                            // Pinned Header Row
+                            _buildHeaderRow(),
+                            // Scrollable Vertical Data Rows
+                            Expanded(
+                              child: Scrollbar(
+                                controller: _verticalScrollController,
+                                thumbVisibility: true,
+                                child: ListView.separated(
+                                  controller: _verticalScrollController,
+                                  itemCount: widget.invoices.length,
+                                  separatorBuilder: (context, index) => Divider(
+                                    height: 1,
+                                    thickness: 1,
+                                    color: Colors.grey.shade100,
+                                  ),
+                                  itemBuilder: (context, index) {
+                                    final inv = widget.invoices[index];
+                                    final isSelected =
+                                        widget.selectedInvoice?.id == inv.id;
+                                    return _buildInvoiceRow(inv, isSelected);
+                                  },
+                                ),
                               ),
                             ),
-                          ),
-                          // Removed the DataCell with the IconButton
-                        ],
-                      );
-                    }).toList(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+    );
+  }
+
+  Widget _buildHeaderRow() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        border: Border(
+          bottom: BorderSide(color: Colors.grey.shade200, width: 1),
+        ),
+      ),
+      child: const Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: Text(
+              'INVOICE ID',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: Text(
+              'PATIENT',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 4,
+            child: Text(
+              'SERVICE',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              'AMOUNT',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              'DATE',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              'STATUS',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInvoiceRow(InvoiceModel inv, bool isSelected) {
+    final isPaid = inv.isPaid;
+    final isPending = inv.isPending;
+    final statusBg = isPaid
+        ? const Color(0xFFDCFCE7)
+        : (isPending
+            ? const Color(0xFFFEF3C7)
+            : const Color(0xFFFEE2E2));
+    final statusText = isPaid
+        ? const Color(0xFF15803D)
+        : (isPending
+            ? const Color(0xFFB45309)
+            : const Color(0xFFB91C1C));
+
+    return Material(
+      color: isSelected
+          ? const Color(0xFFEFF6FF)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: () => widget.onTap(inv),
+        hoverColor: isSelected
+            ? const Color(0xFFE0EDFE)
+            : const Color(0xFFF8FAFC),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Row(
+            children: [
+              // INVOICE ID
+              Expanded(
+                flex: 3,
+                child: Text(
+                  inv.id,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: Color(0xFF0F172A),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // PATIENT
+              Expanded(
+                flex: 5,
+                child: Text(
+                  inv.patientName.isEmpty
+                      ? 'General Patient'
+                      : inv.patientName,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: Color(0xFF334155),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // SERVICE
+              Expanded(
+                flex: 4,
+                child: Text(
+                  inv.service,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF475569),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // AMOUNT
+              Expanded(
+                flex: 3,
+                child: Text(
+                  '₹${inv.amount.toInt()}',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: Color(0xFF0F172A),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // DATE
+              Expanded(
+                flex: 3,
+                child: Text(
+                  DateFormat('MMM dd, yyyy').format(inv.date),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF64748B),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // STATUS
+              Expanded(
+                flex: 3,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusBg,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      inv.status,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: statusText,
+                      ),
+                    ),
                   ),
                 ),
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

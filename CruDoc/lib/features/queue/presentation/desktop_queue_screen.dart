@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -10,17 +11,15 @@ import 'package:doctor_management_app/features/queue/presentation/check_in_dialo
 import 'package:doctor_management_app/features/queue/widget/queue_token_card.dart';
 
 // ---------- Color Constants (Matching desktop palette) ----------
-const Color _kPrimaryText   = Color(0xFF1F2937);
-const Color _kSecondaryText = Color(0xFF6B7280);
+const Color _kPrimaryText   = Color(0xFF0F172A);
+const Color _kSecondaryText = Color(0xFF64748B);
 const Color _kBorder        = Color(0xFFE2E8F0);
-const Color _kAccentBlue    = Color(0xFF2563EB);
-const Color _kAccentBlueBg  = Color(0xFFEFF6FF);
-const Color _kGreen         = Color(0xFF16A34A);
-const Color _kGreenBg       = Color(0xFFF0FDF4);
+const Color _kAccentBlue    = Color(0xFF0284C7);
+const Color _kAccentBlueBg  = Color(0xFFF0F9FF);
+const Color _kGreen         = Color(0xFF10B981);
 const Color _kAmber         = Color(0xFFF59E0B);
 const Color _kAmberBg       = Color(0xFFFFFBEB);
-const Color _kRed           = Color(0xFFDC2626);
-const Color _kRedBg         = Color(0xFFFEF2F2);
+const Color _kRed           = Color(0xFFF43F5E);
 const Color _kSurface       = Color(0xFFF8FAFC);
 
 /// Desktop walk-in queue management screen.
@@ -160,37 +159,85 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
     }
   }
 
+  Future<void> _pickCustomDateRange() async {
+    final now = DateTime.now();
+    final currentCustom = ref.read(queueCustomDateRangeProvider);
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 2),
+      initialDateRange: currentCustom ??
+          DateTimeRange(start: now, end: now.add(const Duration(days: 6))),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: _kAccentBlue,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: _kPrimaryText,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      ref.read(queueCustomDateRangeProvider.notifier).state = picked;
+      ref.read(queuePeriodProvider.notifier).state = QueuePeriod.custom;
+    }
+  }
+
+  Future<void> _checkInPrebooked(QueueEntryWithPatient item) async {
+    try {
+      final repo = ref.read(queueRepositoryProvider);
+      if (item.linkedVisit != null) {
+        final created = await repo.checkInVisit(item.linkedVisit!);
+        _showFeedback('Appointment for ${item.displayName} checked into queue as Token #${created.tokenNumber}!');
+      }
+    } catch (e) {
+      _showFeedback('Could not check in appointment: $e', isError: true);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final queueAsync = ref.watch(todaysQueueWithPatientsProvider);
     final activeServing = ref.watch(activeQueueEntryProvider);
     final waitingTokens = ref.watch(waitingQueueProvider);
     final resolvedTokens = ref.watch(resolvedQueueProvider);
+    final bounds = ref.watch(activeQueueDateBoundsProvider);
+    final selectedPeriod = ref.watch(queuePeriodProvider);
+    final selectedSession = ref.watch(queueSessionFilterProvider);
+    final selectedSource = ref.watch(queueSourceFilterProvider);
+    final isAppointmentsEnabled = ref.watch(isAppointmentsFeatureEnabledProvider);
 
     final allTokens = queueAsync.value ?? const <QueueEntryWithPatient>[];
     final totalCheckedIn = allTokens.length;
+    final walkInCount = allTokens.where((t) => !t.isPrebooked).length;
+    final prebookedCount = allTokens.where((t) => t.isPrebooked).length;
     final waitingCount = waitingTokens.length;
     final urgentCount = waitingTokens.where((t) => t.entry.priority == QueuePriority.urgent).length;
     final completedCount = allTokens.where((t) => t.entry.status == QueueStatus.completed).length;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: _kBorder, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
+    return SizedBox.expand(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(24),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
+          child: Container(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFCBD5E1),
+                width: 0.5,
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ===============================================================
@@ -237,7 +284,11 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                                 border: Border.all(color: _kBorder),
                               ),
                               child: Text(
-                                DateFormat('EEEE, MMM d').format(DateTime.now()),
+                                bounds.label == 'Today'
+                                    ? DateFormat('EEEE, MMM d').format(DateTime.now())
+                                    : (bounds.label == 'Tomorrow'
+                                        ? DateFormat('EEEE, MMM d').format(DateTime.now().add(const Duration(days: 1)))
+                                        : '${DateFormat('MMM d').format(bounds.start)} – ${DateFormat('MMM d, yyyy').format(bounds.end)}'),
                                 style: const TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -245,12 +296,43 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                                 ),
                               ),
                             ),
+                            if (isAppointmentsEnabled && prebookedCount > 0) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                    color: const Color(0xFF6366F1).withValues(alpha: 0.28),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.event_available_rounded, size: 12, color: Color(0xFF6366F1)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '$prebookedCount pre-booked',
+                                      style: const TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF6366F1),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 2),
-                        const Text(
-                          'Live token flow and triage management for walk-in patients',
-                          style: TextStyle(
+                        Text(
+                          isAppointmentsEnabled
+                              ? 'Live token flow, pre-booked appointments, and triage for clinical OPD'
+                              : 'Live token flow and triage management for walk-in patients',
+                          style: const TextStyle(
                             fontSize: 13,
                             color: _kSecondaryText,
                             fontFamily: AppColors.bodyFontFamily,
@@ -259,6 +341,14 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                       ],
                     ),
                   ),
+
+                  // Period Selector
+                  _QueuePeriodSelector(
+                    selectedPeriod: selectedPeriod,
+                    onPeriodChanged: (p) => ref.read(queuePeriodProvider.notifier).state = p,
+                    onPickCustomDate: _pickCustomDateRange,
+                  ),
+                  const SizedBox(width: 12),
 
                   // Call Next Button
                   ElevatedButton.icon(
@@ -281,7 +371,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -300,16 +390,39 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                       style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D422C),
+                      backgroundColor: const Color(0xFF0F172A),
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
+
+              // ===============================================================
+              // 1.5. SESSION & SOURCE FILTER CONTROLS BAR
+              // ===============================================================
+              Row(
+                children: [
+                  _SessionFilterPillBar(
+                    selectedSession: selectedSession,
+                    onSessionChanged: (s) => ref.read(queueSessionFilterProvider.notifier).state = s,
+                  ),
+                  const SizedBox(width: 12),
+                  if (isAppointmentsEnabled) ...[
+                    _SourceFilterPillBar(
+                      selectedSource: selectedSource,
+                      totalCount: totalCheckedIn,
+                      walkInCount: walkInCount,
+                      prebookedCount: prebookedCount,
+                      onSourceChanged: (src) => ref.read(queueSourceFilterProvider.notifier).state = src,
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 18),
 
               // ===============================================================
               // 2. METRICS CARDS ROW
@@ -318,8 +431,11 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                 children: [
                   Expanded(
                     child: _MetricCard(
-                      label: 'Total Today',
+                      label: 'Total (${bounds.label})',
                       value: '$totalCheckedIn',
+                      badge: isAppointmentsEnabled && prebookedCount > 0
+                          ? '$walkInCount walk-in · $prebookedCount appt'
+                          : null,
                       icon: Icons.groups_rounded,
                       color: const Color(0xFF6366F1),
                     ),
@@ -339,7 +455,11 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                   Expanded(
                     child: _MetricCard(
                       label: 'Now Serving',
-                      value: activeServing != null ? '#${activeServing.entry.tokenNumber}' : 'None',
+                      value: activeServing != null
+                          ? (activeServing.entry.tokenNumber > 0
+                              ? '#${activeServing.entry.tokenNumber}'
+                              : 'Appt')
+                          : 'None',
                       icon: Icons.hearing_rounded,
                       color: _kAccentBlue,
                     ),
@@ -347,10 +467,12 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                   const SizedBox(width: 12),
                   Expanded(
                     child: _MetricCard(
-                      label: 'Completed',
-                      value: '$completedCount',
-                      icon: Icons.task_alt_rounded,
-                      color: _kGreen,
+                      label: isAppointmentsEnabled ? 'Pre-booked Appts' : 'Completed',
+                      value: isAppointmentsEnabled ? '$prebookedCount' : '$completedCount',
+                      badge: isAppointmentsEnabled && completedCount > 0 ? '$completedCount completed' : null,
+                      badgeColor: _kGreen,
+                      icon: isAppointmentsEnabled ? Icons.event_available_rounded : Icons.task_alt_rounded,
+                      color: isAppointmentsEnabled ? const Color(0xFF8B5CF6) : _kGreen,
                     ),
                   ),
                 ],
@@ -370,30 +492,30 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                 children: [
                   Container(
                     height: 40,
-                    padding: const EdgeInsets.all(4),
+                    padding: const EdgeInsets.all(3),
                     decoration: BoxDecoration(
-                      color: _kSurface,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _kBorder),
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
                     ),
                     child: TabBar(
                       controller: _tabController,
                       isScrollable: true,
                       indicator: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
+                        borderRadius: BorderRadius.circular(7),
+                        boxShadow: const [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
+                            color: Color(0x0A0F172A),
                             blurRadius: 4,
-                            offset: const Offset(0, 1),
+                            offset: Offset(0, 1),
                           ),
                         ],
                       ),
                       labelColor: _kPrimaryText,
                       unselectedLabelColor: _kSecondaryText,
-                      labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                      labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+                      unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12.5),
                       tabs: [
                         Tab(text: 'Waiting ($waitingCount)'),
                         Tab(text: 'All Tokens ($totalCheckedIn)'),
@@ -411,21 +533,21 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                       onChanged: (val) => setState(() => _searchQuery = val.trim().toLowerCase()),
                       decoration: InputDecoration(
                         hintText: 'Search patient / token #...',
-                        hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF9CA3AF)),
-                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF6B7280)),
+                        hintStyle: const TextStyle(fontSize: 12.5, color: Color(0xFF94A3B8)),
+                        prefixIcon: const Icon(Icons.search_rounded, size: 18, color: Color(0xFF64748B)),
                         filled: true,
-                        fillColor: _kSurface,
+                        fillColor: Colors.white,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(color: _kBorder),
                         ),
                         enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(color: _kBorder),
                         ),
                         focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(10),
                           borderSide: const BorderSide(color: _kAccentBlue, width: 1.5),
                         ),
                       ),
@@ -466,7 +588,9 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
   }
 
   Widget _buildActiveSpotlight(QueueEntryWithPatient? active) {
@@ -475,9 +599,16 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
         width: double.infinity,
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
-          color: _kSurface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: _kBorder),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x040F172A),
+              blurRadius: 10,
+              offset: Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -485,7 +616,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
               width: 42,
               height: 42,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: const Color(0xFFF1F5F9),
                 shape: BoxShape.circle,
                 border: Border.all(color: _kBorder),
               ),
@@ -531,11 +662,11 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: statusColor.withValues(alpha: 0.4), width: 1.5),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3), width: 1.0),
         boxShadow: [
           BoxShadow(
-            color: statusColor.withValues(alpha: 0.10),
+            color: statusColor.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -561,11 +692,13 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
               ],
             ),
             child: Text(
-              '#${active.entry.tokenNumber}',
+              active.entry.tokenNumber > 0
+                  ? '#${active.entry.tokenNumber}'
+                  : 'Appt',
               style: const TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w800,
-                fontSize: 22,
+                fontSize: 20,
                 fontFamily: AppColors.headingFontFamily,
               ),
             ),
@@ -610,6 +743,34 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
                             fontWeight: FontWeight.w700,
                             fontSize: 10,
                           ),
+                        ),
+                      ),
+                    ],
+                    if (active.isPrebooked) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6366F1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.event_available_rounded, size: 12, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              active.appointmentTime != null
+                                  ? 'APPOINTMENT • ${DateFormat('hh:mm a').format(active.appointmentTime!)}'
+                                  : 'PRE-BOOKED APPOINTMENT',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 10,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -745,6 +906,10 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
           onRequeue = () => _requeueToken(entry.id, entry.tokenNumber);
         }
 
+        final isPrebooked = item.isPrebooked;
+        final appointmentTime = item.appointmentTime;
+        final isNotYetCheckedIn = isPrebooked && entry.tokenNumber == 0;
+
         return QueueTokenCard(
           tokenNumber: entry.tokenNumber,
           displayName: item.displayName,
@@ -752,6 +917,9 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen>
           status: entry.status,
           priority: entry.priority,
           checkedInAt: entry.checkedInAt,
+          isPrebooked: isPrebooked,
+          appointmentTime: appointmentTime,
+          onCheckIn: isNotYetCheckedIn ? () => _checkInPrebooked(item) : null,
           onStartConsultation: onStart,
           onComplete: onComplete,
           onSkip: onSkip,
@@ -785,9 +953,16 @@ class _MetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: _kSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _kBorder),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x040F172A),
+            blurRadius: 10,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -849,6 +1024,248 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// QUEUE PERIOD SELECTOR (Today, Tomorrow, This Week, Custom)
+// =============================================================================
+
+class _QueuePeriodSelector extends StatelessWidget {
+  final QueuePeriod selectedPeriod;
+  final ValueChanged<QueuePeriod> onPeriodChanged;
+  final VoidCallback onPickCustomDate;
+
+  const _QueuePeriodSelector({
+    required this.selectedPeriod,
+    required this.onPeriodChanged,
+    required this.onPickCustomDate,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _buildItem(label: 'Today', period: QueuePeriod.today),
+          _buildItem(label: 'Tomorrow', period: QueuePeriod.tomorrow),
+          _buildItem(label: 'This Week', period: QueuePeriod.thisWeek),
+          _buildItem(
+            label: 'Custom',
+            period: QueuePeriod.custom,
+            icon: Icons.date_range_rounded,
+            onTap: onPickCustomDate,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItem({
+    required String label,
+    required QueuePeriod period,
+    IconData? icon,
+    VoidCallback? onTap,
+  }) {
+    final isSelected = selectedPeriod == period;
+    return InkWell(
+      onTap: onTap ?? () => onPeriodChanged(period),
+      borderRadius: BorderRadius.circular(7),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: isSelected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x0A0F172A),
+                    blurRadius: 4,
+                    offset: Offset(0, 1),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(
+                icon,
+                size: 14,
+                color: isSelected ? _kAccentBlue : _kSecondaryText,
+              ),
+              const SizedBox(width: 5),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? _kAccentBlue : _kSecondaryText,
+                fontFamily: AppColors.bodyFontFamily,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// SESSION FILTER PILL BAR (All Day, Morning, Afternoon, Evening)
+// =============================================================================
+
+class _SessionFilterPillBar extends StatelessWidget {
+  final QueueSessionFilter selectedSession;
+  final ValueChanged<QueueSessionFilter> onSessionChanged;
+
+  const _SessionFilterPillBar({
+    required this.selectedSession,
+    required this.onSessionChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.schedule_rounded, size: 15, color: _kSecondaryText),
+        const SizedBox(width: 8),
+        _pill('All Day', QueueSessionFilter.all),
+        const SizedBox(width: 6),
+        _pill('Morning (8-12)', QueueSessionFilter.morning),
+        const SizedBox(width: 6),
+        _pill('Afternoon (12-5)', QueueSessionFilter.afternoon),
+        const SizedBox(width: 6),
+        _pill('Evening (5-9)', QueueSessionFilter.evening),
+      ],
+    );
+  }
+
+  Widget _pill(String label, QueueSessionFilter session) {
+    final isSelected = selectedSession == session;
+    return InkWell(
+      onTap: () => onSessionChanged(session),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: isSelected ? _kAccentBlue.withValues(alpha: 0.12) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? _kAccentBlue.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? _kAccentBlue : _kSecondaryText,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// SOURCE FILTER PILL BAR (All, Walk-ins Only, Pre-booked Only)
+// =============================================================================
+
+class _SourceFilterPillBar extends StatelessWidget {
+  final QueueSourceFilter selectedSource;
+  final ValueChanged<QueueSourceFilter> onSourceChanged;
+  final int? totalCount;
+  final int? walkInCount;
+  final int? prebookedCount;
+
+  const _SourceFilterPillBar({
+    required this.selectedSource,
+    required this.onSourceChanged,
+    this.totalCount,
+    this.walkInCount,
+    this.prebookedCount,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.tune_rounded, size: 15, color: _kSecondaryText),
+        const SizedBox(width: 8),
+        _pill(
+          totalCount != null ? 'All Patients ($totalCount)' : 'All Patients',
+          QueueSourceFilter.all,
+        ),
+        const SizedBox(width: 6),
+        _pill(
+          walkInCount != null ? 'Walk-ins ($walkInCount)' : 'Walk-ins',
+          QueueSourceFilter.walkInOnly,
+        ),
+        const SizedBox(width: 6),
+        _pill(
+          prebookedCount != null ? 'Pre-booked ($prebookedCount)' : 'Pre-booked',
+          QueueSourceFilter.prebookedOnly,
+          icon: Icons.event_available_rounded,
+        ),
+      ],
+    );
+  }
+
+  Widget _pill(String label, QueueSourceFilter source, {IconData? icon}) {
+    final isSelected = selectedSource == source;
+    final activeColor = source == QueueSourceFilter.prebookedOnly
+        ? const Color(0xFF6366F1)
+        : _kAccentBlue;
+
+    return InkWell(
+      onTap: () => onSourceChanged(source),
+      borderRadius: BorderRadius.circular(20),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+        decoration: BoxDecoration(
+          color: isSelected ? activeColor.withValues(alpha: 0.12) : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isSelected ? activeColor.withValues(alpha: 0.5) : const Color(0xFFE2E8F0),
+            width: isSelected ? 1.2 : 0.8,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 12, color: isSelected ? activeColor : _kSecondaryText),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? activeColor : _kSecondaryText,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

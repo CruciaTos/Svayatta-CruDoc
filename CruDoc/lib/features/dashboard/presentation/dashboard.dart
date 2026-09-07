@@ -4,11 +4,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
-import 'package:doctor_management_app/features/dashboard/presentation/web_dashboard_view.dart';
-import 'package:doctor_management_app/features/dashboard/widgets/todays_visits_card.dart';
-import 'package:doctor_management_app/features/dashboard/widgets/quick_actions_row.dart';
-import 'package:doctor_management_app/features/dashboard/widgets/recent_activity_card.dart';
-import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
+import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
+import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
+import 'package:doctor_management_app/features/dashboard/data/models/activity_item.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/recent_activity_provider.dart';
+import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
@@ -17,6 +20,7 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 import 'package:doctor_management_app/features/dental/presentation/widgets/dental_quick_actions_row.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/web_dashboard_view.dart';
 
 // ---------- Data Models ----------
 class BarData {
@@ -849,4 +853,677 @@ class _RevenueSnapshotCard extends StatelessWidget {
     );
   }
 }
+
+// =============================================================================
+// INLINED DASHBOARD WIDGETS
+// =============================================================================
+
+class TodaysVisitsCard extends ConsumerWidget {
+  const TodaysVisitsCard({super.key, this.onViewAll});
+
+  final VoidCallback? onViewAll;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final visitsAsync = ref.watch(todaysVisitsWithPatientsProvider);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.06),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: visitsAsync.when(
+        loading: () => _CardShell(
+          count: null,
+          onViewAll: onViewAll,
+          child: const Padding(
+            padding: EdgeInsets.symmetric(vertical: 20),
+            child: Center(
+              child: SizedBox(
+                height: 22,
+                width: 22,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.slateBlue,
+                ),
+              ),
+            ),
+          ),
+        ),
+        error: (error, stack) => _CardShell(
+          count: null,
+          onViewAll: onViewAll,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'Could not load today\'s visits.',
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
+            ),
+          ),
+        ),
+        data: (visits) {
+          final resolved = visits.where((vw) => vw.patient != null).toList();
+
+          return _CardShell(
+            count: resolved.length,
+            onViewAll: onViewAll,
+            child: resolved.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'No visits scheduled for today.',
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (var i = 0; i < resolved.length; i++) ...[
+                        _VisitRow(
+                          visitWithPatient: resolved[i],
+                          onTap: () =>
+                              showSessionDetailsSheet(context, resolved[i]),
+                        ),
+                        if (i != resolved.length - 1)
+                          const Divider(
+                            height: 24,
+                            color: Color(0xFFDDE6F0),
+                          ),
+                      ],
+                    ],
+                  ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _CardShell extends StatelessWidget {
+  final int? count;
+  final VoidCallback? onViewAll;
+  final Widget child;
+
+  const _CardShell({
+    required this.count,
+    required this.onViewAll,
+    required this.child,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              "Today's Visits",
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textPrimary,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            GestureDetector(
+              onTap: onViewAll,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.chartBarLight,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Text(
+                  count == null ? '—' : '$count scheduled',
+                  style: const TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        child,
+      ],
+    );
+  }
+}
+
+class _VisitRow extends StatelessWidget {
+  final VisitWithPatient visitWithPatient;
+  final VoidCallback onTap;
+
+  const _VisitRow({required this.visitWithPatient, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final visit = visitWithPatient.visit;
+    final patient = visitWithPatient.patient!;
+    final isHome = visit.visitType == vmodel.VisitType.home;
+    final timeLabel = DateFormat('h:mm a').format(visit.scheduledStart);
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 7),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppColors.cardSurfaceAlt,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isHome ? Icons.home_outlined : Icons.local_hospital_outlined,
+                color: AppColors.beige,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient.fullName,
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    isHome ? 'Home visitation' : 'Clinic appointment',
+                    style: const TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      color: AppColors.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              timeLabel,
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.silver,
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class QuickActionsRow extends StatelessWidget {
+  const QuickActionsRow({
+    super.key,
+    this.onNewVisit,
+    this.onAddInventoryItem,
+    this.onAddPatient,
+    this.onLogExpense,
+    this.onAppointments,
+  });
+
+  final VoidCallback? onNewVisit;
+  final VoidCallback? onAddInventoryItem;
+  final VoidCallback? onAddPatient;
+  final VoidCallback? onLogExpense;
+  final VoidCallback? onAppointments;
+
+  static const List<_QuickAction> _actions = [
+    _QuickAction(icon: Icons.calendar_today_outlined, label: 'New Visit'),
+    _QuickAction(icon: Icons.inventory_2_outlined, label: 'Inventory'),
+    _QuickAction(icon: Icons.person_add, label: 'Patient'),
+    _QuickAction(icon: Icons.event, label: 'Appointments'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final itemWidth = (constraints.maxWidth - 36) / 4;
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: _actions
+              .map(
+                (action) => SizedBox(
+                  width: itemWidth.clamp(74.0, 120.0),
+                  height: 80,
+                  child: _QuickActionButton(
+                    action: action,
+                    onTap: _tapHandlerFor(action.label),
+                  ),
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
+  }
+
+  VoidCallback? _tapHandlerFor(String label) {
+    switch (label) {
+      case 'New Visit':
+        return onNewVisit;
+      case 'Inventory':
+        return onAddInventoryItem;
+      case 'Patient':
+        return onAddPatient;
+      case 'Appointments':
+      case 'Logs':
+        return onAppointments ?? onLogExpense;
+    }
+    return null;
+  }
+}
+
+class _QuickAction {
+  final IconData icon;
+  final String label;
+  const _QuickAction({required this.icon, required this.label});
+}
+
+class _QuickActionButton extends StatelessWidget {
+  final _QuickAction action;
+  final VoidCallback? onTap;
+
+  const _QuickActionButton({required this.action, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        height: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          color: AppColors.cardSurface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.divider),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
+              offset: const Offset(0, 8),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.chartBarLight,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(action.icon, color: Colors.white, size: 18),
+            ),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                action.label,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: AppColors.textPrimary,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class RecentActivityCard extends ConsumerStatefulWidget {
+  const RecentActivityCard({super.key});
+
+  @override
+  ConsumerState<RecentActivityCard> createState() => _RecentActivityCardState();
+}
+
+class _RecentActivityCardState extends ConsumerState<RecentActivityCard> {
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activityAsync = ref.watch(recentActivityProvider);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardSurface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppColors.divider.withValues(alpha: 0.8),
+          width: 1,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    decoration: BoxDecoration(
+                      color: AppColors.chartBarLight.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.history_rounded,
+                      size: 16,
+                      color: AppColors.chartBarLight,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Recent Activity',
+                    style: TextStyle(
+                      fontFamily: AppColors.headingFontFamily,
+                      color: AppColors.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+              activityAsync.whenOrNull(
+                data: (items) {
+                  if (items.isNotEmpty) {
+                    return Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.chartBarLight.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${items.length} updates',
+                        style: const TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          color: AppColors.chartBarLight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ) ??
+                  const SizedBox.shrink(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          activityAsync.when(
+            loading: () => const SizedBox(
+              height: 120,
+              child: Center(
+                child: SizedBox(
+                  height: 22,
+                  width: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.chartBarLight,
+                  ),
+                ),
+              ),
+            ),
+            error: (error, stack) => const SizedBox(
+              height: 70,
+              child: Center(
+                child: Text(
+                  'Could not load recent activity.',
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: AppColors.textSecondary,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ),
+            ),
+            data: (items) {
+              if (items.isEmpty) {
+                return const SizedBox(
+                  height: 80,
+                  child: Center(
+                    child: Text(
+                      'No recent activity yet.',
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
+                        color: AppColors.textSecondary,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                  ),
+                );
+              }
+
+              return SizedBox(
+                height: 175,
+                child: Scrollbar(
+                  controller: _scrollController,
+                  thumbVisibility: false,
+                  radius: const Radius.circular(4),
+                  thickness: 3.5,
+                  child: ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) => const Divider(
+                      height: 14,
+                      thickness: 0.7,
+                      color: Color(0xFFE8EEF5),
+                    ),
+                    itemBuilder: (context, index) {
+                      return _ActivityRow(item: items[index]);
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActivityRow extends StatelessWidget {
+  final ActivityItem item;
+  const _ActivityRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(5.5),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: AppColors.divider.withValues(alpha: 0.6),
+                width: 1,
+              ),
+            ),
+            child: Icon(
+              item.icon,
+              color: AppColors.slateBlue,
+              size: 14,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              item.text,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: AppColors.textPrimary,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            item.relativeTime,
+            style: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              color: AppColors.textSecondary,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class LowStockBanner extends ConsumerWidget {
+  const LowStockBanner({super.key, this.onTap});
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final medicinesAsync = ref.watch(medicinesStreamProvider);
+    final items = medicinesAsync.value ?? [];
+
+    final lowStockCount = items.where((item) => item.isLowStock).length;
+    final now = DateTime.now();
+    final expiredCount = items
+        .where((item) => item.expiryDate != null && item.expiryDate!.isBefore(now))
+        .length;
+    final expSoonCount = items
+        .where((item) =>
+            item.isExpiringSoon &&
+            !(item.expiryDate != null && item.expiryDate!.isBefore(now)))
+        .length;
+
+    if (lowStockCount == 0 && expiredCount == 0 && expSoonCount == 0) {
+      return const SizedBox.shrink();
+    }
+
+    final alerts = <String>[];
+    if (lowStockCount > 0) alerts.add('$lowStockCount low stock');
+    if (expiredCount > 0) alerts.add('$expiredCount expired');
+    if (expSoonCount > 0) alerts.add('$expSoonCount expiring soon');
+
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFFFBEB),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFFDE68A)),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Color(0xFFD97706),
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Inventory Notice: ${alerts.join(", ")}',
+                style: const TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: Color(0xFF92400E),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const Icon(
+              Icons.chevron_right,
+              color: Color(0xFFD97706),
+              size: 18,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 

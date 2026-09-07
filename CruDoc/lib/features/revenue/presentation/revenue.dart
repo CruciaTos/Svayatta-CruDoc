@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/appointments/data/repo/visits_rep
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/presentation/invoices_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/revenue/widgets/expense_tile.dart';
 import 'package:intl/intl.dart';
@@ -86,6 +87,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
   // NEW: Unified modal bottom sheet for adding transactions
   // ────────────────────────────────────────────────────────────
   Future<void> _showAddTransactionSheet() {
+    if (MediaQuery.of(context).size.width >= 800) {
+      return showDesktopAddTransactionDialog(context, repository: _repository);
+    }
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -105,6 +109,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
   }
 
   Future<void> _showAddPendingSheet() {
+    if (MediaQuery.of(context).size.width >= 800) {
+      return showDesktopAddTransactionDialog(
+        context,
+        isPending: true,
+        repository: _repository,
+      );
+    }
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

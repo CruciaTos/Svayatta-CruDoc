@@ -9,7 +9,6 @@ import 'package:doctor_management_app/features/inventory/data/models/medicine_mo
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
-import 'package:doctor_management_app/features/inventory/presentation/add_edit_medicine_form.dart';
 import 'package:doctor_management_app/features/inventory/presentation/desktop_add_edit_medicine_dialog.dart';
 import 'package:doctor_management_app/features/inventory/presentation/medicine_detail_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/stock_adjustment_dialog.dart';
@@ -19,31 +18,31 @@ import 'package:doctor_management_app/features/inventory/presentation/stock_adju
 // =============================================================================
 
 /// Primary dark text / button fill (charcoal).
-const _clrPrimary = Color(0xFF1F2937);
+const _clrPrimary = Color(0xFF0F172A);
 
 /// Near-black used on card body text.
-const _clrTextDark = Color(0xFF1A1A1A);
+const _clrTextDark = Color(0xFF0F172A);
 
 /// Medium grey for subtext and secondary labels.
-const _clrTextMedium = Color(0xFF6B7280);
+const _clrTextMedium = Color(0xFF475569);
 
 /// Darker grey for icons inside controls.
-const _clrIcon = Color(0xFF4B5563);
+const _clrIcon = Color(0xFF475569);
 
 /// Slate used on the clear-search icon.
 const _clrSlate = Color(0xFF64748B);
 
 /// Dark muted grey for vendor chip labels.
-const _clrTextSubtle = Color(0xFF374151);
+const _clrTextSubtle = Color(0xFF334155);
 
-/// Positive / in-stock green.
-const _clrGreen = Color(0xFF00C853);
+/// Positive / in-stock emerald.
+const _clrGreen = Color(0xFF10B981);
 
-/// Negative / loss red.
-const _clrRed = Color(0xFFDC2626);
+/// Negative / loss rose.
+const _clrRed = Color(0xFFF43F5E);
 
 /// Amber used for paused / low-stock status dot.
-const _clrAmber = Color(0xFFFFA000);
+const _clrAmber = Color(0xFFF59E0B);
 
 /// Blue used for syncing banner text, chart bars, and the active vendor icon.
 const _clrBlue = Color(0xFF2563EB);
@@ -52,19 +51,19 @@ const _clrBlue = Color(0xFF2563EB);
 const _clrBlueTint = Color(0xFFEFF6FF);
 
 /// Very light grey for alert item rows and vendor medicine chips.
-const _clrSurfaceLight = Color(0xFFF9FAFB);
+const _clrSurfaceLight = Color(0xFFF8FAFC);
 
 /// Slightly darker light grey for the alerts-panel icon container.
-const _clrSurfaceMid = Color(0xFFF3F4F6);
+const _clrSurfaceMid = Color(0xFFF1F5F9);
 
 /// Lavender tint for alert-action button background.
 const _clrPurpleTint = Color(0xFFEDE7F6);
 
 /// Purple used on alert-action button text.
-const _clrPurple = Color(0xFF673AB7);
+const _clrPurple = Color(0xFF6366F1);
 
 /// Border used on the filter-tab strip.
-const _clrFilterBorder = Color.fromARGB(255, 116, 116, 116);
+const _clrFilterBorder = Color(0xFFCBD5E1);
 
 // =============================================================================
 
@@ -149,11 +148,11 @@ class DesktopInventoryScreen extends ConsumerWidget {
               filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F9FF), // Light blue background
+                  color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color.fromARGB(255, 150, 150, 150),
-                    width: 0.25,
+                    color: const Color(0xFFCBD5E1),
+                    width: 0.5,
                   ),
                 ),
                 padding: const EdgeInsets.all(20),
@@ -3884,7 +3883,14 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x060F172A),
+                  blurRadius: 16,
+                  offset: Offset(0, 4),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -11,7 +11,6 @@ import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
 import 'package:doctor_management_app/features/shell/data/desktop_shell_preferences.dart';
 import 'package:doctor_management_app/features/chatbot/widgets/draggable_floating_chatbot_button.dart';
-import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/desktop_dashboard_screen.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_patient_records_screen.dart';
@@ -62,9 +61,9 @@ class _DesktopShellState extends State<DesktopShell> {
     _restorePreferences();
     // Set the animated background colors to light blue → white → light blue.
     GrainientBackground.colorNotifier.value = const [
-      Color.fromARGB(255, 183, 233, 255), // light blue top
-      Color.fromARGB(255, 181, 249, 255), // white middle
-      Color.fromARGB(255, 205, 239, 255), // light blue bottom
+      Color.fromARGB(255, 124, 214, 255), // light blue top
+      Color.fromARGB(255, 91, 241, 255), // white middle
+      Color.fromARGB(255, 124, 214, 255), // light blue bottom
     ];
   }
 
@@ -476,15 +475,6 @@ class _ExpandedLayout extends StatelessWidget {
                 _buildSectionHeader('GENERAL'),
                 const SizedBox(height: 8),
                 _SidebarItem(
-                  icon: Icons.person_outline,
-                  label: 'Profile',
-                  isSelected: false,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  ),
-                ),
-                _SidebarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',
                   isSelected: false,
@@ -681,8 +671,9 @@ class _CollapsedLayout extends StatelessWidget {
                   stream: DoctorProfileHelper.watchDoctorProfile(),
                   builder: (context, snapshot) {
                     final profileData = snapshot.data;
-                    final rawSpecialty =
-                        DoctorProfileHelper.formatSpecialty(profileData);
+                    final rawSpecialty = DoctorProfileHelper.formatSpecialty(
+                      profileData,
+                    );
                     final spec = DoctorSpecialty.fromString(rawSpecialty);
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 8.0),
@@ -717,15 +708,6 @@ class _CollapsedLayout extends StatelessWidget {
                 const SizedBox(height: 6),
 
                 // General items (icons only)
-                _CollapsedSidebarItem(
-                  icon: Icons.person_outline,
-                  label: 'Profile',
-                  isSelected: false,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const ProfileScreen()),
-                  ),
-                ),
                 _CollapsedSidebarItem(
                   icon: Icons.settings_outlined,
                   label: 'Settings',

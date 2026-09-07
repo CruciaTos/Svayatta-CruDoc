@@ -50,6 +50,7 @@ class _DraggableFloatingChatbotButtonState
 
     final clampedX = _position!.dx.clamp(minX, maxX);
     final clampedY = _position!.dy.clamp(minY, maxY);
+
     final effectivePosition = Offset(clampedX, clampedY);
 
     return Positioned(
@@ -109,9 +110,9 @@ class _DraggableFloatingChatbotButtonState
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF1E78FF).withValues(
-                    alpha: _isDragging ? 0.6 : 0.4,
-                  ),
+                  color: const Color(
+                    0xFF1E78FF,
+                  ).withValues(alpha: _isDragging ? 0.6 : 0.4),
                   blurRadius: _isDragging ? 20 : 12,
                   offset: Offset(0, _isDragging ? 8 : 4),
                 ),

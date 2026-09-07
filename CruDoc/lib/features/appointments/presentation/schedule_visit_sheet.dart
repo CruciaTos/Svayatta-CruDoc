@@ -8,14 +8,23 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
+export 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
 
-/// Opens a bottom sheet to schedule a visit for [patient].
+/// Opens a bottom sheet (or desktop dialog on desktop viewports) to schedule a visit for [patient].
 /// Returns `true` when a visit was saved successfully.
 Future<bool> showScheduleVisitSheet(
   BuildContext context, {
   required Patient patient,
   required VisitRepository visitRepository,
 }) {
+  if (MediaQuery.of(context).size.width >= 800) {
+    return showDesktopScheduleVisitDialog(
+      context,
+      patient: patient,
+      visitRepository: visitRepository,
+    );
+  }
   return showModalBottomSheet<bool>(
     context: context,
     isScrollControlled: true,

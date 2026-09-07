@@ -206,11 +206,15 @@ class _DesktopPatientRecordsScreenState
   }
 
   void _openAddPatientSheet() {
-    showAddPatientSheet(context, repository: _repository);
+    showDesktopAddEditPatientDialog(context, repository: _repository);
   }
 
   void _openEditPatientSheet(Patient patient) {
-    showEditPatientSheet(context, patient: patient, repository: _repository);
+    showDesktopAddEditPatientDialog(
+      context,
+      patient: patient,
+      repository: _repository,
+    );
   }
 
   List<Patient> _applySortAndFilter(List<Patient> patients) {
@@ -343,11 +347,11 @@ class _DesktopPatientRecordsScreenState
                   filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
                   child: Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF0F9FF), // Light blue background
+                      color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: const Color.fromARGB(255, 150, 150, 150),
-                        width: 0.25,
+                        color: const Color(0xFFCBD5E1),
+                        width: 0.5,
                       ),
                     ),
                     padding: const EdgeInsets.all(20),
@@ -735,12 +739,12 @@ class _ChartSection extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x060F172A),
+            blurRadius: 16,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1018,12 +1022,12 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x060F172A),
+            blurRadius: 16,
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -1608,13 +1612,13 @@ class _PatientTableState extends State<_PatientTable> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Color(0x060F172A),
+            blurRadius: 16,
+            offset: Offset(0, 4),
           ),
         ],
       ),

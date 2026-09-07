@@ -10,6 +10,8 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
+export 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 
 class InvoicesScreen extends StatefulWidget {
   const InvoicesScreen({super.key});
@@ -94,6 +96,14 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   void _openCreateInvoiceSheet() {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    if (isDesktop) {
+      showDesktopCreateInvoiceDialog(
+        context,
+        repository: _repository,
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -118,6 +128,55 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   }
 
   void _showInvoiceDetails(InvoiceModel invoice) {
+    final isDesktop = MediaQuery.of(context).size.width >= 800;
+    if (isDesktop) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: true,
+        builder: (ctx) => Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 32,
+                    offset: Offset(0, 16),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: SingleChildScrollView(
+                  child: _InvoiceDetailsSheet(
+                    invoice: invoice,
+                    onStatusChanged: (newStatus) async {
+                      if (invoice.doctorId != 'sample') {
+                        await _repository.updateInvoiceStatus(invoice.id, newStatus);
+                      }
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                    onDelete: () async {
+                      if (invoice.doctorId != 'sample') {
+                        await _repository.deleteInvoice(invoice.id);
+                      }
+                      if (ctx.mounted) Navigator.pop(ctx);
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      return;
+    }
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppColors.cardSurface,

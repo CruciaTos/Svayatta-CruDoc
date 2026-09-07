@@ -17,19 +17,18 @@ import 'package:doctor_management_app/features/patients/data/providers/patient_p
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 
 // ---------- Color Palette (matches Desktop Shell & Records Theme) ----------
-const Color _kTextPrimary = Color(0xFF1F2937);
-const Color _kTextSecondary = Color(0xFF6B7280);
-const Color _kTextMuted = Color(0xFF9CA3AF);
+const Color _kTextPrimary = Color(0xFF0F172A);
+const Color _kTextSecondary = Color(0xFF475569);
+const Color _kTextMuted = Color(0xFF94A3B8);
 const Color _kBorder = Color(0xFFE2E8F0);
-const Color _kBorderDark = Color.fromARGB(255, 150, 150, 150);
+const Color _kBorderDark = Color(0xFFCBD5E1);
 const Color _kAccentBlue = Color(0xFF2563EB);
 const Color _kAccentBlueBg = Color(0xFFEFF6FF);
-const Color _kSuccess = Color(0xFF00C853);
-const Color _kSuccessBg = Color(0xFFE8F5E9);
-const Color _kAmber = Color(0xFFFFA000);
-const Color _kAmberBg = Color(0xFFFFF8E1);
-const Color _kRed = Color(0xFFDC2626);
-const Color _kRedBg = Color(0xFFFEF2F2);
+const Color _kSuccess = Color(0xFF10B981);
+const Color _kSuccessBg = Color(0xFFECFDF5);
+const Color _kAmber = Color(0xFFF59E0B);
+const Color _kAmberBg = Color(0xFFFFFBEB);
+const Color _kRed = Color(0xFFF43F5E);
 const Color _kCardBg = Colors.white;
 const Color _kFrostedBg = Color(0xFFF0F9FF);
 
@@ -286,11 +285,11 @@ class _PatientDetailsBodyState extends ConsumerState<PatientDetailsBody> {
           filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
           child: Container(
             decoration: BoxDecoration(
-              color: _kFrostedBg,
+              color: _kFrostedBg.withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _kBorderDark,
-                width: 0.25,
+                width: 0.5,
               ),
             ),
             padding: const EdgeInsets.all(14),

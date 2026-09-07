@@ -8,7 +8,6 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
 import 'package:doctor_management_app/core/services/field_cipher.dart';
-import 'package:doctor_management_app/features/dashboard/widgets/low_stock_banner.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_list_screen.dart';
@@ -20,7 +19,7 @@ import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/visit_details.dart';
-import 'package:doctor_management_app/features/auth/presentation/auth_screen.dart';
+import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 
@@ -1996,6 +1995,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   }
 
   void _showCreateInvoiceDialog(BuildContext context) {
+    showDesktopCreateInvoiceDialog(context);
+    return;
     final patientNameCtrl = TextEditingController();
     final clinicalNotesCtrl = TextEditingController();
     final treatmentNameCtrl = TextEditingController();
@@ -3180,3 +3181,90 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     );
   }
 }
+
+// =============================================================================
+// LOW STOCK BANNER
+// =============================================================================
+
+class LowStockBanner extends ConsumerStatefulWidget {
+  const LowStockBanner({super.key, this.onTap});
+
+  final VoidCallback? onTap;
+
+  @override
+  ConsumerState<LowStockBanner> createState() => _LowStockBannerState();
+}
+
+class _LowStockBannerState extends ConsumerState<LowStockBanner> {
+  bool _dismissed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_dismissed) return const SizedBox.shrink();
+
+    final lowStockAsync = ref.watch(lowStockMedicinesProvider);
+    final expiringAsync = ref.watch(expiringMedicinesProvider);
+
+    final lowStockCount = lowStockAsync.maybeWhen(
+      data: (data) => data.length,
+      orElse: () => 0,
+    );
+    final expiringCount = expiringAsync.maybeWhen(
+      data: (data) => data.length,
+      orElse: () => 0,
+    );
+    final total = lowStockCount + expiringCount;
+
+    if (total == 0) return const SizedBox.shrink();
+
+    final parts = <String>[
+      if (lowStockCount > 0)
+        '$lowStockCount medicine${lowStockCount == 1 ? '' : 's'} low on stock',
+      if (expiringCount > 0)
+        '$expiringCount expiring soon',
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(20),
+          onTap: widget.onTap,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.cardSurface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.warning_amber_rounded,
+                  color: Colors.redAccent,
+                  size: 22,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    parts.join(' • '),
+                    style: AppColors.bodyMedium.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  onTap: () => setState(() => _dismissed = true),
+                  child: const Icon(Icons.close, size: 18, color: AppColors.silver),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+

@@ -114,15 +114,50 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
     }
   }
 
+  Future<void> _checkInPrebooked(QueueEntryWithPatient item) async {
+    try {
+      final repo = ref.read(queueRepositoryProvider);
+      if (item.linkedVisit != null) {
+        final created = await repo.checkInVisit(item.linkedVisit!);
+        _showFeedback('Appointment for ${item.displayName} checked into queue as Token #${created.tokenNumber}!');
+      }
+    } catch (e) {
+      _showFeedback('Could not check in appointment: $e', isError: true);
+    }
+  }
+
+  Future<void> _pickCustomDateRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year - 1),
+      lastDate: DateTime(now.year + 2),
+      initialDateRange: ref.read(queueCustomDateRangeProvider) ??
+          DateTimeRange(
+            start: DateTime(now.year, now.month, now.day),
+            end: DateTime(now.year, now.month, now.day),
+          ),
+    );
+    if (picked != null) {
+      ref.read(queueCustomDateRangeProvider.notifier).state = picked;
+      ref.read(queuePeriodProvider.notifier).state = QueuePeriod.custom;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final queueAsync = ref.watch(todaysQueueWithPatientsProvider);
     final activeServing = ref.watch(activeQueueEntryProvider);
     final waitingTokens = ref.watch(waitingQueueProvider);
     final resolvedTokens = ref.watch(resolvedQueueProvider);
+    final selectedPeriod = ref.watch(queuePeriodProvider);
+    final selectedSession = ref.watch(queueSessionFilterProvider);
+    final bounds = ref.watch(activeQueueDateBoundsProvider);
+    final isAppointmentsEnabled = ref.watch(isAppointmentsFeatureEnabledProvider);
 
     final allTokens = queueAsync.value ?? const <QueueEntryWithPatient>[];
     final waitingCount = waitingTokens.length;
+    final prebookedCount = allTokens.where((t) => t.isPrebooked).length;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -150,12 +185,27 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        DateFormat('EEEE, MMM d').format(DateTime.now()),
+                        bounds.label == 'Today'
+                            ? DateFormat('EEEE, MMM d').format(DateTime.now())
+                            : (bounds.label == 'Tomorrow'
+                                ? DateFormat('EEEE, MMM d').format(DateTime.now().add(const Duration(days: 1)))
+                                : '${DateFormat('MMM d').format(bounds.start)} – ${DateFormat('MMM d').format(bounds.end)}'),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.slateBlue,
                         ),
                       ),
+                      if (isAppointmentsEnabled && prebookedCount > 0) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          '$prebookedCount pre-booked appointment${prebookedCount > 1 ? 's' : ''}',
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF6366F1),
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                   Row(
@@ -192,6 +242,40 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                     ],
                   ),
                 ],
+              ),
+              const SizedBox(height: 12),
+
+              // Period Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _periodChip('Today', QueuePeriod.today, selectedPeriod),
+                    const SizedBox(width: 6),
+                    _periodChip('Tomorrow', QueuePeriod.tomorrow, selectedPeriod),
+                    const SizedBox(width: 6),
+                    _periodChip('This Week', QueuePeriod.thisWeek, selectedPeriod),
+                    const SizedBox(width: 6),
+                    _periodChip('Custom Range', QueuePeriod.custom, selectedPeriod, onTap: _pickCustomDateRange),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+
+              // Session Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _sessionChip('All Day', QueueSessionFilter.all, selectedSession),
+                    const SizedBox(width: 6),
+                    _sessionChip('Morning', QueueSessionFilter.morning, selectedSession),
+                    const SizedBox(width: 6),
+                    _sessionChip('Afternoon', QueueSessionFilter.afternoon, selectedSession),
+                    const SizedBox(width: 6),
+                    _sessionChip('Evening', QueueSessionFilter.evening, selectedSession),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
 
@@ -289,8 +373,37 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                 ),
               ),
               const Spacer(),
+              if (active.isPrebooked) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.event_available_rounded, size: 11, color: Color(0xFF6366F1)),
+                      const SizedBox(width: 3),
+                      Text(
+                        active.appointmentTime != null
+                            ? DateFormat('hh:mm a').format(active.appointmentTime!)
+                            : 'Appt',
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF6366F1),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+              ],
               Text(
-                'Token #${active.entry.tokenNumber}',
+                active.entry.tokenNumber > 0
+                    ? 'Token #${active.entry.tokenNumber}'
+                    : 'Pre-booked',
                 style: TextStyle(
                   fontWeight: FontWeight.w800,
                   fontSize: 16,
@@ -413,6 +526,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
           onRequeue = () => _requeueToken(entry.id, entry.tokenNumber);
         }
 
+        final isPrebooked = item.isPrebooked;
+        final appointmentTime = item.appointmentTime;
+        final isNotYetCheckedIn = isPrebooked && entry.tokenNumber == 0;
+
         return QueueTokenCard(
           tokenNumber: entry.tokenNumber,
           displayName: item.displayName,
@@ -420,6 +537,9 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
           status: entry.status,
           priority: entry.priority,
           checkedInAt: entry.checkedInAt,
+          isPrebooked: isPrebooked,
+          appointmentTime: appointmentTime,
+          onCheckIn: isNotYetCheckedIn ? () => _checkInPrebooked(item) : null,
           onStartConsultation: onStart,
           onComplete: onComplete,
           onSkip: onSkip,
@@ -427,6 +547,58 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
           onCancel: onCancel,
         );
       },
+    );
+  }
+
+  Widget _periodChip(String label, QueuePeriod period, QueuePeriod selected, {VoidCallback? onTap}) {
+    final isSelected = selected == period;
+    return InkWell(
+      onTap: onTap ?? () => ref.read(queuePeriodProvider.notifier).state = period,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accentBlue : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.accentBlue : AppColors.divider,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? Colors.white : AppColors.slateBlue,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sessionChip(String label, QueueSessionFilter session, QueueSessionFilter selected) {
+    final isSelected = selected == session;
+    return InkWell(
+      onTap: () => ref.read(queueSessionFilterProvider.notifier).state = session,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.accentBlue.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppColors.accentBlue : AppColors.divider.withValues(alpha: 0.6),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            color: isSelected ? AppColors.accentBlue : AppColors.slateBlue,
+          ),
+        ),
+      ),
     );
   }
 }

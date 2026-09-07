@@ -34,17 +34,17 @@ import 'package:doctor_management_app/features/scribe/data/models/consultation_n
 import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 
 // ---------- Palette (matches the rest of the desktop UI) ----------
-const Color _kTextPrimary   = Color(0xFF1F2937);
-const Color _kTextSecondary = Color(0xFF6B7280);
+const Color _kTextPrimary   = Color(0xFF0F172A);
+const Color _kTextSecondary = Color(0xFF64748B);
 const Color _kBorder        = Color(0xFFE2E8F0);
-const Color _kAccentBlue    = Color(0xFF2563EB);
-const Color _kAccentBlueBg  = Color(0xFFEFF6FF);
-const Color _kRed           = Color(0xFFDC2626);
-const Color _kRedBg         = Color(0xFFFEF2F2);
-const Color _kGreen         = Color(0xFF16A34A);
-const Color _kGreenBg       = Color(0xFFF0FDF4);
+const Color _kAccentBlue    = Color(0xFF0284C7);
+const Color _kAccentBlueBg  = Color(0xFFF0F9FF);
+const Color _kRed           = Color(0xFFF43F5E);
+const Color _kRedBg         = Color(0xFFFFF1F2);
+const Color _kGreen         = Color(0xFF10B981);
+const Color _kGreenBg       = Color(0xFFECFDF5);
 const Color _kSurface       = Color(0xFFF8FAFC);
-const Color _kAmber         = Color(0xFFD97706);
+const Color _kAmber         = Color(0xFFF59E0B);
 const Color _kAmberBg       = Color(0xFFFFFBEB);
 
 // ---------- Phase enum ----------
@@ -1564,7 +1564,7 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen>
               ],
             ),
           ),
-          if (trailing != null) trailing!,
+          if (trailing != null) ...[trailing],
         ],
       ),
     );
@@ -1605,11 +1605,12 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen>
             filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
             child: Container(
               decoration: BoxDecoration(
-                color: const Color(0xFFF0F9FF),
+                color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: const Color.fromARGB(255, 150, 150, 150),
-                    width: 0.25),
+                  color: const Color(0xFFCBD5E1),
+                  width: 0.5,
+                ),
               ),
               child: Column(
                 children: [
@@ -1635,11 +1636,12 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen>
           filter: ui.ImageFilter.blur(sigmaX: 10.0, sigmaY: 10.0),
           child: Container(
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F9FF),
+              color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                  color: const Color.fromARGB(255, 150, 150, 150),
-                  width: 0.25),
+                color: const Color(0xFFCBD5E1),
+                width: 0.5,
+              ),
             ),
             child: _buildPhase(),
           ),

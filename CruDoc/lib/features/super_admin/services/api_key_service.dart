@@ -284,44 +284,76 @@ class SuperAdminApiKeyService {
   }
 
   /// Fetch the third-party system integration keys from Firestore.
+  /// Masks sensitive confidential secrets so cleartext values are not exposed to the frontend.
   Future<Map<String, String>> getSystemIntegrationKeys() async {
     try {
       final doc = await _fb.systemConfigCollection.doc('api_keys_config').get();
       if (!doc.exists) {
-        // Return default/seeded keys if not yet stored
+        // Return blank values instead of hardcoded production secrets
         return {
           'googleMapsApiKey': const String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: ''),
-          'chatbotGeminiApiKey': const String.fromEnvironment('GEMINI_API_KEY', defaultValue: ''),
-          'sarvamApiKey': const String.fromEnvironment('SARVAM_API_KEY', defaultValue: ''),
+          'chatbotGeminiApiKey': '',
+          'sarvamApiKey': '',
           'voiceGeminiApiKey': '',
           'twilioAccountSid': '',
           'twilioAuthToken': '',
           'twilioPhoneNumber': '',
           'receptionistNumber': '',
           'whatsappAccessToken': '',
-          'whatsappVerifyToken': 'crudoc_whatsapp_webhook_verify_token_2026',
-          'voiceBotApiKey': 'crudoc_voice_bot_api_key_2026',
+          'whatsappVerifyToken': '',
+          'voiceBotApiKey': '',
         };
       }
       final data = doc.data() as Map<String, dynamic>;
-      return data.map((key, value) => MapEntry(key, value.toString()));
+      const sensitiveFields = {
+        'twilioAuthToken',
+        'whatsappAccessToken',
+        'chatbotGeminiApiKey',
+        'sarvamApiKey',
+        'voiceBotApiKey',
+        'whatsappVerifyToken',
+      };
+
+      return data.map((key, value) {
+        final strVal = value?.toString() ?? '';
+        if (sensitiveFields.contains(key) && strVal.isNotEmpty) {
+          return MapEntry(key, '••••••••••••••••');
+        }
+        return MapEntry(key, strVal);
+      });
     } catch (e) {
       throw Exception('Failed to fetch system integration keys: ${e.toString()}');
     }
   }
 
   /// Save third-party system integration keys to Firestore.
+  /// Preserves existing secret values if masked placeholder ('••••') is returned.
   Future<void> saveSystemIntegrationKeys(Map<String, String> keys) async {
     try {
       final docRef = _fb.systemConfigCollection.doc('api_keys_config');
-      await docRef.set(keys);
+      final existingDoc = await docRef.get();
+      final existingData = existingDoc.exists
+          ? Map<String, dynamic>.from(existingDoc.data() as Map)
+          : <String, dynamic>{};
 
-      // Write to Audit Log
+      final toSave = <String, String>{};
+      keys.forEach((key, val) {
+        if (val.contains('•')) {
+          // Preserve previously saved cleartext value
+          toSave[key] = existingData[key]?.toString() ?? '';
+        } else {
+          toSave[key] = val.trim();
+        }
+      });
+
+      await docRef.set(toSave);
+
+      // Write to Audit Log with metadata only (zero secret values logged)
       await _auditLogService.logAction(
         actionType: AuditActionType.updatedSystemConfig,
         details: {
           'configType': 'api_keys_config',
-          'updatedKeys': keys.keys.toList(),
+          'updatedKeys': toSave.keys.toList(),
         },
       );
     } catch (e) {

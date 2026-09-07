@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
@@ -9,7 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:uuid/uuid.dart';
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:doctor_management_app/firebase_options.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 /// Exception thrown when audio recording or transcription fails.
 class VoiceTranscriptionException implements Exception {
@@ -34,14 +33,11 @@ class VoiceTranscriptionService {
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 
+  /// Resolves optional developer Gemini key via explicit --dart-define.
+  /// NOTE: Firebase client key is NEVER used as a fallback to prevent secret misuse.
   String get _apiKey {
     const envKey = String.fromEnvironment('GEMINI_API_KEY');
-    if (envKey.isNotEmpty) return envKey;
-    try {
-      final key = DefaultFirebaseOptions.currentPlatform.apiKey;
-      if (key.isNotEmpty) return key;
-    } catch (_) {}
-    return '';
+    return envKey;
   }
 
   /// Checks if microphone permission is granted. Requests permission if not.
@@ -197,54 +193,77 @@ class VoiceTranscriptionService {
         return _cleanTranscript(text);
       }
     } catch (e) {
-      debugPrint('[VoiceTranscriptionService] FirebaseAI error, trying REST: $e');
+      debugPrint('[VoiceTranscriptionService] FirebaseAI note: $e');
     }
 
-    // Fallback to Gemini REST API
+    // 2. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
-      final apiKey = _apiKey;
-      final url = Uri.parse('$_baseUrl/$_model:generateContent?key=$apiKey');
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('transcribeVoiceAudio');
       final base64Audio = base64Encode(audioBytes);
+      final result = await callable.call({
+        'audioBase64': base64Audio,
+        'mimeType': 'audio/mp4',
+      }).timeout(const Duration(seconds: 12));
 
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [
-            {
-              'role': 'user',
-              'parts': [
-                {'text': prompt},
-                {
-                  'inline_data': {
-                    'mime_type': 'audio/mp4',
-                    'data': base64Audio,
-                  }
-                }
-              ]
-            }
-          ],
-          'generationConfig': {
-            'temperature': 0.1,
-            'maxOutputTokens': 256,
-          },
-        }),
-      ).timeout(const Duration(seconds: 8));
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final candidates = body['candidates'] as List<dynamic>?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final content = candidates[0]['content'] as Map<String, dynamic>?;
-          final parts = content?['parts'] as List<dynamic>?;
-          if (parts != null && parts.isNotEmpty) {
-            final text = parts[0]['text'] as String? ?? '';
-            return _cleanTranscript(text);
-          }
+      final data = result.data;
+      if (data is Map && data['text'] is String) {
+        final text = (data['text'] as String).trim();
+        if (text.isNotEmpty) {
+          return _cleanTranscript(text);
         }
       }
     } catch (e) {
-      debugPrint('[VoiceTranscriptionService] REST fallback error: $e');
+      debugPrint('[VoiceTranscriptionService] Cloud Function transcription note: $e');
+    }
+
+    // 3. Optional Direct REST Fallback (only if explicit developer key provided via --dart-define)
+    final apiKey = _apiKey;
+    if (apiKey.isNotEmpty) {
+      try {
+        final url = Uri.parse('$_baseUrl/$_model:generateContent?key=$apiKey');
+        final base64Audio = base64Encode(audioBytes);
+
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'contents': [
+              {
+                'role': 'user',
+                'parts': [
+                  {'text': prompt},
+                  {
+                    'inline_data': {
+                      'mime_type': 'audio/mp4',
+                      'data': base64Audio,
+                    }
+                  }
+                ]
+              }
+            ],
+            'generationConfig': {
+              'temperature': 0.1,
+              'maxOutputTokens': 256,
+            },
+          }),
+        ).timeout(const Duration(seconds: 8));
+
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body) as Map<String, dynamic>;
+          final candidates = body['candidates'] as List<dynamic>?;
+          if (candidates != null && candidates.isNotEmpty) {
+            final content = candidates[0]['content'] as Map<String, dynamic>?;
+            final parts = content?['parts'] as List<dynamic>?;
+            if (parts != null && parts.isNotEmpty) {
+              final text = parts[0]['text'] as String? ?? '';
+              return _cleanTranscript(text);
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('[VoiceTranscriptionService] REST fallback error: $e');
+      }
     }
 
     return '';

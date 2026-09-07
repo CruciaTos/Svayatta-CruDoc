@@ -1,0 +1,52 @@
+# Gitleaks Configuration for CruDoc
+title = "CruDoc Secret Scanner Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Global allowlist for false positives or documentation examples"
+paths = [
+  '''^\.gitleaks\.toml$''',
+  '''^test/''',
+  '''^CruDoc/test/''',
+  '''\.example$''',
+  '''\.sample$''',
+  '''README\.md$''',
+]
+regexes = [
+  '''AIzaSy[0-9A-Za-z\-_]{33}[X_]{2}''',
+  '''(?i)example''',
+  '''(?i)dummy''',
+  '''(?i)placeholder''',
+]
+
+[[rules]]
+id = "meta-whatsapp-token"
+description = "Meta WhatsApp User or System Access Token"
+regex = '''(?i)(?:whatsapp|meta)[_-]?(?:access[_-]?token|token)\s*[:=]\s*['"]?(EAAP[a-zA-Z0-9]{50,})['"]?'''
+keywords = ["EAAP", "WHATSAPP_ACCESS_TOKEN"]
+
+[[rules]]
+id = "resend-api-key"
+description = "Resend API Key"
+regex = '''re_[a-zA-Z0-9_]{24,}'''
+keywords = ["re_"]
+
+[[rules]]
+id = "google-gemini-api-key"
+description = "Google Cloud / Gemini API Key"
+regex = '''AIza[0-9A-Za-z\-_]{35}'''
+keywords = ["AIza"]
+
+[[rules]]
+id = "twilio-auth-token"
+description = "Twilio Auth Token"
+regex = '''(?i)(?:twilio|auth)[_-]?token\s*[:=]\s*['"]?([0-9a-fA-F]{32})['"]?'''
+keywords = ["twilio", "TWILIO_AUTH_TOKEN"]
+
+[[rules]]
+id = "aws-secret-key"
+description = "AWS Secret Access Key"
+regex = '''(?i)aws_(?:secret_access_key|secret_key)\s*[:=]\s*['"]?([A-Za-z0-9/+=]{40})['"]?'''
+keywords = ["aws_secret_access_key"]

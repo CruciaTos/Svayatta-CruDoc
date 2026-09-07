@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
-import 'package:doctor_management_app/firebase_options.dart';
 
 /// Message model for the chat conversation.
 class ChatMessage {
@@ -23,7 +23,7 @@ class ChatMessage {
 
 /// Service that powers the CruDoc AI Assistant chatbot.
 ///
-/// Uses the Google Gemini API (via REST) with a comprehensive system
+/// Uses the Google Gemini API (via server-side Cloud Functions) with a comprehensive system
 /// prompt containing clinical knowledge and full documentation of every app feature.
 /// Maintains conversation history so the model can give context-aware follow-up answers.
 class ChatbotService {
@@ -34,15 +34,11 @@ class ChatbotService {
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 
-  /// Resolves the active Gemini API key from environment or Firebase Options.
+  /// Resolves the optional Gemini API key from explicit developer environment override.
+  /// NOTE: Firebase client key is NEVER used as a fallback to prevent secret leakage.
   String get _resolvedApiKey {
     const envKey = String.fromEnvironment('GEMINI_API_KEY');
-    if (envKey.isNotEmpty) return envKey;
-    try {
-      final key = DefaultFirebaseOptions.currentPlatform.apiKey;
-      if (key.isNotEmpty) return key;
-    } catch (_) {}
-    return '';
+    return envKey;
   }
 
   /// Conversation history sent to the model for context.
@@ -153,8 +149,6 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
       return lockedMsg;
     }
 
-    final apiKey = _resolvedApiKey;
-
     _history.add({
       'role': 'user',
       'parts': [
@@ -162,65 +156,95 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
       ],
     });
 
-    final url = Uri.parse('$_baseUrl/$_model:generateContent?key=$apiKey');
-
-    final String activePrompt = enabledModules == null
-        ? _systemPrompt
-        : '$_systemPrompt\n\n'
-            '## CURRENT DOCTOR LOCKED FEATURES\n'
-            'The following features are currently LOCKED for this doctor: '
-            '${_getLockedFeatureNames(enabledModules).join(', ')}.\n'
-            'If the doctor asks how to use or access any of these locked features, explicitly inform them: '
-            '"You have to upgrade your subscription plan or contact your Super Admin to unlock and use this feature."';
-
+    // 1. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'system_instruction': {
+      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('chatWithAssistant');
+      final result = await callable.call({
+        'message': userMessage,
+        'history': _history,
+        'enabledModules': enabledModules,
+      }).timeout(const Duration(seconds: 12));
+
+      final data = result.data;
+      if (data is Map && data['reply'] is String) {
+        final reply = (data['reply'] as String).trim();
+        if (reply.isNotEmpty) {
+          _history.add({
+            'role': 'model',
             'parts': [
-              {'text': activePrompt}
-            ]
-          },
-          'contents': _history,
-          'generationConfig': {
-            'temperature': 0.7,
-            'topP': 0.95,
-            'topK': 40,
-            'maxOutputTokens': 1024,
-          },
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final body = jsonDecode(response.body) as Map<String, dynamic>;
-        final candidates = body['candidates'] as List<dynamic>?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final content = candidates[0]['content'] as Map<String, dynamic>?;
-          final parts = content?['parts'] as List<dynamic>?;
-          if (parts != null && parts.isNotEmpty) {
-            final text = parts[0]['text'] as String? ?? '';
-
-            _history.add({
-              'role': 'model',
-              'parts': [
-                {'text': text}
-              ],
-            });
-
-            return text;
-          }
+              {'text': reply}
+            ],
+          });
+          return reply;
         }
-      } else {
-        debugPrint('[ChatbotService] Gemini HTTP ${response.statusCode}: ${response.body}');
       }
-
-      return _offlineResponse(userMessage, enabledModules: enabledModules);
     } catch (e) {
-      debugPrint('[ChatbotService] Error querying Gemini: $e');
-      return _offlineResponse(userMessage, enabledModules: enabledModules);
+      debugPrint('[ChatbotService] Cloud Function route skipped/failed: $e');
     }
+
+    // 2. Development Direct REST fallback (only if explicit developer key provided via --dart-define)
+    final apiKey = _resolvedApiKey;
+    if (apiKey.isNotEmpty) {
+      final url = Uri.parse('$_baseUrl/$_model:generateContent?key=$apiKey');
+      final String activePrompt = enabledModules == null
+          ? _systemPrompt
+          : '$_systemPrompt\n\n'
+              '## CURRENT DOCTOR LOCKED FEATURES\n'
+              'The following features are currently LOCKED for this doctor: '
+              '${_getLockedFeatureNames(enabledModules).join(', ')}.\n'
+              'If the doctor asks how to use or access any of these locked features, explicitly inform them: '
+              '"You have to upgrade your subscription plan or contact your Super Admin to unlock and use this feature."';
+
+      try {
+        final response = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'system_instruction': {
+              'parts': [
+                {'text': activePrompt}
+              ]
+            },
+            'contents': _history,
+            'generationConfig': {
+              'temperature': 0.7,
+              'topP': 0.95,
+              'topK': 40,
+              'maxOutputTokens': 1024,
+            },
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          final body = jsonDecode(response.body) as Map<String, dynamic>;
+          final candidates = body['candidates'] as List<dynamic>?;
+          if (candidates != null && candidates.isNotEmpty) {
+            final content = candidates[0]['content'] as Map<String, dynamic>?;
+            final parts = content?['parts'] as List<dynamic>?;
+            if (parts != null && parts.isNotEmpty) {
+              final text = parts[0]['text'] as String? ?? '';
+
+              _history.add({
+                'role': 'model',
+                'parts': [
+                  {'text': text}
+                ],
+              });
+
+              return text;
+            }
+          }
+        } else {
+          debugPrint('[ChatbotService] Gemini HTTP ${response.statusCode}: ${response.body}');
+        }
+      } catch (e) {
+        debugPrint('[ChatbotService] Direct REST error: $e');
+      }
+    }
+
+    // 3. Clinical & App Knowledge Base Offline Fallback
+    return _offlineResponse(userMessage, enabledModules: enabledModules);
   }
 
   List<String> _getLockedFeatureNames(List<String> enabledModules) {

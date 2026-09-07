@@ -32,16 +32,22 @@ yarn-error.log*
 # ============================================================
 # Secrets & Credentials (NEVER COMMIT)
 # ============================================================
+*serviceAccount*.json
 serviceAccountKey.json
 *.key
+*.pem
 *.p12
 *.pfx
 *.jks
 *.keystore
 .env
-.env.local
-.env.production
-.env.development
+.env.*
+*.env
+*.env.*
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
 google-services.json
 GoogleService-Info.plist
 

@@ -1,6 +1,35 @@
 import * as functions from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
 import * as crypto from 'crypto';
+import { defineSecret } from 'firebase-functions/params';
+
+export const whatsappAccessTokenSecret = defineSecret('WHATSAPP_ACCESS_TOKEN');
+export const whatsappWebhookVerifyTokenSecret = defineSecret('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
+export const whatsappWebhookAppSecretSecret = defineSecret('WHATSAPP_WEBHOOK_APP_SECRET');
+
+function getWhatsAppAccessToken(): string {
+  try {
+    const val = whatsappAccessTokenSecret.value();
+    if (val && val.trim().length > 0) return val.trim();
+  } catch (_) {}
+  return (process.env.WHATSAPP_ACCESS_TOKEN || '').trim();
+}
+
+function getWhatsAppWebhookVerifyToken(): string {
+  try {
+    const val = whatsappWebhookVerifyTokenSecret.value();
+    if (val && val.trim().length > 0) return val.trim();
+  } catch (_) {}
+  return (process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || '').trim();
+}
+
+function getWhatsAppWebhookAppSecret(): string {
+  try {
+    const val = whatsappWebhookAppSecretSecret.value();
+    if (val && val.trim().length > 0) return val.trim();
+  } catch (_) {}
+  return (process.env.WHATSAPP_WEBHOOK_APP_SECRET || '').trim();
+}
 
 function getDb() {
   if (!admin.apps.length) {
@@ -98,7 +127,7 @@ export async function sendWhatsAppMetaMessage(params: {
   patientId: string;
 }): Promise<{ success: boolean; messageId?: string; error?: string; isMock?: boolean }> {
   const mode = process.env.WHATSAPP_MODE || 'development';
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
+  const token = getWhatsAppAccessToken();
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
   const templateName = params.templateName || process.env.WHATSAPP_TEMPLATE_NAME || 'appointment_confirmation';
 
@@ -386,6 +415,7 @@ export const sendWhatsAppAppointmentConfirmation = functions.onRequest(
     region: 'asia-south1',
     maxInstances: 10,
     cors: true,
+    secrets: [whatsappAccessTokenSecret],
   },
   async (req, res) => {
     if (req.method !== 'POST') {
@@ -565,6 +595,7 @@ export const whatsappWebhook = functions.onRequest(
     region: 'asia-south1',
     maxInstances: 10,
     cors: true,
+    secrets: [whatsappWebhookVerifyTokenSecret, whatsappWebhookAppSecretSecret],
   },
   async (req, res) => {
     // ---- GET: Webhook Verification Challenge ----
@@ -573,12 +604,19 @@ export const whatsappWebhook = functions.onRequest(
       const token = req.query['hub.verify_token'];
       const challenge = req.query['hub.challenge'];
 
-      const expectedVerifyToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'crudoc_whatsapp_webhook_verify_token_2026';
+      const expectedVerifyToken = getWhatsAppWebhookVerifyToken();
 
-      if (mode === 'subscribe' && token === expectedVerifyToken) {
-        console.log('[WhatsApp Webhook] Verification challenge passed successfully.');
-        res.status(200).send(challenge);
-        return;
+      if (mode === 'subscribe' && typeof token === 'string' && expectedVerifyToken) {
+        const tokenBuf = Buffer.from(token);
+        const expectedBuf = Buffer.from(expectedVerifyToken);
+        if (
+          tokenBuf.length === expectedBuf.length &&
+          crypto.timingSafeEqual(tokenBuf, expectedBuf)
+        ) {
+          console.log('[WhatsApp Webhook] Verification challenge passed successfully.');
+          res.status(200).send(challenge);
+          return;
+        }
       }
 
       console.warn('[WhatsApp Webhook] Verification token mismatch.');
@@ -588,7 +626,7 @@ export const whatsappWebhook = functions.onRequest(
 
     // ---- POST: Status Callback Events ----
     if (req.method === 'POST') {
-      const appSecret = process.env.WHATSAPP_WEBHOOK_APP_SECRET;
+      const appSecret = getWhatsAppWebhookAppSecret();
 
       // Validate HMAC SHA-256 signature if app secret is configured
       if (appSecret) {
@@ -606,7 +644,10 @@ export const whatsappWebhook = functions.onRequest(
           .update(rawBody)
           .digest('hex');
 
-        if (signature !== expectedSignature) {
+        const sigBuf = Buffer.from(signature);
+        const expBuf = Buffer.from(expectedSignature);
+
+        if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
           console.warn('[WhatsApp Webhook] HMAC SHA-256 signature mismatch');
           res.status(401).send('Unauthorized: Signature mismatch');
           return;
@@ -672,5 +713,51 @@ export const whatsappWebhook = functions.onRequest(
     }
 
     res.status(405).json({ success: false, error: 'Method not allowed' });
+  }
+);
+
+/**
+ * Authenticated doctor callable to dispatch WhatsApp campaign messages securely.
+ * Verifies doctorId == request.auth.uid to enforce strict multi-tenant isolation.
+ */
+export const sendWhatsAppCampaignMessage = functions.onCall(
+  {
+    region: 'asia-south1',
+    maxInstances: 10,
+    secrets: [whatsappAccessTokenSecret],
+  },
+  async (request) => {
+    if (!request.auth || !request.auth.uid) {
+      throw new functions.HttpsError('unauthenticated', 'Authentication required.');
+    }
+
+    const { campaignId, doctorId, patientId, patientName, phone, clinicName, doctorName } = request.data || {};
+
+    if (!doctorId || request.auth.uid !== doctorId) {
+      throw new functions.HttpsError('permission-denied', 'Cross-doctor action is strictly forbidden.');
+    }
+
+    const normalized = normalizePhoneNumber(phone);
+    if (!normalized) {
+      return { success: false, error: 'Invalid recipient phone number' };
+    }
+
+    const result = await sendWhatsAppMetaMessage({
+      toPhone: normalized,
+      data: {
+        patientName: patientName || 'Valued Patient',
+        doctorName: doctorName || 'Doctor',
+        clinicName: clinicName || 'CruDoc Practice',
+        appointmentDate: new Date().toLocaleDateString(),
+        appointmentTime: new Date().toLocaleTimeString(),
+        consultationType: 'In-Clinic',
+      },
+      templateName: 'appointment_confirmation',
+      appointmentId: `${campaignId || 'campaign'}_${Date.now()}`,
+      doctorId,
+      patientId: patientId || 'campaign_patient',
+    });
+
+    return result;
   }
 );

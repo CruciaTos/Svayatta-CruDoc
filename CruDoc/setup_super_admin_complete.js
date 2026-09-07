@@ -28,11 +28,17 @@ const auth = admin.auth();
 const db = admin.firestore();
 
 // ==========================================
-// CONFIGURATION — CHANGE THESE VALUES
+// CONFIGURATION — CONFIGURE VIA ENVIRONMENT
 // ==========================================
-const ADMIN_EMAIL = 'admin@crudoc.com';
-const ADMIN_PASSWORD = 'Admin@123';    // Minimum 6 characters
-const ADMIN_NAME = 'Super Admin';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@crudoc.com';
+const ADMIN_PASSWORD = process.env.ADMIN_INITIAL_PASSWORD;
+const ADMIN_NAME = process.env.ADMIN_NAME || 'Super Admin';
+
+if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) {
+  console.error('❌ Error: ADMIN_INITIAL_PASSWORD environment variable must be set (minimum 8 characters).');
+  console.error('   Usage: ADMIN_INITIAL_PASSWORD="SecurePassphraseHere" node setup_super_admin_complete.js');
+  process.exit(1);
+}
 // ==========================================
 
 async function setupSuperAdmin() {

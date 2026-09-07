@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:doctor_management_app/firebase_options.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 
 /// Service that leverages Gemini 2.0 Flash to extract structured homeopathic case
@@ -16,14 +16,11 @@ class HomeopathyVoiceScribeService {
   static const String _baseUrl =
       'https://generativelanguage.googleapis.com/v1beta/models';
 
+  /// Resolves optional developer Gemini key via explicit --dart-define.
+  /// NOTE: Firebase client key is NEVER used as a fallback to prevent secret misuse.
   String get _apiKey {
     const envKey = String.fromEnvironment('GEMINI_API_KEY');
-    if (envKey.isNotEmpty) return envKey;
-    try {
-      final key = DefaultFirebaseOptions.currentPlatform.apiKey;
-      if (key.isNotEmpty) return key;
-    } catch (_) {}
-    return '';
+    return envKey;
   }
 
   /// System prompt instructing Gemini on homeopathic case synthesis
@@ -170,7 +167,29 @@ JSON SCHEMA STRUCTURE:
       debugPrint('[HomeopathyVoiceScribeService] Firebase AI failed, trying REST: $e');
     }
 
-    // Attempt 2: REST fallback
+    // Attempt 2: Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
+    if (rawJsonResponse.isEmpty) {
+      try {
+        final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
+            .httpsCallable('extractHomeopathyCaseSheet');
+        final result = await callable.call({
+          'transcript': transcript,
+        }).timeout(const Duration(seconds: 15));
+
+        final data = result.data;
+        if (data is Map) {
+          if (data['caseSheet'] is Map) {
+            rawJsonResponse = jsonEncode(data['caseSheet']);
+          } else if (data['rawResponse'] is String) {
+            rawJsonResponse = data['rawResponse'] as String;
+          }
+        }
+      } catch (e) {
+        debugPrint('[HomeopathyVoiceScribeService] Cloud Function note: $e');
+      }
+    }
+
+    // Attempt 3: Optional Direct REST Fallback (only if explicit developer key provided via --dart-define)
     if (rawJsonResponse.isEmpty) {
       try {
         final apiKey = _apiKey;

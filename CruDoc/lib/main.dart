@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/services/encryption_key_manager.dart';
@@ -13,9 +15,31 @@ import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
 import 'core/theme/app_colors.dart';
 
+const bool _useFirebaseEmulators = bool.fromEnvironment(
+  'USE_FIREBASE_EMULATORS',
+  defaultValue: false,
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+
+  if (_useFirebaseEmulators) {
+    await FirebaseAuth.instance.useAuthEmulator(
+      '10.0.2.2',
+      9099,
+    );
+
+    FirebaseFunctions.instanceFor(
+      region: 'asia-south1',
+    ).useFunctionsEmulator(
+      '10.0.2.2',
+      5001,
+    );
+  }
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
@@ -36,18 +60,25 @@ final GlobalKey<ScaffoldMessengerState> rootScaffoldMessengerKey =
 void _showForcedLogoutSnackBar(String reason) {
   WidgetsBinding.instance.addPostFrameCallback((_) {
     final messenger = rootScaffoldMessengerKey.currentState;
+
     if (messenger != null && messenger.mounted) {
       try {
         messenger.showSnackBar(
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, color: Colors.white, size: 20),
+                const Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     reason,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -55,11 +86,15 @@ void _showForcedLogoutSnackBar(String reason) {
             backgroundColor: const Color(0xFFDC2626),
             behavior: SnackBarBehavior.floating,
             duration: const Duration(seconds: 5),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       } catch (e) {
-        debugPrint('Could not show forced logout snackbar: $e');
+        debugPrint(
+          'Could not show forced logout snackbar: $e',
+        );
       }
     }
   });
@@ -72,6 +107,7 @@ void _showForcedLogoutSnackBar(String reason) {
 /// in, and cleared on sign-out.
 void _wireWebEncryptionKeyLoading() {
   String? lastHandledUid;
+
   FirebaseAuth.instance.authStateChanges().listen((user) async {
     try {
       if (user == null) {
@@ -81,6 +117,7 @@ void _wireWebEncryptionKeyLoading() {
         lastHandledUid = null;
         return;
       }
+
       DeviceSessionService.instance.startSessionMonitoring(
         user.uid,
         onForcedLogout: (reason) {
@@ -88,11 +125,18 @@ void _wireWebEncryptionKeyLoading() {
           _showForcedLogoutSnackBar(reason);
         },
       );
+
       if (lastHandledUid == user.uid) return;
+
       lastHandledUid = user.uid;
-      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+
+      await EncryptionKeyManager.instance.loadForDoctor(
+        user.uid,
+      );
     } catch (error, stackTrace) {
-      debugPrint('Web startup auth bootstrap failed: $error');
+      debugPrint(
+        'Web startup auth bootstrap failed: $error',
+      );
       debugPrint(stackTrace.toString());
     }
   });
@@ -119,12 +163,14 @@ void _wireDoctorScopedStartup() {
       if (user == null) {
         DeviceSessionService.instance.stopSessionMonitoring();
         await DeviceSessionService.instance.clearSessionToken();
+
         if (lastHandledUid != null) {
           await FirestoreSyncService.instance.stop();
           await LocalDatabaseService.instance.close();
           EncryptionKeyManager.instance.clear();
           lastHandledUid = null;
         }
+
         return;
       }
 
@@ -136,20 +182,29 @@ void _wireDoctorScopedStartup() {
         },
       );
 
-      if (lastHandledUid == user.uid) return; // already set up for this doctor
+      if (lastHandledUid == user.uid) return;
+
       lastHandledUid = user.uid;
 
       // Order matters: the key must be loaded before migration/sync try to
       // decrypt anything, and the local cache must be confirmed to belong to
       // this doctor before anything is written into it.
-      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
-      await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
+      await EncryptionKeyManager.instance.loadForDoctor(
         user.uid,
       );
+
+      await LocalDatabaseService.instance
+          .ensureLocalDataMatchesSignedInDoctor(
+        user.uid,
+      );
+
       await InitialFirestoreMigrationService.instance.runIfNeeded();
+
       await FirestoreSyncService.instance.start();
     } catch (error, stackTrace) {
-      debugPrint('Doctor-scoped startup bootstrap failed: $error');
+      debugPrint(
+        'Doctor-scoped startup bootstrap failed: $error',
+      );
       debugPrint(stackTrace.toString());
     }
   });
@@ -169,7 +224,9 @@ class MoodyDashboardApp extends StatelessWidget {
         // Ensure the app uses the project's chosen font and base text styles
         fontFamily: AppColors.bodyFontFamily,
         primaryColor: AppColors.accentBlue,
-        colorScheme: ColorScheme.fromSeed(seedColor: AppColors.accentBlue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.accentBlue,
+        ),
         textTheme: TextTheme(
           displayLarge: AppColors.pageHeading,
           headlineSmall: AppColors.sectionHeading,

@@ -1,12 +1,26 @@
 import * as functions from 'firebase-functions/v2/https';
 import * as admin from 'firebase-admin';
+import * as crypto from 'crypto';
+import { defineSecret } from 'firebase-functions/params';
 import { dispatchAppointmentWhatsApp } from './whatsapp';
+
+export const voiceBotApiKeySecret = defineSecret('VOICE_BOT_API_KEY');
 
 function getDb() {
   if (!admin.apps.length) {
     admin.initializeApp();
   }
   return admin.firestore();
+}
+
+function getExpectedVoiceBotKey(): string {
+  try {
+    const val = voiceBotApiKeySecret.value();
+    if (val && val.trim().length > 0) return val.trim();
+  } catch (_) {
+    // Falls back to process.env in local/emulator environments
+  }
+  return (process.env.VOICE_BOT_API_KEY || '').trim();
 }
 
 // ============================================================
@@ -35,6 +49,7 @@ export const createAppointment = functions.onRequest(
     region: 'asia-south1',
     maxInstances: 10,
     cors: true,
+    secrets: [voiceBotApiKeySecret],
   },
   async (req, res) => {
     // ---- Method check ----
@@ -43,17 +58,27 @@ export const createAppointment = functions.onRequest(
       return;
     }
 
-    // ---- API-key auth ----
-    const expectedKey = process.env.VOICE_BOT_API_KEY;
+    // ---- API-key auth (Timing-Safe Comparison) ----
+    const expectedKey = getExpectedVoiceBotKey();
     if (!expectedKey) {
-      console.error('VOICE_BOT_API_KEY not configured in Cloud Functions env');
+      console.error('VOICE_BOT_API_KEY not configured in Cloud Functions Secret Manager or env');
       res.status(500).json({success: false, error: 'Server misconfiguration'});
       return;
     }
 
-    const providedKey =
-      req.headers['x-api-key'] as string | undefined;
-    if (!providedKey || providedKey !== expectedKey) {
+    const providedKey = req.headers['x-api-key'] as string | undefined;
+    if (!providedKey || typeof providedKey !== 'string') {
+      res.status(401).json({success: false, error: 'Unauthorized'});
+      return;
+    }
+
+    const providedBuf = Buffer.from(providedKey);
+    const expectedBuf = Buffer.from(expectedKey);
+
+    if (
+      providedBuf.length !== expectedBuf.length ||
+      !crypto.timingSafeEqual(providedBuf, expectedBuf)
+    ) {
       res.status(401).json({success: false, error: 'Unauthorized'});
       return;
     }

@@ -44,7 +44,8 @@
   <!-- Google Maps JavaScript SDK — dynamically loaded to prevent committing secret keys to source control. -->
   <script>
     (function() {
-      var mapsApiKey = window.GOOGLE_MAPS_API_KEY || (new URLSearchParams(window.location.search)).get('gmaps_key') || '';
+      // Maps API Key loaded from runtime environment configuration, not URL query parameters
+      var mapsApiKey = window.GOOGLE_MAPS_API_KEY || '';
       if (mapsApiKey) {
         var s = document.createElement('script');
         s.src = 'https://maps.googleapis.com/maps/api/js?key=' + encodeURIComponent(mapsApiKey) + '&libraries=places';

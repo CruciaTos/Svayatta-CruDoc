@@ -680,6 +680,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                           setState(() => _obscurePassword = !_obscurePassword),
                       onPrimary: _handleEmailLogin,
                       onTrialDemoLogin: _handleTrialDemoLogin,
+                      onDemoFill: _fillDemoCredentials,
+                      selectedSpecialty: ref.watch(authSpecialtyProvider),
+                      onSpecialtySelected: (spec) {
+                        ref.read(authSpecialtyProvider.notifier).select(spec);
+                      },
                       onSecondary: () => _goToPage(2),
                       onGoogleSignIn: _handleGoogleSignIn,
                       onPhoneSignIn: _handlePhoneSignIn,
@@ -1708,6 +1713,9 @@ class _AuthFormPanel extends StatelessWidget {
     required this.onObscureToggle,
     required this.onPrimary,
     this.onTrialDemoLogin,
+    this.onDemoFill,
+    this.selectedSpecialty,
+    this.onSpecialtySelected,
     required this.onSecondary,
     required this.onGoogleSignIn,
     required this.onPhoneSignIn,
@@ -1724,6 +1732,9 @@ class _AuthFormPanel extends StatelessWidget {
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final VoidCallback? onTrialDemoLogin;
+  final VoidCallback? onDemoFill;
+  final DoctorSpecialty? selectedSpecialty;
+  final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
   final VoidCallback onSecondary;
   final VoidCallback onGoogleSignIn;
   final VoidCallback onPhoneSignIn;
@@ -1809,6 +1820,9 @@ class _AuthFormPanel extends StatelessWidget {
                   onObscureToggle: onObscureToggle,
                   onPrimary: onPrimary,
                   onTrialDemoLogin: onTrialDemoLogin,
+                  onDemoFill: onDemoFill,
+                  selectedSpecialty: selectedSpecialty,
+                  onSpecialtySelected: onSpecialtySelected,
                   onSecondary: onSecondary,
                   onGoogleSignIn: onGoogleSignIn,
                   onPhoneSignIn: onPhoneSignIn,
@@ -1836,6 +1850,9 @@ class _AuthForm extends StatelessWidget {
     required this.onObscureToggle,
     required this.onPrimary,
     this.onTrialDemoLogin,
+    this.onDemoFill,
+    this.selectedSpecialty,
+    this.onSpecialtySelected,
     required this.onSecondary,
     required this.onGoogleSignIn,
     required this.onPhoneSignIn,
@@ -1850,6 +1867,9 @@ class _AuthForm extends StatelessWidget {
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final VoidCallback? onTrialDemoLogin;
+  final VoidCallback? onDemoFill;
+  final DoctorSpecialty? selectedSpecialty;
+  final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
   final VoidCallback onSecondary;
   final VoidCallback onGoogleSignIn;
   final VoidCallback onPhoneSignIn;
@@ -1901,24 +1921,117 @@ class _AuthForm extends StatelessWidget {
           ),
         ),
         if (_isLogin) ...[
-          const SizedBox(height: 4),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Demo: demo1234',
-              style: TextStyle(
-                fontFamily: AppColors.bodyFontFamily,
-                color: const Color(0xFF0A7BFF).withValues(alpha: 0.6),
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
+          const SizedBox(height: 6),
+          // ── Mobile Specialty Selector (replicates desktop pill bar) ──
+          if (selectedSpecialty != null && onSpecialtySelected != null)
+            SizedBox(
+              height: 34,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: DoctorSpecialty.all.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (context, index) {
+                  final spec = DoctorSpecialty.all[index];
+                  final isSelected = spec.type == selectedSpecialty!.type;
+                  return GestureDetector(
+                    onTap: () => onSpecialtySelected!(spec),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 240),
+                      curve: Curves.easeOut,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? spec.accentColor
+                            : Colors.white.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isSelected
+                              ? spec.accentColor
+                              : const Color(0xFFE2E8F0),
+                          width: 1.2,
+                        ),
+                        boxShadow: isSelected
+                            ? [
+                                BoxShadow(
+                                  color: spec.accentColor.withValues(alpha: 0.25),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ]
+                            : [],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            spec.icon,
+                            size: 13,
+                            color: isSelected
+                                ? Colors.white
+                                : spec.accentColor,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            spec.shortLabel,
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : const Color(0xFF475569),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              fontFamily: AppColors.bodyFontFamily,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
+          const SizedBox(height: 6),
+          // ── "Need Help?" link (replicates desktop demo fill) ──
+          Row(
+            children: [
+              Text(
+                selectedSpecialty != null
+                    ? '${selectedSpecialty!.shortLabel} Demo'
+                    : 'Demo: demo1234',
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: const Color(0xFF0A7BFF).withValues(alpha: 0.6),
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const Spacer(),
+              if (onDemoFill != null)
+                GestureDetector(
+                  onTap: onDemoFill,
+                  child: const Text(
+                    'Need Help?',
+                    style: TextStyle(
+                      color: Color(0xFF00ACC1),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: AppColors.bodyFontFamily,
+                    ),
+                  ),
+                ),
+            ],
           ),
         ] else
           const SizedBox(height: 10),
         const SizedBox(height: 4),
         _PrimaryButton(
-          label: _isLogin ? 'Log in' : 'Sign up',
+          label: _isLogin
+              ? (selectedSpecialty != null
+                  ? 'Log in as ${selectedSpecialty!.shortLabel}'
+                  : 'Log in')
+              : 'Sign up',
           isLoading: isLoading,
           onPressed: onPrimary,
         ),
@@ -1931,9 +2044,11 @@ class _AuthForm extends StatelessWidget {
               onPressed: isLoading ? null : onTrialDemoLogin,
               icon: const Icon(Icons.bolt_rounded,
                   color: Color(0xFF059669), size: 18),
-              label: const Text(
-                'Launch Trial Demo Mode',
-                style: TextStyle(
+              label: Text(
+                selectedSpecialty != null
+                    ? 'Launch ${selectedSpecialty!.shortLabel} Trial Demo'
+                    : 'Launch Trial Demo Mode',
+                style: const TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF059669),

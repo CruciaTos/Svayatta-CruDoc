@@ -97,6 +97,24 @@ class DeviceSessionService {
           debugPrint('DeviceSessionService: Error cleaning previous sessions: $e');
         }
       } else {
+        // Deduplicate: purge existing active sessions for this exact same physical device
+        try {
+          final sameDeviceDocs = await sessionsCol
+              .where('status', isEqualTo: 'active')
+              .where('deviceName', isEqualTo: deviceName)
+              .where('platform', isEqualTo: platform)
+              .get();
+          if (sameDeviceDocs.docs.isNotEmpty) {
+            final batch = FirebaseFirestore.instance.batch();
+            for (final doc in sameDeviceDocs.docs) {
+              batch.delete(doc.reference);
+            }
+            await batch.commit();
+          }
+        } catch (e) {
+          debugPrint('DeviceSessionService: Error deduplicating device sessions: $e');
+        }
+
         // Check max device limit (0 or null means unlimited)
         final maxLimit = (userData['maxDeviceLimit'] as num?)?.toInt() ?? 0;
         if (maxLimit > 0) {

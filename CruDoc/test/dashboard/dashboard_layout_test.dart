@@ -45,6 +45,23 @@ void main() {
     }
   }
 
+  testWidgets('Evening swaps Needs attention for Wrap up the day',
+      (tester) async {
+    await _pumpAt(tester, const Size(1440, 988), evening: true);
+    expect(find.text('Good evening, Dr. Deshpande'), findsOneWidget);
+    expect(find.text('Wednesday, 23 September · Evening session'),
+        findsOneWidget);
+    expect(find.text('Wrap up the day'), findsOneWidget);
+    expect(find.text('Needs attention'), findsNothing);
+    expect(find.text('2 scribe notes to review'), findsOneWidget);
+    expect(find.text('Tomorrow · 9 booked'), findsOneWidget);
+    expect(find.text('First at 9:30 AM'), findsOneWidget);
+    expect(find.text('2 patients left'), findsOneWidget);
+    expect(find.text("That's the last booking for today."), findsOneWidget);
+    // No end-of-day workflow exists, so no button pretends to run one.
+    expect(find.text('Close the day'), findsNothing);
+  });
+
   testWidgets('two columns at 1440 with a 384 px right column', (tester) async {
     await _pumpAt(tester, sizes[1440]!);
     final collections = tester.getRect(find.byType(CollectionsCard));

@@ -8,6 +8,8 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/wrap_up_providers.dart';
+import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -262,6 +264,18 @@ List<Override> dashboardOverrides({
       (ref) => Stream.value(fixtureMedicines),
     ),
     doctorIdentityProvider.overrideWithValue(fixtureIdentity),
+    // Two AI Scribe drafts waiting for review (the mock-up's
+    // "prescriptions to sign": Sneha Kulkarni, Rohan Mehta).
+    todaysScribeNotesProvider.overrideWithValue([
+      for (final id in ['sneha', 'rohan'])
+        ConsultationNote(
+          id: 'n_$id',
+          doctorId: '',
+          patientId: id,
+          visitId: 'v_$id',
+          createdAt: now,
+        ),
+    ]),
     subscriptionInfoProvider.overrideWith((ref) => Stream.value(fixturePlan)),
   ];
 }

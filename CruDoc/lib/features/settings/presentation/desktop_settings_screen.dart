@@ -13,6 +13,8 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
+import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
+import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/data/desktop_settings_preferences.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
@@ -1995,6 +1997,25 @@ class _DesktopSettingsScreenState extends ConsumerState<DesktopSettingsScreen> {
                           _shellPrefs.setLastTabIndex(idx);
                         }
                       },
+                    ),
+                    const Divider(height: 16, color: Color(0xFFE2E8F0)),
+                    // Keyed so the field picks up the stored choice once
+                    // it has loaded.
+                    KeyedSubtree(
+                      key: ValueKey(ref.watch(appearanceModeProvider)),
+                      child: _buildDropdownField(
+                        label:
+                            'Dashboard Appearance (Auto: Evening from 5:00 PM)',
+                        value: ref.watch(appearanceModeProvider).label,
+                        items: [for (final m in AppearanceMode.values) m.label],
+                        onChanged: (val) {
+                          final mode = AppearanceMode.values.firstWhere(
+                            (m) => m.label == val,
+                            orElse: () => AppearanceMode.auto,
+                          );
+                          ref.read(appearanceModeProvider.notifier).select(mode);
+                        },
+                      ),
                     ),
                     const Divider(height: 16, color: Color(0xFFE2E8F0)),
                     _buildSwitchTile(

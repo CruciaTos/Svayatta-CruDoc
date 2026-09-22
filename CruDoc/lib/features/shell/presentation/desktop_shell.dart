@@ -13,6 +13,8 @@ import 'package:doctor_management_app/features/shell/components/specialty_switch
 import 'package:doctor_management_app/features/shell/data/desktop_shell_preferences.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
 import 'package:doctor_management_app/features/chatbot/widgets/draggable_floating_chatbot_button.dart';
+import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
+import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -82,6 +84,11 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   final FocusNode _shortcutsFocusNode = FocusNode();
   final FocusNode _searchFocusNode = FocusNode(debugLabel: 'dashboard search');
   final GlobalKey<DashboardScreenState> _dashboardKey = GlobalKey();
+
+  /// Created once so shell rebuilds (tab changes, appearance switches)
+  /// don't resubscribe to Firestore.
+  final Stream<List<String>> _enabledModules =
+      DoctorFeatureGuard.watchEnabledModules();
 
   int _currentIndex = DesktopTab.dashboard;
   bool _isSidebarExpanded = true;
@@ -271,12 +278,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         context.go('/auth');
       },
       onToggleCollapsed: _toggleSidebar,
+      appearanceMenu: _appearanceMenu,
     );
   }
 
   Widget _buildContent(BuildContext context) {
     return StreamBuilder<List<String>>(
-      stream: DoctorFeatureGuard.watchEnabledModules(),
+      stream: _enabledModules,
       builder: (context, snapshot) {
         final enabledModules =
             snapshot.data ?? DoctorFeatureGuard.defaultModules;
@@ -314,30 +322,82 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           );
         }
 
+        // Day or Evening for the shell chrome and the dashboard (Auto by
+        // default). Other screens are wrapped in Day above.
+        final appearance = ref.watch(resolvedAppearanceProvider);
+
         return InventoryAlertListener(
-          child: Scaffold(
-            backgroundColor: context.cru.canvas,
-            body: DesktopShellLayout(
-              sidebar: CruSidebar(
-                currentTab: _currentIndex,
-                collapsed: collapsed,
-                canExpand: !forcedCompact,
-                callbacks: _sidebarCallbacks(context),
+          child: AnimatedTheme(
+            data: CruTheme.of(appearance),
+            duration: CruMotion.of(context),
+            curve: CruMotion.curve,
+            child: Builder(
+              builder: (context) => Scaffold(
+                backgroundColor: context.cru.canvas,
+                body: DesktopShellLayout(
+                  sidebar: CruSidebar(
+                    currentTab: _currentIndex,
+                    collapsed: collapsed,
+                    canExpand: !forcedCompact,
+                    callbacks: _sidebarCallbacks(context),
+                  ),
+                  content: content,
+                  // The dashboard reaches the assistant through "Ask
+                  // CruDoc" in its search; other screens keep the
+                  // floating button.
+                  overlay: isDashboard
+                      ? null
+                      : const DraggableFloatingChatbotButton(
+                          initialBottom: 32,
+                          initialRight: 32,
+                        ),
+                ),
               ),
-              content: content,
-              // The dashboard reaches the assistant through "Ask CruDoc"
-              // in its search; other screens keep the floating button.
-              overlay: isDashboard
-                  ? null
-                  : const DraggableFloatingChatbotButton(
-                      initialBottom: 32,
-                      initialRight: 32,
-                    ),
             ),
           ),
         );
       },
     );
+  }
+
+  /// Auto / Day / Evening entries at the top of the account menu.
+  List<PopupMenuEntry<VoidCallback>> _appearanceMenu(CruColors c) {
+    final current = ref.read(appearanceModeProvider);
+    CruIconData iconFor(AppearanceMode m) => switch (m) {
+          AppearanceMode.auto => CruIcons.autoMode,
+          AppearanceMode.day => CruIcons.sun,
+          AppearanceMode.evening => CruIcons.moon,
+        };
+    return [
+      PopupMenuItem<VoidCallback>(
+        enabled: false,
+        height: 28,
+        child: Text('Appearance', style: CruType.groupLabel.tint(c.label3)),
+      ),
+      for (final m in AppearanceMode.values)
+        PopupMenuItem<VoidCallback>(
+          value: () => ref.read(appearanceModeProvider.notifier).select(m),
+          height: CruSize.control,
+          child: Row(
+            children: [
+              CruIcon(iconFor(m), size: 18, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
+              Expanded(
+                child: Text(
+                  m == AppearanceMode.auto
+                      ? 'Auto (Evening from 5 PM)'
+                      : m.label,
+                  style: CruType.text.tint(c.label),
+                ),
+              ),
+              if (m == current)
+                CruIcon(CruIcons.check, size: 16, strokeWidth: 2.2,
+                    color: c.accentText),
+            ],
+          ),
+        ),
+      const PopupMenuDivider(),
+    ];
   }
 }
 

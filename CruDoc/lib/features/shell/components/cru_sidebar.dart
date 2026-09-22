@@ -57,8 +57,10 @@ class SidebarCallbacks {
   final VoidCallback onLogout;
   final VoidCallback onToggleCollapsed;
 
-  /// Extra account-menu entries (appearance), built by the shell.
-  final List<PopupMenuEntry<VoidCallback>> Function()? appearanceMenu;
+  /// Extra account-menu entries (appearance), built by the shell with the
+  /// sidebar's current colours.
+  final List<PopupMenuEntry<VoidCallback>> Function(CruColors c)?
+      appearanceMenu;
 }
 
 /// Calm Clinical sidebar: no card behind it, sits on the canvas.
@@ -428,7 +430,7 @@ class _ProfileButton extends StatelessWidget {
       ),
       constraints: const BoxConstraints(minWidth: 220),
       items: [
-        ...?callbacks.appearanceMenu?.call(),
+        ...?callbacks.appearanceMenu?.call(c),
         _item(c, CruIcons.settings, 'Settings', callbacks.onSettings),
         _item(c, CruIcons.help, 'Help & shortcuts', callbacks.onHelp),
         if (canExpand)

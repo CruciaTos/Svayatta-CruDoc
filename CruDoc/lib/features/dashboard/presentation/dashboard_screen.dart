@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/wrap_up_providers.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/wrap_up_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/widgets/dental_quick_actions_row.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -129,8 +131,15 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// Cards above Collections in the right column.
+  /// Cards above Collections in the right column: Wrap up the day in the
+  /// evening, Needs attention during the day. (Insights stay hidden: no
+  /// AI insights are generated from records yet.)
   List<Widget> _rightColumnTop(BuildContext context, DashboardData data) {
+    if (context.cru.isEvening) {
+      final wrapUp = ref.watch(wrapUpProvider);
+      if (wrapUp == null || !wrapUp.hasRows) return const [];
+      return [WrapUpCard(data: wrapUp, navigate: widget.onNavigateToTab)];
+    }
     final attention = data.attention;
     if (attention == null || attention.isEmpty) return const [];
     return [

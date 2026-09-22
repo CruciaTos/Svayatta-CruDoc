@@ -17,6 +17,10 @@ enum CruButtonKind {
 
   /// accentTint fill with accentText ("Close the day").
   tinted,
+
+  /// Transparent with a 1 px separator ring and accentText ("Open full
+  /// profile").
+  outline,
 }
 
 /// A 40 or 44 px button with radius 12.
@@ -52,12 +56,15 @@ class CruButton extends StatelessWidget {
       CruButtonKind.secondary => (c.surface, c.label, c.label2),
       CruButtonKind.inset => (c.inset, c.label, c.label2),
       CruButtonKind.tinted => (c.accentTint, c.accentText, null),
+      CruButtonKind.outline => (c.surface, c.accentText, null),
     };
     final isPrimary = kind == CruButtonKind.primary;
     final base = large ? CruType.row : CruType.text;
     final style = base.copyWith(
       color: fg,
-      fontWeight: isPrimary || kind == CruButtonKind.tinted
+      fontWeight: isPrimary ||
+              kind == CruButtonKind.tinted ||
+              kind == CruButtonKind.outline
           ? FontWeight.w600
           : FontWeight.w500,
     );
@@ -83,9 +90,11 @@ class CruButton extends StatelessWidget {
             color: bg,
             shape: cruShape(
               CruRadius.control,
-              side: kind == CruButtonKind.secondary
-                  ? BorderSide(color: c.hairline)
-                  : BorderSide.none,
+              side: switch (kind) {
+                CruButtonKind.secondary => BorderSide(color: c.hairline),
+                CruButtonKind.outline => BorderSide(color: c.separator),
+                _ => BorderSide.none,
+              },
             ),
             shadows: kind == CruButtonKind.secondary ? c.cardShadow : null,
           ),
@@ -118,41 +127,138 @@ class CruButton extends StatelessWidget {
   }
 }
 
-/// A 30 px capsule for list actions: inset fill, accentText 13/600.
+enum CruCapsuleKind {
+  /// Inset fill (list actions: "Book", "Update", "Edit plan").
+  inset,
+
+  /// accentTint fill ("Call", "WhatsApp" beside a profile).
+  tinted,
+
+  /// Surface fill with a hairline ring and card shadow ("Send reminders",
+  /// "Record payment" on an inset panel).
+  surface,
+}
+
+/// A capsule for list actions: accentText 13/600, 30 px by default.
 class CruCapsuleButton extends StatelessWidget {
   const CruCapsuleButton({
     super.key,
     required this.label,
     required this.onPressed,
     this.semanticLabel,
+    this.kind = CruCapsuleKind.inset,
+    this.icon,
+    this.height = CruSize.capsule,
+    this.large = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final String? semanticLabel;
+  final CruCapsuleKind kind;
+  final CruIconData? icon;
+  final double height;
+
+  /// 13.5 px label instead of 13 px (36 px capsules).
+  final bool large;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final fill = switch (kind) {
+      CruCapsuleKind.inset => c.inset,
+      CruCapsuleKind.tinted => c.accentTint,
+      CruCapsuleKind.surface => c.surface,
+    };
+    final style = (large ? CruType.chip : CruType.subhead).copyWith(
+      color: c.accentText,
+      fontWeight: FontWeight.w600,
+    );
     return CruPressable(
       onTap: onPressed,
       semanticLabel: semanticLabel ?? label,
       builder: (context, hovered) => AnimatedContainer(
         duration: CruMotion.of(context, CruMotion.fast),
         curve: CruMotion.curve,
-        height: CruSize.capsule,
+        height: height,
         padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
         alignment: Alignment.center,
         decoration: ShapeDecoration(
-          color: hovered ? cruHoverShade(c.inset, c) : c.inset,
-          shape: const StadiumBorder(),
-        ),
-        child: Text(
-          label,
-          style: CruType.subhead.copyWith(
-            color: c.accentText,
-            fontWeight: FontWeight.w600,
+          color: hovered ? cruHoverShade(fill, c) : fill,
+          shape: StadiumBorder(
+            side: kind == CruCapsuleKind.surface
+                ? BorderSide(color: c.hairline)
+                : BorderSide.none,
           ),
+          shadows: kind == CruCapsuleKind.surface ? c.cardShadow : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              CruIcon(icon!, size: 15, strokeWidth: 2, color: c.accentText),
+              const SizedBox(width: CruSpace.s6),
+            ],
+            Text(label, style: style, maxLines: 1),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A filled square icon button: 36 px inset (preview pane ↗ and ×) or
+/// 40 px secondary surface with hairline (the details "…").
+class CruSquareButton extends StatelessWidget {
+  const CruSquareButton({
+    super.key,
+    required this.icon,
+    required this.onPressed,
+    required this.semanticLabel,
+    this.secondary = false,
+    this.iconSize = 17,
+    this.strokeWidth = 2,
+    this.tooltip,
+  });
+
+  final CruIconData icon;
+  final VoidCallback? onPressed;
+  final String semanticLabel;
+
+  /// 40 px surface + hairline + shadow instead of 36 px inset.
+  final bool secondary;
+  final double iconSize;
+  final double strokeWidth;
+  final String? tooltip;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final size = secondary ? CruSize.control : CruSize.squareButton;
+    final fill = secondary ? c.surface : c.inset;
+    return CruPressable(
+      onTap: onPressed,
+      semanticLabel: semanticLabel,
+      tooltip: tooltip,
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          color: hovered ? cruHoverShade(fill, c) : fill,
+          shape: cruShape(
+            secondary ? CruRadius.control : CruRadius.iconTile,
+            side: secondary ? BorderSide(color: c.hairline) : BorderSide.none,
+          ),
+          shadows: secondary ? c.cardShadow : null,
+        ),
+        child: CruIcon(
+          icon,
+          size: iconSize,
+          strokeWidth: strokeWidth,
+          color: c.label2,
         ),
       ),
     );
@@ -209,6 +315,7 @@ class CruLink extends StatelessWidget {
     this.color,
     this.style,
     this.trailing,
+    this.leading,
   });
 
   final String label;
@@ -216,6 +323,9 @@ class CruLink extends StatelessWidget {
   final Color? color;
   final TextStyle? style;
   final Widget? trailing;
+
+  /// A leading icon ("‹ Patients").
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -228,6 +338,10 @@ class CruLink extends StatelessWidget {
       builder: (context, hovered) => Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (leading != null) ...[
+            IconTheme(data: IconThemeData(color: fg), child: leading!),
+            const SizedBox(width: CruSpace.s2),
+          ],
           Text(
             label,
             style: (style ?? CruType.subhead.w600).copyWith(

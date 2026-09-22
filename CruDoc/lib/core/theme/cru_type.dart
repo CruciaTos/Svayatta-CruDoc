@@ -143,6 +143,83 @@ abstract final class CruType {
     letterSpacing: -0.17,
   );
 
+  /// Preview pane name, panel titles, summary amount (20/26).
+  static const TextStyle title2 = TextStyle(
+    fontFamily: family,
+    fontSize: 20,
+    height: 26 / 20,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.3,
+  );
+
+  /// The balance amount in the preview pane. Always tabular.
+  static const TextStyle amount = TextStyle(
+    fontFamily: family,
+    fontSize: 26,
+    height: 32 / 26,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.52,
+    fontFeatures: tabular,
+  );
+
+  /// 15 px text inputs (Patients search, note composer).
+  static const TextStyle input = TextStyle(
+    fontFamily: family,
+    fontSize: 15,
+    height: 20 / 15,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// Clinical note bodies (14/21).
+  static const TextStyle note = TextStyle(
+    fontFamily: family,
+    fontSize: 14,
+    height: 21 / 14,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// Lead paragraph on empty and first-run panels (14.5/22).
+  static const TextStyle lead = TextStyle(
+    fontFamily: family,
+    fontSize: 14.5,
+    height: 22 / 14.5,
+    fontWeight: FontWeight.w400,
+  );
+
+  /// Chips, pills and capsule labels at 13.5 px.
+  static const TextStyle chip = TextStyle(
+    fontFamily: family,
+    fontSize: 13.5,
+    height: 18 / 13.5,
+    fontWeight: FontWeight.w500,
+  );
+
+  /// Treatment step titles (15/24).
+  static const TextStyle step = TextStyle(
+    fontFamily: family,
+    fontSize: 15,
+    height: 24 / 15,
+    fontWeight: FontWeight.w600,
+  );
+
+  /// Date tile month ("SEP").
+  static const TextStyle dateMonth = TextStyle(
+    fontFamily: family,
+    fontSize: 10.5,
+    height: 12 / 10.5,
+    fontWeight: FontWeight.w600,
+    letterSpacing: 0.42,
+  );
+
+  /// Date tile day ("30"). Always tabular.
+  static const TextStyle dateDay = TextStyle(
+    fontFamily: family,
+    fontSize: 18,
+    height: 22 / 18,
+    fontWeight: FontWeight.w600,
+    fontFeatures: tabular,
+  );
+
   /// Monogram initials; the size scales with the avatar.
   static TextStyle monogram(double size) => TextStyle(
         fontFamily: family,

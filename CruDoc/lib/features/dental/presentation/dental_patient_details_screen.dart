@@ -348,9 +348,20 @@ class _DentalPatientDetailsScreenState
       error: (_, _) => const SizedBox.shrink(),
       data: (visits) {
         final completed = visits.where((v) => v.status == VisitStatus.completed).length;
-        final lastVisitStr = visits.isNotEmpty
-            ? DateFormat('MMM d, yyyy').format(visits.first.scheduledStart)
-            : 'None yet';
+        // Latest completed visit that has already started: never a
+        // future booking or a cancelled visit.
+        final now = DateTime.now();
+        Visit? last;
+        for (final v in visits) {
+          if (v.isDeleted || v.status != VisitStatus.completed) continue;
+          if (v.scheduledStart.isAfter(now)) continue;
+          if (last == null || v.scheduledStart.isAfter(last.scheduledStart)) {
+            last = v;
+          }
+        }
+        final lastVisitStr = last != null
+            ? DateFormat('MMM d, yyyy').format(last.scheduledStart)
+            : 'No visits yet';
 
         return Row(
           children: [

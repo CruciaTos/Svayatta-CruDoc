@@ -129,6 +129,23 @@ abstract final class CruIcons {
     'M9.5 4.5v15',
     rects: [(3.5, 4.5, 17, 15, 3.5)],
   );
+  /// WhatsApp-style chat bubble.
+  static const whatsapp = CruIconData(
+    'M20.5 11.5a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1.4-4.3A8.5 8.5 0 1 1 20.5 11.5z',
+  );
+  static const close = CruIconData('M6.5 6.5l11 11M17.5 6.5l-11 11');
+  static const arrowUpRight = CruIconData('M8 16 16 8M9 8h7v7');
+  static const importExport = CruIconData('M8 20V5M4 9l4-4 4 4M16 4v15M12 15l4 4 4-4');
+  static const download = CruIconData(
+    'M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5'
+    'M4 15.5v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2',
+  );
+
+  /// Single four-point star: the Scribe provenance tag.
+  static const sparkleSingle = CruIconData(
+    'M12 3.5C12.7 8.5 15.5 11.3 20.5 12 15.5 12.7 12.7 15.5 12 20.5'
+    ' 11.3 15.5 8.5 12.7 3.5 12 8.5 11.3 11.3 8.5 12 3.5z',
+  );
   static const autoMode = CruIconData(
     'M12 3.5v17',
     circles: [(12, 12, 8.5)],

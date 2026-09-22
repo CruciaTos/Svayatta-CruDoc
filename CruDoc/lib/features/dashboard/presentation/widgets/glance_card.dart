@@ -17,14 +17,28 @@ class GlanceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
     final cells = <Widget>[
-      glance == null ? const _CellSkeleton(ring: true) : _SeenCell(glance!),
-      glance == null ? const _CellSkeleton() : _WaitingCell(glance!),
-      collected == null ? const _CellSkeleton() : _CollectedCell(collected!),
+      glance == null ? const GlanceCellSkeleton(ring: true) : _SeenCell(glance!),
+      glance == null ? const GlanceCellSkeleton() : _WaitingCell(glance!),
+      collected == null ? const GlanceCellSkeleton() : _CollectedCell(collected!),
     ];
+    return GlanceStrip(semanticLabel: 'Today at a glance', cells: cells);
+  }
+}
+
+/// The glance layout: one card, equal cells split by separators. Shared
+/// with the Patient details facts strip.
+class GlanceStrip extends StatelessWidget {
+  const GlanceStrip({super.key, required this.cells, this.semanticLabel});
+
+  final List<Widget> cells;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
     return CruCard(
-      semanticLabel: 'Today at a glance',
+      semanticLabel: semanticLabel,
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s20),
       child: IntrinsicHeight(
         child: Row(
@@ -50,8 +64,9 @@ class GlanceCard extends StatelessWidget {
   }
 }
 
-class _Label extends StatelessWidget {
-  const _Label(this.text);
+/// Cell label (13/500 label2).
+class GlanceLabel extends StatelessWidget {
+  const GlanceLabel(this.text, {super.key});
   final String text;
 
   @override
@@ -63,8 +78,9 @@ class _Label extends StatelessWidget {
       );
 }
 
-class _Metric extends StatelessWidget {
-  const _Metric(this.value, {this.suffix});
+/// Cell value (28/600) with an optional quieter suffix ("of 13").
+class GlanceMetric extends StatelessWidget {
+  const GlanceMetric(this.value, {super.key, this.suffix});
   final String value;
   final String? suffix;
 
@@ -83,8 +99,9 @@ class _Metric extends StatelessWidget {
   }
 }
 
-class _Caption extends StatelessWidget {
-  const _Caption(this.child);
+/// Cell caption (12.5 tabular label2).
+class GlanceCaption extends StatelessWidget {
+  const GlanceCaption(this.child, {super.key});
   final Widget child;
 
   @override
@@ -114,9 +131,9 @@ class _SeenCell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const _Label('Seen today'),
-              _Metric('${g.seen}', suffix: 'of ${g.total}'),
-              _Caption(Text(
+              const GlanceLabel('Seen today'),
+              GlanceMetric('${g.seen}', suffix: 'of ${g.total}'),
+              GlanceCaption(Text(
                 g.total == 0
                     ? 'No appointments yet'
                     : g.stillToSee == 0
@@ -142,9 +159,9 @@ class _WaitingCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const _Label('Waiting now'),
-        _Metric('${g.waiting}'),
-        _Caption(g.averageWaitMinutes == null
+        const GlanceLabel('Waiting now'),
+        GlanceMetric('${g.waiting}'),
+        GlanceCaption(g.averageWaitMinutes == null
             ? const Text('Queue is clear')
             : Row(children: [
                 CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
@@ -203,16 +220,17 @@ class _CollectedCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const _Label('Collected today'),
-        _Metric(DashFormat.rupees(data.today)),
-        _Caption(caption),
+        const GlanceLabel('Collected today'),
+        GlanceMetric(DashFormat.rupees(data.today)),
+        GlanceCaption(caption),
       ],
     );
   }
 }
 
-class _CellSkeleton extends StatelessWidget {
-  const _CellSkeleton({this.ring = false});
+/// Loading placeholder for one cell.
+class GlanceCellSkeleton extends StatelessWidget {
+  const GlanceCellSkeleton({super.key, this.ring = false});
   final bool ring;
 
   @override

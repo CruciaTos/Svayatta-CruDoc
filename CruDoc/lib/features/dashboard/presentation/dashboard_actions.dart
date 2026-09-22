@@ -6,7 +6,7 @@ import 'package:doctor_management_app/features/chatbot/presentation/chatbot_scre
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
-import 'package:doctor_management_app/features/patients/presentation/desktop_patient_details_screen.dart';
+import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/features/queue/presentation/check_in_dialog.dart';
 
@@ -45,7 +45,7 @@ abstract final class DashboardActions {
   static void openPatient(BuildContext context, Patient patient) {
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
-        builder: (_) => DesktopPatientDetailsScreen(patient: patient),
+        builder: (_) => PatientDetailsScreen(patientId: patient.id),
       ),
     );
   }

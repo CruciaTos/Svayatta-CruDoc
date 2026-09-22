@@ -19,7 +19,7 @@ import 'package:doctor_management_app/features/settings/presentation/desktop_set
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_screen.dart';
-import 'package:doctor_management_app/features/patients/presentation/desktop_patient_records_screen.dart';
+import 'package:doctor_management_app/features/patients/presentation/patients_screen.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_revenue_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/desktop_inventory_list_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
@@ -172,7 +172,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           searchFocusNode: _searchFocusNode,
         );
       case 1:
-        return const DesktopPatientRecordsScreen();
+        return const PatientsScreen();
       case 2:
         return const DesktopInventoryScreen();
       case 3:
@@ -296,6 +296,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             _currentIndex == 5 ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
         final isDashboard = _currentIndex == DesktopTab.dashboard;
+        final isPatients = _currentIndex == DesktopTab.patients;
 
         final width = MediaQuery.sizeOf(context).width;
         final forcedCompact = width < CruBreakpoint.compact;
@@ -310,7 +311,15 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                 icon: _icons[_currentIndex],
                 onBackToDashboard: () => _onNavTap(0),
               );
-        if (!isDashboard) {
+        if (isPatients) {
+          // Patients is built on the Calm Clinical tokens and pads its own
+          // page like the dashboard. It stays on Day (it paints its own
+          // canvas) because the dialogs it opens were built for Day.
+          content = Theme(
+            data: CruTheme.day(),
+            child: SizedBox.expand(child: content),
+          );
+        } else if (!isDashboard) {
           // Other screens keep their own layout, on the Day theme, with
           // the spacing they had before.
           content = Theme(
@@ -343,9 +352,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   ),
                   content: content,
                   // The dashboard reaches the assistant through "Ask
-                  // CruDoc" in its search; other screens keep the
-                  // floating button.
-                  overlay: isDashboard
+                  // CruDoc" in its search; Patients has no floating
+                  // button either. Other screens keep it.
+                  overlay: isDashboard || isPatients
                       ? null
                       : const DraggableFloatingChatbotButton(
                           initialBottom: 32,

@@ -65,6 +65,7 @@ class CruColors extends ThemeExtension<CruColors> {
     required this.cardShadow,
     required this.segmentShadow,
     required this.inkShadow,
+    required this.paneShadow,
     required this.inkBorder,
     required this.primaryButtonFill,
     required this.primaryButtonText,
@@ -134,6 +135,9 @@ class CruColors extends ThemeExtension<CruColors> {
   /// Up next card elevation (Day only).
   final List<BoxShadow> inkShadow;
 
+  /// Raised panels that float beside a list (the Patients preview pane).
+  final List<BoxShadow> paneShadow;
+
   /// Up next card border (Evening only).
   final Color inkBorder;
 
@@ -194,6 +198,15 @@ class CruColors extends ThemeExtension<CruColors> {
         offset: Offset(0, 24),
       ),
     ],
+    paneShadow: [
+      BoxShadow(color: Color(0x0A101828), blurRadius: 2, offset: Offset(0, 1)),
+      BoxShadow(
+        color: Color(0x24101828),
+        blurRadius: 32,
+        spreadRadius: -16,
+        offset: Offset(0, 16),
+      ),
+    ],
     inkBorder: Color(0x00000000),
     primaryButtonFill: CruBrand.ink600,
     primaryButtonText: CruBrand.white,
@@ -238,6 +251,14 @@ class CruColors extends ThemeExtension<CruColors> {
       BoxShadow(color: Color(0x59000000), blurRadius: 2, offset: Offset(0, 1)),
     ],
     inkShadow: [],
+    paneShadow: [
+      BoxShadow(
+        color: Color(0x66000000),
+        blurRadius: 32,
+        spreadRadius: -16,
+        offset: Offset(0, 16),
+      ),
+    ],
     inkBorder: Color(0x0FFFFFFF),
     primaryButtonFill: CruBrand.ink600,
     primaryButtonText: CruBrand.white,
@@ -316,6 +337,7 @@ class CruColors extends ThemeExtension<CruColors> {
       cardShadow: cardShadow,
       segmentShadow: segmentShadow,
       inkShadow: inkShadow,
+      paneShadow: paneShadow,
       inkBorder: inkBorder,
       primaryButtonFill: primaryButtonFill ?? this.primaryButtonFill,
       primaryButtonText: primaryButtonText ?? this.primaryButtonText,
@@ -367,6 +389,8 @@ class CruColors extends ThemeExtension<CruColors> {
               other.segmentShadow,
       inkShadow:
           BoxShadow.lerpList(inkShadow, other.inkShadow, t) ?? other.inkShadow,
+      paneShadow: BoxShadow.lerpList(paneShadow, other.paneShadow, t) ??
+          other.paneShadow,
       inkBorder: c(inkBorder, other.inkBorder),
       primaryButtonFill: c(primaryButtonFill, other.primaryButtonFill),
       primaryButtonText: c(primaryButtonText, other.primaryButtonText),

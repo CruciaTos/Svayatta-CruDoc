@@ -1,0 +1,427 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CruDoc Patients Prototype</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;display=swap">
+<style>
+body{margin:0;background:#F1F4F9}
+a{color:#3155E0}a:hover{color:#2542BD}
+input::placeholder{color:#86868B}
+button{font-family:inherit}
+button[data-row]{background:transparent}
+button[data-row]:hover{background:#F2F4F7 !important}
+button[data-row][aria-current="true"]:hover{background:#E5EDFF !important}
+@keyframes cru-slide{from{opacity:0;transform:translateX(16px)}to{opacity:1;transform:none}}
+@keyframes cru-fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){aside,div{animation:none !important}}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1064px; box-sizing: border-box; display: flex; overflow: hidden; background: var(--canvas); color: var(--label); font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; --canvas: #F1F4F9; --surface: #FFFFFF; --inset: #F2F4F7; --inset-2: #E6EAF0; --label: #1D1D1F; --label-2: #6E6E73; --label-3: #86868B; --sep: rgba(16,24,40,0.08); --hair: rgba(16,24,40,0.06); --ink: #2542BD; --accent: #3155E0; --accent-text: #3155E0; --accent-tint: #E5EDFF; --accent-wash: #F4F7FE; --amber: #FF9F0A; --amber-text: #B25000; --amber-tint: #FFF4E5; --green: #34C759; --green-text: #248A3D; --red-text: #D70015; --red-tint: #FDECEC; --ai: #8031C0; --ai-tint: #F8F3FF; --sel: #FFFFFF; --seg-sel: #FFFFFF; --shadow-1: 0 1px 2px rgba(16,24,40,0.04); --shadow-2: 0 1px 2px rgba(16,24,40,0.04), 0 16px 32px -16px rgba(16,24,40,0.14);">
+
+<!-- Sidebar -->
+<aside style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 24px 12px 20px 20px; display: flex; flex-direction: column; gap: 22px;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px;">
+<div style="width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: flex; align-items: center; justify-content: center;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+</div>
+<div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">CruDoc</div>
+</div>
+
+<button style="display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); text-align: left; cursor: pointer; color: var(--label);">
+<div style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; background: var(--accent-tint); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">S</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; font-weight: 600; line-height: 18px;">Sanjeevani Clinic</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">Dentist</div>
+</div>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-3); flex-shrink: 0;" aria-hidden="true"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"></path></svg>
+</button>
+
+<nav aria-label="Main" style="display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Today</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>
+<span>Dashboard</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"></path></svg>
+<span>Queue</span>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--label-2); font-variant-numeric: tabular-nums;"><span style="width: 6px; height: 6px; border-radius: 3px; background: var(--amber);"></span>2</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+<span>Appointments</span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Patients</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; background: var(--sel); box-shadow: var(--shadow-1), 0 0 0 1px var(--hair); color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 600;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.6-3.6 3.3-6 6.5-6s5.9 2.4 6.5 6"></path><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2 .8 3.2 2.8 3.5 5.7"></path></svg>
+<span>Patients</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg>
+<span>Scribe</span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Clinic</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"></path><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"></path></svg>
+<span>Inventory</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M7 4.5h10M7 9h10M9.5 4.5c3.3 0 5 1.7 5 4.5s-1.7 4.5-5 4.5H7l7.5 6.5"></path></svg>
+<span>Revenue</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 10v4a1 1 0 0 0 1 1h2l8 4.5V4.5L7 9H5a1 1 0 0 0-1 1z"></path><path d="M18.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg>
+<span>Campaigns</span>
+</a>
+</div>
+</nav>
+
+<div style="flex-grow: 1;"></div>
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 12.5px;">
+<span style="color: var(--label-2);">Free trial · 12 days left</span>
+<a href="#" style="color: var(--accent-text); font-weight: 600; text-decoration: none;">Upgrade</a>
+</div>
+<button style="display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 14px; border: none; background: transparent; text-align: left; cursor: pointer; color: var(--label);">
+<div style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 17px; background: var(--inset-2); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600;">AD</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 13.5px; font-weight: 600; line-height: 18px;">Dr. Ananya Deshpande</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">Account &amp; settings</div>
+</div>
+</button>
+</div>
+</aside>
+
+<!-- Main -->
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 32px 32px 12px; display: flex; flex-direction: column; gap: 20px;">
+
+<header style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div>
+<h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.022em;">Patients</h1>
+<div style="font-size: 14px; line-height: 20px; color: var(--label-2); margin-top: 2px; font-variant-numeric: tabular-nums;">248 patients · 18 new this month</div>
+</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); font-size: 14px; font-weight: 500; color: var(--label); cursor: pointer;">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M8 20V5M4 9l4-4 4 4M16 4v15M12 15l4 4 4-4"></path></svg>
+Import / Export
+</button>
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px 0 13px; border-radius: 12px; border: none; background: var(--accent); font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+Add patient
+</button>
+</div>
+</header>
+
+<div style="display: flex; align-items: center; gap: 12px;">
+<label style="display: flex; align-items: center; gap: 10px; flex-grow: 1; height: 44px; box-sizing: border-box; padding: 0 10px 0 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--shadow-1);">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-3); flex-shrink: 0;" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m20 20-4.2-4.2"></path></svg>
+<input type="text" aria-label="Search patients" placeholder="Search by name, phone, patient ID or condition" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 15px; color: var(--label);">
+<span style="font-size: 11.5px; font-weight: 500; color: var(--label-2); padding: 3px 6px; border-radius: 6px; background: var(--inset); white-space: nowrap;">Ctrl F</span>
+</label>
+<button style="display: flex; align-items: center; gap: 6px; height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); font-size: 14px; font-weight: 500; color: var(--label); cursor: pointer; white-space: nowrap;">
+<span style="color: var(--label-2);">Sort</span> {{sortLabel}}
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="m6 9.5 6 6 6-6"></path></svg>
+</button>
+</div>
+
+<div aria-label="Patient lists" style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="6">
+<button onClick="{{c.pick}}" aria-pressed="{{c.pressed}}" style="display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; cursor: pointer; font-variant-numeric: tabular-nums; border: {{c.border}}; background: {{c.bg}}; color: {{c.fg}}; font-weight: {{c.fw}};"><sc-if value="{{c.dot}}" hint-placeholder-val="{{false}}"><span style="width: 6px; height: 6px; border-radius: 3px; background: var(--amber);"></span></sc-if>{{c.label}} <span style="font-weight: 500; color: {{c.countColor}};">{{c.count}}</span></button>
+</sc-for>
+</div>
+
+<sc-if value="{{showSummary}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 14px 14px 20px; border-radius: 16px; background: var(--amber-tint); animation: cru-fade 220ms cubic-bezier(0.2, 0.8, 0.2, 1);">
+<div style="display: flex; align-items: baseline; gap: 12px;">
+<span style="font-size: 20px; line-height: 26px; font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums;">₹78,400 <span style="font-size: 14px; font-weight: 500; letter-spacing: 0; color: var(--label-2);">outstanding</span></span>
+<span style="font-size: 13px; line-height: 18px; color: var(--label-2); font-variant-numeric: tabular-nums;">12 patients · oldest due 41 days</span>
+</div>
+<button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; border: none; background: var(--surface); box-shadow: var(--shadow-1), 0 0 0 1px var(--hair); color: var(--accent-text); font-size: 13.5px; font-weight: 600; cursor: pointer; flex-shrink: 0;">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1.4-4.3A8.5 8.5 0 1 1 20.5 11.5z"></path></svg>
+Send reminders
+</button>
+</div>
+</sc-if>
+
+<!-- Table mode: nothing selected -->
+<sc-if value="{{tableMode}}" hint-placeholder-val="{{true}}">
+<section aria-label="Patient list" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 6px 12px 12px;">
+<div style="display: grid; grid-template-columns: minmax(0, 2.1fr) 64px minmax(0, 2.3fr) 124px 148px 92px 16px; column-gap: 20px; align-items: center; height: 44px; padding: 0 16px; border-bottom: 1px solid var(--sep); font-size: 12.5px; font-weight: 600; color: var(--label-2);">
+<span>Patient</span><span>Age</span><span>Condition and treatment</span><span>Last visit</span><span>Next visit</span><span style="text-align: right;">Balance</span><span></span>
+</div>
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="2">
+<sc-if value="{{g.showTitle}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; align-items: baseline; gap: 8px; padding: 16px 16px 6px; font-size: 12px; font-weight: 600; color: var(--label-2);">{{g.title}} <span style="font-weight: 500; color: var(--label-3);">{{g.count}}</span></div>
+</sc-if>
+<sc-for list="{{g.rows}}" as="r" hint-placeholder-count="4">
+<sc-if value="{{r.showSep}}" hint-placeholder-val="{{false}}"><div style="height: 1px; background: var(--sep); margin: 0 16px 0 64px;"></div></sc-if>
+<button data-row="table" onClick="{{r.pick}}" aria-label="{{r.aria}}" style="display: grid; grid-template-columns: minmax(0, 2.1fr) 64px minmax(0, 2.3fr) 124px 148px 92px 16px; column-gap: 20px; align-items: center; width: 100%; height: 64px; padding: 0 16px; border: none; border-radius: 12px; color: var(--label); text-align: left; cursor: pointer;">
+<span style="display: flex; align-items: center; gap: 12px; min-width: 0;"><span style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 18px; background: var(--inset); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600;">{{r.i}}</span><span style="display: block; min-width: 0;"><span style="display: block; font-size: 15px; line-height: 20px; font-weight: 600;">{{r.name}}</span><span style="display: block; font-size: 13px; line-height: 18px; color: var(--label-2); font-variant-numeric: tabular-nums;">{{r.idPhone}}</span></span></span>
+<span style="font-size: 14px; font-variant-numeric: tabular-nums;">{{r.age}}</span>
+<span style="display: block; min-width: 0;"><span style="display: block; font-size: 14px; line-height: 19px; font-weight: 500;">{{r.cond}}</span><span style="display: block; font-size: 13px; line-height: 18px; color: var(--label-2);">{{r.treat}}</span></span>
+<span style="display: block;"><span style="display: block; font-size: 14px; line-height: 19px;">{{r.last}}</span><span style="display: block; font-size: 13px; line-height: 18px; color: var(--label-2); font-variant-numeric: tabular-nums;">{{r.lastT}}</span></span>
+<span style="display: block;"><span style="display: block; font-size: 14px; line-height: 19px; font-weight: {{r.nextWeight}}; color: {{r.nextColor}};">{{r.next}}</span><span style="display: block; font-size: 13px; line-height: 18px; color: var(--label-2); font-variant-numeric: tabular-nums;">{{r.nextT}}</span></span>
+<span style="text-align: right; font-size: 14px; font-variant-numeric: tabular-nums; font-weight: {{r.balWeight}}; color: {{r.balColor}};">{{r.balShown}}</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-3);" aria-hidden="true"><path d="m9.5 6 6 6-6 6"></path></svg>
+</button>
+</sc-for>
+</sc-for>
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 4px; font-size: 13px; color: var(--label-3); font-variant-numeric: tabular-nums;">
+<span>{{footerText}}</span>
+<span>Click a patient to preview</span>
+</div>
+</section>
+</sc-if>
+
+<!-- Split mode: a patient is selected -->
+<sc-if value="{{splitMode}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; gap: 20px; align-items: flex-start;">
+<section aria-label="Patient list" style="flex-grow: 1; min-width: 0; background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 6px 12px 12px;">
+<div style="display: flex; justify-content: space-between; height: 44px; align-items: center; padding: 0 16px; border-bottom: 1px solid var(--sep); font-size: 12.5px; font-weight: 600; color: var(--label-2);"><span>Patient</span><span>{{compactRightTitle}}</span></div>
+<div style="height: 6px;"></div>
+<sc-for list="{{compactRows}}" as="r" hint-placeholder-count="8">
+<sc-if value="{{r.showSep}}" hint-placeholder-val="{{false}}"><div style="height: 1px; background: var(--sep); margin: 0 16px 0 64px; opacity: {{r.sepOpacity}};"></div></sc-if>
+<button data-row="compact" onClick="{{r.pick}}" aria-label="{{r.aria}}" aria-current="{{r.current}}" style="display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; column-gap: 12px; align-items: center; width: 100%; height: 62px; padding: 0 16px; border: none; border-radius: 12px; color: var(--label); text-align: left; cursor: pointer; background: {{r.bg}};">
+<span style="width: 36px; height: 36px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; background: {{r.monoBg}}; color: {{r.monoFg}};">{{r.i}}</span>
+<span style="display: block; min-width: 0;"><span style="display: block; font-size: 15px; line-height: 20px; font-weight: 600;">{{r.name}}</span><span style="display: block; font-size: 13px; line-height: 18px; color: var(--label-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{r.treat}}</span></span>
+<span style="display: block; text-align: right;"><span style="display: block; font-size: 15px; line-height: 20px; font-variant-numeric: tabular-nums; font-weight: {{r.rtWeight}}; color: {{r.rtColor}};">{{r.rightTop}}</span><span style="display: block; font-size: 12.5px; line-height: 18px; font-variant-numeric: tabular-nums; color: {{r.rsColor}};">{{r.rightSub}}</span></span>
+</button>
+</sc-for>
+<div style="padding: 12px 16px 4px; font-size: 13px; color: var(--label-3); font-variant-numeric: tabular-nums;">{{footerText}}</div>
+</section>
+
+<aside aria-label="Patient preview" style="width: 420px; flex-shrink: 0; box-sizing: border-box; background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-2); padding: 22px; display: flex; flex-direction: column; gap: 18px; animation: cru-slide 240ms cubic-bezier(0.2, 0.8, 0.2, 1);">
+<div style="display: flex; align-items: flex-start; gap: 14px;">
+<span style="width: 56px; height: 56px; flex-shrink: 0; border-radius: 28px; background: var(--inset-2); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 600;">{{sel.i}}</span>
+<div style="flex-grow: 1; min-width: 0; padding-top: 3px;">
+<h2 style="margin: 0; font-size: 20px; line-height: 26px; font-weight: 600; letter-spacing: -0.015em;">{{sel.name}}</h2>
+<div style="font-size: 13.5px; line-height: 19px; color: var(--label-2); font-variant-numeric: tabular-nums;">{{sel.meta}}</div>
+</div>
+<a href="Patient.dc.html" aria-label="Open full profile" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--inset); color: var(--label-2); display: flex; align-items: center; justify-content: center;">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 16 16 8M9 8h7v7"></path></svg>
+</a>
+<button onClick="{{closePane}}" aria-label="Close preview" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; border: none; background: var(--inset); color: var(--label-2); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"></path></svg>
+</button>
+</div>
+
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<sc-if value="{{sel.alert}}" hint-placeholder-val="{{false}}">
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: var(--red-tint); color: var(--red-text); font-size: 12.5px; font-weight: 600;">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 4.8a2 2 0 0 1 3.4 0l7 12.2a2 2 0 0 1-1.7 3H5a2 2 0 0 1-1.7-3z"></path><path d="M12 10v4M12 17h.01"></path></svg>
+{{sel.allergy}}
+</span>
+</sc-if>
+<sc-if value="{{sel.noAlert}}" hint-placeholder-val="{{true}}">
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border-radius: 999px; background: var(--inset); font-size: 12.5px; font-weight: 500;">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+{{sel.allergy}}
+</span>
+</sc-if>
+<span style="display: inline-flex; align-items: center; height: 28px; padding: 0 11px; border-radius: 999px; background: var(--inset); font-size: 12.5px; font-weight: 500; font-variant-numeric: tabular-nums;">{{sel.phone}}</span>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;">
+<button style="height: 60px; border-radius: 12px; border: none; background: var(--inset); color: var(--accent-text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; font-weight: 600; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h3.5l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5V19a1.5 1.5 0 0 1-1.5 1.5A15.5 15.5 0 0 1 3.5 6 1.5 1.5 0 0 1 5 4.5z"></path></svg>
+Call
+</button>
+<button style="height: 60px; border-radius: 12px; border: none; background: var(--inset); color: var(--accent-text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; font-weight: 600; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1.4-4.3A8.5 8.5 0 1 1 20.5 11.5z"></path></svg>
+WhatsApp
+</button>
+<button style="height: 60px; border-radius: 12px; border: none; background: var(--inset); color: var(--accent-text); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12.5px; font-weight: 600; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+New visit
+</button>
+</div>
+
+<sc-if value="{{sel.hasBal}}" hint-placeholder-val="{{true}}">
+<div style="padding: 16px; border-radius: 14px; background: var(--inset); display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between;">
+<span style="font-size: 13px; font-weight: 500; color: var(--label-2);">Balance due</span>
+<span style="font-size: 12.5px; color: var(--label-2); font-variant-numeric: tabular-nums;">{{sel.paid}}</span>
+</div>
+<div style="font-size: 26px; line-height: 32px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">{{sel.bal}}</div>
+<div style="height: 6px; border-radius: 3px; background: var(--inset-2); overflow: hidden;"><div style="height: 6px; border-radius: 3px; background: var(--green); width: {{sel.paidPct}};"></div></div>
+<button style="height: 44px; margin-top: 4px; border-radius: 12px; border: none; background: var(--accent); color: #FFFFFF; font-size: 15px; font-weight: 600; cursor: pointer;">Record payment</button>
+<a href="#" style="align-self: center; font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none;">Send a payment reminder</a>
+</div>
+</sc-if>
+<sc-if value="{{sel.noBal}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-radius: 14px; background: var(--inset); font-size: 14px;">
+<svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true" style="flex-shrink: 0;"><circle cx="10" cy="10" r="10" style="fill: var(--green);"></circle><path d="m6 10.2 2.6 2.6L14 7.4" fill="none" stroke="#FFFFFF" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-weight: 500;">{{sel.paid}}</span>
+</div>
+</sc-if>
+
+<div>
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2); margin-bottom: 4px;">Treatment</div>
+<div style="font-size: 15px; line-height: 20px; font-weight: 600;">{{sel.plan}}</div>
+<div style="height: 6px; margin: 10px 0 8px; border-radius: 3px; background: var(--inset-2); overflow: hidden;"><div style="height: 6px; border-radius: 3px; width: {{sel.planPct}}; background: {{sel.planColor}};"></div></div>
+<div style="font-size: 13px; line-height: 18px; font-weight: {{sel.stepsWeight}}; color: {{sel.stepsColor}};">{{sel.stepsText}}</div>
+</div>
+
+<div style="height: 1px; background: var(--sep);"></div>
+
+<div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 4px;">
+<span style="font-size: 13px; font-weight: 500; color: var(--label-2);">Last note</span>
+<span style="font-size: 12.5px; color: var(--label-3);">{{sel.noteWhen}}</span>
+</div>
+<p style="margin: 0; font-size: 14px; line-height: 21px; color: var(--label); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;">{{sel.note}}</p>
+</div>
+
+<a href="Patient.dc.html" style="display: flex; align-items: center; justify-content: center; gap: 4px; height: 40px; border-radius: 12px; font-size: 14px; font-weight: 600; color: var(--accent-text); text-decoration: none; box-shadow: inset 0 0 0 1px var(--sep);">
+Open full profile
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9.5 6 6 6-6 6"></path></svg>
+</a>
+</aside>
+</div>
+</sc-if>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1064}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { filter: 'all', selectedId: null };
+  }
+
+  patients() {
+    return {
+      soham: { i: 'SB', name: 'Soham Boridkar', id: 'P-0418', phone: '93215 59182', age: '30 · M', meta: '30 y · Male · P-0418', cond: 'Ectopic upper canine', treat: 'Exposure · session 2 of 4', last: 'Today', lastT: '10:25 AM', next: 'Wed 30 Sep', nextT: '10:00 AM', overdue: false, bal: '₹6,000', since: 'since today', oldest: false, paid: '₹12,000 of ₹18,000 paid', paidPct: 66.7, allergy: 'No known allergies', alert: false, plan: 'Canine exposure and alignment', planPct: 50, stepsText: '2 of 4 done · Next: Wed 30 Sep, 10:00 AM', planLate: false, noteWhen: 'Today · 10:52 AM', note: 'Exposed 13 under local anaesthesia and bonded a gold chain. Mild bleeding, controlled. Soft diet for 3 days, chlorhexidine rinse twice daily. Check healing before bonding brackets.' },
+      meera: { i: 'MJ', name: 'Meera Joshi', id: 'P-0396', phone: '98200 41736', age: '42 · F', meta: '42 y · Female · P-0396', cond: 'Crown, tooth 46', treat: 'Crown fitted · complete', last: 'Today', lastT: '9:40 AM', next: '—', nextT: '', overdue: false, bal: '', since: '', oldest: false, paid: 'Paid in full · ₹9,500', paidPct: 100, allergy: 'Allergic to penicillin', alert: true, plan: 'Crown, tooth 46', planPct: 100, stepsText: 'Complete · 3 of 3 sessions', planLate: false, noteWhen: 'Today · 9:58 AM', note: 'Zirconia crown cemented on 46. Occlusion checked, no high points. Review in 6 months.' },
+      aarav: { i: 'AN', name: 'Aarav Nair', id: 'P-0412', phone: '90040 27815', age: '9 · M', meta: '9 y · Male · P-0412', cond: 'Early caries, milk teeth', treat: 'Sealants · session 1 of 2', last: 'Mon 21 Sep', lastT: '5:30 PM', next: 'Mon 5 Oct', nextT: '5:30 PM', overdue: false, bal: '', since: '', oldest: false, paid: 'Paid in full · ₹2,400', paidPct: 100, allergy: 'No known allergies', alert: false, plan: 'Sealants and fluoride', planPct: 50, stepsText: '1 of 2 done · Next: Mon 5 Oct, 5:30 PM', planLate: false, noteWhen: 'Mon 21 Sep · 5:52 PM', note: 'Sealants placed on 16 and 26. Fluoride varnish applied. Parent advised to cut sugary snacks between meals.' },
+      rukhsana: { i: 'RS', name: 'Rukhsana Shaikh', id: 'P-0407', phone: '97690 13308', age: '35 · F', meta: '35 y · Female · P-0407', cond: 'Gingivitis', treat: 'Scaling · session 1 of 2', last: 'Sat 19 Sep', lastT: '11:10 AM', next: 'Overdue', nextT: 'since Tue 22 Sep', overdue: true, bal: '₹800', since: 'since 19 Sep', oldest: false, paid: '₹800 of ₹1,600 paid', paidPct: 50, allergy: 'No known allergies', alert: false, plan: 'Scaling and root planing', planPct: 50, stepsText: 'Second session overdue since Tue 22 Sep', planLate: true, noteWhen: 'Sat 19 Sep · 11:34 AM', note: 'Upper arch scaled. Bleeding on probing in lower front teeth. Lower arch at the next visit.' },
+      vivek: { i: 'VP', name: 'Vivek Patil', id: 'P-0385', phone: '99301 76524', age: '51 · M', meta: '51 y · Male · P-0385', cond: 'Missing teeth 36, 37', treat: 'Implants · session 1 of 5', last: 'Fri 18 Sep', lastT: '6:40 PM', next: 'Fri 16 Oct', nextT: '6:00 PM', overdue: false, bal: '₹42,000', since: 'since 18 Sep', oldest: false, paid: '₹18,000 of ₹60,000 paid', paidPct: 30, allergy: 'No known allergies', alert: false, plan: 'Implants, 36 and 37', planPct: 20, stepsText: '1 of 5 done · Next: Fri 16 Oct, 6:00 PM', planLate: false, noteWhen: 'Fri 18 Sep · 7:05 PM', note: 'CBCT reviewed, bone height adequate for both sites. Placement planned for 16 Oct. HbA1c advised before surgery.' },
+      ishita: { i: 'IV', name: 'Ishita Verma', id: 'P-0317', phone: '70451 88290', age: '19 · F', meta: '19 y · Female · P-0317', cond: 'Impacted wisdom tooth 38', treat: 'Extraction · complete', last: 'Thu 17 Sep', lastT: '10:00 AM', next: '—', nextT: '', overdue: false, bal: '', since: '', oldest: false, paid: 'Paid in full · ₹6,500', paidPct: 100, allergy: 'No known allergies', alert: false, plan: 'Extraction, 38', planPct: 100, stepsText: 'Complete · 2 of 2 sessions', planLate: false, noteWhen: 'Thu 17 Sep · 10:20 AM', note: 'Sutures removed, socket healing well. No further visits needed.' },
+      neha: { i: 'ND', name: 'Neha Das', id: 'P-0351', phone: '88793 20461', age: '27 · F', meta: '27 y · Female · P-0351', cond: 'Crowding, upper and lower', treat: 'Braces · month 7 of 18', last: 'Wed 16 Sep', lastT: '4:15 PM', next: 'Fri 16 Oct', nextT: '4:00 PM', overdue: false, bal: '₹12,500', since: 'since 13 Aug · 41 days', oldest: true, paid: '₹32,500 of ₹45,000 paid', paidPct: 72.2, allergy: 'No known allergies', alert: false, plan: 'Fixed braces, both arches', planPct: 39, stepsText: 'Month 7 of 18 · Next: Fri 16 Oct, 4:00 PM', planLate: false, noteWhen: 'Wed 16 Sep · 4:40 PM', note: 'Wire changed to 0.018 NiTi. Good hygiene. Elastics started on the right side.' },
+      prakash: { i: 'PR', name: 'Prakash Rao', id: 'P-0322', phone: '94220 58107', age: '63 · M', meta: '63 y · Male · P-0322', cond: 'Complete dentures', treat: 'Denture review · complete', last: 'Wed 16 Sep', lastT: '12:20 PM', next: '—', nextT: '', overdue: false, bal: '', since: '', oldest: false, paid: 'Paid in full · ₹22,000', paidPct: 100, allergy: 'No known allergies', alert: false, plan: 'Complete dentures', planPct: 100, stepsText: 'Complete · review in 6 months', planLate: false, noteWhen: 'Wed 16 Sep · 12:45 PM', note: 'Minor adjustment on the lower denture flange. Comfortable now. Review in 6 months or sooner if sore spots appear.' },
+      kiran: { i: 'KM', name: 'Kiran Mehta', id: 'P-0402', phone: '98190 36457', age: '46 · M', meta: '46 y · Male · P-0402', cond: 'Crown, tooth 26', treat: 'Crown fitted · complete', last: 'Wed 9 Sep', lastT: '12:00 PM', next: '—', nextT: '', overdue: false, bal: '₹5,500', since: 'since 9 Sep', oldest: false, paid: '₹3,000 of ₹8,500 paid', paidPct: 35.3, allergy: 'No known allergies', alert: false, plan: 'Crown, tooth 26', planPct: 100, stepsText: 'Complete · 2 of 2 sessions', planLate: false, noteWhen: 'Wed 9 Sep · 12:25 PM', note: 'Metal-ceramic crown cemented on 26. Patient will clear the balance at the review.' },
+      farzana: { i: 'FQ', name: 'Farzana Qureshi', id: 'P-0409', phone: '99870 42219', age: '38 · F', meta: '38 y · Female · P-0409', cond: 'Root canal, tooth 36', treat: 'Root canal · session 2 of 3', last: 'Fri 11 Sep', lastT: '6:15 PM', next: 'Fri 25 Sep', nextT: '6:00 PM', overdue: false, bal: '₹4,000', since: 'since 11 Sep', oldest: false, paid: '₹3,500 of ₹7,500 paid', paidPct: 46.7, allergy: 'No known allergies', alert: false, plan: 'Root canal, tooth 36', planPct: 66.7, stepsText: '2 of 3 done · Next: Fri 25 Sep, 6:00 PM', planLate: false, noteWhen: 'Fri 11 Sep · 6:40 PM', note: 'Canals cleaned and shaped, calcium hydroxide dressing placed. Obturation at the next visit.' },
+      rajesh: { i: 'RK', name: 'Rajesh Kulkarni', id: 'P-0364', phone: '98224 10986', age: '58 · M', meta: '58 y · Male · P-0364', cond: 'Missing tooth 15', treat: 'Bridge, 14 to 16 · complete', last: 'Tue 1 Sep', lastT: '11:30 AM', next: '—', nextT: '', overdue: false, bal: '₹3,800', since: 'since 1 Sep', oldest: false, paid: '₹14,200 of ₹18,000 paid', paidPct: 78.9, allergy: 'No known allergies', alert: false, plan: 'Bridge, 14 to 16', planPct: 100, stepsText: 'Complete · 3 of 3 sessions', planLate: false, noteWhen: 'Tue 1 Sep · 11:55 AM', note: 'Bridge cemented. Floss threader demonstrated. Review in 6 months.' },
+      anjali: { i: 'AM', name: 'Anjali Menon', id: 'P-0414', phone: '90829 55173', age: '31 · F', meta: '31 y · Female · P-0414', cond: 'Gingivitis', treat: 'Scaling · session 1 of 2', last: 'Mon 14 Sep', lastT: '6:10 PM', next: 'Mon 28 Sep', nextT: '6:00 PM', overdue: false, bal: '₹1,200', since: 'since 14 Sep', oldest: false, paid: '₹0 of ₹1,200 paid', paidPct: 0, allergy: 'No known allergies', alert: false, plan: 'Scaling and root planing', planPct: 50, stepsText: '1 of 2 done · Next: Mon 28 Sep, 6:00 PM', planLate: false, noteWhen: 'Mon 14 Sep · 6:30 PM', note: 'Upper arch scaled. Mild sensitivity expected for a few days. Lower arch at the next visit.' }
+    };
+  }
+
+  renderVals() {
+    const P = this.patients();
+    const st = this.state || {};
+    const filter = st.filter || 'all';
+    const selectedId = st.selectedId || null;
+    const isBal = filter === 'balance';
+
+    const select = (id) => () => this.setState({ selectedId: id });
+    const noop = () => {};
+    const chipDefs = [
+      { key: 'all', label: 'All', count: '248', dot: false, pick: () => this.setState({ filter: 'all', selectedId: null }) },
+      { key: 'week', label: 'Last 7 days', count: '42', dot: false, pick: noop },
+      { key: 'overdue', label: 'Follow-up overdue', count: '7', dot: true, pick: noop },
+      { key: 'balance', label: 'Balance due', count: '12', dot: true, pick: () => this.setState({ filter: 'balance', selectedId: 'vivek' }) },
+      { key: 'treat', label: 'In treatment', count: '31', dot: false, pick: noop },
+      { key: 'new', label: 'New this month', count: '18', dot: false, pick: noop }
+    ];
+    const chips = chipDefs.map((c) => {
+      const on = c.key === filter;
+      return {
+        label: c.label, count: c.count, dot: c.dot, pick: c.pick, pressed: on ? 'true' : 'false',
+        border: on ? '1px solid transparent' : '1px solid var(--hair)',
+        bg: on ? 'var(--accent-tint)' : 'var(--surface)',
+        fg: on ? 'var(--accent-text)' : 'var(--label)',
+        fw: on ? '600' : '500',
+        countColor: on ? 'var(--accent-text)' : 'var(--label-2)'
+      };
+    });
+
+    const allToday = ['soham', 'meera'];
+    const allWeek = ['aarav', 'rukhsana', 'vivek', 'ishita', 'neha', 'prakash'];
+    const balIds = ['vivek', 'neha', 'soham', 'kiran', 'farzana', 'rajesh', 'anjali', 'rukhsana'];
+
+    const tableRow = (id, idx) => {
+      const p = P[id];
+      return {
+        i: p.i, name: p.name, idPhone: p.id + ' · ' + p.phone, age: p.age, cond: p.cond, treat: p.treat,
+        last: p.last, lastT: p.lastT, next: p.next, nextT: p.nextT,
+        nextWeight: p.overdue ? '600' : '400',
+        nextColor: p.overdue ? 'var(--amber-text)' : (p.next === '—' ? 'var(--label-3)' : 'var(--label)'),
+        balShown: p.bal || '—',
+        balWeight: p.bal ? '600' : '400',
+        balColor: p.bal ? 'var(--amber-text)' : 'var(--label-3)',
+        showSep: idx > 0, pick: select(id), aria: 'Preview ' + p.name
+      };
+    };
+
+    const groups = isBal
+      ? [{ showTitle: false, title: '', count: '', rows: balIds.map(tableRow) }]
+      : [
+          { showTitle: true, title: 'Seen today', count: '2', rows: allToday.map(tableRow) },
+          { showTitle: true, title: 'Past 7 days', count: '40', rows: allWeek.map(tableRow) }
+        ];
+
+    const listIds = isBal ? balIds : allToday.concat(allWeek);
+    const compactRows = listIds.map((id, idx) => {
+      const p = P[id];
+      const on = id === selectedId;
+      const prevOn = idx > 0 && listIds[idx - 1] === selectedId;
+      return {
+        i: p.i, name: p.name, treat: p.treat, pick: select(id), aria: 'Preview ' + p.name, current: on ? 'true' : 'false',
+        bg: on ? 'var(--accent-tint)' : 'transparent',
+        monoBg: on ? 'var(--surface)' : 'var(--inset)',
+        monoFg: on ? 'var(--accent-text)' : 'var(--label-2)',
+        showSep: idx > 0,
+        sepOpacity: (on || prevOn) ? '0' : '1',
+        rightTop: isBal ? p.bal : p.last,
+        rightSub: isBal ? p.since : p.lastT,
+        rtWeight: isBal ? '600' : '500',
+        rtColor: isBal ? 'var(--amber-text)' : 'var(--label)',
+        rsColor: (isBal && p.oldest) ? 'var(--amber-text)' : 'var(--label-2)'
+      };
+    });
+
+    const s = selectedId ? P[selectedId] : P.soham;
+    const hasBal = !!s.bal;
+    const sel = {
+      i: s.i, name: s.name, meta: s.meta, phone: s.phone, allergy: s.allergy, alert: s.alert, noAlert: !s.alert,
+      hasBal: hasBal, noBal: !hasBal, bal: s.bal, paid: s.paid,
+      paidPct: s.paidPct + '%',
+      plan: s.plan,
+      planPct: s.planPct + '%',
+      planColor: s.planPct >= 100 ? 'var(--green)' : 'var(--accent)',
+      stepsText: s.stepsText,
+      stepsWeight: s.planLate ? '600' : '400',
+      stepsColor: s.planLate ? 'var(--amber-text)' : 'var(--label-2)',
+      noteWhen: s.noteWhen, note: s.note
+    };
+
+    return {
+      chips: chips,
+      sortLabel: isBal ? 'Amount due' : 'Last visit',
+      showSummary: isBal,
+      tableMode: !selectedId,
+      splitMode: !!selectedId,
+      groups: groups,
+      compactRows: compactRows,
+      compactRightTitle: isBal ? 'Due' : 'Last visit',
+      footerText: isBal ? 'Showing 8 of 12' : 'Showing 8 of 248',
+      sel: sel,
+      closePane: () => this.setState({ selectedId: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

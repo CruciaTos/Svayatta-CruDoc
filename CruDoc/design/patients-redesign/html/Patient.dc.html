@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CruDoc Patient Details</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&amp;display=swap">
+<style>
+body{margin:0;background:#F1F4F9}
+a{color:#3155E0}a:hover{color:#2542BD}
+input::placeholder{color:#86868B}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 1200px; box-sizing: border-box; display: flex; overflow: hidden; background: var(--canvas); color: var(--label); font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; --canvas: #F1F4F9; --surface: #FFFFFF; --inset: #F2F4F7; --inset-2: #E6EAF0; --label: #1D1D1F; --label-2: #6E6E73; --label-3: #86868B; --sep: rgba(16,24,40,0.08); --hair: rgba(16,24,40,0.06); --ink: #2542BD; --accent: #3155E0; --accent-text: #3155E0; --accent-tint: #E5EDFF; --accent-wash: #F4F7FE; --amber: #FF9F0A; --amber-text: #B25000; --amber-tint: #FFF4E5; --green: #34C759; --green-text: #248A3D; --red-text: #D70015; --red-tint: #FDECEC; --ai: #8031C0; --ai-tint: #F8F3FF; --sel: #FFFFFF; --seg-sel: #FFFFFF; --shadow-1: 0 1px 2px rgba(16,24,40,0.04);">
+
+<!-- Sidebar -->
+<aside style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 24px 12px 20px 20px; display: flex; flex-direction: column; gap: 22px;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px;">
+<div style="width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: flex; align-items: center; justify-content: center;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+</div>
+<div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">CruDoc</div>
+</div>
+
+<button style="display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); text-align: left; cursor: pointer; color: var(--label);">
+<div style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; background: var(--accent-tint); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">S</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; font-weight: 600; line-height: 18px;">Sanjeevani Clinic</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">Dentist</div>
+</div>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-3); flex-shrink: 0;" aria-hidden="true"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"></path></svg>
+</button>
+
+<nav aria-label="Main" style="display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Today</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>
+<span>Dashboard</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"></path></svg>
+<span>Queue</span>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--label-2); font-variant-numeric: tabular-nums;"><span style="width: 6px; height: 6px; border-radius: 3px; background: var(--amber);"></span>2</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+<span>Appointments</span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Patients</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; background: var(--sel); box-shadow: var(--shadow-1), 0 0 0 1px var(--hair); color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 600;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent);" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.6-3.6 3.3-6 6.5-6s5.9 2.4 6.5 6"></path><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2 .8 3.2 2.8 3.5 5.7"></path></svg>
+<span>Patients</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg>
+<span>Scribe</span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Clinic</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"></path><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"></path></svg>
+<span>Inventory</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M7 4.5h10M7 9h10M9.5 4.5c3.3 0 5 1.7 5 4.5s-1.7 4.5-5 4.5H7l7.5 6.5"></path></svg>
+<span>Revenue</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 10v4a1 1 0 0 0 1 1h2l8 4.5V4.5L7 9H5a1 1 0 0 0-1 1z"></path><path d="M18.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg>
+<span>Campaigns</span>
+</a>
+</div>
+</nav>
+
+<div style="flex-grow: 1;"></div>
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 12.5px;">
+<span style="color: var(--label-2);">Free trial · 12 days left</span>
+<a href="#" style="color: var(--accent-text); font-weight: 600; text-decoration: none;">Upgrade</a>
+</div>
+<button style="display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 14px; border: none; background: transparent; text-align: left; cursor: pointer; color: var(--label);">
+<div style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 17px; background: var(--inset-2); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600;">AD</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 13.5px; font-weight: 600; line-height: 18px;">Dr. Ananya Deshpande</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">Account &amp; settings</div>
+</div>
+</button>
+</div>
+</aside>
+
+<!-- Main -->
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 24px 32px 32px 12px; display: flex; flex-direction: column; gap: 22px;">
+
+<!-- Top bar -->
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<a href="#" style="display: flex; align-items: center; gap: 2px; height: 40px; padding: 0 10px 0 4px; margin-left: -4px; border-radius: 10px; color: var(--accent-text); text-decoration: none; font-size: 15px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m14.5 6-6 6 6 6"></path></svg>
+Patients
+</a>
+<div style="display: flex; align-items: center; gap: 10px;">
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); font-size: 14px; font-weight: 500; color: var(--label); cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg>
+Edit
+</button>
+<button aria-label="More actions for Soham Boridkar" style="width: 40px; height: 40px; border-radius: 12px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); color: var(--label-2); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="18.5" cy="12" r="1.7"></circle></svg>
+</button>
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px 0 13px; border-radius: 12px; border: none; background: var(--accent); font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+New visit
+</button>
+</div>
+</div>
+
+<!-- Identity -->
+<header style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div style="display: flex; align-items: center; gap: 20px; min-width: 0;">
+<div style="width: 76px; height: 76px; flex-shrink: 0; border-radius: 38px; background: var(--inset-2); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 26px; font-weight: 600;">SB</div>
+<div style="min-width: 0;">
+<h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.022em;">Soham Boridkar</h1>
+<div style="font-size: 14px; line-height: 20px; color: var(--label-2); margin-top: 2px; font-variant-numeric: tabular-nums;">30 y · Male · P-0418 · Patient since 7 Sep 2026</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px;">
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--hair); font-size: 13px; font-weight: 500; color: var(--label);">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+No known allergies
+</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--hair); font-size: 13px; font-weight: 500; color: var(--label); font-variant-numeric: tabular-nums;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M5 4.5h3.5l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5V19a1.5 1.5 0 0 1-1.5 1.5A15.5 15.5 0 0 1 3.5 6 1.5 1.5 0 0 1 5 4.5z"></path></svg>
+93215 59182
+</span>
+</div>
+</div>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+<button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; border: none; background: var(--accent-tint); color: var(--accent-text); font-size: 13.5px; font-weight: 600; cursor: pointer;">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h3.5l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5V19a1.5 1.5 0 0 1-1.5 1.5A15.5 15.5 0 0 1 3.5 6 1.5 1.5 0 0 1 5 4.5z"></path></svg>
+Call
+</button>
+<button style="display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-radius: 999px; border: none; background: var(--accent-tint); color: var(--accent-text); font-size: 13.5px; font-weight: 600; cursor: pointer;">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.5a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1.4-4.3A8.5 8.5 0 1 1 20.5 11.5z"></path></svg>
+WhatsApp
+</button>
+</div>
+</header>
+
+<!-- Facts -->
+<section aria-label="Key facts" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 0;">
+<div style="display: flex; align-items: center; gap: 16px; padding: 0 24px;">
+<svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" style="flex-shrink: 0;"><circle cx="26" cy="26" r="22" fill="none" stroke-width="6" style="stroke: var(--inset-2);"></circle><circle cx="26" cy="26" r="22" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="69.1 138.3" transform="rotate(-90 26 26)" style="stroke: var(--accent);"></circle></svg>
+<div>
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Treatment</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">2 <span style="font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--label-2);">of 4</span></div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">sessions done</div>
+</div>
+</div>
+<div style="border-left: 1px solid var(--sep); padding: 0 24px;">
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Next visit</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">Wed 30 Sep</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">10:00 AM · Bracket bonding</div>
+</div>
+<div style="border-left: 1px solid var(--sep); padding: 0 24px;">
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Last visit</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em;">Today</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">10:25 AM · Surgical exposure</div>
+</div>
+<div style="border-left: 1px solid var(--sep); padding: 0 24px;">
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Balance due</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">₹6,000</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 16px; color: var(--label-2); font-variant-numeric: tabular-nums;"><span style="width: 6px; height: 6px; border-radius: 3px; background: var(--amber);"></span>of ₹18,000 package</div>
+</div>
+</section>
+
+<div style="display: flex; gap: 20px; align-items: flex-start;">
+
+<!-- Left column -->
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+
+<!-- Treatment plan -->
+<section aria-label="Treatment plan" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 20px;">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 16px;">
+<div>
+<div style="font-size: 13px; font-weight: 600; line-height: 18px; color: var(--accent-text);">Treatment plan</div>
+<h2 style="margin: 2px 0 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Canine exposure and alignment</h2>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2); margin-top: 2px;">Tooth 13 · Ectopic upper canine · Started Mon 7 Sep</div>
+</div>
+<button style="height: 30px; padding: 0 14px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0;">Edit plan</button>
+</div>
+
+<div style="display: flex; flex-direction: column;">
+<div style="display: flex; gap: 14px;">
+<div style="width: 24px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink: 0;"><circle cx="12" cy="12" r="12" style="fill: var(--green);"></circle><path d="m7.4 12.3 3.1 3.1 6.2-6.4" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<div style="width: 2px; flex-grow: 1; margin: 4px 0; border-radius: 1px; background: var(--green);"></div>
+</div>
+<div style="flex-grow: 1; min-width: 0; padding-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div><div style="font-size: 15px; line-height: 24px; font-weight: 600;">Consultation and OPG X-ray</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Mon 7 Sep · 7:15 PM</div></div>
+<span style="font-size: 13px; line-height: 24px; font-weight: 600; color: var(--green-text);">Done</span>
+</div>
+</div>
+<div style="display: flex; gap: 14px;">
+<div style="width: 24px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" style="flex-shrink: 0;"><circle cx="12" cy="12" r="12" style="fill: var(--green);"></circle><path d="m7.4 12.3 3.1 3.1 6.2-6.4" fill="none" stroke="#FFFFFF" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<div style="width: 2px; flex-grow: 1; margin: 4px 0; border-radius: 1px; background: var(--inset-2);"></div>
+</div>
+<div style="flex-grow: 1; min-width: 0; padding-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div><div style="font-size: 15px; line-height: 24px; font-weight: 600;">Surgical exposure and chain bonding</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Today · 10:25 AM</div></div>
+<span style="font-size: 13px; line-height: 24px; font-weight: 600; color: var(--green-text);">Done</span>
+</div>
+</div>
+<div style="display: flex; gap: 14px;">
+<div style="width: 24px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+<div style="width: 24px; height: 24px; flex-shrink: 0; box-sizing: border-box; border-radius: 12px; border: 2.5px solid var(--accent); background: var(--surface); display: flex; align-items: center; justify-content: center;"><div style="width: 8px; height: 8px; border-radius: 4px; background: var(--accent);"></div></div>
+<div style="width: 2px; flex-grow: 1; margin: 4px 0; border-radius: 1px; background: var(--inset-2);"></div>
+</div>
+<div style="flex-grow: 1; min-width: 0; padding-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div><div style="font-size: 15px; line-height: 24px; font-weight: 600;">Bracket bonding and traction</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Wed 30 Sep · 10:00 AM · booked</div></div>
+<span style="display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; background: var(--accent-tint); color: var(--accent-text); font-size: 12.5px; font-weight: 600;">Next</span>
+</div>
+</div>
+<div style="display: flex; gap: 14px;">
+<div style="width: 24px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+<div style="width: 24px; height: 24px; flex-shrink: 0; box-sizing: border-box; border-radius: 12px; border: 2px solid var(--label-3); background: var(--surface);"></div>
+</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;">
+<div><div style="font-size: 15px; line-height: 24px; font-weight: 600;">Alignment review</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">About 4 weeks after bonding · not booked</div></div>
+<button style="height: 28px; padding: 0 14px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer;">Book</button>
+</div>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 20px; padding: 16px 18px; border-radius: 12px; background: var(--inset);">
+<div style="flex-grow: 1; min-width: 0;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; font-variant-numeric: tabular-nums;">
+<span style="font-size: 13px; font-weight: 500; color: var(--label-2);">Package</span>
+<span style="font-size: 15px; font-weight: 600;">₹18,000</span>
+</div>
+<div style="height: 6px; margin: 10px 0 8px; border-radius: 3px; background: var(--inset-2); overflow: hidden;"><div style="width: 66.7%; height: 6px; border-radius: 3px; background: var(--green);"></div></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px; line-height: 18px; font-variant-numeric: tabular-nums;">
+<span style="color: var(--label-2);">₹12,000 paid</span>
+<span style="font-weight: 600; color: var(--amber-text);">₹6,000 due</span>
+</div>
+</div>
+<button style="height: 32px; padding: 0 14px; border-radius: 999px; border: none; background: var(--surface); box-shadow: var(--shadow-1), 0 0 0 1px var(--hair); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer; flex-shrink: 0;">Record payment</button>
+</div>
+</section>
+
+<!-- Clinical notes -->
+<section aria-label="Clinical notes" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 24px 22px; display: flex; flex-direction: column; gap: 16px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between;">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Clinical notes</h2>
+<span style="font-size: 13px; color: var(--label-2);">2 notes</span>
+</div>
+<label style="display: flex; align-items: center; gap: 10px; height: 48px; box-sizing: border-box; padding: 0 6px 0 16px; border-radius: 12px; background: var(--inset);">
+<input type="text" aria-label="Add a clinical note" placeholder="Add a note for today's visit" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 15px; color: var(--label);">
+<button aria-label="Dictate with Scribe" style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; border: none; background: var(--surface); box-shadow: var(--shadow-1), 0 0 0 1px var(--hair); color: var(--ai); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg>
+</button>
+</label>
+
+<article style="display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+<span style="font-size: 13px; font-weight: 600;">Today · Surgical exposure</span>
+<span style="font-size: 12.5px; color: var(--label-3); font-variant-numeric: tabular-nums;">10:52 AM</span>
+</div>
+<p style="margin: 0; font-size: 14px; line-height: 21px; color: var(--label);">Exposed 13 under local anaesthesia and bonded a gold chain. Mild bleeding, controlled. Soft diet for 3 days, chlorhexidine rinse twice daily. Check healing before bonding brackets.</p>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--ai);">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><path d="M11 3.5C11.6 8 14 10.4 18.5 11 14 11.6 11.6 14 11 18.5 10.4 14 8 11.6 3.5 11 8 10.4 10.4 8 11 3.5z"></path></svg>
+Dictated with Scribe · reviewed by Dr. Deshpande
+</div>
+</article>
+<div style="height: 1px; background: var(--sep);"></div>
+<article style="display: flex; flex-direction: column; gap: 6px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px;">
+<span style="font-size: 13px; font-weight: 600;">Mon 7 Sep · Consultation</span>
+<span style="font-size: 12.5px; color: var(--label-3); font-variant-numeric: tabular-nums;">7:34 PM</span>
+</div>
+<p style="margin: 0; font-size: 14px; line-height: 21px; color: var(--label);">OPG shows 13 impacted palatally, 53 retained. Explained exposure and traction with fixed braces, about 12 months. Patient agreed to the package.</p>
+</article>
+</section>
+</div>
+
+<!-- Right column -->
+<div style="width: 384px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px;">
+
+<!-- Visits -->
+<section aria-label="Visits" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 12px 10px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; padding: 0 12px 4px;">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Visits</h2>
+<a href="#" style="font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none;">See all</a>
+</div>
+<div style="padding: 12px 12px 6px; font-size: 12px; font-weight: 600; color: var(--label-2);">Upcoming</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px;">
+<div style="width: 44px; height: 48px; flex-shrink: 0; border-radius: 10px; background: var(--accent-tint); color: var(--accent-text); display: flex; flex-direction: column; align-items: center; justify-content: center;"><span style="font-size: 10.5px; line-height: 12px; font-weight: 600; letter-spacing: 0.04em;">SEP</span><span style="font-size: 18px; line-height: 22px; font-weight: 600; font-variant-numeric: tabular-nums;">30</span></div>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 14px; line-height: 19px; font-weight: 600;">Bracket bonding</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Wed · 10:00 AM</div></div>
+<span style="font-size: 13px; font-weight: 500; color: var(--label-3);">Booked</span>
+</div>
+<div style="padding: 14px 12px 6px; font-size: 12px; font-weight: 600; color: var(--label-2);">Past</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px;">
+<div style="width: 44px; height: 48px; flex-shrink: 0; border-radius: 10px; background: var(--inset); display: flex; flex-direction: column; align-items: center; justify-content: center;"><span style="font-size: 10.5px; line-height: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--label-2);">SEP</span><span style="font-size: 18px; line-height: 22px; font-weight: 600; font-variant-numeric: tabular-nums;">23</span></div>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 14px; line-height: 19px; font-weight: 600;">Surgical exposure</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Today · 10:25 AM</div></div>
+<span style="font-size: 13px; font-weight: 600; color: var(--green-text);">Done</span>
+</div>
+<div style="height: 1px; background: var(--sep); margin: 0 12px 0 68px;"></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px;">
+<div style="width: 44px; height: 48px; flex-shrink: 0; border-radius: 10px; background: var(--inset); display: flex; flex-direction: column; align-items: center; justify-content: center;"><span style="font-size: 10.5px; line-height: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--label-2);">SEP</span><span style="font-size: 18px; line-height: 22px; font-weight: 600; font-variant-numeric: tabular-nums;">15</span></div>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 14px; line-height: 19px; font-weight: 600;">Pre-surgery check</div><div style="font-size: 13px; line-height: 18px; color: var(--amber-text);">Tue · 11:00 AM · not recorded</div></div>
+<button style="height: 28px; padding: 0 12px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer;">Update</button>
+</div>
+<div style="height: 1px; background: var(--sep); margin: 0 12px 0 68px;"></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 8px 12px;">
+<div style="width: 44px; height: 48px; flex-shrink: 0; border-radius: 10px; background: var(--inset); display: flex; flex-direction: column; align-items: center; justify-content: center;"><span style="font-size: 10.5px; line-height: 12px; font-weight: 600; letter-spacing: 0.04em; color: var(--label-2);">SEP</span><span style="font-size: 18px; line-height: 22px; font-weight: 600; font-variant-numeric: tabular-nums;">7</span></div>
+<div style="flex-grow: 1; min-width: 0;"><div style="font-size: 14px; line-height: 19px; font-weight: 600;">Consultation and OPG</div><div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Mon · 7:15 PM</div></div>
+<span style="font-size: 13px; font-weight: 600; color: var(--green-text);">Done</span>
+</div>
+</section>
+
+<!-- Medical history -->
+<section aria-label="Medical history" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 24px 18px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 6px;">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Medical history</h2>
+<a href="#" style="font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none;">Edit</a>
+</div>
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--sep); font-size: 14px; line-height: 20px;"><span style="color: var(--label-2);">Condition</span><span style="font-weight: 500;">Ectopic upper canine, tooth 13</span></div>
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--sep); font-size: 14px; line-height: 20px;"><span style="color: var(--label-2);">Allergies</span><span>None known</span></div>
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--sep); font-size: 14px; line-height: 20px;"><span style="color: var(--label-2);">Medications</span><span>None</span></div>
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--sep); font-size: 14px; line-height: 20px;"><span style="color: var(--label-2);">Systemic</span><span>None reported</span></div>
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--sep); font-size: 14px; line-height: 20px;"><span style="color: var(--label-2);">Tobacco</span><span>No</span></div>
+<div style="display: grid; grid-template-columns: 104px minmax(0, 1fr); column-gap: 12px; padding: 11px 0; font-size: 14px; line-height: 20px;"><span style="color: var(--label-2);">Last X-ray</span><span style="font-variant-numeric: tabular-nums;">OPG · Mon 7 Sep</span></div>
+<p style="margin: 6px 0 0; font-size: 12.5px; line-height: 16px; color: var(--label-3);">Recorded at registration · updated Mon 7 Sep</p>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1200}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

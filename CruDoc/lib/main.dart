@@ -13,7 +13,7 @@ import 'core/services/device_session_service.dart';
 import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
-import 'core/theme/app_colors.dart';
+import 'core/theme/cru_theme.dart';
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
   'USE_FIREBASE_EMULATORS',
@@ -219,22 +219,9 @@ class MoodyDashboardApp extends StatelessWidget {
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
-      theme: ThemeData(
-        useMaterial3: true,
-        // Ensure the app uses the project's chosen font and base text styles
-        fontFamily: AppColors.bodyFontFamily,
-        primaryColor: AppColors.accentBlue,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.accentBlue,
-        ),
-        textTheme: TextTheme(
-          displayLarge: AppColors.pageHeading,
-          headlineSmall: AppColors.sectionHeading,
-          bodyLarge: AppColors.bodyLarge,
-          bodyMedium: AppColors.bodyMedium,
-          bodySmall: AppColors.bodySmall,
-        ),
-      ),
+      // Calm Clinical Day theme app-wide. The Evening appearance is scoped
+      // to the desktop shell + dashboard (see DesktopShell).
+      theme: CruTheme.day(),
       routerConfig: appRouter,
     );
   }

@@ -299,18 +299,20 @@ Iterable<AttentionItem> _buildAttention(
     ..sort((a, b) => a.expiryDate!.compareTo(b.expiryDate!));
   for (final m in expiring) {
     final days = _calendarDaysBetween(now, m.expiryDate!);
-    final when = days < 0
-        ? 'expired ${DashFormat.plural(-days, 'day')} ago'
-        : days == 0
-            ? 'expires today'
-            : 'expires in ${DashFormat.plural(days, 'day')}';
     final unit = m.unit.trim();
+    final stock = unit.isEmpty
+        ? '${m.currentStock} in stock'
+        : '${m.currentStock} $unit in stock';
+    // Short titles: the right column is 384 px wide.
+    final (title, timing) = days < 0
+        ? ('${m.name} expired', '${DashFormat.plural(-days, 'day')} ago · ')
+        : days == 0
+            ? ('${m.name} expires today', '')
+            : ('${m.name} expiring', 'In ${DashFormat.plural(days, 'day')} · ');
     yield AttentionItem(
       kind: AttentionKind.expiring,
-      title: '${m.name} $when',
-      subtitle: unit.isEmpty
-          ? '${m.currentStock} in stock'
-          : '${m.currentStock} $unit in stock',
+      title: title,
+      subtitle: '$timing$stock',
       actionLabel: 'Review',
     );
   }

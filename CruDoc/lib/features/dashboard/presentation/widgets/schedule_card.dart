@@ -126,6 +126,14 @@ class _ScheduleCardState extends State<ScheduleCard> {
         : open.where((i) => !i.time.isBefore(eveningStart)).toList();
     final current = open.where((i) => !later.contains(i)).toList();
 
+    // In the evening, label where the evening session begins when earlier
+    // rows sit above it.
+    final morningOpen = current.where((i) => i.time.isBefore(eveningStart));
+    final eveningOpen = current.where((i) => !i.time.isBefore(eveningStart));
+    final showDivider = inEvening &&
+        eveningOpen.isNotEmpty &&
+        (done.isNotEmpty || morningOpen.isNotEmpty);
+
     final out = <Widget>[];
     if (done.isNotEmpty) {
       out.add(_CollapsedRow(
@@ -135,16 +143,14 @@ class _ScheduleCardState extends State<ScheduleCard> {
         expanded: _showDone,
         onToggle: () => setState(() => _showDone = !_showDone),
       ));
-      out.add(const SizedBox(height: CruSpace.s6));
+      // 6 px before a row; the session divider brings its own spacing.
+      if (_showDone || !showDivider || morningOpen.isNotEmpty) {
+        out.add(const SizedBox(height: CruSpace.s6));
+      }
       if (_showDone) out.addAll(_rows(done));
     }
 
-    // In the evening, label where the evening session begins when earlier
-    // rows sit above it.
-    final morningOpen = current.where((i) => i.time.isBefore(eveningStart));
-    final eveningOpen = current.where((i) => !i.time.isBefore(eveningStart));
-    if (inEvening && eveningOpen.isNotEmpty &&
-        (done.isNotEmpty || morningOpen.isNotEmpty)) {
+    if (showDivider) {
       out.addAll(_rows(morningOpen.toList()));
       out.add(_SessionDivider(
         range: DashFormat.timeRange(eveningOpen.first.time, eveningOpen.last.time),
@@ -231,7 +237,12 @@ class ScheduleRow extends StatelessWidget {
                     style: CruType.micro.tint(isNow ? c.accentText : c.label3),
                   ),
                 ]),
+                // "11:30 AM" is a hair wider than the 64 px column; let it
+                // run into the gap (as the reference does) instead of
+                // dropping AM/PM.
                 maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
               ),
             ),
             const SizedBox(width: CruSpace.s14),

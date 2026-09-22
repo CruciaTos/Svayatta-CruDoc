@@ -39,7 +39,7 @@ class GlanceCard extends StatelessWidget {
                       : BoxDecoration(
                           border: Border(left: BorderSide(color: c.separator)),
                         ),
-                  alignment: Alignment.centerLeft,
+                  alignment: Alignment.topLeft,
                   child: cells[i],
                 ),
               ),

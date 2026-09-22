@@ -117,6 +117,8 @@ class CruSidebar extends ConsumerWidget {
                       ? CrossAxisAlignment.center
                       : CrossAxisAlignment.stretch,
                   children: [
+                    // Each group is a column with 2 px between its label
+                    // and items; 18 px between groups.
                     for (var g = 0; g < _groups.length; g++) ...[
                       if (g > 0) const SizedBox(height: 18),
                       if (!collapsed)
@@ -125,19 +127,21 @@ class CruSidebar extends ConsumerWidget {
                           child: Text(_groups[g].label,
                               style: CruType.groupLabel.tint(c.label3)),
                         ),
-                      for (final item in _groups[g].items)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: CruSpace.s2),
-                          child: _SidebarItem(
-                            item: item,
-                            selected: currentTab == item.tab,
-                            collapsed: collapsed,
-                            badge: item.tab == DesktopTab.queue && waiting > 0
-                                ? waiting
-                                : null,
-                            onTap: () => callbacks.onNavigate(item.tab),
-                          ),
+                      for (var i = 0; i < _groups[g].items.length; i++) ...[
+                        if (i > 0 || !collapsed)
+                          const SizedBox(height: CruSpace.s2),
+                        _SidebarItem(
+                          item: _groups[g].items[i],
+                          selected: currentTab == _groups[g].items[i].tab,
+                          collapsed: collapsed,
+                          badge: _groups[g].items[i].tab == DesktopTab.queue &&
+                                  waiting > 0
+                              ? waiting
+                              : null,
+                          onTap: () =>
+                              callbacks.onNavigate(_groups[g].items[i].tab),
                         ),
+                      ],
                     ],
                   ],
                 ),

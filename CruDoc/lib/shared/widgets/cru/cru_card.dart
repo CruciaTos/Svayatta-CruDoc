@@ -36,7 +36,12 @@ class CruCard extends StatelessWidget {
           shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
           shadows: c.cardShadow,
         ),
-        child: Padding(padding: padding, child: child),
+        // The 1 px border is painted inside the shape; inset the content
+        // by it too so sizes match the reference (CSS border-box).
+        child: Padding(
+          padding: padding.add(const EdgeInsets.all(1)),
+          child: child,
+        ),
       ),
     );
   }
@@ -78,7 +83,13 @@ class CruInkCard extends StatelessWidget {
           data: theme.copyWith(extensions: [onInk]),
           child: DefaultTextStyle.merge(
             style: TextStyle(color: onInk.label),
-            child: Padding(padding: padding, child: child),
+            child: Padding(
+              // Evening adds a 1 px border (see CruCard).
+              padding: c.isEvening
+                  ? padding.add(const EdgeInsets.all(1))
+                  : padding,
+              child: child,
+            ),
           ),
         ),
       ),

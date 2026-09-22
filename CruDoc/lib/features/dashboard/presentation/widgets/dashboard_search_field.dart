@@ -121,8 +121,15 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                       decoration: InputDecoration(
                         isCollapsed: true,
                         border: InputBorder.none,
-                        hintText: 'Search patients or ask CruDoc',
-                        hintStyle: CruType.text.tint(c.label3),
+                        // A widget hint so the placeholder is clipped at
+                        // the edge rather than ellipsised.
+                        hint: Text(
+                          'Search patients or ask CruDoc',
+                          style: CruType.text.tint(c.label3),
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.clip,
+                        ),
                       ),
                       onSubmitted: (v) {
                         if (v.trim().isEmpty) {

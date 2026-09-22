@@ -72,11 +72,15 @@ class CruMonogram extends StatelessWidget {
   /// Defaults to label2.
   final Color? foreground;
 
+  static const _titles = {'dr', 'mr', 'mrs', 'ms', 'prof'};
+
+  /// "KI" for Kavya Iyer, "AD" for Dr. Ananya Deshpande (titles skipped).
   static String initialsOf(String name) {
     final parts = name
         .trim()
         .split(RegExp(r'\s+'))
         .where((p) => p.isNotEmpty && RegExp(r'[A-Za-z0-9]').hasMatch(p[0]))
+        .where((p) => !_titles.contains(p.toLowerCase().replaceAll('.', '')))
         .toList();
     if (parts.isEmpty) return '?';
     if (parts.length == 1) return parts.first[0].toUpperCase();

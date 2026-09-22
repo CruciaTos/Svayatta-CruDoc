@@ -1,0 +1,6 @@
+tags:
+  golden:
+    description: >-
+      Pixel comparisons of the dashboard against
+      design/dashboard-redesign/screens. Generated on Windows; font
+      anti-aliasing differs slightly on other platforms.

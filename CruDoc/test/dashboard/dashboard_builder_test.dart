@@ -1026,15 +1026,15 @@ void main() {
       ]);
       expect([for (final i in items) i.title], [
         'Paracetamol 650 is low',
-        'Insulin pen expired 3 days ago',
+        'Insulin pen expired',
         'Azithromycin 500 expires today',
-        'Cetirizine 10 expires in 9 days',
+        'Cetirizine 10 expiring',
       ]);
       expect([for (final i in items) i.subtitle], [
         '12 strips · reorder level 20',
-        '25 pens in stock',
+        '3 days ago · 25 pens in stock',
         '30 strips in stock',
-        '50 strips in stock',
+        'In 9 days · 50 strips in stock',
       ]);
       expect(
         items.where((i) => i.kind == AttentionKind.expiring).map((i) => i.actionLabel),
@@ -1050,11 +1050,10 @@ void main() {
             unit: 'tubes', stock: 30, expiry: DateTime(2026, 9, 24, 0, 1)),
       ]);
 
-      expect([for (final i in items) i.title], [
-        'Cough syrup expired 1 day ago',
-        'Ointment expires in 1 day',
+      expect([for (final i in items) i.subtitle], [
+        '1 day ago · 15 in stock',
+        'In 1 day · 30 tubes in stock',
       ]);
-      expect(items.first.subtitle, '15 in stock');
     });
 
     test('a low-stock item that is also expiring is listed once, as low', () {
@@ -1118,8 +1117,8 @@ void main() {
       );
 
       expect(
-        [for (final i in items) i.title],
-        ['Adrenaline expires in 9 days'],
+        [for (final i in items) i.subtitle],
+        ['In 9 days · 50 strips in stock'],
         reason: '_buildAttention filters on MedicineModel.isExpiringSoon, '
             'which reads DateTime.now() instead of the `now` argument',
       );

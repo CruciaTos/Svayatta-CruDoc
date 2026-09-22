@@ -144,6 +144,8 @@ void main() {
       expect(CruMonogram.initialsOf('Kavya Iyer'), 'KI');
       expect(CruMonogram.initialsOf('  mohammed  bin ansari '), 'MA');
       expect(CruMonogram.initialsOf('Priya'), 'P');
+      expect(CruMonogram.initialsOf('Dr. Ananya Deshpande'), 'AD');
+      expect(CruMonogram.initialsOf('dr Kavya Iyer'), 'KI');
       expect(CruMonogram.initialsOf(''), '?');
     });
   });

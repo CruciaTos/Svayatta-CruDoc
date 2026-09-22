@@ -54,7 +54,12 @@ class DoctorProfileHelper {
   }
 
   /// Formats the doctor's full name dynamically from Firestore, Auth, or Email Handle.
-  static String formatDoctorName(User? user, Map<String, dynamic>? data) {
+  static String formatDoctorName(User? user, Map<String, dynamic>? data) =>
+      tryFormatDoctorName(user, data) ?? 'Dr. Vinit Parab';
+
+  /// Like [formatDoctorName], but returns null instead of a stand-in
+  /// name when the profile, Auth and email have nothing usable.
+  static String? tryFormatDoctorName(User? user, Map<String, dynamic>? data) {
     if (data != null) {
       final rawName = (data['displayName'] ??
           data['doctorName'] ??
@@ -118,7 +123,7 @@ class DoctorProfileHelper {
       }
     }
 
-    return 'Dr. Vinit Parab';
+    return null;
   }
 
   /// Formats doctor's medical specialty / designation.
@@ -144,7 +149,11 @@ class DoctorProfileHelper {
   }
 
   /// Formats the doctor's clinic / practice name from Firestore or default.
-  static String formatClinicName(User? user, Map<String, dynamic>? data) {
+  static String formatClinicName(User? user, Map<String, dynamic>? data) =>
+      tryFormatClinicName(user, data) ?? 'CruDoc Healthcare';
+
+  /// Like [formatClinicName], but null when no clinic name is set.
+  static String? tryFormatClinicName(User? user, Map<String, dynamic>? data) {
     if (data != null) {
       final rawClinic = (data['clinicName'] ??
           data['practiceName'] ??
@@ -153,7 +162,7 @@ class DoctorProfileHelper {
         return rawClinic.trim();
       }
     }
-    return 'CruDoc Healthcare';
+    return null;
   }
 
   /// Updates the logged-in doctor's profile name and specialty in Cloud Firestore and Auth.

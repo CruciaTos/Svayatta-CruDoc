@@ -406,7 +406,7 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
                     ),
                     child: Align(
                       alignment: Alignment.topCenter,
-                      child: _pane(selected!, now),
+                      child: _pane(selected, now),
                     ),
                   ),
                 ],

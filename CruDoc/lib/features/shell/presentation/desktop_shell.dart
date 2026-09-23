@@ -20,10 +20,10 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:doctor_management_app/features/patients/presentation/patients_screen.dart';
-import 'package:doctor_management_app/features/revenue/presentation/desktop_revenue_screen.dart';
-import 'package:doctor_management_app/features/inventory/presentation/desktop_inventory_list_screen.dart';
+import 'package:doctor_management_app/features/revenue/presentation/revenue_overview_screen.dart';
+import 'package:doctor_management_app/features/inventory/presentation/inventory_screen.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
-import 'package:doctor_management_app/features/appointments/presentation/desktop_events_screen.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointments_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/desktop_campaigns_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
 import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
@@ -174,11 +174,11 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       case 1:
         return const PatientsScreen();
       case 2:
-        return const DesktopInventoryScreen();
+        return const InventoryScreen();
       case 3:
-        return const DesktopRevenueScreen();
+        return const RevenueOverviewScreen();
       case 4:
-        return const DesktopEventsScreen();
+        return const AppointmentsScreen();
       case 5:
         return const DesktopCampaignsScreen();
       case 6:
@@ -297,6 +297,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
         final isDashboard = _currentIndex == DesktopTab.dashboard;
         final isPatients = _currentIndex == DesktopTab.patients;
+        // Screens built on the Calm Clinical tokens pad their own page and
+        // have no floating chatbot button.
+        final isRedesigned = isPatients ||
+            _currentIndex == DesktopTab.inventory ||
+            _currentIndex == DesktopTab.revenue ||
+            _currentIndex == DesktopTab.appointments;
 
         final width = MediaQuery.sizeOf(context).width;
         final forcedCompact = width < CruBreakpoint.compact;
@@ -311,10 +317,11 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                 icon: _icons[_currentIndex],
                 onBackToDashboard: () => _onNavTap(0),
               );
-        if (isPatients) {
-          // Patients is built on the Calm Clinical tokens and pads its own
-          // page like the dashboard. It stays on Day (it paints its own
-          // canvas) because the dialogs it opens were built for Day.
+        if (isRedesigned) {
+          // Patients, Inventory, Revenue and Appointments are built on the
+          // Calm Clinical tokens and pad their own page like the dashboard.
+          // They stay on Day because the dialogs they open were built for
+          // Day.
           content = Theme(
             data: CruTheme.day(),
             child: SizedBox.expand(child: content),
@@ -352,9 +359,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                   ),
                   content: content,
                   // The dashboard reaches the assistant through "Ask
-                  // CruDoc" in its search; Patients has no floating
-                  // button either. Other screens keep it.
-                  overlay: isDashboard || isPatients
+                  // CruDoc" in its search; the redesigned screens have no
+                  // floating button either. Other screens keep it.
+                  overlay: isDashboard || isRedesigned
                       ? null
                       : const DraggableFloatingChatbotButton(
                           initialBottom: 32,

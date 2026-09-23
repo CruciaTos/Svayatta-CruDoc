@@ -78,7 +78,7 @@ abstract final class DentalPlan {
   static String? _stepSubtitle(TreatmentPlanLineItemModel i) {
     final t = teeth(i.toothNumbers);
     final parts = [
-      if (t != null) t,
+      ?t,
       if (i.estimatedPrice > 0) PatientFormat.rupees(i.estimatedPrice),
     ];
     return parts.isEmpty ? null : parts.join(' · ');

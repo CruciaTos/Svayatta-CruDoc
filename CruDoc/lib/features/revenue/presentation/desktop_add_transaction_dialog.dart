@@ -2,34 +2,55 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
+import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_icons.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Opens the desktop-specific Add Transaction modal popup dialog.
+// Dialog frame. Not tokens yet; see NEEDS.md (Builder 4).
+const double _dialogMaxWidth = 860;
+const double _dialogMaxHeight = 740;
+
+/// Opens the desktop Add Transaction dialog (Record payment, Record
+/// expense or Add pending payment). The optional `initial…` values
+/// prefill the form.
 Future<bool?> showDesktopAddTransactionDialog(
   BuildContext context, {
   TransactionKind? initialKind,
   bool isPending = false,
   RevenueRepository? repository,
+  double? initialAmount,
+  String? initialDescription,
+  String? initialPayer,
 }) {
   return showDialog<bool>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 860,
-          maxHeight: 740,
+    builder: (ctx) {
+      final c = ctx.cru;
+      return Dialog(
+        backgroundColor: c.surface,
+        surfaceTintColor: c.surface.withValues(alpha: 0),
+        shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+        clipBehavior: Clip.antiAlias,
+        insetPadding: const EdgeInsets.all(CruSpace.s24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(
+            maxWidth: _dialogMaxWidth,
+            maxHeight: _dialogMaxHeight,
+          ),
+          child: DesktopAddTransactionDialog(
+            initialKind: initialKind,
+            isPending: isPending,
+            repository: repository,
+            initialAmount: initialAmount,
+            initialDescription: initialDescription,
+            initialPayer: initialPayer,
+          ),
         ),
-        child: DesktopAddTransactionDialog(
-          initialKind: initialKind,
-          isPending: isPending,
-          repository: repository,
-        ),
-      ),
-    ),
+      );
+    },
   );
 }
 
@@ -41,11 +62,17 @@ class DesktopAddTransactionDialog extends StatefulWidget {
     this.initialKind,
     this.isPending = false,
     this.repository,
+    this.initialAmount,
+    this.initialDescription,
+    this.initialPayer,
   });
 
   final TransactionKind? initialKind;
   final bool isPending;
   final RevenueRepository? repository;
+  final double? initialAmount;
+  final String? initialDescription;
+  final String? initialPayer;
 
   @override
   State<DesktopAddTransactionDialog> createState() =>
@@ -109,9 +136,17 @@ class _DesktopAddTransactionDialogState
       _formType = _TransactionFormType.income;
     }
 
-    _amountController = TextEditingController();
-    _descriptionController = TextEditingController();
-    _payerController = TextEditingController();
+    final amount = widget.initialAmount;
+    _amountController = TextEditingController(
+      text: amount == null || amount <= 0
+          ? ''
+          : (amount == amount.roundToDouble()
+              ? amount.toStringAsFixed(0)
+              : amount.toStringAsFixed(2)),
+    );
+    _descriptionController =
+        TextEditingController(text: widget.initialDescription ?? '');
+    _payerController = TextEditingController(text: widget.initialPayer ?? '');
     _notesController = TextEditingController();
   }
 
@@ -136,6 +171,7 @@ class _DesktopAddTransactionDialogState
   }
 
   Future<void> _pickDate() async {
+    final c = context.cru;
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
@@ -144,11 +180,12 @@ class _DesktopAddTransactionDialogState
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF2563EB),
-              onPrimary: Colors.white,
-              onSurface: Color(0xFF1E293B),
-            ),
+            colorScheme: Theme.of(ctx).colorScheme.copyWith(
+                  primary: c.accent,
+                  onPrimary: c.onAccent,
+                  surface: c.surface,
+                  onSurface: c.label,
+                ),
           ),
           child: child!,
         );
@@ -224,146 +261,114 @@ class _DesktopAddTransactionDialogState
       if (!mounted) return;
       setState(() {
         _isSaving = false;
-        _errorText = 'Failed to save transaction: $e';
+        _errorText = "Couldn't save the transaction: $e";
       });
     }
   }
 
+  // -------------------------------------------------------------------
+  // Layout
+  // -------------------------------------------------------------------
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 32,
-            offset: Offset(0, 16),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildHeader(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Column: Type selection, Amount, Date
-                      Expanded(
-                        flex: 11,
-                        child: _buildLeftColumn(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildHeader(),
+        const CruSeparator(),
+        Expanded(
+          child: Form(
+            key: _formKey,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(CruSpace.s24),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: type, amount, date, notes.
+                  Expanded(flex: 11, child: _buildLeftColumn()),
+                  const SizedBox(width: CruSpace.s24),
+                  // Right: category, description, paid to / received
+                  // from, preview; split off by a separator.
+                  Expanded(
+                    flex: 10,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border(
+                          left: BorderSide(color: context.cru.separator),
+                        ),
                       ),
-                      const SizedBox(width: 24),
-                      // Divider
-                      Container(
-                        width: 1,
-                        height: 520,
-                        color: const Color(0xFFF1F5F9),
-                      ),
-                      const SizedBox(width: 24),
-                      // Right Column: Category, Payer/Payee, Description, Preview
-                      Expanded(
-                        flex: 10,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: CruSpace.s24),
                         child: _buildRightColumn(),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
-            if (_errorText != null) _buildErrorBanner(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            _buildFooter(),
-          ],
+          ),
         ),
-      ),
+        if (_errorText != null) _buildErrorBanner(),
+        const CruSeparator(),
+        _buildFooter(),
+      ],
     );
   }
 
   Widget _buildHeader() {
-    Color iconBg;
-    IconData iconData;
-    String titleText;
-    String subtitleText;
+    final c = context.cru;
+    final (CruIconData icon, CruTileTone tone, String title, String subtitle) =
+        switch (_formType) {
+      _TransactionFormType.income => (
+          CruIcons.rupee,
+          CruTileTone.green,
+          'Record payment',
+          'Patient fees, clinic earnings or other money received',
+        ),
+      _TransactionFormType.expense => (
+          RevenueIcons.receipt,
+          CruTileTone.neutral,
+          'Record expense',
+          'Supplies, salaries, rent and other clinic costs',
+        ),
+      _TransactionFormType.pending => (
+          CruIcons.clock,
+          CruTileTone.amber,
+          'Add pending payment',
+          'An unpaid balance to collect later',
+        ),
+    };
 
-    switch (_formType) {
-      case _TransactionFormType.income:
-        iconBg = const Color(0xFF059669);
-        iconData = Icons.arrow_downward_rounded;
-        titleText = 'Record Income';
-        subtitleText = 'Log patient fees, clinic earnings, or miscellaneous cash inflows';
-        break;
-      case _TransactionFormType.expense:
-        iconBg = const Color(0xFFDC2626);
-        iconData = Icons.arrow_upward_rounded;
-        titleText = 'Record Expense';
-        subtitleText = 'Track operational costs, medical supplies, salaries, and clinic bills';
-        break;
-      case _TransactionFormType.pending:
-        iconBg = const Color(0xFFD97706);
-        iconData = Icons.pending_actions_rounded;
-        titleText = 'Add Pending Payment';
-        subtitleText = 'Schedule outstanding patient receivables or unpaid balances to collect';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
-      color: const Color(0xFFF8FAFC),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s24,
+        CruSpace.s20,
+        CruSpace.s20,
+        CruSpace.s20,
+      ),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              iconData,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
+          CruIconTile(icon: icon, tone: tone),
+          const SizedBox(width: CruSpace.s14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  titleText,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
-                  ),
+                Semantics(
+                  header: true,
+                  child: Text(title, style: CruType.title2.tint(c.label)),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitleText,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
+                const SizedBox(height: CruSpace.s2),
+                Text(subtitle, style: CruType.subhead.tint(c.label2)),
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+          CruSquareButton(
+            icon: CruIcons.close,
+            iconSize: 16,
+            strokeWidth: 2.2,
+            semanticLabel: 'Close',
             onPressed: () => Navigator.of(context).pop(),
           ),
         ],
@@ -372,508 +377,235 @@ class _DesktopAddTransactionDialogState
   }
 
   Widget _buildLeftColumn() {
+    final c = context.cru;
+    final now = DateTime.now();
+    final isToday = _selectedDate.year == now.year &&
+        _selectedDate.month == now.month &&
+        _selectedDate.day == now.day;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'TRANSACTION TYPE',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Expanded(
-              child: _buildTypeCard(
-                type: _TransactionFormType.income,
-                title: 'Income',
-                desc: 'Payment In',
-                icon: Icons.arrow_downward_rounded,
-                activeColor: const Color(0xFF059669),
-                activeBg: const Color(0xFFECFDF5),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildTypeCard(
-                type: _TransactionFormType.expense,
-                title: 'Expense',
-                desc: 'Payment Out',
-                icon: Icons.arrow_upward_rounded,
-                activeColor: const Color(0xFFDC2626),
-                activeBg: const Color(0xFFFEF2F2),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _buildTypeCard(
-                type: _TransactionFormType.pending,
-                title: 'Pending',
-                desc: 'Awaiting',
-                icon: Icons.pending_actions_rounded,
-                activeColor: const Color(0xFFD97706),
-                activeBg: const Color(0xFFFFFBEB),
-              ),
-            ),
+        const _FieldLabel('Type'),
+        const SizedBox(height: CruSpace.s8),
+        CruSegmentedControl<_TransactionFormType>(
+          semanticLabel: 'Transaction type',
+          segments: const [
+            CruSegment(_TransactionFormType.income, 'Money in'),
+            CruSegment(_TransactionFormType.expense, 'Money out'),
+            CruSegment(_TransactionFormType.pending, 'Pending'),
           ],
+          selected: _formType,
+          onChanged: (type) => setState(() {
+            _formType = type;
+            _selectedCategory = null;
+          }),
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'AMOUNT',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s24),
+        const _FieldLabel('Amount'),
+        const SizedBox(height: CruSpace.s8),
         TextFormField(
           controller: _amountController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: const TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1E293B),
-          ),
+          style: CruType.title2.tabular.tint(c.label),
+          cursorColor: c.accent,
           onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            prefixIcon: const Padding(
-              padding: EdgeInsets.only(left: 14, right: 8),
-              child: Center(
-                widthFactor: 0.0,
-                child: Text(
-                  '₹',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
+          decoration: _decoration(context, hint: '0').copyWith(
+            prefixIcon: Padding(
+              padding: const EdgeInsets.only(
+                left: CruSpace.s14,
+                right: CruSpace.s8,
               ),
+              child: Text('₹', style: CruType.title2.tint(c.label2)),
             ),
-            hintText: '0.00',
-            hintStyle: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFFCBD5E1),
-            ),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
+            prefixIconConstraints: const BoxConstraints(),
+            hintStyle: CruType.title2.tabular.tint(c.label3),
           ),
           validator: (val) {
             if (val == null || val.trim().isEmpty) return 'Enter an amount';
             final parsed = double.tryParse(val.trim());
-            if (parsed == null || parsed <= 0) return 'Enter a valid amount > 0';
+            if (parsed == null || parsed <= 0) {
+              return 'Enter an amount above ₹0';
+            }
             return null;
           },
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'DATE OF TRANSACTION',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
-        InkWell(
+        const SizedBox(height: CruSpace.s24),
+        const _FieldLabel('Date'),
+        const SizedBox(height: CruSpace.s8),
+        CruPressable(
           onTap: _pickDate,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+          scaleOnPress: false,
+          semanticLabel: 'Date, ${DashFormat.dateLine(_selectedDate)}',
+          builder: (context, hovered) => AnimatedContainer(
+            duration: CruMotion.of(context, CruMotion.fast),
+            curve: CruMotion.curve,
+            padding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s14,
+              vertical: CruSpace.s12,
+            ),
+            decoration: ShapeDecoration(
+              color: hovered ? cruHoverShade(c.inset, c) : c.inset,
+              shape: cruShape(CruRadius.control),
             ),
             child: Row(
               children: [
-                const Icon(
-                  Icons.calendar_today_rounded,
-                  size: 18,
-                  color: Color(0xFF2563EB),
-                ),
-                const SizedBox(width: 12),
+                CruIcon(CruIcons.calendar, size: 18, color: c.label2),
+                const SizedBox(width: CruSpace.s12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        DateFormat('EEEE, dd MMMM yyyy').format(_selectedDate),
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1E293B),
-                        ),
+                        DateFormat('EEEE, d MMMM y').format(_selectedDate),
+                        style: CruType.callout.tabular.tint(c.label),
                       ),
-                      const SizedBox(height: 2),
                       Text(
-                        _selectedDate.year == DateTime.now().year &&
-                                _selectedDate.month == DateTime.now().month &&
-                                _selectedDate.day == DateTime.now().day
+                        isToday
                             ? 'Today'
-                            : DateFormat('MMM dd').format(_selectedDate),
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: Color(0xFF64748B),
-                        ),
+                            : DateFormat('d MMM').format(_selectedDate),
+                        style: CruType.caption.tabular.tint(c.label2),
                       ),
                     ],
                   ),
                 ),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 20,
-                  color: Color(0xFF94A3B8),
-                ),
+                CruIcon(CruIcons.chevronRight, size: 18, color: c.label3),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 24),
-        const Text(
-          'INTERNAL NOTES (OPTIONAL)',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s24),
+        const _FieldLabel('Notes (optional)'),
+        const SizedBox(height: CruSpace.s8),
         TextFormField(
           controller: _notesController,
           maxLines: 3,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
-          decoration: InputDecoration(
-            hintText: 'Add invoice number, check ID, payment method reference, or voucher details...',
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.all(14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
+          style: CruType.text.tint(c.label),
+          cursorColor: c.accent,
+          decoration: _decoration(
+            context,
+            hint: 'Invoice number, cheque ID, payment reference or voucher',
           ),
         ),
       ],
     );
   }
 
-  Widget _buildTypeCard({
-    required _TransactionFormType type,
-    required String title,
-    required String desc,
-    required IconData icon,
-    required Color activeColor,
-    required Color activeBg,
-  }) {
-    final isSelected = _formType == type;
-
-    return InkWell(
-      onTap: () {
-        setState(() {
-          _formType = type;
-          _selectedCategory = null;
-        });
-      },
-      borderRadius: BorderRadius.circular(12),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? activeBg : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? activeColor : const Color(0xFFE2E8F0),
-            width: isSelected ? 1.8 : 1.0,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Icon(
-                  icon,
-                  size: 18,
-                  color: isSelected ? activeColor : const Color(0xFF64748B),
-                ),
-                if (isSelected)
-                  Icon(
-                    Icons.check_circle_rounded,
-                    size: 16,
-                    color: activeColor,
-                  ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: isSelected ? activeColor : const Color(0xFF1E293B),
-              ),
-            ),
-            Text(
-              desc,
-              style: TextStyle(
-                fontSize: 10,
-                color: isSelected ? activeColor.withValues(alpha: 0.8) : const Color(0xFF94A3B8),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildRightColumn() {
+    final c = context.cru;
     final payerLabel = _formType == _TransactionFormType.expense
-        ? 'PAID TO (SUPPLIER / VENDOR / PAYEE)'
-        : 'RECEIVED FROM (PATIENT / CLIENT / PAYER)';
+        ? 'Paid to (supplier, vendor or payee)'
+        : 'Received from (patient, client or payer)';
     final payerHint = _formType == _TransactionFormType.expense
-        ? 'e.g. Apex Dental Supplies, Landlord, Lab Co.'
-        : 'e.g. John Doe, Self-pay, Insurance Provider';
+        ? 'e.g. Apex Dental Supplies, landlord, lab'
+        : 'e.g. patient name, self-pay, insurer';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'CATEGORY PRESETS',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const _FieldLabel('Category'),
+        const SizedBox(height: CruSpace.s8),
         Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: _currentCategories.map((cat) {
-            final isSelected = _selectedCategory == cat;
-            return ChoiceChip(
-              label: Text(cat),
-              selected: isSelected,
-              onSelected: (selected) {
-                setState(() {
+          spacing: CruSpace.s8,
+          runSpacing: CruSpace.s8,
+          children: [
+            for (final cat in _currentCategories)
+              _CategoryChip(
+                label: cat,
+                selected: _selectedCategory == cat,
+                onTap: () => setState(() {
+                  final selected = _selectedCategory != cat;
                   _selectedCategory = selected ? cat : null;
                   if (selected && _descriptionController.text.trim().isEmpty) {
                     _descriptionController.text = cat;
                   }
-                });
-              },
-              labelStyle: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
-                color: isSelected ? Colors.white : const Color(0xFF475569),
+                }),
               ),
-              selectedColor: const Color(0xFF1E293B),
-              backgroundColor: const Color(0xFFF1F5F9),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-                side: BorderSide(
-                  color: isSelected ? Colors.transparent : const Color(0xFFE2E8F0),
-                ),
-              ),
-              showCheckmark: false,
-            );
-          }).toList(),
+          ],
         ),
-        const SizedBox(height: 20),
-        const Text(
-          'DESCRIPTION / TITLE *',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s20),
+        const _FieldLabel('Description'),
+        const SizedBox(height: CruSpace.s8),
         TextFormField(
           controller: _descriptionController,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+          style: CruType.text.tint(c.label),
+          cursorColor: c.accent,
           onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: 'e.g. Root canal therapy consultation, Clinic sanitization supplies...',
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
+          decoration: _decoration(
+            context,
+            hint: 'e.g. Root canal consultation, sanitisation supplies',
           ),
-          validator: (val) =>
-              (val == null || val.trim().isEmpty) ? 'Please enter a description' : null,
+          validator: (val) => (val == null || val.trim().isEmpty)
+              ? 'Enter a description'
+              : null,
         ),
-        const SizedBox(height: 20),
-        Text(
-          payerLabel,
-          style: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s20),
+        _FieldLabel(payerLabel),
+        const SizedBox(height: CruSpace.s8),
         TextFormField(
           controller: _payerController,
-          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
+          style: CruType.text.tint(c.label),
+          cursorColor: c.accent,
           onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            hintText: payerHint,
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
-          ),
+          decoration: _decoration(context, hint: payerHint),
         ),
-        const SizedBox(height: 24),
-        // Live Preview Box
+        const SizedBox(height: CruSpace.s24),
+        // Live preview.
         _buildTransactionSummaryCard(),
       ],
     );
   }
 
   Widget _buildTransactionSummaryCard() {
+    final c = context.cru;
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
     final desc = _descriptionController.text.trim().isEmpty
-        ? 'Untitled Transaction'
+        ? 'Untitled transaction'
         : _descriptionController.text.trim();
     final payer = _payerController.text.trim();
 
-    Color badgeColor;
-    String typeLabel;
-    switch (_formType) {
-      case _TransactionFormType.income:
-        badgeColor = const Color(0xFF059669);
-        typeLabel = '+ INCOME INFLOW';
-        break;
-      case _TransactionFormType.expense:
-        badgeColor = const Color(0xFFDC2626);
-        typeLabel = '- EXPENSE OUTFLOW';
-        break;
-      case _TransactionFormType.pending:
-        badgeColor = const Color(0xFFD97706);
-        typeLabel = '⌛ PENDING RECEIVABLE';
-        break;
-    }
+    final (String label, Color fill, Color fg) = switch (_formType) {
+      _TransactionFormType.income => ('Money in', c.greenTint, c.greenText),
+      _TransactionFormType.expense => ('Money out', c.inset, c.label2),
+      _TransactionFormType.pending => ('Pending', c.amberTint, c.amberText),
+    };
+    final money = DashFormat.rupees(amount);
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+      padding: const EdgeInsets.all(CruSpace.s16),
+      decoration: ShapeDecoration(
+        color: c.canvas,
+        shape: cruShape(CruRadius.panel, side: BorderSide(color: c.hairline)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  typeLabel,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: badgeColor,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
+              CruPill(text: label, background: fill, foreground: fg),
+              const Spacer(),
               Text(
-                '₹${NumberFormat('#,##0.00').format(amount)}',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: badgeColor,
-                ),
+                _formType == _TransactionFormType.expense ? '−$money' : money,
+                style: CruType.row.tabular.tint(c.label),
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: CruSpace.s10),
           Text(
             desc,
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
-            ),
+            style: CruType.callout.tint(c.label),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           if (payer.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: CruSpace.s4),
             Text(
-              'Party: $payer',
-              style: const TextStyle(
-                fontSize: 11,
-                color: Color(0xFF64748B),
-              ),
+              _formType == _TransactionFormType.expense
+                  ? 'Paid to $payer'
+                  : 'Received from $payer',
+              style: CruType.caption.tint(c.label2),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],
@@ -882,22 +614,31 @@ class _DesktopAddTransactionDialogState
   }
 
   Widget _buildErrorBanner() {
+    final c = context.cru;
+    // Amber, not red: red is reserved for allergies.
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFFCA5A5)),
+      margin: const EdgeInsets.fromLTRB(
+        CruSpace.s24,
+        0,
+        CruSpace.s24,
+        CruSpace.s12,
+      ),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s14,
+        vertical: CruSpace.s10,
+      ),
+      decoration: ShapeDecoration(
+        color: c.amberTint,
+        shape: cruShape(CruRadius.control),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
-          const SizedBox(width: 10),
+          CruIcon(CruIcons.warning, size: 18, color: c.amberText),
+          const SizedBox(width: CruSpace.s10),
           Expanded(
             child: Text(
               _errorText!,
-              style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
+              style: CruType.subhead.w500.tint(c.amberText),
             ),
           ),
         ],
@@ -906,79 +647,117 @@ class _DesktopAddTransactionDialogState
   }
 
   Widget _buildFooter() {
-    String actionLabel;
-    Color buttonColor;
-    switch (_formType) {
-      case _TransactionFormType.income:
-        actionLabel = 'Record Income';
-        buttonColor = const Color(0xFF059669);
-        break;
-      case _TransactionFormType.expense:
-        actionLabel = 'Record Expense';
-        buttonColor = const Color(0xFFDC2626);
-        break;
-      case _TransactionFormType.pending:
-        actionLabel = 'Save Pending Payment';
-        buttonColor = const Color(0xFFD97706);
-        break;
-    }
+    final actionLabel = switch (_formType) {
+      _TransactionFormType.income => 'Record payment',
+      _TransactionFormType.expense => 'Record expense',
+      _TransactionFormType.pending => 'Save pending payment',
+    };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: Colors.white,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s24,
+        vertical: CruSpace.s16,
+      ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          OutlinedButton(
+          CruButton(
+            label: 'Cancel',
+            kind: CruButtonKind.secondary,
             onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                color: Color(0xFF475569),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
           ),
-          const SizedBox(width: 12),
-          FilledButton(
+          const SizedBox(width: CruSpace.s10),
+          CruButton(
+            label: _isSaving ? 'Saving…' : actionLabel,
+            icon: _isSaving ? null : CruIcons.check,
             onPressed: _isSaving ? null : _handleSave,
-            style: FilledButton.styleFrom(
-              backgroundColor: buttonColor,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-            child: _isSaving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_rounded, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        actionLabel,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Inset field: fill, radius 12, accent ring on focus, amber errors.
+InputDecoration _decoration(BuildContext context, {String? hint}) {
+  final c = context.cru;
+  OutlineInputBorder border([Color? color, double width = 1]) =>
+      OutlineInputBorder(
+        borderRadius: BorderRadius.circular(CruRadius.control),
+        borderSide: color == null
+            ? BorderSide.none
+            : BorderSide(color: color, width: width),
+      );
+  return InputDecoration(
+    hintText: hint,
+    hintStyle: CruType.text.tint(c.label3),
+    filled: true,
+    fillColor: c.inset,
+    isDense: true,
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: CruSpace.s14,
+      vertical: CruSpace.s12,
+    ),
+    border: border(),
+    enabledBorder: border(),
+    focusedBorder: border(c.accent, 1.5),
+    errorBorder: border(c.amber),
+    focusedErrorBorder: border(c.amber, 1.5),
+    errorStyle: CruType.caption.w500.tint(c.amberText),
+  );
+}
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) =>
+      Text(text, style: CruType.subhead.w500.tint(context.cru.label2));
+}
+
+/// A category preset: inset capsule, filled with the label colour when
+/// chosen.
+class _CategoryChip extends StatelessWidget {
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Semantics(
+      selected: selected,
+      child: CruPressable(
+        onTap: onTap,
+        semanticLabel: label,
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          height: CruSize.chip,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            color: selected
+                ? c.label
+                : hovered
+                    ? cruHoverShade(c.inset, c)
+                    : c.inset,
+            shape: const StadiumBorder(),
+          ),
+          child: Text(
+            label,
+            maxLines: 1,
+            style: (selected ? CruType.subhead.w600 : CruType.subhead.w500)
+                .tint(selected ? c.surface : c.label2),
+          ),
+        ),
       ),
     );
   }

@@ -106,5 +106,14 @@ This was a UI/UX pass only. Every screen reads existing repositories through Riv
 - **Analyzer**: `flutter analyze` reports no errors. Warnings and infos remain only in files this pass didn't change: auth, campaigns, `web_dashboard_view`, `desktop_invoices_screen`, `invoices_screen`, `bill_generation_sheet` and the dental tests. The new and edited code is clean.
 - **Not yet merged**: the shared-widget requests in `NEEDS.md`. These are new icons (cart, list, grid, pill, receipt, chat), size tokens, a chart colour, and one shared side sheet with backdrop in place of four copies. They're left for a follow-up because each builder's local version works and matches the design.
 
-## Commits
-See the summary in the chat; one commit per feature on `feat/clinic-redesign`.
+- **Tests**: `flutter test --timeout 90s` passed 269 tests and failed 5.
+  - The 5 are in `dental_phase2_catalog_and_procedure_test.dart` and `dental_phase3_4_5_test.dart`. They hang ("did not complete"), import none of the changed code, and already hang on main.
+  - All 16 new appointments, inventory and revenue tests pass.
+- **Goldens**: each one was compared with its PNG in `screens/`. Three fixes came out of that: the Day header summary was cut off, the "2 at once" gutter pill was clipped, and "5 seen so far" was cut off on the Month tile. The goldens were then regenerated.
+
+## Commits (`feat/clinic-redesign`)
+- `dc48d02` Clinic redesign: Appointments Day, Week, Month, Agenda and overlaps
+- `e0f1756` Clinic redesign: Inventory list and grid with item panel
+- `01b069f` Clinic redesign: Revenue overview
+- `5412154` Clinic redesign: shell wiring, plan and report
+- plus this report update

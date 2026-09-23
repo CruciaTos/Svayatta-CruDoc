@@ -4320,3 +4320,77 @@ class _PlaceholderScreen extends StatelessWidget {
     );
   }
 }
+
+// =============================================================================
+// Public hosts for the redesigned InventoryScreen's Orders, Vendors and
+// Usage sections. Each builds the data its tab needs from providers, so
+// InventoryScreen can mount them with no arguments. Behaviour unchanged.
+// =============================================================================
+
+List<MedicationData> _watchMedications(WidgetRef ref) =>
+    (ref.watch(_desktopInventoryViewProvider).value ??
+            _emptyDesktopInventoryViewData)
+        .medications;
+
+void _pushMedicineDetail(BuildContext context, MedicineModel medicine) {
+  Navigator.push(
+    context,
+    MaterialPageRoute(
+      builder: (_) => MedicineDetailScreen(medicine: medicine),
+    ),
+  );
+}
+
+/// The reorder queue (Orders section).
+class InventoryOrdersTab extends ConsumerWidget {
+  const InventoryOrdersTab({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _OrdersTab(
+      medications: _watchMedications(ref),
+      transactions: ref.watch(recentStockTransactionsProvider).value ??
+          const <StockTransactionModel>[],
+      repository: ref.watch(inventoryRepositoryProvider),
+      onOpenMedicineDetail: (m) => _pushMedicineDetail(context, m),
+    );
+  }
+}
+
+/// Suppliers and what each one stocks (Vendors section).
+class InventoryVendorsTab extends ConsumerWidget {
+  const InventoryVendorsTab({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final repository = ref.watch(inventoryRepositoryProvider);
+    return _VendorsTab(
+      medications: _watchMedications(ref),
+      onEditMedicine: (m) => showDesktopAddEditMedicineDialog(
+        context,
+        medicine: m,
+        repository: repository,
+      ),
+      onOpenMedicineDetail: (m) => _pushMedicineDetail(context, m),
+    );
+  }
+}
+
+/// Usage analytics (Usage section).
+class InventoryUsageTab extends ConsumerWidget {
+  const InventoryUsageTab({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final medications = _watchMedications(ref);
+    return _UsageAnalyticsTab(
+      transactions: ref.watch(recentStockTransactionsProvider).value ??
+          const <StockTransactionModel>[],
+      medicineById: <String, MedicineModel>{
+        for (final med in medications)
+          if (med.originalMedicine != null)
+            med.originalMedicine!.id: med.originalMedicine!,
+      },
+    );
+  }
+}

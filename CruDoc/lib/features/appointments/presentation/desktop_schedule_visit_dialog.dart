@@ -7,6 +7,7 @@ import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_cap_notice.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
@@ -19,6 +20,7 @@ Future<bool> showDesktopScheduleVisitDialog(
   required Patient patient,
   required VisitRepository visitRepository,
   DateTime? initialDate,
+  DateTime? initialStart,
 }) async {
   final result = await showDialog<bool>(
     context: context,
@@ -35,6 +37,7 @@ Future<bool> showDesktopScheduleVisitDialog(
           patient: patient,
           visitRepository: visitRepository,
           initialDate: initialDate,
+          initialStart: initialStart,
         ),
       ),
     ),
@@ -48,11 +51,16 @@ class DesktopScheduleVisitDialog extends ConsumerStatefulWidget {
     required this.patient,
     required this.visitRepository,
     this.initialDate,
+    this.initialStart,
   });
 
   final Patient patient;
   final VisitRepository visitRepository;
   final DateTime? initialDate;
+
+  /// Prefills date and time (a click on empty calendar time or an open
+  /// slot). Takes precedence over [initialDate].
+  final DateTime? initialStart;
 
   @override
   ConsumerState<DesktopScheduleVisitDialog> createState() =>
@@ -75,6 +83,11 @@ class _DesktopScheduleVisitDialogState
   bool _addToQueue = true;
   bool _isSaving = false;
   String? _errorText;
+
+  /// The cap of 4 refused this start: shown inline under the time field
+  /// with the next free slot.
+  DateTime? _capAt;
+  DateTime? _capNextFree;
 
   double? _resolvedLat;
   double? _resolvedLng;
@@ -100,6 +113,11 @@ class _DesktopScheduleVisitDialogState
   void initState() {
     super.initState();
     _selectedDate = widget.initialDate ?? DateTime.now().add(const Duration(days: 1));
+    final start = widget.initialStart;
+    if (start != null) {
+      _selectedDate = DateTime(start.year, start.month, start.day);
+      _selectedTime = TimeOfDay.fromDateTime(start);
+    }
   }
 
   @override
@@ -115,10 +133,13 @@ class _DesktopScheduleVisitDialogState
       int.tryParse(_selectedDuration.split(' ').first) ?? 30;
 
   Future<void> _pickDate() async {
+    final firstDate = DateTime.now().subtract(const Duration(days: 1));
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      // A past day can be prefilled from the calendar; keep the picker valid.
+      initialDate:
+          _selectedDate.isBefore(firstDate) ? firstDate : _selectedDate,
+      firstDate: firstDate,
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
       builder: (context, child) {
         return Theme(
@@ -134,7 +155,12 @@ class _DesktopScheduleVisitDialogState
         );
       },
     );
-    if (picked != null) setState(() => _selectedDate = picked);
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+        _capAt = null;
+      });
+    }
   }
 
   Future<void> _pickTime() async {
@@ -155,7 +181,12 @@ class _DesktopScheduleVisitDialogState
         );
       },
     );
-    if (picked != null) setState(() => _selectedTime = picked);
+    if (picked != null) {
+      setState(() {
+        _selectedTime = picked;
+        _capAt = null;
+      });
+    }
   }
 
   Future<void> _submit({bool acknowledgeOverlap = false}) async {
@@ -164,6 +195,7 @@ class _DesktopScheduleVisitDialogState
     setState(() {
       _isSaving = true;
       _errorText = null;
+      _capAt = null;
     });
 
     final scheduledStart = DateTime(
@@ -276,6 +308,17 @@ class _DesktopScheduleVisitDialogState
       if (proceed == true) {
         await _submit(acknowledgeOverlap: true);
       }
+    } on VisitOverlapLimitExceededException {
+      if (!mounted) return;
+      setState(() {
+        _isSaving = false;
+        _capAt = scheduledStart;
+        _capNextFree = apptNextFreeSlot(
+          ref,
+          start: scheduledStart,
+          durationMinutes: _durationMinutes,
+        );
+      });
     } on VisitException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -535,6 +578,18 @@ class _DesktopScheduleVisitDialogState
             ),
           ),
         ),
+        if (_capAt != null) ...[
+          const SizedBox(height: 8),
+          ApptCapNotice(
+            at: _capAt!,
+            nextFree: _capNextFree,
+            onPick: (slot) => setState(() {
+              _selectedDate = DateTime(slot.year, slot.month, slot.day);
+              _selectedTime = TimeOfDay.fromDateTime(slot);
+              _capAt = null;
+            }),
+          ),
+        ],
         const SizedBox(height: 20),
 
         // Duration Pills

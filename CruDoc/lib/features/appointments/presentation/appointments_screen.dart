@@ -8,15 +8,18 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/appointments_day_view.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/month/appointments_month_view.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appts_header.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/visits/appointments_home_visits_view.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/week/appointments_week_view.dart';
+import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:flutter/gestures.dart';
 
-/// The Appointments tab: a header shared by Day, Week, Month and Agenda,
-/// and the current view below it. Pads itself with [CruSpace.mainPadding]
-/// (the shell doesn't). No chatbot button.
+/// The Schedule tab. Live is today's queue board (it has its own header);
+/// Day, Week, Month and Agenda share the calendar header. Pads itself
+/// with [CruSpace.mainPadding] (the shell doesn't). No chatbot button.
 ///
-/// Keyboard: ← and → step one day, week or month; T jumps to today (not
-/// while a text field has focus).
+/// Keyboard (calendar views): ← and → step one day, week or month; T
+/// jumps to today (not while a text field has focus).
 class AppointmentsScreen extends ConsumerStatefulWidget {
   const AppointmentsScreen({super.key});
 
@@ -71,7 +74,23 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final view = ref.watch(apptsControllerProvider.select((s) => s.view));
+    final view = ref.watch(effectiveApptsViewProvider);
+    return AnimatedSwitcher(
+      duration: CruMotion.of(context, CruMotion.fast),
+      switchInCurve: CruMotion.curve,
+      switchOutCurve: CruMotion.curve,
+      layoutBuilder: (current, previous) =>
+          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      child: view == ApptsView.live
+          ? const DesktopQueueScreen(key: ValueKey('live'))
+          : KeyedSubtree(
+              key: const ValueKey('calendar'),
+              child: _calendar(context, view),
+            ),
+    );
+  }
+
+  Widget _calendar(BuildContext context, ApptsView view) {
     final width = MediaQuery.sizeOf(context).width;
     final padding = width < CruBreakpoint.compact
         ? CruSpace.mainPaddingCompact
@@ -96,23 +115,29 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
               const ApptsHeader(),
               const SizedBox(height: CruSpace.cardGap),
               Expanded(
-                child: AnimatedSwitcher(
-                  duration: CruMotion.of(context, CruMotion.fast),
-                  switchInCurve: CruMotion.curve,
-                  switchOutCurve: CruMotion.curve,
-                  // Views fill the body (the default layout loosens it).
-                  layoutBuilder: (current, previous) => Stack(
-                    fit: StackFit.expand,
-                    children: [...previous, ?current],
-                  ),
-                  child: KeyedSubtree(
-                    key: ValueKey(view),
-                    child: switch (view) {
-                      ApptsView.day => const AppointmentsDayView(),
-                      ApptsView.week => const AppointmentsWeekView(),
-                      ApptsView.month => const AppointmentsMonthView(),
-                      ApptsView.agenda => const AppointmentsAgendaView(),
-                    },
+                child: _SwipeToStep(
+                  onStep: ref.read(apptsControllerProvider.notifier).step,
+                  child: AnimatedSwitcher(
+                    duration: CruMotion.of(context, CruMotion.fast),
+                    switchInCurve: CruMotion.curve,
+                    switchOutCurve: CruMotion.curve,
+                    // Views fill the body (the default layout loosens it).
+                    layoutBuilder: (current, previous) => Stack(
+                      fit: StackFit.expand,
+                      children: [...previous, ?current],
+                    ),
+                    child: KeyedSubtree(
+                      key: ValueKey(view),
+                      child: switch (view) {
+                        // Shown above instead (never reached).
+                        ApptsView.live => const SizedBox.shrink(),
+                        ApptsView.day => const AppointmentsDayView(),
+                        ApptsView.week => const AppointmentsWeekView(),
+                        ApptsView.month => const AppointmentsMonthView(),
+                        ApptsView.agenda => const AppointmentsAgendaView(),
+                        ApptsView.visits => const AppointmentsHomeVisitsView(),
+                      },
+                    ),
                   ),
                 ),
               ),
@@ -120,6 +145,38 @@ class _AppointmentsScreenState extends ConsumerState<AppointmentsScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Fling velocity (logical px/s) that counts as a swipe.
+const double _kSwipeVelocity = 300;
+
+/// Tablets: swipe left for the next day, week or month, right for the
+/// previous one. Touch and stylus only, so dragging with a mouse on the
+/// desktop does nothing new.
+class _SwipeToStep extends StatelessWidget {
+  const _SwipeToStep({required this.onStep, required this.child});
+
+  final ValueChanged<int> onStep;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      supportedDevices: const {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.invertedStylus,
+      },
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v.abs() < _kSwipeVelocity) return;
+        HapticFeedback.selectionClick();
+        onStep(v < 0 ? 1 : -1);
+      },
+      child: child,
     );
   }
 }

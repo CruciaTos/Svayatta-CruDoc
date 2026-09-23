@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/messaging/data/repo/messaging_repository.dart';
 import 'package:doctor_management_app/features/messaging/data/repo/whatsapp_repository.dart';
+import 'package:doctor_management_app/core/services/maps_key.dart';
 
 /// Standard fee recorded when an appointment ([VisitType.clinic]) is
 /// marked [VisitStatus.completed] — see [VisitRepository.updateStatus].
@@ -198,7 +199,7 @@ class VisitRepository {
     // If the caller already supplied coordinates, use those. Otherwise,
     // only attempt to geocode when an address was actually entered, and
     // never let a geocoding failure (bad address, no network, or no
-    // real Google Maps API key configured yet — see kGoogleMapsApiKey)
+    // Google Maps key set up yet — see MapsKey)
     // block the visit from being saved. On failure the visit is simply
     // saved without coordinates; the map preview falls back to a
     // placeholder image until a real address/API key is in place.
@@ -227,6 +228,7 @@ class VisitRepository {
       isDeleted: visit.isDeleted,
       invoiceId: visit.invoiceId,
       packageId: visit.packageId,
+      groupId: visit.groupId,
       treatmentType: visit.treatmentType,
       therapistNotes: visit.therapistNotes,
       reminderStatus: visit.reminderStatus,
@@ -274,6 +276,100 @@ class VisitRepository {
   /// key that isn't one of the predefined [VisitStatus] values — this
   /// is the backstop that keeps free-text statuses out even if a
   /// caller bypasses [updateStatus].
+  /// Books [visits] (one slot, one patient each) as one appointment: they
+  /// share a new group id. A single visit is booked on its own. Returns
+  /// the saved visits (with ids and the group id) in order.
+  Future<List<Visit>> createVisitGroup(
+    List<Visit> visits, {
+    bool acknowledgeOverlap = false,
+  }) async {
+    if (visits.length > kMaxGroupPatients) {
+      throw VisitValidationException(
+        'One appointment can hold at most $kMaxGroupPatients patients.',
+      );
+    }
+    final groupId = visits.length > 1 ? const Uuid().v4() : null;
+    final saved = <Visit>[];
+    for (final v in visits) {
+      final grouped = v.copyWith(groupId: groupId);
+      final id = await createVisit(grouped, acknowledgeOverlap: acknowledgeOverlap);
+      saved.add(grouped.copyWith(id: id));
+    }
+    return saved;
+  }
+
+  /// Adds [visit]'s patient to [lead]'s appointment: same slot, place and
+  /// group. [lead] joins a new group if it was on its own.
+  Future<({String visitId, String groupId})> addToGroup(
+    Visit lead,
+    Visit visit,
+  ) async {
+    var groupId = lead.groupId;
+    if (groupId == null || groupId.isEmpty) {
+      groupId = const Uuid().v4();
+      await updateVisit(lead.id, {'groupId': groupId, 'updatedAt': DateTime.now()});
+    }
+    final id = await createVisit(
+      visit.copyWith(
+        groupId: groupId,
+        scheduledStart: lead.scheduledStart,
+        durationMinutes: lead.durationMinutes,
+        visitType: lead.visitType,
+        address: lead.address,
+        latitude: lead.latitude,
+        longitude: lead.longitude,
+        mapsLink: lead.mapsLink,
+      ),
+      acknowledgeOverlap: true,
+    );
+    return (visitId: id, groupId: groupId);
+  }
+
+  /// Combines separately booked visits (seen together) into one
+  /// appointment: all move to the earliest start, cover the whole span,
+  /// and share one group id.
+  Future<String> combineVisits(List<Visit> visits) async {
+    if (visits.length < 2) return visits.firstOrNull?.groupId ?? '';
+    if (visits.length > kMaxGroupPatients) {
+      throw VisitValidationException(
+        'One appointment can hold at most $kMaxGroupPatients patients.',
+      );
+    }
+    final groupId = visits
+            .map((v) => v.groupId)
+            .firstWhere((g) => g != null && g.isNotEmpty, orElse: () => null) ??
+        const Uuid().v4();
+    final start = visits
+        .map((v) => v.scheduledStart)
+        .reduce((a, b) => a.isBefore(b) ? a : b);
+    final end = visits
+        .map((v) => v.scheduledEnd)
+        .reduce((a, b) => a.isAfter(b) ? a : b);
+    final minutes = end.difference(start).inMinutes;
+    for (final v in visits) {
+      if (v.scheduledStart != start || v.durationMinutes != minutes) {
+        await rescheduleVisit(
+          v.id,
+          newStart: start,
+          newDurationMinutes: minutes,
+          acknowledgeOverlap: true,
+        );
+      }
+      await updateVisit(v.id, {'groupId': groupId, 'updatedAt': DateTime.now()});
+    }
+    return groupId;
+  }
+
+  /// Takes [visit] out of its appointment (e.g. to cancel just one
+  /// patient). When only one other patient is left, that visit becomes a
+  /// single visit again.
+  Future<void> leaveGroup(Visit visit, List<Visit> others) async {
+    await updateVisit(visit.id, {'groupId': null, 'updatedAt': DateTime.now()});
+    if (others.length == 1) {
+      await updateVisit(others.first.id, {'groupId': null, 'updatedAt': DateTime.now()});
+    }
+  }
+
   Future<void> updateVisit(String visitId, Map<String, dynamic> data) async {
     if (data.containsKey('status')) {
       final raw = data['status'];
@@ -807,8 +903,7 @@ class VisitRepository {
   ///   to geocode — returns `null`.
   /// - Otherwise attempts [_geocodeAddress]. If that fails for any
   ///   reason — bad/unrecognized address, no network, or no real Google
-  ///   Maps API key configured yet (`kGoogleMapsApiKey` still the
-  ///   placeholder) — the failure is swallowed and `null` is returned
+  ///   Maps key set up yet ([MapsKey] empty) — the failure is swallowed and `null` is returned
   ///   instead of propagating [GeocodingException]. The visit still
   ///   saves; the map preview just falls back to a placeholder image
   ///   until a resolvable address (and a real API key) are in place.
@@ -839,9 +934,13 @@ class VisitRepository {
     String address,
   ) async {
     final trimmed = address.trim();
+    final apiKey = await MapsKey.load();
+    if (apiKey.isEmpty) {
+      throw const GeocodingException('No Google Maps key is set up.');
+    }
     final uri = Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
       'address': trimmed,
-      'key': kGoogleMapsApiKey,
+      'key': apiKey,
     });
 
     final http.Response response;

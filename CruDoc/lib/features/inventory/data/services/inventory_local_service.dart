@@ -305,6 +305,7 @@ class InventoryLocalService {
       'unit': medicine.unit,
       'currentStock': medicine.currentStock,
       'reorderThreshold': medicine.reorderThreshold,
+      'goodStockLevel': medicine.goodStockLevel,
       'unitPrice': medicine.unitPrice,
       'supplierName': medicine.supplierName,
       'batchNumber': medicine.batchNumber,
@@ -364,6 +365,10 @@ class InventoryLocalService {
         case 'reorderThreshold':
           row[entry.key] = (entry.value as num).toInt();
           break;
+        case 'goodStockLevel':
+          row[entry.key] =
+              entry.value == null ? null : (entry.value as num).toInt();
+          break;
         case 'unitPrice':
           row[entry.key] = entry.value == null
               ? null
@@ -383,6 +388,7 @@ class InventoryLocalService {
       unit: row['unit'] as String? ?? '',
       currentStock: (row['currentStock'] as num?)?.toInt() ?? 0,
       reorderThreshold: (row['reorderThreshold'] as num?)?.toInt() ?? 10,
+      goodStockLevel: (row['goodStockLevel'] as num?)?.toInt(),
       unitPrice: (row['unitPrice'] as num?)?.toDouble(),
       supplierName: row['supplierName'] as String?,
       batchNumber: row['batchNumber'] as String?,

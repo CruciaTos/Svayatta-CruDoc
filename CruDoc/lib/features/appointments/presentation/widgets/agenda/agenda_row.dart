@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/month/month_metrics.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_context_region.dart';
 
 /// Agenda row height.
 const double kAgendaRowHeight = CruSize.scheduleRow;
@@ -34,8 +35,8 @@ class AgendaDateHeader extends StatelessWidget {
     final tag = date == today
         ? 'Today'
         : date == tomorrow
-            ? 'Tomorrow'
-            : null;
+        ? 'Tomorrow'
+        : null;
     return SizedBox(
       height: kAgendaHeaderHeight,
       child: Padding(
@@ -88,14 +89,15 @@ class AgendaRow extends StatelessWidget {
   final VoidCallback onTap;
 
   static String? statusText(ApptItem item) => switch (item.status) {
-        ApptStatus.done => 'Seen',
-        ApptStatus.missed => 'Missed',
-        ApptStatus.inConsultation => 'In consultation',
-        ApptStatus.waiting => item.waitMinutes == null
-            ? 'Waiting'
-            : 'Waiting · ${DashFormat.minutes(item.waitMinutes!)}',
-        ApptStatus.booked => null,
-      };
+    ApptStatus.done => 'Seen',
+    ApptStatus.missed => 'Missed',
+    ApptStatus.inConsultation => 'In consultation',
+    ApptStatus.waiting =>
+      item.waitMinutes == null
+          ? 'Waiting'
+          : 'Waiting · ${DashFormat.minutes(item.waitMinutes!)}',
+    ApptStatus.booked => null,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -103,65 +105,98 @@ class AgendaRow extends StatelessWidget {
     final style = ApptStatusStyle.of(item.status, c);
     final tag = statusText(item);
     final missed = item.status == ApptStatus.missed;
+    // Seen or missed: the home-visit marks go grey.
+    final quiet = item.status == ApptStatus.done || missed;
     final nameColor = switch (item.status) {
       ApptStatus.done || ApptStatus.missed => style.text,
       _ => c.label,
     };
-    return CruPressable(
-      onTap: onTap,
-      scaleOnPress: false,
-      semanticLabel: '${DashFormat.time(item.start)}, ${item.name}'
-          '${item.reason == null ? '' : ', ${item.reason}'}'
-          '${tag == null ? '' : ', $tag'}',
-      builder: (context, hovered) => Container(
-        height: kAgendaRowHeight,
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-        decoration: ShapeDecoration(
-          color: hovered ? c.hoverFill : Colors.transparent,
-          shape: cruShape(CruRadius.control),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: MonthMetrics.timeColumn,
-              child: ApptTimeLabel(item.start),
-            ),
-            const SizedBox(width: CruSpace.s12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.callout.tint(nameColor).copyWith(
-                          decoration:
-                              missed ? TextDecoration.lineThrough : null,
-                          decorationColor: nameColor,
-                        ),
-                  ),
-                  if (item.reason != null)
-                    Text(
-                      item.reason!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CruType.caption.tint(c.label2),
-                    ),
-                ],
+    return ApptContextRegion(
+      item: item,
+      child: CruPressable(
+        onTap: onTap,
+        scaleOnPress: false,
+        semanticLabel:
+            '${DashFormat.time(item.start)}, ${item.name}'
+            '${item.reason == null ? '' : ', ${item.reason}'}'
+            '${tag == null ? '' : ', $tag'}',
+        builder: (context, hovered) => Container(
+          height: kAgendaRowHeight,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+          decoration: ShapeDecoration(
+            color: hovered ? c.hoverFill : Colors.transparent,
+            shape: cruShape(CruRadius.control),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: MonthMetrics.timeColumn,
+                child: ApptTimeLabel(item.start),
               ),
-            ),
-            if (tag != null) ...[
               const SizedBox(width: CruSpace.s12),
-              CruPill(
-                text: tag,
-                background: style.fill,
-                foreground: style.text,
-                icon: style.check ? CruIcons.check : null,
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.callout
+                                .tint(nameColor)
+                                .copyWith(
+                                  decoration: missed
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: nameColor,
+                                ),
+                          ),
+                        ),
+                        if (item.isHomeVisit) ...[
+                          const SizedBox(width: CruSpace.s6),
+                          CruIcon(
+                            CruIcons.home,
+                            size: 14,
+                            strokeWidth: 2.2,
+                            color: quiet ? c.label3 : c.homeVisit,
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (item.detailLine != null)
+                      Text(
+                        item.detailLine!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.caption.tint(c.label2),
+                      ),
+                  ],
+                ),
               ),
+              if (item.isHomeVisit) ...[
+                const SizedBox(width: CruSpace.s12),
+                CruPill(
+                  text: 'Visit',
+                  icon: CruIcons.home,
+                  background: quiet ? c.inset : c.accentTint,
+                  foreground: quiet ? c.label3 : c.homeVisit,
+                ),
+              ],
+              if (tag != null) ...[
+                SizedBox(width: item.isHomeVisit ? CruSpace.s8 : CruSpace.s12),
+                CruPill(
+                  text: tag,
+                  background: style.fill,
+                  foreground: style.text,
+                  icon: style.check ? CruIcons.check : null,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

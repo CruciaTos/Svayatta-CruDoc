@@ -71,7 +71,7 @@ abstract final class ApptsBuilder {
       firstVisitId.putIfAbsent(v.patientId, () => v.id);
     }
 
-    return [
+    return _grouped([
       for (final v in live)
         _item(
           v,
@@ -80,8 +80,43 @@ abstract final class ApptsBuilder {
           firstVisitId[v.patientId] == v.id,
           now,
         ),
+    ]);
+  }
+
+  /// Visits booked together (same group id) become one item, led by the
+  /// first booked. Order is kept: the group sits where its lead was.
+  static List<ApptItem> _grouped(List<ApptItem> items) {
+    final byGroup = <String, List<ApptItem>>{};
+    for (final i in items) {
+      final g = i.visit.groupId;
+      if (g != null && g.isNotEmpty) byGroup.putIfAbsent(g, () => []).add(i);
+    }
+    if (byGroup.values.every((m) => m.length < 2)) return items;
+    for (final m in byGroup.values) {
+      m.sort((a, b) => a.visit.createdAt.compareTo(b.visit.createdAt));
+    }
+    final done = <String>{};
+    return [
+      for (final i in items)
+        if (i.visit.groupId == null ||
+            i.visit.groupId!.isEmpty ||
+            byGroup[i.visit.groupId]!.length < 2)
+          i
+        else if (done.add(i.visit.groupId!))
+          ApptItem.group(byGroup[i.visit.groupId]!),
     ];
   }
+
+  /// Patients (not appointments) with [status]: a couple seen together is
+  /// two patients seen.
+  static int patientsWith(Iterable<ApptItem> items, ApptStatus status) =>
+      items.fold(
+        0,
+        (n, i) => n +
+            (i.isGroup
+                ? i.members.where((m) => m.status == status).length
+                : (i.status == status ? 1 : 0)),
+      );
 
   static ApptItem _item(
     Visit v,
@@ -298,8 +333,9 @@ abstract final class ApptsBuilder {
     return ApptDayCounts(
       date: dateOnly(day),
       appointments: dayItems.length,
-      seen: dayItems.where((i) => i.status == ApptStatus.done).length,
-      missed: dayItems.where((i) => i.status == ApptStatus.missed).length,
+      // Appointments by slot, seen and missed by patient.
+      seen: patientsWith(dayItems, ApptStatus.done),
+      missed: patientsWith(dayItems, ApptStatus.missed),
       inConsultation:
           dayItems.where((i) => i.status == ApptStatus.inConsultation).length,
       waiting: dayItems.where((i) => i.status == ApptStatus.waiting).length,

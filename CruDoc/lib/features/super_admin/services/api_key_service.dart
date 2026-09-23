@@ -348,6 +348,12 @@ class SuperAdminApiKeyService {
 
       await docRef.set(toSave);
 
+      // Doctors' apps read the Maps key from its own document: the one
+      // above also holds server secrets they must never see.
+      await _fb.systemConfigCollection.doc('client_keys').set({
+        'googleMapsApiKey': toSave['googleMapsApiKey'] ?? '',
+      });
+
       // Write to Audit Log with metadata only (zero secret values logged)
       await _auditLogService.logAction(
         actionType: AuditActionType.updatedSystemConfig,

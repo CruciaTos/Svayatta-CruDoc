@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/appointments/data/repo/visits_rep
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
 
 /// Opens a bottom sheet (or desktop dialog on desktop viewports) to schedule a visit for [patient].
@@ -299,8 +300,15 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
     );
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final dateLabel = DateFormat('d MMM yyyy').format(_selectedDate);
     final timeLabel = _selectedTime.format(context);
 

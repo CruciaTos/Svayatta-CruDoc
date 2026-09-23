@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 
 import 'package:doctor_management_app/core/theme/cru_theme.dart';
@@ -111,7 +113,49 @@ class _CruPressableState extends State<CruPressable> {
     if (widget.tooltip != null) {
       child = Tooltip(message: widget.tooltip!, child: child);
     }
+    if (cruIsTouchPlatform) child = CruTouchTarget(child: child);
     return child;
+  }
+}
+
+/// Phones and tablets (Android, iOS): fingers, not a mouse pointer.
+bool get cruIsTouchPlatform =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS);
+
+/// Smallest comfortable touch target (Material and Apple guidance).
+const double kCruMinTouchTarget = 44;
+
+/// Lets a touch just outside a small control still land on it: taps
+/// within a [kCruMinTouchTarget] square around its centre hit the child.
+/// Layout and painting don't change, so the design stays pixel-exact.
+class CruTouchTarget extends SingleChildRenderObjectWidget {
+  const CruTouchTarget({super.key, required super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderTouchTarget();
+}
+
+class _RenderTouchTarget extends RenderProxyBox {
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (super.hitTest(result, position: position)) return true;
+    final child = this.child;
+    if (child == null) return false;
+    final dx = (kCruMinTouchTarget - size.width).clamp(0.0, double.infinity) / 2;
+    final dy = (kCruMinTouchTarget - size.height).clamp(0.0, double.infinity) / 2;
+    if (dx == 0 && dy == 0) return false;
+    final area = Rect.fromLTRB(-dx, -dy, size.width + dx, size.height + dy);
+    if (!area.contains(position)) return false;
+    // Same approach as Material's padded tap targets: hit the centre.
+    final center = child.size.center(Offset.zero);
+    return result.addWithRawTransform(
+      transform: MatrixUtils.forceToPoint(center),
+      position: center,
+      hitTest: (result, position) => child.hitTest(result, position: center),
+    );
   }
 }
 

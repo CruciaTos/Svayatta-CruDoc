@@ -17,6 +17,7 @@ const double kTxnTextInset =
     CruSpace.s12 + kTxnWhenWidth + CruSpace.s12 + CruSize.iconTile + CruSpace.s12;
 
 /// Day and time, icon tile, payer or item with what it was for, amount.
+/// The amount is green (+) for money in and red (−) for money out.
 class TransactionRow extends StatelessWidget {
   const TransactionRow({super.key, required this.row, required this.onTap});
 
@@ -73,7 +74,7 @@ class TransactionRow extends StatelessWidget {
             const SizedBox(width: CruSpace.s12),
             CruIconTile(
               icon: row.moneyOut ? RevenueIcons.receipt : CruIcons.rupee,
-              tone: CruTileTone.neutral,
+              tone: CruTileTone.accent,
             ),
             const SizedBox(width: CruSpace.s12),
             Expanded(
@@ -99,7 +100,8 @@ class TransactionRow extends StatelessWidget {
             const SizedBox(width: CruSpace.s12),
             Text(
               row.amount,
-              style: CruType.row.tabular.tint(row.moneyOut ? c.label2 : c.label),
+              style: CruType.row.tabular
+                  .tint(row.moneyOut ? c.redText : c.greenText),
             ),
           ],
         ),

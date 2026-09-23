@@ -5,6 +5,8 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 
 class _NavItem {
   const _NavItem(this.tab, this.label, this.icon);
@@ -19,22 +21,31 @@ class _NavGroup {
   final List<_NavItem> items;
 }
 
-const _groups = [
-  _NavGroup('Today', [
-    _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
-    _NavItem(DesktopTab.queue, 'Queue', CruIcons.queue),
-    _NavItem(DesktopTab.appointments, 'Appointments', CruIcons.calendar),
-  ]),
-  _NavGroup('Patients', [
-    _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
-    _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
-  ]),
-  _NavGroup('Clinic', [
-    _NavItem(DesktopTab.inventory, 'Inventory', CruIcons.box),
-    _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
-    _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
-  ]),
-];
+/// The sidebar for this login. Dentists also get Treatment plans,
+/// Sterilization and Procedures.
+List<_NavGroup> _groupsFor({required bool dentist}) => [
+      const _NavGroup('Today', [
+        _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
+        // Live queue + calendar in one place (the queue tab opens its Live view).
+        _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
+      ]),
+      _NavGroup('Patients', [
+        const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
+        if (dentist)
+          const _NavItem(
+              DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
+        const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
+      ]),
+      _NavGroup('Clinic', [
+        const _NavItem(DesktopTab.inventory, 'Inventory', CruIcons.box),
+        if (dentist) ...const [
+          _NavItem(DesktopTab.sterilization, 'Sterilization', DentalIcons.shield),
+          _NavItem(DesktopTab.procedures, 'Procedures', DentalIcons.procedures),
+        ],
+        const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
+        const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
+      ]),
+    ];
 
 /// Actions the account menu offers. The shell supplies them.
 class SidebarCallbacks {
@@ -43,6 +54,7 @@ class SidebarCallbacks {
     required this.onClinicSwitcher,
     required this.onUpgrade,
     required this.onSettings,
+    this.onProfile,
     required this.onHelp,
     required this.onLogout,
     required this.onToggleCollapsed,
@@ -53,6 +65,9 @@ class SidebarCallbacks {
   final VoidCallback onClinicSwitcher;
   final VoidCallback onUpgrade;
   final VoidCallback onSettings;
+
+  /// Settings opened on the Profile section; the item is hidden if null.
+  final VoidCallback? onProfile;
   final VoidCallback onHelp;
   final VoidCallback onLogout;
   final VoidCallback onToggleCollapsed;
@@ -86,6 +101,7 @@ class CruSidebar extends ConsumerWidget {
     final waiting = ref.watch(waitingNowCountProvider);
     final identity = ref.watch(doctorIdentityProvider);
     final plan = ref.watch(subscriptionInfoProvider).value;
+    final groups = _groupsFor(dentist: ref.watch(isDentistProvider));
 
     return AnimatedContainer(
       duration: CruMotion.of(context),
@@ -119,27 +135,28 @@ class CruSidebar extends ConsumerWidget {
                   children: [
                     // Each group is a column with 2 px between its label
                     // and items; 18 px between groups.
-                    for (var g = 0; g < _groups.length; g++) ...[
+                    for (var g = 0; g < groups.length; g++) ...[
                       if (g > 0) const SizedBox(height: 18),
                       if (!collapsed)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                          child: Text(_groups[g].label,
+                          child: Text(groups[g].label,
                               style: CruType.groupLabel.tint(c.label3)),
                         ),
-                      for (var i = 0; i < _groups[g].items.length; i++) ...[
+                      for (var i = 0; i < groups[g].items.length; i++) ...[
                         if (i > 0 || !collapsed)
                           const SizedBox(height: CruSpace.s2),
                         _SidebarItem(
-                          item: _groups[g].items[i],
-                          selected: currentTab == _groups[g].items[i].tab,
+                          item: groups[g].items[i],
+                          selected: currentTab == groups[g].items[i].tab,
                           collapsed: collapsed,
-                          badge: _groups[g].items[i].tab == DesktopTab.queue &&
+                          badge: groups[g].items[i].tab ==
+                                      DesktopTab.appointments &&
                                   waiting > 0
                               ? waiting
                               : null,
                           onTap: () =>
-                              callbacks.onNavigate(_groups[g].items[i].tab),
+                              callbacks.onNavigate(groups[g].items[i].tab),
                         ),
                       ],
                     ],
@@ -435,6 +452,8 @@ class _ProfileButton extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 220),
       items: [
         ...?callbacks.appearanceMenu?.call(c),
+        if (callbacks.onProfile != null)
+          _item(c, CruIcons.user, 'Profile', callbacks.onProfile!),
         _item(c, CruIcons.settings, 'Settings', callbacks.onSettings),
         _item(c, CruIcons.help, 'Help & shortcuts', callbacks.onHelp),
         if (canExpand)

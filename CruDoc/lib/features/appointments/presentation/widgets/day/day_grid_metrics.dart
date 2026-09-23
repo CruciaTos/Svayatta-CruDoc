@@ -22,6 +22,9 @@ abstract final class DayGridMetrics {
   /// Block corner radius (no token: NEEDS.md "CruRadius.block").
   static const double blockRadius = 8;
 
+  /// The blue left edge of a home-visit block.
+  static const double homeEdge = 3;
+
   /// Selection ring width.
   static const double ring = 2;
 

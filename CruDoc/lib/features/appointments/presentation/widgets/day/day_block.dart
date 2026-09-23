@@ -6,10 +6,13 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/day_grid_metrics.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/visits/home_visit_pill.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_context_region.dart';
 
 /// One visit on the Day grid. 20 minutes or less: one line (name,
 /// " · reason", start time on the right). Longer: name with "start to
-/// end", then the reason.
+/// end", then the reason. Home visits carry a house icon, a blue left
+/// edge and their address on the second line.
 class DayBlock extends StatefulWidget {
   const DayBlock({
     super.key,
@@ -65,14 +68,16 @@ class _DayBlockState extends State<DayBlock> {
             strokeAlign: BorderSide.strokeAlignOutside,
           )
         : style.border == null
-            ? null
-            : Border.all(color: style.border!);
+        ? null
+        : Border.all(color: style.border!);
 
-    return Semantics(
+    final block = Semantics(
       button: true,
       selected: widget.ringed,
-      label: '${item.name}, ${ApptFormat.time(item.start)}'
-          '${item.reason == null ? '' : ', ${item.reason}'}',
+      label:
+          '${item.name}, ${ApptFormat.time(item.start)}'
+          '${item.isHomeVisit ? ', home visit' : ''}'
+          '${item.detailLine == null ? '' : ', ${item.detailLine}'}',
       excludeSemantics: true,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
@@ -108,39 +113,98 @@ class _DayBlockState extends State<DayBlock> {
         ),
       ),
     );
+    if (!item.isHomeVisit) return ApptContextRegion(item: item, child: block);
+    // Home visit: a blue edge down the left side.
+    final quiet =
+        item.status == ApptStatus.done || item.status == ApptStatus.missed;
+    return ApptContextRegion(
+      item: item,
+      child: Stack(
+        children: [
+          Positioned.fill(child: block),
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: DayGridMetrics.homeEdge,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: quiet ? c.track : c.homeVisit,
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(DayGridMetrics.blockRadius),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
+bool _quiet(ApptStatusStyle s) => s.check || s.strike;
+
+/// The house after a home visit's name: the house colour, grey once the
+/// visit is seen or missed.
+class _Home extends StatelessWidget {
+  const _Home({required this.style});
+
+  final ApptStatusStyle style;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(left: CruSpace.s4),
+    child: CruIcon(
+      CruIcons.home,
+      size: 13,
+      strokeWidth: 2.2,
+      color: _quiet(style) ? style.subText : context.cru.homeVisit,
+    ),
+  );
+}
+
+/// "Visit" on the right of a home-visit block, before the time.
+List<Widget> _visitPill(ApptItem item, ApptStatusStyle style) => [
+  if (item.isHomeVisit) ...[
+    HomeVisitPill(quiet: _quiet(style)),
+    const SizedBox(width: CruSpace.s8),
+  ],
+];
+
 TextStyle _nameStyle(ApptStatusStyle s) => CruType.chip.w600.copyWith(
-      color: s.text,
-      decoration: s.strike ? TextDecoration.lineThrough : null,
-      decorationColor: s.text,
-    );
+  color: s.text,
+  decoration: s.strike ? TextDecoration.lineThrough : null,
+  decorationColor: s.text,
+);
 
 TextStyle _reasonStyle(ApptStatusStyle s) => CruType.caption.tint(s.subText);
 
-TextStyle _timeStyle(ApptStatusStyle s) =>
-    CruType.groupLabel.copyWith(fontWeight: FontWeight.w400).tabular.tint(s.subText);
+TextStyle _timeStyle(ApptStatusStyle s) => CruType.groupLabel
+    .copyWith(fontWeight: FontWeight.w400)
+    .tabular
+    .tint(s.subText);
 
 /// " · Fever for 3 days · New".
 String _detail(ApptItem item) => [
-      if (item.reason != null) item.reason!,
-      if (item.isNewPatient) 'New',
-    ].map((s) => ' · $s').join();
+  if (item.reason != null) item.reason!,
+  if (item.isNewPatient) 'New',
+].map((s) => ' · $s').join();
 
 class _Check extends StatelessWidget {
   const _Check();
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(right: CruSpace.s6),
-        child: CruIcon(
-          CruIcons.check,
-          size: 14,
-          strokeWidth: 2.4,
-          color: context.cru.green,
-        ),
-      );
+    padding: const EdgeInsets.only(right: CruSpace.s6),
+    child: CruIcon(
+      CruIcons.check,
+      size: 14,
+      strokeWidth: 2.4,
+      color: context.cru.green,
+    ),
+  );
 }
 
 class _OneLine extends StatelessWidget {
@@ -160,6 +224,11 @@ class _OneLine extends StatelessWidget {
               text: item.name,
               style: _nameStyle(style),
               children: [
+                if (item.isHomeVisit)
+                  WidgetSpan(
+                    alignment: PlaceholderAlignment.middle,
+                    child: _Home(style: style),
+                  ),
                 TextSpan(text: _detail(item), style: _reasonStyle(style)),
               ],
             ),
@@ -169,6 +238,7 @@ class _OneLine extends StatelessWidget {
           ),
         ),
         const SizedBox(width: CruSpace.s8),
+        ..._visitPill(item, style),
         Text(ApptFormat.clock(item.start), style: _timeStyle(style)),
       ],
     );
@@ -183,7 +253,10 @@ class _TwoLines extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final detail = _detail(item);
+    // Home visits show the address under the reason.
+    final second = item.isHomeVisit
+        ? item.detailLine
+        : (_detail(item).isEmpty ? null : _detail(item).substring(3));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -192,25 +265,32 @@ class _TwoLines extends StatelessWidget {
           children: [
             if (style.check) const _Check(),
             Expanded(
-              child: Text(
-                item.name,
-                style: _nameStyle(style),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                softWrap: false,
+              child: Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      item.name,
+                      style: _nameStyle(style),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      softWrap: false,
+                    ),
+                  ),
+                  if (item.isHomeVisit) _Home(style: style),
+                ],
               ),
             ),
             const SizedBox(width: CruSpace.s8),
+            ..._visitPill(item, style),
             Text(
               ApptFormat.blockRange(item.start, item.end),
               style: _timeStyle(style),
             ),
           ],
         ),
-        if (detail.isNotEmpty)
+        if (second != null)
           Text(
-            // Drop the leading " · " on its own line.
-            detail.substring(3),
+            second,
             style: _reasonStyle(style),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,

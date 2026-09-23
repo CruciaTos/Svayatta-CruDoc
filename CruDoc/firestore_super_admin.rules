@@ -193,6 +193,13 @@ service cloud.firestore {
       allow write: if isSuperAdmin();
     }
 
+    // Keys the doctor's app itself uses (the Google Maps key), copied here
+    // when the super admin saves API settings. Any signed-in user can read
+    // them; only the super admin writes (above).
+    match /system_config/client_keys {
+      allow read: if isAuthenticated();
+    }
+
     // ============================================================
     // MEDICAL DOCUMENTS COLLECTION - STRICT DOCTOR ISOLATION
     // ============================================================

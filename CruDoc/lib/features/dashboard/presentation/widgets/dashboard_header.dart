@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dashboard/domain/dashboard_format
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/dashboard_search_field.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 
 /// Date line + greeting, then search, Add patient and New visit (these
 /// replace the old Quick Actions card and the floating chat button).
@@ -75,10 +76,11 @@ class DashboardHeader extends ConsumerWidget {
               onPressed: () => DashboardActions.addPatient(context),
             ),
             const SizedBox(width: CruSpace.s10),
+            // The same booking flow as Schedule's "New appointment".
             CruButton(
-              label: 'New visit',
+              label: 'New appointment',
               icon: CruIcons.plus,
-              onPressed: () => DashboardActions.newVisit(context),
+              onPressed: () => ApptActions.newAppointment(context, ref),
             ),
           ],
         );

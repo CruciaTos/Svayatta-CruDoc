@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
@@ -81,6 +83,15 @@ class InventoryChip {
   final int count;
 }
 
+/// How well stocked an item is, from the reorder ("alert") level and the
+/// good level:
+/// good at or above the good level, okay between the two, low at or
+/// below the reorder level, critical at or below a fifth of it.
+enum StockState { critical, low, okay, good }
+
+/// Share of the reorder level at or below which stock is critical.
+const double kCriticalStockShare = 0.2;
+
 /// One active item with everything the list, grid and panel show,
 /// derived from the medicine and its stock movements.
 @immutable
@@ -135,6 +146,16 @@ class InventoryItem {
   int get stock => medicine.currentStock;
   int get reorderLevel => medicine.reorderThreshold;
 
+  /// "Good in stock" level (set on the item, else twice the reorder level).
+  int get goodLevel => medicine.goodLevel;
+
+  StockState get stockState {
+    if (stock <= reorderLevel * kCriticalStockShare) return StockState.critical;
+    if (low) return StockState.low;
+    if (stock < goodLevel) return StockState.okay;
+    return StockState.good;
+  }
+
   int get usageTotal => usage.fold(0, (a, b) => a + b);
 
   bool get outOfStock => stock <= 0;
@@ -142,18 +163,26 @@ class InventoryItem {
   /// Runs out within the next 7 days.
   bool get runsOutThisWeek => daysLeft != null && daysLeft! <= 7;
 
-  /// Stock against the usual order (vial fill, level bar), 0–1.
-  double? get level {
-    final u = usualOrder;
-    if (u == null || u <= 0) return null;
-    return (stock / u).clamp(0.0, 1.0);
+  /// What a full vial means: the usual order, or the good level when that
+  /// is higher or the item has never been restocked (so a new item still
+  /// shows its colour). Null only when neither is known.
+  int? get _scale {
+    final scale = math.max(usualOrder ?? 0, goodLevel);
+    return scale <= 0 ? null : scale;
   }
 
-  /// The reorder level against the usual order (vial notch), 0–1.
+  /// Stock against [_scale] (vial fill, level bar), 0–1.
+  double? get level {
+    final s = _scale;
+    if (s == null) return null;
+    return (stock / s).clamp(0.0, 1.0);
+  }
+
+  /// The reorder level against [_scale] (vial notch), 0–1.
   double? get notch {
-    final u = usualOrder;
-    if (u == null || u <= 0) return null;
-    return (reorderLevel / u).clamp(0.0, 1.0);
+    final s = _scale;
+    if (s == null) return null;
+    return (reorderLevel / s).clamp(0.0, 1.0);
   }
 
   /// Cost of one usual order; null without a price or a usual order.

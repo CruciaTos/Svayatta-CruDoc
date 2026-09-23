@@ -80,9 +80,9 @@ class CollectionsByDayCard extends StatelessWidget {
             spacing: CruSpace.s18,
             runSpacing: CruSpace.s6,
             children: [
-              _LegendItem(color: c.track, label: 'Collected'),
+              _LegendItem(color: c.barMuted, label: 'Collected'),
               _LegendItem(
-                color: c.isEvening ? c.accentText : c.accent,
+                color: c.barActive,
                 label: '${chart.todayLegend} · ${DashFormat.rupees(chart.todayAmount)}',
               ),
             ],
@@ -155,7 +155,7 @@ class _Bar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final today = c.isEvening ? c.accentText : c.accent;
+    final today = c.barActive;
     final stub = bar.amount <= 0 || bar.kind == BarKind.future;
     final height = stub
         ? CruSize.barStub
@@ -169,7 +169,7 @@ class _Bar extends StatelessWidget {
           shape: cruShape(stub ? CruRadius.barStub : CruRadius.bar),
         ),
       BarKind.past => ShapeDecoration(
-          color: c.track,
+          color: c.barMuted,
           shape: cruShape(CruRadius.bar),
         ),
       BarKind.emptyPast => ShapeDecoration(

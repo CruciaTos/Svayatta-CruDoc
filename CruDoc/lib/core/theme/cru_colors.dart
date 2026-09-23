@@ -400,6 +400,56 @@ class CruColors extends ThemeExtension<CruColors> {
   }
 }
 
+/// Bar-chart colours from the Ink Blue scale (DESIGN_SPEC.md §2.1): the
+/// highlighted bar (today, this week) and every other bar are shades of
+/// the same blue, so charts read as one series instead of grey + blue.
+extension CruChartColors on CruColors {
+  /// Every bar that isn't the highlighted one.
+  Color get barMuted => isEvening ? CruBrand.ink800 : CruBrand.ink300;
+
+  /// The highlighted bar (today).
+  Color get barActive => isEvening ? CruBrand.ink400 : CruBrand.ink600;
+
+  /// The house marking a home visit (Ink 500 / 400): a lighter step than
+  /// the brand blue so it reads as a marker, not an action.
+  Color get homeVisit => isEvening ? CruBrand.ink400 : CruBrand.ink500;
+}
+
+/// Material colours for the dental tooth chart (2D and 3D): enamel, the
+/// root, gums and implant metal. Evening keeps them a step darker so the
+/// chart doesn't glare on the dark canvas.
+extension CruDentalColors on CruColors {
+  /// Enamel at its lightest (the lit side of a crown).
+  Color get enamel =>
+      isEvening ? const Color(0xFFE3E0D8) : const Color(0xFFFBFAF6);
+
+  /// Enamel in shade.
+  Color get enamelShade =>
+      isEvening ? const Color(0xFF9D9A93) : const Color(0xFFD9D6CE);
+
+  /// The tooth outline in the 2D chart.
+  Color get enamelEdge =>
+      isEvening ? const Color(0xFF6E6B65) : const Color(0xFFB5B1A8);
+
+  /// Root (cementum), warmer than the crown.
+  Color get toothRoot =>
+      isEvening ? const Color(0xFFBDB29B) : const Color(0xFFEDE3CC);
+
+  /// Gums.
+  Color get gum => isEvening ? const Color(0xFFB9707A) : const Color(0xFFE7A3AB);
+
+  /// Gums in shade.
+  Color get gumShade =>
+      isEvening ? const Color(0xFF7E4550) : const Color(0xFFC77883);
+
+  /// An implant's titanium screw.
+  Color get implantMetal =>
+      isEvening ? const Color(0xFF8C939C) : const Color(0xFFA7AEB7);
+
+  /// Behind the 3D jaws.
+  Color get stage => isEvening ? const Color(0xFF15181D) : const Color(0xFFF2F4F8);
+}
+
 extension CruColorsContext on BuildContext {
   /// The Calm Clinical colours in scope. Falls back to Day when a widget
   /// is built under a theme that doesn't carry the extension.

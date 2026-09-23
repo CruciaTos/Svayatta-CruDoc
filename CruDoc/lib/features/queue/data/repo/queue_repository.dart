@@ -130,15 +130,23 @@ class QueueRepository {
   /// [QueueStatus.called] or [QueueStatus.inConsultation] — resolve
   /// that one first via [complete], [skip], or [cancel]. Throws
   /// [QueueEmptyException] if nobody is waiting.
-  Future<QueueEntry> callNext() async {
+  Future<QueueEntry> callNext({bool allowConcurrent = false}) async {
     final today = await _localService.getTodaysQueue();
 
+    // One patient at a time, unless the practice runs sessions in
+    // parallel (physiotherapy).
     final active = today.where((e) => e.isActiveServing);
-    if (active.isNotEmpty) {
+    if (active.isNotEmpty && !allowConcurrent) {
       throw QueueAlreadyServingException(active.first);
     }
 
-    final waiting = today.where((e) => e.status == QueueStatus.waiting).toList()
+    // Pre-booked tokens join the queue at their slot time; until then (or
+    // until marked arrived) the patient isn't here and can't be called.
+    final now = DateTime.now();
+    final waiting = today
+        .where((e) =>
+            e.status == QueueStatus.waiting && !e.checkedInAt.isAfter(now))
+        .toList()
       ..sort((a, b) {
         final rankA = a.priority == QueuePriority.urgent ? 0 : 1;
         final rankB = b.priority == QueuePriority.urgent ? 0 : 1;
@@ -152,11 +160,28 @@ class QueueRepository {
 
     final next = waiting.first;
     final calledAt = DateTime.now();
-    await _updateStatus(next.id, QueueStatus.called, extra: {
+    await _updateStatus(next, QueueStatus.called, extra: {
       'calledAt': calledAt,
     });
     unawaited(_syncService.triggerPostWriteSync());
     return next.copyWith(status: QueueStatus.called, calledAt: calledAt);
+  }
+
+  /// Marks a pre-booked token as arrived: its check-in time moves from the
+  /// appointment slot to now, so it joins the waiting line (and can be
+  /// called) before its slot. No-op once the slot has passed.
+  ///
+  /// Throws [QueueInvalidTransitionException] if [entryId] isn't
+  /// [QueueStatus.waiting].
+  Future<void> markArrived(String entryId) async {
+    final entry = await _requireEntry(entryId);
+    if (entry.status != QueueStatus.waiting) {
+      throw QueueInvalidTransitionException(entry, QueueStatus.waiting);
+    }
+    final now = DateTime.now();
+    if (!entry.checkedInAt.isAfter(now)) return;
+    await _localService.updateEntry(entryId, {'checkedInAt': now});
+    unawaited(_syncService.triggerPostWriteSync());
   }
 
   /// Moves a [QueueStatus.called] token into [QueueStatus.inConsultation]
@@ -170,7 +195,7 @@ class QueueRepository {
       throw QueueInvalidTransitionException(entry, QueueStatus.inConsultation);
     }
     final startedAt = DateTime.now();
-    await _updateStatus(entryId, QueueStatus.inConsultation, extra: {
+    await _updateStatus(entry, QueueStatus.inConsultation, extra: {
       'consultationStartedAt': startedAt,
     });
     unawaited(_syncService.triggerPostWriteSync());
@@ -193,14 +218,17 @@ class QueueRepository {
       throw QueueInvalidTransitionException(entry, QueueStatus.completed);
     }
     final completedAt = DateTime.now();
-    await _updateStatus(entryId, QueueStatus.completed, extra: {
+    await _updateStatus(entry, QueueStatus.completed, extra: {
       'completedAt': completedAt,
     });
 
-    // If linked to a pre-booked appointment, synchronize its status in visits.
-    if (entry.linkedVisitId != null && entry.linkedVisitId!.isNotEmpty) {
+    // Pre-booked appointments (everyone on a shared token): mark each
+    // patient's own visit completed.
+    for (final e in [entry, ...await _groupMates(entry)]) {
+      final visitId = e.linkedVisitId;
+      if (visitId == null || visitId.isEmpty) continue;
       try {
-        await _visitLocalService.updateVisit(entry.linkedVisitId!, {
+        await _visitLocalService.updateVisit(visitId, {
           'status': VisitStatus.completed.value,
           'updatedAt': completedAt,
         });
@@ -227,7 +255,7 @@ class QueueRepository {
         entry.status != QueueStatus.waiting) {
       throw QueueInvalidTransitionException(entry, QueueStatus.skipped);
     }
-    await _updateStatus(entryId, QueueStatus.skipped);
+    await _updateStatus(entry, QueueStatus.skipped);
     unawaited(_syncService.triggerPostWriteSync());
   }
 
@@ -243,7 +271,7 @@ class QueueRepository {
     if (entry.status != QueueStatus.skipped) {
       throw QueueInvalidTransitionException(entry, QueueStatus.waiting);
     }
-    await _updateStatus(entryId, QueueStatus.waiting);
+    await _updateStatus(entry, QueueStatus.waiting);
     unawaited(_syncService.triggerPostWriteSync());
   }
 
@@ -251,12 +279,12 @@ class QueueRepository {
   /// by mistake. Distinct from [skip]: a cancelled token is done for
   /// the day and [requeue] won't bring it back.
   Future<void> cancel(String entryId) async {
-    final entry = await _localService.getEntry(entryId);
-    if (entry != null &&
-        entry.linkedVisitId != null &&
-        entry.linkedVisitId!.isNotEmpty) {
+    final entry = await _requireEntry(entryId);
+    for (final e in [entry, ...await _groupMates(entry)]) {
+      final visitId = e.linkedVisitId;
+      if (visitId == null || visitId.isEmpty) continue;
       try {
-        await _visitLocalService.updateVisit(entry.linkedVisitId!, {
+        await _visitLocalService.updateVisit(visitId, {
           'status': VisitStatus.cancelled.value,
           'updatedAt': DateTime.now(),
         });
@@ -264,7 +292,7 @@ class QueueRepository {
         // Best-effort sync
       }
     }
-    await _updateStatus(entryId, QueueStatus.cancelled);
+    await _updateStatus(entry, QueueStatus.cancelled);
     unawaited(_syncService.triggerPostWriteSync());
   }
 
@@ -285,6 +313,7 @@ class QueueRepository {
           : (visit.status == VisitStatus.cancelled
               ? QueueStatus.cancelled
               : QueueStatus.waiting),
+      groupId: visit.groupId,
     );
     unawaited(_syncService.triggerPostWriteSync());
     return created;
@@ -322,15 +351,133 @@ class QueueRepository {
     return entry;
   }
 
+  /// Moves [entry], and everyone sharing its token who is at the same
+  /// stage, to [status]: patients seen together are called, seen and
+  /// finished together.
   Future<void> _updateStatus(
-    String entryId,
+    QueueEntry entry,
     QueueStatus status, {
     Map<String, dynamic> extra = const {},
-  }) {
-    return _localService.updateEntry(entryId, {
+  }) async {
+    final data = {
       'status': status.value,
       'updatedAt': DateTime.now(),
       ...extra,
+    };
+    await _localService.updateEntry(entry.id, data);
+    for (final mate in await _groupMates(entry)) {
+      if (mate.status == entry.status) {
+        await _localService.updateEntry(mate.id, data);
+      }
+    }
+  }
+
+  /// Everyone else on [entry]'s shared token that day.
+  Future<List<QueueEntry>> _groupMates(QueueEntry entry) async {
+    final groupId = entry.groupId;
+    if (groupId == null || groupId.isEmpty) return const [];
+    final all = await _localService.getGroupEntries(groupId, entry.queueDate);
+    return [for (final e in all) if (e.id != entry.id) e];
+  }
+
+  /// Adds [patient] to [entryId]'s token (patients seen together): same
+  /// token number and stage. The token joins a new group if it was one
+  /// patient.
+  Future<QueueEntry> addToToken(
+    String entryId, {
+    required String patientId,
+    String? reason,
+  }) async {
+    final lead = await _requireEntry(entryId);
+    final mates = await _groupMates(lead);
+    if (mates.length + 1 >= kMaxGroupPatients) {
+      throw const QueueValidationException(
+        'One token can hold at most $kMaxGroupPatients patients.',
+      );
+    }
+    var groupId = lead.groupId;
+    if (groupId == null || groupId.isEmpty) {
+      groupId = const Uuid().v4();
+      await _localService.updateEntry(lead.id, {
+        'groupId': groupId,
+        'updatedAt': DateTime.now(),
+      });
+    }
+    final now = DateTime.now();
+    final joined = await _localService.joinToken(
+      QueueEntry(
+        id: const Uuid().v4(),
+        doctorId: lead.doctorId,
+        patientId: patientId,
+        tokenNumber: lead.tokenNumber,
+        queueDate: lead.queueDate,
+        status: lead.status,
+        priority: lead.priority,
+        reason: reason?.trim().isEmpty ?? true ? null : reason!.trim(),
+        checkedInAt: lead.checkedInAt,
+        calledAt: lead.calledAt,
+        consultationStartedAt: lead.consultationStartedAt,
+        groupId: groupId,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    unawaited(_syncService.triggerPostWriteSync());
+    return joined;
+  }
+
+  /// Visits just grouped (a patient added, or bookings combined): their
+  /// tokens join the group and share the lowest number among them.
+  Future<void> adoptVisitGroup(List<String> visitIds, String groupId) async {
+    final entries = <QueueEntry>[
+      for (final id in visitIds) ?await _localService.getEntryByLinkedVisitId(id),
+    ];
+    if (entries.isEmpty) return;
+    entries.sort((a, b) => a.tokenNumber.compareTo(b.tokenNumber));
+    final token = entries.first.tokenNumber;
+    for (final e in entries) {
+      await _localService.updateEntry(e.id, {
+        'groupId': groupId,
+        'tokenNumber': token,
+        'updatedAt': DateTime.now(),
+      });
+    }
+    unawaited(_syncService.triggerPostWriteSync());
+  }
+
+  /// [leaveToken] for the token of an appointment's [visitId], if it is
+  /// in the queue.
+  Future<void> leaveTokenForVisit(String visitId) async {
+    final entry = await _localService.getEntryByLinkedVisitId(visitId);
+    if (entry != null) await leaveToken(entry.id);
+  }
+
+  /// Takes one patient off a shared token: their entry is cancelled and
+  /// leaves the group; the others carry on.
+  Future<void> leaveToken(String entryId) async {
+    final entry = await _requireEntry(entryId);
+    final mates = await _groupMates(entry);
+    await _localService.updateEntry(entry.id, {
+      'status': QueueStatus.cancelled.value,
+      'groupId': null,
+      'updatedAt': DateTime.now(),
     });
+    if (mates.length == 1) {
+      await _localService.updateEntry(mates.first.id, {
+        'groupId': null,
+        'updatedAt': DateTime.now(),
+      });
+    }
+    final visitId = entry.linkedVisitId;
+    if (visitId != null && visitId.isNotEmpty) {
+      try {
+        await _visitLocalService.updateVisit(visitId, {
+          'status': VisitStatus.cancelled.value,
+          'groupId': null,
+          'updatedAt': DateTime.now(),
+        });
+      } catch (_) {}
+    }
+    unawaited(_syncService.triggerPostWriteSync());
   }
 }

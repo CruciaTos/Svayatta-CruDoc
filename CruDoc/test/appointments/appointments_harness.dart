@@ -22,6 +22,7 @@ import 'package:doctor_management_app/features/homeopathy/data/providers/homeopa
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
+import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
@@ -67,6 +68,8 @@ List<Override> apptsOverrides({
     allVisitsProvider.overrideWith((ref) => Stream.value(visits)),
     patientsStreamProvider.overrideWith((ref) => Stream.value(patients)),
     todaysQueueProvider.overrideWith((ref) => Stream.value(queue)),
+    // The Live view (queue board) reads every token.
+    allQueueProvider.overrideWith((ref) => Stream.value(queue)),
     homeopathyCaseSheetProvider.overrideWith(
       (ref, patientId) => Stream.value(apptsCaseSheets[patientId]),
     ),
@@ -79,8 +82,12 @@ List<Override> apptsOverrides({
     doctorProfileProvider.overrideWith((ref) => Stream.value(null)),
     doctorIdentityProvider.overrideWithValue(fixtureIdentity),
     subscriptionInfoProvider.overrideWith((ref) => Stream.value(fixturePlan)),
-    // Sidebar Queue badge.
+    // Sidebar Schedule badge.
     waitingNowCountProvider.overrideWithValue(waiting),
+    // Queue and appointments both on: Live plus the calendar views.
+    doctorEnabledModulesStreamProvider.overrideWith(
+      (ref) => Stream.value(DoctorFeatureGuard.defaultModules),
+    ),
   ];
 }
 

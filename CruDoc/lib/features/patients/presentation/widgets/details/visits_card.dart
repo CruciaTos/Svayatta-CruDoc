@@ -6,6 +6,8 @@ import 'package:doctor_management_app/features/patients/domain/patients_builder.
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_common.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 
 /// Past visits shown before "See all".
 const int kVisitsCardPastLimit = 4;
@@ -179,6 +181,38 @@ class VisitRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
+                // Booked together with someone: their own visit here, and
+                // who else was seen.
+                if (visit.groupId != null && visit.groupId!.isNotEmpty)
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final names = ref.watch(
+                        visitGroupNamesProvider(
+                          (groupId: visit.groupId!, visitId: visit.id),
+                        ),
+                      );
+                      if (names.isEmpty) return const SizedBox.shrink();
+                      return Row(
+                        children: [
+                          CruIcon(
+                            CruIcons.patients,
+                            size: 13,
+                            strokeWidth: 2,
+                            color: c.label3,
+                          ),
+                          const SizedBox(width: CruSpace.s4),
+                          Flexible(
+                            child: Text(
+                              'Seen with ${names.join(', ')}',
+                              style: CruType.caption.tint(c.label2),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
               ],
             ),
           ),

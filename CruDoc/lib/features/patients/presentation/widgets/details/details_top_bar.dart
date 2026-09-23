@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 
 /// "‹ Patients" on the left; Edit, "…" and New visit on the right.
 class DetailsTopBar extends StatelessWidget {
@@ -53,19 +55,21 @@ class DetailsTopBar extends StatelessWidget {
   }
 }
 
-/// "‹ Patients" (15/500 accentText, 40 px tall).
-class DetailsBackLink extends StatelessWidget {
+/// "‹ Patients" (15/500 accentText, 40 px tall); "‹ Schedule" etc. when
+/// details were opened from another screen.
+class DetailsBackLink extends ConsumerWidget {
   const DetailsBackLink({super.key, required this.onBack});
   final VoidCallback onBack;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final back = ref.watch(patientDetailsReturnTabProvider);
     return SizedBox(
       height: CruSize.control,
       child: Align(
         alignment: Alignment.centerLeft,
         child: CruLink(
-          label: 'Patients',
+          label: back == null ? 'Patients' : DesktopTab.label(back),
           onPressed: onBack,
           style: CruType.input.w500,
           leading: const CruIcon(CruIcons.chevronLeft, size: 20, strokeWidth: 2),

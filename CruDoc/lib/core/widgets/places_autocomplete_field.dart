@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/services/google_places_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 
 /// Result returned by [PlacesAutocompleteField] when the user selects a
 /// place from the suggestions, containing both the address text and the
@@ -31,7 +33,7 @@ class PlaceSelection {
 /// Works on all platforms (Android, iOS, Windows, Web) because it uses
 /// the Places API REST endpoint via [GooglePlacesService], not a
 /// platform-specific SDK.
-class PlacesAutocompleteField extends StatefulWidget {
+class PlacesAutocompleteField extends ConsumerStatefulWidget {
   /// Controller whose text is kept in sync with the selected/typed
   /// address. Must be disposed by the caller.
   final TextEditingController controller;
@@ -64,11 +66,12 @@ class PlacesAutocompleteField extends StatefulWidget {
   });
 
   @override
-  State<PlacesAutocompleteField> createState() =>
+  ConsumerState<PlacesAutocompleteField> createState() =>
       _PlacesAutocompleteFieldState();
 }
 
-class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
+class _PlacesAutocompleteFieldState
+    extends ConsumerState<PlacesAutocompleteField> {
   final _places = GooglePlacesService.instance;
   final _focusNode = FocusNode();
 
@@ -121,8 +124,10 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
     // Debounce 350 ms so we don't hit the API on every keystroke.
     _debounce = Timer(const Duration(milliseconds: 350), () async {
       if (!mounted) return;
-      final results = await _places.autocomplete(trimmed);
-      if (!mounted) return;
+      // Nearest to the doctor (or else the clinic) first.
+      final near = await searchOriginNow(ref);
+      final results = await _places.autocomplete(trimmed, near: near);
+      if (!mounted || widget.controller.text.trim() != trimmed) return;
       setState(() {
         _predictions = results;
         _loading = false;
@@ -231,6 +236,8 @@ class _PlacesAutocompleteFieldState extends State<PlacesAutocompleteField> {
 
   @override
   Widget build(BuildContext context) {
+    // Start finding where the doctor is while they type.
+    ref.watch(addressSearchOriginProvider);
     final showSuggestions =
         _predictions.isNotEmpty && !_suppressSuggestions;
 

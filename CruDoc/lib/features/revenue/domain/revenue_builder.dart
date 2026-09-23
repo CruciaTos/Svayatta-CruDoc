@@ -414,7 +414,7 @@ abstract final class RevenueBuilder {
       meridiem: meridiem,
       title: title,
       subtitle: subtitle.isEmpty ? (out ? 'Expense' : 'Income') : subtitle,
-      amount: out ? '−$money' : money,
+      amount: out ? '−$money' : '+$money',
     );
   }
 

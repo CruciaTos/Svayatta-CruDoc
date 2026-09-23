@@ -20,6 +20,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/lis
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_summary_strip.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_table.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 
 /// The Patients tab: the list (table or split mode), or Patient details
 /// in its place. List state lives in [patientsListControllerProvider], so
@@ -44,8 +45,15 @@ class _PatientsScreenState extends ConsumerState<PatientsScreen> {
           ? PatientDetailsView(
               key: ValueKey(detailsId),
               patientId: detailsId,
-              onBack: ref.read(patientsListControllerProvider.notifier)
-                  .closeDetails,
+              onBack: () {
+                // Opened from another screen: go back there.
+                final back = ref.read(patientDetailsReturnTabProvider);
+                ref.read(patientsListControllerProvider.notifier).closeDetails();
+                if (back != null) {
+                  ref.read(patientDetailsReturnTabProvider.notifier).state = null;
+                  ref.read(shellNavigatorProvider)?.call(back);
+                }
+              },
             )
           : const _PatientsList(),
     );

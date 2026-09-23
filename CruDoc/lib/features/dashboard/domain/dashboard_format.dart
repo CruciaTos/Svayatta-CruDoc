@@ -65,7 +65,13 @@ abstract final class DashFormat {
     return '$shown and ${names.length - (max - 1)} more';
   }
 
-  static String minutes(int m) => '$m min';
+  /// "12 min", "1 h", "9 h 18 min".
+  static String minutes(int m) {
+    if (m < 60) return '$m min';
+    final h = m ~/ 60;
+    final rest = m % 60;
+    return rest == 0 ? '$h h' : '$h h $rest min';
+  }
 
   static String plural(int n, String one, [String? many]) =>
       '$n ${n == 1 ? one : (many ?? '${one}s')}';

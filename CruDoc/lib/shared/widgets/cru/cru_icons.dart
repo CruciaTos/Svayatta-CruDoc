@@ -69,6 +69,16 @@ abstract final class CruIcons {
     'm20 20-4.2-4.2',
     circles: [(11, 11, 6.5)],
   );
+  /// A house (home visits).
+  static const home = CruIconData(
+    'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z',
+  );
+
+  /// One person (Profile).
+  static const user = CruIconData(
+    'M4.5 20c.6-3.6 3.6-6 7.5-6s6.9 2.4 7.5 6',
+    circles: [(12, 8, 3.5)],
+  );
   static const userPlus = CruIconData(
     'M3.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6M19 8v6M16 11h6',
     circles: [(10, 8, 3.5)],

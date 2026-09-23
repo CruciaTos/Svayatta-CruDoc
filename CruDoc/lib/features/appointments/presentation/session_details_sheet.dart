@@ -17,6 +17,7 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 
 // ---------- Accent colours (mirrors visit_details.dart) ----------
@@ -266,8 +267,15 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
     }
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final patient = _patient;
     final statusColor = _colorForStatus(_visit.status);

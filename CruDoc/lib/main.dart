@@ -13,6 +13,7 @@ import 'core/services/device_session_service.dart';
 import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
+import 'core/services/maps_key.dart';
 import 'core/theme/cru_theme.dart';
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
@@ -50,6 +51,7 @@ Future<void> main() async {
   } else {
     _wireWebEncryptionKeyLoading();
   }
+  MapsKey.loadOnSignIn();
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));
 }

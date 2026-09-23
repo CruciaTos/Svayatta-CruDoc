@@ -105,7 +105,7 @@ class _TransactionHeader extends StatelessWidget {
         children: [
           CruIconTile(
             icon: isExpense ? RevenueIcons.receipt : CruIcons.rupee,
-            tone: isExpense ? CruTileTone.neutral : CruTileTone.green,
+            tone: CruTileTone.accent,
           ),
           const SizedBox(width: CruSpace.s14),
           Expanded(
@@ -113,14 +113,15 @@ class _TransactionHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isExpense ? '−$amount' : amount,
-                  style: CruType.amount.tint(isExpense ? c.label2 : c.label),
+                  isExpense ? '−$amount' : '+$amount',
+                  style: CruType.amount
+                      .tint(isExpense ? c.redText : c.greenText),
                 ),
                 const SizedBox(height: CruSpace.s8),
                 CruPill(
                   text: isExpense ? 'Money out' : 'Money in',
-                  background: isExpense ? c.inset : c.greenTint,
-                  foreground: isExpense ? c.label2 : c.greenText,
+                  background: isExpense ? c.redTint : c.greenTint,
+                  foreground: isExpense ? c.redText : c.greenText,
                 ),
               ],
             ),

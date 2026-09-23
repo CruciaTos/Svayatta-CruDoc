@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
@@ -365,6 +366,8 @@ List<Override> patientsOverrides({
   DoctorSpecialtyType specialty = DoctorSpecialtyType.dentist,
   Map<String, List<TreatmentPlanLineItemModel>>? treatmentPlans,
   Map<String, List<ConsultationNote>>? scribeNotes,
+  Map<String, List<ToothChartEntryModel>> toothCharts = const {},
+  Map<String, List<DentalProcedureLogModel>> procedureLogs = const {},
   int waiting = 2,
 }) {
   final plans = treatmentPlans ?? {'p_soham': sohamPlan};
@@ -391,7 +394,12 @@ List<Override> patientsOverrides({
           plans[patientId] ?? const <TreatmentPlanLineItemModel>[],
     ),
     patientToothChartProvider.overrideWith(
-      (ref, patientId) async => const <ToothChartEntryModel>[],
+      (ref, patientId) async =>
+          toothCharts[patientId] ?? const <ToothChartEntryModel>[],
+    ),
+    patientProcedureLogProvider.overrideWith(
+      (ref, patientId) async =>
+          procedureLogs[patientId] ?? const <DentalProcedureLogModel>[],
     ),
     notesForVisitProvider.overrideWith(
       (ref, visitId) =>

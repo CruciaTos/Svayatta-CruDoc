@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -17,7 +19,7 @@ class ApptStatusPill extends StatelessWidget {
       ApptStatus.waiting => (
           item.waitMinutes == null
               ? 'Waiting'
-              : 'Waiting · ${item.waitMinutes} min',
+              : 'Waiting · ${DashFormat.minutes(item.waitMinutes!)}',
           c.amberTint,
           c.amberText,
           CruIcons.clock,

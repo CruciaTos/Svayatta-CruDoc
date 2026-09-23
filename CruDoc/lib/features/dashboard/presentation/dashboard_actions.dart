@@ -9,6 +9,8 @@ import 'package:doctor_management_app/features/patients/presentation/add_patient
 import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/features/queue/presentation/check_in_dialog.dart';
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
 
 /// Desktop tab indices (see DesktopShell). Kept in one place so the
 /// dashboard can jump to a screen.
@@ -21,7 +23,46 @@ abstract final class DesktopTab {
   static const campaigns = 5;
   static const scribe = 6;
   static const queue = 7;
+
+  /// Not in the sidebar: opened from the account menu.
+  static const settings = 8;
+
+  /// Dentists only.
+  static const treatmentPlans = 9;
+  static const sterilization = 10;
+  static const procedures = 11;
+
+  static bool isDental(int tab) =>
+      tab == treatmentPlans || tab == sterilization || tab == procedures;
+
+  /// Sidebar name, for "‹ Schedule" style back links.
+  static String label(int tab) => switch (tab) {
+        dashboard => 'Dashboard',
+        patients => 'Patients',
+        inventory => 'Inventory',
+        revenue => 'Revenue',
+        appointments || queue => 'Schedule',
+        campaigns => 'Campaigns',
+        scribe => 'Scribe',
+        settings => 'Settings',
+        treatmentPlans => 'Treatment plans',
+        sterilization => 'Sterilization',
+        procedures => 'Procedures',
+        _ => 'Back',
+      };
 }
+
+/// The desktop shell's tab switch while it is on screen: returns false
+/// once the shell is gone. Null outside the desktop shell (the phone).
+final shellNavigatorProvider =
+    StateProvider<bool Function(int tab)?>((ref) => null);
+
+/// The tab the desktop shell is showing.
+final shellCurrentTabProvider = StateProvider<int>((ref) => DesktopTab.dashboard);
+
+/// Where patient details go back to when opened from another screen
+/// ("Open patient" in Schedule); null when opened from the Patients list.
+final patientDetailsReturnTabProvider = StateProvider<int?>((ref) => null);
 
 /// What the dashboard can do. Existing dialogs and screens were built
 /// for the Day palette, so they are opened from the root navigator's
@@ -42,7 +83,24 @@ abstract final class DashboardActions {
   static Future<void> openAssistant(BuildContext context, [String? prompt]) =>
       ChatbotScreen.show(_root(context), initialPrompt: prompt);
 
+  /// Patient details. On the desktop they open in the Patients tab with
+  /// the sidebar kept (Back returns to the screen they came from); on the
+  /// phone they are pushed as a page.
   static void openPatient(BuildContext context, Patient patient) {
+    final container = ProviderScope.containerOf(context, listen: false);
+    final navigate = container.read(shellNavigatorProvider);
+    if (navigate != null) {
+      final from = container.read(shellCurrentTabProvider);
+      // Close any sheet or dialog the action came from.
+      Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
+      container.read(patientDetailsReturnTabProvider.notifier).state =
+          from == DesktopTab.patients ? null : from;
+      container
+          .read(patientsListControllerProvider.notifier)
+          .openDetails(patient.id);
+      if (navigate(DesktopTab.patients)) return;
+      container.read(patientDetailsReturnTabProvider.notifier).state = null;
+    }
     Navigator.of(context, rootNavigator: true).push(
       MaterialPageRoute(
         builder: (_) => PatientDetailsScreen(patientId: patient.id),

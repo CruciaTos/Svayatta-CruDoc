@@ -26,9 +26,14 @@ import 'package:doctor_management_app/features/inventory/presentation/inventory_
 import 'package:doctor_management_app/features/appointments/presentation/appointments_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/desktop_campaigns_screen.dart';
 import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
-import 'package:doctor_management_app/features/queue/presentation/desktop_queue_screen.dart';
+import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
+import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
 import 'package:doctor_management_app/features/subscription/presentation/feature_upgrade_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/sterilization_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/treatment_plans_screen.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -97,6 +102,15 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   void initState() {
     super.initState();
     _restorePreferences();
+    // Lets "Open patient" (and other screens) switch tabs.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ref.read(shellNavigatorProvider.notifier).state = (tab) {
+        if (!mounted) return false;
+        _onNavTap(tab);
+        return true;
+      };
+    });
   }
 
   @override
@@ -113,7 +127,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     setState(() {
       _isSidebarExpanded = expanded;
       if (lastTabIndex >= 0 && lastTabIndex < _labels.length) {
-        _currentIndex = lastTabIndex;
+        _currentIndex = _resolveTab(lastTabIndex);
+        ref.read(shellCurrentTabProvider.notifier).state = _currentIndex;
       }
     });
   }
@@ -132,10 +147,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Patients',
     'Inventory',
     'Revenue',
-    'Appointments',
+    'Schedule',
     'Campaigns',
     'Scribe',
     'Queue',
+    'Settings',
+    'Treatment plans',
+    'Sterilization',
+    'Procedures',
   ];
 
   static const List<IconData> _icons = [
@@ -147,10 +166,24 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.campaign_rounded,
     Icons.mic_rounded,
     Icons.format_list_numbered_rounded,
+    Icons.settings_outlined,
+    Icons.assignment_outlined,
+    Icons.verified_user_outlined,
+    Icons.list_alt_rounded,
   ];
+
+  /// The queue lives in the Schedule tab as its Live view: anything that
+  /// opens the queue tab (dashboard, Ctrl+8, a saved tab) lands there.
+  int _resolveTab(int index) {
+    if (index != DesktopTab.queue) return index;
+    ref.read(apptsControllerProvider.notifier).setView(ApptsView.live);
+    return DesktopTab.appointments;
+  }
 
   void _onNavTap(int index) {
     if (index < 0 || index >= _labels.length) return;
+    index = _resolveTab(index);
+    ref.read(shellCurrentTabProvider.notifier).state = index;
     setState(() => _currentIndex = index);
     unawaited(_shellPrefs.setLastTabIndex(index));
   }
@@ -184,7 +217,16 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       case 6:
         return const DesktopScribeScreen();
       case 7:
-        return const DesktopQueueScreen();
+        // Never selected (see _resolveTab).
+        return const AppointmentsScreen();
+      case DesktopTab.settings:
+        return const DesktopSettingsScreen();
+      case DesktopTab.treatmentPlans:
+        return const TreatmentPlansScreen();
+      case DesktopTab.sterilization:
+        return const SterilizationScreen();
+      case DesktopTab.procedures:
+        return const ProceduresScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -266,9 +308,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           FeatureUpgradeSheet.show(root, subscriptionInfo: info);
         }
       },
-      onSettings: () => Navigator.of(root).push(
-        MaterialPageRoute(builder: (_) => const DesktopSettingsScreen()),
-      ),
+      // Settings is a shell tab (sidebar stays, follows Day / Evening).
+      onSettings: () => _onNavTap(DesktopTab.settings),
+      onProfile: () {
+        ref.read(settingsSectionProvider.notifier).state =
+            SettingsSection.profile;
+        _onNavTap(DesktopTab.settings);
+      },
       onHelp: () => showDesktopShellHelpDialog(root),
       onLogout: () async {
         try {
@@ -288,44 +334,54 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       builder: (context, snapshot) {
         final enabledModules =
             snapshot.data ?? DoctorFeatureGuard.defaultModules;
+        // Dental screens are for dentist logins only; anyone else lands
+        // on the dashboard (a tab saved under another specialty).
+        final dentist = ref.watch(isDentistProvider);
+        final shown = !dentist && DesktopTab.isDental(_currentIndex)
+            ? DesktopTab.dashboard
+            : _currentIndex;
         final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(
-          _currentIndex,
+          shown,
         );
         final isTabEnabled =
-            _currentIndex == 0 ||
-            _currentIndex == 5 ||
-            DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
-        final isDashboard = _currentIndex == DesktopTab.dashboard;
-        final isPatients = _currentIndex == DesktopTab.patients;
+            shown == 0 ||
+            shown == 5 ||
+            shown == DesktopTab.settings ||
+            DesktopTab.isDental(shown) ||
+            DoctorFeatureGuard.isEnabled(enabledModules, moduleKey) ||
+            // Schedule also holds the Live queue.
+            (shown == DesktopTab.appointments &&
+                DoctorFeatureGuard.isEnabled(enabledModules, 'queue'));
+        final isDashboard = shown == DesktopTab.dashboard;
+        final isPatients = shown == DesktopTab.patients;
         // Screens built on the Calm Clinical tokens pad their own page and
         // have no floating chatbot button.
         final isRedesigned = isPatients ||
-            _currentIndex == DesktopTab.inventory ||
-            _currentIndex == DesktopTab.revenue ||
-            _currentIndex == DesktopTab.appointments;
+            shown == DesktopTab.inventory ||
+            shown == DesktopTab.revenue ||
+            shown == DesktopTab.appointments ||
+            shown == DesktopTab.settings ||
+            DesktopTab.isDental(shown);
 
         final width = MediaQuery.sizeOf(context).width;
         final forcedCompact = width < CruBreakpoint.compact;
         final collapsed = forcedCompact || !_isSidebarExpanded;
 
         Widget content = isTabEnabled
-            ? _buildScreen(_currentIndex)
+            ? _buildScreen(shown)
             : MobileFeatureDisabledView(
                 featureTitle: DoctorFeatureGuard.getDesktopTabTitle(
-                  _currentIndex,
+                  shown,
                 ),
-                icon: _icons[_currentIndex],
+                icon: _icons[shown],
                 onBackToDashboard: () => _onNavTap(0),
               );
         if (isRedesigned) {
-          // Patients, Inventory, Revenue and Appointments are built on the
-          // Calm Clinical tokens and pad their own page like the dashboard.
-          // They stay on Day because the dialogs they open were built for
-          // Day.
-          content = Theme(
-            data: CruTheme.day(),
-            child: SizedBox.expand(child: content),
-          );
+          // Patients, Inventory, Revenue and Schedule are built on the Calm
+          // Clinical tokens and pad their own page like the dashboard. They
+          // follow Day / Evening with the shell; the older dialogs they
+          // open pin themselves to Day.
+          content = SizedBox.expand(child: content);
         } else if (!isDashboard) {
           // Other screens keep their own layout, on the Day theme, with
           // the spacing they had before.
@@ -338,8 +394,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           );
         }
 
-        // Day or Evening for the shell chrome and the dashboard (Auto by
-        // default). Other screens are wrapped in Day above.
+        // Day or Evening for the shell chrome, the dashboard and the
+        // redesigned screens (Auto by default). Older screens are wrapped
+        // in Day above.
         final appearance = ref.watch(resolvedAppearanceProvider);
 
         return InventoryAlertListener(
@@ -352,7 +409,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                 backgroundColor: context.cru.canvas,
                 body: DesktopShellLayout(
                   sidebar: CruSidebar(
-                    currentTab: _currentIndex,
+                    currentTab: shown,
                     collapsed: collapsed,
                     canExpand: !forcedCompact,
                     callbacks: _sidebarCallbacks(context),

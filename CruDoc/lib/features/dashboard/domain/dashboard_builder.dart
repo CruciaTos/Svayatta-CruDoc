@@ -147,6 +147,8 @@ _ScheduleResult _buildSchedule({
   }
 
   final items = <ScheduleItem>[];
+  // Row id -> group id, for patients seen together.
+  final groupOf = <String, String>{};
 
   // A booked visit checked into the queue enters with status "waiting"
   // and checkedInAt = its appointment time, before the patient arrives.
@@ -168,6 +170,8 @@ _ScheduleResult _buildSchedule({
         arrived(e) ? ScheduleStatus.waiting : ScheduleStatus.booked,
       QueueStatus.cancelled => ScheduleStatus.missed, // filtered above
     };
+    final group = e.groupId ?? visit?.groupId;
+    if (group != null && group.isNotEmpty) groupOf['q_${e.id}'] = group;
     items.add(ScheduleItem(
       id: 'q_${e.id}',
       time: visit?.scheduledStart ?? e.checkedInAt,
@@ -191,6 +195,8 @@ _ScheduleResult _buildSchedule({
     if (queuedVisitIds.contains(v.id)) continue;
     final patient = patientsById[v.patientId];
     final name = _displayName(patient, null);
+    final group = v.groupId;
+    if (group != null && group.isNotEmpty) groupOf['v_${v.id}'] = group;
     items.add(ScheduleItem(
       id: 'v_${v.id}',
       time: v.scheduledStart,
@@ -214,6 +220,23 @@ _ScheduleResult _buildSchedule({
     if (t != 0) return t;
     return (a.tokenNumber ?? 0).compareTo(b.tokenNumber ?? 0);
   });
+  _groupSchedule(items, groupOf);
+
+  // Everyone on a shared token, for the Up next and serving names.
+  String tokenName(QueueEntry e) {
+    final g = e.groupId;
+    final mates = g == null || g.isEmpty
+        ? [e]
+        : todaysEntries.where((x) => x.groupId == g).toList();
+    final names = [
+      for (final m in mates)
+        _displayName(
+          m.patientId == null ? null : patientsById[m.patientId],
+          m.walkInName,
+        ),
+    ];
+    return _joinNames(names);
+  }
 
   // Up next: earliest waiting token in exactly the order
   // QueueRepository.callNext uses (urgent first, then token number), so
@@ -238,7 +261,7 @@ _ScheduleResult _buildSchedule({
     final e = waiting.first;
     final patient = e.patientId == null ? null : patientsById[e.patientId];
     final visit = e.linkedVisitId == null ? null : visitsById[e.linkedVisitId];
-    final name = _displayName(patient, e.walkInName);
+    final name = tokenName(e);
     upNext = UpNextData(
       entryId: e.id,
       name: name,
@@ -248,12 +271,7 @@ _ScheduleResult _buildSchedule({
       reason: _clean(e.reason) ?? _clean(visit?.treatmentType),
       patient: patient,
       isNextInCallOrder: rawWaiting.first.id == e.id,
-      servingName: serving == null
-          ? null
-          : _displayName(
-              serving.patientId == null ? null : patientsById[serving.patientId],
-              serving.walkInName,
-            ),
+      servingName: serving == null ? null : tokenName(serving),
     );
   }
 
@@ -398,3 +416,52 @@ int _calendarDaysBetween(DateTime from, DateTime to) =>
     DateTime.utc(to.year, to.month, to.day)
         .difference(DateTime.utc(from.year, from.month, from.day))
         .inDays;
+
+/// "Rahul Verma & Priya Verma"; three or more: "Rahul Verma + 2".
+String _joinNames(List<String> n) => n.length == 1
+    ? n.first
+    : n.length == 2
+        ? '${n[0]} & ${n[1]}'
+        : '${n.first} + ${n.length - 1}';
+
+/// Patients seen together (one group) become one schedule row: both
+/// names, their reasons joined. [items] is sorted; the group keeps its
+/// first row's place.
+void _groupSchedule(List<ScheduleItem> items, Map<String, String> groupOf) {
+  if (groupOf.isEmpty) return;
+  final members = <String, List<ScheduleItem>>{};
+  for (final i in items) {
+    final g = groupOf[i.id];
+    if (g != null) members.putIfAbsent(g, () => []).add(i);
+  }
+  if (members.values.every((m) => m.length < 2)) return;
+  final out = <ScheduleItem>[];
+  for (final i in items) {
+    final g = groupOf[i.id];
+    final group = g == null ? null : members[g];
+    if (group == null || group.length < 2) {
+      out.add(i);
+      continue;
+    }
+    if (!identical(group.first, i)) continue;
+    final reasons = {for (final m in group) ?m.reason};
+    out.add(ScheduleItem(
+      id: i.id,
+      time: i.time,
+      name: _joinNames([for (final m in group) m.name]),
+      firstName: _joinNames([for (final m in group) m.firstName]),
+      status: i.status,
+      ageSex: i.ageSex,
+      reason: reasons.isEmpty ? null : reasons.join(' · '),
+      kindLabel: i.kindLabel,
+      waitMinutes: i.waitMinutes,
+      tokenNumber: i.tokenNumber,
+      patient: i.patient,
+      queueEntryId: i.queueEntryId,
+      visitId: i.visitId,
+    ));
+  }
+  items
+    ..clear()
+    ..addAll(out);
+}

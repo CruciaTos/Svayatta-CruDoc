@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocationUsageDescription</key>
+	<string>CruDoc uses your location to list home-visit addresses nearest to you first.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>CruDoc uses your location to list home-visit addresses nearest to you first.</string>
 </dict>
 </plist>

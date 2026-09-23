@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:doctor_management_app/core/services/maps_key.dart';
 
 /// The maximum number of visits allowed to overlap in time.
 ///
@@ -8,36 +9,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// can't silently pile up an unbounded number of visits on one slot.
 const int kMaxOverlappingVisits = 4;
 
+/// Most patients one appointment can hold (a couple, a parent with
+/// children): visits sharing a [Visit.groupId].
+const int kMaxGroupPatients = 4;
+
 /// Sanity bounds for a visit's duration, in minutes. These exist to catch
 /// obvious data-entry mistakes (a duration of 0, or a stray extra digit
 /// like 4800) — not to constrain real-world scheduling.
 const int kMinVisitDurationMinutes = 5;
 const int kMaxVisitDurationMinutes = 480; // 8 hours
 
-/// Google Maps API key used for both the Geocoding API (address ->
-/// coordinates) and the Static Maps API (map preview images).
-///
-/// TODO: move this to a secure secrets/config source before shipping.
-/// Kept as a plain constant here — matching this file's existing flat
-/// constant style above — to avoid introducing a new config file for a
-/// single key.
-const String kGoogleMapsApiKey =
-    String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: '');
 
 /// Builds a Google Static Maps image URL for the given coordinates, or
-/// `null` if either coordinate is missing.
+/// `null` if either coordinate is missing or no Maps key is set up
+/// ([MapsKey]).
 ///
 /// Deliberately parameter-stable (no timestamps, session tokens, or other
 /// varying values) so `CachedNetworkImage` derives the same cache key for
 /// the same visit across app launches, instead of re-downloading the image
 /// every time.
 String? staticMapUrlFor({required double? latitude, required double? longitude}) {
-  if (latitude == null || longitude == null) return null;
+  if (latitude == null || longitude == null || !MapsKey.isSet) return null;
   return 'https://maps.googleapis.com/maps/api/staticmap'
       '?center=$latitude,$longitude'
       '&zoom=15&size=600x300&scale=2'
       '&markers=color:red%7C$latitude,$longitude'
-      '&key=$kGoogleMapsApiKey';
+      '&key=${MapsKey.value}';
 }
 
 /// Predefined visit lifecycle states.
@@ -177,6 +174,12 @@ class Visit {
   // model change.
   final String? invoiceId;
   final String? packageId;
+
+  /// Visits booked together (a couple, a parent with children) share one
+  /// group id: one slot, one queue token, shown as one appointment
+  /// everywhere except each patient's own history. Null for a single
+  /// visit.
+  final String? groupId;
   final String? treatmentType;
   final String? therapistNotes;
   final String? reminderStatus;
@@ -204,6 +207,7 @@ class Visit {
     this.isDeleted = false,
     this.invoiceId,
     this.packageId,
+    this.groupId,
     this.treatmentType,
     this.therapistNotes,
     this.reminderStatus,
@@ -253,6 +257,7 @@ class Visit {
       isDeleted: map['isDeleted'] as bool? ?? false,
       invoiceId: map['invoiceId'] as String?,
       packageId: map['packageId'] as String?,
+      groupId: map['groupId'] as String?,
       treatmentType: map['treatmentType'] as String?,
       therapistNotes: map['therapistNotes'] as String?,
       reminderStatus: map['reminderStatus'] as String?,
@@ -281,6 +286,7 @@ class Visit {
       'isDeleted': isDeleted,
       'invoiceId': invoiceId,
       'packageId': packageId,
+      'groupId': groupId,
       'treatmentType': treatmentType,
       'therapistNotes': therapistNotes,
       'reminderStatus': reminderStatus,
@@ -307,6 +313,8 @@ class Visit {
     bool? isDeleted,
     String? invoiceId,
     String? packageId,
+    String? groupId,
+    bool clearGroupId = false,
     String? treatmentType,
     String? therapistNotes,
     String? reminderStatus,
@@ -331,6 +339,7 @@ class Visit {
       isDeleted: isDeleted ?? this.isDeleted,
       invoiceId: invoiceId ?? this.invoiceId,
       packageId: packageId ?? this.packageId,
+      groupId: clearGroupId ? null : (groupId ?? this.groupId),
       treatmentType: treatmentType ?? this.treatmentType,
       therapistNotes: therapistNotes ?? this.therapistNotes,
       reminderStatus: reminderStatus ?? this.reminderStatus,

@@ -7,7 +7,8 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
-import 'package:doctor_management_app/features/dental/presentation/dental_patient_details_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_chart_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_patient_details_screen.dart';
@@ -19,6 +20,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/details_top_bar.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/facts_strip.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/identity_header.dart';
+import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/medical_history_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/payments_block.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
@@ -62,16 +64,17 @@ class PatientDetailsView extends ConsumerWidget {
   }
 }
 
-/// Patient details as a pushed route (Day theme, canvas background).
-class PatientDetailsScreen extends StatelessWidget {
+/// Patient details as a pushed route (canvas background). Follows Day /
+/// Evening like the shell: routes sit under the app's Day theme otherwise.
+class PatientDetailsScreen extends ConsumerWidget {
   const PatientDetailsScreen({super.key, required this.patientId});
 
   final String patientId;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Theme(
-      data: CruTheme.day(),
+      data: CruTheme.of(ref.watch(resolvedAppearanceProvider)),
       child: Builder(
         builder: (context) => Scaffold(
           backgroundColor: context.cru.canvas,
@@ -133,12 +136,18 @@ class _DetailsBody extends ConsumerWidget {
             ? TreatmentPlanCard(
                 summary: s,
                 items: items,
-                onEditPlan: () => push(DentalPatientDetailsScreen(patient: p)),
+                onEditPlan: () => showTreatmentPlanDialog(context, patient: p),
                 onBook: newVisit,
                 onRecordPayment: recordPayment,
               )
             : PaymentsCard(summary: s, onRecordPayment: recordPayment);
     final notes = ClinicalNotesCard(summary: s, now: now);
+    // Dentists: the tooth chart, their procedures, and a way into a plan.
+    final chart = isDentist ? ToothChartCard(patient: p) : null;
+    final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
+    final noPlan = isDentist && !planLoading && items.isEmpty
+        ? NoPlanCard(patient: p)
+        : null;
     final visits = VisitsCard(
       summary: s,
       now: now,
@@ -164,9 +173,8 @@ class _DetailsBody extends ConsumerWidget {
                 onBack: onBack,
                 onEdit: edit,
                 onNewVisit: newVisit,
-                onDentalChart: isDentist
-                    ? () => push(DentalPatientDetailsScreen(patient: p))
-                    : null,
+                // Dentists have the tooth chart on the page itself.
+                onDentalChart: null,
                 onCaseSheet: isHomeopath
                     ? () => push(HomeopathyPatientDetailsScreen(patient: p))
                     : null,
@@ -194,16 +202,31 @@ class _DetailsBody extends ConsumerWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _Stack([planOrPayments, notes])),
+                    Expanded(
+                      child: _Stack([
+                        ?chart,
+                        ?noPlan,
+                        planOrPayments,
+                        notes,
+                      ]),
+                    ),
                     const SizedBox(width: CruSpace.cardGap),
                     SizedBox(
                       width: CruSize.rightColumn,
-                      child: _Stack([visits, history]),
+                      child: _Stack([?procedures, visits, history]),
                     ),
                   ],
                 )
               else
-                _Stack([planOrPayments, visits, notes, history]),
+                _Stack([
+                  ?chart,
+                  ?noPlan,
+                  planOrPayments,
+                  ?procedures,
+                  visits,
+                  notes,
+                  history,
+                ]),
             ],
           ),
         );

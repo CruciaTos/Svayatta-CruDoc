@@ -8,9 +8,11 @@ import 'package:doctor_management_app/features/appointments/presentation/appoint
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/visits/home_visit_pill.dart';
 
 import 'appt_time_label.dart';
 import 'month_metrics.dart';
+import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_context_region.dart';
 
 /// The Month view's right day panel (384 px): eyebrow, date, summary, one
 /// row per appointment, "Book on this day" and "Open day". The open-slot
@@ -98,39 +100,37 @@ class MonthDayPanel extends ConsumerWidget {
             child: items == null
                 ? const _RowsSkeleton()
                 : items.isEmpty
-                    ? Padding(
-                        padding:
-                            const EdgeInsets.symmetric(vertical: CruSpace.s12),
-                        child: Text(
-                          'No appointments on this day.',
-                          style: CruType.subhead.tint(c.label2),
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+                    child: Text(
+                      'No appointments on this day.',
+                      style: CruType.subhead.tint(c.label2),
+                    ),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    padding: EdgeInsets.zero,
+                    itemCount: items.length,
+                    itemExtent: MonthMetrics.panelRow + 1,
+                    itemBuilder: (context, i) => Column(
+                      children: [
+                        if (i > 0)
+                          const CruSeparator(
+                            indent:
+                                CruSpace.s4 +
+                                MonthMetrics.timeColumn +
+                                CruSpace.s12,
+                          )
+                        else
+                          const SizedBox(height: 1),
+                        MonthPanelRow(
+                          item: items[i],
+                          onTap: () =>
+                              controller.openDay(date, visitId: items[i].id),
                         ),
-                      )
-                    : ListView.builder(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: items.length,
-                        itemExtent: MonthMetrics.panelRow + 1,
-                        itemBuilder: (context, i) => Column(
-                          children: [
-                            if (i > 0)
-                              const CruSeparator(
-                                indent: CruSpace.s4 +
-                                    MonthMetrics.timeColumn +
-                                    CruSpace.s12,
-                              )
-                            else
-                              const SizedBox(height: 1),
-                            MonthPanelRow(
-                              item: items[i],
-                              onTap: () => controller.openDay(
-                                date,
-                                visitId: items[i].id,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
+                    ),
+                  ),
           ),
           const SizedBox(height: CruSpace.s16),
           // Booking is offered for today and later only; on a past day
@@ -143,11 +143,8 @@ class MonthDayPanel extends ConsumerWidget {
                         label: 'Book on this day',
                         kind: CruButtonKind.tinted,
                         expand: true,
-                        onPressed: () => ApptActions.newAppointment(
-                          context,
-                          ref,
-                          day: date,
-                        ),
+                        onPressed: () =>
+                            ApptActions.newAppointment(context, ref, day: date),
                       ),
                     ),
                     const SizedBox(width: CruSpace.s10),
@@ -182,53 +179,78 @@ class MonthPanelRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final missed = item.status == ApptStatus.missed;
-    return CruPressable(
-      onTap: onTap,
-      scaleOnPress: false,
-      semanticLabel: '${DashFormat.time(item.start)}, ${item.name}'
-          '${item.reason == null ? '' : ', ${item.reason}'}',
-      builder: (context, hovered) => Container(
-        height: MonthMetrics.panelRow,
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
-        decoration: ShapeDecoration(
-          color: hovered ? c.hoverFill : Colors.transparent,
-          shape: cruShape(CruRadius.control),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: MonthMetrics.timeColumn,
-              child: ApptTimeLabel(item.start),
-            ),
-            const SizedBox(width: CruSpace.s12),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.callout
-                        .tint(missed ? c.label3 : c.label)
-                        .copyWith(
-                          decoration:
-                              missed ? TextDecoration.lineThrough : null,
-                          decorationColor: c.label3,
-                        ),
-                  ),
-                  if (item.reason != null)
-                    Text(
-                      item.reason!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CruType.caption.tint(c.label2),
-                    ),
-                ],
+    final quiet = item.status == ApptStatus.done || missed;
+    return ApptContextRegion(
+      item: item,
+      child: CruPressable(
+        onTap: onTap,
+        scaleOnPress: false,
+        semanticLabel:
+            '${DashFormat.time(item.start)}, ${item.name}'
+            '${item.reason == null ? '' : ', ${item.reason}'}',
+        builder: (context, hovered) => Container(
+          height: MonthMetrics.panelRow,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
+          decoration: ShapeDecoration(
+            color: hovered ? c.hoverFill : Colors.transparent,
+            shape: cruShape(CruRadius.control),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: MonthMetrics.timeColumn,
+                child: ApptTimeLabel(item.start),
               ),
-            ),
-          ],
+              const SizedBox(width: CruSpace.s12),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Text(
+                            item.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.callout
+                                .tint(missed ? c.label3 : c.label)
+                                .copyWith(
+                                  decoration: missed
+                                      ? TextDecoration.lineThrough
+                                      : null,
+                                  decorationColor: c.label3,
+                                ),
+                          ),
+                        ),
+                        if (item.isHomeVisit) ...[
+                          const SizedBox(width: CruSpace.s6),
+                          CruIcon(
+                            CruIcons.home,
+                            size: 14,
+                            strokeWidth: 2.2,
+                            color: quiet ? c.label3 : c.homeVisit,
+                          ),
+                        ],
+                      ],
+                    ),
+                    if (item.detailLine != null)
+                      Text(
+                        item.detailLine!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.caption.tint(c.label2),
+                      ),
+                  ],
+                ),
+              ),
+              if (item.isHomeVisit) ...[
+                const SizedBox(width: CruSpace.s8),
+                HomeVisitPill(quiet: quiet),
+              ],
+            ],
+          ),
         ),
       ),
     );

@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
-import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
+import 'package:doctor_management_app/features/revenue/domain/revenue_builder.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_icons.dart';
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-// Dialog frame. Not tokens yet; see NEEDS.md (Builder 4).
-const double _dialogMaxWidth = 860;
-const double _dialogMaxHeight = 740;
-
 /// Opens the desktop Add Transaction dialog (Record payment, Record
 /// expense or Add pending payment). The optional `initial…` values
-/// prefill the form.
+/// prefill the form. Returns true when the transaction was saved.
 Future<bool?> showDesktopAddTransactionDialog(
   BuildContext context, {
   TransactionKind? initialKind,
@@ -27,30 +24,14 @@ Future<bool?> showDesktopAddTransactionDialog(
   return showDialog<bool>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) {
-      final c = ctx.cru;
-      return Dialog(
-        backgroundColor: c.surface,
-        surfaceTintColor: c.surface.withValues(alpha: 0),
-        shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
-        clipBehavior: Clip.antiAlias,
-        insetPadding: const EdgeInsets.all(CruSpace.s24),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(
-            maxWidth: _dialogMaxWidth,
-            maxHeight: _dialogMaxHeight,
-          ),
-          child: DesktopAddTransactionDialog(
-            initialKind: initialKind,
-            isPending: isPending,
-            repository: repository,
-            initialAmount: initialAmount,
-            initialDescription: initialDescription,
-            initialPayer: initialPayer,
-          ),
-        ),
-      );
-    },
+    builder: (_) => DesktopAddTransactionDialog(
+      initialKind: initialKind,
+      isPending: isPending,
+      repository: repository,
+      initialAmount: initialAmount,
+      initialDescription: initialDescription,
+      initialPayer: initialPayer,
+    ),
   );
 }
 
@@ -81,21 +62,7 @@ class DesktopAddTransactionDialog extends StatefulWidget {
 
 class _DesktopAddTransactionDialogState
     extends State<DesktopAddTransactionDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final RevenueRepository _repository =
-      widget.repository ?? RevenueRepository();
-
-  late _TransactionFormType _formType;
-  late final TextEditingController _amountController;
-  late final TextEditingController _descriptionController;
-  late final TextEditingController _payerController;
-  late final TextEditingController _notesController;
-
-  DateTime _selectedDate = DateTime.now();
-  String? _selectedCategory;
-  bool _isSaving = false;
-  String? _errorText;
-
+  // Saved as written into the description; shown in sentence case.
   static const List<String> _incomeCategories = [
     'Consultation Fee',
     'Procedure / Treatment',
@@ -124,6 +91,24 @@ class _DesktopAddTransactionDialogState
     'Insurance Claim Due',
     'Corporate Billing',
   ];
+
+  final _formKey = GlobalKey<FormState>();
+  late final RevenueRepository _repository =
+      widget.repository ?? RevenueRepository();
+
+  late _TransactionFormType _formType;
+  late final TextEditingController _amountController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _payerController;
+  late final TextEditingController _notesController;
+
+  DateTime _selectedDate = DateTime.now();
+  String? _selectedCategory;
+
+  bool _dirty = false;
+  bool _saving = false;
+  bool _submitted = false;
+  String? _notice;
 
   @override
   void initState() {
@@ -159,15 +144,39 @@ class _DesktopAddTransactionDialogState
     super.dispose();
   }
 
-  List<String> get _currentCategories {
-    switch (_formType) {
-      case _TransactionFormType.income:
-        return _incomeCategories;
-      case _TransactionFormType.expense:
-        return _expenseCategories;
-      case _TransactionFormType.pending:
-        return _pendingCategories;
-    }
+  List<String> get _currentCategories => switch (_formType) {
+        _TransactionFormType.income => _incomeCategories,
+        _TransactionFormType.expense => _expenseCategories,
+        _TransactionFormType.pending => _pendingCategories,
+      };
+
+  void _edited([Object? _]) {
+    setState(() {
+      _dirty = true;
+      _notice = null;
+    });
+  }
+
+  void _onTypeChanged(_TransactionFormType type) {
+    if (type == _formType) return;
+    setState(() {
+      _formType = type;
+      _selectedCategory = null;
+      _dirty = true;
+      _notice = null;
+    });
+  }
+
+  void _onCategoryTap(String cat) {
+    setState(() {
+      final selected = _selectedCategory != cat;
+      _selectedCategory = selected ? cat : null;
+      if (selected && _descriptionController.text.trim().isEmpty) {
+        _descriptionController.text = cat;
+      }
+      _dirty = true;
+      _notice = null;
+    });
   }
 
   Future<void> _pickDate() async {
@@ -177,6 +186,7 @@ class _DesktopAddTransactionDialogState
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Transaction date',
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
@@ -191,17 +201,33 @@ class _DesktopAddTransactionDialogState
         );
       },
     );
-    if (picked != null) {
-      setState(() => _selectedDate = picked);
-    }
+    if (picked == null || !mounted) return;
+    setState(() {
+      _selectedDate = picked;
+      _dirty = true;
+      _notice = null;
+    });
   }
 
-  Future<void> _handleSave() async {
+  String? _validateAmount(String? v) {
+    final t = (v ?? '').trim();
+    if (t.isEmpty) return 'Add an amount.';
+    final parsed = double.tryParse(t);
+    if (parsed == null || parsed <= 0) return 'Enter an amount above ₹0.';
+    return null;
+  }
+
+  String? _validateDescription(String? v) =>
+      (v == null || v.trim().isEmpty) ? 'Add a description.' : null;
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() {
-      _isSaving = true;
-      _errorText = null;
+      _saving = true;
+      _notice = null;
     });
 
     final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
@@ -254,70 +280,25 @@ class _DesktopAddTransactionDialogState
     } on RevenueValidationException catch (e) {
       if (!mounted) return;
       setState(() {
-        _isSaving = false;
-        _errorText = e.message;
+        _saving = false;
+        _notice = e.message;
       });
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
+      final what = switch (_formType) {
+        _TransactionFormType.income => 'this payment',
+        _TransactionFormType.expense => 'this expense',
+        _TransactionFormType.pending => 'this pending payment',
+      };
       setState(() {
-        _isSaving = false;
-        _errorText = "Couldn't save the transaction: $e";
+        _saving = false;
+        _notice = "Couldn't save $what. Check your connection and try again.";
       });
     }
   }
 
-  // -------------------------------------------------------------------
-  // Layout
-  // -------------------------------------------------------------------
-
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildHeader(),
-        const CruSeparator(),
-        Expanded(
-          child: Form(
-            key: _formKey,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(CruSpace.s24),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left: type, amount, date, notes.
-                  Expanded(flex: 11, child: _buildLeftColumn()),
-                  const SizedBox(width: CruSpace.s24),
-                  // Right: category, description, paid to / received
-                  // from, preview; split off by a separator.
-                  Expanded(
-                    flex: 10,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: context.cru.separator),
-                        ),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: CruSpace.s24),
-                        child: _buildRightColumn(),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        if (_errorText != null) _buildErrorBanner(),
-        const CruSeparator(),
-        _buildFooter(),
-      ],
-    );
-  }
-
-  Widget _buildHeader() {
-    final c = context.cru;
     final (CruIconData icon, CruTileTone tone, String title, String subtitle) =
         switch (_formType) {
       _TransactionFormType.income => (
@@ -339,381 +320,160 @@ class _DesktopAddTransactionDialogState
           'An unpaid balance to collect later',
         ),
     };
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        CruSpace.s24,
-        CruSpace.s20,
-        CruSpace.s20,
-        CruSpace.s20,
-      ),
-      child: Row(
-        children: [
-          CruIconTile(icon: icon, tone: tone),
-          const SizedBox(width: CruSpace.s14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Semantics(
-                  header: true,
-                  child: Text(title, style: CruType.title2.tint(c.label)),
-                ),
-                const SizedBox(height: CruSpace.s2),
-                Text(subtitle, style: CruType.subhead.tint(c.label2)),
-              ],
-            ),
-          ),
-          CruSquareButton(
-            icon: CruIcons.close,
-            iconSize: 16,
-            strokeWidth: 2.2,
-            semanticLabel: 'Close',
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeftColumn() {
-    final c = context.cru;
-    final now = DateTime.now();
-    final isToday = _selectedDate.year == now.year &&
-        _selectedDate.month == now.month &&
-        _selectedDate.day == now.day;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _FieldLabel('Type'),
-        const SizedBox(height: CruSpace.s8),
-        CruSegmentedControl<_TransactionFormType>(
-          semanticLabel: 'Transaction type',
-          segments: const [
-            CruSegment(_TransactionFormType.income, 'Money in'),
-            CruSegment(_TransactionFormType.expense, 'Money out'),
-            CruSegment(_TransactionFormType.pending, 'Pending'),
-          ],
-          selected: _formType,
-          onChanged: (type) => setState(() {
-            _formType = type;
-            _selectedCategory = null;
-          }),
-        ),
-        const SizedBox(height: CruSpace.s24),
-        const _FieldLabel('Amount'),
-        const SizedBox(height: CruSpace.s8),
-        TextFormField(
-          controller: _amountController,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          style: CruType.title2.tabular.tint(c.label),
-          cursorColor: c.accent,
-          onChanged: (_) => setState(() {}),
-          decoration: _decoration(context, hint: '0').copyWith(
-            prefixIcon: Padding(
-              padding: const EdgeInsets.only(
-                left: CruSpace.s14,
-                right: CruSpace.s8,
-              ),
-              child: Text('₹', style: CruType.title2.tint(c.label2)),
-            ),
-            prefixIconConstraints: const BoxConstraints(),
-            hintStyle: CruType.title2.tabular.tint(c.label3),
-          ),
-          validator: (val) {
-            if (val == null || val.trim().isEmpty) return 'Enter an amount';
-            final parsed = double.tryParse(val.trim());
-            if (parsed == null || parsed <= 0) {
-              return 'Enter an amount above ₹0';
-            }
-            return null;
-          },
-        ),
-        const SizedBox(height: CruSpace.s24),
-        const _FieldLabel('Date'),
-        const SizedBox(height: CruSpace.s8),
-        CruPressable(
-          onTap: _pickDate,
-          scaleOnPress: false,
-          semanticLabel: 'Date, ${DashFormat.dateLine(_selectedDate)}',
-          builder: (context, hovered) => AnimatedContainer(
-            duration: CruMotion.of(context, CruMotion.fast),
-            curve: CruMotion.curve,
-            padding: const EdgeInsets.symmetric(
-              horizontal: CruSpace.s14,
-              vertical: CruSpace.s12,
-            ),
-            decoration: ShapeDecoration(
-              color: hovered ? cruHoverShade(c.inset, c) : c.inset,
-              shape: cruShape(CruRadius.control),
-            ),
-            child: Row(
-              children: [
-                CruIcon(CruIcons.calendar, size: 18, color: c.label2),
-                const SizedBox(width: CruSpace.s12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        DateFormat('EEEE, d MMMM y').format(_selectedDate),
-                        style: CruType.callout.tabular.tint(c.label),
-                      ),
-                      Text(
-                        isToday
-                            ? 'Today'
-                            : DateFormat('d MMM').format(_selectedDate),
-                        style: CruType.caption.tabular.tint(c.label2),
-                      ),
-                    ],
-                  ),
-                ),
-                CruIcon(CruIcons.chevronRight, size: 18, color: c.label3),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: CruSpace.s24),
-        const _FieldLabel('Notes (optional)'),
-        const SizedBox(height: CruSpace.s8),
-        TextFormField(
-          controller: _notesController,
-          maxLines: 3,
-          style: CruType.text.tint(c.label),
-          cursorColor: c.accent,
-          decoration: _decoration(
-            context,
-            hint: 'Invoice number, cheque ID, payment reference or voucher',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRightColumn() {
-    final c = context.cru;
-    final payerLabel = _formType == _TransactionFormType.expense
-        ? 'Paid to (supplier, vendor or payee)'
-        : 'Received from (patient, client or payer)';
-    final payerHint = _formType == _TransactionFormType.expense
-        ? 'e.g. Apex Dental Supplies, landlord, lab'
-        : 'e.g. patient name, self-pay, insurer';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const _FieldLabel('Category'),
-        const SizedBox(height: CruSpace.s8),
-        Wrap(
-          spacing: CruSpace.s8,
-          runSpacing: CruSpace.s8,
-          children: [
-            for (final cat in _currentCategories)
-              _CategoryChip(
-                label: cat,
-                selected: _selectedCategory == cat,
-                onTap: () => setState(() {
-                  final selected = _selectedCategory != cat;
-                  _selectedCategory = selected ? cat : null;
-                  if (selected && _descriptionController.text.trim().isEmpty) {
-                    _descriptionController.text = cat;
-                  }
-                }),
-              ),
-          ],
-        ),
-        const SizedBox(height: CruSpace.s20),
-        const _FieldLabel('Description'),
-        const SizedBox(height: CruSpace.s8),
-        TextFormField(
-          controller: _descriptionController,
-          style: CruType.text.tint(c.label),
-          cursorColor: c.accent,
-          onChanged: (_) => setState(() {}),
-          decoration: _decoration(
-            context,
-            hint: 'e.g. Root canal consultation, sanitisation supplies',
-          ),
-          validator: (val) => (val == null || val.trim().isEmpty)
-              ? 'Enter a description'
-              : null,
-        ),
-        const SizedBox(height: CruSpace.s20),
-        _FieldLabel(payerLabel),
-        const SizedBox(height: CruSpace.s8),
-        TextFormField(
-          controller: _payerController,
-          style: CruType.text.tint(c.label),
-          cursorColor: c.accent,
-          onChanged: (_) => setState(() {}),
-          decoration: _decoration(context, hint: payerHint),
-        ),
-        const SizedBox(height: CruSpace.s24),
-        // Live preview.
-        _buildTransactionSummaryCard(),
-      ],
-    );
-  }
-
-  Widget _buildTransactionSummaryCard() {
-    final c = context.cru;
-    final amount = double.tryParse(_amountController.text.trim()) ?? 0.0;
-    final desc = _descriptionController.text.trim().isEmpty
-        ? 'Untitled transaction'
-        : _descriptionController.text.trim();
-    final payer = _payerController.text.trim();
-
-    final (String label, Color fill, Color fg) = switch (_formType) {
-      _TransactionFormType.income => ('Money in', c.greenTint, c.greenText),
-      _TransactionFormType.expense => ('Money out', c.inset, c.label2),
-      _TransactionFormType.pending => ('Pending', c.amberTint, c.amberText),
-    };
-    final money = DashFormat.rupees(amount);
-
-    return Container(
-      padding: const EdgeInsets.all(CruSpace.s16),
-      decoration: ShapeDecoration(
-        color: c.canvas,
-        shape: cruShape(CruRadius.panel, side: BorderSide(color: c.hairline)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              CruPill(text: label, background: fill, foreground: fg),
-              const Spacer(),
-              Text(
-                _formType == _TransactionFormType.expense ? '−$money' : money,
-                style: CruType.row.tabular.tint(c.label),
-              ),
-            ],
-          ),
-          const SizedBox(height: CruSpace.s10),
-          Text(
-            desc,
-            style: CruType.callout.tint(c.label),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (payer.isNotEmpty) ...[
-            const SizedBox(height: CruSpace.s4),
-            Text(
-              _formType == _TransactionFormType.expense
-                  ? 'Paid to $payer'
-                  : 'Received from $payer',
-              style: CruType.caption.tint(c.label2),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildErrorBanner() {
-    final c = context.cru;
-    // Amber, not red: red is reserved for allergies.
-    return Container(
-      margin: const EdgeInsets.fromLTRB(
-        CruSpace.s24,
-        0,
-        CruSpace.s24,
-        CruSpace.s12,
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: CruSpace.s14,
-        vertical: CruSpace.s10,
-      ),
-      decoration: ShapeDecoration(
-        color: c.amberTint,
-        shape: cruShape(CruRadius.control),
-      ),
-      child: Row(
-        children: [
-          CruIcon(CruIcons.warning, size: 18, color: c.amberText),
-          const SizedBox(width: CruSpace.s10),
-          Expanded(
-            child: Text(
-              _errorText!,
-              style: CruType.subhead.w500.tint(c.amberText),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFooter() {
-    final actionLabel = switch (_formType) {
+    final submitLabel = switch (_formType) {
       _TransactionFormType.income => 'Record payment',
       _TransactionFormType.expense => 'Record expense',
       _TransactionFormType.pending => 'Save pending payment',
     };
+    final (String payerLabel, String payerHint) = switch (_formType) {
+      _TransactionFormType.income => (
+          'Received from',
+          'Patient, self-pay or insurer',
+        ),
+      _TransactionFormType.expense => (
+          'Paid to',
+          'Supplier, landlord or lab',
+        ),
+      _TransactionFormType.pending => (
+          'Owed by',
+          'Patient, insurer or company',
+        ),
+    };
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: CruSpace.s24,
-        vertical: CruSpace.s16,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          CruButton(
-            label: 'Cancel',
-            kind: CruButtonKind.secondary,
-            onPressed: _isSaving ? null : () => Navigator.of(context).pop(),
-          ),
-          const SizedBox(width: CruSpace.s10),
-          CruButton(
-            label: _isSaving ? 'Saving…' : actionLabel,
-            icon: _isSaving ? null : CruIcons.check,
-            onPressed: _isSaving ? null : _handleSave,
-          ),
-        ],
+    return CruFormDialog(
+      title: title,
+      subtitle: subtitle,
+      leading: CruIconTile(icon: icon, tone: tone),
+      submitLabel: submitLabel,
+      onSubmit: _save,
+      busy: _saving,
+      dirty: _dirty,
+      notice: _notice,
+      footerHint: 'Ctrl + Enter to save',
+      body: Form(
+        key: _formKey,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            CruFormSection(
+              first: true,
+              title: 'Amount',
+              description: 'Money in, money out, or a balance to collect.',
+              children: [
+                CruFieldFrame(
+                  label: 'Type',
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: CruSegmentedControl<_TransactionFormType>(
+                      semanticLabel: 'Transaction type',
+                      segments: const [
+                        CruSegment(_TransactionFormType.income, 'Money in'),
+                        CruSegment(_TransactionFormType.expense, 'Money out'),
+                        CruSegment(_TransactionFormType.pending, 'Pending'),
+                      ],
+                      selected: _formType,
+                      onChanged: _onTypeChanged,
+                    ),
+                  ),
+                ),
+                CruFieldRow(
+                  children: [
+                    CruTextField(
+                      label: 'Amount',
+                      controller: _amountController,
+                      autofocus: _amountController.text.isEmpty,
+                      prefix: '₹',
+                      hint: '0',
+                      tabular: true,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                      ],
+                      validator: _validateAmount,
+                      onChanged: _edited,
+                    ),
+                    CruPickerField(
+                      label: 'Date',
+                      icon: CruIcons.calendar,
+                      value: DateFormat('d MMM yyyy').format(_selectedDate),
+                      placeholder: 'Pick a date',
+                      trailing: RevenueBuilder.sameDay(
+                        _selectedDate,
+                        DateTime.now(),
+                      )
+                          ? const CruInfoPill(text: 'Today')
+                          : null,
+                      onTap: _pickDate,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            CruFormSection(
+              title: 'Details',
+              description: 'What it was for and who it was with.',
+              children: [
+                CruFieldFrame(
+                  label: 'Category',
+                  optional: true,
+                  help: 'Picking one fills in the description.',
+                  child: Wrap(
+                    spacing: CruSpace.s8,
+                    runSpacing: CruSpace.s8,
+                    children: [
+                      for (final cat in _currentCategories)
+                        IntrinsicWidth(
+                          child: _CategoryChip(
+                            label: RevenueBuilder.sentence(cat),
+                            selected: _selectedCategory == cat,
+                            onTap: () => _onCategoryTap(cat),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                CruTextField(
+                  label: 'Description',
+                  controller: _descriptionController,
+                  hint: 'Root canal consultation, gloves and masks…',
+                  textCapitalization: TextCapitalization.sentences,
+                  validator: _validateDescription,
+                  onChanged: _edited,
+                ),
+                CruTextField(
+                  label: payerLabel,
+                  optional: true,
+                  controller: _payerController,
+                  hint: payerHint,
+                  textCapitalization: TextCapitalization.words,
+                  onChanged: _edited,
+                ),
+              ],
+            ),
+            CruFormSection(
+              title: 'Notes',
+              description: 'Invoice, cheque or payment reference.',
+              children: [
+                CruTextField(
+                  label: 'Notes',
+                  optional: true,
+                  controller: _notesController,
+                  maxLines: 3,
+                  hint: 'Invoice number, cheque ID or voucher',
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: _edited,
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
-}
-
-/// Inset field: fill, radius 12, accent ring on focus, amber errors.
-InputDecoration _decoration(BuildContext context, {String? hint}) {
-  final c = context.cru;
-  OutlineInputBorder border([Color? color, double width = 1]) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(CruRadius.control),
-        borderSide: color == null
-            ? BorderSide.none
-            : BorderSide(color: color, width: width),
-      );
-  return InputDecoration(
-    hintText: hint,
-    hintStyle: CruType.text.tint(c.label3),
-    filled: true,
-    fillColor: c.inset,
-    isDense: true,
-    contentPadding: const EdgeInsets.symmetric(
-      horizontal: CruSpace.s14,
-      vertical: CruSpace.s12,
-    ),
-    border: border(),
-    enabledBorder: border(),
-    focusedBorder: border(c.accent, 1.5),
-    errorBorder: border(c.amber),
-    focusedErrorBorder: border(c.amber, 1.5),
-    errorStyle: CruType.caption.w500.tint(c.amberText),
-  );
-}
-
-class _FieldLabel extends StatelessWidget {
-  const _FieldLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) =>
-      Text(text, style: CruType.subhead.w500.tint(context.cru.label2));
 }
 
 /// A category preset: inset capsule, filled with the label colour when
@@ -751,11 +511,20 @@ class _CategoryChip extends StatelessWidget {
                     : c.inset,
             shape: const StadiumBorder(),
           ),
-          child: Text(
-            label,
-            maxLines: 1,
-            style: (selected ? CruType.subhead.w600 : CruType.subhead.w500)
-                .tint(selected ? c.surface : c.label2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (selected) ...[
+                CruIcon(CruIcons.check, size: 14, strokeWidth: 2.2, color: c.surface),
+                const SizedBox(width: CruSpace.s6),
+              ],
+              Text(
+                label,
+                maxLines: 1,
+                style: (selected ? CruType.subhead.w600 : CruType.subhead.w500)
+                    .tint(selected ? c.surface : c.label2),
+              ),
+            ],
           ),
         ),
       ),

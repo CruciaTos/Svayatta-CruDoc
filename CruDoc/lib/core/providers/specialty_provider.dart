@@ -155,3 +155,19 @@ Future<void> switchDoctorSpecialty(
   }
 }
 
+/// Physiotherapists hold several sessions at once (the queue lets more
+/// than one patient be in a session) and see patients at home (the
+/// Schedule's Visits view and home booking).
+final isPhysiotherapyProvider = Provider<bool>(
+  (ref) =>
+      ref.watch(activeDoctorSpecialtyProvider).value?.type ==
+      DoctorSpecialtyType.physiotherapy,
+);
+
+/// Dentists get the dental screens: tooth chart, procedures, treatment
+/// plans and sterilization.
+final isDentistProvider = Provider<bool>(
+  (ref) =>
+      ref.watch(activeDoctorSpecialtyProvider).value?.type ==
+      DoctorSpecialtyType.dentist,
+);

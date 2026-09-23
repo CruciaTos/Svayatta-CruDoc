@@ -44,10 +44,9 @@ CruIconData inventoryItemIcon(InventoryItem item) {
   return pills.any(u.startsWith) ? InventoryIcons.pill : CruIcons.box;
 }
 
-/// The neutral chart grey of the mock-ups (#C5CDD8 in Day): stock fills
-/// and usage bars. No token yet (NEEDS.md asks for `CruColors.chart`),
-/// so it is mixed from two tokens and follows the appearance.
-Color inventoryChartGrey(CruColors c) => Color.lerp(c.track, c.label3, 0.3)!;
+/// Stock fills and usage bars that aren't highlighted: the muted chart
+/// blue, so they match the highlighted (today) bar's scale.
+Color inventoryChartGrey(CruColors c) => c.barMuted;
 
 /// Sizes from the Inventory mock-ups that have no token yet (NEEDS.md).
 abstract final class InventorySize {
@@ -109,3 +108,20 @@ const TextStyle inventoryTileQuantity = TextStyle(
   letterSpacing: -0.44,
   fontFeatures: CruType.tabular,
 );
+
+/// Fill of the vertical stock pill and the level bar: green when well
+/// stocked, an Ink blue between the good and reorder levels, amber at or
+/// below the reorder level, red when critically low.
+Color stockFill(CruColors c, StockState s) => switch (s) {
+      StockState.good => c.green,
+      StockState.okay => c.isEvening ? CruBrand.ink500 : CruBrand.ink400,
+      StockState.low => c.amber,
+      StockState.critical => c.redText,
+    };
+
+/// The stock number: amber when low, red when critical, plain otherwise.
+Color stockText(CruColors c, StockState s) => switch (s) {
+      StockState.low => c.amberText,
+      StockState.critical => c.redText,
+      _ => c.label,
+    };

@@ -192,7 +192,7 @@ class _Bar extends StatelessWidget {
         ? CruSize.barStub
         : (day.amount / max * CruSize.barMaxHeight)
             .clamp(CruSize.barStub, CruSize.barMaxHeight);
-    final todayColor = c.isEvening ? c.accentText : c.accent;
+    final todayColor = c.barActive;
     return Semantics(
       label: '${DashFormat.weekday(day.date)}: ${DashFormat.rupees(day.amount)}',
       child: SizedBox(
@@ -218,7 +218,9 @@ class _Bar extends StatelessWidget {
                 width: CruSize.barWidth,
                 height: h,
                 decoration: ShapeDecoration(
-                  color: day.isToday ? todayColor : c.track,
+                  color: day.isToday
+                      ? todayColor
+                      : (closed ? c.track : c.barMuted),
                   shape: cruShape(closed ? CruRadius.barStub : CruRadius.bar),
                 ),
               ),

@@ -377,6 +377,7 @@ class VisitLocalService {
       'isActive': pendingDelete ? 0 : 1,
       'invoiceId': visit.invoiceId,
       'packageId': visit.packageId,
+      'groupId': visit.groupId,
       'treatmentType': visit.treatmentType,
       'therapistNotes': visit.therapistNotes,
       'reminderStatus': visit.reminderStatus,
@@ -428,6 +429,7 @@ class VisitLocalService {
         case 'status':
         case 'invoiceId':
         case 'packageId':
+        case 'groupId':
         case 'treatmentType':
         case 'therapistNotes':
         case 'reminderStatus':
@@ -457,6 +459,7 @@ class VisitLocalService {
       mapsLink: row['mapsLink'] as String?,
       invoiceId: row['invoiceId'] as String?,
       packageId: row['packageId'] as String?,
+      groupId: row['groupId'] as String?,
       treatmentType: row['treatmentType'] as String?,
       therapistNotes: row['therapistNotes'] as String?,
       reminderStatus: row['reminderStatus'] as String?,

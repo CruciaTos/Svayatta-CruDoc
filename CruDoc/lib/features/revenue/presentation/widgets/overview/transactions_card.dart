@@ -136,9 +136,20 @@ class TransactionsCard extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    'Today · ${DashFormat.rupees(todayIn)} in'
-                    ' · ${DashFormat.rupees(todayOut)} out',
+                  child: Text.rich(
+                    TextSpan(children: [
+                      const TextSpan(text: 'Today · '),
+                      TextSpan(
+                        text: DashFormat.rupees(todayIn),
+                        style: TextStyle(color: c.greenText),
+                      ),
+                      const TextSpan(text: ' in · '),
+                      TextSpan(
+                        text: DashFormat.rupees(todayOut),
+                        style: TextStyle(color: c.redText),
+                      ),
+                      const TextSpan(text: ' out'),
+                    ]),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: CruType.subhead.tabular.tint(c.label2),

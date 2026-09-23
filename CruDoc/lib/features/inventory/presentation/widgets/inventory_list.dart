@@ -242,7 +242,7 @@ class InventoryRow extends StatelessWidget {
               TextSpan(
                 text: InventoryFormat.count(item.stock),
                 style: CruType.callout.tabular
-                    .tint(item.low ? c.amberText : c.label),
+                    .tint(stockText(c, item.stockState)),
               ),
               if (unit.isNotEmpty)
                 TextSpan(
@@ -256,7 +256,7 @@ class InventoryRow extends StatelessWidget {
         ),
         if (level != null) ...[
           const SizedBox(height: CruSpace.s6),
-          InventoryLevelBar(value: level, low: item.low),
+          InventoryLevelBar(value: level, state: item.stockState),
         ],
       ],
     );

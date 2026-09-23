@@ -174,6 +174,13 @@ abstract final class CruSize {
   /// On-token dialogs (Record payment, Delete patient).
   static const double dialog = 420;
 
+  /// Desktop form dialogs (Add patient, …): section label column, the
+  /// minimum width of a tag input and a tag's remove button.
+  static const double formDialog = 760;
+  static const double formSectionLabel = 184;
+  static const double formTagInput = 140;
+  static const double formTagClose = 20;
+
   /// Patients table separators: row padding 16 + monogram 36 + gap 12.
   static const double patientTextInset = 64;
 

@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Modal dialog for checking a patient into today's walk-in queue.
 /// Supports both registered patients (via autocomplete search) and quick walk-in guests.
@@ -95,8 +96,15 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
     }
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final patientsAsync = ref.watch(patientsStreamProvider);
     final allPatients = patientsAsync.value ?? const <Patient>[];
 

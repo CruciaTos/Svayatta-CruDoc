@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart' show debugPrint, kIsWeb;
 import 'package:http/http.dart' as http;
 
-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
-    show kGoogleMapsApiKey;
+import 'package:doctor_management_app/core/services/maps_key.dart';
 
 import 'places_service_stub.dart'
     if (dart.library.js) 'places_service_web.dart' as web_impl;
@@ -24,11 +23,16 @@ class PlacePrediction {
   /// Structured secondary text (usually city/region/country).
   final String secondaryText;
 
+  /// Straight-line distance from the search's origin (the clinic), when
+  /// one was given.
+  final int? distanceMeters;
+
   const PlacePrediction({
     required this.description,
     required this.placeId,
     required this.mainText,
     required this.secondaryText,
+    this.distanceMeters,
   });
 
   factory PlacePrediction.fromJson(Map<String, dynamic> json) {
@@ -58,8 +62,8 @@ class PlaceDetails {
 }
 
 /// Thin wrapper around the Google Places Autocomplete and Place Details
-/// REST APIs. Uses the same [kGoogleMapsApiKey] that the rest of this app
-/// uses for Geocoding and Static Maps, keeping credentials in one place.
+/// REST APIs. Uses the same [MapsKey] that the rest of this app uses for
+/// Geocoding and Static Maps, keeping credentials in one place.
 ///
 /// Fully updated to use the Google Places API (New) endpoints to support
 /// newly created Google Cloud Console projects where the legacy Places API
@@ -68,117 +72,151 @@ class GooglePlacesService {
   GooglePlacesService._();
   static final instance = GooglePlacesService._();
 
-  /// Returns autocomplete predictions for [input].
+  /// Whether a Google Maps key is known yet ([MapsKey]). Without one there
+  /// are no suggestions: the address is typed in full.
+  bool get isConfigured => MapsKey.isSet;
+
+  /// How far around the origin to prefer results: a city practice.
+  static const double _biasRadiusMeters = 30000;
+
+  /// Real Google Places suggestions for [input], limited to
+  /// [countryCode]. With [near] (the clinic), nearby places are preferred
+  /// and the list is ordered closest first, each with its distance.
   ///
-  /// Biased to India (`components=country:in`) to surface relevant
-  /// addresses for this medical-practice app. Override with
-  /// [countryCode] if needed.
-  /// Returns autocomplete predictions for [input].
-  ///
-  /// Biased to India (`components=country:in`) to surface relevant
-  /// addresses for this medical-practice app. Override with
-  /// [countryCode] if needed.
+  /// Returns an empty list with no key, no match or no network. Never
+  /// invents suggestions.
   Future<List<PlacePrediction>> autocomplete(
     String input, {
     String countryCode = 'in',
+    ({double latitude, double longitude})? near,
   }) async {
     final trimmed = input.trim();
-    if (trimmed.isEmpty) {
+    if (trimmed.isEmpty) return const [];
+    final apiKey = await MapsKey.load();
+    if (apiKey.isEmpty) return const [];
+
+    if (kIsWeb) return web_impl.getWebAutocomplete(trimmed);
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://places.googleapis.com/v1/places:autocomplete'),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+        },
+        body: jsonEncode({
+          'input': trimmed,
+          'includedRegionCodes': [countryCode.toUpperCase()],
+          if (near != null) ...{
+            'locationBias': {
+              'circle': {
+                'center': {
+                  'latitude': near.latitude,
+                  'longitude': near.longitude,
+                },
+                'radius': _biasRadiusMeters,
+              },
+            },
+            // Makes Google return each place's distance from the clinic.
+            'origin': {
+              'latitude': near.latitude,
+              'longitude': near.longitude,
+            },
+          },
+        }),
+      );
+      if (response.statusCode != 200) {
+        debugPrint(
+          'Places autocomplete ${response.statusCode}: ${response.body}',
+        );
+        return const [];
+      }
+
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final suggestions = body['suggestions'] as List<dynamic>? ?? const [];
+      final list = <PlacePrediction>[];
+      for (final suggestion in suggestions) {
+        final prediction =
+            (suggestion as Map<String, dynamic>)['placePrediction']
+                as Map<String, dynamic>?;
+        if (prediction == null) continue;
+        final structured =
+            prediction['structuredFormat'] as Map<String, dynamic>?;
+        list.add(PlacePrediction(
+          description:
+              (prediction['text'] as Map<String, dynamic>?)?['text']
+                      as String? ??
+                  '',
+          placeId: prediction['placeId'] as String? ?? '',
+          mainText: (structured?['mainText'] as Map<String, dynamic>?)?['text']
+                  as String? ??
+              '',
+          secondaryText:
+              (structured?['secondaryText'] as Map<String, dynamic>?)?['text']
+                      as String? ??
+                  '',
+          distanceMeters: (prediction['distanceMeters'] as num?)?.toInt(),
+        ));
+      }
+
+      // Closest first; Google's order breaks ties (and places without a
+      // distance keep their relevance order, after those with one).
+      if (near != null) {
+        final ranked = [for (var i = 0; i < list.length; i++) (i, list[i])]
+          ..sort((a, b) {
+            final da = a.$2.distanceMeters;
+            final db = b.$2.distanceMeters;
+            if (da != null && db != null && da != db) return da.compareTo(db);
+            if (da == null && db != null) return 1;
+            if (da != null && db == null) return -1;
+            return a.$1.compareTo(b.$1);
+          });
+        return [for (final r in ranked) r.$2];
+      }
+      return list;
+    } catch (e) {
+      debugPrint('Places autocomplete failed: $e');
       return const [];
     }
+  }
 
-    if (kGoogleMapsApiKey != 'YOUR_GOOGLE_MAPS_API_KEY') {
-      if (kIsWeb) {
-        final webResults = await web_impl.getWebAutocomplete(trimmed);
-        if (webResults.isNotEmpty) return webResults;
-      } else {
-        try {
-          final uri =
-              Uri.parse('https://places.googleapis.com/v1/places:autocomplete');
-          final response = await http.post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': kGoogleMapsApiKey,
-            },
-            body: jsonEncode({
-              'input': trimmed,
-              'includedRegionCodes': [countryCode.toUpperCase()],
-            }),
-          );
+  final Map<String, ({double latitude, double longitude})?> _geocoded = {};
 
-          if (response.statusCode == 200) {
-            final body = jsonDecode(response.body) as Map<String, dynamic>;
-            final suggestions = body['suggestions'] as List<dynamic>?;
-            if (suggestions != null && suggestions.isNotEmpty) {
-              final list = <PlacePrediction>[];
-              for (final suggestion in suggestions) {
-                final prediction =
-                    suggestion['placePrediction'] as Map<String, dynamic>?;
-                if (prediction == null) continue;
-
-                final placeId = prediction['placeId'] as String? ?? '';
-                final textObj = prediction['text'] as Map<String, dynamic>?;
-                final description = textObj?['text'] as String? ?? '';
-
-                final structured =
-                    prediction['structuredFormat'] as Map<String, dynamic>?;
-                final mainTextObj =
-                    structured?['mainText'] as Map<String, dynamic>?;
-                final mainText = mainTextObj?['text'] as String? ?? '';
-
-                final secondaryTextObj =
-                    structured?['secondaryText'] as Map<String, dynamic>?;
-                final secondaryText =
-                    secondaryTextObj?['text'] as String? ?? '';
-
-                list.add(PlacePrediction(
-                  description: description,
-                  placeId: placeId,
-                  mainText: mainText,
-                  secondaryText: secondaryText,
-                ));
-              }
-              if (list.isNotEmpty) return list;
-            }
+  /// Coordinates for a typed [address] (Geocoding API), remembered for the
+  /// session. Null with no key, no match or no network.
+  Future<({double latitude, double longitude})?> geocode(String address) async {
+    final key = address.trim().toLowerCase();
+    if (key.isEmpty) return null;
+    if (_geocoded.containsKey(key)) return _geocoded[key];
+    final apiKey = await MapsKey.load();
+    if (apiKey.isEmpty) return null;
+    ({double latitude, double longitude})? result;
+    try {
+      final response = await http.get(
+        Uri.https('maps.googleapis.com', '/maps/api/geocode/json', {
+          'address': address.trim(),
+          'region': 'in',
+          'key': apiKey,
+        }),
+      );
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body) as Map<String, dynamic>;
+        final results = body['results'] as List<dynamic>? ?? const [];
+        if (results.isNotEmpty) {
+          final location = ((results.first as Map<String, dynamic>)['geometry']
+              as Map<String, dynamic>?)?['location'] as Map<String, dynamic>?;
+          final lat = (location?['lat'] as num?)?.toDouble();
+          final lng = (location?['lng'] as num?)?.toDouble();
+          if (lat != null && lng != null) {
+            result = (latitude: lat, longitude: lng);
           }
-        } catch (_) {}
+        }
       }
+    } catch (e) {
+      debugPrint('Geocoding failed: $e');
     }
-
-    // Smart fallback suggestions so address autocomplete dropdown always pops up smoothly
-    return [
-      PlacePrediction(
-        description: '$trimmed, Mumbai, Maharashtra, India',
-        placeId: 'loc_mumbai::$trimmed',
-        mainText: trimmed,
-        secondaryText: 'Mumbai, Maharashtra, India',
-      ),
-      PlacePrediction(
-        description: '$trimmed, Thane, Maharashtra, India',
-        placeId: 'loc_thane::$trimmed',
-        mainText: trimmed,
-        secondaryText: 'Thane, Maharashtra, India',
-      ),
-      PlacePrediction(
-        description: '$trimmed, Pune, Maharashtra, India',
-        placeId: 'loc_pune::$trimmed',
-        mainText: trimmed,
-        secondaryText: 'Pune, Maharashtra, India',
-      ),
-      PlacePrediction(
-        description: '$trimmed, Delhi NCR, India',
-        placeId: 'loc_delhi::$trimmed',
-        mainText: trimmed,
-        secondaryText: 'Delhi NCR, India',
-      ),
-      PlacePrediction(
-        description: '$trimmed, Bengaluru, Karnataka, India',
-        placeId: 'loc_bengaluru::$trimmed',
-        mainText: trimmed,
-        secondaryText: 'Bengaluru, Karnataka, India',
-      ),
-    ];
+    _geocoded[key] = result;
+    return result;
   }
 
   /// Fetches coordinates for [placeId] via the Place Details API.
@@ -189,43 +227,8 @@ class GooglePlacesService {
       return null;
     }
 
-    if (placeId.startsWith('loc_')) {
-      final parts = placeId.split('::');
-      final locType = parts[0];
-      final rawInput = parts.length > 1 ? parts[1] : 'Home Address';
-
-      double lat = 19.0760;
-      double lng = 72.8777;
-      String formatted = '$rawInput, Mumbai, Maharashtra, India';
-
-      if (locType == 'loc_thane') {
-        lat = 19.2183;
-        lng = 72.9781;
-        formatted = '$rawInput, Thane, Maharashtra, India';
-      } else if (locType == 'loc_pune') {
-        lat = 18.5204;
-        lng = 73.8567;
-        formatted = '$rawInput, Pune, Maharashtra, India';
-      } else if (locType == 'loc_delhi') {
-        lat = 28.6139;
-        lng = 77.2090;
-        formatted = '$rawInput, Delhi NCR, India';
-      } else if (locType == 'loc_bengaluru') {
-        lat = 12.9716;
-        lng = 77.5946;
-        formatted = '$rawInput, Bengaluru, Karnataka, India';
-      }
-
-      return PlaceDetails(
-        latitude: lat,
-        longitude: lng,
-        formattedAddress: formatted,
-      );
-    }
-
-    if (kGoogleMapsApiKey == 'YOUR_GOOGLE_MAPS_API_KEY') {
-      return null;
-    }
+    final apiKey = await MapsKey.load();
+    if (apiKey.isEmpty) return null;
 
     if (kIsWeb) {
       return web_impl.getWebPlaceDetails(placeId);
@@ -237,7 +240,7 @@ class GooglePlacesService {
       final response = await http.get(
         uri,
         headers: {
-          'X-Goog-Api-Key': kGoogleMapsApiKey,
+          'X-Goog-Api-Key': apiKey,
           'X-Goog-FieldMask': 'id,formattedAddress,location',
         },
       );

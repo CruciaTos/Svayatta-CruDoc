@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
+import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_icons.dart';
 import 'package:doctor_management_app/features/revenue/repo/invoice_repo.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Opens the desktop-specific Create Invoice modal popup dialog.
+/// Opens the desktop Create invoice form.
 Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
   BuildContext context, {
   InvoiceRepository? repository,
@@ -21,23 +25,19 @@ Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
     DateTime? dueDate,
     String? patientId,
   )? onSave,
+  Patient? initialPatient,
+  String? initialTreatmentName,
+  String? initialNotes,
 }) {
   return showDialog<InvoiceModel>(
     context: context,
     barrierDismissible: true,
-    builder: (ctx) => Dialog(
-      backgroundColor: Colors.transparent,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 900,
-          maxHeight: 780,
-        ),
-        child: DesktopCreateInvoiceDialog(
-          repository: repository,
-          onSave: onSave,
-        ),
-      ),
+    builder: (_) => DesktopCreateInvoiceDialog(
+      repository: repository,
+      onSave: onSave,
+      initialPatient: initialPatient,
+      initialTreatmentName: initialTreatmentName,
+      initialNotes: initialNotes,
     ),
   );
 }
@@ -47,7 +47,16 @@ class DesktopCreateInvoiceDialog extends StatefulWidget {
     super.key,
     this.repository,
     this.onSave,
+    this.initialPatient,
+    this.initialTreatmentName,
+    this.initialNotes,
   });
+
+  /// Prefill (e.g. "Bill together" for patients seen together): the payer,
+  /// a treatment line waiting for its price, and a note.
+  final Patient? initialPatient;
+  final String? initialTreatmentName;
+  final String? initialNotes;
 
   final InvoiceRepository? repository;
   final Future<void> Function(
@@ -78,47 +87,71 @@ class _MedicineItem {
   _MedicineItem({required this.name, required this.dosage, required this.price});
 }
 
+final _moneyFormatter = [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))];
+
+/// "₹1,200" for whole rupees, "₹1,200.50" when there are paise.
+String _rupees(double v) => v == v.roundToDouble()
+    ? DashFormat.rupees(v)
+    : NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 2)
+        .format(v);
+
 class _DesktopCreateInvoiceDialogState
     extends State<DesktopCreateInvoiceDialog> {
+  static const _statuses = ['Paid', 'Pending', 'Overdue'];
+
   final _formKey = GlobalKey<FormState>();
   late final InvoiceRepository _invoiceRepository =
       widget.repository ?? InvoiceRepository();
-  final PatientRepository _patientRepository = PatientRepository();
+  late final PatientRepository _patientRepository = PatientRepository();
+  Future<List<Patient>>? _patients;
 
-  // Patient & Notes
   final _patientNameController = TextEditingController();
   final _clinicalNotesController = TextEditingController();
 
-  // New Treatment Inputs
   final _treatmentNameController = TextEditingController();
   final _treatmentPriceController = TextEditingController();
+  final _treatmentNameFocus = FocusNode();
 
-  // New Medicine Inputs
   final _medicineNameController = TextEditingController();
   final _dosageController = TextEditingController();
   final _medicinePriceController = TextEditingController();
+  final _medicineNameFocus = FocusNode();
 
-  // Discount
-  final _discountController = TextEditingController(text: '0');
+  final _discountController = TextEditingController();
 
-  // Dates & Status
   DateTime _invoiceDate = DateTime.now();
   DateTime? _dueDate;
-  String _selectedStatus = 'Paid'; // 'Paid', 'Pending', 'Overdue'
+  String _selectedStatus = 'Paid';
 
-  // Patient Autocomplete
   Patient? _selectedPatient;
   String _patientSearchQuery = '';
   bool _showPatientSuggestions = false;
 
-  // Lists & State
   final List<_TreatmentItem> _treatments = [];
   final List<_MedicineItem> _medicines = [];
   bool _isSubmitting = false;
   bool _isOcrLoading = false;
-  String? _errorText;
+  bool _dirty = false;
+  bool _submitted = false;
+  String? _notice;
+  String? _treatmentError;
+  String? _medicineError;
 
   static final _imagePicker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.initialPatient;
+    if (p != null) {
+      _selectedPatient = p;
+      _patientNameController.text = p.fullName;
+    }
+    final t = widget.initialTreatmentName;
+    if (t != null) _treatmentNameController.text = t;
+    final n = widget.initialNotes;
+    if (n != null) _clinicalNotesController.text = n;
+  }
 
   @override
   void dispose() {
@@ -126,9 +159,11 @@ class _DesktopCreateInvoiceDialogState
     _clinicalNotesController.dispose();
     _treatmentNameController.dispose();
     _treatmentPriceController.dispose();
+    _treatmentNameFocus.dispose();
     _medicineNameController.dispose();
     _dosageController.dispose();
     _medicinePriceController.dispose();
+    _medicineNameFocus.dispose();
     _discountController.dispose();
     super.dispose();
   }
@@ -146,6 +181,65 @@ class _DesktopCreateInvoiceDialogState
       ((_treatmentSubtotal + _medicineSubtotal) - _discount)
           .clamp(0.0, double.infinity);
 
+  bool get _noItems => _treatments.isEmpty && _medicines.isEmpty;
+
+  void _edited([Object? _]) {
+    setState(() {
+      _dirty = true;
+      _notice = null;
+    });
+  }
+
+  void _onPatientChanged(String val) {
+    setState(() {
+      _dirty = true;
+      _notice = null;
+      _patientSearchQuery = val.trim().toLowerCase();
+      _showPatientSuggestions = _patientSearchQuery.isNotEmpty;
+    });
+  }
+
+  void _pickPatient(Patient p) {
+    setState(() {
+      _dirty = true;
+      _selectedPatient = p;
+      _patientNameController.text = p.fullName;
+      _showPatientSuggestions = false;
+    });
+  }
+
+  Future<void> _pickInvoiceDate() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _invoiceDate,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Invoice date',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _dirty = true;
+      _invoiceDate = picked;
+    });
+  }
+
+  Future<void> _pickDueDate() async {
+    final fallback = _invoiceDate.add(const Duration(days: 7));
+    final due = _dueDate;
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: due == null || due.isBefore(_invoiceDate) ? fallback : due,
+      firstDate: _invoiceDate,
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      helpText: 'Due date',
+    );
+    if (picked == null || !mounted) return;
+    setState(() {
+      _dirty = true;
+      _dueDate = picked;
+    });
+  }
+
   Future<void> _scanMedicalBill() async {
     try {
       final image = await _imagePicker.pickImage(
@@ -154,13 +248,17 @@ class _DesktopCreateInvoiceDialogState
       );
       if (image == null || !mounted) return;
 
-      setState(() => _isOcrLoading = true);
+      setState(() {
+        _isOcrLoading = true;
+        _notice = null;
+      });
 
       final result = await PaddleOcrService.instance.scanInvoice(image);
       if (!mounted) return;
 
       setState(() {
         _isOcrLoading = false;
+        _dirty = true;
 
         if (result.patientName != null && result.patientName!.isNotEmpty) {
           _patientNameController.text = result.patientName!;
@@ -189,39 +287,56 @@ class _DesktopCreateInvoiceDialogState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'OCR parsed ${result.treatments.length} treatments and ${result.medicines.length} medicines successfully!',
+            'Added ${DashFormat.plural(result.treatments.length, 'treatment')} '
+            'and ${DashFormat.plural(result.medicines.length, 'medicine')} '
+            'from the bill.',
           ),
-          backgroundColor: const Color(0xFF059669),
         ),
       );
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
-      setState(() => _isOcrLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('OCR Failed: $e'), backgroundColor: Colors.red),
-      );
+      setState(() {
+        _isOcrLoading = false;
+        _notice = "Couldn't read that bill. Try a clearer photo, "
+            'or add the items by hand.';
+      });
     }
   }
 
   void _addTreatment() {
     final name = _treatmentNameController.text.trim();
     final price = double.tryParse(_treatmentPriceController.text.trim()) ?? 0.0;
-    if (name.isEmpty || price <= 0) return;
+    if (name.isEmpty || price <= 0) {
+      setState(() => _treatmentError = name.isEmpty
+          ? 'Add the treatment name.'
+          : 'Add a fee above ₹0.');
+      return;
+    }
 
     setState(() {
+      _dirty = true;
+      _treatmentError = null;
       _treatments.add(_TreatmentItem(name: name, price: price));
       _treatmentNameController.clear();
       _treatmentPriceController.clear();
     });
+    _treatmentNameFocus.requestFocus();
   }
 
   void _addMedicine() {
     final name = _medicineNameController.text.trim();
     final dosage = _dosageController.text.trim();
     final price = double.tryParse(_medicinePriceController.text.trim()) ?? 0.0;
-    if (name.isEmpty || price <= 0) return;
+    if (name.isEmpty || price <= 0) {
+      setState(() => _medicineError = name.isEmpty
+          ? 'Add the medicine name.'
+          : 'Add a price above ₹0.');
+      return;
+    }
 
     setState(() {
+      _dirty = true;
+      _medicineError = null;
       _medicines.add(_MedicineItem(
         name: name,
         dosage: dosage.isEmpty ? '1 unit' : dosage,
@@ -231,25 +346,22 @@ class _DesktopCreateInvoiceDialogState
       _dosageController.clear();
       _medicinePriceController.clear();
     });
+    _medicineNameFocus.requestFocus();
   }
 
   Future<void> _handleSave() async {
+    if (_isSubmitting) return;
+    setState(() => _submitted = true);
     if (!_formKey.currentState!.validate()) return;
 
     final patientName = _patientNameController.text.trim();
-    if (patientName.isEmpty) {
-      setState(() => _errorText = 'Please enter or select a patient name');
-      return;
-    }
+    if (patientName.isEmpty) return;
 
-    if (_totalPayable <= 0 && _treatments.isEmpty && _medicines.isEmpty) {
-      setState(() => _errorText = 'Please add at least one treatment or medicine item');
-      return;
-    }
+    if (_totalPayable <= 0 && _treatments.isEmpty && _medicines.isEmpty) return;
 
     setState(() {
       _isSubmitting = true;
-      _errorText = null;
+      _notice = null;
     });
 
     try {
@@ -290,432 +402,171 @@ class _DesktopCreateInvoiceDialogState
 
       if (!mounted) return;
       Navigator.of(context).pop();
-    } catch (e) {
+    } catch (_) {
       if (!mounted) return;
       setState(() {
         _isSubmitting = false;
-        _errorText = 'Failed to generate invoice: $e';
+        _notice = "Couldn't create the invoice. "
+            'Check your connection and try again.';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 32,
-            offset: Offset(0, 16),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+    final name = _patientNameController.text.trim();
+    return CruFormDialog(
+      title: 'New invoice',
+      subtitle: 'Bill a patient for treatments and medicines',
+      leading: name.isEmpty
+          ? const CruIconTile(
+              icon: RevenueIcons.receipt,
+              tone: CruTileTone.neutral,
+            )
+          : CruMonogram(name: name, size: CruSize.iconTile),
+      submitLabel: 'Create invoice',
+      onSubmit: _handleSave,
+      busy: _isSubmitting,
+      dirty: _dirty,
+      notice: _notice,
+      footerHint: 'Ctrl + Enter to create',
+      body: Form(
+        key: _formKey,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            Expanded(
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left Column: Patient, Dates, Status, Notes
-                      Expanded(
-                        flex: 10,
-                        child: _buildLeftColumn(),
-                      ),
-                      const SizedBox(width: 24),
-                      // Vertical separator
-                      Container(
-                        width: 1,
-                        height: 560,
-                        color: const Color(0xFFF1F5F9),
-                      ),
-                      const SizedBox(width: 24),
-                      // Right Column: Treatments, Prescriptions, Summary
-                      Expanded(
-                        flex: 11,
-                        child: _buildRightColumn(),
-                      ),
-                    ],
+            CruFormSection(
+              first: true,
+              title: 'Patient',
+              description: 'Who this bill is for.',
+              children: [_buildPatientField()],
+            ),
+            CruFormSection(
+              title: 'Billing',
+              description: 'When it was issued and whether it has been paid.',
+              children: [
+                CruFieldRow(
+                  children: [
+                    CruPickerField(
+                      label: 'Invoice date',
+                      icon: CruIcons.calendar,
+                      value: DateFormat('d MMM yyyy').format(_invoiceDate),
+                      placeholder: 'Pick a date',
+                      onTap: _pickInvoiceDate,
+                    ),
+                    CruPickerField(
+                      label: 'Due date',
+                      optional: true,
+                      icon: CruIcons.clock,
+                      value: _dueDate == null
+                          ? null
+                          : DateFormat('d MMM yyyy').format(_dueDate!),
+                      placeholder: 'Same day',
+                      onTap: _pickDueDate,
+                    ),
+                  ],
+                ),
+                CruFieldFrame(
+                  label: 'Status',
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: CruSegmentedControl<String>(
+                      semanticLabel: 'Payment status',
+                      segments: [for (final s in _statuses) CruSegment(s, s)],
+                      selected: _selectedStatus,
+                      onChanged: (v) {
+                        _selectedStatus = v;
+                        _edited();
+                      },
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
-            if (_errorText != null) _buildErrorBanner(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            _buildFooter(),
+            _WideSection(
+              title: 'Items',
+              description: 'Treatments and medicines on this bill.',
+              action: IntrinsicWidth(
+                child: CruCapsuleButton(
+                  label: _isOcrLoading ? 'Reading bill…' : 'Scan a bill',
+                  onPressed: _isOcrLoading ? null : _scanMedicalBill,
+                ),
+              ),
+              error: _submitted && _noItems
+                  ? 'Add at least one treatment or medicine.'
+                  : null,
+              children: [
+                _buildTreatments(),
+                _buildMedicines(),
+                _buildTotals(),
+              ],
+            ),
+            CruFormSection(
+              title: 'Notes',
+              description: 'Saved with the invoice.',
+              children: [
+                CruTextField(
+                  label: 'Clinical notes',
+                  optional: true,
+                  controller: _clinicalNotesController,
+                  maxLines: 4,
+                  hint: 'Diagnosis, procedure notes, follow-up advice…',
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: _edited,
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: const Color(0xFFF8FAFC),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF2563EB),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.receipt_long_rounded,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'New Patient Invoice',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Generate itemized medical invoice with treatments, medicines, and billing breakdown',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: _isOcrLoading ? null : _scanMedicalBill,
-            icon: _isOcrLoading
-                ? const SizedBox(
-                    width: 14,
-                    height: 14,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.document_scanner_rounded, size: 16),
-            label: Text(_isOcrLoading ? 'Scanning Bill...' : 'Scan Bill (OCR)'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF2563EB),
-              side: const BorderSide(color: Color(0xFF93C5FD)),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLeftColumn() {
+  Widget _buildPatientField() {
+    final linked = _selectedPatient;
+    final phone = linked?.phone.trim() ?? '';
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Text(
-          'PATIENT INFORMATION *',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 10),
-        // Patient Search / Name Autocomplete
-        TextFormField(
+        CruTextField(
+          label: 'Patient name',
           controller: _patientNameController,
-          onChanged: (val) {
-            setState(() {
-              _patientSearchQuery = val.trim().toLowerCase();
-              _showPatientSuggestions = _patientSearchQuery.isNotEmpty;
-            });
-          },
-          style: const TextStyle(fontSize: 14, color: Color(0xFF1E293B)),
-          decoration: InputDecoration(
-            hintText: 'Search or enter patient name...',
-            prefixIcon: const Icon(Icons.person_outline_rounded, size: 18, color: Color(0xFF64748B)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
-          ),
-          validator: (val) =>
-              (val == null || val.trim().isEmpty) ? 'Please enter a patient name' : null,
-        ),
-        if (_showPatientSuggestions) _buildPatientSuggestionsList(),
-        if (_selectedPatient != null) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFBFDBFE)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.verified_user_rounded, size: 14, color: Color(0xFF2563EB)),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Linked: ${_selectedPatient!.fullName} (${_selectedPatient!.phone})',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E40AF)),
-                  ),
+          icon: CruIcons.search,
+          hint: 'Search your patients or type a name',
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          help: linked == null
+              ? 'Pick someone from your list to link the bill to their record.'
+              : phone.isEmpty
+                  ? 'Linked to ${linked.fullName}'
+                  : 'Linked to ${linked.fullName} · $phone',
+          trailing: linked == null
+              ? null
+              : CruLink(
+                  label: 'Unlink',
+                  style: CruType.caption.w600,
+                  onPressed: () {
+                    _selectedPatient = null;
+                    _edited();
+                  },
                 ),
-                InkWell(
-                  onTap: () => setState(() => _selectedPatient = null),
-                  child: const Icon(Icons.close_rounded, size: 14, color: Color(0xFF1E40AF)),
-                ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 20),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'INVOICE DATE',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _invoiceDate,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) setState(() => _invoiceDate = picked);
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF2563EB)),
-                          const SizedBox(width: 8),
-                          Text(
-                            DateFormat('dd MMM yyyy').format(_invoiceDate),
-                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1E293B)),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'DUE DATE (OPTIONAL)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 0.8,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  InkWell(
-                    onTap: () async {
-                      final picked = await showDatePicker(
-                        context: context,
-                        initialDate: _dueDate ?? _invoiceDate.add(const Duration(days: 7)),
-                        firstDate: _invoiceDate,
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                      );
-                      if (picked != null) setState(() => _dueDate = picked);
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.event_available_rounded, size: 16, color: Color(0xFF64748B)),
-                          const SizedBox(width: 8),
-                          Text(
-                            _dueDate != null
-                                ? DateFormat('dd MMM yyyy').format(_dueDate!)
-                                : 'Same Day',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: _dueDate != null ? const Color(0xFF1E293B) : const Color(0xFF94A3B8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+          validator: (val) => (val == null || val.trim().isEmpty)
+              ? "Add the patient's name."
+              : null,
+          onChanged: _onPatientChanged,
         ),
-        const SizedBox(height: 20),
-        const Text(
-          'PAYMENT STATUS',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: ['Paid', 'Pending', 'Overdue'].map((status) {
-            final isSelected = _selectedStatus == status;
-            Color statusColor;
-            Color statusBg;
-            switch (status) {
-              case 'Paid':
-                statusColor = const Color(0xFF059669);
-                statusBg = const Color(0xFFECFDF5);
-                break;
-              case 'Pending':
-                statusColor = const Color(0xFFD97706);
-                statusBg = const Color(0xFFFFFBEB);
-                break;
-              default:
-                statusColor = const Color(0xFFDC2626);
-                statusBg = const Color(0xFFFEF2F2);
-            }
-
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: InkWell(
-                  onTap: () => setState(() => _selectedStatus = status),
-                  borderRadius: BorderRadius.circular(8),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected ? statusBg : Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: isSelected ? statusColor : const Color(0xFFE2E8F0),
-                        width: isSelected ? 1.5 : 1.0,
-                      ),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      status,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: isSelected ? statusColor : const Color(0xFF64748B),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        const SizedBox(height: 20),
-        const Text(
-          'CLINICAL NOTES & DIAGNOSIS',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF64748B),
-            letterSpacing: 0.8,
-          ),
-        ),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: _clinicalNotesController,
-          maxLines: 4,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF1E293B)),
-          decoration: InputDecoration(
-            hintText: 'Add clinical impressions, procedure notes, follow-up advice, or prescriptions details...',
-            hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.all(14),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-            ),
-          ),
-        ),
+        if (_showPatientSuggestions) _buildPatientSuggestions(),
       ],
     );
   }
 
-  Widget _buildPatientSuggestionsList() {
+  Widget _buildPatientSuggestions() {
+    _patients ??= _patientRepository.watchPatients().first;
     return FutureBuilder<List<Patient>>(
-      future: _patientRepository.watchPatients().first,
+      future: _patients,
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
         final matches = snapshot.data!
@@ -724,469 +575,573 @@ class _DesktopCreateInvoiceDialogState
                 p.phone.contains(_patientSearchQuery))
             .take(4)
             .toList();
-
         if (matches.isEmpty) return const SizedBox.shrink();
 
+        final c = context.cru;
         return Container(
-          margin: const EdgeInsets.only(top: 4),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: const Color(0xFFCBD5E1)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x14000000),
-                blurRadius: 12,
-                offset: Offset(0, 4),
-              ),
-            ],
+          margin: const EdgeInsets.only(top: CruSpace.s8),
+          padding: const EdgeInsets.all(CruSpace.s4),
+          decoration: ShapeDecoration(
+            color: c.surface,
+            shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+            shadows: c.cardShadow,
           ),
           child: Column(
-            children: matches.map((p) {
-              return InkWell(
-                onTap: () {
-                  setState(() {
-                    _selectedPatient = p;
-                    _patientNameController.text = p.fullName;
-                    _showPatientSuggestions = false;
-                  });
-                },
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person_rounded, size: 16, color: Color(0xFF2563EB)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          p.fullName,
-                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      Text(
-                        p.phone,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }).toList(),
+            children: [
+              for (final p in matches) _PatientOption(patient: p, onTap: () => _pickPatient(p)),
+            ],
           ),
         );
       },
     );
   }
 
-  Widget _buildRightColumn() {
-    return Column(
+  Widget _buildTreatments() {
+    return _LineGroup(
+      title: 'Treatments',
+      count: _treatments.length,
+      rows: [
+        for (var i = 0; i < _treatments.length; i++)
+          _LineRow(
+            flex: const [7, 2],
+            cells: [_treatments[i].name],
+            amount: _treatments[i].price,
+            onRemove: () {
+              _treatments.removeAt(i);
+              _edited();
+            },
+          ),
+      ],
+      addRow: _AddRow(
+        flex: const [7, 2],
+        inputs: [
+          _LineInput(
+            controller: _treatmentNameController,
+            focusNode: _treatmentNameFocus,
+            hint: 'Treatment or procedure',
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: _onTreatmentTyped,
+          ),
+          _LineInput(
+            controller: _treatmentPriceController,
+            hint: 'Fee',
+            prefix: '₹',
+            tabular: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: _moneyFormatter,
+            textInputAction: TextInputAction.done,
+            onChanged: _onTreatmentTyped,
+            onSubmitted: (_) => _addTreatment(),
+          ),
+        ],
+        addLabel: 'Add treatment',
+        onAdd: _addTreatment,
+      ),
+      error: _treatmentError,
+    );
+  }
+
+  Widget _buildMedicines() {
+    return _LineGroup(
+      title: 'Medicines',
+      count: _medicines.length,
+      rows: [
+        for (var i = 0; i < _medicines.length; i++)
+          _LineRow(
+            flex: const [5, 2, 2],
+            cells: [_medicines[i].name, _medicines[i].dosage],
+            amount: _medicines[i].price,
+            onRemove: () {
+              _medicines.removeAt(i);
+              _edited();
+            },
+          ),
+      ],
+      addRow: _AddRow(
+        flex: const [5, 2, 2],
+        inputs: [
+          _LineInput(
+            controller: _medicineNameController,
+            focusNode: _medicineNameFocus,
+            hint: 'Medicine',
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: _onMedicineTyped,
+          ),
+          _LineInput(
+            controller: _dosageController,
+            hint: '1-0-1',
+            onChanged: _onMedicineTyped,
+          ),
+          _LineInput(
+            controller: _medicinePriceController,
+            hint: 'Price',
+            prefix: '₹',
+            tabular: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: _moneyFormatter,
+            textInputAction: TextInputAction.done,
+            onChanged: _onMedicineTyped,
+            onSubmitted: (_) => _addMedicine(),
+          ),
+        ],
+        addLabel: 'Add medicine',
+        onAdd: _addMedicine,
+      ),
+      error: _medicineError,
+    );
+  }
+
+  void _onTreatmentTyped(String _) => setState(() {
+        _dirty = true;
+        _treatmentError = null;
+      });
+
+  void _onMedicineTyped(String _) => setState(() {
+        _dirty = true;
+        _medicineError = null;
+      });
+
+  Widget _buildTotals() {
+    final c = context.cru;
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Treatments Section
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'TREATMENTS & PROCEDURES',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF64748B),
-                letterSpacing: 0.8,
-              ),
-            ),
-            Text(
-              '${_treatments.length} items',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              flex: 12,
-              child: SizedBox(
-                height: 38,
-                child: TextField(
-                  controller: _treatmentNameController,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Treatment name (e.g. Scaling)',
-                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
+        const Spacer(),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (_treatments.isNotEmpty)
+                _TotalLine(label: 'Treatments', value: _rupees(_treatmentSubtotal)),
+              if (_medicines.isNotEmpty)
+                _TotalLine(label: 'Medicines', value: _rupees(_medicineSubtotal)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
+                child: Row(
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Text('Discount', style: CruType.text.tint(c.label2)),
+                    ),
+                    Expanded(
+                      flex: 2,
+                      child: _LineInput(
+                        controller: _discountController,
+                        hint: '0',
+                        prefix: '−₹',
+                        tabular: true,
+                        textAlign: TextAlign.right,
+                        keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: _moneyFormatter,
+                        onChanged: _edited,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              flex: 7,
-              child: SizedBox(
-                height: 38,
-                child: TextField(
-                  controller: _treatmentPriceController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Fee (₹)',
-                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              const SizedBox(height: CruSpace.s6),
+              const CruSeparator(),
+              const SizedBox(height: CruSpace.s12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Total', style: CruType.callout.tint(c.label)),
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-            FilledButton(
-              onPressed: _addTreatment,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                minimumSize: const Size(0, 38),
-              ),
-              child: const Text('Add', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
-        if (_treatments.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: _treatments.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final item = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.check_circle_outline_rounded, size: 14, color: Color(0xFF059669)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(item.name, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                      ),
-                      Text('₹${item.price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: () => setState(() => _treatments.removeAt(idx)),
-                        child: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                      ),
-                    ],
+                  Text(
+                    _rupees(_totalPayable),
+                    style: CruType.title2.tabular.tint(c.label),
                   ),
-                );
-              }).toList(),
-            ),
+                ],
+              ),
+            ],
           ),
-        ],
-
-        const SizedBox(height: 20),
-
-        // Medicines Section
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Text(
-              'PRESCRIBED MEDICINES',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF64748B),
-                letterSpacing: 0.8,
-              ),
-            ),
-            Text(
-              '${_medicines.length} items',
-              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-            ),
-          ],
         ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              flex: 10,
-              child: SizedBox(
-                height: 38,
-                child: TextField(
-                  controller: _medicineNameController,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Medicine (e.g. Paracetamol)',
-                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              flex: 6,
-              child: SizedBox(
-                height: 38,
-                child: TextField(
-                  controller: _dosageController,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Dosage (1-0-1)',
-                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              flex: 6,
-              child: SizedBox(
-                height: 38,
-                child: TextField(
-                  controller: _medicinePriceController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Price (₹)',
-                    hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            FilledButton(
-              onPressed: _addMedicine,
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                minimumSize: const Size(0, 38),
-              ),
-              child: const Text('Add', style: TextStyle(fontSize: 12)),
-            ),
-          ],
-        ),
-        if (_medicines.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: _medicines.asMap().entries.map((entry) {
-                final idx = entry.key;
-                final item = entry.value;
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.medication_liquid_rounded, size: 14, color: Color(0xFF2563EB)),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text('${item.name} (${item.dosage})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
-                      ),
-                      Text('₹${item.price.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 8),
-                      InkWell(
-                        onTap: () => setState(() => _medicines.removeAt(idx)),
-                        child: const Icon(Icons.delete_outline_rounded, size: 16, color: Color(0xFFEF4444)),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ],
-
-        const SizedBox(height: 20),
-
-        // Live Financial Summary
-        _buildBillingSummaryCard(),
       ],
     );
   }
+}
 
-  Widget _buildBillingSummaryCard() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'INVOICE TOTAL BREAKDOWN',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF64748B),
-              letterSpacing: 0.8,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Treatments Total:', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
-              Text('₹${_treatmentSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Medicines Total:', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
-              Text('₹${_medicineSubtotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Expanded(
-                child: Text('Discount Applied:', style: TextStyle(fontSize: 12, color: Color(0xFF475569))),
-              ),
-              SizedBox(
-                width: 80,
-                height: 28,
-                child: TextField(
-                  controller: _discountController,
-                  keyboardType: TextInputType.number,
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFDC2626)),
-                  onChanged: (_) => setState(() {}),
-                  decoration: InputDecoration(
-                    prefixText: '- ₹',
-                    prefixStyle: const TextStyle(fontSize: 11, color: Color(0xFFDC2626)),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(height: 1, color: Color(0xFFCBD5E1)),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Grand Total Payable:',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
-              ),
-              Text(
-                '₹${NumberFormat('#,##0.00').format(_totalPayable)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xFF2563EB),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+/// A section that uses the full dialog width: title and description on
+/// top with an optional action, then its children.
+class _WideSection extends StatelessWidget {
+  const _WideSection({
+    required this.title,
+    required this.description,
+    required this.children,
+    this.action,
+    this.error,
+  });
 
-  Widget _buildErrorBanner() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFEF2F2),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFFCA5A5)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              _errorText!,
-              style: const TextStyle(fontSize: 12, color: Color(0xFFB91C1C)),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  final String title;
+  final String description;
+  final List<Widget> children;
+  final Widget? action;
+  final String? error;
 
-  Widget _buildFooter() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      color: Colors.white,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          OutlinedButton(
-            onPressed: _isSubmitting ? null : () => Navigator.of(context).pop(),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-            ),
-            child: const Text(
-              'Cancel',
-              style: TextStyle(
-                color: Color(0xFF475569),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton(
-            onPressed: _isSubmitting ? null : _handleSave,
-            style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF2563EB),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-              elevation: 0,
-            ),
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const CruSeparator(),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: CruSpace.s20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title, style: CruType.callout.tint(c.label)),
+                        const SizedBox(height: CruSpace.s4),
+                        Text(description, style: CruType.caption.tint(c.label3)),
+                      ],
                     ),
-                  )
-                : const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.check_rounded, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Generate Invoice',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
                   ),
+                  ?action,
+                ],
+              ),
+              if (error != null) CruFieldError(error!),
+              for (final child in children) ...[
+                const SizedBox(height: CruSpace.s20),
+                child,
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A labelled group of line items: the added rows in a hairline panel,
+/// then an add row.
+class _LineGroup extends StatelessWidget {
+  const _LineGroup({
+    required this.title,
+    required this.count,
+    required this.rows,
+    required this.addRow,
+    this.error,
+  });
+
+  final String title;
+  final int count;
+  final List<Widget> rows;
+  final Widget addRow;
+  final String? error;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Text(title, style: CruType.subhead.w500.tint(c.label2)),
+            if (count > 0) ...[
+              const SizedBox(width: CruSpace.s6),
+              Text(
+                DashFormat.plural(count, 'item'),
+                style: CruType.caption.tabular.tint(c.label3),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: CruSpace.s8),
+        if (rows.isNotEmpty) ...[
+          DecoratedBox(
+            decoration: ShapeDecoration(
+              color: c.surface,
+              shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < rows.length; i++) ...[
+                  if (i > 0) const CruSeparator(indent: CruSpace.s14),
+                  rows[i],
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: CruSpace.s8),
+        ],
+        addRow,
+        if (error != null) CruFieldError(error!),
+      ],
+    );
+  }
+}
+
+class _LineRow extends StatelessWidget {
+  const _LineRow({
+    required this.flex,
+    required this.cells,
+    required this.amount,
+    required this.onRemove,
+  });
+
+  /// Flex for each cell, then the amount.
+  final List<int> flex;
+  final List<String> cells;
+  final double amount;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Padding(
+      padding: const EdgeInsets.only(
+        left: CruSpace.s14,
+        right: CruSpace.s6,
+        top: CruSpace.s6,
+        bottom: CruSpace.s6,
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < cells.length; i++)
+            Expanded(
+              flex: flex[i],
+              child: Padding(
+                padding: const EdgeInsets.only(right: CruSpace.s12),
+                child: Text(
+                  cells[i],
+                  style: i == 0
+                      ? CruType.text.w500.tint(c.label)
+                      : CruType.subhead.tint(c.label2),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ),
+          Expanded(
+            flex: flex.last,
+            child: Text(
+              _rupees(amount),
+              textAlign: TextAlign.right,
+              style: CruType.text.w500.tabular.tint(c.label),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          CruIconButton(
+            icon: CruIcons.close,
+            onPressed: onRemove,
+            semanticLabel: 'Remove ${cells.first}',
+            tooltip: 'Remove',
+            size: CruSize.rowCapsule,
+            iconSize: 14,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AddRow extends StatelessWidget {
+  const _AddRow({
+    required this.flex,
+    required this.inputs,
+    required this.addLabel,
+    required this.onAdd,
+  });
+
+  final List<int> flex;
+  final List<Widget> inputs;
+  final String addLabel;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < inputs.length; i++) ...[
+          if (i > 0) const SizedBox(width: CruSpace.s8),
+          Expanded(flex: flex[i], child: inputs[i]),
+        ],
+        const SizedBox(width: CruSpace.s8),
+        CruCapsuleButton(
+          label: 'Add',
+          semanticLabel: addLabel,
+          icon: CruIcons.plus,
+          height: CruSize.control,
+          onPressed: onAdd,
+        ),
+      ],
+    );
+  }
+}
+
+/// A 40 px inset input without a label, for line items and the discount.
+class _LineInput extends StatefulWidget {
+  const _LineInput({
+    required this.controller,
+    required this.hint,
+    this.focusNode,
+    this.prefix,
+    this.tabular = false,
+    this.textAlign = TextAlign.start,
+    this.keyboardType,
+    this.inputFormatters,
+    this.textInputAction = TextInputAction.next,
+    this.textCapitalization = TextCapitalization.none,
+    this.onChanged,
+    this.onSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final FocusNode? focusNode;
+  final String? prefix;
+  final bool tabular;
+  final TextAlign textAlign;
+  final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
+  final TextInputAction textInputAction;
+  final TextCapitalization textCapitalization;
+  final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  State<_LineInput> createState() => _LineInputState();
+}
+
+class _LineInputState extends State<_LineInput> {
+  FocusNode? _ownFocus;
+  FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_onFocus);
+  }
+
+  @override
+  void dispose() {
+    _focus.removeListener(_onFocus);
+    _ownFocus?.dispose();
+    super.dispose();
+  }
+
+  void _onFocus() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final focused = _focus.hasFocus;
+    final base = CruType.input.tint(c.label);
+    return AnimatedContainer(
+      duration: CruMotion.of(context, CruMotion.fast),
+      curve: CruMotion.curve,
+      height: CruSize.control,
+      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
+      decoration: ShapeDecoration(
+        color: focused ? c.surface : c.inset,
+        shape: cruShape(
+          CruRadius.control,
+          side: BorderSide(
+            color: focused ? c.accent : c.inset.withValues(alpha: 0),
+            width: 1.5,
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          if (widget.prefix != null) ...[
+            Text(widget.prefix!, style: CruType.input.w500.tint(c.label2)),
+            const SizedBox(width: CruSpace.s6),
+          ],
+          Expanded(
+            child: TextField(
+              controller: widget.controller,
+              focusNode: _focus,
+              keyboardType: widget.keyboardType,
+              textInputAction: widget.textInputAction,
+              textCapitalization: widget.textCapitalization,
+              inputFormatters: widget.inputFormatters,
+              textAlign: widget.textAlign,
+              cursorColor: c.accent,
+              style: widget.tabular ? base.tabular : base,
+              onChanged: widget.onChanged,
+              onSubmitted: widget.onSubmitted,
+              decoration: InputDecoration.collapsed(
+                hintText: widget.hint,
+                hintStyle: CruType.input.tint(c.label3),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TotalLine extends StatelessWidget {
+  const _TotalLine({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: CruType.text.tint(c.label2))),
+          Text(value, style: CruType.text.w500.tabular.tint(c.label)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PatientOption extends StatelessWidget {
+  const _PatientOption({required this.patient, required this.onTap});
+
+  final Patient patient;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final phone = patient.phone.trim();
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: patient.fullName,
+      scaleOnPress: false,
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s10,
+          vertical: CruSpace.s6,
+        ),
+        decoration: ShapeDecoration(
+          color: hovered ? c.inset : c.inset.withValues(alpha: 0),
+          shape: cruShape(CruRadius.segmentInner),
+        ),
+        child: Row(
+          children: [
+            CruMonogram(name: patient.fullName, size: CruSize.rowCapsule),
+            const SizedBox(width: CruSpace.s10),
+            Expanded(
+              child: Text(
+                patient.fullName,
+                style: CruType.text.w500.tint(c.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (phone.isNotEmpty)
+              Text(phone, style: CruType.subhead.tabular.tint(c.label3)),
+          ],
+        ),
       ),
     );
   }

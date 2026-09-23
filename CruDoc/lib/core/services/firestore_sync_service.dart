@@ -454,6 +454,7 @@ class FirestoreSyncService {
           'isActive': row['isActive'] == 1,
           'invoiceId': row['invoiceId'] as String?,
           'packageId': row['packageId'] as String?,
+          'groupId': row['groupId'] as String?,
           'treatmentType': row['treatmentType'] as String?,
           'therapistNotes': row['therapistNotes'] == null
               ? null
@@ -506,6 +507,7 @@ class FirestoreSyncService {
           'unit': row['unit'] as String? ?? '',
           'currentStock': (row['currentStock'] as num?)?.toInt() ?? 0,
           'reorderThreshold': (row['reorderThreshold'] as num?)?.toInt() ?? 10,
+          'goodStockLevel': (row['goodStockLevel'] as num?)?.toInt(),
           'unitPrice': (row['unitPrice'] as num?)?.toDouble(),
           'supplierName': row['supplierName'] as String?,
           'batchNumber': row['batchNumber'] as String?,
@@ -531,6 +533,7 @@ class FirestoreSyncService {
           'resultingStock': (row['resultingStock'] as num?)?.toInt() ?? 0,
           'note': row['note'] as String?,
           'linkedVisitId': row['linkedVisitId'] as String?,
+          'groupId': row['groupId'] as String?,
           'isActive': row['isActive'] == 1,
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -557,6 +560,7 @@ class FirestoreSyncService {
               ? null
               : _timestampFromMillis(row['completedAt']),
           'linkedVisitId': row['linkedVisitId'] as String?,
+          'groupId': row['groupId'] as String?,
           'isDeleted': row['isDeleted'] == 1,
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
@@ -783,6 +787,7 @@ class FirestoreSyncService {
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
           'invoiceId': data['invoiceId'] as String?,
           'packageId': data['packageId'] as String?,
+          'groupId': data['groupId'] as String?,
           'treatmentType': data['treatmentType'] as String?,
           'therapistNotes': data['therapistNotes'] == null
               ? null
@@ -854,6 +859,7 @@ class FirestoreSyncService {
           'currentStock': (data['currentStock'] as num?)?.toInt() ?? 0,
           'reorderThreshold':
               (data['reorderThreshold'] as num?)?.toInt() ?? 10,
+          'goodStockLevel': (data['goodStockLevel'] as num?)?.toInt(),
           'unitPrice': (data['unitPrice'] as num?)?.toDouble(),
           'supplierName': data['supplierName'] as String?,
           'batchNumber': data['batchNumber'] as String?,
@@ -883,6 +889,7 @@ class FirestoreSyncService {
           'resultingStock': (data['resultingStock'] as num?)?.toInt() ?? 0,
           'note': data['note'] as String?,
           'linkedVisitId': data['linkedVisitId'] as String?,
+          'groupId': data['groupId'] as String?,
           'isActive': (data['isActive'] as bool? ?? true) ? 1 : 0,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
@@ -913,6 +920,7 @@ class FirestoreSyncService {
               ? null
               : _timestampToMillis(data['completedAt'], fallback: now),
           'linkedVisitId': data['linkedVisitId'] as String?,
+          'groupId': data['groupId'] as String?,
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),

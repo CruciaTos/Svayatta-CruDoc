@@ -136,7 +136,7 @@ class _Legend extends StatelessWidget {
           height: InventorySize.legendVialHeight,
           fill: 0.6,
           notch: 0.32,
-          low: false,
+          state: StockState.okay,
         ),
         const SizedBox(width: CruSpace.s8),
         Expanded(
@@ -253,7 +253,7 @@ class InventoryTile extends StatelessWidget {
                 height: InventorySize.tileVialHeight,
                 fill: item.level,
                 notch: item.notch,
-                low: item.low,
+                state: item.stockState,
               ),
               const SizedBox(width: CruSpace.s12),
               Expanded(
@@ -285,7 +285,7 @@ class InventoryTile extends StatelessWidget {
                                 TextSpan(
                                   text: InventoryFormat.count(item.stock),
                                   style: inventoryTileQuantity.tint(
-                                    item.low ? c.amberText : c.label,
+                                    stockText(c, item.stockState),
                                   ),
                                 ),
                                 if (unit.isNotEmpty)

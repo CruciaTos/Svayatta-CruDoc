@@ -30,7 +30,7 @@ class InventoryUsageBars extends StatelessWidget {
         labelGap;
     final last = usage.length - 1;
     final labelled = {0, last - 7, last};
-    final todayColor = c.isEvening ? c.accentText : c.accent;
+    final todayColor = c.barActive;
 
     return SizedBox(
       height: InventorySize.usageChartHeight,

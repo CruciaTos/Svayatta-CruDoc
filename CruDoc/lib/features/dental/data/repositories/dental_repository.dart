@@ -193,6 +193,20 @@ class DentalRepository {
     return rows.map((r) => TreatmentPlanLineItemModel.fromMap(r)).toList();
   }
 
+  /// Every patient's plan items, for the clinic-wide Treatment plans screen.
+  Future<List<TreatmentPlanLineItemModel>> getAllTreatmentPlanLineItems(
+    String doctorId,
+  ) async {
+    final db = await _localDbService.localDatabase;
+    final rows = await db.query(
+      'treatment_plan_line_items',
+      where: 'doctorId = ? AND isDeleted = 0',
+      whereArgs: [doctorId],
+      orderBy: 'updatedAt DESC',
+    );
+    return rows.map((r) => TreatmentPlanLineItemModel.fromMap(r)).toList();
+  }
+
   Future<void> saveTreatmentPlanLineItem(TreatmentPlanLineItemModel item) async {
     final db = await _localDbService.localDatabase;
     await db.insert(

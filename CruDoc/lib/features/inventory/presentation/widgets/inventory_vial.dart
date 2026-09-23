@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/features/inventory/presentation/widgets/inventory_style.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
 
-/// A vertical vial: a track that fills to stock ÷ usual order (amber when
-/// low, chart grey otherwise), with a 2 px notch at the reorder level.
+/// A vertical vial: a track that fills to stock ÷ usual order, coloured by
+/// [StockState] (green, blue, amber, red), with a 2 px notch at the
+/// reorder level.
 /// Without a usual order (GAP for that item) the fill and notch are
 /// hidden and only the empty track shows.
 class InventoryVial extends StatelessWidget {
@@ -14,7 +16,7 @@ class InventoryVial extends StatelessWidget {
     required this.height,
     required this.fill,
     required this.notch,
-    required this.low,
+    required this.state,
   });
 
   final double width;
@@ -26,12 +28,12 @@ class InventoryVial extends StatelessWidget {
   /// 0–1, or null to hide the notch.
   final double? notch;
 
-  final bool low;
+  final StockState state;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final fillColor = low ? c.amber : inventoryChartGrey(c);
+    final fillColor = stockFill(c, state);
     return ExcludeSemantics(
       child: ClipRRect(
         borderRadius: BorderRadius.circular(width / 2),
@@ -77,10 +79,14 @@ class InventoryVial extends StatelessWidget {
 
 /// The 96 × 4 bar under a list row's stock quantity.
 class InventoryLevelBar extends StatelessWidget {
-  const InventoryLevelBar({super.key, required this.value, required this.low});
+  const InventoryLevelBar({
+    super.key,
+    required this.value,
+    required this.state,
+  });
 
   final double value;
-  final bool low;
+  final StockState state;
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +111,7 @@ class InventoryLevelBar extends StatelessWidget {
                   width: w * v,
                   height: h,
                   decoration: BoxDecoration(
-                    color: low ? c.amber : inventoryChartGrey(c),
+                    color: stockFill(c, state),
                     borderRadius: BorderRadius.circular(h / 2),
                   ),
                 ),

@@ -5,7 +5,6 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/wrap_up_providers.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/wrap_up_card.dart';
-import 'package:doctor_management_app/features/dental/presentation/widgets/dental_quick_actions_row.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/dashboard_header.dart';
@@ -15,6 +14,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/si
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_today_card.dart';
 
 /// The Calm Clinical desktop dashboard: "Who's next, and what must I
 /// know before they walk in?"
@@ -68,11 +68,8 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
       data.schedule == null
           ? const SkeletonCard(rows: 5)
           : ScheduleCard(items: data.schedule!, now: data.now),
-      // Dentists keep their specialty shortcuts from the old dashboard
-      // (not covered by the spec). The row has its own light styling, so
-      // it stays on the Day theme.
-      if (_isDentist)
-        Theme(data: CruTheme.day(), child: const DentalQuickActionsRow()),
+      // Dentists: today's sterilization and plans waiting for a yes.
+      if (_isDentist) DentalTodayCard(onNavigate: widget.onNavigateToTab),
     ];
 
     final right = <Widget>[

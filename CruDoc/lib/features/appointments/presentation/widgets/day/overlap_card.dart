@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/whatsapp_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 
 /// Replaces the appointment card when an unsorted overlap is selected:
 /// who overlaps, and a suggestion to move the most recently booked visit
@@ -201,6 +202,18 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
               ),
             ],
           ),
+          // Seen together (a couple, a family)? One appointment, not a clash.
+          if (g.items.fold<int>(0, (n, i) => n + i.patientCount) <=
+              kMaxGroupPatients) ...[
+            const SizedBox(height: CruSpace.s10),
+            CruButton(
+              label: 'Seen together? Combine into one',
+              kind: CruButtonKind.inset,
+              icon: CruIcons.patients,
+              expand: true,
+              onPressed: () => ApptActions.combine(context, ref, g.items),
+            ),
+          ],
         ],
       ),
     );

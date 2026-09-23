@@ -320,6 +320,7 @@ class _StockBlock extends StatelessWidget {
     final unit = InventoryFormat.unitFor(item.unit, item.stock);
     final reorder = [
       'Reorder at ${InventoryFormat.count(item.reorderLevel)}',
+      'good at ${InventoryFormat.count(item.goodLevel)}',
       if (item.usualOrder != null)
         'usual order ${InventoryFormat.count(item.usualOrder!)}',
     ].join(' · ');
@@ -347,7 +348,7 @@ class _StockBlock extends StatelessWidget {
             height: InventorySize.panelVialHeight,
             fill: item.level,
             notch: item.notch,
-            low: item.low,
+            state: item.stockState,
           ),
           const SizedBox(width: CruSpace.s16),
           Expanded(
@@ -360,7 +361,7 @@ class _StockBlock extends StatelessWidget {
                       TextSpan(
                         text: InventoryFormat.count(item.stock),
                         style: CruType.largeTitle.tabular
-                            .tint(item.low ? c.amberText : c.label),
+                            .tint(stockText(c, item.stockState)),
                       ),
                       TextSpan(
                         text: unit.isEmpty ? ' in stock' : ' $unit in stock',

@@ -2,11 +2,17 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
 /// The views the Appointments shell can host.
+/// The Schedule's views: Live is today's queue board, the rest are the
+/// calendar.
 enum ApptsView {
+  live('Live'),
   day('Day'),
   week('Week'),
   month('Month'),
-  agenda('Agenda');
+  agenda('Agenda'),
+
+  /// Physiotherapy only: the day's home visits with a route map.
+  visits('Visits');
 
   const ApptsView(this.label);
   final String label;
@@ -59,7 +65,44 @@ class ApptItem {
     this.reason,
     this.tokenNumber,
     this.waitMinutes,
+    this.members = const [],
   });
+
+  /// Visits booked together (same [Visit.groupId]) drawn as one
+  /// appointment: "Rahul Verma & Priya Verma" (three or more: "Rahul
+  /// Verma + 2"), their reasons joined. The first booked leads: its visit
+  /// is the appointment's slot and place.
+  factory ApptItem.group(List<ApptItem> members) {
+    final lead = members.first;
+    String names(List<String> n) =>
+        n.length == 2 ? '${n[0]} & ${n[1]}' : '${n.first} + ${n.length - 1}';
+    final statuses = {for (final m in members) m.status};
+    final status = statuses.contains(ApptStatus.inConsultation)
+        ? ApptStatus.inConsultation
+        : statuses.contains(ApptStatus.waiting)
+            ? ApptStatus.waiting
+            : statuses.contains(ApptStatus.booked)
+                ? ApptStatus.booked
+                : statuses.contains(ApptStatus.done)
+                    ? ApptStatus.done
+                    : ApptStatus.missed;
+    final reasons = {for (final m in members) ?m.reason};
+    final waits = [for (final m in members) ?m.waitMinutes];
+    return ApptItem(
+      visit: lead.visit,
+      patient: lead.patient,
+      status: status,
+      name: names([for (final m in members) m.name]),
+      firstName: names([for (final m in members) m.firstName]),
+      shortName: '${lead.shortName} +${members.length - 1}',
+      isNewPatient: members.any((m) => m.isNewPatient),
+      reason: reasons.isEmpty ? null : reasons.join(' · '),
+      tokenNumber: members.map((m) => m.tokenNumber).nonNulls.firstOrNull,
+      waitMinutes:
+          waits.isEmpty ? null : waits.reduce((a, b) => a > b ? a : b),
+      members: members,
+    );
+  }
 
   final Visit visit;
   final Patient? patient;
@@ -87,6 +130,37 @@ class ApptItem {
   final int? waitMinutes;
 
   String get id => visit.id;
+
+  /// Everyone on this appointment when patients are seen together (the
+  /// first booked leads); empty for a single patient.
+  final List<ApptItem> members;
+
+  bool get isGroup => members.length > 1;
+
+  int get patientCount => isGroup ? members.length : 1;
+
+  /// This visit and, for a group, everyone else's.
+  List<Visit> get visits =>
+      isGroup ? [for (final m in members) m.visit] : [visit];
+
+  /// Seen at the patient's home (physiotherapy), not at the clinic.
+  bool get isHomeVisit => visit.visitType == VisitType.home;
+
+  /// The home address, trimmed; null for clinic visits or when none was
+  /// saved.
+  String? get homeAddress {
+    if (!isHomeVisit) return null;
+    final a = visit.address.trim();
+    return a.isEmpty ? null : a;
+  }
+
+  /// Reason, then the home address for home visits: the second line of
+  /// every row and block.
+  String? get detailLine {
+    final parts = [?reason, ?homeAddress];
+    return parts.isEmpty ? null : parts.join(' · ');
+  }
+
   DateTime get start => visit.scheduledStart;
   DateTime get end => visit.scheduledEnd;
   int get durationMinutes => visit.durationMinutes;

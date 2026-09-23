@@ -14,6 +14,10 @@ class MedicineModel {
   final String unit;
   final int currentStock;
   final int reorderThreshold;
+
+  /// Stock at or above this is comfortably in stock (green). Null: twice
+  /// the reorder threshold (see [goodLevel]).
+  final int? goodStockLevel;
   final double? unitPrice;
   final String? supplierName;
   final String? batchNumber;
@@ -38,6 +42,7 @@ class MedicineModel {
     required this.unit,
     this.currentStock = 0,
     this.reorderThreshold = 10,
+    this.goodStockLevel,
     this.unitPrice,
     this.supplierName,
     this.batchNumber,
@@ -53,6 +58,10 @@ class MedicineModel {
   /// True once stock has dropped to (or below) the doctor-configured
   /// reorder threshold.
   bool get isLowStock => currentStock <= reorderThreshold;
+
+  /// The "good in stock" level actually used: [goodStockLevel], or twice
+  /// the reorder threshold when the doctor hasn't set one.
+  int get goodLevel => goodStockLevel ?? reorderThreshold * 2;
 
   /// True when this medicine has a known expiry date within the next
   /// 30 days (including already-expired stock).
@@ -77,6 +86,7 @@ class MedicineModel {
       unit: map['unit'] as String? ?? '',
       currentStock: (map['currentStock'] as num?)?.toInt() ?? 0,
       reorderThreshold: (map['reorderThreshold'] as num?)?.toInt() ?? 10,
+      goodStockLevel: (map['goodStockLevel'] as num?)?.toInt(),
       unitPrice: (map['unitPrice'] as num?)?.toDouble(),
       supplierName: map['supplierName'] as String?,
       batchNumber: map['batchNumber'] as String?,
@@ -100,6 +110,7 @@ class MedicineModel {
       'unit': unit,
       'currentStock': currentStock,
       'reorderThreshold': reorderThreshold,
+      'goodStockLevel': goodStockLevel,
       'unitPrice': unitPrice,
       'supplierName': supplierName,
       'batchNumber': batchNumber,
@@ -124,6 +135,8 @@ class MedicineModel {
     String? unit,
     int? currentStock,
     int? reorderThreshold,
+    int? goodStockLevel,
+    bool clearGoodStockLevel = false,
     double? unitPrice,
     String? supplierName,
     String? batchNumber,
@@ -146,6 +159,9 @@ class MedicineModel {
       unit: unit ?? this.unit,
       currentStock: currentStock ?? this.currentStock,
       reorderThreshold: reorderThreshold ?? this.reorderThreshold,
+      goodStockLevel: clearGoodStockLevel
+          ? null
+          : (goodStockLevel ?? this.goodStockLevel),
       unitPrice: unitPrice ?? this.unitPrice,
       supplierName: supplierName ?? this.supplierName,
       batchNumber: batchNumber ?? this.batchNumber,

@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 
 class _NavItem {
@@ -40,9 +41,10 @@ List<_NavGroup> _groupsFor({required bool dentist, required bool radiologist}) =
         ]),
       _NavGroup('Patients', [
         const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
-        if (dentist)
-          const _NavItem(
-              DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
+        if (dentist) ...const [
+          _NavItem(DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
+          _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
+        ],
         const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
       ]),
       _NavGroup('Clinic', [

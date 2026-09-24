@@ -332,16 +332,23 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
 }
 
 /// Pick one of the clinic's patients. Returns the patient, or null.
-Future<Patient?> pickRadPatient(BuildContext context, {String initialQuery = ''}) =>
+Future<Patient?> pickRadPatient(
+  BuildContext context, {
+  String initialQuery = '',
+  String title = 'Link to a patient',
+  String subtitle = 'The study shows on their record',
+}) =>
     showDialog<Patient>(
       context: context,
-      builder: (_) => _PatientPicker(initialQuery: initialQuery),
+      builder: (_) => _PatientPicker(initialQuery: initialQuery, title: title, subtitle: subtitle),
     );
 
 class _PatientPicker extends ConsumerStatefulWidget {
-  const _PatientPicker({required this.initialQuery});
+  const _PatientPicker({required this.initialQuery, required this.title, required this.subtitle});
 
   final String initialQuery;
+  final String title;
+  final String subtitle;
 
   @override
   ConsumerState<_PatientPicker> createState() => _PatientPickerState();
@@ -368,8 +375,8 @@ class _PatientPickerState extends ConsumerState<_PatientPicker> {
         .take(60)
         .toList();
     return DentalPanelDialog(
-      title: 'Link to a patient',
-      subtitle: 'The study shows on their record',
+      title: widget.title,
+      subtitle: widget.subtitle,
       width: CruSize.dialog + 120,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

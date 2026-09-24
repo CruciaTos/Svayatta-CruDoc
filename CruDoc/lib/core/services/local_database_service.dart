@@ -264,6 +264,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createSterilizationLogEntriesTable(txn);
       await _createTreatmentPlanLineItemsTable(txn);
       await _createRadiologyDocsTable(txn);
+      await _createDentalRecordsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
       await _createIndexes(txn);
@@ -291,6 +292,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createSterilizationLogEntriesTable(txn);
       await _createTreatmentPlanLineItemsTable(txn);
       await _createRadiologyDocsTable(txn);
+      await _createDentalRecordsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
 
@@ -1357,6 +1359,28 @@ class LocalDatabaseService extends ChangeNotifier {
   /// Oral & Maxillofacial Radiology records (studies, reports, referrers,
   /// templates, settings) as JSON documents by kind. Image files live on
   /// disk in the app's support folder, never in the database.
+  /// Dental clinical records (perio exams, endo notes, consents, recalls,
+  /// pain scores...) as JSON documents by kind.
+  Future<void> _createDentalRecordsTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS dental_records (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL DEFAULT '',
+        kind TEXT NOT NULL,
+        data TEXT NOT NULL DEFAULT '{}',
+        recordedAt INTEGER NOT NULL,
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_dental_records_kind '
+      'ON dental_records (doctorId, kind, patientId, isDeleted)',
+    );
+  }
+
   Future<void> _createRadiologyDocsTable(LocalDatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS radiology_docs (

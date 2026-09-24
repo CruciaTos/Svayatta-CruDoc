@@ -268,6 +268,17 @@ double _facialAxis(CephGeometry g) =>
     180 - CephGeometry.between(g['N'] - g['Ba'], g['Gn'] - g['Pt']);
 double? _l1APog(CephGeometry g) => g.mm(CephGeometry.ahead(g['L1T'], g['A'], g['Pog']));
 
+/// Wits: A and B projected onto the occlusal plane (molar occlusion to
+/// the incisor overlap); positive when A projects ahead of B.
+double? _wits(CephGeometry g) {
+  final inc = Offset((g['U1T'].dx + g['L1T'].dx) / 2, (g['U1T'].dy + g['L1T'].dy) / 2);
+  final dir = inc - g['Mo'];
+  final len = dir.distance;
+  if (len == 0) return null;
+  final ab = g['A'] - g['B'];
+  return g.mm((ab.dx * dir.dx + ab.dy * dir.dy) / len);
+}
+
 const _fh = ['Po', 'Or'];
 const _mp = ['Go', 'Me'];
 const _u1 = ['U1T', 'U1A'];
@@ -396,6 +407,26 @@ final List<CephAnalysis> cephAnalyses = [
         compute: (g) => g.mm(CephGeometry.ahead(g['L1T'], g['N'], g['B'])),
       ),
       _interincisalAngle(130, 6),
+      CephMeasure(
+        key: 'U1_SN',
+        name: 'U1 – SN',
+        detail: 'Upper incisor to the cranial base',
+        unit: CephUnit.deg,
+        mean: 103,
+        sd: 6,
+        needs: const ['S', 'N', 'U1T', 'U1A'],
+        compute: (g) => 180 - CephGeometry.between(g['U1T'] - g['U1A'], g['N'] - g['S']),
+      ),
+      const CephMeasure(
+        key: 'Wits',
+        name: 'Wits appraisal',
+        detail: 'AO – BO on the occlusal plane (men −1, women 0 mm)',
+        unit: CephUnit.mm,
+        mean: -1,
+        sd: 2,
+        needs: ['A', 'B', 'Mo', 'U1T', 'L1T'],
+        compute: _wits,
+      ),
     ],
   ),
   CephAnalysis(

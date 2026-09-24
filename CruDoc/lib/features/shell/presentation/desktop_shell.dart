@@ -34,6 +34,7 @@ import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/sterilization_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/treatment_plans_screen.dart';
+import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
@@ -161,6 +162,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Worklist',
     'Reports',
     'Referrers',
+    'Recalls',
   ];
 
   static const List<IconData> _icons = [
@@ -179,6 +181,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.view_list_rounded,
     Icons.description_outlined,
     Icons.person_pin_outlined,
+    Icons.notifications_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -242,6 +245,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const RadReportsScreen();
       case DesktopTab.referrers:
         return const RadReferrersScreen();
+      case DesktopTab.recalls:
+        return const RecallsScreen();
       default:
         return const SizedBox.shrink();
     }

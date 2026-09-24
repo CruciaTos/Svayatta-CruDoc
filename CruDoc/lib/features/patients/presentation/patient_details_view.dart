@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_chart_card.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_card.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_patient_details_screen.dart';
@@ -150,6 +151,7 @@ class _DetailsBody extends ConsumerWidget {
     // Dentists: the tooth chart, their procedures, and a way into a plan.
     final chart = isDentist ? ToothChartCard(patient: p) : null;
     final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
+    final records = isDentist ? DentalRecordsCard(patient: p) : null;
     final noPlan = isDentist && !planLoading && items.isEmpty
         ? NoPlanCard(patient: p)
         : null;
@@ -219,7 +221,7 @@ class _DetailsBody extends ConsumerWidget {
                     const SizedBox(width: CruSpace.cardGap),
                     SizedBox(
                       width: CruSize.rightColumn,
-                      child: _Stack([?procedures, visits, history]),
+                      child: _Stack([?procedures, ?records, visits, history]),
                     ),
                   ],
                 )
@@ -230,6 +232,7 @@ class _DetailsBody extends ConsumerWidget {
                   ?noPlan,
                   planOrPayments,
                   ?procedures,
+                  ?records,
                   visits,
                   notes,
                   history,

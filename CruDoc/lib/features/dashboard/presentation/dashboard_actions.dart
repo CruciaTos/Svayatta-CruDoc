@@ -33,7 +33,10 @@ abstract final class DesktopTab {
   static const procedures = 11;
 
   static bool isDental(int tab) =>
-      tab == treatmentPlans || tab == sterilization || tab == procedures;
+      tab == treatmentPlans || tab == sterilization || tab == procedures || tab == recalls;
+
+  /// Dentists: who should come back.
+  static const recalls = 15;
 
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
@@ -59,6 +62,7 @@ abstract final class DesktopTab {
         worklist => 'Worklist',
         reports => 'Reports',
         referrers => 'Referrers',
+        recalls => 'Recalls',
         _ => 'Back',
       };
 }

@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 
 class _NavItem {
   const _NavItem(this.tab, this.label, this.icon);
@@ -22,13 +23,21 @@ class _NavGroup {
 }
 
 /// The sidebar for this login. Dentists also get Treatment plans,
-/// Sterilization and Procedures.
-List<_NavGroup> _groupsFor({required bool dentist}) => [
+/// Sterilization and Procedures. Oral & Maxillofacial Radiologists get the
+/// Radiology group (Worklist, Reports, Referrers) instead of the
+/// chairside dental screens.
+List<_NavGroup> _groupsFor({required bool dentist, required bool radiologist}) => [
       const _NavGroup('Today', [
         _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
         // Live queue + calendar in one place (the queue tab opens its Live view).
         _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
       ]),
+      if (radiologist)
+        const _NavGroup('Radiology', [
+          _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
+          _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),
+          _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
+        ]),
       _NavGroup('Patients', [
         const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
         if (dentist)
@@ -101,7 +110,10 @@ class CruSidebar extends ConsumerWidget {
     final waiting = ref.watch(waitingNowCountProvider);
     final identity = ref.watch(doctorIdentityProvider);
     final plan = ref.watch(subscriptionInfoProvider).value;
-    final groups = _groupsFor(dentist: ref.watch(isDentistProvider));
+    final groups = _groupsFor(
+      dentist: ref.watch(isDentistProvider),
+      radiologist: ref.watch(isOralRadiologistProvider),
+    );
 
     return AnimatedContainer(
       duration: CruMotion.of(context),

@@ -12,6 +12,9 @@ enum DoctorSpecialtyType {
   psychiatrist,
   physiotherapy,
   homeopathy,
+
+  /// Dental sub-specialty: Oral & Maxillofacial Radiologist (reads scans).
+  oralRadiologist,
 }
 
 /// Metadata, theming, and demo presets for each specialty.
@@ -27,6 +30,7 @@ class DoctorSpecialty {
     required this.demoEmail,
     required this.demoPassword,
     required this.quickActions,
+    this.parent,
   });
 
   final DoctorSpecialtyType type;
@@ -54,6 +58,16 @@ class DoctorSpecialty {
 
   /// Specialty-specific quick action labels.
   final List<String> quickActions;
+
+  /// The specialty this one sits under (Oral & Maxillofacial Radiologist
+  /// sits under Dentist). Null for a top-level specialty.
+  final DoctorSpecialtyType? parent;
+
+  /// The top-level specialty: this one, or the one it sits under.
+  DoctorSpecialtyType get rootType => parent ?? type;
+
+  /// Whether picking [other] in a top-level picker selects this one.
+  bool isUnder(DoctorSpecialtyType other) => rootType == other;
 
   // ─────────────────────────── Registry ───────────────────────────
 
@@ -200,6 +214,40 @@ class DoctorSpecialty {
     quickActions: ['Case Sheet', 'Repertorize', 'Remedy Rx', 'SRP Symptoms'],
   );
 
+  /// Sub-specialties under Dentist, picked after Dentist.
+  static const List<DoctorSpecialty> dentalSubspecialties = [
+    _oralRadiologist,
+  ];
+
+  /// Every specialty, sub-specialties included (for lookups).
+  static const List<DoctorSpecialty> everything = [
+    ...all,
+    ...dentalSubspecialties,
+  ];
+
+  /// Sub-specialties under [type], empty for most.
+  static List<DoctorSpecialty> subspecialtiesOf(DoctorSpecialtyType type) =>
+      type == DoctorSpecialtyType.dentist ? dentalSubspecialties : const [];
+
+  /// The specialty for [type], sub-specialties included.
+  static DoctorSpecialty ofType(DoctorSpecialtyType type) =>
+      everything.firstWhere((s) => s.type == type,
+          orElse: () => _generalPhysician);
+
+  static const _oralRadiologist = DoctorSpecialty._(
+    type: DoctorSpecialtyType.oralRadiologist,
+    parent: DoctorSpecialtyType.dentist,
+    label: 'Oral & Maxillofacial Radiologist',
+    shortLabel: 'OMR',
+    tagline: 'CBCT, X-ray Reading & Radiology Reports',
+    icon: Icons.view_in_ar_rounded,
+    accentColor: Color(0xFF0E7490),
+    gradientColors: [Color(0xFFCFFAFE), Color(0xFFA5F3FC), Color(0xFFE0F2FE)],
+    demoEmail: 'omr@crudoc.com',
+    demoPassword: 'demo1234',
+    quickActions: ['Worklist', 'Import scans', 'Reports', 'Referrers'],
+  );
+
   // ─────────────────────────── Helpers ───────────────────────────
 
   /// Resolve a specialty from a raw string stored in Firestore.
@@ -208,7 +256,7 @@ class DoctorSpecialty {
     if (raw == null || raw.trim().isEmpty) return _generalPhysician;
     final lower = raw.trim().toLowerCase();
 
-    for (final spec in all) {
+    for (final spec in everything) {
       if (lower == spec.label.toLowerCase() ||
           lower == spec.shortLabel.toLowerCase() ||
           lower == spec.type.name.toLowerCase()) {
@@ -242,6 +290,9 @@ class DoctorSpecialty {
     }
     if (lower.contains('pedia') || lower.contains('child')) {
       return _pediatrician;
+    }
+    if (lower.contains('radiolog') || lower.contains('maxillofacial')) {
+      return _oralRadiologist;
     }
     if (lower.contains('dent') || lower.contains('oral')) return _dentist;
     if (lower.contains('derm') || lower.contains('skin')) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/widgets/subspecialty_row.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 
@@ -49,10 +50,7 @@ class _SpecialtyOnboardingContentState
   Future<void> _handleConfirm() async {
     if (_selectedType == null || _isSaving) return;
 
-    final spec = DoctorSpecialty.all.firstWhere(
-      (s) => s.type == _selectedType,
-      orElse: () => DoctorSpecialty.defaultSpecialty,
-    );
+    final spec = DoctorSpecialty.ofType(_selectedType!);
 
     setState(() => _isSaving = true);
 
@@ -158,7 +156,9 @@ class _SpecialtyOnboardingContentState
                     itemCount: DoctorSpecialty.all.length,
                     itemBuilder: (context, index) {
                       final spec = DoctorSpecialty.all[index];
-                      final isSelected = _selectedType == spec.type;
+                      final isSelected = _selectedType != null &&
+                          DoctorSpecialty.ofType(_selectedType!)
+                              .isUnder(spec.type);
 
                       return GestureDetector(
                         onTap: () =>
@@ -233,6 +233,19 @@ class _SpecialtyOnboardingContentState
                 ),
               ),
 
+              // Dentist: General or a dental sub-specialty.
+              if (_selectedType != null &&
+                  DoctorSpecialty.subspecialtiesOf(
+                          DoctorSpecialty.ofType(_selectedType!).rootType)
+                      .isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
+                  child: SubspecialtyRow(
+                    selected: DoctorSpecialty.ofType(_selectedType!),
+                    onSelected: (s) => setState(() => _selectedType = s.type),
+                  ),
+                ),
+
               // ── Footer ──
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
@@ -246,8 +259,7 @@ class _SpecialtyOnboardingContentState
                             : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _selectedType != null
-                          ? DoctorSpecialty.all
-                              .firstWhere((s) => s.type == _selectedType)
+                          ? DoctorSpecialty.ofType(_selectedType!)
                               .accentColor
                           : const Color(0xFF94A3B8),
                       foregroundColor: Colors.white,

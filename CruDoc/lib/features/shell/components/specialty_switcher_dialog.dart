@@ -217,7 +217,7 @@ class _SpecialtySwitcherDialogState
                     spacing: 12,
                     runSpacing: 12,
                     children: DoctorSpecialty.all.map((spec) {
-                      final isCurrent = spec.type == activeSpec.type;
+                      final isCurrent = activeSpec.isUnder(spec.type);
                       final isBeingSwitched =
                           _isSwitching && _switchingLabel == spec.label;
 
@@ -225,6 +225,26 @@ class _SpecialtySwitcherDialogState
                         width: isWide ? (680 - 40 - 12) / 2 : double.infinity,
                         child: _SpecialtyCardItem(
                           spec: spec,
+                          // Dentist: its sub-logins (Oral & Maxillofacial
+                          // Radiologist) right on the card.
+                          subs: DoctorSpecialty.subspecialtiesOf(spec.type),
+                          activeType: activeSpec.type,
+                          onPickSub: (sub) async {
+                            if (sub.type == activeSpec.type || _isSwitching) return;
+                            setState(() {
+                              _isSwitching = true;
+                              _switchingLabel = spec.label;
+                            });
+                            final nav = Navigator.of(context);
+                            await switchDoctorSpecialty(context, sub, ref: ref);
+                            if (mounted) {
+                              setState(() {
+                                _isSwitching = false;
+                                _switchingLabel = null;
+                              });
+                              nav.pop();
+                            }
+                          },
                           isActive: isCurrent,
                           isLoading: isBeingSwitched,
                           onTap: () async {
@@ -304,11 +324,20 @@ class _SpecialtyCardItem extends StatefulWidget {
   final bool isLoading;
   final VoidCallback onTap;
 
+  /// Sub-logins under this specialty (Dentist → Oral & Maxillofacial
+  /// Radiologist), shown as choices on the card.
+  final List<DoctorSpecialty> subs;
+  final DoctorSpecialtyType activeType;
+  final ValueChanged<DoctorSpecialty> onPickSub;
+
   const _SpecialtyCardItem({
     required this.spec,
     required this.isActive,
     required this.isLoading,
     required this.onTap,
+    required this.subs,
+    required this.activeType,
+    required this.onPickSub,
   });
 
   @override
@@ -459,7 +488,90 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                         );
                       }).toList(),
                     ),
+                    if (widget.subs.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        'Log in as',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _SubChip(
+                            label: 'General ${spec.label.toLowerCase()}',
+                            spec: spec,
+                            on: widget.activeType == spec.type,
+                            onTap: () => widget.onPickSub(spec),
+                          ),
+                          for (final sub in widget.subs)
+                            _SubChip(
+                              label: sub.label,
+                              spec: sub,
+                              on: widget.activeType == sub.type,
+                              onTap: () => widget.onPickSub(sub),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One sub-login choice on a specialty card ("General dentist",
+/// "Oral & Maxillofacial Radiologist").
+class _SubChip extends StatelessWidget {
+  const _SubChip({
+    required this.label,
+    required this.spec,
+    required this.on,
+    required this.onTap,
+  });
+
+  final String label;
+  final DoctorSpecialty spec;
+  final bool on;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: on ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: on ? spec.accentColor : Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: on ? spec.accentColor : const Color(0xFFCBD5E1),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(spec.icon, size: 13, color: on ? Colors.white : spec.accentColor),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: on ? Colors.white : const Color(0xFF334155),
                 ),
               ),
             ],

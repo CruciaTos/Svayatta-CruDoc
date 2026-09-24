@@ -34,6 +34,9 @@ import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/sterilization_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/treatment_plans_screen.dart';
+import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
+import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
+import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -155,6 +158,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Treatment plans',
     'Sterilization',
     'Procedures',
+    'Worklist',
+    'Reports',
+    'Referrers',
   ];
 
   static const List<IconData> _icons = [
@@ -170,6 +176,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.assignment_outlined,
     Icons.verified_user_outlined,
     Icons.list_alt_rounded,
+    Icons.view_list_rounded,
+    Icons.description_outlined,
+    Icons.person_pin_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -227,6 +236,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const SterilizationScreen();
       case DesktopTab.procedures:
         return const ProceduresScreen();
+      case DesktopTab.worklist:
+        return const RadWorklistScreen();
+      case DesktopTab.reports:
+        return const RadReportsScreen();
+      case DesktopTab.referrers:
+        return const RadReferrersScreen();
       default:
         return const SizedBox.shrink();
     }
@@ -337,7 +352,9 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         // Dental screens are for dentist logins only; anyone else lands
         // on the dashboard (a tab saved under another specialty).
         final dentist = ref.watch(isDentistProvider);
-        final shown = !dentist && DesktopTab.isDental(_currentIndex)
+        final radiologist = ref.watch(isOralRadiologistProvider);
+        final shown = (!dentist && DesktopTab.isDental(_currentIndex)) ||
+                (!radiologist && DesktopTab.isRadiology(_currentIndex))
             ? DesktopTab.dashboard
             : _currentIndex;
         final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(
@@ -348,6 +365,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == 5 ||
             shown == DesktopTab.settings ||
             DesktopTab.isDental(shown) ||
+            DesktopTab.isRadiology(shown) ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey) ||
             // Schedule also holds the Live queue.
             (shown == DesktopTab.appointments &&
@@ -361,7 +379,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.revenue ||
             shown == DesktopTab.appointments ||
             shown == DesktopTab.settings ||
-            DesktopTab.isDental(shown);
+            DesktopTab.isDental(shown) ||
+            DesktopTab.isRadiology(shown);
 
         final width = MediaQuery.sizeOf(context).width;
         final forcedCompact = width < CruBreakpoint.compact;

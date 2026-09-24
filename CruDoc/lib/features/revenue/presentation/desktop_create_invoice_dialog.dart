@@ -27,6 +27,7 @@ Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
   )? onSave,
   Patient? initialPatient,
   String? initialTreatmentName,
+  double? initialTreatmentPrice,
   String? initialNotes,
 }) {
   return showDialog<InvoiceModel>(
@@ -37,6 +38,7 @@ Future<InvoiceModel?> showDesktopCreateInvoiceDialog(
       onSave: onSave,
       initialPatient: initialPatient,
       initialTreatmentName: initialTreatmentName,
+      initialTreatmentPrice: initialTreatmentPrice,
       initialNotes: initialNotes,
     ),
   );
@@ -49,6 +51,7 @@ class DesktopCreateInvoiceDialog extends StatefulWidget {
     this.onSave,
     this.initialPatient,
     this.initialTreatmentName,
+    this.initialTreatmentPrice,
     this.initialNotes,
   });
 
@@ -56,6 +59,10 @@ class DesktopCreateInvoiceDialog extends StatefulWidget {
   /// a treatment line waiting for its price, and a note.
   final Patient? initialPatient;
   final String? initialTreatmentName;
+
+  /// The treatment line's price, when the caller knows it (a radiology
+  /// reading fee).
+  final double? initialTreatmentPrice;
   final String? initialNotes;
 
   final InvoiceRepository? repository;
@@ -149,6 +156,8 @@ class _DesktopCreateInvoiceDialogState
     }
     final t = widget.initialTreatmentName;
     if (t != null) _treatmentNameController.text = t;
+    final price = widget.initialTreatmentPrice;
+    if (price != null) _treatmentPriceController.text = price.toStringAsFixed(0);
     final n = widget.initialNotes;
     if (n != null) _clinicalNotesController.text = n;
   }

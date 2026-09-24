@@ -10,6 +10,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/core/widgets/subspecialty_row.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
@@ -1063,12 +1064,32 @@ class _SpecialtyPillBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasSubs =
+        DoctorSpecialty.subspecialtiesOf(selectedSpecialty.rootType).isNotEmpty;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Dentist: General or a dental sub-specialty (a sub-login).
+        if (hasSubs)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+            child: SubspecialtyRow(
+              selected: selectedSpecialty,
+              onSelected: onSelected,
+            ),
+          ),
+        _pills(),
+      ],
+    );
+  }
+
+  Widget _pills() {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Row(
         children: DoctorSpecialty.all.map((spec) {
-          final isSelected = spec.type == selectedSpecialty.type;
+          final isSelected = selectedSpecialty.isUnder(spec.type);
           return Padding(
             padding: const EdgeInsets.only(right: 8),
             child: MouseRegion(
@@ -1932,7 +1953,7 @@ class _AuthForm extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (context, index) {
                   final spec = DoctorSpecialty.all[index];
-                  final isSelected = spec.type == selectedSpecialty!.type;
+                  final isSelected = selectedSpecialty!.isUnder(spec.type);
                   return GestureDetector(
                     onTap: () => onSpecialtySelected!(spec),
                     child: AnimatedContainer(

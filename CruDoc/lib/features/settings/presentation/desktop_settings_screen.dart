@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/features/radiology/presentation/radiology_settings_section.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
@@ -30,6 +32,9 @@ enum SettingsSection {
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
   appearance('Appearance', CruIcons.sun),
+
+  /// Oral & Maxillofacial Radiologists only.
+  radiology('Radiology', RadIcons.xray),
   about('About CruDoc', CruIcons.help);
 
   const SettingsSection(this.label, this.icon);
@@ -99,6 +104,12 @@ class DesktopSettingsScreen extends ConsumerWidget {
                 SizedBox(
                   width: _kNavWidth,
                   child: _SectionList(
+                    sections: [
+                      for (final s in SettingsSection.values)
+                        if (s != SettingsSection.radiology ||
+                            ref.watch(isOralRadiologistProvider))
+                          s,
+                    ],
                     selected: section,
                     onSelect: (s) =>
                         ref.read(settingsSectionProvider.notifier).state = s,
@@ -139,6 +150,8 @@ class DesktopSettingsScreen extends ConsumerWidget {
                               ),
                               SettingsSection.appearance =>
                                 const _AppearanceSection(),
+                              SettingsSection.radiology =>
+                                const RadSettingsSection(),
                               SettingsSection.about => const _AboutSection(),
                             },
                           ),
@@ -161,8 +174,13 @@ class DesktopSettingsScreen extends ConsumerWidget {
 // =============================================================================
 
 class _SectionList extends StatelessWidget {
-  const _SectionList({required this.selected, required this.onSelect});
+  const _SectionList({
+    required this.sections,
+    required this.selected,
+    required this.onSelect,
+  });
 
+  final List<SettingsSection> sections;
   final SettingsSection selected;
   final ValueChanged<SettingsSection> onSelect;
 
@@ -175,7 +193,7 @@ class _SectionList extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          for (final s in SettingsSection.values)
+          for (final s in sections)
             _SectionItem(
               section: s,
               selected: s == selected,

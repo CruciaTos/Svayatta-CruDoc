@@ -18,8 +18,7 @@ class AuthSpecialtyNotifier extends Notifier<DoctorSpecialty> {
 
   void select(DoctorSpecialty spec) => state = spec;
   void selectByType(DoctorSpecialtyType type) {
-    state = DoctorSpecialty.all.firstWhere((s) => s.type == type,
-        orElse: () => DoctorSpecialty.defaultSpecialty);
+    state = DoctorSpecialty.ofType(type);
   }
 }
 
@@ -170,4 +169,13 @@ final isDentistProvider = Provider<bool>(
   (ref) =>
       ref.watch(activeDoctorSpecialtyProvider).value?.type ==
       DoctorSpecialtyType.dentist,
+);
+
+/// Oral & Maxillofacial Radiologists (a dental sub-specialty) get the
+/// Radiology screens: worklist, viewer, reports and referrers. They don't
+/// get the chairside dental screens.
+final isOralRadiologistProvider = Provider<bool>(
+  (ref) =>
+      ref.watch(activeDoctorSpecialtyProvider).value?.type ==
+      DoctorSpecialtyType.oralRadiologist,
 );

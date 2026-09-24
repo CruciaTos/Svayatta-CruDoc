@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/wrap_up_providers.dart';
@@ -70,6 +72,9 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
           : ScheduleCard(items: data.schedule!, now: data.now),
       // Dentists: today's sterilization and plans waiting for a yes.
       if (_isDentist) DentalTodayCard(onNavigate: widget.onNavigateToTab),
+      // Oral & Maxillofacial Radiologists: what's waiting to be read.
+      if (ref.watch(isOralRadiologistProvider))
+        RadiologyTodayCard(onNavigate: widget.onNavigateToTab),
     ];
 
     final right = <Widget>[

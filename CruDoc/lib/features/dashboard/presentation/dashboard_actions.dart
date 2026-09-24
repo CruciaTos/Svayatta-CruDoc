@@ -35,6 +35,14 @@ abstract final class DesktopTab {
   static bool isDental(int tab) =>
       tab == treatmentPlans || tab == sterilization || tab == procedures;
 
+  /// Oral & Maxillofacial Radiologists only.
+  static const worklist = 12;
+  static const reports = 13;
+  static const referrers = 14;
+
+  static bool isRadiology(int tab) =>
+      tab == worklist || tab == reports || tab == referrers;
+
   /// Sidebar name, for "‹ Schedule" style back links.
   static String label(int tab) => switch (tab) {
         dashboard => 'Dashboard',
@@ -48,6 +56,9 @@ abstract final class DesktopTab {
         treatmentPlans => 'Treatment plans',
         sterilization => 'Sterilization',
         procedures => 'Procedures',
+        worklist => 'Worklist',
+        reports => 'Reports',
+        referrers => 'Referrers',
         _ => 'Back',
       };
 }

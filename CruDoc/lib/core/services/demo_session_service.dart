@@ -42,6 +42,8 @@ class DemoSessionService {
     switch (specialty.type) {
       case DoctorSpecialtyType.dentist:
         return 'Dr. Aryan Dental';
+      case DoctorSpecialtyType.oralRadiologist:
+        return 'Dr. Meera Radiology';
       case DoctorSpecialtyType.homeopathy:
         return 'Dr. Vinit Homeo';
       case DoctorSpecialtyType.cardiologist:

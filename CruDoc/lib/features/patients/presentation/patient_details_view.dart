@@ -25,6 +25,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/payments_block.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Main-area padding for Patient details (the dashboard's, 24 on top).
@@ -104,6 +105,10 @@ class _DetailsBody extends ConsumerWidget {
     final specialty = ref.watch(activeDoctorSpecialtyProvider).value?.type;
     final isDentist = specialty == DoctorSpecialtyType.dentist;
     final isHomeopath = specialty == DoctorSpecialtyType.homeopathy;
+    // Radiologists: the patient's scans and reports.
+    final imaging = specialty == DoctorSpecialtyType.oralRadiologist
+        ? PatientImagingCard(patientId: s.id)
+        : null;
 
     // Dental plan (dentists only). Declined items are dropped.
     final plan = isDentist ? ref.watch(patientTreatmentPlanProvider(s.id)) : null;
@@ -204,6 +209,7 @@ class _DetailsBody extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: _Stack([
+                        ?imaging,
                         ?chart,
                         ?noPlan,
                         planOrPayments,
@@ -219,6 +225,7 @@ class _DetailsBody extends ConsumerWidget {
                 )
               else
                 _Stack([
+                  ?imaging,
                   ?chart,
                   ?noPlan,
                   planOrPayments,

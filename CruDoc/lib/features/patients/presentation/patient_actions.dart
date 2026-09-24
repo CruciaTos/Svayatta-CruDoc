@@ -18,7 +18,7 @@ import 'package:doctor_management_app/features/patients/presentation/desktop_add
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_providers.dart';
-import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_recording_screen.dart';
+import 'package:doctor_management_app/features/scribe/presentation/scribe_recording_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// What the Patients list, preview pane and Patient details can do to a
@@ -193,11 +193,7 @@ abstract final class PatientActions {
           "Scribe records against a visit. Add today's visit with New visit first.");
       return;
     }
-    await showDesktopScribeRecordingDialog(
-      context,
-      visit: visit,
-      patient: s.patient,
-    );
+    await showScribeFlow(context, visit: visit, patient: s.patient);
   }
 
   /// Today's visit for the patient (not cancelled), if any.

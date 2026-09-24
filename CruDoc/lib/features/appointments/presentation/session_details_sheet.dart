@@ -144,6 +144,22 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
     }
   }
 
+  /// Runs the AI scribe for this session, then reloads the visit so the
+  /// note field shows what the confirmed scribe note appended.
+  Future<void> _openScribe() async {
+    // Keep unsaved typing: the refresh below replaces the field's text.
+    if (_noteDirty) await _saveNote();
+    if (!mounted) return;
+    final confirmed = await showScribeFlow(context, visit: _visit, patient: _patient);
+    if (!confirmed || !mounted) return;
+    final refreshed = await ref.read(visitRepositoryProvider).getVisit(_visit.id);
+    if (!mounted || refreshed == null) return;
+    setState(() {
+      _visit = refreshed;
+      _notesController.text = refreshed.therapistNotes ?? '';
+    });
+  }
+
   Future<void> _deleteVisit() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -370,28 +386,22 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
               children: [
                 const _SectionLabel(text: 'SESSION NOTE'),
                 TextButton.icon(
-                  onPressed: () {
-                    showModalBottomSheet(
-                      context: context,
-                      isScrollControlled: true,
-                      enableDrag: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (_) => ScribeRecordingSheet(visit: _visit, patient: _patient),
-                    );
-                  },
-                  icon: const Icon(Icons.mic_rounded, size: 15, color: Color(0xFF4A90D9)),
-                  label: const Text(
+                  onPressed: _openScribe,
+                  icon: const Icon(Icons.mic_none_rounded, size: 16, color: AppColors.slateBlue),
+                  label: Text(
                     'AI Voice Scribe',
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: AppColors.bodySmall.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF4A90D9),
+                      color: AppColors.slateBlue,
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    backgroundColor: const Color(0xFF4A90D9).withValues(alpha: 0.1),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    backgroundColor: AppColors.slateBlue.withValues(alpha: 0.08),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                      side: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+                    ),
                   ),
                 ),
               ],

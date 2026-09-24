@@ -379,15 +379,15 @@ class VisitDetailsPage extends ConsumerWidget {
                         if (!hasAiAssistant) return const SizedBox.shrink();
                         return IconButton(
                           icon: const Icon(
-                            Icons.mic_rounded,
-                            color: Color(0xFF4A90D9),
+                            Icons.mic_none_rounded,
+                            color: AppColors.textPrimary,
                             size: 22,
                           ),
                           tooltip: 'AI Voice Scribe',
-                          onPressed: () => _showScribeSheet(
+                          onPressed: () => showScribeFlow(
                             context,
-                            visit,
-                            patient,
+                            visit: visit,
+                            patient: patient,
                           ),
                         );
                       },
@@ -502,23 +502,6 @@ class VisitDetailsPage extends ConsumerWidget {
         ).showSnackBar(const SnackBar(content: Text('Something went wrong')));
       }
     }
-  }
-
-  /// Opens the AI Voice Scribe recording sheet as a modal bottom sheet.
-  /// Gated on the 'ai_assistant' module at the call site (the button is
-  /// invisible when the module is not enabled).
-  void _showScribeSheet(
-    BuildContext context,
-    Visit visit,
-    Patient? patient,
-  ) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      enableDrag: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => ScribeRecordingSheet(visit: visit, patient: patient),
-    );
   }
 }
 

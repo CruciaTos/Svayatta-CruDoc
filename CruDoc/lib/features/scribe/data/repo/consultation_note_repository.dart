@@ -4,12 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
+import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
 import 'package:doctor_management_app/features/scribe/data/services/consultation_note_local_service.dart';
 
 /// Repository for consultation notes produced by the AI Scribe.
@@ -42,26 +44,22 @@ class ConsultationNoteRepository {
 
   Map<String, dynamic> _encryptNoteForFirestore(Map<String, dynamic> map) {
     final out = Map<String, dynamic>.from(map);
+    // symptoms, diagnosisSuggestions, medicines, vitals and physio are
+    // JSON strings by now.
     for (final field in const [
       'transcript',
       'chiefComplaint',
       'advice',
       'confidenceNote',
+      'symptoms',
+      'diagnosisSuggestions',
+      'medicines',
+      'vitals',
+      'physio',
     ]) {
       if (out[field] is String) {
         out[field] = FieldCipher.encrypt(out[field] as String?);
       }
-    }
-    // symptoms and diagnosisSuggestions are stored as JSON strings
-    if (out['symptoms'] is String) {
-      out['symptoms'] = FieldCipher.encrypt(out['symptoms'] as String?);
-    }
-    if (out['diagnosisSuggestions'] is String) {
-      out['diagnosisSuggestions'] =
-          FieldCipher.encrypt(out['diagnosisSuggestions'] as String?);
-    }
-    if (out['medicines'] is String) {
-      out['medicines'] = FieldCipher.encrypt(out['medicines'] as String?);
     }
     return out;
   }
@@ -73,17 +71,17 @@ class ConsultationNoteRepository {
   /// Does NOT touch Patient or Visit — the doctor must call [confirmNote]
   /// after reviewing the draft to commit it to the patient record.
   Future<void> saveNote(ConsultationNote note) async {
-    final encrypted = _encryptedForLocal(note);
-    await _localService.upsertNote(encrypted);
+    await _localService.upsertNote(_encryptedForLocal(note));
   }
 
-  /// Called when the doctor taps Confirm on the draft review screen.
+  /// Called when the doctor taps Confirm on the draft review screen, with
+  /// the doctor's edited version of the note.
   ///
   /// Performs in order:
-  /// 1. Updates local note status to [ConsultationNoteStatus.confirmed]
+  /// 1. Saves the note locally as [ConsultationNoteStatus.confirmed]
   /// 2. Merges diagnosis suggestions into [Patient.diagnosis] (deduped, capped at 4)
-  /// 3. Appends chief complaint + advice summary to [Patient.notes]
-  /// 4. Sets [Visit.therapistNotes] from the confirmed advice
+  /// 3. Appends a dated summary to [Patient.notes]
+  /// 4. Appends a summary to [Visit.therapistNotes] (existing text is kept)
   /// 5. Writes the note to Firestore `users/{doctorId}/medical_records/{id}`
   /// 6. Schedules audio deletion from Firebase Storage
   Future<void> confirmNote(ConsultationNote note) async {
@@ -94,152 +92,257 @@ class ConsultationNoteRepository {
       updatedAt: now,
     );
 
-    // 1 — Update local note
-    await _localService.updateNoteFields(note.id, {
-      'status': ConsultationNoteStatus.confirmed.value,
-      'confirmedAt': now.millisecondsSinceEpoch,
-    });
+    // 1 — Persist the doctor's edits together with the confirmed status
+    await saveNote(confirmed);
 
     // 2 & 3 — Merge into patient record
-    await _mergeIntoPatient(note);
+    await _mergeIntoPatient(confirmed);
 
-    // 4 — Populate Visit.therapistNotes
-    await _mergeIntoVisit(note);
+    // 4 — Append to Visit.therapistNotes
+    await _mergeIntoVisit(confirmed);
 
     // 5 — Write to Firestore medical_records
     unawaited(_writeToFirestore(confirmed));
 
     // 6 — Delete raw audio from Firebase Storage
-    if (note.audioStoragePath != null) {
-      unawaited(_deleteAudio(note.audioStoragePath!));
+    final audioPath = note.audioStoragePath;
+    if (audioPath != null && audioPath.isNotEmpty) {
+      unawaited(_deleteAudio(audioPath));
     }
   }
 
   /// Called when the doctor taps Discard. Marks the note discarded locally
   /// and schedules audio deletion. No patient-record changes are made.
   Future<void> discardNote(ConsultationNote note) async {
-    final now = DateTime.now();
     await _localService.updateNoteFields(note.id, {
       'status': ConsultationNoteStatus.discarded.value,
-      'updatedAt': now.millisecondsSinceEpoch,
     });
 
-    if (note.audioStoragePath != null) {
-      unawaited(_deleteAudio(note.audioStoragePath!));
+    final audioPath = note.audioStoragePath;
+    if (audioPath != null && audioPath.isNotEmpty) {
+      unawaited(_deleteAudio(audioPath));
     }
   }
 
   // ---- Read operations ----
 
   Stream<List<ConsultationNote>> watchNotesForVisit(String visitId) =>
-      _localService.watchNotesForVisit(visitId);
+      _localService
+          .watchNotesForVisit(visitId)
+          .map((notes) => notes.map(_decryptedFromLocal).toList());
 
-  Future<ConsultationNote?> getDraftForVisit(String visitId) =>
-      _localService.getDraftForVisit(visitId);
+  /// The newest unreviewed draft for [visitId], so an interrupted review
+  /// (app closed, sheet dismissed) can be resumed instead of re-recorded.
+  Future<ConsultationNote?> getDraftForVisit(String visitId) async {
+    final note = await _localService.getDraftForVisit(visitId);
+    return note == null ? null : _decryptedFromLocal(note);
+  }
 
-  Future<ConsultationNote?> getNote(String noteId) =>
-      _localService.getNote(noteId);
+  Future<ConsultationNote?> getNote(String noteId) async {
+    final note = await _localService.getNote(noteId);
+    return note == null ? null : _decryptedFromLocal(note);
+  }
 
-  // ---- Private helpers ----
+  // ---- Pure helpers (exposed for tests) ----
 
-  /// Returns a copy of [note] with PHI fields encrypted for local storage.
-  ConsultationNote _encryptedForLocal(ConsultationNote note) {
-    return ConsultationNote(
-      id: note.id,
-      doctorId: note.doctorId,
-      patientId: note.patientId,
-      visitId: note.visitId,
-      transcript: FieldCipher.encrypt(note.transcript),
-      chiefComplaint: FieldCipher.encrypt(note.chiefComplaint),
-      symptoms: note.symptoms, // stored as JSON; encrypted at map level
-      diagnosisSuggestions: note.diagnosisSuggestions,
-      medicines: note.medicines,
-      advice: FieldCipher.encrypt(note.advice),
-      followUpDate: note.followUpDate,
-      vitals: note.vitals,
-      confidenceNote: note.confidenceNote,
-      consentGiven: note.consentGiven,
-      consentAt: note.consentAt,
-      audioStoragePath: note.audioStoragePath,
-      status: note.status,
-      createdAt: note.createdAt,
-      confirmedAt: note.confirmedAt,
-      updatedAt: note.updatedAt,
+  /// Merges [suggestions] into [existing] per §8 of the feature plan:
+  /// case-insensitive dedupe, capped at [Patient.maxDiagnoses], with the
+  /// overflow returned separately so it can go into notes rather than being
+  /// silently dropped. Also used by the review UI to preview the result.
+  static ({List<String> diagnoses, List<String> overflow}) mergeDiagnoses(
+    List<String> existing,
+    List<String> suggestions,
+  ) {
+    final seen = existing.map((d) => d.trim().toLowerCase()).toSet();
+    final added = <String>[];
+    for (final raw in suggestions) {
+      final d = raw.trim();
+      if (d.isEmpty || !seen.add(d.toLowerCase())) continue;
+      added.add(d);
+    }
+    final combined = [...existing, ...added];
+    return (
+      diagnoses: combined.take(Patient.maxDiagnoses).toList(),
+      overflow: combined.skip(Patient.maxDiagnoses).toList(),
     );
   }
 
-  /// Merges the confirmed note's diagnosis suggestions into the patient record,
-  /// following §8 of the feature plan:
-  /// - Deduplicates against existing diagnoses (case-insensitive)
-  /// - Caps at [Patient.maxDiagnoses] (4)
-  /// - Puts overflow into [Patient.notes] instead of silently dropping
-  /// - Appends chief complaint + advice summary to [Patient.notes]
+  /// The block appended to [Visit.therapistNotes] on confirm, laid out as a
+  /// SOAP note. Only filled fields are included.
+  @visibleForTesting
+  static String buildVisitSummary(ConsultationNote note) {
+    final p = note.physio;
+    final sections = <SoapSection, List<String>>{
+      for (final s in SoapSection.values) s: [],
+    };
+
+    void add(SoapSection section, String label, String value) {
+      if (value.trim().isNotEmpty) {
+        sections[section]!.add('$label: ${value.trim()}');
+      }
+    }
+
+    // Subjective
+    add(SoapSection.subjective, 'Chief complaint', note.chiefComplaint);
+    final pain = [
+      if (p.textOf('painNow').isNotEmpty) 'now ${p.textOf('painNow')}',
+      if (p.textOf('painWorst').isNotEmpty) 'worst ${p.textOf('painWorst')}',
+      if (p.textOf('painBest').isNotEmpty) 'best ${p.textOf('painBest')}',
+    ].join(', ');
+    add(SoapSection.subjective, 'Pain (NPRS)', pain);
+    add(SoapSection.subjective, 'Symptoms', note.symptoms.join(', '));
+
+    // Assessment
+    add(
+      SoapSection.assessment,
+      'Diagnosis',
+      note.diagnosisSuggestions.join(', '),
+    );
+
+    for (final spec in PhysioFindings.textSpecs) {
+      if (spec.compact) continue; // pain scores already combined above
+      add(spec.section, spec.label, p.textOf(spec.key));
+    }
+    for (final spec in PhysioFindings.listSpecs) {
+      final label = spec.key == 'redFlags' ? '⚠ ${spec.label}' : spec.label;
+      add(spec.section, label, p.listOf(spec.key).join('; '));
+    }
+    add(
+      SoapSection.subjective,
+      'Medications',
+      note.medicines.map(_formatMedicine).join('; '),
+    );
+
+    // Objective
+    final vitals = [
+      if ((note.vitals['bp'] ?? '').trim().isNotEmpty)
+        'BP ${note.vitals['bp']!.trim()}',
+      if ((note.vitals['pulse'] ?? '').trim().isNotEmpty)
+        'Pulse ${note.vitals['pulse']!.trim()}',
+      if ((note.vitals['temp'] ?? '').trim().isNotEmpty)
+        'Temp ${note.vitals['temp']!.trim()}',
+    ].join(', ');
+    add(SoapSection.objective, 'Vitals', vitals);
+
+    for (final spec in PhysioFindings.tableSpecs) {
+      final rows = p.tableOf(spec.key);
+      if (rows.isEmpty) continue;
+      sections[spec.section]!.add(
+        '${spec.label}:\n${rows.map((r) => '  • ${PhysioFindings.formatRow(spec, r)}').join('\n')}',
+      );
+    }
+
+    // Plan
+    add(SoapSection.plan, 'Advice', note.advice);
+    if (note.followUpDate != null) {
+      add(
+        SoapSection.plan,
+        'Follow-up',
+        DateFormat('d MMM yyyy').format(note.followUpDate!),
+      );
+    }
+
+    final lines = <String>[
+      'AI Scribe note (${DateFormat('d MMM yyyy, h:mm a').format(note.createdAt)})',
+    ];
+    for (final section in SoapSection.values) {
+      final items = sections[section]!;
+      if (items.isEmpty) continue;
+      lines
+        ..add('')
+        ..add('${section.letter} — ${section.title.toUpperCase()}')
+        ..addAll(items);
+    }
+    return lines.join('\n');
+  }
+
+  static String _formatMedicine(NotedMedicine m) {
+    final details = [
+      m.dosage,
+      m.instructions,
+    ].map((s) => s.trim()).where((s) => s.isNotEmpty).join(', ');
+    return details.isEmpty ? m.name.trim() : '${m.name.trim()} ($details)';
+  }
+
+  // ---- Private helpers ----
+
+  /// Returns a copy of [note] with free-text PHI encrypted for local storage.
+  /// (The list fields are JSON-encoded by [ConsultationNote.toLocalMap] and
+  /// live in the SQLCipher-encrypted database.)
+  ConsultationNote _encryptedForLocal(ConsultationNote note) {
+    return note.copyWith(
+      transcript: FieldCipher.encrypt(note.transcript),
+      chiefComplaint: FieldCipher.encrypt(note.chiefComplaint),
+      advice: FieldCipher.encrypt(note.advice),
+      confidenceNote: FieldCipher.encrypt(note.confidenceNote),
+    );
+  }
+
+  ConsultationNote _decryptedFromLocal(ConsultationNote note) {
+    return note.copyWith(
+      transcript: FieldCipher.decrypt(note.transcript),
+      chiefComplaint: FieldCipher.decrypt(note.chiefComplaint),
+      advice: FieldCipher.decrypt(note.advice),
+      confidenceNote: FieldCipher.decrypt(note.confidenceNote),
+    );
+  }
+
+  /// Merges the confirmed note into the patient record (§8):
+  /// diagnoses via [mergeDiagnoses], plus a dated summary appended to
+  /// [Patient.notes] that also carries any diagnosis overflow.
   Future<void> _mergeIntoPatient(ConsultationNote note) async {
     final patient = await _patientRepository.getPatient(note.patientId);
     if (patient == null) return;
 
-    final existingLower = patient.diagnosis.map((d) => d.toLowerCase()).toSet();
-    final newDiagnoses = note.diagnosisSuggestions
-        .where((d) => d.trim().isNotEmpty)
-        .where((d) => !existingLower.contains(d.toLowerCase()))
-        .toList();
+    final merged = mergeDiagnoses(patient.diagnosis, note.diagnosisSuggestions);
 
-    final combined = [...patient.diagnosis, ...newDiagnoses];
-    final capped = combined.take(Patient.maxDiagnoses).toList();
-    final overflow = combined.skip(Patient.maxDiagnoses).toList();
-
-    // Build the note suffix
-    final buffer = StringBuffer();
-    if (note.chiefComplaint.trim().isNotEmpty) {
-      buffer.writeln('[Scribe ${_formatDate(note.createdAt)}]');
-      buffer.writeln('Chief complaint: ${note.chiefComplaint}');
-      if (note.advice.trim().isNotEmpty) {
-        buffer.writeln('Advice: ${note.advice}');
-      }
-      if (overflow.isNotEmpty) {
-        buffer.writeln('Additional diagnoses: ${overflow.join(', ')}');
-      }
-    }
-
-    final updatedNotes = patient.notes.trim().isEmpty
-        ? buffer.toString().trim()
-        : '${patient.notes.trim()}\n\n${buffer.toString().trim()}';
+    final redFlags = note.physio.listOf('redFlags');
+    final lines = <String>[
+      if (note.chiefComplaint.trim().isNotEmpty)
+        'Chief complaint: ${note.chiefComplaint.trim()}',
+      // Carried onto the patient record so they're seen on every future visit.
+      if (redFlags.isNotEmpty) '⚠ Red flags: ${redFlags.join('; ')}',
+      if (note.advice.trim().isNotEmpty) 'Advice: ${note.advice.trim()}',
+      if (merged.overflow.isNotEmpty)
+        'Additional diagnoses: ${merged.overflow.join(', ')}',
+    ];
 
     final updates = <String, dynamic>{
-      'diagnosis': Patient.diagnosisToStored(capped),
-      if (buffer.isNotEmpty) 'notes': updatedNotes.trim(),
+      'diagnosis': Patient.diagnosisToStored(merged.diagnoses),
     };
-
-    if (updates.isNotEmpty) {
-      await _patientRepository.updatePatient(note.patientId, updates);
+    if (lines.isNotEmpty) {
+      final block = [
+        '[Scribe ${DateFormat('d/M/yyyy').format(note.createdAt)}]',
+        ...lines,
+      ].join('\n');
+      updates['notes'] = patient.notes.trim().isEmpty
+          ? block
+          : '${patient.notes.trim()}\n\n$block';
     }
+
+    await _patientRepository.updatePatient(note.patientId, updates);
   }
 
-  /// Populates [Visit.therapistNotes] from the confirmed note's advice,
-  /// as specified in §8 of the feature plan.
+  /// Appends the confirmed note's summary to [Visit.therapistNotes] (§8),
+  /// keeping whatever the doctor had already written for this session.
   Future<void> _mergeIntoVisit(ConsultationNote note) async {
-    if (note.advice.trim().isEmpty && note.chiefComplaint.trim().isEmpty) {
-      return;
-    }
-
-    final summaryParts = <String>[];
-    if (note.chiefComplaint.trim().isNotEmpty) {
-      summaryParts.add('Chief complaint: ${note.chiefComplaint}');
-    }
-    if (note.advice.trim().isNotEmpty) {
-      summaryParts.add('Advice: ${note.advice}');
-    }
-    final summary = summaryParts.join('\n');
-
     try {
+      final visit = await _visitRepository.getVisit(note.visitId);
+      if (visit == null) return;
+
+      final summary = buildVisitSummary(note);
+      final existing = visit.therapistNotes?.trim() ?? '';
+      final hasTreatmentType = visit.treatmentType?.trim().isNotEmpty ?? false;
+
       await _visitRepository.updateVisit(note.visitId, {
-        'therapistNotes': summary,
-        if (note.diagnosisSuggestions.isNotEmpty)
+        'therapistNotes': existing.isEmpty ? summary : '$existing\n\n$summary',
+        if (!hasTreatmentType && note.diagnosisSuggestions.isNotEmpty)
           'treatmentType': note.diagnosisSuggestions.first,
       });
-    } catch (_) {
-      // Best-effort — don't fail the entire confirm flow if visit update
+    } catch (e) {
+      // Best-effort — don't fail the entire confirm flow if the visit update
       // fails (e.g. visit was deleted between recording and confirm).
+      debugPrint('[ScribeRepo] Visit update failed: $e');
     }
   }
 
@@ -266,7 +369,4 @@ class ConsultationNoteRepository {
       debugPrint('[ScribeRepo] Audio deletion failed: $e');
     }
   }
-
-  static String _formatDate(DateTime dt) =>
-      '${dt.day}/${dt.month}/${dt.year}';
 }

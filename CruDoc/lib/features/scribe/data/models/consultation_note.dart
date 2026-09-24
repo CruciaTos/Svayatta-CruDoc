@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
+
 /// Status lifecycle of a consultation note produced by the AI Scribe.
 enum ConsultationNoteStatus {
   /// AI has produced a draft; doctor has not yet reviewed it.
@@ -106,6 +108,10 @@ class ConsultationNote {
   /// Only populated if the doctor actually stated them during the visit.
   final Map<String, String?> vitals;
 
+  /// Physiotherapy SOAP details (pain scores, ROM, MMT, special tests,
+  /// treatment given, home exercises, goals). Empty for older notes.
+  final PhysioFindings physio;
+
   /// A brief note from the model about its own confidence in the
   /// transcription (e.g. audio quality issues, overlapping speech).
   final String confidenceNote;
@@ -138,6 +144,7 @@ class ConsultationNote {
     this.advice = '',
     this.followUpDate,
     this.vitals = const {},
+    this.physio = PhysioFindings.empty,
     this.confidenceNote = '',
     this.consentGiven = true,
     this.consentAt,
@@ -162,17 +169,20 @@ class ConsultationNote {
       'diagnosisSuggestions': jsonEncode(diagnosisSuggestions),
       'medicines': NotedMedicine.listToStored(medicines),
       'advice': advice,
-      'followUpDate':
-          followUpDate != null ? Timestamp.fromDate(followUpDate!) : null,
+      'followUpDate': followUpDate != null
+          ? Timestamp.fromDate(followUpDate!)
+          : null,
       'vitals': jsonEncode(vitals),
+      'physio': physio.toStored(),
       'confidenceNote': confidenceNote,
       'consentGiven': consentGiven,
       'consentAt': consentAt != null ? Timestamp.fromDate(consentAt!) : null,
       'audioStoragePath': audioStoragePath,
       'status': status.value,
       'createdAt': Timestamp.fromDate(createdAt),
-      'confirmedAt':
-          confirmedAt != null ? Timestamp.fromDate(confirmedAt!) : null,
+      'confirmedAt': confirmedAt != null
+          ? Timestamp.fromDate(confirmedAt!)
+          : null,
       'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
   }
@@ -193,6 +203,7 @@ class ConsultationNote {
       'advice': advice,
       'followUpDate': followUpDate?.millisecondsSinceEpoch,
       'vitals': jsonEncode(vitals),
+      'physio': physio.toStored(),
       'confidenceNote': confidenceNote,
       'consentGiven': consentGiven ? 1 : 0,
       'consentAt': consentAt?.millisecondsSinceEpoch,
@@ -221,6 +232,7 @@ class ConsultationNote {
       advice: map['advice'] as String? ?? '',
       followUpDate: _parseNullableDate(map['followUpDate']),
       vitals: _parseVitals(map['vitals']),
+      physio: PhysioFindings.fromStored(map['physio']),
       confidenceNote: map['confidenceNote'] as String? ?? '',
       consentGiven: (map['consentGiven'] is bool)
           ? map['consentGiven'] as bool
@@ -251,6 +263,7 @@ class ConsultationNote {
     DateTime? followUpDate,
     bool clearFollowUpDate = false,
     Map<String, String?>? vitals,
+    PhysioFindings? physio,
     String? confidenceNote,
     String? audioStoragePath,
     bool clearAudioStoragePath = false,
@@ -269,8 +282,11 @@ class ConsultationNote {
       diagnosisSuggestions: diagnosisSuggestions ?? this.diagnosisSuggestions,
       medicines: medicines ?? this.medicines,
       advice: advice ?? this.advice,
-      followUpDate: clearFollowUpDate ? null : (followUpDate ?? this.followUpDate),
+      followUpDate: clearFollowUpDate
+          ? null
+          : (followUpDate ?? this.followUpDate),
       vitals: vitals ?? this.vitals,
+      physio: physio ?? this.physio,
       confidenceNote: confidenceNote ?? this.confidenceNote,
       consentGiven: consentGiven,
       consentAt: consentAt,
@@ -304,7 +320,10 @@ class ConsultationNote {
   static List<String> _parseStringList(Object? value) {
     if (value == null) return const [];
     if (value is List) {
-      return value.map((e) => e.toString().trim()).where((e) => e.isNotEmpty).toList();
+      return value
+          .map((e) => e.toString().trim())
+          .where((e) => e.isNotEmpty)
+          .toList();
     }
     if (value is String && value.isNotEmpty) {
       try {
@@ -325,9 +344,7 @@ class ConsultationNote {
     try {
       final decoded = jsonDecode(value as String);
       if (decoded is Map) {
-        return decoded.map(
-          (k, v) => MapEntry(k.toString(), v?.toString()),
-        );
+        return decoded.map((k, v) => MapEntry(k.toString(), v?.toString()));
       }
     } catch (_) {}
     return const {};

@@ -42,6 +42,7 @@ import 'package:doctor_management_app/features/dental/specialties/anaesthesia/em
 import 'package:doctor_management_app/features/dental/specialties/dental_not_built.dart';
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_cases_screen.dart';
+import 'package:doctor_management_app/features/dental/specialties/forms/forms_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
@@ -318,12 +319,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               'photos and follow-up.',
         );
       case DesktopTab.oralMedForms:
-        return const DentalNotBuiltScreen(
-          icon: RecIcons.checklist,
-          title: 'Forms',
-          body: 'Not built yet. This will hold oral medicine intake and '
-              'referral forms.',
-        );
+        return const FormsScreen();
       case DesktopTab.sedationCases:
         return const DentalNotBuiltScreen(
           icon: CruIcons.flask,

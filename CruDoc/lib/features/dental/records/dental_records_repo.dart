@@ -52,6 +52,12 @@ abstract final class RecKind {
 
   /// Sedation and anaesthesia cases (patientId = patient).
   static const sedationCase = 'sedationCase';
+
+  /// Clinic custom form templates (patientId = '').
+  static const formTemplate = 'formTemplate';
+
+  /// Patient filled form responses (patientId = patient).
+  static const formResponse = 'formResponse';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

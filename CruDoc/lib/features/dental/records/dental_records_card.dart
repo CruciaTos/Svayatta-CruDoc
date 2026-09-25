@@ -16,6 +16,7 @@ import 'package:doctor_management_app/features/dental/referrals/referral_dialogs
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
 import 'package:doctor_management_app/features/dental/specialties/anaesthesia/preop_dialog.dart';
 import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
+import 'package:doctor_management_app/features/dental/specialties/forms/form_fill.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -93,6 +94,15 @@ class DentalRecordsCard extends ConsumerWidget {
             final modality = last.str('planned').isNotEmpty ? last.str('planned') : 'Sedation';
             final status = last.str('status');
             return '$modality · $status (${DentalFormat.date(last.recordedAt)})';
+          }();
+    final formResponses = of(RecKind.formResponse);
+    final formsLine = formResponses.isEmpty
+        ? 'No forms filled'
+        : () {
+            final count = formResponses.length;
+            final last = formResponses.first;
+            final name = last.str('templateName').isNotEmpty ? last.str('templateName') : 'Form';
+            return '$count filled · last $name (${DentalFormat.date(last.recordedAt)})';
           }();
 
     final perioLine = perio.isEmpty
@@ -261,6 +271,15 @@ class DentalRecordsCard extends ConsumerWidget {
                 patient: patient,
                 initialCase: sedationCases.isNotEmpty ? SedationCase.fromRecord(sedationCases.first) : null,
               ),
+            ),
+          ),
+          row(
+            RecIcons.checklist,
+            'Forms',
+            formsLine,
+            () => showDialog<void>(
+              context: context,
+              builder: (_) => PatientFormsDialog(patient: patient),
             ),
           ),
           row(

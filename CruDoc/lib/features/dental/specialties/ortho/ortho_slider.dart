@@ -44,6 +44,7 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
 
   /// Divider position from 0.0 (all After) to 1.0 (all Before).
   double _dividerFraction = 0.5;
+  bool _sideBySide = false;
   bool _exporting = false;
 
   @override
@@ -157,7 +158,7 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
 
         return DentalPanelDialog(
           title: 'Before & After Comparison',
-          subtitle: '${widget.patient.fullName} · Drag slider to compare',
+          subtitle: '${widget.patient.fullName} · ${_sideBySide ? 'Side by side comparison' : 'Drag slider to compare'}',
           width: 960,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -271,6 +272,17 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                     ),
                     const SizedBox(width: CruSpace.s16),
 
+                    // Comparison mode toggle
+                    CruSegmentedControl<bool>(
+                      selected: _sideBySide,
+                      segments: const [
+                        CruSegment(false, 'Slider'),
+                        CruSegment(true, 'Side by side'),
+                      ],
+                      onChanged: (val) => setState(() => _sideBySide = val),
+                    ),
+                    const SizedBox(width: CruSpace.s12),
+
                     // Export button
                     CruButton(
                       label: _exporting ? 'Exporting…' : 'Export PNG',
@@ -324,6 +336,86 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                         ),
                       ],
                     ),
+                  ),
+                )
+              else if (_sideBySide)
+                Container(
+                  height: 480,
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(CruRadius.control),
+                    border: Border.all(color: c.hairline),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Row(
+                    children: [
+                      // Before pane
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(
+                              File(beforePhoto),
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                            ),
+                            Positioned(
+                              top: CruSpace.s12,
+                              left: CruSpace.s12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CruSpace.s10,
+                                  vertical: CruSpace.s4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(CruRadius.control),
+                                ),
+                                child: Text(
+                                  'Before · ${DentalFormat.date(_beforeSet!.date)}',
+                                  style: CruType.caption.w600.tint(Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 2,
+                        color: Colors.white24,
+                      ),
+                      // After pane
+                      Expanded(
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.file(
+                              File(afterPhoto),
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                            ),
+                            Positioned(
+                              top: CruSpace.s12,
+                              right: CruSpace.s12,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: CruSpace.s10,
+                                  vertical: CruSpace.s4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.65),
+                                  borderRadius: BorderRadius.circular(CruRadius.control),
+                                ),
+                                child: Text(
+                                  'After · ${DentalFormat.date(_afterSet!.date)}',
+                                  style: CruType.caption.w600.tint(Colors.white),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 )
               else

@@ -43,6 +43,12 @@ abstract final class RecKind {
 
   /// Prosthodontic lab cases (patientId = patient).
   static const labCase = 'labCase';
+
+  /// Orthodontic photo series (patientId = patient).
+  static const photoSet = 'photoSet';
+
+  /// Orthodontic cases (patientId = patient).
+  static const orthoCase = 'orthoCase';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

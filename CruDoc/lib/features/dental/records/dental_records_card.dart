@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dental/specialties/oralmed/oralme
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
+import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -79,6 +80,10 @@ class DentalRecordsCard extends ConsumerWidget {
             final countStr = openCount == 0 ? 'None active' : '$openCount active';
             return '$countStr · last $type (${stage.isNotEmpty ? stage : 'scanned'})';
           }();
+    final photoSets = of(RecKind.photoSet);
+    final photoSetLine = photoSets.isEmpty
+        ? 'No series yet'
+        : '${photoSets.length} series · last ${photoSets.first.str('label')} (${DentalFormat.date(photoSets.first.recordedAt)})';
 
     final perioLine = perio.isEmpty
         ? 'No exam yet'
@@ -225,6 +230,15 @@ class DentalRecordsCard extends ConsumerWidget {
             () => showDialog<void>(
               context: context,
               builder: (_) => PatientLabCasesDialog(patient: patient),
+            ),
+          ),
+          row(
+            CruIcons.box,
+            'Ortho photo series',
+            photoSetLine,
+            () => showDialog<void>(
+              context: context,
+              builder: (_) => OrthoPhotosDialog(patient: patient),
             ),
           ),
           row(

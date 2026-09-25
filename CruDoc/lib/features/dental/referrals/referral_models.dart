@@ -262,3 +262,13 @@ final allReferralsProvider = Provider<List<DentalReferral>>((ref) {
   return records.map(DentalReferral.fromRecord).toList()
     ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
 });
+
+/// Provider for contacts that are dental laboratories (PR2).
+final labPartnersProvider = Provider<List<ReferralContact>>((ref) {
+  final contacts = ref.watch(referralContactsProvider);
+  return contacts
+      .where((c) =>
+          c.specialty.toLowerCase().contains('lab') ||
+          c.name.toLowerCase().contains('lab'))
+      .toList();
+});

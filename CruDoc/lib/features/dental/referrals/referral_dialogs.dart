@@ -609,20 +609,37 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
   }
 }
 
-/// Panel dialog displaying the full directory of referral contacts.
-class ContactDirectoryDialog extends ConsumerWidget {
-  const ContactDirectoryDialog({super.key});
+/// Panel dialog displaying the full directory of referral contacts with Labs filter (PR2).
+class ContactDirectoryDialog extends ConsumerStatefulWidget {
+  const ContactDirectoryDialog({super.key, this.initialLabsOnly = false});
+
+  final bool initialLabsOnly;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ContactDirectoryDialog> createState() => _ContactDirectoryDialogState();
+}
+
+class _ContactDirectoryDialogState extends ConsumerState<ContactDirectoryDialog> {
+  late bool _labsOnly;
+
+  @override
+  void initState() {
+    super.initState();
+    _labsOnly = widget.initialLabsOnly;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final c = context.cru;
     final contacts = ref.watch(referralContactsProvider);
+    final labContacts = ref.watch(labPartnersProvider);
+    final shown = _labsOnly ? labContacts : contacts;
 
     return DentalPanelDialog(
       title: 'Referral contacts',
-      subtitle: '${contacts.length} specialists and lab partners',
+      subtitle: '${contacts.length} contacts · ${labContacts.length} lab partners',
       leading: const CruIconTile(icon: CruIcons.userPlus, tone: CruTileTone.neutral),
-      width: 540,
+      width: 560,
       footer: CruButton(
         label: 'New contact',
         icon: CruIcons.plus,
@@ -631,59 +648,97 @@ class ContactDirectoryDialog extends ConsumerWidget {
           builder: (_) => const EditContactDialog(),
         ),
       ),
-      body: contacts.isEmpty
-          ? DentalEmptyState(
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              CruSegmentedControl<bool>(
+                semanticLabel: 'Filter contacts',
+                segments: [
+                  CruSegment(false, 'All (${contacts.length})'),
+                  CruSegment(true, 'Labs (${labContacts.length})'),
+                ],
+                selected: _labsOnly,
+                onChanged: (v) => setState(() => _labsOnly = v),
+              ),
+            ],
+          ),
+          const SizedBox(height: CruSpace.s12),
+          if (shown.isEmpty)
+            DentalEmptyState(
               icon: CruIcons.user,
-              title: 'No contacts saved',
-              body: 'Add external doctors, specialists, or labs to refer patients to.',
+              title: _labsOnly ? 'No dental labs saved' : 'No contacts saved',
+              body: _labsOnly
+                  ? 'Add dental lab partners with turnaround times for crown, bridge and denture work.'
+                  : 'Add external doctors, specialists, or labs to refer patients to.',
               actions: [
                 CruButton(
-                  label: 'New contact',
+                  label: _labsOnly ? 'Add dental lab' : 'New contact',
                   icon: CruIcons.plus,
                   onPressed: () => showDialog<void>(
                     context: context,
-                    builder: (_) => const EditContactDialog(),
+                    builder: (_) => EditContactDialog(
+                      contact: _labsOnly
+                          ? const ReferralContact(id: '', name: '', specialty: 'Dental lab')
+                          : null,
+                    ),
                   ),
                 ),
               ],
             )
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final cnt in contacts)
-                  DentalListRow(
-                    semanticLabel: cnt.name,
-                    onTap: () => showDialog<void>(
-                      context: context,
-                      builder: (_) => EditContactDialog(contact: cnt),
+          else
+            for (final cnt in shown)
+              DentalListRow(
+                semanticLabel: cnt.name,
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (_) => EditContactDialog(contact: cnt),
+                ),
+                child: Row(
+                  children: [
+                    CruIconTile(
+                      icon: cnt.specialty.toLowerCase().contains('lab')
+                          ? CruIcons.box
+                          : CruIcons.user,
+                      tone: CruTileTone.neutral,
                     ),
-                    child: Row(
-                      children: [
-                        CruIconTile(icon: CruIcons.user, tone: CruTileTone.neutral),
-                        const SizedBox(width: CruSpace.s12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    const SizedBox(width: CruSpace.s12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
                             children: [
                               Text(cnt.name, style: CruType.callout.w600.tint(c.label)),
-                              Text(
-                                [
-                                  if (cnt.specialty.isNotEmpty) cnt.specialty,
-                                  if (cnt.clinic.isNotEmpty) cnt.clinic,
-                                  if (cnt.city.isNotEmpty) cnt.city,
-                                ].join(' · '),
-                                style: CruType.caption.tint(c.label2),
-                              ),
+                              if (cnt.turnaroundDays != null) ...[
+                                const SizedBox(width: CruSpace.s8),
+                                CruPill(
+                                  text: '${cnt.turnaroundDays}d turnaround',
+                                  background: c.inset,
+                                  foreground: c.label2,
+                                ),
+                              ],
                             ],
                           ),
-                        ),
-                        if (cnt.phone.isNotEmpty)
-                          Text(cnt.phone, style: CruType.caption.tabular.tint(c.label2)),
-                      ],
+                          Text(
+                            [
+                              if (cnt.specialty.isNotEmpty) cnt.specialty,
+                              if (cnt.clinic.isNotEmpty) cnt.clinic,
+                              if (cnt.city.isNotEmpty) cnt.city,
+                            ].join(' · '),
+                            style: CruType.caption.tint(c.label2),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-              ],
-            ),
+                    if (cnt.phone.isNotEmpty)
+                      Text(cnt.phone, style: CruType.caption.tabular.tint(c.label2)),
+                  ],
+                ),
+              ),
+        ],
+      ),
     );
   }
 }

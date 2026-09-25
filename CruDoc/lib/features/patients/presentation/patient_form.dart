@@ -4,6 +4,8 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_voice_fill_bar.dart';
+import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 export 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 
@@ -58,9 +60,17 @@ class PatientForm extends StatefulWidget {
     this.initialDateOfBirth,
     this.initialDiagnoses,
     this.initialPackageBalance,
+    this.enableVoiceFill = false,
+    this.voiceFillService,
   });
 
   final GlobalKey<FormState> formKey;
+
+  /// Shows the "Fill by voice" mic strip above the fields.
+  final bool enableVoiceFill;
+
+  /// Injected in tests.
+  final PatientVoiceFillService? voiceFillService;
 
   /// Called with the validated form data whenever the caller invokes
   /// [PatientFormState.submit] (typically from a "Save" button) and
@@ -152,6 +162,42 @@ class PatientFormState extends State<PatientForm> {
     });
   }
 
+  /// Puts what was heard into the form. Only fields that were heard are
+  /// changed; heard conditions are added to the ones already typed.
+  void applyVoiceFill(PatientVoiceFill fill) {
+    setState(() {
+      if (fill.firstName.isNotEmpty) _firstNameController.text = fill.firstName;
+      if (fill.lastName.isNotEmpty) _lastNameController.text = fill.lastName;
+      if (fill.phone.isNotEmpty) _phoneController.text = fill.phone;
+      if (fill.email.isNotEmpty) _emailController.text = fill.email;
+      if (fill.gender != null && _genderOptions.contains(fill.gender)) {
+        _gender = fill.gender!;
+      }
+      _dateOfBirth = fill.dateOfBirthOr(DateTime.now()) ?? _dateOfBirth;
+      if (fill.packageBalance != null) {
+        _packageBalanceController.text = fill.packageBalance!.toStringAsFixed(
+          0,
+        );
+      }
+      if (fill.conditions.isNotEmpty) {
+        final existing = _diagnosisControllers
+            .map((c) => c.text.trim())
+            .where((t) => t.isNotEmpty);
+        final seen = <String>{};
+        final merged = [...existing, ...fill.conditions]
+            .where((d) => seen.add(d.toLowerCase()))
+            .take(_maxDiagnoses)
+            .toList();
+        for (final c in _diagnosisControllers) {
+          c.dispose();
+        }
+        _diagnosisControllers = [
+          for (final d in merged) TextEditingController(text: d),
+        ];
+      }
+    });
+  }
+
   /// Validates the form and, if valid, invokes [PatientForm.onSubmit]
   /// with the collected data. Returns true if validation passed.
   bool submit() {
@@ -227,6 +273,13 @@ class PatientFormState extends State<PatientForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (widget.enableVoiceFill) ...[
+            PatientVoiceFillBar(
+              onFill: applyVoiceFill,
+              service: widget.voiceFillService,
+            ),
+            const SizedBox(height: 18),
+          ],
           Row(
             children: [
               Expanded(

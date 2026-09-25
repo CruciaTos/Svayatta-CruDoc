@@ -369,6 +369,52 @@ class ScribeRecorderPanel extends StatelessWidget {
             );
           },
         ),
+        const SizedBox(height: 12),
+        // The AI only hears the session — findings measured silently
+        // (goniometer, MMT) never reach the note unless said aloud.
+        Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          decoration: BoxDecoration(
+            color: palette.accentSoft,
+            borderRadius: BorderRadius.circular(palette.fieldRadius + 2),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.record_voice_over_rounded,
+                size: 18,
+                color: palette.accent,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'Say your findings aloud. ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: palette.accent,
+                        ),
+                      ),
+                      const TextSpan(
+                        text:
+                            '"Right knee flexion 95 degrees, McMurray '
+                            'positive, quads 4 by 5, pain 6 out of 10."',
+                      ),
+                    ],
+                  ),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
         const SizedBox(height: 24),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,

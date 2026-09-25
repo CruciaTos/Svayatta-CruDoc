@@ -14,6 +14,8 @@ import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_patient_details_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/dental_patient_details_screen.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -249,6 +251,10 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                     ),
                     const SizedBox(height: 16),
                     _DoctorsNoteCard(note: _note, onTap: _openNoteEditor),
+                    if (ref.watch(isPhysiotherapyProvider)) ...[
+                      const SizedBox(height: 16),
+                      _PhysioPhotosActionCard(patient: patient),
+                    ],
                     const SizedBox(height: 20),
                     const _SectionLabel(text: 'CONTACT'),
                     const SizedBox(height: 10),
@@ -1283,5 +1289,74 @@ String _formatRelativeTime(DateTime dateTime) {
   } else {
     final years = (difference.inDays / 365).floor();
     return '$years ${years == 1 ? 'year' : 'years'} ago';
+  }
+}
+
+class _PhysioPhotosActionCard extends ConsumerWidget {
+  const _PhysioPhotosActionCard({required this.patient});
+  final Patient patient;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final setsAsync = ref.watch(
+      patientRecordsProvider((patientId: patient.id, kind: RecKind.physioPhotoSet)),
+    );
+    final count = setsAsync.value?.length ?? 0;
+
+    return Container(
+      decoration: _surfaceCardDecoration(),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            showDialog<void>(
+              context: context,
+              builder: (_) => PhysioPhotosDialog(patient: patient),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: _accentBlue.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.accessibility_new_rounded, color: _accentBlue, size: 20),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'POSTURE & MOVEMENT PHOTOS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.1,
+                          color: _accentBlue,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        count == 0
+                            ? 'Record photo series per treatment session'
+                            : '$count session series recorded',
+                        style: AppColors.bodyMedium,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

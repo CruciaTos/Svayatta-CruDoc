@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/messaging/data/services/whatsapp_
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/core/theme/cru_theme.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 
 /// Opens the desktop-specific Session Details modal popup dialog.
 Future<void> showDesktopSessionDetailsDialog(
@@ -955,6 +956,31 @@ class _DesktopSessionDetailsDialogState
             label: const Text('Cancel & Remove', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
           ),
           const Spacer(),
+          if (_patient != null) ...[
+            OutlinedButton.icon(
+              onPressed: () {
+                showDialog<void>(
+                  context: context,
+                  builder: (_) => PhysioPhotosDialog(
+                    patient: _patient!,
+                    initialVisitId: _visit.id,
+                  ),
+                );
+              },
+              icon: const Icon(Icons.camera_alt_outlined, size: 16),
+              label: const Text(
+                'Session Photos',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF1F2937),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+            const SizedBox(width: 12),
+          ],
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(),
             style: ElevatedButton.styleFrom(

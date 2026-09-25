@@ -29,6 +29,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/treatment_plan_card.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Main-area padding for Patient details (the dashboard's, 24 on top).
@@ -107,6 +108,7 @@ class _DetailsBody extends ConsumerWidget {
     final now = ref.watch(dashboardNowProvider);
     final specialty = ref.watch(activeDoctorSpecialtyProvider).value?.type;
     final isDentist = ref.watch(isDentistProvider);
+    final isPhysio = ref.watch(isPhysiotherapyProvider);
     final isHomeopath = specialty == DoctorSpecialtyType.homeopathy;
     // Radiologists: the patient's scans and reports.
     final imaging = specialty == DoctorSpecialtyType.oralRadiologist
@@ -177,6 +179,7 @@ class _DetailsBody extends ConsumerWidget {
     final chart = isDentist ? ToothChartCard(patient: p) : null;
     final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
     final records = isDentist ? DentalRecordsCard(patient: p) : null;
+    final physioPhotos = isPhysio ? PhysioPhotosCard(patient: p) : null;
     final noPlan = isDentist && !planLoading && items.isEmpty
         ? NoPlanCard(patient: p)
         : null;
@@ -247,7 +250,7 @@ class _DetailsBody extends ConsumerWidget {
                     const SizedBox(width: CruSpace.cardGap),
                     SizedBox(
                       width: CruSize.rightColumn,
-                      child: _Stack([?procedures, ?records, visits, history]),
+                      child: _Stack([?procedures, ?records, ?physioPhotos, visits, history]),
                     ),
                   ],
                 )
@@ -259,6 +262,7 @@ class _DetailsBody extends ConsumerWidget {
                   planOrPayments,
                   ?procedures,
                   ?records,
+                  ?physioPhotos,
                   visits,
                   notes,
                   history,

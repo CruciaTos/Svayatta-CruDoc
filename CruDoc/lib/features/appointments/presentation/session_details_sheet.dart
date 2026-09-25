@@ -18,6 +18,7 @@ import 'package:doctor_management_app/features/revenue/presentation/bill_generat
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 import 'package:doctor_management_app/core/theme/cru_theme.dart';
+import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 
 // ---------- Accent colours (mirrors visit_details.dart) ----------
@@ -543,32 +544,55 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
           ),
         ),
         const SizedBox(height: 10),
-        Align(
-          alignment: Alignment.centerRight,
-          child: ElevatedButton(
-            onPressed: (_noteDirty && !_savingNote) ? _saveNote : null,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.slateBlue,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 10,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-            ),
-            child: _savingNote
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            if (_patient != null)
+              OutlinedButton.icon(
+                onPressed: () {
+                  showDialog<void>(
+                    context: context,
+                    builder: (_) => PhysioPhotosDialog(
+                      patient: _patient!,
+                      initialVisitId: _visit.id,
                     ),
-                  )
-                : const Text('Save Note'),
-          ),
+                  );
+                },
+                icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                label: const Text('Session Photos'),
+                style: OutlinedButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              )
+            else
+              const SizedBox.shrink(),
+            ElevatedButton(
+              onPressed: (_noteDirty && !_savingNote) ? _saveNote : null,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.slateBlue,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 10,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              child: _savingNote
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('Save Note'),
+            ),
+          ],
         ),
       ],
     );

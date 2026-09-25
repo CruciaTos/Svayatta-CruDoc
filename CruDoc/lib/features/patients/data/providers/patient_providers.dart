@@ -128,7 +128,7 @@ final lastPatientProvider = Provider<AsyncValue<PatientVisit?>>((ref) {
             updatedAt: newestPatient.updatedAt,
           ),
         )),
-        error: (_, __) => AsyncValue.data((
+        error: (_, _) => AsyncValue.data((
           patient: newestPatient,
           visit: Visit(
             id: '',

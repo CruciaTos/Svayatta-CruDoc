@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
 import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
+import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -50,6 +51,21 @@ class DentalRecordsCard extends ConsumerWidget {
       eruptionRecords.isEmpty ? null : eruptionRecords.first,
       patient,
     );
+    final referrals = of(RecKind.referral);
+    final openReferrals = referrals
+        .where((r) => r.str('status') != 'completed' && r.str('status') != 'declined')
+        .toList();
+    final referralLine = referrals.isEmpty
+        ? 'No referrals yet'
+        : () {
+            final openCount = openReferrals.length;
+            final last = referrals.first;
+            final lastContact = last.str('contactName');
+            final countStr = openCount == 0 ? 'None open' : '$openCount open';
+            return lastContact.isNotEmpty
+                ? '$countStr · last ${last.str('direction') == 'in' ? 'from' : 'to'} $lastContact'
+                : countStr;
+          }();
 
     final perioLine = perio.isEmpty
         ? 'No exam yet'
@@ -179,6 +195,15 @@ class DentalRecordsCard extends ConsumerWidget {
                 ? 'None signed'
                 : '${consents.length} signed · last ${consents.first.str('title').toLowerCase()}',
             () => showConsentListDialog(context, patient),
+          ),
+          row(
+            CruIcons.arrowUpRight,
+            'Referrals',
+            referralLine,
+            () => showDialog<void>(
+              context: context,
+              builder: (_) => PatientReferralsDialog(patient: patient),
+            ),
           ),
           row(
             RecIcons.pain,

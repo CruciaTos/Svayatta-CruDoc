@@ -31,7 +31,6 @@ List<_NavItem> specialtyNav(DoctorSpecialtyType? sub) => switch (sub) {
   ],
   DoctorSpecialtyType.endodontist => const [
     _NavItem(DesktopTab.rootCanals, 'Root canals', RecIcons.endo),
-    _NavItem(DesktopTab.dentalReferrals, 'Referrals', CruIcons.arrowUpRight),
   ],
   DoctorSpecialtyType.pediatricDentist => const [
     _NavItem(DesktopTab.pedoChildren, 'Children', CruIcons.patients),
@@ -93,6 +92,7 @@ List<_NavGroup> _groupsFor({
     if (dentist) ...const [
       _NavItem(DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
       _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
+      _NavItem(DesktopTab.dentalReferrals, 'Referrals', CruIcons.arrowUpRight),
     ],
     const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
   ]),

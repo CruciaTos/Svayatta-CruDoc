@@ -37,6 +37,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/steri
 import 'package:doctor_management_app/features/dental/presentation/desktop/treatment_plans_screen.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
+import 'package:doctor_management_app/features/dental/referrals/referrals_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/anaesthesia/emergency_protocols.dart';
 import 'package:doctor_management_app/features/dental/specialties/dental_not_built.dart';
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
@@ -293,12 +294,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               'canal counts, working lengths and obturation status.',
         );
       case DesktopTab.dentalReferrals:
-        return const DentalNotBuiltScreen(
-          icon: CruIcons.arrowUpRight,
-          title: 'Referrals',
-          body: 'Not built yet. This will track referrals sent to and '
-              'received from other dentists.',
-        );
+        return const ReferralsScreen();
       case DesktopTab.pedoChildren:
         return const DentalNotBuiltScreen(
           icon: CruIcons.patients,

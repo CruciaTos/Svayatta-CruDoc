@@ -34,6 +34,12 @@ abstract final class RecKind {
 
   /// The clinic's own emergency protocols (no patient).
   static const emergencyProtocol = 'emergencyProtocol';
+
+  /// Referrals sent and received (patientId = patient).
+  static const referral = 'referral';
+
+  /// Referral contacts / directory (patientId = '').
+  static const referralContact = 'referralContact';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

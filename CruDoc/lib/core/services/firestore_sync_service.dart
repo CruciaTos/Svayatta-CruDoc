@@ -12,6 +12,8 @@ import 'package:doctor_management_app/features/appointments/data/services/visits
 import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
 import 'package:doctor_management_app/features/queue/data/services/queue_local_service.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
@@ -42,6 +44,8 @@ class FirestoreSyncService {
     'medicines',
     'stock_transactions',
     'walk_in_queue',
+    'dental_records',
+    'radiology_docs',
   ];
 
   /// Visit-specific Firestore collections.
@@ -565,6 +569,27 @@ class FirestoreSyncService {
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
+      case 'dental_records':
+        return {
+          'doctorId': doctorId,
+          'patientId': row['patientId'] as String? ?? '',
+          'kind': row['kind'] as String? ?? '',
+          'data': FieldCipher.encrypt(row['data'] as String?),
+          'recordedAt': _timestampFromMillis(row['recordedAt']),
+          'isDeleted': row['isDeleted'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
+      case 'radiology_docs':
+        return {
+          'doctorId': doctorId,
+          'kind': row['kind'] as String? ?? '',
+          'patientId': row['patientId'] as String? ?? '',
+          'data': FieldCipher.encrypt(row['data'] as String?),
+          'isDeleted': row['isDeleted'] == 1,
+          'createdAt': _timestampFromMillis(row['createdAt']),
+          'updatedAt': FieldValue.serverTimestamp(),
+        };
       default:
         throw ArgumentError('Unsupported sync collection: $collection');
     }
@@ -726,6 +751,10 @@ class FirestoreSyncService {
       unawaited(RevenueLocalService.instance.notifyRevenueEntriesChanged());
     } else if (table == 'pending_payments') {
       unawaited(RevenueLocalService.instance.notifyPendingPaymentsChanged());
+    } else if (table == 'dental_records') {
+      DentalRecordsRepository.notifyRecordsChanged();
+    } else if (table == 'radiology_docs') {
+      RadiologyRepository.notifyDocsChanged();
     }
   }
 
@@ -928,6 +957,35 @@ class FirestoreSyncService {
           'pendingDelete': 0,
           'lastSyncedAt': now,
         };
+      case 'dental_records':
+        return {
+          'id': id,
+          'doctorId': doctorId,
+          'patientId': data['patientId'] as String? ?? '',
+          'kind': data['kind'] as String? ?? '',
+          'data': FieldCipher.decrypt(data['data'] as String? ?? '{}'),
+          'recordedAt': _timestampToMillis(data['recordedAt'], fallback: now),
+          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
+      case 'radiology_docs':
+        return {
+          'id': id,
+          'doctorId': doctorId,
+          'kind': data['kind'] as String? ?? '',
+          'patientId': data['patientId'] as String? ?? '',
+          'data': FieldCipher.decrypt(data['data'] as String? ?? '{}'),
+          'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+          'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
+          'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        };
       default:
         throw ArgumentError('Unsupported sync collection: $collection');
     }
@@ -1041,15 +1099,17 @@ class FirestoreSyncService {
 
     // Try marking as soft-deleted via commonly used columns.
     // Order: isDeleted, isArchived. If neither affects a row, delete it.
+    final hasIsActive = table != 'dental_records' && table != 'radiology_docs';
+    final isDeletedPayload = <String, Object?>{
+      'isDeleted': 1,
+      if (hasIsActive) 'isActive': 0,
+      'syncStatus': 'synced',
+      'pendingDelete': 0,
+      'lastSyncedAt': now,
+    };
     final updatedIsDeleted = await db.update(
       table,
-      {
-        'isDeleted': 1,
-        'isActive': 0,
-        'syncStatus': 'synced',
-        'pendingDelete': 0,
-        'lastSyncedAt': now,
-      },
+      isDeletedPayload,
       where: 'id = ? AND doctorId = ?',
       whereArgs: [id, doctorId],
     );
@@ -1058,21 +1118,23 @@ class FirestoreSyncService {
       return;
     }
 
-    final updatedIsArchived = await db.update(
-      table,
-      {
-        'isArchived': 1,
-        'isActive': 0,
-        'syncStatus': 'synced',
-        'pendingDelete': 0,
-        'lastSyncedAt': now,
-      },
-      where: 'id = ? AND doctorId = ?',
-      whereArgs: [id, doctorId],
-    );
-    if (updatedIsArchived > 0) {
-      _notifyTableChanged(table);
-      return;
+    if (hasIsActive) {
+      final updatedIsArchived = await db.update(
+        table,
+        {
+          'isArchived': 1,
+          'isActive': 0,
+          'syncStatus': 'synced',
+          'pendingDelete': 0,
+          'lastSyncedAt': now,
+        },
+        where: 'id = ? AND doctorId = ?',
+        whereArgs: [id, doctorId],
+      );
+      if (updatedIsArchived > 0) {
+        _notifyTableChanged(table);
+        return;
+      }
     }
 
     // No soft-delete column matched; remove the row entirely.
@@ -1108,6 +1170,12 @@ class FirestoreSyncService {
         break;
       case 'walk_in_queue':
         unawaited(QueueLocalService.instance.notifyQueueChanged());
+        break;
+      case 'dental_records':
+        DentalRecordsRepository.notifyRecordsChanged();
+        break;
+      case 'radiology_docs':
+        RadiologyRepository.notifyDocsChanged();
         break;
       default:
         break;

@@ -82,6 +82,18 @@ service cloud.firestore {
       match /revenue/{revenueId} {
         allow read, write: if isDoctor(userId);
       }
+
+      // ============================================================
+      // DENTAL RECORDS & RADIOLOGY DOCS SUB-COLLECTIONS
+      // ============================================================
+
+      match /dental_records/{recordId} {
+        allow read, write: if isDoctor(userId);
+      }
+
+      match /radiology_docs/{docId} {
+        allow read, write: if isDoctor(userId);
+      }
     }
 
     // ============================================================
@@ -206,6 +218,24 @@ service cloud.firestore {
     match /medical_documents/{documentId} {
       allow read, write: if isAuthenticated() && 
         (resource == null || resource.data.doctorId == request.auth.uid || request.resource.data.doctorId == request.auth.uid);
+    }
+
+    // ============================================================
+    // DENTAL RECORDS & RADIOLOGY DOCS - STRICT DOCTOR ISOLATION
+    // ============================================================
+
+    match /dental_records/{recordId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.doctorId == request.auth.uid);
+      allow write: if isAuthenticated() && 
+        (resource == null || resource.data.doctorId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.doctorId == request.auth.uid);
+    }
+
+    match /radiology_docs/{docId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.doctorId == request.auth.uid);
+      allow write: if isAuthenticated() && 
+        (resource == null || resource.data.doctorId == request.auth.uid) &&
+        (request.resource == null || request.resource.data.doctorId == request.auth.uid);
     }
 
     // ============================================================

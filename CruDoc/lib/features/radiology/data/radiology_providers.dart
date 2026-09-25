@@ -24,7 +24,16 @@ final radDoctorIdProvider = Provider<String>((ref) {
   return user?.uid ?? FirebaseAuth.instance.currentUser?.uid ?? 'doc_omr';
 });
 
+final radDocsVersionProvider = StreamProvider<int>((ref) async* {
+  yield 0;
+  int version = 0;
+  await for (final _ in RadiologyRepository.changes) {
+    yield ++version;
+  }
+});
+
 final radStudiesProvider = FutureProvider<List<RadStudy>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).studies(id);
 });
@@ -36,11 +45,13 @@ final radStudyProvider = FutureProvider.family<RadStudy?, String>((ref, id) {
 });
 
 final radReferrersProvider = FutureProvider<List<RadReferrer>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).referrers(id);
 });
 
 final radReportsProvider = FutureProvider<List<RadReport>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).reports(id);
 });
@@ -55,31 +66,37 @@ final radReportForStudyProvider = Provider.family<RadReport?, String>((ref, stud
 });
 
 final radTemplatesProvider = FutureProvider<List<RadTemplate>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).templates(id);
 });
 
 final radPhrasesProvider = FutureProvider<List<RadPhrase>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).phrases(id);
 });
 
 final radFeesProvider = FutureProvider<List<RadFee>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).fees(id);
 });
 
 final radAuditProvider = FutureProvider<List<RadAuditEvent>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).audit(id);
 });
 
 final radPacsServersProvider = FutureProvider<List<RadPacsServer>>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).pacsServers(id);
 });
 
 final radSettingsProvider = FutureProvider<RadSettings>((ref) {
+  ref.watch(radDocsVersionProvider);
   final id = ref.watch(radDoctorIdProvider);
   return ref.watch(radiologyRepositoryProvider).settings(id);
 });

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:doctor_management_app/core/database/local_database.dart';
+import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_seed.dart';
@@ -32,6 +34,15 @@ class RadiologyRepository {
 
   final LocalDatabaseService _db;
   static const _table = 'radiology_docs';
+
+  static final StreamController<void> _changesController =
+      StreamController<void>.broadcast();
+  static Stream<void> get changes => _changesController.stream;
+  static void notifyDocsChanged() {
+    if (!_changesController.isClosed) {
+      _changesController.add(null);
+    }
+  }
 
   // ───────────────────────── Generic documents ─────────────────────────
 
@@ -84,19 +95,30 @@ class RadiologyRepository {
         'isDeleted': 0,
         'createdAt': (data['createdAt'] as int?) ?? now,
         'updatedAt': now,
+        'syncStatus': 'pending',
+        'pendingDelete': 0,
       },
       conflictAlgorithm: LocalConflictAlgorithm.replace,
     );
+    notifyDocsChanged();
+    unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
   }
 
   Future<void> _delete(String id) async {
     final db = await _db.localDatabase;
     await db.update(
       _table,
-      {'isDeleted': 1, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
+      {
+        'isDeleted': 1,
+        'syncStatus': 'pending',
+        'pendingDelete': 0,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
+    notifyDocsChanged();
+    unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
   }
 
   /// Built-in templates, phrases and fees go in once per doctor, so they

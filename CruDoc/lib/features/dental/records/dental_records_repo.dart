@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/database/local_database.dart';
+import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -103,6 +105,15 @@ class DentalRecordsRepository {
 
   final LocalDatabaseService _db;
 
+  static final StreamController<void> _changesController =
+      StreamController<void>.broadcast();
+  static Stream<void> get changes => _changesController.stream;
+  static void notifyRecordsChanged() {
+    if (!_changesController.isClosed) {
+      _changesController.add(null);
+    }
+  }
+
   DentalRecord _fromRow(Map<String, Object?> r) {
     Map<String, dynamic> data;
     try {
@@ -162,17 +173,28 @@ class DentalRecordsRepository {
       'isDeleted': 0,
       'createdAt': r.createdAt.millisecondsSinceEpoch,
       'updatedAt': r.updatedAt.millisecondsSinceEpoch,
+      'syncStatus': 'pending',
+      'pendingDelete': 0,
     }, conflictAlgorithm: LocalConflictAlgorithm.replace);
+    notifyRecordsChanged();
+    unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
   }
 
   Future<void> delete(String id) async {
     final db = await _db.localDatabase;
     await db.update(
       'dental_records',
-      {'isDeleted': 1, 'updatedAt': DateTime.now().millisecondsSinceEpoch},
+      {
+        'isDeleted': 1,
+        'syncStatus': 'pending',
+        'pendingDelete': 0,
+        'updatedAt': DateTime.now().millisecondsSinceEpoch,
+      },
       where: 'id = ?',
       whereArgs: [id],
     );
+    notifyRecordsChanged();
+    unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
   }
 
   /// Completed procedures since [since], for recall suggestions.
@@ -206,9 +228,18 @@ final dentalRecordsRepoProvider = Provider<DentalRecordsRepository>(
 
 typedef RecKey = ({String patientId, String kind});
 
+final dentalRecordsVersionProvider = StreamProvider<int>((ref) async* {
+  yield 0;
+  int version = 0;
+  await for (final _ in DentalRecordsRepository.changes) {
+    yield ++version;
+  }
+});
+
 /// One patient's records of a kind, newest first.
 final patientRecordsProvider =
     FutureProvider.family<List<DentalRecord>, RecKey>((ref, k) {
+      ref.watch(dentalRecordsVersionProvider);
       final doctorId = ref.watch(dentalDoctorIdProvider);
       return ref
           .watch(dentalRecordsRepoProvider)
@@ -218,6 +249,7 @@ final patientRecordsProvider =
 /// Every record of a kind in the clinic, newest first.
 final clinicRecordsProvider = FutureProvider.family<List<DentalRecord>, String>(
   (ref, kind) {
+    ref.watch(dentalRecordsVersionProvider);
     final doctorId = ref.watch(dentalDoctorIdProvider);
     return ref.watch(dentalRecordsRepoProvider).all(doctorId, kind);
   },

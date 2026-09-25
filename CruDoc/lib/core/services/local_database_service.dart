@@ -26,7 +26,7 @@ class LocalDatabaseService extends ChangeNotifier {
   static final LocalDatabaseService instance = LocalDatabaseService._();
 
   static const String _databaseNamePrefix = 'crudoc';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
 
   static final FlutterSecureStorage _secureStorage = kIsWeb
       ? const FlutterSecureStorage()
@@ -365,6 +365,16 @@ class LocalDatabaseService extends ChangeNotifier {
       );
       await _ensureColumns(
         txn,
+        table: 'dental_records',
+        columns: _dentalRecordsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'radiology_docs',
+        columns: _radiologyDocsColumns,
+      );
+      await _ensureColumns(
+        txn,
         table: 'sync_state',
         columns: _syncStateColumns,
       );
@@ -643,6 +653,8 @@ class LocalDatabaseService extends ChangeNotifier {
         'procedure_log_entries',
         'sterilization_log_entries',
         'treatment_plan_line_items',
+        'dental_records',
+        'radiology_docs',
         'sync_state',
       ]) {
         await txn.delete(table);
@@ -824,6 +836,14 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_homeopathy_case_sheets_doctor
       ON homeopathy_case_sheets (doctorId, updatedAt DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_dental_records_sync_pending
+      ON dental_records (syncStatus, pendingDelete)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_radiology_docs_sync_pending
+      ON radiology_docs (syncStatus, pendingDelete)
     ''');
   }
 
@@ -1372,7 +1392,11 @@ class LocalDatabaseService extends ChangeNotifier {
         recordedAt INTEGER NOT NULL,
         isDeleted INTEGER NOT NULL DEFAULT 0,
         createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
       )
     ''');
     await db.execute(
@@ -1380,6 +1404,21 @@ class LocalDatabaseService extends ChangeNotifier {
       'ON dental_records (doctorId, kind, patientId, isDeleted)',
     );
   }
+
+  static const Map<String, String> _dentalRecordsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'kind': "kind TEXT NOT NULL DEFAULT ''",
+    'data': "data TEXT NOT NULL DEFAULT '{}'",
+    'recordedAt': 'recordedAt INTEGER NOT NULL DEFAULT 0',
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
 
   Future<void> _createRadiologyDocsTable(LocalDatabaseExecutor db) async {
     await db.execute('''
@@ -1391,7 +1430,11 @@ class LocalDatabaseService extends ChangeNotifier {
         data TEXT NOT NULL DEFAULT '{}',
         isDeleted INTEGER NOT NULL DEFAULT 0,
         createdAt INTEGER NOT NULL,
-        updatedAt INTEGER NOT NULL
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
       )
     ''');
     await db.execute(
@@ -1399,6 +1442,20 @@ class LocalDatabaseService extends ChangeNotifier {
       'ON radiology_docs (doctorId, kind, isDeleted)',
     );
   }
+
+  static const Map<String, String> _radiologyDocsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'kind': "kind TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'data': "data TEXT NOT NULL DEFAULT '{}'",
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
 
   Future<void> _createSterilizationLogEntriesTable(LocalDatabaseExecutor db) async {
     await db.execute('''

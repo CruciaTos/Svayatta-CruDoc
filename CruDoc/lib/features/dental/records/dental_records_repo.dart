@@ -49,6 +49,9 @@ abstract final class RecKind {
 
   /// Orthodontic cases (patientId = patient).
   static const orthoCase = 'orthoCase';
+
+  /// Sedation and anaesthesia cases (patientId = patient).
+  static const sedationCase = 'sedationCase';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

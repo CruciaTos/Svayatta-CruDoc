@@ -14,6 +14,7 @@ import 'package:doctor_management_app/features/dental/specialties/oralmed/oralme
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
+import 'package:doctor_management_app/features/dental/specialties/anaesthesia/preop_dialog.dart';
 import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -84,6 +85,15 @@ class DentalRecordsCard extends ConsumerWidget {
     final photoSetLine = photoSets.isEmpty
         ? 'No series yet'
         : '${photoSets.length} series · last ${photoSets.first.str('label')} (${DentalFormat.date(photoSets.first.recordedAt)})';
+    final sedationCases = of(RecKind.sedationCase);
+    final sedationLine = sedationCases.isEmpty
+        ? 'No cases'
+        : () {
+            final last = sedationCases.first;
+            final modality = last.str('planned').isNotEmpty ? last.str('planned') : 'Sedation';
+            final status = last.str('status');
+            return '$modality · $status (${DentalFormat.date(last.recordedAt)})';
+          }();
 
     final perioLine = perio.isEmpty
         ? 'No exam yet'
@@ -239,6 +249,18 @@ class DentalRecordsCard extends ConsumerWidget {
             () => showDialog<void>(
               context: context,
               builder: (_) => OrthoPhotosDialog(patient: patient),
+            ),
+          ),
+          row(
+            CruIcons.clock,
+            'Sedation & Pre-op',
+            sedationLine,
+            () => showDialog<void>(
+              context: context,
+              builder: (_) => PreopDialog(
+                patient: patient,
+                initialCase: sedationCases.isNotEmpty ? SedationCase.fromRecord(sedationCases.first) : null,
+              ),
             ),
           ),
           row(

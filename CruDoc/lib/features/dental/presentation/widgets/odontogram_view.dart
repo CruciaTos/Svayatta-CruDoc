@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../data/models/tooth_chart_entry_model.dart';
+import '../../domain/tooth_numbering.dart';
 
 /// Helper to get common anatomical tooth names from FDI 2-digit notation.
 String getToothName(String toothNumber) {
@@ -48,11 +49,15 @@ class OdontogramView extends StatefulWidget {
   final String? selectedToothNumber;
   final ValueChanged<String>? onToothSelected;
 
+  /// How tooth numbers are shown; storage stays FDI regardless.
+  final ToothNumbering numbering;
+
   const OdontogramView({
     super.key,
     required this.entries,
     this.selectedToothNumber,
     this.onToothSelected,
+    this.numbering = ToothNumbering.fdi,
   });
 
   @override
@@ -217,6 +222,7 @@ class _OdontogramViewState extends State<OdontogramView> {
                       entry: entry,
                       isSelected: isSelected,
                       onTap: () => widget.onToothSelected?.call(tooth),
+                      numbering: widget.numbering,
                     );
                   }).toList(),
                 ),
@@ -237,6 +243,7 @@ class _OdontogramViewState extends State<OdontogramView> {
                       entry: entry,
                       isSelected: isSelected,
                       onTap: () => widget.onToothSelected?.call(tooth),
+                      numbering: widget.numbering,
                     );
                   }).toList(),
                 ),
@@ -269,12 +276,14 @@ class _ToothCell extends StatelessWidget {
   final ToothChartEntryModel? entry;
   final bool isSelected;
   final VoidCallback onTap;
+  final ToothNumbering numbering;
 
   const _ToothCell({
     required this.toothNumber,
     required this.entry,
     required this.isSelected,
     required this.onTap,
+    required this.numbering,
   });
 
   Color _getBackgroundColor() {
@@ -351,7 +360,7 @@ class _ToothCell extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                toothNumber,
+                toothLabel(toothNumber, numbering),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,

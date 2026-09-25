@@ -33,10 +33,61 @@ abstract final class DesktopTab {
   static const procedures = 11;
 
   static bool isDental(int tab) =>
-      tab == treatmentPlans || tab == sterilization || tab == procedures || tab == recalls;
+      tab == treatmentPlans ||
+      tab == sterilization ||
+      tab == procedures ||
+      tab == recalls ||
+      tab == perioPatients ||
+      tab == rootCanals ||
+      tab == dentalReferrals ||
+      tab == pedoChildren ||
+      tab == biopsies ||
+      tab == oralMedLesions ||
+      tab == oralMedForms ||
+      tab == sedationCases ||
+      tab == labCases ||
+      tab == orthoPatients ||
+      tab == healthCamps ||
+      tab == population ||
+      tab == surgeries ||
+      tab == implants;
 
   /// Dentists: who should come back.
   static const recalls = 15;
+
+  /// Periodontists only: their patient list, scoped to periodontal care.
+  static const perioPatients = 16;
+
+  /// Endodontists only.
+  static const rootCanals = 17;
+  static const dentalReferrals = 18;
+
+  /// Pediatric dentists only.
+  static const pedoChildren = 19;
+
+  /// Oral & Maxillofacial Pathologists only.
+  static const biopsies = 20;
+
+  /// Oral Medicine Specialists only.
+  static const oralMedLesions = 21;
+  static const oralMedForms = 22;
+
+  /// Dental Anesthesiologists only.
+  static const sedationCases = 23;
+
+  /// Prosthodontists only.
+  static const labCases = 24;
+
+  /// Orthodontists only.
+  static const orthoPatients = 25;
+
+  /// Public Health Dentists only.
+  static const healthCamps = 26;
+  static const population = 27;
+
+  /// Oral & Maxillofacial Surgeons only.
+  static const surgeries = 28;
+  static const implants = 29;
 
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
@@ -63,6 +114,20 @@ abstract final class DesktopTab {
         reports => 'Reports',
         referrers => 'Referrers',
         recalls => 'Recalls',
+        perioPatients => 'Perio patients',
+        rootCanals => 'Root canals',
+        dentalReferrals => 'Referrals',
+        pedoChildren => 'Children',
+        biopsies => 'Biopsies',
+        oralMedLesions => 'Lesions',
+        oralMedForms => 'Forms',
+        sedationCases => 'Sedation cases',
+        labCases => 'Lab cases',
+        orthoPatients => 'Ortho patients',
+        healthCamps => 'Camps',
+        population => 'Population',
+        surgeries => 'Surgeries',
+        implants => 'Implants',
         _ => 'Back',
       };
 }

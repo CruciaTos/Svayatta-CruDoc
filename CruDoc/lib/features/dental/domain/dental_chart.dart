@@ -1,5 +1,6 @@
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 
 /// How a tooth looks on the chart, from its latest finding.
 enum ToothState { healthy, needsCare, treated, missing, notErupted }
@@ -220,9 +221,17 @@ abstract final class DentalChart {
     return (teeth: teeth, invalid: null);
   }
 
-  /// "Tooth 16" / "Teeth 16, 17"; null when there are none.
-  static String? teethText(Iterable<String> teeth) {
-    final list = teeth.map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+  /// "Tooth 16" / "Teeth 16, 17"; null when there are none. Shown in
+  /// whichever numbering the clinic has chosen.
+  static String? teethText(
+    Iterable<String> teeth, [
+    ToothNumbering numbering = ToothNumbering.fdi,
+  ]) {
+    final list = teeth
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .map((t) => toothLabel(t, numbering))
+        .toList();
     if (list.isEmpty) return null;
     return '${list.length == 1 ? 'Tooth' : 'Teeth'} ${list.join(', ')}';
   }

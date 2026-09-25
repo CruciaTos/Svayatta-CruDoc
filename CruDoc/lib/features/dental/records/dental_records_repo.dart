@@ -12,6 +12,8 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Kinds of dental clinical record.
 abstract final class RecKind {
   static const perio = 'perio';
+  static const perioDx = 'perioDx';
+  static const srp = 'srp';
   static const endo = 'endo';
   static const consent = 'consent';
   static const recall = 'recall';

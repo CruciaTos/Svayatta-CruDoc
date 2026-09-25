@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/sk
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_today_card.dart';
+import 'package:doctor_management_app/features/dental/specialties/specialty_cards.dart';
 
 /// The Calm Clinical desktop dashboard: "Who's next, and what must I
 /// know before they walk in?"
@@ -49,9 +50,7 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  bool get _isDentist =>
-      ref.watch(doctorIdentityProvider).specialty?.toLowerCase().contains('dent') ??
-      false;
+  bool get _isDentist => ref.watch(isDentistProvider);
 
   @override
   Widget build(BuildContext context) {
@@ -72,6 +71,11 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
           : ScheduleCard(items: data.schedule!, now: data.now),
       // Dentists: today's sterilization and plans waiting for a yes.
       if (_isDentist) DentalTodayCard(onNavigate: widget.onNavigateToTab),
+      // Dental sub-specialty cards (perio, endo, ortho, …).
+      ...dentalSpecialtyCards(
+        ref.watch(activeDentalSubspecialtyProvider),
+        widget.onNavigateToTab,
+      ),
       // Oral & Maxillofacial Radiologists: what's waiting to be read.
       if (ref.watch(isOralRadiologistProvider))
         RadiologyTodayCard(onNavigate: widget.onNavigateToTab),
@@ -97,23 +101,25 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     } else {
       // Right column drops below the main column, two-up while there's
       // room for it.
-      body = LayoutBuilder(builder: (context, constraints) {
-        final twoUp = constraints.maxWidth >= 720 && right.length > 1;
-        return _stack([
-          ...left,
-          if (twoUp)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _stack(right.sublist(0, right.length - 1))),
-                const SizedBox(width: CruSpace.cardGap),
-                Expanded(child: right.last),
-              ],
-            )
-          else
-            ...right,
-        ]);
-      });
+      body = LayoutBuilder(
+        builder: (context, constraints) {
+          final twoUp = constraints.maxWidth >= 720 && right.length > 1;
+          return _stack([
+            ...left,
+            if (twoUp)
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: _stack(right.sublist(0, right.length - 1))),
+                  const SizedBox(width: CruSpace.cardGap),
+                  Expanded(child: right.last),
+                ],
+              )
+            else
+              ...right,
+          ]);
+        },
+      );
     }
 
     return SingleChildScrollView(
@@ -153,12 +159,12 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   static Widget _stack(List<Widget> children) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: CruSpace.cardGap),
-            children[i],
-          ],
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i > 0) const SizedBox(height: CruSpace.cardGap),
+        children[i],
+      ],
+    ],
+  );
 }

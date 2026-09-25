@@ -24,8 +24,8 @@ class AuthSpecialtyNotifier extends Notifier<DoctorSpecialty> {
 
 final authSpecialtyProvider =
     NotifierProvider<AuthSpecialtyNotifier, DoctorSpecialty>(
-  AuthSpecialtyNotifier.new,
-);
+      AuthSpecialtyNotifier.new,
+    );
 
 // ────────────────── Active specialty (post-login) ──────────────────
 
@@ -51,11 +51,14 @@ Future<void> saveDoctorSpecialty(DoctorSpecialty spec, {User? user}) async {
   final currentUser = user ?? FirebaseAuth.instance.currentUser;
   if (currentUser == null) return;
 
-  final docRef =
-      FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+  final docRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(currentUser.uid);
 
   final encryptedSpec = DoctorEncryptionService.encryptForDoctor(
-      spec.label, currentUser.uid);
+    spec.label,
+    currentUser.uid,
+  );
 
   await docRef.set({
     'specialty': spec.label,
@@ -163,13 +166,21 @@ final isPhysiotherapyProvider = Provider<bool>(
       DoctorSpecialtyType.physiotherapy,
 );
 
-/// Dentists get the dental screens: tooth chart, procedures, treatment
-/// plans and sterilization.
-final isDentistProvider = Provider<bool>(
-  (ref) =>
-      ref.watch(activeDoctorSpecialtyProvider).value?.type ==
-      DoctorSpecialtyType.dentist,
-);
+/// Dentists and dental specialists who treat patients: the Dentist
+/// family except the Oral & Maxillofacial Radiologist (who reads scans).
+final isDentistProvider = Provider<bool>((ref) {
+  final s = ref.watch(activeDoctorSpecialtyProvider).value;
+  return s != null &&
+      s.rootType == DoctorSpecialtyType.dentist &&
+      s.type != DoctorSpecialtyType.oralRadiologist;
+});
+
+/// The dental specialty of this login (null for a general dentist and
+/// for other specialties). Specialty screens and cards key off this.
+final activeDentalSubspecialtyProvider = Provider<DoctorSpecialtyType?>((ref) {
+  final s = ref.watch(activeDoctorSpecialtyProvider).value;
+  return s != null && s.parent == DoctorSpecialtyType.dentist ? s.type : null;
+});
 
 /// Oral & Maxillofacial Radiologists (a dental sub-specialty) get the
 /// Radiology screens: worklist, viewer, reports and referrers. They don't

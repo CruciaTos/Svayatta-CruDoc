@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/legacy.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_settings_section.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
@@ -32,6 +34,9 @@ enum SettingsSection {
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
   appearance('Appearance', CruIcons.sun),
+
+  /// Dentists and dental specialists only.
+  dental('Dental', DentalIcons.tooth),
 
   /// Oral & Maxillofacial Radiologists only.
   radiology('Radiology', RadIcons.xray),
@@ -106,8 +111,10 @@ class DesktopSettingsScreen extends ConsumerWidget {
                   child: _SectionList(
                     sections: [
                       for (final s in SettingsSection.values)
-                        if (s != SettingsSection.radiology ||
-                            ref.watch(isOralRadiologistProvider))
+                        if ((s != SettingsSection.radiology ||
+                                ref.watch(isOralRadiologistProvider)) &&
+                            (s != SettingsSection.dental ||
+                                ref.watch(isDentistProvider)))
                           s,
                     ],
                     selected: section,
@@ -150,6 +157,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
                               ),
                               SettingsSection.appearance =>
                                 const _AppearanceSection(),
+                              SettingsSection.dental => const _DentalSection(),
                               SettingsSection.radiology =>
                                 const RadSettingsSection(),
                               SettingsSection.about => const _AboutSection(),
@@ -1270,6 +1278,54 @@ class _AppearanceSection extends ConsumerWidget {
             Expanded(
               child: Text(
                 _explain(mode),
+                style: CruType.caption.tint(c.label2),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ]);
+  }
+}
+
+// =============================================================================
+// DENTAL
+// =============================================================================
+
+/// Dental-only settings. F3, P and PD add their own cards to this _Stack.
+class _DentalSection extends ConsumerWidget {
+  const _DentalSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+
+    return _Stack([
+      _SettingsCard(
+        title: 'Tooth numbering',
+        description:
+            'FDI is the two-digit system the clinic records in: 18–11, '
+            '21–28, 38–31, 41–48 (55–51 … for milk teeth). Universal runs '
+            '1–32 for permanent teeth and A–T for milk teeth.',
+        child: Row(
+          children: [
+            CruSegmentedControl<ToothNumbering>(
+              semanticLabel: 'Tooth numbering',
+              segments: [
+                for (final n in ToothNumbering.values) CruSegment(n, n.label),
+              ],
+              selected: numbering,
+              onChanged: (n) => setToothNumbering(ref, n),
+            ),
+            const SizedBox(width: CruSpace.s16),
+            Expanded(
+              child: Text(
+                numbering == ToothNumbering.fdi
+                    ? 'Charts, plans and reports show FDI numbers.'
+                    : 'Charts, plans and reports show Universal numbers '
+                          '(1–32) and letters (A–T).',
                 style: CruType.caption.tint(c.label2),
               ),
             ),

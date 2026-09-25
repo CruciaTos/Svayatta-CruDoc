@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../data/models/tooth_chart_entry_model.dart';
+import '../../domain/tooth_numbering.dart';
 import '../providers/dental_providers.dart';
 import 'odontogram_view.dart';
 
@@ -58,6 +59,9 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
   @override
   Widget build(BuildContext context) {
     final dateFormat = DateFormat('MMM d, yyyy • h:mm a');
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final toothText = toothLabel(widget.toothNumber, numbering);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
@@ -73,7 +77,7 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Tooth ${widget.toothNumber} History',
+                    'Tooth $toothText History',
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -121,7 +125,7 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                         Icon(Icons.history_toggle_off, size: 40, color: Colors.grey.shade400),
                         const SizedBox(height: 8),
                         Text(
-                          'No clinical events logged for Tooth ${widget.toothNumber} yet.',
+                          'No clinical events logged for Tooth $toothText yet.',
                           style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
                         ),
                       ],

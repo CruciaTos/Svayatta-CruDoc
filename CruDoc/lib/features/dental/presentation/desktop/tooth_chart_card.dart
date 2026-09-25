@@ -5,20 +5,22 @@ import 'package:doctor_management_app/features/dental/data/models/dental_procedu
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_3d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_view.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// The patient's teeth: a 2D anatomical chart or 3D jaws (toggle),
-/// Findings or Plan, adult or milk teeth. Picking a tooth shows its
-/// history and what can be done: record a finding, log a procedure, add
-/// it to the plan.
+/// The patient's teeth: a 2.5D chart or 3D jaws (toggle), Findings or
+/// Plan, adult or milk teeth. Picking a tooth shows its history and what
+/// can be done: record a finding, log a procedure, add it to the plan.
+/// Double-clicking opens the tooth full size.
 class ToothChartCard extends ConsumerStatefulWidget {
   const ToothChartCard({super.key, required this.patient});
 
@@ -43,8 +45,8 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     return age > 0 && age < 6;
   }
 
-  Future<void> _record(String tooth, ToothChartEntryModel? latest) =>
-      showToothFindingDialog(context, patient: p, tooth: tooth, latest: latest);
+  Future<void> _open(String tooth) =>
+      showToothDetail(context, patient: p, tooth: tooth);
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +57,10 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         const <TreatmentPlanLineItemModel>[];
     final logs = ref.watch(patientProcedureLogProvider(p.id)).value ??
         const <DentalProcedureLogModel>[];
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final data = ToothChartData.from(entries, plan);
     final child = _child ?? _defaultChild(data);
-    final latest = DentalChart.latest(entries);
 
     final counts = [
       if (data.count(ToothState.needsCare) > 0)
@@ -110,7 +113,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     );
 
     void select(String t) => setState(() => _selected = t);
-    void open(String t) => _record(t, latest[t]);
+    void open(String t) => _open(t);
 
     return CruCard(
       semanticLabel: 'Tooth chart',
@@ -149,6 +152,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                         onSelect: select,
                         onOpen: open,
                         height: (constraints.maxWidth * 0.62).clamp(380.0, 540.0),
+                        numbering: numbering,
                       )
                     : ToothChart2D(
                         key: const ValueKey('2d'),
@@ -158,6 +162,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                         selected: _selected,
                         onSelect: select,
                         onOpen: open,
+                        numbering: numbering,
                       ),
               ),
               const SizedBox(height: CruSpace.s12),
@@ -190,7 +195,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                     Expanded(
                       child: Text(
                         'Pick a tooth to see its history, record a finding or '
-                        'plan work. Double-click (or Enter) to record straight away.',
+                        'plan work. Double-click (or Enter) opens it full size.',
                         style: CruType.subhead.tint(c.label2),
                       ),
                     ),
@@ -207,7 +212,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                   procedures: logs
                       .where((l) => l.toothNumbers.contains(_selected) && !l.isDeleted)
                       .toList(),
-                  onRecord: () => _record(_selected!, latest[_selected!]),
+                  onRecord: () => _open(_selected!),
                   onClose: () => setState(() => _selected = null),
                 ),
             ],
@@ -511,7 +516,11 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
                           ),
                           Text(
                             [
-                              ?DentalChart.teethText(shown[i].toothNumbers),
+                              ?DentalChart.teethText(
+                                shown[i].toothNumbers,
+                                ref.watch(toothNumberingProvider).value ??
+                                    ToothNumbering.fdi,
+                              ),
                               DentalFormat.date(shown[i].performedAt),
                             ].join(' · '),
                             style: CruType.subhead.tabular.tint(c.label2),

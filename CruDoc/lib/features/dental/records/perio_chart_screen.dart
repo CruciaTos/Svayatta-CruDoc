@@ -10,8 +10,10 @@ import 'package:printing/printing.dart';
 
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/dental/records/perio_staging.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -131,6 +133,43 @@ Map<String, PerioTooth> _teethOf(DentalRecord r) {
 /// Summary of a saved perio exam (for cards and lists).
 PerioSummary perioSummaryOf(DentalRecord r) => PerioSummary(_teethOf(r));
 
+/// Plaque surfaces per tooth (order M, D, B, L), from `data['plaque']`.
+Map<String, List<bool>> _plaqueOf(DentalRecord r) {
+  final raw = r.data['plaque'];
+  final out = <String, List<bool>>{};
+  for (final t in [...DentalChart.adultUpper, ...DentalChart.adultLower]) {
+    final v = raw is Map ? raw[t] : null;
+    out[t] = List<bool>.generate(
+      4,
+      (i) => v is List && i < v.length && v[i] == true,
+    );
+  }
+  return out;
+}
+
+/// Plaque index (O'Leary): surfaces with plaque ÷ (present teeth × 4).
+class PlaqueSummary {
+  PlaqueSummary(Map<String, PerioTooth> teeth, Map<String, List<bool>> plaque) {
+    for (final e in teeth.entries) {
+      if (e.value.missing) continue;
+      presentTeeth++;
+      for (final on in plaque[e.key] ?? const [false, false, false, false]) {
+        if (on) withPlaque++;
+      }
+    }
+  }
+
+  int presentTeeth = 0;
+  int withPlaque = 0;
+
+  double? get pct =>
+      presentTeeth == 0 ? null : withPlaque * 100 / (presentTeeth * 4);
+}
+
+/// Summary of a saved plaque index (for cards, lists and the trend).
+PlaqueSummary plaqueSummaryOf(DentalRecord r) =>
+    PlaqueSummary(_teethOf(r), _plaqueOf(r));
+
 /// Full-screen periodontal chart: six sites per tooth, keyboard entry,
 /// automatic attachment levels, exam history with a trend, and print.
 class PerioChartScreen extends ConsumerStatefulWidget {
@@ -143,6 +182,11 @@ class PerioChartScreen extends ConsumerStatefulWidget {
 }
 
 enum _Field { pd, rec }
+
+/// Which grid the chart card shows: probing depths or the plaque index.
+enum _ChartMode { pockets, plaque }
+
+const _plaqueSurfaceNames = ['Mesial', 'Distal', 'Buccal', 'Lingual'];
 
 class _Cursor {
   const _Cursor(this.tooth, this.lingual, this.pos, this.field);
@@ -157,6 +201,8 @@ class _Cursor {
 class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
   DentalRecord? _record;
   Map<String, PerioTooth> _teeth = {};
+  Map<String, List<bool>> _plaque = {};
+  _ChartMode _mode = _ChartMode.pockets;
   final _notes = TextEditingController();
   _Cursor? _cursor;
   Timer? _debounce;
@@ -177,6 +223,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     setState(() {
       _record = r;
       _teeth = r == null ? {} : _teethOf(r);
+      _plaque = r == null ? {} : _plaqueOf(r);
       _notes.text = r?.str('notes') ?? '';
       _cursor = null;
       _saved = true;
@@ -201,6 +248,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     setState(() {
       _record = r;
       _teeth = teeth;
+      _plaque = {};
       _notes.clear();
       _cursor = _Cursor(
         DentalChart.adultUpper.firstWhere((t) => !teeth[t]!.missing),
@@ -226,12 +274,56 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     final updated = r.copyWith(
       data: {
         'teeth': {for (final e in _teeth.entries) e.key: e.value.toJson()},
+        'plaque': {
+          for (final t in _teeth.keys)
+            t: _plaque[t] ?? List<bool>.filled(4, false),
+        },
         'notes': _notes.text.trim(),
       },
     );
     _record = updated;
     await saveDentalRecord(ref, updated);
     if (mounted) setState(() => _saved = true);
+  }
+
+  /// Opens the AAP/EFP staging panel for the loaded exam, saving it first
+  /// so the diagnosis is computed from what's actually on the chart.
+  Future<void> _openStaging() async {
+    final r = _record;
+    if (r == null) return;
+
+    await _saveNow();
+
+    final dxKey = (patientId: widget.patient.id, kind: RecKind.perioDx);
+    final dxs = await ref.read(patientRecordsProvider(dxKey).future);
+
+    DentalRecord? existing;
+    for (final d in dxs) {
+      if (d.data['examId'] == r.id) {
+        existing = d;
+        break;
+      }
+    }
+
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (_) => DentalPanelDialog(
+        title: 'Stage and grade',
+        width: 1000,
+        body: PerioStagingPanel(
+          exam: r,
+          existing: existing,
+          patient: widget.patient,
+          onSave: (dx) async {
+            await saveDentalRecord(ref, dx);
+            ref.invalidate(patientRecordsProvider(dxKey));
+            if (mounted) Navigator.of(context).pop();
+          },
+        ),
+      ),
+    );
   }
 
   // ---------------------------------------------------------------- entry
@@ -293,6 +385,17 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     _schedule();
   }
 
+  void _togglePlaque(String tooth, int surface) {
+    setState(() {
+      final surfaces = _plaque.putIfAbsent(
+        tooth,
+        () => List<bool>.filled(4, false),
+      );
+      surfaces[surface] = !surfaces[surface];
+    });
+    _schedule();
+  }
+
   KeyEventResult _onKey(FocusNode _, KeyEvent e) {
     if (e is! KeyDownEvent && e is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
@@ -349,6 +452,17 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
     await _saveNow();
     final identity = ref.read(doctorIdentityProvider);
     final sum = PerioSummary(_teeth);
+    final plaqueSum = PlaqueSummary(_teeth, _plaque);
+
+    String plaqueCell(String tooth) {
+      final t = _teeth[tooth]!;
+      if (t.missing) return '—';
+      final v = _plaque[tooth] ?? List<bool>.filled(4, false);
+      return [
+        for (var i = 0; i < 4; i++) v[i] ? _plaqueSurfaceNames[i][0] : '·',
+      ].join(' ');
+    }
+
     String cell(PerioTooth t, List<int?> v, bool lingual, String tooth) {
       if (t.missing) return '—';
       return [
@@ -398,6 +512,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
         ['Bleed / pus', for (final t in teeth) marks(_teeth[t]!, true, t)],
         ['Mobility', for (final t in teeth) _roman(_teeth[t]!.mobility)],
         ['Furcation', for (final t in teeth) _roman(_teeth[t]!.furcation)],
+        ['Plaque', for (final t in teeth) plaqueCell(t)],
       ];
       return pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -441,7 +556,8 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
             pw.Text(
               'Mean PD ${sum.meanPd?.toStringAsFixed(1) ?? '-'} mm · mean CAL '
               '${sum.meanCal?.toStringAsFixed(1) ?? '-'} mm · bleeding '
-              '${sum.bopPct?.toStringAsFixed(0) ?? '-'}% · sites ≥4 mm: ${sum.deep4} · ≥6 mm: ${sum.deep6}',
+              '${sum.bopPct?.toStringAsFixed(0) ?? '-'}% · sites ≥4 mm: ${sum.deep4} · ≥6 mm: ${sum.deep6}'
+              ' · plaque ${plaqueSum.pct?.toStringAsFixed(1) ?? '-'}%',
               style: const pw.TextStyle(fontSize: 9),
             ),
             pw.SizedBox(height: 10),
@@ -490,6 +606,21 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
       });
     }
     final sum = PerioSummary(_teeth);
+    final plaqueSum = PlaqueSummary(_teeth, _plaque);
+
+    final dxKey = (patientId: widget.patient.id, kind: RecKind.perioDx);
+    final dxRecords =
+        ref.watch(patientRecordsProvider(dxKey)).value ??
+        const <DentalRecord>[];
+    DentalRecord? dx;
+    if (_record != null) {
+      for (final d in dxRecords) {
+        if (d.data['examId'] == _record!.id) {
+          dx = d;
+          break;
+        }
+      }
+    }
 
     // Unsaved entries are saved on the way out (the screen still has its
     // providers then).
@@ -523,8 +654,16 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                         subtitle: _record == null
                             ? widget.patient.fullName
                             : '${widget.patient.fullName} · ${DentalFormat.date(_record!.recordedAt)}'
+                                  '${dx != null ? ' · ${perioDxSummary(dx)}' : ''}'
                                   '${_saved ? ' · saved' : ' · saving…'}',
                         actions: [
+                          if (_record != null)
+                            CruButton(
+                              label: 'Stage and grade',
+                              icon: RecIcons.checklist,
+                              kind: CruButtonKind.secondary,
+                              onPressed: _openStaging,
+                            ),
                           if (_record != null)
                             CruButton(
                               label: 'Print',
@@ -582,7 +721,27 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.stretch,
                                       children: [
-                                        _SummaryLine(sum: sum),
+                                        CruSegmentedControl<_ChartMode>(
+                                          semanticLabel: 'Chart mode',
+                                          segments: const [
+                                            CruSegment(
+                                              _ChartMode.pockets,
+                                              'Pockets',
+                                            ),
+                                            CruSegment(
+                                              _ChartMode.plaque,
+                                              'Plaque',
+                                            ),
+                                          ],
+                                          selected: _mode,
+                                          onChanged: (m) =>
+                                              setState(() => _mode = m),
+                                        ),
+                                        const SizedBox(height: CruSpace.s12),
+                                        _SummaryLine(
+                                          sum: sum,
+                                          plaque: plaqueSum,
+                                        ),
                                         const SizedBox(height: CruSpace.s12),
                                         SingleChildScrollView(
                                           scrollDirection: Axis.horizontal,
@@ -612,9 +771,12 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                                         ),
                                         const SizedBox(height: CruSpace.s16),
                                         Text(
-                                          'Type a number to fill the site and move on · B bleeding · '
-                                          'S suppuration · − recession above the CEJ · ⌫ clear · '
-                                          'tap a tooth number to mark it missing',
+                                          _mode == _ChartMode.pockets
+                                              ? 'Type a number to fill the site and move on · B bleeding · '
+                                                    'S suppuration · − recession above the CEJ · ⌫ clear · '
+                                                    'tap a tooth number to mark it missing'
+                                              : 'Tap a surface to toggle plaque · '
+                                                    'tap a tooth number to mark it missing',
                                           style: CruType.caption.tint(c.label3),
                                         ),
                                         const SizedBox(height: CruSpace.s12),
@@ -736,21 +898,69 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
       ],
     );
 
+    Widget plaqueRow() => Row(
+      children: [
+        label('Plaque (M D B L)'),
+        for (final t in teeth) ...[
+          _plaqueCellGroup(context, t),
+          const SizedBox(width: CruSpace.s4),
+        ],
+      ],
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        valueRow(false, _Field.pd),
-        valueRow(false, _Field.rec),
-        calRow(false),
-        dotsRow(false),
-        const SizedBox(height: CruSpace.s6),
-        toothRow(),
-        const SizedBox(height: CruSpace.s6),
-        dotsRow(true),
-        valueRow(true, _Field.pd),
-        valueRow(true, _Field.rec),
-        calRow(true),
-      ],
+      children: _mode == _ChartMode.pockets
+          ? [
+              valueRow(false, _Field.pd),
+              valueRow(false, _Field.rec),
+              calRow(false),
+              dotsRow(false),
+              const SizedBox(height: CruSpace.s6),
+              toothRow(),
+              const SizedBox(height: CruSpace.s6),
+              dotsRow(true),
+              valueRow(true, _Field.pd),
+              valueRow(true, _Field.rec),
+              calRow(true),
+            ]
+          : [toothRow(), const SizedBox(height: CruSpace.s6), plaqueRow()],
+    );
+  }
+
+  Widget _plaqueCellGroup(BuildContext context, String t) {
+    final tooth = _teeth[t]!;
+    return SizedBox(
+      width: _cellW * 3,
+      height: 20,
+      child: tooth.missing
+          ? null
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (var i = 0; i < 4; i++) _plaqueSquare(context, t, i),
+              ],
+            ),
+    );
+  }
+
+  Widget _plaqueSquare(BuildContext context, String t, int i) {
+    final c = context.cru;
+    final on = _plaque[t]?[i] ?? false;
+    return Tooltip(
+      message: _plaqueSurfaceNames[i],
+      child: GestureDetector(
+        onTap: () => _togglePlaque(t, i),
+        child: Container(
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          decoration: ShapeDecoration(
+            color: on ? c.label : c.inset,
+            shape: cruShape(2),
+          ),
+        ),
+      ),
     );
   }
 
@@ -853,6 +1063,8 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
   Widget _toothHeader(BuildContext context, String t) {
     final c = context.cru;
     final tooth = _teeth[t]!;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     Widget chip(String text, String tip, VoidCallback onTap) => Tooltip(
       message: tip,
       child: GestureDetector(
@@ -886,7 +1098,7 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
                 _schedule();
               },
               child: Text(
-                t,
+                toothLabel(t, numbering),
                 style: CruType.subhead.w600.tabular
                     .tint(tooth.missing ? c.label3 : c.label)
                     .copyWith(
@@ -941,9 +1153,10 @@ class _PerioChartScreenState extends ConsumerState<PerioChartScreen> {
 }
 
 class _SummaryLine extends StatelessWidget {
-  const _SummaryLine({required this.sum});
+  const _SummaryLine({required this.sum, required this.plaque});
 
   final PerioSummary sum;
+  final PlaqueSummary plaque;
 
   @override
   Widget build(BuildContext context) {
@@ -979,6 +1192,10 @@ class _SummaryLine extends StatelessWidget {
         ),
         cell('Sites ≥ 4 mm', '${sum.deep4}', warn: sum.deep4 > 0),
         cell('Sites ≥ 6 mm', '${sum.deep6}', warn: sum.deep6 > 0),
+        cell(
+          'Plaque',
+          plaque.pct == null ? '—' : '${plaque.pct!.toStringAsFixed(1)}%',
+        ),
       ],
     );
   }
@@ -1004,6 +1221,7 @@ class _History extends StatelessWidget {
     final chrono = [...exams]
       ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
     final sums = [for (final e in chrono) perioSummaryOf(e)];
+    final plaqueSums = [for (final e in chrono) plaqueSummaryOf(e)];
     return CruCard(
       semanticLabel: 'Exams',
       padding: const EdgeInsets.all(CruSpace.s16),
@@ -1021,7 +1239,7 @@ class _History extends StatelessWidget {
                       style: CruType.caption.tint(c.label3),
                     ),
                   )
-                : CustomPaint(painter: _TrendPainter(sums, c)),
+                : CustomPaint(painter: _TrendPainter(sums, plaqueSums, c)),
           ),
           const SizedBox(height: CruSpace.s6),
           Wrap(
@@ -1030,6 +1248,7 @@ class _History extends StatelessWidget {
               _Legend(color: c.label, text: 'Mean PD'),
               _Legend(color: c.label3, text: 'Mean CAL'),
               _Legend(color: c.amber, text: 'Bleeding %'),
+              _Legend(color: c.label2, text: 'Plaque %'),
             ],
           ),
           const SizedBox(height: CruSpace.s16),
@@ -1063,10 +1282,14 @@ class _History extends StatelessWidget {
                               Builder(
                                 builder: (context) {
                                   final s = perioSummaryOf(e);
+                                  final p = plaqueSummaryOf(e);
+                                  final plaqueText = p.pct == null
+                                      ? ''
+                                      : ' · Plaque ${p.pct!.toStringAsFixed(1)}%';
                                   return Text(
                                     s.sites == 0
-                                        ? 'Empty'
-                                        : 'PD ${s.meanPd!.toStringAsFixed(1)} · BOP ${s.bopPct!.toStringAsFixed(0)}% · ≥4 mm ${s.deep4}',
+                                        ? 'Empty$plaqueText'
+                                        : 'PD ${s.meanPd!.toStringAsFixed(1)} · BOP ${s.bopPct!.toStringAsFixed(0)}% · ≥4 mm ${s.deep4}$plaqueText',
                                     style: CruType.caption.tabular.tint(
                                       c.label2,
                                     ),
@@ -1113,9 +1336,10 @@ class _Legend extends StatelessWidget {
 }
 
 class _TrendPainter extends CustomPainter {
-  _TrendPainter(this.sums, this.c);
+  _TrendPainter(this.sums, this.plaqueSums, this.c);
 
   final List<PerioSummary> sums;
+  final List<PlaqueSummary> plaqueSums;
   final CruColors c;
 
   @override
@@ -1160,8 +1384,46 @@ class _TrendPainter extends CustomPainter {
 
     line((s) => s.meanCal, c.label3);
     line((s) => s.meanPd, c.label);
+
+    // Plaque % (0–100), dashed.
+    final plaquePaint = Paint()
+      ..color = c.label2
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    Offset? prev;
+    for (var i = 0; i < n; i++) {
+      final pct = plaqueSums[i].pct;
+      if (pct == null) {
+        prev = null;
+        continue;
+      }
+      final pt = Offset(x(i), size.height * (1 - pct / 100));
+      if (prev != null) _dashedLine(canvas, prev, pt, plaquePaint);
+      canvas.drawCircle(pt, 2.5, Paint()..color = c.label2);
+      prev = pt;
+    }
+  }
+
+  /// Draws a dashed segment between [a] and [b] (no built-in dashed stroke).
+  void _dashedLine(Canvas canvas, Offset a, Offset b, Paint paint) {
+    const dash = 4.0;
+    const gap = 3.0;
+    final total = (b - a).distance;
+    if (total == 0) return;
+    final dir = (b - a) / total;
+    var drawn = 0.0;
+    var draw = true;
+    while (drawn < total) {
+      final next = math.min(drawn + (draw ? dash : gap), total);
+      if (draw) {
+        canvas.drawLine(a + dir * drawn, a + dir * next, paint);
+      }
+      drawn = next;
+      draw = !draw;
+    }
   }
 
   @override
-  bool shouldRepaint(_TrendPainter old) => old.sums != sums;
+  bool shouldRepaint(_TrendPainter old) =>
+      old.sums != sums || old.plaqueSums != plaqueSums;
 }

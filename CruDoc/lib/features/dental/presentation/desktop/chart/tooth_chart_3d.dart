@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/jaw_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
@@ -60,6 +61,7 @@ class ToothChart3D extends StatefulWidget {
     required this.onSelect,
     this.onOpen,
     this.height = 460,
+    this.numbering = ToothNumbering.fdi,
   });
 
   final ToothChartData data;
@@ -71,6 +73,9 @@ class ToothChart3D extends StatefulWidget {
   /// Enter on the selected tooth.
   final ValueChanged<String>? onOpen;
   final double height;
+
+  /// How tooth numbers are shown; storage stays FDI regardless.
+  final ToothNumbering numbering;
 
   @override
   State<ToothChart3D> createState() => _ToothChart3DState();
@@ -322,6 +327,7 @@ class _ToothChart3DState extends State<ToothChart3D>
                 selected: widget.selected,
                 hover: _hover,
                 colors: c,
+                numbering: widget.numbering,
               ).render(size);
               _frame = frame;
               return DecoratedBox(
@@ -563,6 +569,7 @@ class _Renderer {
     required this.selected,
     required this.hover,
     required this.colors,
+    required this.numbering,
   });
 
   final JawModel model;
@@ -574,6 +581,7 @@ class _Renderer {
   final String? selected;
   final String? hover;
   final CruColors colors;
+  final ToothNumbering numbering;
 
   static const _lx = -0.36, _ly = 0.56, _lz = 0.745;
 
@@ -815,9 +823,10 @@ class _Renderer {
       } else {
         dot = toothColors(c, v.state).text;
       }
+      final label = toothLabel(tooth, numbering);
       callouts.add(_Callout(
         tooth: tooth,
-        text: text == null ? tooth : '$tooth  $text',
+        text: text == null ? label : '$label  $text',
         anchor: pa,
         at: Offset(
           at.dx.clamp(60.0, size.width - 60),

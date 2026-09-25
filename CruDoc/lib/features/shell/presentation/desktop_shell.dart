@@ -31,10 +31,14 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/subscription/presentation/feature_upgrade_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/sterilization_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/treatment_plans_screen.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
+import 'package:doctor_management_app/features/dental/specialties/dental_not_built.dart';
+import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
@@ -163,6 +167,20 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Reports',
     'Referrers',
     'Recalls',
+    'Perio patients',
+    'Root canals',
+    'Referrals',
+    'Children',
+    'Biopsies',
+    'Lesions',
+    'Forms',
+    'Sedation cases',
+    'Lab cases',
+    'Ortho patients',
+    'Camps',
+    'Population',
+    'Surgeries',
+    'Implants',
   ];
 
   static const List<IconData> _icons = [
@@ -182,6 +200,20 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.description_outlined,
     Icons.person_pin_outlined,
     Icons.notifications_outlined,
+    Icons.health_and_safety_outlined,
+    Icons.healing_outlined,
+    Icons.forward_to_inbox_outlined,
+    Icons.child_care_outlined,
+    Icons.biotech_outlined,
+    Icons.report_problem_outlined,
+    Icons.fact_check_outlined,
+    Icons.medication_outlined,
+    Icons.inventory_outlined,
+    Icons.align_horizontal_center_outlined,
+    Icons.location_city_outlined,
+    Icons.groups_outlined,
+    Icons.content_cut_outlined,
+    Icons.build_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -247,6 +279,99 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const RadReferrersScreen();
       case DesktopTab.recalls:
         return const RecallsScreen();
+      case DesktopTab.perioPatients:
+        return const PerioPatientsScreen();
+      case DesktopTab.rootCanals:
+        return const DentalNotBuiltScreen(
+          icon: RecIcons.endo,
+          title: 'Root canals',
+          body: 'Not built yet. This will list root canal cases with '
+              'canal counts, working lengths and obturation status.',
+        );
+      case DesktopTab.dentalReferrals:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.arrowUpRight,
+          title: 'Referrals',
+          body: 'Not built yet. This will track referrals sent to and '
+              'received from other dentists.',
+        );
+      case DesktopTab.pedoChildren:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.patients,
+          title: 'Children',
+          body: 'Not built yet. This will list your young patients with '
+              'growth, behaviour and eruption tracking.',
+        );
+      case DesktopTab.biopsies:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.flask,
+          title: 'Biopsies',
+          body: 'Not built yet. This will track biopsy specimens from '
+              'collection through to histopathology report.',
+        );
+      case DesktopTab.oralMedLesions:
+        return const DentalNotBuiltScreen(
+          icon: RecIcons.pain,
+          title: 'Lesions',
+          body: 'Not built yet. This will chart oral mucosal lesions with '
+              'photos and follow-up.',
+        );
+      case DesktopTab.oralMedForms:
+        return const DentalNotBuiltScreen(
+          icon: RecIcons.checklist,
+          title: 'Forms',
+          body: 'Not built yet. This will hold oral medicine intake and '
+              'referral forms.',
+        );
+      case DesktopTab.sedationCases:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.flask,
+          title: 'Sedation cases',
+          body: 'Not built yet. This will log sedation plans, vitals and '
+              'recovery for each case.',
+        );
+      case DesktopTab.labCases:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.box,
+          title: 'Lab cases',
+          body: 'Not built yet. This will track lab cases from impression '
+              'to try-in and delivery.',
+        );
+      case DesktopTab.orthoPatients:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.patients,
+          title: 'Ortho patients',
+          body: 'Not built yet. This will list patients in active '
+              'treatment with bracket and wire history.',
+        );
+      case DesktopTab.healthCamps:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.megaphone,
+          title: 'Camps',
+          body: 'Not built yet. This will log community dental camps and '
+              'screenings.',
+        );
+      case DesktopTab.population:
+        return const DentalNotBuiltScreen(
+          icon: CruIcons.patients,
+          title: 'Population',
+          body: 'Not built yet. This will summarise population-level '
+              'oral health survey data.',
+        );
+      case DesktopTab.surgeries:
+        return const DentalNotBuiltScreen(
+          icon: DentalIcons.procedures,
+          title: 'Surgeries',
+          body: 'Not built yet. This will list scheduled and completed '
+              'surgeries with consent and post-op notes.',
+        );
+      case DesktopTab.implants:
+        return const DentalNotBuiltScreen(
+          icon: DentalIcons.tooth,
+          title: 'Implants',
+          body: 'Not built yet. This will track implant cases from '
+              'placement through to restoration.',
+        );
       default:
         return const SizedBox.shrink();
     }

@@ -8,6 +8,7 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/dental/records/endo_dialog.dart';
 import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
+import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -28,6 +29,7 @@ class DentalRecordsCard extends ConsumerWidget {
             .value ??
         const <DentalRecord>[];
     final perio = of(RecKind.perio);
+    final srp = srpCardLine(of(RecKind.srp));
     final endo = of(RecKind.endo);
     final consents = of(RecKind.consent);
     final recalls =
@@ -115,6 +117,13 @@ class DentalRecordsCard extends ConsumerWidget {
               ),
             );
           }),
+          row(
+            RecIcons.checklist,
+            'Root planing',
+            srp.text,
+            () => showSrpDialog(context, patient),
+            warn: srp.warn,
+          ),
           row(
             RecIcons.endo,
             'Endodontics',

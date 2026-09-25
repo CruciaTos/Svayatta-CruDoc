@@ -162,6 +162,20 @@ abstract final class CruIcons {
   );
 }
 
+/// Makes every [CruIcon] below it [scale] times larger (the dental
+/// chairside mode enlarges the main area's text and icons together).
+class CruIconScale extends InheritedWidget {
+  const CruIconScale({super.key, required this.scale, required super.child});
+
+  final double scale;
+
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<CruIconScale>()?.scale ?? 1;
+
+  @override
+  bool updateShouldNotify(CruIconScale old) => old.scale != scale;
+}
+
 /// Paints a [CruIconData].
 class CruIcon extends StatelessWidget {
   const CruIcon(
@@ -187,7 +201,7 @@ class CruIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final resolved = color ?? IconTheme.of(context).color ?? const Color(0xFF000000);
     final painted = CustomPaint(
-      size: Size.square(size),
+      size: Size.square(size * CruIconScale.of(context)),
       painter: _CruIconPainter(icon, resolved, strokeWidth),
     );
     if (semanticLabel == null) return ExcludeSemantics(child: painted);

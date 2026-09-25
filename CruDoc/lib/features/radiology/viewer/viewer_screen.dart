@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+import 'dart:math' as math;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,7 +33,7 @@ import 'package:doctor_management_app/features/radiology/viewer_plus/image_filte
 import 'package:doctor_management_app/features/radiology/viewer_plus/subtraction/subtraction_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-enum _ExportKind { pngMarks, png, jpgMarks, jpg, dicom }
+enum _ExportKind { pngMarks, png, jpgMarks, jpg, area, dicom }
 
 /// Annotations and calibration at one moment (an undo step).
 class _Snapshot {
@@ -969,6 +971,21 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   // ───────────────────────────── Export and other screens ─────────────────────────────
 
+  /// The selected rectangle or ellipse ROI's bounds, in image pixels.
+  Rect? _selectedBox(RadPane p) {
+    final id = _selectedId;
+    if (id == null) return null;
+    for (final a in _annotationsFor(p)) {
+      if (a.id != id) continue;
+      if ((a.kind != RadAnnoKind.rect && a.kind != RadAnnoKind.ellipse) || a.points.length < 2) {
+        return null;
+      }
+      final xs = a.points.map((q) => q.x), ys = a.points.map((q) => q.y);
+      return Rect.fromLTRB(xs.reduce(math.min), ys.reduce(math.min), xs.reduce(math.max), ys.reduce(math.max));
+    }
+    return null;
+  }
+
   Future<void> _export(_ExportKind kind) async {
     final p = _pane;
     final s = _studies[p.studyId];
@@ -994,6 +1011,40 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         if (path == null) return;
         await _ctl.log('Exported', targetKind: 'study', targetId: s.id, detail: 'Anonymised DICOM of image $index');
         if (mounted) radToast(context, 'Saved an anonymised copy');
+        return;
+      }
+      if (kind == _ExportKind.area) {
+        // The selected rectangle or ellipse ROI, at full resolution, as
+        // the doctor sees it (window and filters), without marks.
+        final box = _selectedBox(p);
+        final px = p.px;
+        final full = box == null || px == null ? null : await p.renderFull();
+        if (box == null || px == null || full == null) return;
+        final sx = full.width / px.width, sy = full.height / px.height;
+        final r = Rect.fromLTRB(box.left * sx, box.top * sy, box.right * sx, box.bottom * sy)
+            .intersect(Rect.fromLTWH(0, 0, full.width.toDouble(), full.height.toDouble()));
+        if (r.width < 2 || r.height < 2) {
+          full.dispose();
+          return;
+        }
+        final rec = ui.PictureRecorder();
+        Canvas(rec).drawImageRect(full, r, Offset.zero & r.size, Paint());
+        final picture = rec.endRecording();
+        final crop = await picture.toImage(r.width.round(), r.height.round());
+        picture.dispose();
+        full.dispose();
+        final bytes = await radEncodePng(crop);
+        crop.dispose();
+        if (bytes == null || !mounted) return;
+        final path = await radSaveBytes(
+          dialogTitle: 'Save selected area',
+          fileName: '${radExportName(s)}_${index}_area.png',
+          extension: 'png',
+          bytes: bytes,
+        );
+        if (path == null) return;
+        await _ctl.log('Exported', targetKind: 'study', targetId: s.id, detail: 'PNG of an area of image $index');
+        if (mounted) radToast(context, 'Area saved');
         return;
       }
       final marks = kind == _ExportKind.pngMarks || kind == _ExportKind.jpgMarks;
@@ -1262,6 +1313,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                       radMenuItem(context, _ExportKind.png, 'PNG without marks', icon: RadViewerIcons.export),
                       radMenuItem(context, _ExportKind.jpgMarks, 'JPG with marks', icon: RadViewerIcons.export),
                       radMenuItem(context, _ExportKind.jpg, 'JPG without marks', icon: RadViewerIcons.export),
+                      if (_selectedBox(_pane) != null)
+                        radMenuItem(context, _ExportKind.area, 'PNG of the selected area', icon: RadViewerIcons.export),
                       if (image?.kind == RadFileKind.dicom)
                         radMenuItem(context, _ExportKind.dicom, 'Anonymised DICOM', icon: RadViewerIcons.file),
                     ],

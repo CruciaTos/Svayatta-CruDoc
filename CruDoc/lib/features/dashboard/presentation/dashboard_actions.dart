@@ -50,7 +50,8 @@ abstract final class DesktopTab {
       tab == healthCamps ||
       tab == population ||
       tab == surgeries ||
-      tab == implants;
+      tab == implants ||
+      tab == emergency;
 
   /// Dentists: who should come back.
   static const recalls = 15;
@@ -88,6 +89,9 @@ abstract final class DesktopTab {
   /// Oral & Maxillofacial Surgeons only.
   static const surgeries = 28;
   static const implants = 29;
+
+  /// Dental Anesthesiologists: the clinic's emergency protocols.
+  static const emergency = 30;
 
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
@@ -128,6 +132,7 @@ abstract final class DesktopTab {
         population => 'Population',
         surgeries => 'Surgeries',
         implants => 'Implants',
+        emergency => 'Emergency',
         _ => 'Back',
       };
 }

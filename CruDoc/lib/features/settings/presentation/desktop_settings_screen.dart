@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
+import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_settings_section.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
@@ -1301,6 +1302,7 @@ class _DentalSection extends ConsumerWidget {
     final c = context.cru;
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final large = ref.watch(largeModeProvider).value ?? false;
 
     return _Stack([
       _SettingsCard(
@@ -1328,6 +1330,26 @@ class _DentalSection extends ConsumerWidget {
                           '(1–32) and letters (A–T).',
                 style: CruType.caption.tint(c.label2),
               ),
+            ),
+          ],
+        ),
+      ),
+      _SettingsCard(
+        title: 'Larger text and icons (chairside)',
+        description:
+            'Makes the text and icons in the main area 20% larger, for '
+            'reading at the chair (for example with children). The sidebar '
+            'stays as it is.',
+        child: Row(
+          children: [
+            CruSegmentedControl<bool>(
+              semanticLabel: 'Larger text and icons',
+              segments: const [
+                CruSegment(false, 'Off'),
+                CruSegment(true, 'On'),
+              ],
+              selected: large,
+              onChanged: (v) => setLargeMode(ref, v),
             ),
           ],
         ),

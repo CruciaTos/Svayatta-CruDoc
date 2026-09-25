@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
+import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
@@ -125,7 +127,25 @@ class _DetailsBody extends ConsumerWidget {
     final caseSheet = isHomeopath
         ? ref.watch(homeopathyCaseSheetProvider(s.id)).value
         : null;
-    final allergies = KnownAllergies.parse(caseSheet?.medicalHistory.allergies);
+    // Dentists: allergies from the oral medicine history.
+    final omHistory = isDentist
+        ? omHistoryOf(
+            ref
+                    .watch(
+                      patientRecordsProvider((
+                        patientId: s.id,
+                        kind: RecKind.omHistory,
+                      )),
+                    )
+                    .value ??
+                const [],
+          )
+        : null;
+    final allergies = KnownAllergies.parse(
+      isHomeopath
+          ? caseSheet?.medicalHistory.allergies
+          : omAllergyText(omHistory),
+    );
 
     Future<void> push(Widget screen) async {
       await Navigator.of(

@@ -37,8 +37,10 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/steri
 import 'package:doctor_management_app/features/dental/presentation/desktop/treatment_plans_screen.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
+import 'package:doctor_management_app/features/dental/specialties/anaesthesia/emergency_protocols.dart';
 import 'package:doctor_management_app/features/dental/specialties/dental_not_built.dart';
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
+import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
@@ -181,6 +183,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Population',
     'Surgeries',
     'Implants',
+    'Emergency',
   ];
 
   static const List<IconData> _icons = [
@@ -214,6 +217,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.groups_outlined,
     Icons.content_cut_outlined,
     Icons.build_outlined,
+    Icons.medical_services_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -365,6 +369,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           body: 'Not built yet. This will list scheduled and completed '
               'surgeries with consent and post-op notes.',
         );
+      case DesktopTab.emergency:
+        return const EmergencyProtocolsScreen();
       case DesktopTab.implants:
         return const DentalNotBuiltScreen(
           icon: DentalIcons.tooth,
@@ -540,6 +546,20 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               padding: const EdgeInsets.fromLTRB(12, 16, 16, 16),
               child: SizedBox.expand(child: content),
             ),
+          );
+        }
+
+        // Dental chairside mode: the main area's text and icons larger,
+        // the sidebar as it is.
+        if (dentist && (ref.watch(largeModeProvider).value ?? false)) {
+          final mq = MediaQuery.of(context);
+          content = MediaQuery(
+            data: mq.copyWith(
+              textScaler: TextScaler.linear(
+                mq.textScaler.scale(1) * largeModeScale,
+              ),
+            ),
+            child: CruIconScale(scale: largeModeScale, child: content),
           );
         }
 

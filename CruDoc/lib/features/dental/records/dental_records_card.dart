@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/clinical_forms.dart';
 import 'package:doctor_management_app/features/dental/records/consent_dialog.dart';
@@ -9,6 +10,8 @@ import 'package:doctor_management_app/features/dental/records/endo_dialog.dart';
 import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
 import 'package:doctor_management_app/features/dental/records/recalls.dart';
 import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
+import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
+import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -40,6 +43,13 @@ class DentalRecordsCard extends ConsumerWidget {
     final frankl = of(RecKind.frankl);
     final checklists = of(RecKind.checklist);
     final child = patient.age < 16;
+    final om = omHistoryOf(of(RecKind.omHistory));
+    final allergy = omAllergyText(om);
+    final eruptionRecords = of(RecKind.eruption);
+    final eruption = eruptionCardLine(
+      eruptionRecords.isEmpty ? null : eruptionRecords.first,
+      patient,
+    );
 
     final perioLine = perio.isEmpty
         ? 'No exam yet'
@@ -62,6 +72,7 @@ class DentalRecordsCard extends ConsumerWidget {
       String detail,
       VoidCallback onTap, {
       bool warn = false,
+      String? alert,
     }) => DentalListRow(
       semanticLabel: '$title. $detail',
       onTap: onTap,
@@ -75,8 +86,18 @@ class DentalRecordsCard extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: CruType.callout.w600.tint(c.label)),
-                Text(
-                  detail,
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      // Allergies in red: patient safety.
+                      if (alert != null)
+                        TextSpan(
+                          text: '$alert · ',
+                          style: CruType.subhead.w600.tint(c.redText),
+                        ),
+                      TextSpan(text: detail),
+                    ],
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: CruType.subhead.tabular.tint(
@@ -107,6 +128,14 @@ class DentalRecordsCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: CruSpace.s8),
+          row(
+            RecIcons.consent,
+            'Oral medicine history',
+            omCardLine(om),
+            () => showOmHistoryDialog(context, patient, existing: om),
+            warn: omHighRisk(om),
+            alert: allergy == null || allergy == 'None' ? null : 'Allergic to $allergy',
+          ),
           row(RecIcons.perio, 'Perio chart', perioLine, () {
             Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute<void>(
@@ -165,6 +194,18 @@ class DentalRecordsCard extends ConsumerWidget {
                   ? 'Not rated yet (Frankl scale)'
                   : '${franklLabel(frankl.first.integer('rating'))} · ${DentalFormat.date(frankl.first.recordedAt)}',
               () => showFranklDialog(context, patient),
+            ),
+          if (child)
+            row(
+              DentalIcons.tooth,
+              'Eruption',
+              eruption.text,
+              () => showEruptionDialog(
+                context,
+                patient,
+                existing: eruptionRecords.isEmpty ? null : eruptionRecords.first,
+              ),
+              warn: eruption.warn,
             ),
           row(
             RecIcons.checklist,

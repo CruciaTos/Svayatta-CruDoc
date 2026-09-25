@@ -45,6 +45,7 @@ List<_NavItem> specialtyNav(DoctorSpecialtyType? sub) => switch (sub) {
   ],
   DoctorSpecialtyType.dentalAnesthesiologist => const [
     _NavItem(DesktopTab.sedationCases, 'Sedation cases', CruIcons.flask),
+    _NavItem(DesktopTab.emergency, 'Emergency', CruIcons.warning),
   ],
   DoctorSpecialtyType.prosthodontist => const [
     _NavItem(DesktopTab.labCases, 'Lab cases', CruIcons.box),

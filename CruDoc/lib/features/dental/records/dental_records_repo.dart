@@ -23,6 +23,15 @@ abstract final class RecKind {
   static const frankl = 'frankl';
   static const checklist = 'checklist';
   static const meta = 'meta';
+
+  /// Oral medicine history (one per patient, updated in place).
+  static const omHistory = 'omHistory';
+
+  /// Eruption chart (one per patient, updated in place).
+  static const eruption = 'eruption';
+
+  /// The clinic's own emergency protocols (no patient).
+  static const emergencyProtocol = 'emergencyProtocol';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

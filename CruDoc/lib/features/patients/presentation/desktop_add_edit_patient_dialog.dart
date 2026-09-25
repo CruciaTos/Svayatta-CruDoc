@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/patient_voice_fill_bar.dart';
+import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Opens the desktop Add/Edit Patient form.
@@ -31,10 +33,14 @@ class DesktopAddEditPatientDialog extends StatefulWidget {
     super.key,
     this.patient,
     this.repository,
+    this.voiceFillService,
   });
 
   final Patient? patient;
   final PatientRepository? repository;
+
+  /// Injected in tests.
+  final PatientVoiceFillService? voiceFillService;
 
   @override
   State<DesktopAddEditPatientDialog> createState() =>
@@ -135,6 +141,40 @@ class _DesktopAddEditPatientDialogState
       _dirty = true;
       _notice = null;
     });
+  }
+
+  /// Puts what was heard into the form. Only fields that were heard are
+  /// changed; heard conditions are added to the ones already entered, and
+  /// heard notes are appended.
+  void _applyVoiceFill(PatientVoiceFill fill) {
+    if (fill.firstName.isNotEmpty) _firstName.text = fill.firstName;
+    if (fill.lastName.isNotEmpty) _lastName.text = fill.lastName;
+    if (fill.phone.isNotEmpty) _phone.text = fill.phone;
+    if (fill.email.isNotEmpty) _email.text = fill.email;
+    if (fill.gender != null && _sexes.contains(fill.gender)) _sex = fill.gender;
+    if (fill.dateOfBirth != null) {
+      _dateOfBirth = fill.dateOfBirth;
+      _dobFromAge = false;
+      _age.text = '${_ageOn(_dateOfBirth)}';
+    } else if (fill.ageYears != null) {
+      _age.text = '${fill.ageYears}';
+      _onAgeChanged(_age.text);
+    }
+    if (fill.conditions.isNotEmpty) {
+      final seen = <String>{};
+      _conditions = [..._conditions, ...fill.conditions]
+          .where((c) => seen.add(c.toLowerCase()))
+          .take(Patient.maxDiagnoses)
+          .toList();
+    }
+    if (fill.notes.isNotEmpty) {
+      final existing = _notes.text.trim();
+      _notes.text = existing.isEmpty ? fill.notes : '$existing\n${fill.notes}';
+    }
+    if (fill.packageBalance != null) {
+      _balance.text = fill.packageBalance!.toStringAsFixed(0);
+    }
+    _edited();
   }
 
   void _onAgeChanged(String value) {
@@ -279,6 +319,14 @@ class _DesktopAddEditPatientDialogState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (!_isEditing)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: PatientVoiceFillBar(
+                  onFill: _applyVoiceFill,
+                  service: widget.voiceFillService,
+                ),
+              ),
             CruFormSection(
               first: true,
               title: 'Patient',

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_ai/firebase_ai.dart';
-import 'package:firebase_remote_config/firebase_remote_config.dart';
 import 'package:flutter/foundation.dart';
+
+import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
@@ -17,18 +17,17 @@ import 'package:doctor_management_app/features/scribe/data/models/physio_finding
 /// [fallbackModel] if Remote Config is unreachable or the key is unset.
 ///
 /// Follows §5/§10 of the feature plan:
-/// - Uses [FirebaseAI.googleAI] (not raw REST with an embedded key)
+/// - Calls Gemini through [GeminiJsonClient] (Firebase AI Logic; a
+///   developer key only for demo builds)
 /// - Structured JSON output via a declared response schema
 /// - System prompt instructs the model to only extract what was said
 /// - Malformed JSON is retried once; any other failure surfaces as a
 ///   [ScribeProcessingException]. A draft is never invented locally.
 class ScribeProcessingService {
-  static const remoteConfigModelKey = 'scribe_gemini_model';
+  ScribeProcessingService({GeminiJsonClient? client})
+    : _client = client ?? GeminiJsonClient();
 
-  /// GA Flash model; Firebase lists its retirement as no earlier than
-  /// 2027-05-19. `gemini-2.0-flash` (the previous value) was shut down on
-  /// 2026-06-01. Prefer moving to a newer model via Remote Config.
-  static const fallbackModel = 'gemini-3.5-flash';
+  final GeminiJsonClient _client;
 
   /// Recordings shorter than this are rejected before any API call.
   static const minRecordingDuration = Duration(seconds: 5);
@@ -41,13 +40,12 @@ class ScribeProcessingService {
   static const _maxInlineAudioBytes = 14 * 1024 * 1024;
   static const _requestTimeout = Duration(seconds: 150);
 
-  bool _remoteConfigLoaded = false;
-
   // ---- Structured output schema ----
   //
   // General fields plus a `physio` object generated from the specs in
   // [PhysioFindings], so the schema, review form and summary never drift.
-  static final Schema _responseSchema = _buildSchema();
+  @visibleForTesting
+  static final Schema responseSchema = _buildSchema();
 
   static Schema _buildSchema() {
     final physioProps = <String, Schema>{
@@ -137,7 +135,8 @@ class ScribeProcessingService {
     );
   }
 
-  static const _systemPrompt = '''
+  @visibleForTesting
+  static const systemPrompt = '''
 You are a clinical documentation assistant for physiotherapists in India.
 You transcribe a recorded physiotherapy session (assessment or treatment
 visit) and extract a structured SOAP note from it.
@@ -186,23 +185,6 @@ CRITICAL RULES — read these carefully:
 15. Respond ONLY with a valid JSON object matching the requested schema.
 ''';
 
-  /// Returns the model name from Remote Config, or [fallbackModel].
-  Future<String> _modelName() async {
-    try {
-      final rc = FirebaseRemoteConfig.instance;
-      if (!_remoteConfigLoaded) {
-        _remoteConfigLoaded = true;
-        await rc.setDefaults(const {remoteConfigModelKey: fallbackModel});
-        await rc.fetchAndActivate().timeout(const Duration(seconds: 4));
-      }
-      final value = rc.getString(remoteConfigModelKey).trim();
-      if (value.isNotEmpty) return value;
-    } catch (e) {
-      debugPrint('[ScribeProcessing] Remote Config unavailable: $e');
-    }
-    return fallbackModel;
-  }
-
   /// Checks whether the audio file at [audioPath] is usable. Returns an
   /// error message if it should be rejected, or null if it's fine.
   Future<String?> validateAudio(String audioPath) async {
@@ -249,20 +231,14 @@ CRITICAL RULES — read these carefully:
       );
     }
 
-    final modelName = await _modelName();
     Map<String, dynamic> parsed;
     try {
-      parsed = await _callGemini(modelName, audioBytes, consentAt);
+      parsed = await _callGemini(audioBytes, consentAt);
     } on FormatException catch (e) {
       // Malformed or truncated JSON — retry once with a stricter prompt.
       debugPrint('[ScribeProcessing] Malformed response, retrying: $e');
       try {
-        parsed = await _callGemini(
-          modelName,
-          audioBytes,
-          consentAt,
-          strictRetry: true,
-        );
+        parsed = await _callGemini(audioBytes, consentAt, strictRetry: true);
       } catch (retryError) {
         throw _classify(retryError);
       }
@@ -283,22 +259,10 @@ CRITICAL RULES — read these carefully:
   }
 
   Future<Map<String, dynamic>> _callGemini(
-    String modelName,
     Uint8List audioBytes,
     DateTime consultationDate, {
     bool strictRetry = false,
-  }) async {
-    final model = FirebaseAI.googleAI().generativeModel(
-      model: modelName,
-      systemInstruction: Content.system(_systemPrompt),
-      generationConfig: GenerationConfig(
-        temperature: 0.1,
-        maxOutputTokens: 32768,
-        responseMimeType: 'application/json',
-        responseSchema: _responseSchema,
-      ),
-    );
-
+  }) {
     final date = consultationDate.toIso8601String().split('T').first;
     final prompt = strictRetry
         ? 'Consultation date: $date. Extract clinical information from this '
@@ -308,24 +272,14 @@ CRITICAL RULES — read these carefully:
               'session and extract the clinical information into the '
               'requested SOAP JSON structure.';
 
-    final response = await model
-        .generateContent([
-          Content.multi([
-            TextPart(prompt),
-            InlineDataPart('audio/mp4', audioBytes),
-          ]),
-        ])
-        .timeout(_requestTimeout);
-
-    final text = response.text ?? '';
-    if (text.trim().isEmpty) {
-      throw const FormatException('Empty response from the model.');
-    }
-    final decoded = jsonDecode(extractJson(text));
-    if (decoded is! Map<String, dynamic>) {
-      throw const FormatException('Response was not a JSON object.');
-    }
-    return decoded;
+    return _client.generateJson(
+      systemPrompt: systemPrompt,
+      prompt: prompt,
+      audioBytes: audioBytes,
+      schema: responseSchema,
+      maxOutputTokens: 32768,
+      timeout: _requestTimeout,
+    );
   }
 
   ScribeProcessingException _classify(Object error) {
@@ -347,7 +301,8 @@ CRITICAL RULES — read these carefully:
         cause: error,
       );
     }
-    if (error is QuotaExceeded) {
+    if (error is QuotaExceeded ||
+        (error is GeminiHttpException && error.isQuota)) {
       return ScribeProcessingException(
         'The AI usage limit has been reached. Try again in a few minutes, '
         'or write the note manually.',
@@ -362,6 +317,7 @@ CRITICAL RULES — read these carefully:
         raw.contains('is not supported');
     if (error is ServiceApiNotEnabled ||
         error is InvalidApiKey ||
+        (error is GeminiHttpException && error.isNotConfigured) ||
         modelMissing) {
       return ScribeProcessingException(
         "AI Scribe isn't available for this clinic yet (Firebase AI Logic or "
@@ -401,14 +357,7 @@ CRITICAL RULES — read these carefully:
   /// Strips any surrounding markdown code fences or prose the model might
   /// have added despite instructions.
   @visibleForTesting
-  static String extractJson(String text) {
-    final trimmed = text.trim();
-    if (trimmed.startsWith('{')) return trimmed;
-    final start = trimmed.indexOf('{');
-    final end = trimmed.lastIndexOf('}');
-    if (start != -1 && end > start) return trimmed.substring(start, end + 1);
-    return trimmed;
-  }
+  static String extractJson(String text) => GeminiJsonClient.extractJson(text);
 
   /// Maps the model's JSON onto a draft [ConsultationNote]. Tolerates missing
   /// keys and wrong types — anything unusable becomes an empty field.

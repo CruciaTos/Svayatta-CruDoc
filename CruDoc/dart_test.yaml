@@ -4,3 +4,7 @@ tags:
       Pixel comparisons of the dashboard against
       design/dashboard-redesign/screens. Generated on Windows; font
       anti-aliasing differs slightly on other platforms.
+  live:
+    description: >-
+      Calls the real Gemini API (test/live). Skipped unless GEMINI_API_KEY
+      is set in .env.local.

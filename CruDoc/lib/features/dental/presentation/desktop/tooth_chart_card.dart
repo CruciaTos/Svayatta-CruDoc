@@ -2,23 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/data/models/dental_procedure_log_model.dart';
-import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
-import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/chart_legend.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_3d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// The patient's teeth: a 2D anatomical chart or 3D jaws (toggle),
-/// Findings or Plan, adult or milk teeth. Picking a tooth shows its
-/// history and what can be done: record a finding, log a procedure, add
-/// it to the plan.
+/// The patient's teeth as a realistic chart (or 3D jaws): what was found
+/// and done, the plan, gums and canals as layers, adult or milk teeth.
+/// Clicking a tooth opens it.
 class ToothChartCard extends ConsumerStatefulWidget {
   const ToothChartCard({super.key, required this.patient});
 
@@ -30,7 +30,7 @@ class ToothChartCard extends ConsumerStatefulWidget {
 
 class _ToothChartCardState extends ConsumerState<ToothChartCard> {
   bool _threeD = false;
-  ChartMode _mode = ChartMode.findings;
+  ChartLayer _layer = ChartLayer.dental;
   bool? _child;
   String? _selected;
 
@@ -43,21 +43,22 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
     return age > 0 && age < 6;
   }
 
-  Future<void> _record(String tooth, ToothChartEntryModel? latest) =>
-      showToothFindingDialog(context, patient: p, tooth: tooth, latest: latest);
+  Future<void> _open(String tooth) async {
+    setState(() => _selected = tooth);
+    final last = await openToothDetail(context, patient: p, tooth: tooth);
+    if (mounted && last != null) setState(() => _selected = last);
+  }
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final entries = ref.watch(patientToothChartProvider(p.id)).value ??
-        const <ToothChartEntryModel>[];
-    final plan = ref.watch(patientTreatmentPlanProvider(p.id)).value ??
-        const <TreatmentPlanLineItemModel>[];
-    final logs = ref.watch(patientProcedureLogProvider(p.id)).value ??
-        const <DentalProcedureLogModel>[];
-    final data = ToothChartData.from(entries, plan);
+    final data = watchPatientChart(ref, p.id);
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final child = _child ?? _defaultChild(data);
-    final latest = DentalChart.latest(entries);
+    // 3D shows findings or the plan; the other layers are chart-only.
+    final layer =
+        _threeD && _layer != ChartLayer.plan ? ChartLayer.dental : _layer;
 
     final counts = [
       if (data.count(ToothState.needsCare) > 0)
@@ -79,7 +80,9 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ),
         const SizedBox(height: CruSpace.s2),
         Text(
-          counts.isEmpty ? 'No findings yet' : counts.join(' · '),
+          counts.isEmpty
+              ? 'No findings yet · click a tooth to open it'
+              : counts.join(' · '),
           style: CruType.subhead.tabular.tint(c.label2),
         ),
       ],
@@ -88,19 +91,21 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
       spacing: CruSpace.s8,
       runSpacing: CruSpace.s8,
       children: [
-        CruSegmentedControl<ChartMode>(
+        CruSegmentedControl<ChartLayer>(
           semanticLabel: 'Show',
-          segments: const [
-            CruSegment(ChartMode.findings, 'Findings'),
-            CruSegment(ChartMode.plan, 'Plan'),
+          segments: [
+            for (final l in _threeD
+                ? const [ChartLayer.dental, ChartLayer.plan]
+                : ChartLayer.values)
+              CruSegment(l, l.label),
           ],
-          selected: _mode,
-          onChanged: (m) => setState(() => _mode = m),
+          selected: layer,
+          onChanged: (l) => setState(() => _layer = l),
         ),
         CruSegmentedControl<bool>(
           semanticLabel: 'View',
           segments: const [
-            CruSegment(false, '2D'),
+            CruSegment(false, 'Chart'),
             CruSegment(true, '3D'),
           ],
           selected: _threeD,
@@ -108,16 +113,16 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ),
       ],
     );
-
-    void select(String t) => setState(() => _selected = t);
-    void open(String t) => _record(t, latest[t]);
+    final perioDate = data.perioExam == null
+        ? null
+        : 'Perio exam ${DentalFormat.date(data.perioExam!.recordedAt)}';
 
     return CruCard(
       semanticLabel: 'Tooth chart',
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 24),
+      padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final narrow = constraints.maxWidth < 560;
+          final narrow = constraints.maxWidth < 780;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -144,26 +149,47 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                         key: const ValueKey('3d'),
                         data: data,
                         child: child,
-                        mode: _mode,
+                        mode: layer.mode,
                         selected: _selected,
-                        onSelect: select,
-                        onOpen: open,
-                        height: (constraints.maxWidth * 0.62).clamp(380.0, 540.0),
+                        onSelect: (t) => setState(() => _selected = t),
+                        onOpen: _open,
+                        height:
+                            (constraints.maxWidth * 0.62).clamp(380.0, 540.0),
+                        numbering: numbering,
                       )
                     : ToothChart2D(
                         key: const ValueKey('2d'),
                         data: data,
                         child: child,
-                        mode: _mode,
+                        layer: layer,
                         selected: _selected,
-                        onSelect: select,
-                        onOpen: open,
+                        onSelect: _open,
+                        numbering: numbering,
                       ),
               ),
-              const SizedBox(height: CruSpace.s12),
+              if (!_threeD && layer.showsPerio && data.perioExam == null) ...[
+                const SizedBox(height: CruSpace.s12),
+                _PerioNotice(patient: p),
+              ],
+              if (_threeD && _selected != null) ...[
+                const SizedBox(height: CruSpace.s12),
+                _Peek(
+                  tooth: _selected!,
+                  visual: data.of(_selected!),
+                  onOpen: () => _open(_selected!),
+                ),
+              ],
+              const SizedBox(height: CruSpace.s14),
               Row(
                 children: [
-                  Expanded(child: _Legend(mode: _mode)),
+                  Expanded(
+                    child: _threeD
+                        ? _StateLegend(plan: layer == ChartLayer.plan)
+                        : ChartLegend(
+                            layer: layer,
+                            trailing: layer.showsPerio ? perioDate : null,
+                          ),
+                  ),
                   const SizedBox(width: CruSpace.s12),
                   CruSegmentedControl<bool>(
                     semanticLabel: 'Teeth',
@@ -179,37 +205,6 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: CruSpace.s16),
-              const CruSeparator(),
-              const SizedBox(height: CruSpace.s16),
-              if (_selected == null)
-                Row(
-                  children: [
-                    CruIcon(DentalIcons.tooth, size: 18, color: c.label3),
-                    const SizedBox(width: CruSpace.s8),
-                    Expanded(
-                      child: Text(
-                        'Pick a tooth to see its history, record a finding or '
-                        'plan work. Double-click (or Enter) to record straight away.',
-                        style: CruType.subhead.tint(c.label2),
-                      ),
-                    ),
-                  ],
-                )
-              else
-                _ToothPanel(
-                  patient: p,
-                  tooth: _selected!,
-                  visual: data.of(_selected!),
-                  history: entries
-                      .where((e) => e.toothNumber == _selected && !e.isDeleted)
-                      .toList(),
-                  procedures: logs
-                      .where((l) => l.toothNumbers.contains(_selected) && !l.isDeleted)
-                      .toList(),
-                  onRecord: () => _record(_selected!, latest[_selected!]),
-                  onClose: () => setState(() => _selected = null),
-                ),
             ],
           );
         },
@@ -218,10 +213,98 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
   }
 }
 
-class _Legend extends StatelessWidget {
-  const _Legend({required this.mode});
+/// Perio layer without an exam: say so and offer the perio chart.
+class _PerioNotice extends StatelessWidget {
+  const _PerioNotice({required this.patient});
 
-  final ChartMode mode;
+  final Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s14,
+        CruSpace.s10,
+        CruSpace.s10,
+        CruSpace.s10,
+      ),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'No perio exam yet. Gum lines, pockets and bleeding show on '
+              'the teeth once you chart one.',
+              style: CruType.subhead.tint(c.label2),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s12),
+          CruCapsuleButton(
+            label: 'Open perio chart',
+            kind: CruCapsuleKind.surface,
+            onPressed: () => openPerioChart(context, patient),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The tooth picked in 3D, and the way into it.
+class _Peek extends StatelessWidget {
+  const _Peek({
+    required this.tooth,
+    required this.visual,
+    required this.onOpen,
+  });
+
+  final String tooth;
+  final ToothVisual visual;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Row(
+      children: [
+        ToothBadge(tooth: tooth, state: visual.state),
+        const SizedBox(width: CruSpace.s12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                DentalChart.name(tooth),
+                style: CruType.callout.w600.tint(c.label),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Text(
+                visual.detail(ChartLayer.all) ??
+                    DentalChart.stateLabel(visual.state),
+                style: CruType.subhead.tint(c.label2),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: CruSpace.s12),
+        CruCapsuleButton(label: 'Open tooth', onPressed: onOpen),
+      ],
+    );
+  }
+}
+
+/// 3D colours: by state, or planned work.
+class _StateLegend extends StatelessWidget {
+  const _StateLegend({required this.plan});
+
+  final bool plan;
 
   @override
   Widget build(BuildContext context) {
@@ -235,7 +318,9 @@ class _Legend extends StatelessWidget {
               decoration: ShapeDecoration(
                 color: ring ? c.surface : dot,
                 shape: CircleBorder(
-                  side: ring ? BorderSide(color: dot, width: 1.5) : BorderSide.none,
+                  side: ring
+                      ? BorderSide(color: dot, width: 1.5)
+                      : BorderSide.none,
                 ),
               ),
             ),
@@ -246,7 +331,7 @@ class _Legend extends StatelessWidget {
     return Wrap(
       spacing: CruSpace.s14,
       runSpacing: CruSpace.s6,
-      children: mode == ChartMode.plan
+      children: plan
           ? [
               item(c.accent, 'Work planned'),
               item(c.label3, 'Nothing planned', ring: true),
@@ -256,183 +341,9 @@ class _Legend extends StatelessWidget {
               item(c.amberText, 'Needs care'),
               item(c.greenText, 'Treated'),
               item(c.label3, 'Missing'),
-              item(c.accent, 'Planned'),
             ],
     );
   }
-}
-
-/// The picked tooth: name, state, what's planned, the actions and its
-/// history (findings and procedures, newest first).
-class _ToothPanel extends StatefulWidget {
-  const _ToothPanel({
-    required this.patient,
-    required this.tooth,
-    required this.visual,
-    required this.history,
-    required this.procedures,
-    required this.onRecord,
-    required this.onClose,
-  });
-
-  final Patient patient;
-  final String tooth;
-  final ToothVisual visual;
-  final List<ToothChartEntryModel> history;
-  final List<DentalProcedureLogModel> procedures;
-  final VoidCallback onRecord;
-  final VoidCallback onClose;
-
-  @override
-  State<_ToothPanel> createState() => _ToothPanelState();
-}
-
-class _ToothPanelState extends State<_ToothPanel> {
-  bool _all = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    final v = widget.visual;
-    final timeline = <(DateTime, String, String?, Widget?, VoidCallback?)>[
-      for (final e in widget.history)
-        (e.recordedAt, DentalChart.findingText(e), e.notes.trim().isEmpty ? null : e.notes.trim(), null, null),
-      for (final l in widget.procedures)
-        (
-          l.performedAt,
-          l.procedureName,
-          _joined([l.materials ?? '', l.notes]),
-          procedureStatusPill(c, l.status),
-          () => showProcedureLogDialog(context, patient: widget.patient, existing: l),
-        ),
-    ]..sort((a, b) => b.$1.compareTo(a.$1));
-    final shown = _all ? timeline : timeline.take(4).toList();
-    final latestText = widget.history.isEmpty
-        ? 'Nothing recorded yet'
-        : DentalChart.findingText(
-            ([...widget.history]..sort((a, b) => b.recordedAt.compareTo(a.recordedAt))).first);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ToothBadge(tooth: widget.tooth, state: v.state),
-            const SizedBox(width: CruSpace.s12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    DentalChart.name(widget.tooth),
-                    style: CruType.callout.w600.tint(c.label),
-                  ),
-                  const SizedBox(height: CruSpace.s4),
-                  Wrap(
-                    spacing: CruSpace.s8,
-                    runSpacing: CruSpace.s4,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      toothStatePill(c, v.state),
-                      Text(latestText, style: CruType.subhead.tint(c.label2)),
-                    ],
-                  ),
-                  if (v.isPlanned) ...[
-                    const SizedBox(height: CruSpace.s4),
-                    Text(
-                      'Planned: ${v.planned.join(', ')}',
-                      style: CruType.subhead.tint(c.accentText),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            CruIconButton(
-              icon: CruIcons.close,
-              size: CruSize.squareButton,
-              iconSize: 16,
-              semanticLabel: 'Close tooth ${widget.tooth}',
-              tooltip: 'Close',
-              onPressed: widget.onClose,
-            ),
-          ],
-        ),
-        const SizedBox(height: CruSpace.s14),
-        Wrap(
-          spacing: CruSpace.s8,
-          runSpacing: CruSpace.s8,
-          children: [
-            CruButton(label: 'Record finding', onPressed: widget.onRecord),
-            CruButton(
-              label: 'Log procedure',
-              kind: CruButtonKind.secondary,
-              onPressed: () => showProcedureLogDialog(context,
-                  patient: widget.patient, teeth: [widget.tooth]),
-            ),
-            CruButton(
-              label: 'Add to plan',
-              kind: CruButtonKind.secondary,
-              onPressed: () => showPlanItemDialog(context,
-                  patient: widget.patient, teeth: [widget.tooth]),
-            ),
-          ],
-        ),
-        if (timeline.isNotEmpty) ...[
-          const SizedBox(height: CruSpace.s16),
-          Text('History', style: CruType.groupLabel.tint(c.label3)),
-          const SizedBox(height: CruSpace.s6),
-          for (final (date, title, note, pill, onTap) in shown)
-            DentalListRow(
-              semanticLabel: '$title, ${DentalFormat.date(date)}',
-              onTap: onTap,
-              minHeight: 44,
-              child: Row(
-                children: [
-                  SizedBox(
-                    width: 96,
-                    child: Text(
-                      DentalFormat.date(date),
-                      style: CruType.subhead.tabular.tint(c.label2),
-                    ),
-                  ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title, style: CruType.text.tint(c.label)),
-                        if (note != null)
-                          Text(
-                            note,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: CruType.subhead.tint(c.label2),
-                          ),
-                      ],
-                    ),
-                  ),
-                  ?pill,
-                ],
-              ),
-            ),
-          if (timeline.length > 4)
-            Padding(
-              padding: const EdgeInsets.only(left: CruSpace.s12, top: CruSpace.s4),
-              child: CruLink(
-                label: _all ? 'Show fewer' : 'Show all ${timeline.length}',
-                onPressed: () => setState(() => _all = !_all),
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-}
-
-/// Non-empty parts joined with " · ", or null.
-String? _joined(List<String> parts) {
-  final kept = parts.map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
-  return kept.isEmpty ? null : kept.join(' · ');
 }
 
 /// The patient's procedures, newest first, with Log procedure.
@@ -511,7 +422,11 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
                           ),
                           Text(
                             [
-                              ?DentalChart.teethText(shown[i].toothNumbers),
+                              ?DentalChart.teethText(
+                                shown[i].toothNumbers,
+                                ref.watch(toothNumberingProvider).value ??
+                                    ToothNumbering.fdi,
+                              ),
                               DentalFormat.date(shown[i].performedAt),
                             ].join(' · '),
                             style: CruType.subhead.tabular.tint(c.label2),

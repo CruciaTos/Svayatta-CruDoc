@@ -104,7 +104,7 @@ class _DetailsBody extends ConsumerWidget {
     final p = s.patient;
     final now = ref.watch(dashboardNowProvider);
     final specialty = ref.watch(activeDoctorSpecialtyProvider).value?.type;
-    final isDentist = specialty == DoctorSpecialtyType.dentist;
+    final isDentist = ref.watch(isDentistProvider);
     final isHomeopath = specialty == DoctorSpecialtyType.homeopathy;
     // Radiologists: the patient's scans and reports.
     final imaging = specialty == DoctorSpecialtyType.oralRadiologist
@@ -112,7 +112,9 @@ class _DetailsBody extends ConsumerWidget {
         : null;
 
     // Dental plan (dentists only). Declined items are dropped.
-    final plan = isDentist ? ref.watch(patientTreatmentPlanProvider(s.id)) : null;
+    final plan = isDentist
+        ? ref.watch(patientTreatmentPlanProvider(s.id))
+        : null;
     final planValue = plan?.value;
     final planLoading = plan != null && planValue == null && !plan.hasError;
     final items = planValue == null
@@ -120,13 +122,16 @@ class _DetailsBody extends ConsumerWidget {
         : DentalPlan.active(planValue);
 
     // Homeopathy case sheet (homeopaths only): allergies and history.
-    final caseSheet =
-        isHomeopath ? ref.watch(homeopathyCaseSheetProvider(s.id)).value : null;
+    final caseSheet = isHomeopath
+        ? ref.watch(homeopathyCaseSheetProvider(s.id)).value
+        : null;
     final allergies = KnownAllergies.parse(caseSheet?.medicalHistory.allergies);
 
     Future<void> push(Widget screen) async {
-      await Navigator.of(context, rootNavigator: true)
-          .push(MaterialPageRoute<void>(builder: (_) => screen));
+      await Navigator.of(
+        context,
+        rootNavigator: true,
+      ).push(MaterialPageRoute<void>(builder: (_) => screen));
       if (isDentist && context.mounted) {
         ref.invalidate(patientTreatmentPlanProvider(s.id));
       }
@@ -139,14 +144,14 @@ class _DetailsBody extends ConsumerWidget {
     final Widget planOrPayments = planLoading
         ? const SkeletonCard(rows: 3)
         : items.isNotEmpty
-            ? TreatmentPlanCard(
-                summary: s,
-                items: items,
-                onEditPlan: () => showTreatmentPlanDialog(context, patient: p),
-                onBook: newVisit,
-                onRecordPayment: recordPayment,
-              )
-            : PaymentsCard(summary: s, onRecordPayment: recordPayment);
+        ? TreatmentPlanCard(
+            summary: s,
+            items: items,
+            onEditPlan: () => showTreatmentPlanDialog(context, patient: p),
+            onBook: newVisit,
+            onRecordPayment: recordPayment,
+          )
+        : PaymentsCard(summary: s, onRecordPayment: recordPayment);
     final notes = ClinicalNotesCard(summary: s, now: now);
     // Dentists: the tooth chart, their procedures, and a way into a plan.
     final chart = isDentist ? ToothChartCard(patient: p) : null;
@@ -168,7 +173,8 @@ class _DetailsBody extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final wide = constraints.maxWidth - _padding.horizontal >=
+        final wide =
+            constraints.maxWidth - _padding.horizontal >=
             CruBreakpoint.detailsTwoColumn;
         return SingleChildScrollView(
           padding: _padding,
@@ -252,14 +258,14 @@ class _Stack extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(height: CruSpace.cardGap),
-            children[i],
-          ],
-        ],
-      );
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i > 0) const SizedBox(height: CruSpace.cardGap),
+        children[i],
+      ],
+    ],
+  );
 }
 
 class _DetailsSkeleton extends StatelessWidget {

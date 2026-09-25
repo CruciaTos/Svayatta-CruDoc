@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -23,40 +24,90 @@ class _NavGroup {
   final List<_NavItem> items;
 }
 
+/// Extra sidebar pages per dental specialty. Phases add cases here.
+List<_NavItem> specialtyNav(DoctorSpecialtyType? sub) => switch (sub) {
+  DoctorSpecialtyType.periodontist => const [
+    _NavItem(DesktopTab.perioPatients, 'Perio patients', RecIcons.perio),
+  ],
+  DoctorSpecialtyType.endodontist => const [
+    _NavItem(DesktopTab.rootCanals, 'Root canals', RecIcons.endo),
+    _NavItem(DesktopTab.dentalReferrals, 'Referrals', CruIcons.arrowUpRight),
+  ],
+  DoctorSpecialtyType.pediatricDentist => const [
+    _NavItem(DesktopTab.pedoChildren, 'Children', CruIcons.patients),
+  ],
+  DoctorSpecialtyType.oralPathologist => const [
+    _NavItem(DesktopTab.biopsies, 'Biopsies', CruIcons.flask),
+  ],
+  DoctorSpecialtyType.oralMedicine => const [
+    _NavItem(DesktopTab.oralMedLesions, 'Lesions', RecIcons.pain),
+    _NavItem(DesktopTab.oralMedForms, 'Forms', RecIcons.checklist),
+  ],
+  DoctorSpecialtyType.dentalAnesthesiologist => const [
+    _NavItem(DesktopTab.sedationCases, 'Sedation cases', CruIcons.flask),
+  ],
+  DoctorSpecialtyType.prosthodontist => const [
+    _NavItem(DesktopTab.labCases, 'Lab cases', CruIcons.box),
+  ],
+  DoctorSpecialtyType.orthodontist => const [
+    _NavItem(DesktopTab.orthoPatients, 'Ortho patients', CruIcons.patients),
+  ],
+  DoctorSpecialtyType.publicHealthDentist => const [
+    _NavItem(DesktopTab.healthCamps, 'Camps', CruIcons.megaphone),
+    _NavItem(DesktopTab.population, 'Population', CruIcons.patients),
+  ],
+  DoctorSpecialtyType.oralSurgeon => const [
+    _NavItem(DesktopTab.surgeries, 'Surgeries', DentalIcons.procedures),
+    _NavItem(DesktopTab.implants, 'Implants', DentalIcons.tooth),
+  ],
+  // ADD PER-PHASE CASES HERE for the next dental sub-specialty.
+  _ => const [],
+};
+
+String specialtyNavTitle(DoctorSpecialtyType? sub) =>
+    sub == null ? '' : DoctorSpecialty.ofType(sub).shortLabel;
+
 /// The sidebar for this login. Dentists also get Treatment plans,
 /// Sterilization and Procedures. Oral & Maxillofacial Radiologists get the
 /// Radiology group (Worklist, Reports, Referrers) instead of the
 /// chairside dental screens.
-List<_NavGroup> _groupsFor({required bool dentist, required bool radiologist}) => [
-      const _NavGroup('Today', [
-        _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
-        // Live queue + calendar in one place (the queue tab opens its Live view).
-        _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
-      ]),
-      if (radiologist)
-        const _NavGroup('Radiology', [
-          _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
-          _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),
-          _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
-        ]),
-      _NavGroup('Patients', [
-        const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
-        if (dentist) ...const [
-          _NavItem(DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
-          _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
-        ],
-        const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
-      ]),
-      _NavGroup('Clinic', [
-        const _NavItem(DesktopTab.inventory, 'Inventory', CruIcons.box),
-        if (dentist) ...const [
-          _NavItem(DesktopTab.sterilization, 'Sterilization', DentalIcons.shield),
-          _NavItem(DesktopTab.procedures, 'Procedures', DentalIcons.procedures),
-        ],
-        const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
-        const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
-      ]),
-    ];
+List<_NavGroup> _groupsFor({
+  required bool dentist,
+  required bool radiologist,
+  DoctorSpecialtyType? sub,
+}) => [
+  const _NavGroup('Today', [
+    _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
+    // Live queue + calendar in one place (the queue tab opens its Live view).
+    _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
+  ]),
+  if (radiologist)
+    const _NavGroup('Radiology', [
+      _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
+      _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),
+      _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
+    ]),
+  _NavGroup('Patients', [
+    const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
+    if (dentist) ...const [
+      _NavItem(DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
+      _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
+    ],
+    const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
+  ]),
+  _NavGroup('Clinic', [
+    const _NavItem(DesktopTab.inventory, 'Inventory', CruIcons.box),
+    if (dentist) ...const [
+      _NavItem(DesktopTab.sterilization, 'Sterilization', DentalIcons.shield),
+      _NavItem(DesktopTab.procedures, 'Procedures', DentalIcons.procedures),
+    ],
+    const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
+    const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
+  ]),
+  // Specialty pages for this dental login (each phase adds its own).
+  if (specialtyNav(sub).isNotEmpty)
+    _NavGroup(specialtyNavTitle(sub), specialtyNav(sub)),
+];
 
 /// Actions the account menu offers. The shell supplies them.
 class SidebarCallbacks {
@@ -86,7 +137,7 @@ class SidebarCallbacks {
   /// Extra account-menu entries (appearance), built by the shell with the
   /// sidebar's current colours.
   final List<PopupMenuEntry<VoidCallback>> Function(CruColors c)?
-      appearanceMenu;
+  appearanceMenu;
 }
 
 /// Calm Clinical sidebar: no card behind it, sits on the canvas.
@@ -115,6 +166,7 @@ class CruSidebar extends ConsumerWidget {
     final groups = _groupsFor(
       dentist: ref.watch(isDentistProvider),
       radiologist: ref.watch(isOralRadiologistProvider),
+      sub: ref.watch(activeDentalSubspecialtyProvider),
     );
 
     return AnimatedContainer(
@@ -129,8 +181,9 @@ class CruSidebar extends ConsumerWidget {
         container: true,
         label: 'Main navigation',
         child: Column(
-          crossAxisAlignment:
-              collapsed ? CrossAxisAlignment.center : CrossAxisAlignment.stretch,
+          crossAxisAlignment: collapsed
+              ? CrossAxisAlignment.center
+              : CrossAxisAlignment.stretch,
           children: [
             _Brand(collapsed: collapsed),
             const SizedBox(height: CruSpace.s22),
@@ -154,8 +207,10 @@ class CruSidebar extends ConsumerWidget {
                       if (!collapsed)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                          child: Text(groups[g].label,
-                              style: CruType.groupLabel.tint(c.label3)),
+                          child: Text(
+                            groups[g].label,
+                            style: CruType.groupLabel.tint(c.label3),
+                          ),
                         ),
                       for (var i = 0; i < groups[g].items.length; i++) ...[
                         if (i > 0 || !collapsed)
@@ -164,7 +219,8 @@ class CruSidebar extends ConsumerWidget {
                           item: groups[g].items[i],
                           selected: currentTab == groups[g].items[i].tab,
                           collapsed: collapsed,
-                          badge: groups[g].items[i].tab ==
+                          badge:
+                              groups[g].items[i].tab ==
                                       DesktopTab.appointments &&
                                   waiting > 0
                               ? waiting
@@ -184,7 +240,7 @@ class CruSidebar extends ConsumerWidget {
                 text: plan!.isExpired
                     ? 'Plan expired'
                     : '${plan.doctorStatus.toLowerCase() == 'trial' ? 'Free trial' : '${plan.planName} plan'}'
-                        ' · ${plan.daysRemaining} days left',
+                          ' · ${plan.daysRemaining} days left',
                 onUpgrade: callbacks.onUpgrade,
               ),
               const SizedBox(height: CruSpace.s10),
@@ -217,7 +273,12 @@ class _Brand extends StatelessWidget {
         color: c.accent,
         shape: cruShape(CruRadius.appMark),
       ),
-      child: CruIcon(CruIcons.plus, size: 16, strokeWidth: 3.4, color: c.onAccent),
+      child: CruIcon(
+        CruIcons.plus,
+        size: 16,
+        strokeWidth: 3.4,
+        color: c.onAccent,
+      ),
     );
     if (collapsed) return Semantics(label: 'CruDoc', child: mark);
     return Padding(
@@ -274,7 +335,10 @@ class _ClinicSwitcher extends StatelessWidget {
             : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: ShapeDecoration(
           color: hovered ? cruHoverShade(c.surface, c) : c.surface,
-          shape: cruShape(CruRadius.switcher, side: BorderSide(color: c.hairline)),
+          shape: cruShape(
+            CruRadius.switcher,
+            side: BorderSide(color: c.hairline),
+          ),
           shadows: c.cardShadow,
         ),
         child: collapsed
@@ -287,22 +351,30 @@ class _ClinicSwitcher extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(title,
-                            style: CruType.callout
-                                .copyWith(height: 18 / 14)
-                                .tint(c.label),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          title,
+                          style: CruType.callout
+                              .copyWith(height: 18 / 14)
+                              .tint(c.label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         if (subtitle != null)
-                          Text(subtitle,
-                              style: CruType.caption.tint(c.label2),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
+                          Text(
+                            subtitle,
+                            style: CruType.caption.tint(c.label2),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                       ],
                     ),
                   ),
-                  CruIcon(CruIcons.chevronsUpDown,
-                      size: 16, strokeWidth: 1.8, color: c.label3),
+                  CruIcon(
+                    CruIcons.chevronsUpDown,
+                    size: 16,
+                    strokeWidth: 1.8,
+                    color: c.label3,
+                  ),
                 ],
               ),
       ),
@@ -340,8 +412,8 @@ class _SidebarItem extends StatelessWidget {
           final fill = selected
               ? c.sidebarSelected
               : hovered
-                  ? c.sidebarSelected.withValues(alpha: c.isEvening ? 0.6 : 0.7)
-                  : c.sidebarSelected.withValues(alpha: 0);
+              ? c.sidebarSelected.withValues(alpha: c.isEvening ? 0.6 : 0.7)
+              : c.sidebarSelected.withValues(alpha: 0);
           final icon = CruIcon(
             item.icon,
             size: CruSize.navIcon,
@@ -357,7 +429,9 @@ class _SidebarItem extends StatelessWidget {
               color: fill,
               shape: cruShape(
                 CruRadius.control,
-                side: selected ? BorderSide(color: c.hairline) : BorderSide.none,
+                side: selected
+                    ? BorderSide(color: c.hairline)
+                    : BorderSide.none,
               ),
               shadows: selected ? c.cardShadow : null,
             ),
@@ -370,8 +444,10 @@ class _SidebarItem extends StatelessWidget {
                         const Positioned(
                           top: 8,
                           right: 10,
-                          child: CruStatusDot(CruDotKind.waiting,
-                              size: CruSize.smallDot),
+                          child: CruStatusDot(
+                            CruDotKind.waiting,
+                            size: CruSize.smallDot,
+                          ),
                         ),
                     ],
                   )
@@ -384,8 +460,9 @@ class _SidebarItem extends StatelessWidget {
                           item.label,
                           style: CruType.nav
                               .copyWith(
-                                fontWeight:
-                                    selected ? FontWeight.w600 : FontWeight.w500,
+                                fontWeight: selected
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
                               )
                               .tint(c.label),
                           maxLines: 1,
@@ -393,11 +470,15 @@ class _SidebarItem extends StatelessWidget {
                         ),
                       ),
                       if (badge != null) ...[
-                        const CruStatusDot(CruDotKind.waiting,
-                            size: CruSize.smallDot),
+                        const CruStatusDot(
+                          CruDotKind.waiting,
+                          size: CruSize.smallDot,
+                        ),
                         const SizedBox(width: CruSpace.s6),
-                        Text('$badge',
-                            style: CruType.subhead.w500.tabular.tint(c.label2)),
+                        Text(
+                          '$badge',
+                          style: CruType.subhead.w500.tabular.tint(c.label2),
+                        ),
                       ],
                     ],
                   ),
@@ -421,10 +502,12 @@ class _PlanLine extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(text,
-                style: CruType.caption.tabular.tint(c.label2),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis),
+            child: Text(
+              text,
+              style: CruType.caption.tabular.tint(c.label2),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
           CruLink(
             label: 'Upgrade',
@@ -452,7 +535,8 @@ class _ProfileButton extends StatelessWidget {
 
   Future<void> _openMenu(BuildContext context) async {
     final box = context.findRenderObject()! as RenderBox;
-    final overlay = Overlay.of(context).context.findRenderObject()! as RenderBox;
+    final overlay =
+        Overlay.of(context).context.findRenderObject()! as RenderBox;
     final topLeft = box.localToGlobal(Offset.zero, ancestor: overlay);
     final c = context.cru;
     final chosen = await showMenu<VoidCallback>(
@@ -510,11 +594,7 @@ class _ProfileButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final display = name ?? 'Account';
-    final avatar = CruMonogram(
-      name: name ?? '',
-      size: 34,
-      background: c.track,
-    );
+    final avatar = CruMonogram(name: name ?? '', size: 34, background: c.track);
     return CruPressable(
       onTap: () => _openMenu(context),
       semanticLabel: '$display. Account and settings',
@@ -541,12 +621,16 @@ class _ProfileButton extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(display,
-                            style: CruType.profileName.tint(c.label),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        Text('Account & settings',
-                            style: CruType.caption.tint(c.label2)),
+                        Text(
+                          display,
+                          style: CruType.profileName.tint(c.label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          'Account & settings',
+                          style: CruType.caption.tint(c.label2),
+                        ),
                       ],
                     ),
                   ),

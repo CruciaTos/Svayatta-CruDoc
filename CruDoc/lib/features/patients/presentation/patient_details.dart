@@ -193,7 +193,8 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
       return HomeopathyPatientDetailsScreen(patient: widget.patient);
     }
 
-    if (specialty.type == DoctorSpecialtyType.dentist) {
+    if (specialty.isUnder(DoctorSpecialtyType.dentist) &&
+        specialty.type != DoctorSpecialtyType.oralRadiologist) {
       return DentalPatientDetailsScreen(patient: widget.patient);
     }
 

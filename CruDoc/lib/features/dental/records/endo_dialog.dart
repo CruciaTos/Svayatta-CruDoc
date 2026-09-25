@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -107,6 +108,8 @@ class _EndoList extends ConsumerWidget {
             )
             .value ??
         const <DentalRecord>[];
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     return DentalPanelDialog(
       title: 'Endodontics',
       subtitle: patient.fullName,
@@ -124,14 +127,14 @@ class _EndoList extends ConsumerWidget {
             ),
           for (final r in records)
             DentalListRow(
-              semanticLabel: 'Tooth ${r.str('tooth')}',
+              semanticLabel: 'Tooth ${toothLabel(r.str('tooth'), numbering)}',
               onTap: () => showEndoDialog(context, patient, existing: r),
               child: Row(
                 children: [
                   SizedBox(
                     width: 44,
                     child: Text(
-                      r.str('tooth'),
+                      toothLabel(r.str('tooth'), numbering),
                       style: CruType.headline.tabular.tint(c.label),
                     ),
                   ),

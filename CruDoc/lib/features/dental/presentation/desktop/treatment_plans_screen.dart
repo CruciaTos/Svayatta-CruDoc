@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/glance_card.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_dialogs.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
@@ -268,20 +269,23 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
   }
 }
 
-class _PlanRow extends StatelessWidget {
+class _PlanRow extends ConsumerWidget {
   const _PlanRow({required this.plan});
 
   final _PatientPlan plan;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final active = plan.items
         .where((i) => TreatmentPlanItemStatus.fromString(i.status) != TreatmentPlanItemStatus.declined)
         .toList();
     final summary = active
         .map((i) {
-          final t = i.toothNumbers.isEmpty ? '' : ' (${i.toothNumbers.join(', ')})';
+          final teeth = i.toothNumbers.map((n) => toothLabel(n, numbering));
+          final t = i.toothNumbers.isEmpty ? '' : ' (${teeth.join(', ')})';
           return '${i.procedureName}$t';
         })
         .join(' · ');

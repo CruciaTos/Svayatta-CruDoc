@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import '../data/models/tooth_chart_entry_model.dart';
+import '../domain/tooth_numbering.dart';
 import 'providers/dental_providers.dart';
 import 'dental_procedure_catalog_screen.dart';
 import 'widgets/odontogram_view.dart';
@@ -461,6 +462,8 @@ class _DentalPatientDetailsScreenState
                     onToothSelected: (tooth) {
                       setState(() => _selectedToothNumber = tooth);
                     },
+                    numbering: ref.watch(toothNumberingProvider).value ??
+                        ToothNumbering.fdi,
                   ),
                   if (_selectedToothNumber != null) ...[
                     const SizedBox(height: 14),

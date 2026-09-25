@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_2d.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
@@ -31,7 +33,7 @@ int _fdiOrder(String a, String b) =>
 /// Tooth findings: the dental 2D chart (teeth with a finding stand out),
 /// click a tooth to write what the scan shows for it, and every finding
 /// listed in FDI order.
-class RadToothFindings extends StatefulWidget {
+class RadToothFindings extends ConsumerStatefulWidget {
   const RadToothFindings({
     super.key,
     required this.findings,
@@ -51,10 +53,10 @@ class RadToothFindings extends StatefulWidget {
   final List<RadPhrase> phrases;
 
   @override
-  State<RadToothFindings> createState() => _RadToothFindingsState();
+  ConsumerState<RadToothFindings> createState() => _RadToothFindingsState();
 }
 
-class _RadToothFindingsState extends State<RadToothFindings> {
+class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
   late bool _child = widget.childDefault ||
       (widget.findings.isNotEmpty && widget.findings.keys.every(DentalChart.isPrimary));
   String? _selected;
@@ -95,6 +97,8 @@ class _RadToothFindingsState extends State<RadToothFindings> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final numbers = widget.findings.keys.toList()..sort(_fdiOrder);
     final data = ToothChartData({
       for (final n in numbers) n: ToothVisual(number: n, state: ToothState.needsCare),
@@ -128,10 +132,10 @@ class _RadToothFindingsState extends State<RadToothFindings> {
         ToothChart2D(
           data: data,
           child: _child,
-          mode: ChartMode.findings,
           selected: sel,
           onSelect: _select,
           onOpen: _select,
+          numbering: numbering,
         ),
         if (sel != null && !widget.readOnly) ...[
           const SizedBox(height: CruSpace.s12),
@@ -146,7 +150,10 @@ class _RadToothFindingsState extends State<RadToothFindings> {
               children: [
                 Row(
                   children: [
-                    Text('Tooth $sel', style: CruType.callout.tabular.tint(c.label)),
+                    Text(
+                      'Tooth ${toothLabel(sel, numbering)}',
+                      style: CruType.callout.tabular.tint(c.label),
+                    ),
                     const SizedBox(width: CruSpace.s8),
                     Expanded(
                       child: Text(
@@ -187,7 +194,7 @@ class _RadToothFindingsState extends State<RadToothFindings> {
                   focusNode: _focus,
                   phrases: widget.phrases,
                   minLines: 1,
-                  hint: 'What the scan shows for tooth $sel',
+                  hint: 'What the scan shows for tooth ${toothLabel(sel, numbering)}',
                   onChanged: () {
                     setState(() {});
                     _write(sel, _finding.text);
@@ -202,7 +209,8 @@ class _RadToothFindingsState extends State<RadToothFindings> {
           for (var i = 0; i < numbers.length; i++) ...[
             if (i > 0) const CruSeparator(indent: CruSpace.s12 + CruSize.iconTile + CruSpace.s12),
             DentalListRow(
-              semanticLabel: 'Tooth ${numbers[i]}, ${widget.findings[numbers[i]]}',
+              semanticLabel:
+                  'Tooth ${toothLabel(numbers[i], numbering)}, ${widget.findings[numbers[i]]}',
               minHeight: CruSize.collapsedRow,
               onTap: () => _select(numbers[i]),
               child: Row(
@@ -216,7 +224,7 @@ class _RadToothFindingsState extends State<RadToothFindings> {
                       shape: const StadiumBorder(),
                     ),
                     child: Text(
-                      numbers[i],
+                      toothLabel(numbers[i], numbering),
                       style: CruType.caption.w600.tabular
                           .tint(numbers[i] == sel ? c.surface : c.label),
                     ),

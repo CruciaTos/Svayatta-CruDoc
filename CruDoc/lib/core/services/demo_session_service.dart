@@ -13,8 +13,9 @@ class DemoSessionService {
   static DoctorSpecialty _activeSpecialty = DoctorSpecialty.defaultSpecialty;
   static DoctorSpecialty get activeSpecialty => _activeSpecialty;
 
-  static final ValueNotifier<bool> sessionStateNotifier =
-      ValueNotifier<bool>(false);
+  static final ValueNotifier<bool> sessionStateNotifier = ValueNotifier<bool>(
+    false,
+  );
 
   static final ValueNotifier<DoctorSpecialty> specialtyNotifier =
       ValueNotifier<DoctorSpecialty>(DoctorSpecialty.defaultSpecialty);
@@ -26,17 +27,17 @@ class DemoSessionService {
       _profileStreamController.stream;
 
   static Map<String, dynamic> get currentMockProfile => {
-        'uid': 'demo_doctor_dev',
-        'email': _activeSpecialty.demoEmail,
-        'displayName': _getDemoDoctorName(_activeSpecialty),
-        'doctorName': _getDemoDoctorName(_activeSpecialty),
-        'specialty': _activeSpecialty.label,
-        'specialization': _activeSpecialty.label,
-        'clinicName': 'CruDoc ${_activeSpecialty.shortLabel} Care Clinic',
-        'status': 'Active',
-        'role': 'doctor',
-        'isDemoAccount': true,
-      };
+    'uid': 'demo_doctor_dev',
+    'email': _activeSpecialty.demoEmail,
+    'displayName': _getDemoDoctorName(_activeSpecialty),
+    'doctorName': _getDemoDoctorName(_activeSpecialty),
+    'specialty': _activeSpecialty.label,
+    'specialization': _activeSpecialty.label,
+    'clinicName': 'CruDoc ${_activeSpecialty.shortLabel} Care Clinic',
+    'status': 'Active',
+    'role': 'doctor',
+    'isDemoAccount': true,
+  };
 
   static String _getDemoDoctorName(DoctorSpecialty specialty) {
     switch (specialty.type) {
@@ -62,6 +63,36 @@ class DemoSessionService {
         return 'Dr. Rohit Rehab';
       case DoctorSpecialtyType.generalPhysician:
         return 'Dr. Vinit Parab';
+      case DoctorSpecialtyType.periodontist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.endodontist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.pediatricDentist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.oralPathologist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.oralMedicine:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.dentalAnesthesiologist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.prosthodontist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.orthodontist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.publicHealthDentist:
+        // TODO: Handle this case.
+        throw UnimplementedError();
+      case DoctorSpecialtyType.oralSurgeon:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 

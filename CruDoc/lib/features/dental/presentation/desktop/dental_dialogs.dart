@@ -9,6 +9,7 @@ import 'package:doctor_management_app/features/dental/data/models/dental_procedu
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
+import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_desktop_providers.dart';
@@ -20,16 +21,18 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 const _uuid = Uuid();
 
 /// A tooth number in a 44 px tile, coloured by its state.
-class ToothBadge extends StatelessWidget {
+class ToothBadge extends ConsumerWidget {
   const ToothBadge({super.key, required this.tooth, required this.state});
 
   final String tooth;
   final ToothState state;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final colors = toothColors(c, state);
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     return Container(
       width: 44,
       height: 44,
@@ -39,7 +42,7 @@ class ToothBadge extends StatelessWidget {
         shape: cruShape(CruRadius.iconTile),
       ),
       child: Text(
-        tooth,
+        toothLabel(tooth, numbering),
         style: CruType.callout.w600.tabular.tint(
           state == ToothState.healthy ? c.label : colors.text,
         ),
@@ -50,11 +53,14 @@ class ToothBadge extends StatelessWidget {
 
 // ======================================================= record a finding
 
+/// Records a finding on [tooth], starting from what's on the chart now.
+/// [surfaces] (picked on the tooth) replace the latest finding's.
 Future<bool> showToothFindingDialog(
   BuildContext context, {
   required Patient patient,
   required String tooth,
   ToothChartEntryModel? latest,
+  Set<ToothSurface>? surfaces,
 }) async {
   final saved = await showDialog<bool>(
     context: context,
@@ -62,6 +68,7 @@ Future<bool> showToothFindingDialog(
       patient: patient,
       tooth: tooth,
       latest: latest,
+      surfaces: surfaces,
     ),
   );
   return saved == true;
@@ -72,11 +79,13 @@ class _ToothFindingDialog extends ConsumerStatefulWidget {
     required this.patient,
     required this.tooth,
     required this.latest,
+    this.surfaces,
   });
 
   final Patient patient;
   final String tooth;
   final ToothChartEntryModel? latest;
+  final Set<ToothSurface>? surfaces;
 
   @override
   ConsumerState<_ToothFindingDialog> createState() =>
@@ -100,7 +109,7 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
     final l = widget.latest;
     _condition = DentalChart.condition(l?.condition);
     _treatment = DentalChart.treatment(l?.treatment);
-    _surfaces.addAll(DentalChart.surfaces(l?.surface));
+    _surfaces.addAll(widget.surfaces ?? DentalChart.surfaces(l?.surface));
   }
 
   @override
@@ -161,8 +170,10 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
       createdAt: _date,
       updatedAt: _date,
     ));
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     return CruFormDialog(
-      title: 'Tooth ${widget.tooth}',
+      title: 'Tooth ${toothLabel(widget.tooth, numbering)}',
       subtitle: '${DentalChart.name(widget.tooth)} · ${widget.patient.fullName}',
       leading: ToothBadge(tooth: widget.tooth, state: state),
       submitLabel: 'Save finding',
@@ -899,11 +910,13 @@ class _TreatmentPlanDialog extends ConsumerWidget {
     WidgetRef ref,
     List<TreatmentPlanLineItemModel> accepted,
   ) async {
+    final numbering =
+        ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final names = accepted.map((i) => i.procedureName.trim()).join(', ');
     final lines = [
       for (final i in accepted)
         '${i.procedureName}'
-            '${DentalChart.teethText(i.toothNumbers) == null ? '' : ' (${DentalChart.teethText(i.toothNumbers)})'}'
+            '${DentalChart.teethText(i.toothNumbers, numbering) == null ? '' : ' (${DentalChart.teethText(i.toothNumbers, numbering)})'}'
             ' · ${DashFormat.rupees(i.estimatedPrice)}',
     ].join('\n');
     final invoice = await showDesktopCreateInvoiceDialog(
@@ -1061,7 +1074,7 @@ class _TreatmentPlanDialog extends ConsumerWidget {
 
 enum _PlanAction { accept, propose, decline, invoiced, up, down, edit, remove }
 
-class _PlanRow extends StatelessWidget {
+class _PlanRow extends ConsumerWidget {
   const _PlanRow({
     required this.index,
     required this.item,
@@ -1075,11 +1088,13 @@ class _PlanRow extends StatelessWidget {
   final ValueChanged<_PlanAction> onAction;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final status = TreatmentPlanItemStatus.fromString(item.status);
     final declined = status == TreatmentPlanItemStatus.declined;
-    final teeth = DentalChart.teethText(item.toothNumbers);
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final teeth = DentalChart.teethText(item.toothNumbers, numbering);
     return DentalListRow(
       semanticLabel: '${item.procedureName}, ${status.label}',
       onTap: onEdit,

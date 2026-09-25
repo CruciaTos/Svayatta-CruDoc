@@ -431,9 +431,52 @@ extension CruDentalColors on CruColors {
   Color get enamelEdge =>
       isEvening ? const Color(0xFF6E6B65) : const Color(0xFFB5B1A8);
 
+  /// Enamel between lit and shade.
+  Color get enamelMid =>
+      isEvening ? const Color(0xFFCFCBC2) : const Color(0xFFF0EDE6);
+
+  /// Dentin showing through the enamel near the gum line.
+  Color get enamelWarm =>
+      isEvening ? const Color(0xFFB8A888) : const Color(0xFFEFE2C4);
+
+  /// The see-through biting edge of front teeth.
+  Color get enamelClear =>
+      isEvening ? const Color(0xFF9AA3AD) : const Color(0xFFD3DBE3);
+
   /// Root (cementum), warmer than the crown.
   Color get toothRoot =>
-      isEvening ? const Color(0xFFBDB29B) : const Color(0xFFEDE3CC);
+      isEvening ? const Color(0xFFBFA77E) : const Color(0xFFEBD3A6);
+
+  /// Root where it catches the light.
+  Color get rootLight =>
+      isEvening ? const Color(0xFFD6C29C) : const Color(0xFFF7E8C8);
+
+  /// Root in shade, and its outline.
+  Color get rootShade =>
+      isEvening ? const Color(0xFF8C7652) : const Color(0xFFCDAA73);
+
+  /// Fissures and pits on biting surfaces.
+  Color get fissure =>
+      isEvening ? const Color(0xFF4F463A) : const Color(0xFF8A7D6A);
+
+  /// Soft highlights on teeth.
+  Color get toothGloss =>
+      isEvening ? const Color(0xFFF2F0EA) : const Color(0xFFFFFFFF);
+
+  /// Soft shadow on teeth (edges, cusp slopes).
+  Color get toothShadow =>
+      isEvening ? const Color(0xFF000000) : const Color(0xFF4A3B26);
+
+  /// The pulp inside a tooth (endo view).
+  Color get pulp => isEvening ? const Color(0xFFC77883) : const Color(0xFFE59AA5);
+
+  /// Fillings and crowns: finished work, so a green-tinted material.
+  Color get restoration =>
+      isEvening ? const Color(0xFF3E8A58) : const Color(0xFFA8DDB7);
+
+  /// Decay: a waiting problem, so an amber-brown stain.
+  Color get caries =>
+      isEvening ? const Color(0xFFE08A1E) : const Color(0xFF9A4A08);
 
   /// Gums.
   Color get gum => isEvening ? const Color(0xFFB9707A) : const Color(0xFFE7A3AB);

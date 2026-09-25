@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 import '../../data/models/tooth_chart_entry_model.dart';
+import '../../domain/tooth_numbering.dart';
 import '../providers/dental_providers.dart';
 import 'odontogram_view.dart';
 
@@ -139,8 +140,14 @@ class _ToothConditionEditorSheetState
 
       if (mounted) {
         Navigator.pop(context, true);
+        final numbering =
+            ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved entry for Tooth ${widget.toothNumber}')),
+          SnackBar(
+            content: Text(
+              'Saved entry for Tooth ${toothLabel(widget.toothNumber, numbering)}',
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -155,6 +162,8 @@ class _ToothConditionEditorSheetState
 
   @override
   Widget build(BuildContext context) {
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     return Padding(
       padding: EdgeInsets.only(
         left: 20,
@@ -176,7 +185,7 @@ class _ToothConditionEditorSheetState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Tooth ${widget.toothNumber}',
+                        'Tooth ${toothLabel(widget.toothNumber, numbering)}',
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,

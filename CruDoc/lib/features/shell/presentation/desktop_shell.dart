@@ -41,6 +41,7 @@ import 'package:doctor_management_app/features/dental/referrals/referrals_screen
 import 'package:doctor_management_app/features/dental/specialties/anaesthesia/emergency_protocols.dart';
 import 'package:doctor_management_app/features/dental/specialties/dental_not_built.dart';
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_cases_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
@@ -331,12 +332,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               'recovery for each case.',
         );
       case DesktopTab.labCases:
-        return const DentalNotBuiltScreen(
-          icon: CruIcons.box,
-          title: 'Lab cases',
-          body: 'Not built yet. This will track lab cases from impression '
-              'to try-in and delivery.',
-        );
+        return const LabCasesScreen();
       case DesktopTab.orthoPatients:
         return const DentalNotBuiltScreen(
           icon: CruIcons.patients,

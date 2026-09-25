@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/dental/records/srp_dialog.dart';
 import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/eruption_chart.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -65,6 +66,18 @@ class DentalRecordsCard extends ConsumerWidget {
             return lastContact.isNotEmpty
                 ? '$countStr · last ${last.str('direction') == 'in' ? 'from' : 'to'} $lastContact'
                 : countStr;
+          }();
+    final labCases = of(RecKind.labCase);
+    final openLabCases = labCases.where((r) => r.str('stage') != 'fitted').toList();
+    final labCaseLine = labCases.isEmpty
+        ? 'No lab cases'
+        : () {
+            final openCount = openLabCases.length;
+            final last = labCases.first;
+            final type = last.str('type').isNotEmpty ? last.str('type') : 'Case';
+            final stage = last.str('stage');
+            final countStr = openCount == 0 ? 'None active' : '$openCount active';
+            return '$countStr · last $type (${stage.isNotEmpty ? stage : 'scanned'})';
           }();
 
     final perioLine = perio.isEmpty
@@ -203,6 +216,15 @@ class DentalRecordsCard extends ConsumerWidget {
             () => showDialog<void>(
               context: context,
               builder: (_) => PatientReferralsDialog(patient: patient),
+            ),
+          ),
+          row(
+            CruIcons.box,
+            'Lab cases',
+            labCaseLine,
+            () => showDialog<void>(
+              context: context,
+              builder: (_) => PatientLabCasesDialog(patient: patient),
             ),
           ),
           row(

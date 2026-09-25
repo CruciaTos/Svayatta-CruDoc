@@ -40,6 +40,9 @@ abstract final class RecKind {
 
   /// Referral contacts / directory (patientId = '').
   static const referralContact = 'referralContact';
+
+  /// Prosthodontic lab cases (patientId = patient).
+  static const labCase = 'labCase';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

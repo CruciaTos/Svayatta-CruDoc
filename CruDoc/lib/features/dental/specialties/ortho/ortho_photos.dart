@@ -8,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_slider.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -356,17 +357,28 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  if (sets.length >= 2 && widget.onCompareRequested != null) ...[
+                  if (sets.length >= 2) ...[
                     CruButton(
                       label: 'Compare before & after',
                       icon: CruIcons.importExport,
                       kind: CruButtonKind.secondary,
                       onPressed: () {
                         final sortedOldestFirst = [...sets]..sort((a, b) => a.date.compareTo(b.date));
-                        widget.onCompareRequested!(
-                          sortedOldestFirst.first,
-                          sortedOldestFirst.last,
-                        );
+                        if (widget.onCompareRequested != null) {
+                          widget.onCompareRequested!(
+                            sortedOldestFirst.first,
+                            sortedOldestFirst.last,
+                          );
+                        } else {
+                          showDialog<void>(
+                            context: context,
+                            builder: (_) => OrthoBeforeAfterDialog(
+                              patient: widget.patient,
+                              initialBeforeSet: sortedOldestFirst.first,
+                              initialAfterSet: sortedOldestFirst.last,
+                            ),
+                          );
+                        }
                       },
                     ),
                     const SizedBox(width: CruSpace.s8),

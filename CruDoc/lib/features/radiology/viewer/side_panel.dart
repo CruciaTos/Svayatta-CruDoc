@@ -144,7 +144,11 @@ class RadViewerSidePanel extends StatelessWidget {
                   ? const _Quiet('Open an image to run the AI second read on it.')
                   : SingleChildScrollView(
                       padding: const EdgeInsets.all(CruSpace.s12),
-                      child: RadAiSecondReadPanel(study: paneStudy, imageId: pane.imageId),
+                      child: RadAiSecondReadPanel(
+                        study: paneStudy,
+                        imageId: pane.imageId,
+                        pane: pane,
+                      ),
                     ),
             },
           ),

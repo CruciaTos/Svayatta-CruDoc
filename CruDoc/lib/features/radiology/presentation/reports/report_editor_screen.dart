@@ -439,6 +439,71 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     if (_dictating == id) focus.requestFocus();
   }
 
+  bool _hasAcceptedAiFindings(RadStudy study) {
+    for (final read in study.aiReads) {
+      final list = (read['findings'] as List?) ?? const [];
+      for (final f in list) {
+        if (f is Map && f['status'] == 'accepted') return true;
+      }
+    }
+    return false;
+  }
+
+  void _addAcceptedAiFindings(RadStudy study) {
+    final toothPattern = RegExp(r'\b(1[1-8]|2[1-8]|3[1-8]|4[1-8]|5[1-5]|6[1-5]|7[1-5]|8[1-5])\b');
+    final updatedTeeth = Map<String, String>.from(_teeth);
+    final generalFindings = <String>[];
+
+    for (final read in study.aiReads) {
+      final list = (read['findings'] as List?) ?? const [];
+      for (final f in list) {
+        if (f is Map && f['status'] == 'accepted') {
+          final label = (f['label'] as String? ?? '').trim();
+          if (label.isEmpty) continue;
+          final match = toothPattern.firstMatch(label);
+          if (match != null) {
+            final tooth = match.group(1)!;
+            final existing = updatedTeeth[tooth];
+            final text = '$label (AI-assisted, confirmed)';
+            if (existing != null && existing.isNotEmpty) {
+              if (!existing.contains(label)) {
+                updatedTeeth[tooth] = '$existing; $text';
+              }
+            } else {
+              updatedTeeth[tooth] = text;
+            }
+          } else {
+            generalFindings.add('$label (AI-assisted, confirmed)');
+          }
+        }
+      }
+    }
+
+    setState(() {
+      _teeth = updatedTeeth;
+      if (generalFindings.isNotEmpty) {
+        _Section? findingsSec;
+        for (final s in _sections) {
+          if (s.title.text.trim().toLowerCase() == 'findings') {
+            findingsSec = s;
+            break;
+          }
+        }
+        if (findingsSec == null) {
+          findingsSec = _Section(RadReportSection(title: 'Findings', body: ''));
+          _sections.add(findingsSec);
+        }
+        final existingBody = findingsSec.body.text.trim();
+        final addition = generalFindings.join('\n');
+        findingsSec.body.text = existingBody.isEmpty ? addition : '$existingBody\n$addition';
+      }
+      _markDirty();
+    });
+    if (mounted) {
+      radToast(context, 'Accepted AI findings added to report');
+    }
+  }
+
   void _togglePanel() {
     setState(() => _panelOpen = !_panelOpen);
     unawaited(_rad.saveViewerPrefs({_prefOpen: _panelOpen}));
@@ -859,6 +924,14 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       if (!locked || _teeth.isNotEmpty)
         RadBlock(
           title: const Text('Teeth'),
+          trailing: [
+            if (!locked && _hasAcceptedAiFindings(study))
+              CruCapsuleButton(
+                label: 'Add accepted AI findings',
+                icon: CruIcons.sparkle,
+                onPressed: () => _addAcceptedAiFindings(study),
+              ),
+          ],
           child: RadToothFindings(
             findings: _teeth,
             readOnly: locked,

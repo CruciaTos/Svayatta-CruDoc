@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
+import 'package:doctor_management_app/features/radiology/ai/rad_ai.dart';
 import 'package:doctor_management_app/features/radiology/cbct/cbct_viewer_screen.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
@@ -514,6 +515,20 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   List<RadAnnotation> _annotationsFor(RadPane p) {
     if (p.studyId == _study?.id) return _annos[p.imageId] ?? const [];
     return _studies[p.studyId]?.annotations[p.imageId] ?? const [];
+  }
+
+  List<RadAiFinding> _aiFindingsFor(RadPane p) {
+    final s = _studies[p.studyId] ?? (_study?.id == p.studyId ? _study : null);
+    if (s == null || p.imageId.isEmpty) return const [];
+    for (final read in s.aiReads.reversed) {
+      if (read['imageId'] == p.imageId) {
+        final list = (read['findings'] as List?) ?? const [];
+        return list
+            .map((f) => RadAiFinding.fromJson(Map<String, dynamic>.from(f as Map)))
+            .toList();
+      }
+    }
+    return const [];
   }
 
   double? _mmPerPxFor(RadPane p) {
@@ -1153,6 +1168,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       showActive: _panes.length > 1,
       loupe: _loupe,
       title: _paneTitle(p),
+      aiFindings: _aiFindingsFor(p),
+      showAiMarks: ref.watch(radShowAiMarksProvider),
     );
   }
 

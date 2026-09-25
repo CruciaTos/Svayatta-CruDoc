@@ -4,6 +4,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:doctor_management_app/features/radiology/ai/rad_ai.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
@@ -64,6 +65,8 @@ class RadViewport extends StatefulWidget {
     required this.showActive,
     required this.loupe,
     required this.title,
+    this.aiFindings = const [],
+    this.showAiMarks = true,
   });
 
   final RadPane pane;
@@ -83,6 +86,8 @@ class RadViewport extends StatefulWidget {
 
   /// Top-left caption ("OPG · 1 of 3", "Earlier · 12 Mar 2025").
   final String title;
+  final List<RadAiFinding> aiFindings;
+  final bool showAiMarks;
 
   @override
   State<RadViewport> createState() => _RadViewportState();
@@ -451,6 +456,8 @@ class _RadViewportState extends State<RadViewport> {
                         mmPerPx: widget.mmPerPx,
                         roi: widget.host.roi,
                         calibrating: widget.tool == RadTool.calibrate,
+                        aiFindings: widget.aiFindings,
+                        showAiMarks: widget.showAiMarks,
                       ),
                     ),
                   ),
@@ -544,6 +551,8 @@ class _OverlayPainter extends CustomPainter {
     required this.mmPerPx,
     required this.roi,
     required this.calibrating,
+    this.aiFindings = const [],
+    this.showAiMarks = true,
   }) : super(repaint: pane);
 
   final RadPane pane;
@@ -552,6 +561,8 @@ class _OverlayPainter extends CustomPainter {
   final double? mmPerPx;
   final RadRoiCache roi;
   final bool calibrating;
+  final List<RadAiFinding> aiFindings;
+  final bool showAiMarks;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -578,9 +589,78 @@ class _OverlayPainter extends CustomPainter {
         color: calibrating ? RadInk.calibrate : null,
       );
     }
+    if (showAiMarks && aiFindings.isNotEmpty && pane.px != null) {
+      _paintAiFindings(canvas, size);
+    }
     final mm = mmPerPx;
     if (mm != null && pane.zoom > 0) radPaintScaleBar(canvas, size, mm / pane.zoom);
     canvas.restore();
+  }
+
+  void _paintAiFindings(Canvas canvas, Size size) {
+    final px = pane.px;
+    if (px == null) return;
+    canvas.save();
+    pane.applyTransform(canvas);
+    final strokeWidth = 2.0 / (pane.zoom > 0 ? pane.zoom : 1.0);
+    const aiColor = Color(0xFF8B5CF6);
+
+    for (final f in aiFindings) {
+      if (f.status == 'rejected' || f.box == null) continue;
+      final b = f.box!;
+      final rect = Rect.fromLTRB(
+        b.left * px.width,
+        b.top * px.height,
+        b.right * px.width,
+        b.bottom * px.height,
+      );
+
+      final paint = Paint()
+        ..color = aiColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth;
+
+      if (f.status == 'accepted') {
+        canvas.drawRect(rect, paint);
+      } else {
+        _drawDashedRect(
+          canvas,
+          rect,
+          paint,
+          6.0 / (pane.zoom > 0 ? pane.zoom : 1.0),
+          4.0 / (pane.zoom > 0 ? pane.zoom : 1.0),
+        );
+      }
+    }
+    canvas.restore();
+  }
+
+  void _drawDashedRect(
+    Canvas canvas,
+    Rect rect,
+    Paint paint,
+    double dashWidth,
+    double dashSpace,
+  ) {
+    void drawLine(Offset p1, Offset p2) {
+      final dx = p2.dx - p1.dx;
+      final dy = p2.dy - p1.dy;
+      final distance = math.sqrt(dx * dx + dy * dy);
+      if (distance == 0) return;
+      final u = Offset(dx / distance, dy / distance);
+      var d = 0.0;
+      while (d < distance) {
+        final start = p1 + u * d;
+        final end = p1 + u * math.min(d + dashWidth, distance);
+        canvas.drawLine(start, end, paint);
+        d += dashWidth + dashSpace;
+      }
+    }
+
+    drawLine(rect.topLeft, rect.topRight);
+    drawLine(rect.topRight, rect.bottomRight);
+    drawLine(rect.bottomRight, rect.bottomLeft);
+    drawLine(rect.bottomLeft, rect.topLeft);
   }
 
   @override
@@ -589,7 +669,9 @@ class _OverlayPainter extends CustomPainter {
       old.annotations != annotations ||
       old.selectedId != selectedId ||
       old.mmPerPx != mmPerPx ||
-      old.calibrating != calibrating;
+      old.calibrating != calibrating ||
+      old.aiFindings != aiFindings ||
+      old.showAiMarks != showAiMarks;
 }
 
 // ───────────────────────────── Corners ─────────────────────────────

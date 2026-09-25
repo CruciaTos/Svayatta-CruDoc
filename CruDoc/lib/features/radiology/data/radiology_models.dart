@@ -386,6 +386,7 @@ class RadStudy {
     this.fee,
     this.invoiced = false,
     this.extras = const {},
+    this.aiReads = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -444,6 +445,9 @@ class RadStudy {
   /// curve, canals, implants, 3D presets), 'subtraction'. Each module owns
   /// its key.
   final Map<String, dynamic> extras;
+
+  /// AI second read runs: `{id, imageId, at, model, findings: [...]}`.
+  final List<Map<String, dynamic>> aiReads;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -477,6 +481,7 @@ class RadStudy {
     double? fee,
     bool? invoiced,
     Map<String, dynamic>? extras,
+    List<Map<String, dynamic>>? aiReads,
   }) =>
       RadStudy(
         id: id,
@@ -509,6 +514,7 @@ class RadStudy {
         fee: fee ?? this.fee,
         invoiced: invoiced ?? this.invoiced,
         extras: extras ?? this.extras,
+        aiReads: aiReads ?? this.aiReads,
         createdAt: createdAt,
         updatedAt: DateTime.now(),
       );
@@ -546,6 +552,7 @@ class RadStudy {
         'fee': fee,
         'invoiced': invoiced,
         'extras': extras,
+        'aiReads': aiReads,
         'createdAt': createdAt.millisecondsSinceEpoch,
         'updatedAt': updatedAt.millisecondsSinceEpoch,
       };
@@ -587,6 +594,7 @@ class RadStudy {
         fee: _double(j['fee']),
         invoiced: j['invoiced'] == true,
         extras: _map(j['extras']),
+        aiReads: _list(j['aiReads'], (m) => m),
         createdAt: _date(j['createdAt']) ?? DateTime.now(),
         updatedAt: _date(j['updatedAt']) ?? DateTime.now(),
       );

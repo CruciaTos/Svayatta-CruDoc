@@ -63,6 +63,7 @@ class QueueLocalService {
         consultationStartedAt INTEGER,
         completedAt INTEGER,
         linkedVisitId TEXT,
+        groupId TEXT,
         isDeleted INTEGER NOT NULL DEFAULT 0,
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
@@ -211,6 +212,7 @@ class QueueLocalService {
     String? reason,
     QueuePriority priority = QueuePriority.normal,
     QueueStatus status = QueueStatus.waiting,
+    String? groupId,
   }) async {
     final existing = await getEntryByLinkedVisitId(visitId);
     if (existing != null) return existing;
@@ -229,11 +231,65 @@ class QueueLocalService {
       reason: reason?.trim().isEmpty == true ? 'Pre-booked Appointment' : reason?.trim(),
       checkedInAt: scheduledStart,
       linkedVisitId: visitId,
+      groupId: groupId,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
 
+    // Booked together: share the token of whoever from the group is
+    // already in the queue that day.
+    if (groupId != null && groupId.isNotEmpty) {
+      final mate = await findGroupMate(groupId, dateKey);
+      if (mate != null) {
+        return joinToken(draft.copyWith(tokenNumber: mate.tokenNumber));
+      }
+    }
     return checkIn(draft);
+  }
+
+  /// Everyone from [groupId] in the queue on [dateKey].
+  Future<List<QueueEntry>> getGroupEntries(String groupId, String dateKey) async {
+    final db = await _databaseService.localDatabase;
+    await ensureTableCreated(db);
+    final rows = await db.query(
+      tableName,
+      where: 'doctorId = ? AND groupId = ? AND queueDate = ? AND isDeleted = 0',
+      whereArgs: [_currentDoctorId, groupId, dateKey],
+    );
+    return rows.map(_fromRow).toList();
+  }
+
+  /// Someone from [groupId] in the queue on [dateKey], if any.
+  Future<QueueEntry?> findGroupMate(String groupId, String dateKey) async {
+    final db = await _databaseService.localDatabase;
+    await ensureTableCreated(db);
+    final rows = await db.query(
+      tableName,
+      where: 'doctorId = ? AND groupId = ? AND queueDate = ? AND isDeleted = 0',
+      whereArgs: [_currentDoctorId, groupId, dateKey],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : _fromRow(rows.first);
+  }
+
+  /// Inserts [entry] with the token it already carries (a patient joining
+  /// someone else's token), instead of taking the next number.
+  Future<QueueEntry> joinToken(QueueEntry entry) async {
+    final db = await _databaseService.localDatabase;
+    await ensureTableCreated(db);
+    final dated = entry.copyWith(
+      queueDate: entry.queueDate.isNotEmpty
+          ? entry.queueDate
+          : queueDateKeyFor(entry.checkedInAt),
+      updatedAt: DateTime.now(),
+    );
+    await db.insert(
+      tableName,
+      _toRow(dated, syncStatus: 'pending'),
+      conflictAlgorithm: LocalConflictAlgorithm.replace,
+    );
+    await _emitTodaysQueue();
+    return dated;
   }
 
   /// Fetches a single queue entry by [entryId].
@@ -395,6 +451,7 @@ class QueueLocalService {
       'consultationStartedAt': _nullableDateTimeToMillis(entry.consultationStartedAt),
       'completedAt': _nullableDateTimeToMillis(entry.completedAt),
       'linkedVisitId': entry.linkedVisitId,
+      'groupId': entry.groupId,
       'isDeleted': entry.isDeleted ? 1 : 0,
       'createdAt': _dateTimeToMillis(entry.createdAt),
       'updatedAt': _dateTimeToMillis(entry.updatedAt),
@@ -423,6 +480,7 @@ class QueueLocalService {
       ),
       completedAt: _nullableMillisToDateTime(row['completedAt'] as int?),
       linkedVisitId: row['linkedVisitId'] as String?,
+      groupId: row['groupId'] as String?,
       isDeleted: (row['isDeleted'] as int? ?? 0) == 1,
       createdAt: _millisToDateTime(row['createdAt'] as int?),
       updatedAt: _millisToDateTime(row['updatedAt'] as int?),

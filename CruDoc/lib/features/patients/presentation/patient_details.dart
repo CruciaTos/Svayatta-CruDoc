@@ -235,9 +235,10 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                         final completedCount = visits
                             .where((v) => v.status == VisitStatus.completed)
                             .length;
-                        final lastVisitLabel = visits.isEmpty
+                        final last = _latestCompletedVisit(visits);
+                        final lastVisitLabel = last == null
                             ? 'No visits yet'
-                            : _formatRelativeTime(visits.first.scheduledStart);
+                            : _formatRelativeTime(last.scheduledStart);
 
                         return _StatsRow(
                           sessionsAttended: completedCount,
@@ -1239,11 +1240,31 @@ String _readableStatus(VisitStatus status) {
   return raw[0].toUpperCase() + raw.substring(1);
 }
 
+// ---------- Helper: last session ----------
+/// The latest completed visit that has already started, so "Last
+/// Session" never shows a future booking or a cancelled visit.
+Visit? _latestCompletedVisit(List<Visit> visits) {
+  final now = DateTime.now();
+  Visit? latest;
+  for (final v in visits) {
+    if (v.isDeleted || v.status != VisitStatus.completed) continue;
+    if (v.scheduledStart.isAfter(now)) continue;
+    if (latest == null || v.scheduledStart.isAfter(latest.scheduledStart)) {
+      latest = v;
+    }
+  }
+  return latest;
+}
+
 // ---------- Helper: relative time ----------
 String _formatRelativeTime(DateTime dateTime) {
   final now = DateTime.now();
   final difference = now.difference(dateTime);
 
+  // A future time is not "Just now": show the date instead.
+  if (difference.isNegative) {
+    return DateFormat('d MMM y').format(dateTime);
+  }
   if (difference.inSeconds < 60) {
     return 'Just now';
   } else if (difference.inMinutes < 60) {

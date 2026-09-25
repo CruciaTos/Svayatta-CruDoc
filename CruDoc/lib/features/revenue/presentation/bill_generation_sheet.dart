@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Item row model for dynamic invoice billing.
 class BillItemRow {
@@ -96,8 +97,15 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
   double get _paidAmount => double.tryParse(_paidAmountCtrl.text) ?? 0.0;
   double get _balanceDue => (_grandTotal - _paidAmount > 0) ? (_grandTotal - _paidAmount) : 0.0;
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final cfg = widget.letterheadConfig;
 
     return Container(

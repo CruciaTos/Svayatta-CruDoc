@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CruDoc Dashboard — Evening</title>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+@font-face{font-family:'Geist';src:url('../fonts/Geist-Regular.ttf') format('truetype');font-weight:400;font-style:normal}
+@font-face{font-family:'Geist';src:url('../fonts/Geist-Medium.ttf') format('truetype');font-weight:500;font-style:normal}
+@font-face{font-family:'Geist';src:url('../fonts/Geist-SemiBold.ttf') format('truetype');font-weight:600;font-style:normal}
+@font-face{font-family:'Geist';src:url('../fonts/Geist-Bold.ttf') format('truetype');font-weight:700;font-style:normal}
+</style>
+<style>
+body{margin:0;background:#111214}
+a{color:#7399FF}a:hover{color:#A1BCFF}
+input::placeholder{color:#8E8E93}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width: 1440px; height: 988px; box-sizing: border-box; display: flex; overflow: hidden; background: var(--canvas); color: var(--label); font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; -webkit-font-smoothing: antialiased; --canvas: #111214; --surface: #1C1D20; --inset: #26272B; --inset-2: #313237; --label: #F5F5F7; --label-2: #A1A1A6; --label-3: #8E8E93; --sep: rgba(255,255,255,0.08); --hair: rgba(255,255,255,0.06); --ink: #1D3591; --accent: #3155E0; --accent-text: #7399FF; --accent-tint: rgba(73,115,248,0.22); --accent-wash: rgba(73,115,248,0.10); --amber: #FF9F0A; --amber-text: #FFB340; --amber-tint: rgba(255,159,10,0.14); --green: #30D158; --green-text: #30D158; --green-tint: rgba(48,209,88,0.14); --red-text: #FF7A70; --red-tint: rgba(255,69,58,0.16); --ai: #B98CEA; --ai-tint: rgba(185,140,234,0.14); --teal-text: #5EC8D0; --teal-tint: rgba(94,200,208,0.14); --sel: #26272B; --seg-sel: #3A3B40; --shadow-1: 0 0 0 0 transparent; --shadow-2: 0 0 0 0 transparent; --seg-shadow: 0 1px 2px rgba(0,0,0,0.35);">
+
+<!-- Sidebar -->
+<aside style="width: 248px; flex-shrink: 0; box-sizing: border-box; padding: 24px 12px 20px 20px; display: flex; flex-direction: column; gap: 22px;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px;">
+<div style="width: 30px; height: 30px; border-radius: 9px; background: var(--accent); display: flex; align-items: center; justify-content: center;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+</div>
+<div style="font-size: 17px; font-weight: 600; letter-spacing: -0.01em;">CruDoc</div>
+</div>
+
+<button style="display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); text-align: left; cursor: pointer; color: var(--label);">
+<div style="width: 32px; height: 32px; flex-shrink: 0; border-radius: 9px; background: var(--accent-tint); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600;">S</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; font-weight: 600; line-height: 18px;">Sanjeevani Clinic</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">General Physician</div>
+</div>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-3); flex-shrink: 0;" aria-hidden="true"><path d="m8 9 4-4 4 4M8 15l4 4 4-4"></path></svg>
+</button>
+
+<nav aria-label="Main" style="display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Today</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; background: var(--sel); box-shadow: var(--shadow-1), 0 0 0 1px var(--hair); color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 600;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--accent-text);" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="3.5" width="7" height="7" rx="2"></rect><rect x="3.5" y="13.5" width="7" height="7" rx="2"></rect><rect x="13.5" y="13.5" width="7" height="7" rx="2"></rect></svg>
+<span>Dashboard</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 6.5h16M4 12h16M4 17.5h10"></path></svg>
+<span>Queue</span>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--label-2); font-variant-numeric: tabular-nums;"><span style="width: 6px; height: 6px; border-radius: 3px; background: var(--amber);"></span>1</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+<span>Appointments</span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Patients</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20c.6-3.6 3.3-6 6.5-6s5.9 2.4 6.5 6"></path><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2 .8 3.2 2.8 3.5 5.7"></path></svg>
+<span>Patients</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"></path></svg>
+<span>Scribe</span>
+</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<div style="font-size: 12px; font-weight: 600; color: var(--label-3); padding: 0 10px 6px;">Clinic</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"></path><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"></path></svg>
+<span>Inventory</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M7 4.5h10M7 9h10M9.5 4.5c3.3 0 5 1.7 5 4.5s-1.7 4.5-5 4.5H7l7.5 6.5"></path></svg>
+<span>Revenue</span>
+</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 10px; border-radius: 12px; color: var(--label); text-decoration: none; font-size: 14.5px; font-weight: 500;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="M4 10v4a1 1 0 0 0 1 1h2l8 4.5V4.5L7 9H5a1 1 0 0 0-1 1z"></path><path d="M18.5 9.5a3.5 3.5 0 0 1 0 5"></path></svg>
+<span>Campaigns</span>
+</a>
+</div>
+</nav>
+
+<div style="flex-grow: 1;"></div>
+
+<div style="display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 10px; font-size: 12.5px;">
+<span style="color: var(--label-2);">Free trial · 12 days left</span>
+<a href="#" style="color: var(--accent-text); font-weight: 600; text-decoration: none;">Upgrade</a>
+</div>
+<button style="display: flex; align-items: center; gap: 10px; width: 100%; box-sizing: border-box; padding: 8px 10px; border-radius: 14px; border: none; background: transparent; text-align: left; cursor: pointer; color: var(--label);">
+<div style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 17px; background: var(--inset-2); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600;">AD</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 13.5px; font-weight: 600; line-height: 18px;">Dr. Ananya Deshpande</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">Account &amp; settings</div>
+</div>
+</button>
+</div>
+</aside>
+
+<!-- Main -->
+<main style="flex-grow: 1; min-width: 0; box-sizing: border-box; padding: 28px 32px 32px 12px; display: flex; flex-direction: column; gap: 22px;">
+
+<header style="display: flex; align-items: flex-end; justify-content: space-between; gap: 24px;">
+<div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 500; line-height: 18px; color: var(--label-2); margin-bottom: 4px;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z"></path></svg>
+Wednesday, 23 September · Evening session
+</div>
+<h1 style="margin: 0; font-size: 30px; line-height: 36px; font-weight: 600; letter-spacing: -0.022em;">Good evening, Dr. Deshpande</h1>
+</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<label style="display: flex; align-items: center; gap: 8px; width: 300px; height: 40px; box-sizing: border-box; padding: 0 8px 0 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--hair); box-shadow: var(--shadow-1);">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-3); flex-shrink: 0;" aria-hidden="true"><circle cx="11" cy="11" r="6.5"></circle><path d="m20 20-4.2-4.2"></path></svg>
+<input type="text" aria-label="Search patients or ask CruDoc" placeholder="Search patients or ask CruDoc" style="flex-grow: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: inherit; font-size: 14px; color: var(--label);">
+<span style="font-size: 11.5px; font-weight: 500; color: var(--label-2); padding: 3px 6px; border-radius: 6px; background: var(--inset); white-space: nowrap;">Ctrl K</span>
+</label>
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--hair); background: var(--surface); box-shadow: var(--shadow-1); font-size: 14px; font-weight: 500; color: var(--label); cursor: pointer;">
+<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><circle cx="10" cy="8" r="3.5"></circle><path d="M3.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6M19 8v6M16 11h6"></path></svg>
+Add patient
+</button>
+<button style="display: flex; align-items: center; gap: 6px; height: 40px; padding: 0 16px 0 13px; border-radius: 12px; border: none; background: var(--accent); font-size: 14px; font-weight: 600; color: #FFFFFF; cursor: pointer;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+New visit
+</button>
+</div>
+</header>
+
+<!-- At a glance -->
+<section aria-label="Today at a glance" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 0;">
+<div style="display: flex; align-items: center; gap: 16px; padding: 0 24px;">
+<svg width="52" height="52" viewBox="0 0 52 52" aria-hidden="true" style="flex-shrink: 0;"><circle cx="26" cy="26" r="22" fill="none" stroke-width="6" style="stroke: var(--inset-2);"></circle><circle cx="26" cy="26" r="22" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="117 138.3" transform="rotate(-90 26 26)" style="stroke: var(--accent-text);"></circle></svg>
+<div>
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Seen today</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">11 <span style="font-size: 17px; font-weight: 500; letter-spacing: 0; color: var(--label-2);">of 13</span></div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">2 still to see</div>
+</div>
+</div>
+<div style="border-left: 1px solid var(--sep); padding: 0 24px;">
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Waiting now</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">1</div>
+<div style="display: flex; align-items: center; gap: 6px; font-size: 12.5px; line-height: 16px; color: var(--label-2);"><span style="width: 6px; height: 6px; border-radius: 3px; background: var(--amber);"></span>Average wait 6 min</div>
+</div>
+<div style="border-left: 1px solid var(--sep); padding: 0 24px;">
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Follow-ups due</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">7</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);">This week · 2 overdue</div>
+</div>
+<div style="border-left: 1px solid var(--sep); padding: 0 24px;">
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Collected today</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums;">₹6,900</div>
+<div style="font-size: 12.5px; line-height: 16px; color: var(--label-2);"><span style="color: var(--green-text); font-weight: 600;">↑ ₹1,100</span> vs last Wednesday</div>
+</div>
+</section>
+
+<div style="display: flex; gap: 20px; align-items: flex-start;">
+
+<!-- Left column -->
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px;">
+
+<!-- Up next -->
+<section aria-label="Up next" style="background: var(--ink); color: var(--label); border-radius: 24px; border: 1px solid rgba(255,255,255,0.06); padding: 22px 24px 24px; display: flex; flex-direction: column; gap: 18px; --label: #FFFFFF; --label-2: #D3E0FF; --label-3: #B4C8FF; --inset: rgba(255,255,255,0.10); --inset-2: rgba(255,255,255,0.14); --accent-text: #FFFFFF; --amber-tint: rgba(255,255,255,0.10); --amber-text: #FFD08A;">
+<div style="display: flex; align-items: center; justify-content: space-between;">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 13px; line-height: 18px;">
+<span style="font-weight: 600; color: var(--accent-text);">Up next</span>
+<span style="color: var(--label-3);">·</span>
+<span style="font-weight: 500; color: var(--label-2); font-variant-numeric: tabular-nums;">Token 13</span>
+</div>
+<div style="display: flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--amber-tint); color: var(--amber-text); font-size: 12.5px; font-weight: 600;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>
+Waiting 4 min
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 16px;">
+<div style="width: 56px; height: 56px; flex-shrink: 0; border-radius: 28px; background: var(--inset-2); color: var(--label); display: flex; align-items: center; justify-content: center; font-size: 19px; font-weight: 600;">FK</div>
+<div style="min-width: 0;">
+<h2 style="margin: 0; font-size: 24px; line-height: 30px; font-weight: 600; letter-spacing: -0.018em;">Farah Khan</h2>
+<div style="font-size: 14px; line-height: 20px; color: var(--label-2); margin-top: 2px;">34 y · Female · New patient · First visit</div>
+</div>
+</div>
+
+<div>
+<div style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2); margin-bottom: 4px;">Reason for visit</div>
+<p style="margin: 0; font-size: 16px; line-height: 24px; color: var(--label);">Dry cough for a week, worse at night.</p>
+</div>
+
+<div>
+<div style="display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px;">
+<span style="font-size: 13px; font-weight: 500; line-height: 18px; color: var(--label-2);">Alerts and vitals</span>
+<span style="font-size: 12.5px; line-height: 16px; color: var(--label-3);">Recorded 6:08 by front desk</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px;">
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--inset); color: var(--label); font-size: 13px; font-weight: 500;">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--label-2);" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"></path></svg>
+No known allergies
+</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--inset); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;"><span style="font-weight: 500; color: var(--label-2);">BP</span>122/80</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--inset); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;"><span style="font-weight: 500; color: var(--label-2);">Temp</span>98.6 °F</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--inset); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;"><span style="font-weight: 500; color: var(--label-2);">SpO₂</span>97%</span>
+<span style="display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: 999px; background: var(--inset); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;"><span style="font-weight: 500; color: var(--label-2);">Weight</span>61 kg</span>
+</div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 10px; margin-top: 2px;">
+<button style="height: 44px; padding: 0 20px; border-radius: 12px; border: none; background: #FFFFFF; color: var(--ink); font-size: 15px; font-weight: 600; cursor: pointer;">Start consultation</button>
+<button style="height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: var(--inset); color: var(--label); font-size: 15px; font-weight: 500; cursor: pointer;">View history</button>
+<div style="flex-grow: 1;"></div>
+<button aria-label="More actions for Farah Khan" style="width: 44px; height: 44px; border-radius: 12px; border: none; background: transparent; color: var(--label-2); display: flex; align-items: center; justify-content: center; cursor: pointer;">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.7"></circle><circle cx="12" cy="12" r="1.7"></circle><circle cx="18.5" cy="12" r="1.7"></circle></svg>
+</button>
+</div>
+</section>
+
+<!-- Schedule -->
+<section aria-label="Today's schedule" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 12px 12px; display: flex; flex-direction: column;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 0 12px 14px;">
+<div>
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Today's schedule</h2>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2); margin-top: 2px;">13 appointments · 9:30 AM to 6:10 PM</div>
+</div>
+<div aria-label="Filter schedule" style="display: flex; gap: 2px; padding: 3px; border-radius: 11px; background: var(--inset);">
+<button style="height: 30px; padding: 0 14px; border-radius: 8px; border: none; background: var(--seg-sel); box-shadow: var(--seg-shadow); font-size: 13px; font-weight: 600; color: var(--label); cursor: pointer;">All</button>
+<button style="height: 30px; padding: 0 14px; border-radius: 8px; border: none; background: transparent; font-size: 13px; font-weight: 500; color: var(--label-2); cursor: pointer;">Waiting 1</button>
+<button style="height: 30px; padding: 0 14px; border-radius: 8px; border: none; background: transparent; font-size: 13px; font-weight: 500; color: var(--label-2); cursor: pointer;">Done 11</button>
+</div>
+</div>
+
+<button style="display: flex; align-items: center; gap: 12px; width: 100%; box-sizing: border-box; height: 48px; padding: 0 12px; border-radius: 12px; border: none; background: var(--inset); text-align: left; cursor: pointer; color: var(--label);">
+<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true" style="flex-shrink: 0;"><circle cx="10" cy="10" r="10" style="fill: var(--green);"></circle><path d="m6 10.2 2.6 2.6L14 7.4" fill="none" stroke="#111214" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+<span style="font-size: 14px; font-weight: 600;">11 seen today</span>
+<span style="font-size: 13px; color: var(--label-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Priya, Rahul, Fatima, Arjun and 7 more</span>
+<span style="margin-left: auto; display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 600; color: var(--accent-text); flex-shrink: 0;">Show
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9.5 6 6 6-6"></path></svg>
+</span>
+</button>
+
+<div style="display: flex; align-items: center; gap: 10px; padding: 18px 12px 8px;">
+<span style="font-size: 12px; font-weight: 600; color: var(--label-2);">Evening session</span>
+<span style="font-size: 12px; color: var(--label-3);">5:00 to 8:00 PM</span>
+<div style="flex-grow: 1; height: 1px; background: var(--sep);"></div>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px; height: 60px; padding: 0 12px; border-radius: 12px; background: var(--accent-wash);">
+<div style="width: 64px; flex-shrink: 0; font-size: 15px; font-weight: 600; color: var(--accent-text); font-variant-numeric: tabular-nums;">5:30 <span style="font-size: 11.5px; font-weight: 500;">PM</span></div>
+<span style="width: 8px; height: 8px; flex-shrink: 0; border-radius: 4px; background: var(--accent-text);"></span>
+<div style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 17px; background: var(--inset-2); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600;">AG</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 15px; line-height: 20px; font-weight: 600;">Anil Gupta <span style="font-size: 13px; font-weight: 400; color: var(--label-2);">56 M</span></div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Diabetes review · Follow-up</div>
+</div>
+<span style="display: inline-flex; align-items: center; height: 26px; padding: 0 10px; border-radius: 999px; background: var(--accent-tint); color: var(--accent-text); font-size: 12.5px; font-weight: 600;">In consultation</span>
+</div>
+
+<div style="display: flex; align-items: center; gap: 14px; height: 60px; padding: 0 12px;">
+<div style="width: 64px; flex-shrink: 0; font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums;">6:10 <span style="font-size: 11.5px; font-weight: 500; color: var(--label-3);">PM</span></div>
+<span style="width: 8px; height: 8px; flex-shrink: 0; border-radius: 4px; background: var(--amber);"></span>
+<div style="width: 34px; height: 34px; flex-shrink: 0; border-radius: 17px; background: var(--inset); color: var(--label-2); display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600;">FK</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 15px; line-height: 20px; font-weight: 600;">Farah Khan <span style="font-size: 13px; font-weight: 400; color: var(--label-2);">34 F</span></div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Dry cough · New patient</div>
+</div>
+<span style="font-size: 13px; font-weight: 600; color: var(--amber-text);">Waiting · 4 min</span>
+</div>
+<div style="height: 1px; background: var(--sep); margin: 0 12px 0 160px;"></div>
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 12px 8px 160px;">
+<span style="font-size: 13px; line-height: 18px; color: var(--label-2);">That's the last booking for today.</span>
+<a href="#" style="font-size: 13px; font-weight: 600; color: var(--accent-text); text-decoration: none;">Add a walk-in</a>
+</div>
+</section>
+</div>
+
+<!-- Right column -->
+<div style="width: 384px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px;">
+
+<!-- Wrap up -->
+<section aria-label="Wrap up the day" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 12px 12px;">
+<div style="padding: 0 12px 10px;">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Wrap up the day</h2>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2); margin-top: 2px;">2 patients left · clinic closes at 8:00 PM</div>
+</div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px;">
+<div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--accent-tint); color: var(--accent-text); display: flex; align-items: center; justify-content: center;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"></path><path d="m13.5 6.5 4 4"></path></svg>
+</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; line-height: 19px; font-weight: 600;">2 prescriptions to sign</div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Sneha Kulkarni, Rohan Mehta</div>
+</div>
+<button style="height: 30px; padding: 0 14px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer;">Sign</button>
+</div>
+<div style="height: 1px; background: var(--sep); margin: 0 12px 0 60px;"></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px;">
+<div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--amber-tint); color: var(--amber-text); display: flex; align-items: center; justify-content: center;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h3.5l1.5 4-2 1.5a11 11 0 0 0 6 6l1.5-2 4 1.5V19a1.5 1.5 0 0 1-1.5 1.5A15.5 15.5 0 0 1 3.5 6 1.5 1.5 0 0 1 5 4.5z"></path></svg>
+</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; line-height: 19px; font-weight: 600;">2 follow-ups overdue</div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2);">Rahul Verma, Neha Das</div>
+</div>
+<button style="height: 30px; padding: 0 14px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer;">Call</button>
+</div>
+<div style="height: 1px; background: var(--sep); margin: 0 12px 0 60px;"></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px;">
+<div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--green-tint); color: var(--green-text); display: flex; align-items: center; justify-content: center;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="6" width="17" height="13" rx="3"></rect><path d="M3.5 10h17M15.5 14.5h2"></path></svg>
+</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; line-height: 19px; font-weight: 600;">Match today's cash</div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2);">₹2,300 expected in drawer</div>
+</div>
+<button style="height: 30px; padding: 0 14px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer;">Match</button>
+</div>
+<div style="height: 1px; background: var(--sep); margin: 0 12px 0 60px;"></div>
+<div style="display: flex; align-items: center; gap: 12px; padding: 10px 12px;">
+<div style="width: 36px; height: 36px; flex-shrink: 0; border-radius: 10px; background: var(--teal-tint); color: var(--teal-text); display: flex; align-items: center; justify-content: center;">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"></rect><path d="M3.5 10h17M8 3v4M16 3v4"></path></svg>
+</div>
+<div style="flex-grow: 1; min-width: 0;">
+<div style="font-size: 14px; line-height: 19px; font-weight: 600;">Tomorrow · 9 booked</div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2);">First at 9:30 AM</div>
+</div>
+<button style="height: 30px; padding: 0 14px; border-radius: 999px; border: none; background: var(--inset); color: var(--accent-text); font-size: 13px; font-weight: 600; cursor: pointer;">View</button>
+</div>
+<button style="width: 100%; height: 44px; margin-top: 10px; border-radius: 12px; border: none; background: var(--accent-tint); color: var(--accent-text); font-size: 15px; font-weight: 600; cursor: pointer;">Close the day</button>
+</section>
+
+<!-- Collections -->
+<section aria-label="Collections" style="background: var(--surface); border-radius: 24px; border: 1px solid var(--hair); box-shadow: var(--shadow-1); padding: 20px 24px 20px;">
+<div style="display: flex; align-items: baseline; justify-content: space-between;">
+<h2 style="margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; letter-spacing: -0.01em;">Collections</h2>
+<span style="font-size: 13px; color: var(--label-2);">Last 7 days</span>
+</div>
+<div style="font-size: 28px; line-height: 34px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin-top: 8px;">₹24,800</div>
+<div style="font-size: 13px; line-height: 18px; color: var(--label-2); font-variant-numeric: tabular-nums;">UPI ₹15,400 · Cash ₹9,400</div>
+<div style="display: flex; align-items: flex-end; justify-content: space-between; height: 124px; margin-top: 16px;">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><div style="width: 24px; height: 36px; border-radius: 6px; background: var(--inset-2);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 500; color: var(--label-3);">Th</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><div style="width: 24px; height: 32px; border-radius: 6px; background: var(--inset-2);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 500; color: var(--label-3);">Fr</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><div style="width: 24px; height: 49px; border-radius: 6px; background: var(--inset-2);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 500; color: var(--label-3);">Sa</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><div style="width: 24px; height: 4px; border-radius: 2px; background: var(--inset-2);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 500; color: var(--label-3);">Su</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><div style="width: 24px; height: 45px; border-radius: 6px; background: var(--inset-2);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 500; color: var(--label-3);">Mo</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><div style="width: 24px; height: 45px; border-radius: 6px; background: var(--inset-2);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 500; color: var(--label-3);">Tu</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 8px; width: 34px;"><span style="font-size: 11.5px; line-height: 14px; font-weight: 600; color: var(--accent-text); font-variant-numeric: tabular-nums; white-space: nowrap;">₹6.9k</span><div style="width: 24px; height: 80px; border-radius: 6px; background: var(--accent-text);"></div><span style="font-size: 11.5px; line-height: 14px; font-weight: 600; color: var(--accent-text);">We</span></div>
+</div>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+</body>
+</html>

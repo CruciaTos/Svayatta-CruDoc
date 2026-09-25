@@ -15,15 +15,19 @@ import 'package:doctor_management_app/features/chatbot/widgets/voice_input_modal
 /// - Intelligent suggestion chips and locked module guardrails.
 /// - Smooth keyboard handling and auto-scrolling.
 class ChatbotScreen extends StatefulWidget {
-  const ChatbotScreen({super.key});
+  const ChatbotScreen({super.key, this.initialPrompt});
+
+  /// Question to prefill (e.g. typed into the dashboard search). It is
+  /// not sent automatically; the doctor reviews it and presses send.
+  final String? initialPrompt;
 
   /// Static helper to launch the chatbot as a responsive bottom sheet on mobile.
-  static Future<void> show(BuildContext context) {
+  static Future<void> show(BuildContext context, {String? initialPrompt}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const ChatbotScreen(),
+      builder: (context) => ChatbotScreen(initialPrompt: initialPrompt),
     );
   }
 
@@ -72,6 +76,8 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     _fadeController.forward();
 
     _controller.addListener(_onInputChanged);
+    final prompt = widget.initialPrompt?.trim() ?? '';
+    if (prompt.isNotEmpty) _controller.text = prompt;
 
     // Initial welcome message
     _messages.add(ChatMessage(

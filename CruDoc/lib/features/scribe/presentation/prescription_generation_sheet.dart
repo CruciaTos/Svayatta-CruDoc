@@ -7,6 +7,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Drug row model for clinical prescription.
 class PrescriptionDrugRow {
@@ -121,8 +122,15 @@ class _PrescriptionGenerationSheetState extends State<PrescriptionGenerationShee
     super.dispose();
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final cfg = widget.letterheadConfig;
 
     return Container(

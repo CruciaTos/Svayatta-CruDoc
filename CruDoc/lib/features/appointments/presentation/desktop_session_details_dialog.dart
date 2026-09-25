@@ -8,6 +8,7 @@ import 'package:doctor_management_app/features/appointments/data/providers/visit
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Opens the desktop-specific Session Details modal popup dialog.
 Future<void> showDesktopSessionDetailsDialog(
@@ -233,8 +234,15 @@ class _DesktopSessionDetailsDialogState
     }
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final patient = _patient;
     final patientName = patient?.fullName ?? 'Unknown Patient';
     final isQueueEnabled = ref.watch(isQueueFeatureEnabledProvider);

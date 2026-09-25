@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Opens a patient search/picker dialog.
 /// Returns the selected patient, or null if dismissed.
@@ -37,8 +38,15 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
     super.dispose();
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     // Watch the filtered patients provider with the current search query
     final patientsAsync = ref.watch(filteredPatientsProvider);
 

@@ -296,6 +296,7 @@ final periodQueueWithPatientsProvider =
           reason: visit.treatmentType ?? visit.therapistNotes ?? 'Pre-booked Appointment',
           checkedInAt: visit.scheduledStart,
           linkedVisitId: visit.id,
+          groupId: visit.groupId,
           createdAt: visit.createdAt,
           updatedAt: visit.updatedAt,
         );
@@ -335,6 +336,13 @@ final activeQueueEntryProvider = Provider<QueueEntryWithPatient?>((ref) {
     if (item.entry.isActiveServing) return item;
   }
   return null;
+});
+
+/// Every token being served right now (called or in consultation). More
+/// than one only when sessions run in parallel (physiotherapy).
+final servingQueueEntriesProvider = Provider<List<QueueEntryWithPatient>>((ref) {
+  final combined = ref.watch(periodQueueWithPatientsProvider).value ?? const [];
+  return [for (final item in combined) if (item.entry.isActiveServing) item];
 });
 
 /// Tokens still [QueueStatus.waiting], in call order — urgent tokens

@@ -139,6 +139,10 @@ class QueueEntry {
   // future-proofing fields.
   final String? linkedVisitId;
 
+  /// Patients seen together share one group id and one token number; they
+  /// move through the queue as one.
+  final String? groupId;
+
   /// True once this token has been soft-deleted (e.g. created by
   /// mistake). Hidden from every default query, but the document is
   /// never removed — matches [Visit.isDeleted].
@@ -163,6 +167,7 @@ class QueueEntry {
     this.consultationStartedAt,
     this.completedAt,
     this.linkedVisitId,
+    this.groupId,
     this.isDeleted = false,
     required this.createdAt,
     required this.updatedAt,
@@ -204,6 +209,7 @@ class QueueEntry {
       ),
       completedAt: _nullableTimestampToDate(map['completedAt']),
       linkedVisitId: map['linkedVisitId'] as String?,
+      groupId: map['groupId'] as String?,
       isDeleted: map['isDeleted'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
@@ -232,6 +238,7 @@ class QueueEntry {
           ? null
           : Timestamp.fromDate(completedAt!),
       'linkedVisitId': linkedVisitId,
+      'groupId': groupId,
       'isDeleted': isDeleted,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -252,6 +259,7 @@ class QueueEntry {
     DateTime? consultationStartedAt,
     DateTime? completedAt,
     String? linkedVisitId,
+    String? groupId,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -271,6 +279,7 @@ class QueueEntry {
       consultationStartedAt: consultationStartedAt ?? this.consultationStartedAt,
       completedAt: completedAt ?? this.completedAt,
       linkedVisitId: linkedVisitId ?? this.linkedVisitId,
+      groupId: groupId ?? this.groupId,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

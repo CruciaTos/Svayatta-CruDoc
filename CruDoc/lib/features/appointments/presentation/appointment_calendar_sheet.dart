@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 enum CalendarViewMode { timeGrid, monthGrid }
 
@@ -231,8 +232,15 @@ class _AppointmentCalendarSheetState
     return list;
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final visitsAsync = ref.watch(allVisitsWithPatientsProvider);
     final realVisits = visitsAsync.value ?? [];
 

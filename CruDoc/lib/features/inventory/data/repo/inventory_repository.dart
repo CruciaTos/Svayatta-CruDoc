@@ -47,6 +47,7 @@ class InventoryRepository {
       unit: medicine.unit.trim(),
       currentStock: medicine.currentStock,
       reorderThreshold: medicine.reorderThreshold,
+      goodStockLevel: medicine.goodStockLevel,
       unitPrice: medicine.unitPrice,
       supplierName: medicine.supplierName,
       batchNumber: medicine.batchNumber,
@@ -99,6 +100,14 @@ class InventoryRepository {
       if (name.trim().isEmpty) {
         throw const MedicineValidationException(
           'Medicine name cannot be empty.',
+        );
+      }
+    }
+    if (data.containsKey('goodStockLevel')) {
+      final good = data['goodStockLevel'] as num?;
+      if (good != null && good < 0) {
+        throw const MedicineValidationException(
+          'Good stock level cannot be negative.',
         );
       }
     }

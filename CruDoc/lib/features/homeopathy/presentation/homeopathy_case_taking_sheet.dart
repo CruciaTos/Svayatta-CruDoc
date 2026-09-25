@@ -8,6 +8,7 @@ import 'package:doctor_management_app/features/homeopathy/presentation/widgets/h
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_dictation_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/widgets/homeopathy_voice_scribe_modal.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Interactive mobile-first Homeopathy Case Taking Sheet.
 class HomeopathyCaseTakingSheet extends ConsumerStatefulWidget {
@@ -888,8 +889,15 @@ class _HomeopathyCaseTakingSheetState
     _extCtrl.populateFromSheet(s);
   }
 
+  // Built for the Day palette: stays on Day even when opened from a
+  // screen in night mode.
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => Theme(
+        data: CruTheme.day(),
+        child: Builder(builder: _buildOnDay),
+      );
+
+  Widget _buildOnDay(BuildContext context) {
     final completedCount =
         _sheet.completedSectionsCount(isFemale: _isPatientFemale);
     final totalCount = _sheet.totalSectionsCount(isFemale: _isPatientFemale);

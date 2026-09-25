@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_screen.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/tooth_detail_view.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -45,8 +46,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
 
   Future<void> _open(String tooth) async {
     setState(() => _selected = tooth);
-    final last = await openToothDetail(context, patient: p, tooth: tooth);
-    if (mounted && last != null) setState(() => _selected = last);
+    await showToothDetail(context, patient: p, tooth: tooth);
   }
 
   @override

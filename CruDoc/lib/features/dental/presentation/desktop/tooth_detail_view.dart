@@ -1370,7 +1370,7 @@ class _ArtPainter extends CustomPainter {
     );
     for (var i = 0; i < 3; i++) {
       if (t.bop[sites[i]]) {
-        canvas.drawCircle(pocket[i], 3.2, Paint()..color = c.redText);
+        canvas.drawCircle(pocket[i], 3.2, Paint()..color = c.amber);
       }
       if (t.sup[sites[i]]) {
         canvas.drawCircle(
@@ -1785,7 +1785,7 @@ class _EndoCard extends StatelessWidget {
     final results = raw is Map ? raw : const {};
     final tests = [
       ('Cold', 'Cold', _TestIcons.cold, c.tealText),
-      ('Heat', 'Heat', _TestIcons.heat, c.redText),
+      ('Heat', 'Heat', _TestIcons.heat, c.amberText),
       ('Percussion', 'Percussion', _TestIcons.tap, c.label2),
       ('EPT', 'Electric pulp test', _TestIcons.bolt, c.amberText),
       ('Palpation', 'Palpation', _TestIcons.touch, c.accentText),
@@ -2029,7 +2029,7 @@ class _PerioCell extends StatelessWidget {
     final depth = pd;
     final pdColor = depth == null
         ? c.label3
-        : (depth >= 6 ? c.redText : (depth >= 4 ? c.amberText : c.label));
+        : (depth >= 4 ? c.amberText : c.label);
     return CruPressable(
       onTap: onTap,
       semanticLabel:
@@ -2056,7 +2056,7 @@ class _PerioCell extends StatelessWidget {
                     width: 6,
                     height: 6,
                     decoration: ShapeDecoration(
-                      color: c.redText,
+                      color: c.amber,
                       shape: const CircleBorder(),
                     ),
                   ),

@@ -13,6 +13,7 @@ import 'package:doctor_management_app/features/dental/presentation/desktop/denta
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_dialogs.dart';
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_export.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_rx_pdf.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/scan_viewer_placeholder.dart';
@@ -506,10 +507,29 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                 'Attached Files (${_files.length})',
                 style: CruType.callout.w600.tint(c.label),
               ),
-              CruCapsuleButton(
-                label: 'Add files',
-                icon: CruIcons.plus,
-                onPressed: _addAttachment,
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.initialCase != null && _patient != null) ...[
+                    CruCapsuleButton(
+                      label: 'Export case (ZIP)',
+                      icon: CruIcons.download,
+                      onPressed: () => showDialog<void>(
+                        context: context,
+                        builder: (_) => ExportLabCaseDialog(
+                          labCase: widget.initialCase!,
+                          patient: _patient!,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: CruSpace.s8),
+                  ],
+                  CruCapsuleButton(
+                    label: 'Add files',
+                    icon: CruIcons.plus,
+                    onPressed: _addAttachment,
+                  ),
+                ],
               ),
             ],
           ),

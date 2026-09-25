@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dar
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_dialog.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_export.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_rx_pdf.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -372,6 +373,10 @@ class _LabCaseListRow extends ConsumerWidget {
                 child: Text('Print Rx (PDF)'),
               ),
               const PopupMenuItem(
+                value: 'export',
+                child: Text('Export case (ZIP)'),
+              ),
+              const PopupMenuItem(
                 value: 'delete',
                 child: Text('Delete case'),
               ),
@@ -388,6 +393,16 @@ class _LabCaseListRow extends ConsumerWidget {
                     ref: ref,
                     labCase: lc,
                     patient: patient!,
+                  );
+                }
+              } else if (action == 'export') {
+                if (patient != null) {
+                  await showDialog<void>(
+                    context: context,
+                    builder: (_) => ExportLabCaseDialog(
+                      labCase: lc,
+                      patient: patient!,
+                    ),
                   );
                 }
               } else if (action == 'delete') {

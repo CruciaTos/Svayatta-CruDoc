@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/dental/referrals/referral_dialogs
 import 'package:doctor_management_app/features/dental/referrals/referral_models.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_case_models.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_rx_pdf.dart';
+import 'package:doctor_management_app/features/dental/specialties/prostho/scan_viewer_placeholder.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
@@ -554,7 +555,20 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                         size: CruSize.squareButton,
                         semanticLabel: 'Open file',
                         tooltip: 'Open file',
-                        onPressed: () => launchUrl(Uri.file(f.path)),
+                        onPressed: () {
+                          if (f.is3dScan) {
+                            Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => ScanViewerPlaceholderScreen(
+                                  filePath: f.path,
+                                  fileName: f.name,
+                                ),
+                              ),
+                            );
+                          } else {
+                            launchUrl(Uri.file(f.path));
+                          }
+                        },
                       ),
                       CruIconButton(
                         icon: CruIcons.close,

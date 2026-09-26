@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
 /// Opens Reschedule for [item]. Returns the new start when the visit was
 /// moved, otherwise null.
@@ -40,7 +41,8 @@ class RescheduleVisitDialog extends ConsumerStatefulWidget {
       _RescheduleVisitDialogState();
 }
 
-class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog> {
+class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
+    with VoiceDialogHook<RescheduleVisitDialog> {
   late DateTime _date;
   late TimeOfDay _time;
   bool _saving = false;
@@ -99,6 +101,22 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog> {
       _clearErrors();
     });
   }
+
+  @override
+  void onVoiceFill(VoiceFill f) {
+    if (f.date == null && f.time == null) return;
+    setState(() {
+      if (f.date != null) _date = ApptsBuilder.dateOnly(f.date!);
+      if (f.time != null) _time = f.time!;
+      _clearErrors();
+    });
+  }
+
+  @override
+  void onVoiceConfirm() => _save();
+
+  @override
+  String get voiceKind => 'reschedule';
 
   Future<void> _save({bool acknowledgeOverlap = false}) async {
     if (_saving) return;

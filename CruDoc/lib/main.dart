@@ -15,6 +15,7 @@ import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
 import 'core/services/maps_key.dart';
 import 'core/theme/cru_theme.dart';
+import 'features/voice/presentation/voice_overlay.dart';
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
   'USE_FIREBASE_EMULATORS',
@@ -225,6 +226,9 @@ class MoodyDashboardApp extends StatelessWidget {
       // to the desktop shell + dashboard (see DesktopShell).
       theme: CruTheme.day(),
       routerConfig: appRouter,
+      builder: (context, child) => VoiceOverlay(
+        child: child ?? const SizedBox.shrink(),
+      ),
     );
   }
 }

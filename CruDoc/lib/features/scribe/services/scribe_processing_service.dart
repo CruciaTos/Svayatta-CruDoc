@@ -310,6 +310,24 @@ CRITICAL RULES — read these carefully:
         cause: error,
       );
     }
+    if (error is GeminiHttpException) {
+      if (error.isServiceDisabled) {
+        return ScribeProcessingException(
+          'Gemini API is not enabled in your Google Cloud project (474729174031). '
+          'Please enable the Generative Language API in Google Cloud Console, then retry.',
+          kind: ScribeFailureKind.notConfigured,
+          cause: error,
+        );
+      }
+      if (error.isKeyBlocked) {
+        return ScribeProcessingException(
+          'Gemini API key is restricted from calling Generative Language API. '
+          'Please adjust API restrictions in Google Cloud Console or use an AI Studio key.',
+          kind: ScribeFailureKind.notConfigured,
+          cause: error,
+        );
+      }
+    }
     final raw = error.toString().toLowerCase();
     final modelMissing =
         raw.contains('not found') ||

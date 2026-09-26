@@ -551,6 +551,27 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           );
         }
 
+        // A new screen fades in with a slight rise instead of snapping in,
+        // whether it was opened from the sidebar or by voice. Only the new
+        // screen is built, so a screen is never on the tree twice.
+        content = AnimatedSwitcher(
+          duration: const Duration(milliseconds: 220),
+          switchInCurve: Curves.easeOutCubic,
+          switchOutCurve: Curves.easeOutCubic,
+          layoutBuilder: (current, _) => current ?? const SizedBox.shrink(),
+          transitionBuilder: (child, animation) => FadeTransition(
+            opacity: animation,
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 0.012),
+                end: Offset.zero,
+              ).animate(animation),
+              child: child,
+            ),
+          ),
+          child: KeyedSubtree(key: ValueKey(shown), child: content),
+        );
+
         // Day or Evening for the shell chrome, the dashboard and the
         // redesigned screens (Auto by default). Older screens are wrapped
         // in Day above.

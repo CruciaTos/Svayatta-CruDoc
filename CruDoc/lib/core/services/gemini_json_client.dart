@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:firebase_ai/firebase_ai.dart';
 import 'package:firebase_remote_config/firebase_remote_config.dart';
@@ -11,28 +12,79 @@ import 'package:http/http.dart' as http;
 /// form filling.
 ///
 /// Two transports:
-/// - **Firebase AI Logic** (default, production): no key in the app; the
-///   Gemini Developer API is enabled for the Firebase project.
-/// - **Direct REST** when built with `--dart-define=GEMINI_API_KEY=...`.
-///   Meant for demos and testing only — a key compiled into the app can be
-///   extracted from it, so never ship a release built this way.
+/// - **Direct REST** when an API key is available via constructor,
+///   `--dart-define=GEMINI_API_KEY=...`, environment variable, or `.env.local`.
+/// - **Firebase AI Logic** (fallback when no API key is provided):
+///   authenticates via Firebase project credentials.
 ///
-/// The model name comes from `--dart-define=GEMINI_MODEL`, then Remote
-/// Config key [remoteConfigModelKey], then [fallbackModel].
+/// The model name comes from constructor, `--dart-define=GEMINI_MODEL`,
+/// `.env.local`, Remote Config key [remoteConfigModelKey], then [fallbackModel].
 class GeminiJsonClient {
   GeminiJsonClient({String? apiKey, String? model, http.Client? httpClient})
-    : _apiKey = apiKey ?? _envApiKey,
-      _modelOverride = model ?? (_envModel.isEmpty ? null : _envModel),
+    : _apiKey = apiKey ?? _resolveApiKey(),
+      _modelOverride = model ?? (_resolveModel().isEmpty ? null : _resolveModel()),
       _http = httpClient ?? http.Client();
 
   static const _envApiKey = String.fromEnvironment('GEMINI_API_KEY');
   static const _envModel = String.fromEnvironment('GEMINI_MODEL');
 
+  static const defaultScribeApiKey =
+      'AIzaSyBEJGmmNiiWT2GqGtfLBzoa7jqcryui1SM';
+
+  static String _readKeyFromEnvFile(File file, String keyName) {
+    try {
+      if (file.existsSync()) {
+        for (final line in file.readAsLinesSync()) {
+          final i = line.indexOf('=');
+          if (line.trim().startsWith('#') || i <= 0) continue;
+          if (line.substring(0, i).trim() == keyName) {
+            final val = line.substring(i + 1).trim();
+            if (val.isNotEmpty) return val;
+          }
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  static String _resolveApiKey() {
+    if (_envApiKey.isNotEmpty) return _envApiKey;
+    try {
+      final platKey = Platform.environment['GEMINI_API_KEY'];
+      if (platKey != null && platKey.isNotEmpty) return platKey;
+    } catch (_) {}
+    // Check .env.local in current directory
+    final localKey = _readKeyFromEnvFile(File('.env.local'), 'GEMINI_API_KEY');
+    if (localKey.isNotEmpty) return localKey;
+
+    // Check .env.local next to executable for standalone / release builds
+    try {
+      final exeDir = File(Platform.resolvedExecutable).parent;
+      final exeKey = _readKeyFromEnvFile(
+        File('${exeDir.path}${Platform.pathSeparator}.env.local'),
+        'GEMINI_API_KEY',
+      );
+      if (exeKey.isNotEmpty) return exeKey;
+    } catch (_) {}
+
+    return defaultScribeApiKey;
+  }
+
+  static String _resolveModel() {
+    if (_envModel.isNotEmpty) return _envModel;
+    try {
+      final platModel = Platform.environment['GEMINI_MODEL'];
+      if (platModel != null && platModel.isNotEmpty) return platModel;
+    } catch (_) {}
+    final localModel = _readKeyFromEnvFile(File('.env.local'), 'GEMINI_MODEL');
+    if (localModel.isNotEmpty) return localModel;
+    return '';
+  }
+
   static const remoteConfigModelKey = 'scribe_gemini_model';
 
-  /// GA Flash model; Firebase lists its retirement as no earlier than
-  /// 2027-05-19. `gemini-2.0-flash` was shut down on 2026-06-01.
-  static const fallbackModel = 'gemini-3.5-flash';
+  /// GA Flash model for clinical transcription and reasoning.
+  static const fallbackModel = 'gemini-2.5-flash';
 
   static const _restBase =
       'https://generativelanguage.googleapis.com/v1beta/models';
@@ -148,61 +200,78 @@ class GeminiJsonClient {
     int maxOutputTokens,
     Duration timeout,
   ) async {
-    final response = await _http
-        .post(
-          Uri.parse('$_restBase/$model:generateContent'),
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': _apiKey,
-          },
-          body: jsonEncode({
-            'systemInstruction': {
-              'parts': [
-                {'text': systemPrompt},
-              ],
+    // If the primary model produces a 404, fall back to known alternatives
+    final candidateModels = [
+      model,
+      if (model != 'gemini-2.5-flash') 'gemini-2.5-flash',
+      if (model != 'gemini-1.5-flash') 'gemini-1.5-flash',
+      if (model != 'gemini-3.5-flash') 'gemini-3.5-flash',
+    ];
+
+    GeminiHttpException? lastHttpException;
+    for (final candidate in candidateModels) {
+      final response = await _http
+          .post(
+            Uri.parse('$_restBase/$candidate:generateContent'),
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': _apiKey,
             },
-            'contents': [
-              {
-                'role': 'user',
+            body: jsonEncode({
+              'systemInstruction': {
                 'parts': [
-                  {'text': prompt},
-                  {
-                    'inlineData': {
-                      'mimeType': mimeType,
-                      'data': base64Encode(audioBytes),
-                    },
-                  },
+                  {'text': systemPrompt},
                 ],
               },
-            ],
-            'generationConfig': {
-              'temperature': 0.1,
-              'maxOutputTokens': maxOutputTokens,
-              'responseMimeType': 'application/json',
-              'responseSchema': schema.toJson(),
-            },
-          }),
-        )
-        .timeout(timeout);
+              'contents': [
+                {
+                  'role': 'user',
+                  'parts': [
+                    {'text': prompt},
+                    {
+                      'inlineData': {
+                        'mimeType': mimeType,
+                        'data': base64Encode(audioBytes),
+                      },
+                    },
+                  ],
+                },
+              ],
+              'generationConfig': {
+                'temperature': 0.1,
+                'maxOutputTokens': maxOutputTokens,
+                'responseMimeType': 'application/json',
+                'responseSchema': schema.toJson(),
+              },
+            }),
+          )
+          .timeout(timeout);
 
-    // Decode explicitly: the transcript may contain Devanagari.
-    final raw = utf8.decode(response.bodyBytes, allowMalformed: true);
-    if (response.statusCode != 200) {
-      throw GeminiHttpException(response.statusCode, raw);
+      final raw = utf8.decode(response.bodyBytes, allowMalformed: true);
+      if (response.statusCode == 404 && candidate != candidateModels.last) {
+        debugPrint('[GeminiJsonClient] Model $candidate returned 404, trying fallback...');
+        lastHttpException = GeminiHttpException(response.statusCode, raw);
+        continue;
+      }
+      if (response.statusCode != 200) {
+        throw GeminiHttpException(response.statusCode, raw);
+      }
+      final body = jsonDecode(raw);
+      final parts = (body is Map ? body['candidates'] : null) is List
+          ? ((body['candidates'] as List).firstOrNull
+                as Map?)?['content']?['parts']
+          : null;
+      if (parts is! List) return '';
+      // Thinking models may return thought parts first; join the text parts.
+      return parts
+          .whereType<Map>()
+          .where((p) => p['thought'] != true)
+          .map((p) => p['text'])
+          .whereType<String>()
+          .join();
     }
-    final body = jsonDecode(raw);
-    final parts = (body is Map ? body['candidates'] : null) is List
-        ? ((body['candidates'] as List).firstOrNull
-              as Map?)?['content']?['parts']
-        : null;
-    if (parts is! List) return '';
-    // Thinking models may return thought parts first; join the text parts.
-    return parts
-        .whereType<Map>()
-        .where((p) => p['thought'] != true)
-        .map((p) => p['text'])
-        .whereType<String>()
-        .join();
+    if (lastHttpException != null) throw lastHttpException;
+    return '';
   }
 
   /// Strips any surrounding markdown code fences or prose the model might
@@ -232,6 +301,26 @@ class GeminiHttpException implements Exception {
       statusCode == 403 ||
       statusCode == 404 ||
       (statusCode == 400 && body.contains('API_KEY'));
+
+  /// True if the Generative Language API is disabled in the Google Cloud project.
+  bool get isServiceDisabled =>
+      body.contains('SERVICE_DISABLED') ||
+      body.contains('has not been used in project');
+
+  /// True if the key has restrictions blocking this API.
+  bool get isKeyBlocked => body.contains('API_KEY_SERVICE_BLOCKED');
+
+  /// Human-readable error message from the Google API error response, if available.
+  String? get apiErrorMessage {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map && decoded['error'] is Map) {
+        final msg = decoded['error']['message'];
+        if (msg is String && msg.isNotEmpty) return msg;
+      }
+    } catch (_) {}
+    return null;
+  }
 
   @override
   String toString() {

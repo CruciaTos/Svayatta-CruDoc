@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/appointments/data/repo/visits_rep
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_cap_notice.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
@@ -72,7 +73,8 @@ class DesktopScheduleVisitDialog extends ConsumerStatefulWidget {
 }
 
 class _DesktopScheduleVisitDialogState
-    extends ConsumerState<DesktopScheduleVisitDialog> {
+    extends ConsumerState<DesktopScheduleVisitDialog>
+    with VoiceDialogHook<DesktopScheduleVisitDialog> {
   static const _durations = [15, 30, 45, 60, 90];
 
   static const _quickReasons = [
@@ -205,13 +207,66 @@ class _DesktopScheduleVisitDialogState
     });
   }
 
+  @override
+  void onVoiceFill(VoiceFill f) {
+    if (f.reason != null) _reason.text = f.reason!;
+    if (f.address != null) _address.text = f.address!;
+    if (f.notes != null) {
+      _voiceNotesBase ??= _notes.text.trim();
+      _notes.text =
+          [_voiceNotesBase!, f.notes!].where((s) => s.isNotEmpty).join('\n');
+    }
+    setState(() {
+      for (final p in f.others) {
+        final taken = p.id == widget.patient.id ||
+            _others.any((o) => o.$1.id == p.id);
+        if (!taken) _others.add((p, TextEditingController()));
+      }
+      if (f.sendWhatsApp != null && _canWhatsApp) {
+        _sendWhatsApp = f.sendWhatsApp!;
+      }
+      if (f.addToQueue != null) _addToQueue = f.addToQueue!;
+      if (f.date != null) _date = f.date!;
+      if (f.time != null) _time = f.time!;
+      if (f.date != null || f.time != null) _timeEdited();
+      if (f.durationMinutes != null) {
+        // The form offers fixed lengths; take the closest.
+        _duration = _durations.reduce(
+          (a, b) =>
+              (a - f.durationMinutes!).abs() <= (b - f.durationMinutes!).abs()
+              ? a
+              : b,
+        );
+      }
+      if (f.homeVisit != null && ref.read(isPhysiotherapyProvider)) {
+        _type = f.homeVisit! ? VisitType.home : VisitType.clinic;
+      }
+    });
+    _edited();
+  }
+
+  @override
+  void onVoiceConfirm() => _submit();
+
+  @override
+  String get voiceKind => 'appointment';
+
+  /// Notes typed before voice started adding to them.
+  String? _voiceNotesBase;
+
+  @override
+  List<String> voiceMissing() => [
+        if (_type == VisitType.home && _address.text.trim().isEmpty) 'address',
+      ];
+
   Future<void> _addOther() async {
     final picked = await showPatientPickerDialog(
       context,
       title: 'Who else is coming?',
     );
     if (picked == null || !mounted) return;
-    final taken = picked.id == widget.patient.id ||
+    final taken =
+        picked.id == widget.patient.id ||
         _others.any((o) => o.$1.id == picked.id);
     if (taken) return;
     setState(() => _others.add((picked, TextEditingController())));
@@ -283,14 +338,11 @@ class _DesktopScheduleVisitDialogState
                 ),
               ),
             ]
-          : await widget.visitRepository.createVisitGroup(
-              [
-                visit,
-                for (final (p, reason) in _others)
-                  visitFor(p.id, _trimmedOrNull(reason)),
-              ],
-              acknowledgeOverlap: acknowledgeOverlap,
-            );
+          : await widget.visitRepository.createVisitGroup([
+              visit,
+              for (final (p, reason) in _others)
+                visitFor(p.id, _trimmedOrNull(reason)),
+            ], acknowledgeOverlap: acknowledgeOverlap);
 
       final isQueueEnabled = ref.read(isQueueFeatureEnabledProvider);
       if (isQueueEnabled && _addToQueue && _type == VisitType.clinic) {
@@ -526,7 +578,8 @@ class _DesktopScheduleVisitDialogState
             ),
           CruFormSection(
             title: 'Seen together',
-            description: 'A couple or family in the same slot. Each gets '
+            description:
+                'A couple or family in the same slot. Each gets '
                 'their own visit and history.',
             children: [
               for (var i = 0; i < _others.length; i++)
@@ -750,15 +803,15 @@ class _AddressFieldState extends ConsumerState<_AddressField> {
     final help = noKey
         ? "Address search isn't set up yet. Type the full address."
         : _noMatch
-            ? 'No matching places. Keep typing, or enter the full address.'
-            : from != null
-                ? 'Nearest to ${from.fromYou ? 'you' : 'the clinic'} first. '
-                    'Pick one to pin it on the map.'
-                : origin.isLoading
-                    ? 'Pick a suggestion to pin it on the map.'
-                    : 'Pick a suggestion to pin it on the map. Turn on '
-                        'location, or add the clinic address in Settings, '
-                        'to see nearby places first.';
+        ? 'No matching places. Keep typing, or enter the full address.'
+        : from != null
+        ? 'Nearest to ${from.fromYou ? 'you' : 'the clinic'} first. '
+              'Pick one to pin it on the map.'
+        : origin.isLoading
+        ? 'Pick a suggestion to pin it on the map.'
+        : 'Pick a suggestion to pin it on the map. Turn on '
+              'location, or add the clinic address in Settings, '
+              'to see nearby places first.';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -821,10 +874,10 @@ class _Suggestion extends StatelessWidget {
     final distance = m == null
         ? null
         : m < 1000
-            ? '$m m'
-            : m < 100000
-                ? '${(m / 1000).toStringAsFixed(1)} km'
-                : '${(m / 1000).round()} km';
+        ? '$m m'
+        : m < 100000
+        ? '${(m / 1000).toStringAsFixed(1)} km'
+        : '${(m / 1000).round()} km';
     return CruPressable(
       onTap: onTap,
       semanticLabel: prediction.description,

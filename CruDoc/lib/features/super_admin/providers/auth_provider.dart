@@ -50,32 +50,57 @@ class SuperAdminAuthState {
 class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
   late final SuperAdminAuthService _authService;
 
+  static SuperAdminAuthState _buildDemoAdminState() {
+    return SuperAdminAuthState(
+      currentAdmin: SuperAdminModel(
+        id: 'demo_super_admin_id',
+        email: 'admin@crudoc.com',
+        name: 'CruDoc Administrator (Dev)',
+        role: UserRole.superAdmin,
+        isActive: true,
+        isTwoFAEnabled: false,
+        isTwoFAVerified: true,
+        accountCreated: DateTime(2024, 1, 1),
+        lastLogin: DateTime.now(),
+      ),
+      isAuthenticated: true,
+      isTwoFARequired: false,
+      isTwoFAVerified: true,
+    );
+  }
+
   @override
   SuperAdminAuthState build() {
     _authService = SuperAdminAuthService();
+    DemoSessionService.sessionStateNotifier.addListener(_onSessionStateChanged);
+    ref.onDispose(() {
+      DemoSessionService.sessionStateNotifier.removeListener(_onSessionStateChanged);
+    });
+
+    if (DemoSessionService.isSuperAdminMode) {
+      return _buildDemoAdminState();
+    }
+
     _initialize();
     return const SuperAdminAuthState();
+  }
+
+  void _onSessionStateChanged() {
+    if (DemoSessionService.isSuperAdminMode) {
+      if (!state.isAuthenticated) {
+        state = _buildDemoAdminState();
+      }
+    } else {
+      if (state.currentAdmin?.id == 'demo_super_admin_id') {
+        state = const SuperAdminAuthState();
+      }
+    }
   }
 
   /// Initialize auth state — check if already logged in as Super Admin.
   Future<void> _initialize() async {
     if (DemoSessionService.isSuperAdminMode) {
-      state = state.copyWith(
-        currentAdmin: SuperAdminModel(
-          id: 'demo_super_admin_id',
-          email: 'admin@crudoc.com',
-          name: 'CruDoc Administrator (Dev)',
-          role: UserRole.superAdmin,
-          isActive: true,
-          isTwoFAEnabled: false,
-          isTwoFAVerified: true,
-          accountCreated: DateTime(2024, 1, 1),
-          lastLogin: DateTime.now(),
-        ),
-        isAuthenticated: true,
-        isTwoFARequired: false,
-        isTwoFAVerified: true,
-      );
+      state = _buildDemoAdminState();
       return;
     }
 

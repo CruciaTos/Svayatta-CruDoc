@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
@@ -47,68 +46,28 @@ GoRouter _createAppRouter() {
       final isAdminRoute = path.startsWith('/admin');
       final isAdminLoginRoute = path == '/admin/login';
 
-      // 1. Unauthenticated users trying to access protected routes
-      if (!isLoggedIn && !isAuthRoute && !isAdminLoginRoute) {
-        if (isAdminRoute) {
-          return '/admin/login';
-        }
-        return '/auth';
-      }
-
-      // If user is logged in via Demo Session (instant dev bypass)
-      if (isDemo) {
-        if (DemoSessionService.isSuperAdminMode) {
-          if (!isAdminRoute) return '/admin';
-          return null;
-        }
-        if (isAdminRoute) return '/dashboard';
-        if (isAuthRoute) return '/dashboard';
+      // 1. Direct access to Super Admin login screen is always allowed
+      if (isAdminLoginRoute) {
         return null;
       }
 
-      // If user is logged in via Firebase Auth, check their role to enforce strict role-based route separation
-      if (isLoggedIn && user != null) {
-        String? role;
-        bool isActiveAdmin = true;
+      // 2. Direct access to Super Admin suite (/admin)
+      // SuperAdminAuthGuard handles checking auth state and rendering SuperAdminLoginScreen if not authenticated
+      if (isAdminRoute) {
+        return null;
+      }
 
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get()
-              .timeout(const Duration(seconds: 2));
+      // 3. Unauthenticated users trying to access protected clinic routes
+      if (!isLoggedIn && !isAuthRoute) {
+        return '/auth';
+      }
 
-          if (doc.exists && doc.data() != null) {
-            role = doc.data()!['role'] as String?;
-            isActiveAdmin = doc.data()!['isActive'] as bool? ?? true;
-          }
-        } catch (_) {}
-
-        final isSuperAdmin = role == 'superAdmin';
-
-        // 2. SUPER ADMIN ROLE BOUNDARY
-        if (isSuperAdmin) {
-          // Inactive admin -> send to admin login
-          if (!isActiveAdmin && !isAdminLoginRoute) {
-            return '/admin/login';
-          }
-          // Super Admin trying to access doctor routes or auth pages -> redirect to /admin
-          if (!isAdminRoute) {
-            return '/admin';
-          }
-          return null; // Allow access to /admin
+      // 4. Authenticated users landing on landing/auth routes
+      if (isLoggedIn && isAuthRoute) {
+        if (DemoSessionService.isSuperAdminMode) {
+          return '/admin';
         }
-
-        // 3. DOCTOR / REGULAR USER ROLE BOUNDARY
-        // Non-admin trying to access /admin routes -> redirect to /dashboard
-        if (isAdminRoute) {
-          return '/dashboard';
-        }
-
-        // Logged-in doctor on auth pages -> redirect to /dashboard
-        if (isAuthRoute) {
-          return '/dashboard';
-        }
+        return '/dashboard';
       }
 
       return null;

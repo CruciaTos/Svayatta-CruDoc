@@ -273,7 +273,10 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
               IconButton(
                 tooltip: 'Return to Clinic Portal',
                 icon: CruIcon(CruIcons.arrowUpRight, size: 18, color: c.accentText),
-                onPressed: () => context.go('/dashboard'),
+                onPressed: () {
+                  DemoSessionService.startDemoSession();
+                  context.go('/dashboard');
+                },
               ),
             ],
           ),
@@ -589,7 +592,10 @@ class _AdminTopBar extends ConsumerWidget {
             label: 'Doctor Portal',
             kind: CruButtonKind.secondary,
             icon: CruIcons.arrowUpRight,
-            onPressed: () => context.go('/dashboard'),
+            onPressed: () {
+              DemoSessionService.startDemoSession();
+              context.go('/dashboard');
+            },
           ),
         ],
       ),
@@ -1085,7 +1091,10 @@ class _AdminProfileButton extends ConsumerWidget {
 
         // Quick Jump to Doctor Clinic Shell
         PopupMenuItem<VoidCallback>(
-          value: () => context.go('/dashboard'),
+          value: () {
+            DemoSessionService.startDemoSession();
+            context.go('/dashboard');
+          },
           height: CruSize.control,
           child: Row(
             children: [

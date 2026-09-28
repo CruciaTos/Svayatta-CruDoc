@@ -110,8 +110,8 @@ class _DetailsBody extends ConsumerWidget {
     final isDentist = ref.watch(isDentistProvider);
     final isPhysio = ref.watch(isPhysiotherapyProvider);
     final isHomeopath = specialty == DoctorSpecialtyType.homeopathy;
-    // Radiologists: the patient's scans and reports.
-    final imaging = specialty == DoctorSpecialtyType.oralRadiologist
+    // Radiologists and dentists: the patient's scans and reports.
+    final imaging = (isDentist || specialty == DoctorSpecialtyType.oralRadiologist)
         ? PatientImagingCard(patientId: s.id)
         : null;
 

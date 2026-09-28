@@ -6,6 +6,10 @@ import 'package:doctor_management_app/features/homeopathy/data/providers/homeopa
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/open_study.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The 420 px preview beside (or over) the list: who, how to reach them,
@@ -36,6 +40,11 @@ class PatientPreviewPane extends ConsumerWidget {
     final allergy = _allergyPill(ref);
     final phone = s.patient.phone.trim();
 
+    final scans = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+        .where((st) => st.patientId == s.id)
+        .toList()
+      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+
     final blocks = <Widget>[
       _Head(summary: s, onOpen: onOpen, onClose: onClose),
       if (allergy != null || phone.isNotEmpty)
@@ -49,6 +58,7 @@ class PatientPreviewPane extends ConsumerWidget {
           ],
         ),
       _ActionTiles(summary: s),
+      if (scans.isNotEmpty) _ImagingBlock(studies: scans),
       if (s.followUpOverdue) _FollowUpBlock(summary: s),
       if (s.hasBalance)
         _BalanceBlock(summary: s, clinicName: clinic)
@@ -540,3 +550,50 @@ class _OpenProfileButton extends StatelessWidget {
     );
   }
 }
+
+class _ImagingBlock extends ConsumerWidget {
+  const _ImagingBlock({required this.studies});
+  final List<RadStudy> studies;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final first = studies.first;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s10),
+      decoration: BoxDecoration(
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.panel),
+        border: Border.all(color: c.hairline),
+      ),
+      child: Row(
+        children: [
+          RadModalityBadge(first.modality),
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${first.modality.label} (${RadFormat.date(first.studyDate)})',
+                  style: CruType.callout.w600.tint(c.label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  '${studies.length} ${studies.length == 1 ? 'scan' : 'scans'} · ${RadFormat.images(first.imageCount)}',
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
+              ],
+            ),
+          ),
+          CruCapsuleButton(
+            label: 'View',
+            onPressed: () => openRadStudy(context, ref, first),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

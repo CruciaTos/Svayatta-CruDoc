@@ -30,8 +30,8 @@ Future<void> openRadStudy(
   String? imageId,
 }) async {
   unawaited(ref.read(radiologyProvider).openedStudy(s));
-  await Navigator.of(context, rootNavigator: true)
-      .push(radRoute<void>(RadViewerScreen(studyId: s.id, initialImageId: imageId)));
+  await Navigator.of(context, rootNavigator: true).push(radRoute<void>(
+      RadViewerScreen(studyId: s.id, initialStudy: s, initialImageId: imageId)));
 }
 
 /// Opens (or starts) the study's report.

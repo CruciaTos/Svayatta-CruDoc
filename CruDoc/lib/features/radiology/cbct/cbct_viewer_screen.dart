@@ -73,7 +73,7 @@ class CbctViewerScreen extends ConsumerWidget {
                         : () => Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
                               builder: (_) => Theme(
                                 data: Theme.of(context),
-                                child: RadViewerScreen(studyId: studyId),
+                                child: RadViewerScreen(studyId: studyId, initialStudy: study),
                               ),
                             )),
                   ),

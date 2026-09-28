@@ -139,6 +139,10 @@ class RadPane extends ChangeNotifier {
 
   // ── Rendered ──
   ui.Image? image;
+  ui.Image? placeholder;
+  int nominalWidth = 0;
+  int nominalHeight = 0;
+  VoidCallback? _thumbListener;
   int _loadGen = 0;
   int _filterGen = 0;
   bool _rendering = false;
@@ -183,7 +187,8 @@ class RadPane extends ChangeNotifier {
   // ───────────────────────────── Loading ─────────────────────────────
 
   /// Shows [imageId] of [studyId]; [keepView] keeps the window and view
-  /// (switching frames of one file).
+  /// (switching frames of one file). Supports progressive fuzzy preview via [placeholder]
+  /// or [onThumbArrived].
   Future<void> show(
     String studyId,
     String imageId,
@@ -191,10 +196,17 @@ class RadPane extends ChangeNotifier {
     int frame = 0,
     bool keepView = false,
     String? unsupported,
+    ui.Image? placeholder,
+    int? nominalWidth,
+    int? nominalHeight,
+    VoidCallback Function(void Function(ui.Image thumb))? onThumbArrived,
   }) async {
     this.studyId = studyId;
     this.imageId = imageId;
     this.frame = frame;
+    this.placeholder = placeholder;
+    this.nominalWidth = nominalWidth ?? 0;
+    this.nominalHeight = nominalHeight ?? 0;
     draft = null;
     draftHover = null;
     final gen = ++_loadGen;
@@ -204,10 +216,23 @@ class RadPane extends ChangeNotifier {
     }
     loading = true;
     error = null;
+
+    _thumbListener?.call();
+    _thumbListener = null;
+    if (this.placeholder == null && onThumbArrived != null) {
+      _thumbListener = onThumbArrived((thumb) {
+        if (_disposed || gen != _loadGen || px != null || image != null) return;
+        this.placeholder = thumb;
+        touch();
+      });
+    }
+
     touch();
     try {
       final p = await cache.get(studyId, imageId, frame);
       if (gen != _loadGen || _disposed) return;
+      _thumbListener?.call();
+      _thumbListener = null;
       px = p;
       values = p.values;
       loading = false;
@@ -225,28 +250,39 @@ class RadPane extends ChangeNotifier {
       if (filters.changesValues) {
         await _applyValueFilters();
       } else {
-        requestRender();
+        requestRender(progressive: true);
       }
     } on RadUnsupportedImage catch (e) {
+      _thumbListener?.call();
+      _thumbListener = null;
       if (gen == _loadGen) _setError(e.reason);
     } catch (_) {
+      _thumbListener?.call();
+      _thumbListener = null;
       if (gen == _loadGen) _setError("This image couldn't be opened");
     }
   }
 
   void _setError(String message) {
+    _thumbListener?.call();
+    _thumbListener = null;
     loading = false;
     error = message;
     px = null;
     values = null;
     image?.dispose();
     image = null;
+    placeholder = null;
+    nominalWidth = 0;
+    nominalHeight = 0;
     touch();
   }
 
   /// Empties the pane (the layout grew past the study's images).
   void clear() {
     _loadGen++;
+    _thumbListener?.call();
+    _thumbListener = null;
     imageId = '';
     stack = null;
     px = null;
@@ -255,6 +291,9 @@ class RadPane extends ChangeNotifier {
     loading = false;
     image?.dispose();
     image = null;
+    placeholder = null;
+    nominalWidth = 0;
+    nominalHeight = 0;
     touch();
   }
 
@@ -272,12 +311,12 @@ class RadPane extends ChangeNotifier {
     final (c, w) = p.defaultWindow;
     center = c;
     width = w;
-    requestRender();
+    requestRender(progressive: true);
   }
 
   void toggleInvert() {
     userInvert = !userInvert;
-    requestRender();
+    requestRender(progressive: true);
   }
 
   Future<void> setFilters(RadFilterSettings f) async {
@@ -290,7 +329,7 @@ class RadPane extends ChangeNotifier {
     if (valuesChanged) {
       await _applyValueFilters();
     } else {
-      requestRender();
+      requestRender(progressive: true);
     }
   }
 
@@ -300,27 +339,35 @@ class RadPane extends ChangeNotifier {
     final gen = ++_filterGen;
     if (!filters.changesValues) {
       values = p.values;
-      requestRender();
+      requestRender(progressive: true);
       return;
     }
     final out = await applyValueFilters(p, filters);
     if (gen != _filterGen || _disposed || !identical(p, px)) return;
     values = out;
-    requestRender();
+    requestRender(progressive: true);
   }
 
   // ───────────────────────────── Rendering ─────────────────────────────
 
-  /// Re-renders the image. While dragging ([interactive]) it renders a
-  /// quick reduced-resolution preview now and the full image once the
-  /// drag pauses.
-  void requestRender({bool interactive = false}) {
+  /// Re-renders the image.
+  /// - [interactive]: renders a quick reduced-resolution preview now, full image once drag pauses.
+  /// - [progressive]: fuzzy loading - renders a fast preview immediately and schedules full-res on next tick.
+  void requestRender({bool interactive = false, bool progressive = false}) {
     final p = px;
     if (p == null || _disposed) return;
     _fullTimer?.cancel();
     if (interactive) {
       _render(radPreviewStep(p.width, p.height));
       _fullTimer = Timer(const Duration(milliseconds: 160), () => _render(1));
+    } else if (progressive) {
+      final step = radPreviewStep(p.width, p.height);
+      if (step > 1) {
+        _render(step);
+        _fullTimer = Timer(Duration.zero, () => _render(1));
+      } else {
+        _render(1);
+      }
     } else {
       _render(1);
     }
@@ -343,6 +390,7 @@ class RadPane extends ChangeNotifier {
       }
       image?.dispose();
       image = img;
+      placeholder = null;
       notifyListeners();
     } finally {
       _rendering = false;
@@ -365,7 +413,14 @@ class RadPane extends ChangeNotifier {
   /// Image size after rotation.
   Size get _turnedSize {
     final p = px;
-    if (p == null) return Size.zero;
+    if (p == null) {
+      final w = nominalWidth > 0 ? nominalWidth : (placeholder?.width ?? 0);
+      final h = nominalHeight > 0 ? nominalHeight : (placeholder?.height ?? 0);
+      if (w <= 0 || h <= 0) return Size.zero;
+      return quarterTurns.isOdd
+          ? Size(h.toDouble(), w.toDouble())
+          : Size(w.toDouble(), h.toDouble());
+    }
     return quarterTurns.isOdd
         ? Size(p.height.toDouble(), p.width.toDouble())
         : Size(p.width.toDouble(), p.height.toDouble());
@@ -417,15 +472,16 @@ class RadPane extends ChangeNotifier {
 
   /// Applies the image → pane transform to [canvas].
   void applyTransform(Canvas canvas) {
-    final p = px;
-    if (p == null) return;
+    final w = (px?.width ?? (nominalWidth > 0 ? nominalWidth : placeholder?.width))?.toDouble();
+    final h = (px?.height ?? (nominalHeight > 0 ? nominalHeight : placeholder?.height))?.toDouble();
+    if (w == null || h == null || w <= 0 || h <= 0) return;
     final o = _origin;
     canvas
       ..translate(o.dx, o.dy)
       ..scale(zoom)
       ..rotate(quarterTurns % 4 * math.pi / 2)
       ..scale(flipH ? -1 : 1, flipV ? -1 : 1)
-      ..translate(-p.width / 2, -p.height / 2);
+      ..translate(-w / 2, -h / 2);
   }
 
   /// Zooms by [factor] keeping the image point under [focal] still.
@@ -495,9 +551,12 @@ class RadPane extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _thumbListener?.call();
+    _thumbListener = null;
     _fullTimer?.cancel();
     image?.dispose();
     image = null;
+    placeholder = null;
     super.dispose();
   }
 }

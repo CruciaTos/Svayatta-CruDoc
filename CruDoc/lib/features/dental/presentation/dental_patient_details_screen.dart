@@ -17,6 +17,11 @@ import 'widgets/tooth_condition_editor_sheet.dart';
 import 'widgets/tooth_history_sheet.dart';
 import 'widgets/dental_procedure_log_sheet.dart';
 import 'widgets/dental_treatment_plan_sheet.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/open_study.dart';
+import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 
 const Color _accentTeal = Color(0xFF0D9488);
 const Color _accentTealLight = Color(0xFFCCFBF1);
@@ -194,6 +199,11 @@ class _DentalPatientDetailsScreenState
 
                     // Sessions Stats Row
                     _buildSessionsRow(visitsAsync),
+
+                    const SizedBox(height: 16),
+
+                    // Section: X-rays & Scans (DICOM / RVG / OPG)
+                    _buildImagingSection(patient),
 
                     const SizedBox(height: 16),
 
@@ -400,6 +410,120 @@ class _DentalPatientDetailsScreenState
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImagingSection(Patient patient) {
+    final studies = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+        .where((s) => s.patientId == patient.id)
+        .toList()
+      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: _accentTealLight,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.blur_on_rounded, size: 18, color: _accentTeal),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'X-rays & Scans',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ],
+              ),
+              TextButton.icon(
+                onPressed: () => runRadImport(context, ref),
+                icon: const Icon(Icons.add, size: 16, color: _accentTeal),
+                label: const Text(
+                  'Import Scan',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _accentTeal),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (studies.isEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+              alignment: Alignment.center,
+              child: const Text(
+                'No X-rays or DICOM scans linked to this patient yet.\nTap "Import Scan" to add DICOM, RVG, or panoramic scans.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+            )
+          else
+            Column(
+              children: [
+                for (var i = 0; i < studies.length; i++) ...[
+                  if (i > 0) const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                  InkWell(
+                    onTap: () => openRadStudy(context, ref, studies[i]),
+                    borderRadius: BorderRadius.circular(10),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                      child: Row(
+                        children: [
+                          RadModalityBadge(studies[i].modality),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${studies[i].modality.label} · ${RadFormat.date(studies[i].studyDate)}',
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '${RadFormat.images(studies[i].imageCount)} · ${studies[i].status.label}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          FilledButton.tonal(
+                            onPressed: () => openRadStudy(context, ref, studies[i]),
+                            child: const Text('Open Viewer'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
         ],
       ),
     );

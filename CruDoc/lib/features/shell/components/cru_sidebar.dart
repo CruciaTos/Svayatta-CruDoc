@@ -81,7 +81,7 @@ List<_NavGroup> _groupsFor({
     // Live queue + calendar in one place (the queue tab opens its Live view).
     _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
   ]),
-  if (radiologist)
+  if (radiologist || dentist)
     const _NavGroup('Radiology', [
       _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
       _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),

@@ -350,7 +350,7 @@ class _RadViewportState extends State<RadViewport> {
         _editOrig = null;
         widget.host.endEdit();
       case _Drag.window:
-        pane.requestRender();
+        pane.requestRender(progressive: true);
       default:
         break;
     }
@@ -495,14 +495,17 @@ class _ImagePainter extends CustomPainter {
   static const _loupeZoom = 3.0;
 
   void _drawImage(Canvas canvas) {
-    final img = pane.image, px = pane.px;
-    if (img == null || px == null) return;
+    final img = pane.image ?? pane.placeholder;
+    if (img == null) return;
+    final w = (pane.px?.width ?? (pane.nominalWidth > 0 ? pane.nominalWidth : img.width)).toDouble();
+    final h = (pane.px?.height ?? (pane.nominalHeight > 0 ? pane.nominalHeight : img.height)).toDouble();
+    if (w <= 0 || h <= 0) return;
     canvas.save();
     pane.applyTransform(canvas);
     canvas.drawImageRect(
       img,
       Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
-      Rect.fromLTWH(0, 0, px.width.toDouble(), px.height.toDouble()),
+      Rect.fromLTWH(0, 0, w, h),
       Paint()
         ..filterQuality = pane.zoom >= 2.5 ? FilterQuality.none : FilterQuality.medium,
     );
@@ -701,7 +704,7 @@ class _Corners extends StatelessWidget {
             child: Text('Drag an image here', style: CruType.subhead.tint(RadInk.overlayQuiet)),
           );
         }
-        if (pane.loading && px == null) {
+        if (pane.loading && px == null && pane.placeholder == null) {
           return Center(
             child: Text('Opening image…', style: CruType.subhead.tint(RadInk.overlayQuiet)),
           );

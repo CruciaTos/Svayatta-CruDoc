@@ -478,7 +478,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         final dentist = ref.watch(isDentistProvider);
         final radiologist = ref.watch(isOralRadiologistProvider);
         final shown = (!dentist && DesktopTab.isDental(_currentIndex)) ||
-                (!radiologist && DesktopTab.isRadiology(_currentIndex))
+                (!radiologist && !dentist && DesktopTab.isRadiology(_currentIndex))
             ? DesktopTab.dashboard
             : _currentIndex;
         final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(

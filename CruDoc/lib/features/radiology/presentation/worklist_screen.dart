@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/radiology/presentation/pacs_dialo
 import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/features/radiology/presentation/rvg_capture_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum _Show { all, toRead, inReport, signed }
@@ -147,6 +148,12 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                 : '${DashFormat.plural(toRead.length, 'study', 'studies')} to read'
                     '${overdue > 0 ? ' · $overdue overdue' : ''}',
             actions: [
+              CruButton(
+                label: 'Capture RVG',
+                icon: RadIcons.xray,
+                kind: CruButtonKind.secondary,
+                onPressed: () => showRvgCaptureDialog(context),
+              ),
               CruButton(
                 label: 'PACS',
                 icon: RadIcons.server,

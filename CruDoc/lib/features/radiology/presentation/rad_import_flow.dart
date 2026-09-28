@@ -16,6 +16,7 @@ import 'package:doctor_management_app/features/radiology/imaging/rad_import.dart
 import 'package:doctor_management_app/features/radiology/presentation/pacs_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/features/radiology/presentation/rvg_capture_dialog.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Import scans: pick a source (or take dropped [paths]), find the
@@ -105,6 +106,15 @@ class _SourceDialog extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _SourceTile(
+              icon: RadIcons.xray,
+              title: 'Direct RVG sensor capture',
+              body: 'Arm intraoral sensor (Vatech, Carestream, Woodpecker, Dexis...)',
+              onTap: () {
+                Navigator.of(context).pop();
+                showRvgCaptureDialog(context);
+              },
+            ),
             _SourceTile(
               icon: RadIcons.xray,
               title: 'Files',

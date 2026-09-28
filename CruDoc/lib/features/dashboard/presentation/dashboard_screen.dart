@@ -69,8 +69,8 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
         ref.watch(activeDentalSubspecialtyProvider),
         widget.onNavigateToTab,
       ),
-      // Oral & Maxillofacial Radiologists: what's waiting to be read.
-      if (ref.watch(isOralRadiologistProvider))
+      // Oral & Maxillofacial Radiologists and dentists: what's waiting to be read.
+      if (ref.watch(isOralRadiologistProvider) || _isDentist)
         RadiologyTodayCard(onNavigate: widget.onNavigateToTab),
     ];
 

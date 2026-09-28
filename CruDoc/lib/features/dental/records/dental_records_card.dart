@@ -18,6 +18,11 @@ import 'package:doctor_management_app/features/dental/specialties/anaesthesia/pr
 import 'package:doctor_management_app/features/dental/specialties/ortho/ortho_photos.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/form_fill.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
+import 'package:doctor_management_app/features/radiology/open_study.dart';
+import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
+import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The dentist's clinical records on Patient details: perio chart, endo,
@@ -105,6 +110,14 @@ class DentalRecordsCard extends ConsumerWidget {
             return '$count filled · last $name (${DentalFormat.date(last.recordedAt)})';
           }();
 
+    final radStudies = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+        .where((s) => s.patientId == patient.id)
+        .toList()
+      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+    final radLine = radStudies.isEmpty
+        ? 'No scans yet · Tap to import / capture'
+        : '${radStudies.length} ${radStudies.length == 1 ? 'scan' : 'scans'} · last ${radStudies.first.modality.short} (${DentalFormat.date(radStudies.first.studyDate)})';
+
     final perioLine = perio.isEmpty
         ? 'No exam yet'
         : () {
@@ -189,6 +202,18 @@ class DentalRecordsCard extends ConsumerWidget {
             () => showOmHistoryDialog(context, patient, existing: om),
             warn: omHighRisk(om),
             alert: allergy == null || allergy == 'None' ? null : 'Allergic to $allergy',
+          ),
+          row(
+            RadIcons.xray,
+            'X-rays & Imaging',
+            radLine,
+            () {
+              if (radStudies.isNotEmpty) {
+                openRadStudy(context, ref, radStudies.first);
+              } else {
+                runRadImport(context, ref);
+              }
+            },
           ),
           row(RecIcons.perio, 'Perio chart', perioLine, () {
             Navigator.of(context, rootNavigator: true).push(

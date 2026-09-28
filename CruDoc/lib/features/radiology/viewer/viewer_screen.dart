@@ -55,9 +55,15 @@ const _toolGroups = [
 /// adjustments and the AI second read. CBCT slice series page through as
 /// one stack. Annotations save to the study as the doctor works.
 class RadViewerScreen extends ConsumerStatefulWidget {
-  const RadViewerScreen({super.key, required this.studyId, this.initialImageId});
+  const RadViewerScreen({
+    super.key,
+    required this.studyId,
+    this.initialStudy,
+    this.initialImageId,
+  });
 
   final String studyId;
+  final RadStudy? initialStudy;
   final String? initialImageId;
 
   @override
@@ -77,7 +83,6 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   RadStudy? _compare;
   final _studies = <String, RadStudy>{};
   final _stackCache = <String, (RadStudy, Map<String, List<String>>)>{};
-  bool _prefsLoaded = false;
   bool _started = false;
   String? _studyDir;
 
@@ -116,6 +121,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     _ctl = ref.read(radiologyProvider);
     _cache = RadPixelCache(_loadPixels, capacity: 12);
     _thumbs = RadThumbCache(_ctl.fileOf);
+    final init = widget.initialStudy;
+    if (init != null) {
+      _study = init;
+      _studies[init.id] = init;
+      _start(init);
+    }
     _loadPrefs();
     _ctl.studyDir(widget.studyId).then((d) {
       if (mounted) setState(() => _studyDir = d.path);
@@ -141,7 +152,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   Future<void> _loadPrefs() async {
     RadSettings? settings;
     try {
-      settings = await ref.read(radSettingsProvider.future);
+      settings = await ref.read(radSettingsProvider.future).timeout(const Duration(seconds: 2));
     } catch (_) {
       // Defaults are fine when settings can't be read.
     }
@@ -149,7 +160,6 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     setState(() {
       _prefs = RadViewerPrefs.from(settings?.viewer ?? const {});
       _panelWidth = _prefs.panelWidth;
-      _prefsLoaded = true;
     });
   }
 
@@ -228,8 +238,29 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         ? '${img.transferSyntax.isEmpty ? 'Compressed' : DicomSyntax.name(img.transferSyntax)} '
             'DICOM images are not supported yet'
         : null;
+    final thumb = _thumbs.image(studyId, imageId);
+    if (thumb == null && !img.compressed) {
+      _thumbs.request(s, img, priority: true);
+    }
     p
-        .show(studyId, imageId, _cache, keepView: keepView, unsupported: unsupported)
+        .show(
+          studyId,
+          imageId,
+          _cache,
+          keepView: keepView,
+          unsupported: unsupported,
+          placeholder: thumb,
+          nominalWidth: img.width,
+          nominalHeight: img.height,
+          onThumbArrived: (cb) {
+            void listener() {
+              final t = _thumbs.image(studyId, imageId);
+              if (t != null) cb(t);
+            }
+            _thumbs.addListener(listener);
+            return () => _thumbs.removeListener(listener);
+          },
+        )
         .then((_) {
       if (!mounted || !_link || keepView || _panes.isEmpty || identical(p, _pane)) return;
       p.scale = _pane.scale;
@@ -1446,8 +1477,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     final fresh = async.value;
     if (fresh != null) _accept(fresh);
     final s = _study;
-    if (s == null || !_prefsLoaded) {
-      final gone = _prefsLoaded && !async.isLoading && fresh == null;
+    if (s == null) {
+      final gone = !async.isLoading && fresh == null && !async.hasError;
       return Scaffold(
         backgroundColor: c.canvas,
         body: Center(
@@ -1464,7 +1495,27 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                     ),
                   ],
                 )
-              : Text('Opening study…', style: CruType.text.tint(c.label2)),
+              : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        valueColor: AlwaysStoppedAnimation<Color>(c.accent),
+                      ),
+                    ),
+                    const SizedBox(height: CruSpace.s16),
+                    Text('Opening study…', style: CruType.text.tint(c.label2)),
+                    const SizedBox(height: CruSpace.s16),
+                    CruButton(
+                      label: 'Cancel',
+                      kind: CruButtonKind.secondary,
+                      onPressed: () => Navigator.of(context).maybePop(),
+                    ),
+                  ],
+                ),
         ),
       );
     }

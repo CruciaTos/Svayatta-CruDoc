@@ -44,12 +44,16 @@ class RadThumbCache extends ChangeNotifier {
   ui.Image? image(String studyId, String imageId) => _images[_key(studyId, imageId)];
   bool failed(String studyId, String imageId) => _failed.contains(_key(studyId, imageId));
 
-  void request(RadStudy s, RadImageRef i) {
+  void request(RadStudy s, RadImageRef i, {bool priority = false}) {
     final key = _key(s.id, i.id);
     if (i.compressed || _images.containsKey(key) || _failed.contains(key) || !_queued.add(key)) {
       return;
     }
-    _queue.add((s, i));
+    if (priority) {
+      _queue.insert(0, (s, i));
+    } else {
+      _queue.add((s, i));
+    }
     _pump();
   }
 

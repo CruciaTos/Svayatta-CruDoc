@@ -11,7 +11,12 @@ import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
+import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
+import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
+import 'package:doctor_management_app/features/scribe/services/scribe_transcript_formatter.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
+import 'package:doctor_management_app/features/voice/services/speech_engine.dart';
 
 /// Where a scribe session is in its lifecycle.
 enum ScribeSessionPhase {
@@ -115,6 +120,21 @@ class ScribeSessionController extends ChangeNotifier {
   bool get hasUnsavedAudio =>
       _audioPath != null && _phase != ScribeSessionPhase.done;
 
+  ScribeDraftFormController? activeDraftForm;
+
+  /// Hands over ownership of the [activeDraftForm] to the review UI,
+  /// clearing the local reference so disposing the session won't dispose it.
+  ScribeDraftFormController? takeActiveDraftForm() {
+    final form = activeDraftForm;
+    activeDraftForm = null;
+    return form;
+  }
+
+  final ScribeLiveExtractor _extractor = const ScribeLiveExtractor();
+  String _accumulatedTranscript = '';
+  String get accumulatedTranscript => _accumulatedTranscript;
+  StreamSubscription<VoiceTranscript>? _transcriptSub;
+
   String? _audioPath;
   DateTime? _consentAt;
   final Stopwatch _stopwatch = Stopwatch();
@@ -154,43 +174,43 @@ class ScribeSessionController extends ChangeNotifier {
     if (!_consentGiven || _phase != ScribeSessionPhase.ready) return;
     _error = null;
 
-    if (kIsWeb) {
-      _setError(
-        "Recording isn't supported in the web version yet. Use the "
-        'mobile or desktop app.',
-      );
-      return;
+    final doctorId = FirebaseAuth.instance.currentUser?.uid ?? 'local_doctor';
+    final initialNote = _pendingDraft ??
+        ConsultationNote(
+          id: const Uuid().v4(),
+          doctorId: doctorId,
+          patientId: visit.patientId,
+          visitId: visit.id,
+          consentGiven: true,
+          consentAt: DateTime.now(),
+          status: ConsultationNoteStatus.draft,
+          createdAt: DateTime.now(),
+        );
+    activeDraftForm ??= ScribeDraftFormController(initialNote);
+    _accumulatedTranscript = '';
+
+    // Mark openKind as scribe so VoiceController treats this as dedicated consultation session
+    VoiceBus.openKind.value = 'scribe';
+
+    // Start live speech engine transcription
+    try {
+      await SpeechEngine.instance.init();
+      await SpeechEngine.instance.start();
+      _transcriptSub?.cancel();
+      _transcriptSub =
+          SpeechEngine.instance.transcripts.listen(_onLiveTranscript);
+    } catch (e) {
+      debugPrint('[ScribeSession] Live speech engine transcription warning: $e');
     }
 
-    final bool hasPermission;
-    try {
-      hasPermission = await _recorder.hasPermission();
-    } catch (e) {
-      _setError('Could not access the microphone: $e');
-      return;
-    }
-    if (!hasPermission) {
-      _setError(
-        Platform.isWindows
-            ? 'Microphone access is blocked. Allow it in Windows Settings → '
-                  'Privacy & security → Microphone, then try again.'
-            : 'Microphone permission denied. Allow microphone access for '
-                  'CruDoc in your device settings, then try again.',
-      );
-      return;
-    }
-
-    try {
-      final path = await _newRecordingPath();
-      await _recorder.start(recordConfig, path: path);
-      _audioPath = path;
-    } catch (e) {
-      debugPrint('[ScribeSession] Recorder failed to start: $e');
-      _setError(
-        'Could not start recording. Check that a microphone is '
-        'connected and not in use by another app.',
-      );
-      return;
+    if (!kIsWeb) {
+      try {
+        final path = await _newRecordingPath();
+        await _recorder.start(recordConfig, path: path);
+        _audioPath = path;
+      } catch (e) {
+        debugPrint('[ScribeSession] File recorder warning: $e');
+      }
     }
 
     _consentAt = DateTime.now();
@@ -210,14 +230,50 @@ class ScribeSessionController extends ChangeNotifier {
     _notify();
   }
 
+  void _onLiveTranscript(VoiceTranscript t) {
+    if (_phase != ScribeSessionPhase.recording) return;
+
+    if (t.source == 'fast') {
+      // 1. Fast stream cue detection: immediately dissolve relevant fields
+      final cues = _extractor.detectFieldCues(t.text);
+      for (final field in cues) {
+        activeDraftForm?.setFieldPending(field, true);
+      }
+    } else {
+      // 2. Accurate stream: extract clinical entities and merge into active draft
+      if (t.text.trim().isNotEmpty) {
+        _accumulatedTranscript = ScribeTranscriptFormatter.mergeLiveChunk(
+          _accumulatedTranscript,
+          t.text,
+        );
+      }
+      final ext = _extractor.extract(
+        _accumulatedTranscript.isNotEmpty ? _accumulatedTranscript : t.text,
+      );
+      activeDraftForm?.mergeLiveExtraction(ext);
+    }
+  }
+
+  /// Manually simulates a speech utterance for testing live consultation scribing
+  void simulateSpeechTurn(String text) {
+    _onLiveTranscript(VoiceTranscript(text, isFinal: false, source: 'fast'));
+    Future.delayed(const Duration(milliseconds: 180), () {
+      if (!_disposed) {
+        _onLiveTranscript(
+          VoiceTranscript(text, isFinal: true, source: 'accurate'),
+        );
+      }
+    });
+  }
+
   Future<void> pause() async {
     if (_phase != ScribeSessionPhase.recording) return;
     try {
       await _recorder.pause();
     } catch (e) {
       debugPrint('[ScribeSession] Pause failed: $e');
-      return;
     }
+    unawaited(SpeechEngine.instance.stop());
     _stopwatch.stop();
     levels.value = List<double>.filled(levelCount, 0);
     _phase = ScribeSessionPhase.paused;
@@ -230,8 +286,8 @@ class ScribeSessionController extends ChangeNotifier {
       await _recorder.resume();
     } catch (e) {
       debugPrint('[ScribeSession] Resume failed: $e');
-      return;
     }
+    unawaited(SpeechEngine.instance.start());
     _stopwatch.start();
     _phase = ScribeSessionPhase.recording;
     _notify();
@@ -294,6 +350,9 @@ class ScribeSessionController extends ChangeNotifier {
     if (_phase == ScribeSessionPhase.processing) return;
     await _stopRecorder(cancel: true);
     await _deleteAudio();
+    activeDraftForm?.dispose();
+    activeDraftForm = null;
+    _accumulatedTranscript = '';
     _phase = ScribeSessionPhase.ready;
     _error = null;
     _failureKind = null;
@@ -309,6 +368,8 @@ class ScribeSessionController extends ChangeNotifier {
     final doctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
     await _stopRecorder(cancel: true);
     await _deleteAudio();
+    activeDraftForm?.dispose();
+    activeDraftForm = null;
     _draft = ConsultationNote(
       id: const Uuid().v4(),
       doctorId: doctorId,
@@ -336,16 +397,7 @@ class ScribeSessionController extends ChangeNotifier {
   // ---- Internals ----
 
   Future<void> _process() async {
-    final audioPath = _audioPath;
-    if (audioPath == null) return;
-
-    final doctorId = FirebaseAuth.instance.currentUser?.uid;
-    if (doctorId == null) {
-      _failureKind = ScribeFailureKind.unknown;
-      _phase = ScribeSessionPhase.failed;
-      _setError("You're signed out. Sign in again to process this recording.");
-      return;
-    }
+    final doctorId = FirebaseAuth.instance.currentUser?.uid ?? 'local_doctor';
 
     _error = null;
     _failureKind = null;
@@ -358,41 +410,28 @@ class ScribeSessionController extends ChangeNotifier {
     _notify();
 
     try {
-      final validationError = await _processingService.validateAudio(audioPath);
-      if (validationError != null) {
-        throw ScribeProcessingException(
-          validationError,
-          kind: ScribeFailureKind.audio,
-        );
-      }
-
-      final draft = await _processingService.processAudio(
-        localAudioPath: audioPath,
+      // Process locally: uses live transcribed consultation and active draft fields
+      final draft = _processingService.processLocally(
+        transcript: _accumulatedTranscript,
         noteId: const Uuid().v4(),
         doctorId: doctorId,
         patientId: visit.patientId,
         visitId: visit.id,
         consentAt: _consentAt ?? DateTime.now(),
+        existingDraft: activeDraftForm?.toNote(),
       );
 
-      // Persist before deleting the audio so an interrupted review can be
-      // resumed from the saved draft.
       await _repository.saveNote(draft);
       await _deleteAudio();
       if (_disposed) return;
       _draft = draft;
       _phase = ScribeSessionPhase.done;
-    } on ScribeProcessingException catch (e) {
-      if (_disposed) return;
-      _failureKind = e.kind;
-      _error = e.message;
-      _phase = ScribeSessionPhase.failed;
     } catch (e) {
-      debugPrint('[ScribeSession] Unexpected processing error: $e');
+      debugPrint('[ScribeSession] Local processing error: $e');
       if (_disposed) return;
       _failureKind = ScribeFailureKind.unknown;
       _error =
-          'Something went wrong while analysing the recording. Try '
+          'Something went wrong while processing the note locally. Try '
           'again, or write the note manually.';
       _phase = ScribeSessionPhase.failed;
     } finally {
@@ -429,6 +468,10 @@ class ScribeSessionController extends ChangeNotifier {
     _ticker = null;
     await _amplitudeSub?.cancel();
     _amplitudeSub = null;
+    await _transcriptSub?.cancel();
+    _transcriptSub = null;
+    unawaited(SpeechEngine.instance.stop());
+    VoiceBus.openKind.value = null;
     _stopwatch.stop();
     try {
       if (await _recorder.isRecording() || await _recorder.isPaused()) {
@@ -497,6 +540,12 @@ class ScribeSessionController extends ChangeNotifier {
     _ticker?.cancel();
     _processingTicker?.cancel();
     _amplitudeSub?.cancel();
+    _transcriptSub?.cancel();
+    _transcriptSub = null;
+    unawaited(SpeechEngine.instance.stop());
+    VoiceBus.openKind.value = null;
+    activeDraftForm?.dispose();
+    activeDraftForm = null;
     final path = _audioPath;
     _audioPath = null;
     // Recorder must be released before its file can be deleted on Windows.

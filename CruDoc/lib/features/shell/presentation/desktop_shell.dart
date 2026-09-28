@@ -538,16 +538,18 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         }
 
         // Dental chairside mode: the main area's text and icons larger,
-        // the sidebar as it is.
-        if (dentist && (ref.watch(largeModeProvider).value ?? false)) {
+        // the sidebar as it is. 20% larger when on, 10% larger when off (normal).
+        if (dentist) {
+          final isLarge = ref.watch(largeModeProvider).value ?? false;
+          final scale = isLarge ? largeModeScale : normalModeScale;
           final mq = MediaQuery.of(context);
           content = MediaQuery(
             data: mq.copyWith(
               textScaler: TextScaler.linear(
-                mq.textScaler.scale(1) * largeModeScale,
+                mq.textScaler.scale(1) * scale,
               ),
             ),
-            child: CruIconScale(scale: largeModeScale, child: content),
+            child: CruIconScale(scale: scale, child: content),
           );
         }
 

@@ -85,6 +85,14 @@ abstract final class CruTheme {
           CruType.text.copyWith(color: c.label),
         ),
       ),
+      cardTheme: CardThemeData(
+        color: c.surface,
+        elevation: 0,
+        shape: RoundedSuperellipseBorder(
+          borderRadius: BorderRadius.circular(CruRadius.card),
+          side: BorderSide(color: c.hairline),
+        ),
+      ),
       extensions: [c],
     );
   }

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart' show TimeOfDay;
 
+import 'medical_conditions.dart';
+export 'medical_conditions.dart';
+
 /// What the doctor is asking for. Keyword rules, not a model: the demo has
 /// four commands, and rules are instant, predictable and easy to tune.
 enum VoiceIntent {
@@ -28,6 +31,12 @@ enum VoiceIntent {
 
   /// A line for the patient's notes, without opening a form.
   addNote,
+
+  /// Soft-delete an entire patient record.
+  deletePatient,
+
+  /// Delete a medical document / file.
+  deleteFile,
 }
 
 /// One parsed utterance. Every field is optional: partial speech fills in
@@ -585,7 +594,6 @@ const _fieldCues = {
   ..._dobCues,
   ..._reasonCues,
   ..._noteCues,
-  ..._allergyCues,
   ..._conditionCues,
   ..._balanceCues,
   ..._addressCues,
@@ -607,46 +615,6 @@ const _fieldCues = {
   'friday',
   'saturday',
   'sunday',
-};
-
-/// Known conditions, so "she's diabetic with high BP" fills the
-/// Conditions field without a cue word.
-const _conditionWords = {
-  'diabetes': 'Diabetes',
-  'diabetic': 'Diabetes',
-  'sugar': 'Diabetes',
-  'hypertension': 'Hypertension',
-  'hypertensive': 'Hypertension',
-  'bp': 'Hypertension',
-  'asthma': 'Asthma',
-  'asthmatic': 'Asthma',
-  'thyroid': 'Thyroid',
-  'hypothyroid': 'Thyroid',
-  'hypothyroidism': 'Thyroid',
-  'hyperthyroid': 'Thyroid',
-  'cardiac': 'Heart disease',
-  'arthritis': 'Arthritis',
-  'epilepsy': 'Epilepsy',
-  'epileptic': 'Epilepsy',
-  'migraine': 'Migraine',
-  'pregnant': 'Pregnant',
-  'pregnancy': 'Pregnant',
-  'anemia': 'Anaemia',
-  'anaemia': 'Anaemia',
-  'anemic': 'Anaemia',
-  'cholesterol': 'High cholesterol',
-  'cancer': 'Cancer',
-  'hiv': 'HIV',
-  'hepatitis': 'Hepatitis',
-  'tb': 'Tuberculosis',
-  'tuberculosis': 'Tuberculosis',
-  'copd': 'COPD',
-  'smoker': 'Smoker',
-  'pcos': 'PCOS',
-  'pcod': 'PCOS',
-  'obese': 'Obesity',
-  'obesity': 'Obesity',
-  'osteoporosis': 'Osteoporosis',
 };
 
 /// Visit reasons recognised without a cue word ("…for a root canal").
@@ -731,6 +699,10 @@ const _filler = {
   'called',
   'patient',
   'patients',
+  'delete',
+  'remove',
+  'trash',
+  'erase',
   'please',
   'his',
   'her',
@@ -1212,7 +1184,12 @@ class _Parser {
       phone: _phone,
       email: _email,
       conditions: _conditions,
-      notes: _notes.isEmpty ? null : _notes.join('. '),
+      notes: _notes.isEmpty
+          ? null
+          : _notes
+              .where((n) => n.trim().isNotEmpty && !isIncompleteNoteFragment(n))
+              .map((n) => n.startsWith('•') ? n : '• $n')
+              .join('\n'),
       balance: _balance,
       reason: _reason,
       durationMinutes: _duration,
@@ -1264,6 +1241,18 @@ class _Parser {
             _noteCues.contains(t.first) ||
             _has(const {'file', 'record', 'chart'}))) {
       return VoiceIntent.addNote;
+    }
+    final deleting = _has(const {'delete', 'remove', 'trash', 'erase'});
+    if (deleting &&
+        (_has(const {'file', 'document', 'report', 'attachment', 'pdf'}) ||
+            _has(const {'files', 'documents', 'reports', 'attachments', 'pdfs'}))) {
+      return VoiceIntent.deleteFile;
+    }
+    if (deleting &&
+        (_has(const {'patient', 'record', 'profile'}) ||
+            _nameList.isNotEmpty ||
+            said)) {
+      return VoiceIntent.deletePatient;
     }
     if (_has(const {'cancel', 'drop'}) || _seq('call', 'off')) {
       return VoiceIntent.cancelAppointment;
@@ -1414,7 +1403,8 @@ class _Parser {
       }
 
       if (_noteCues.contains(w) && noteBody != null && noteFrom! > i) {
-        _notes.add(_sentence(noteBody!));
+        final bullets = formatNoteBulletLines(noteBody!);
+        _notes.addAll(bullets);
         _used.add(i);
         _mark(noteFrom!, t.length - noteFrom!);
         continue;
@@ -1422,14 +1412,16 @@ class _Parser {
       if (_noteCues.contains(w)) {
         final idx = _span(i + 1);
         if (idx.isEmpty) continue;
-        _notes.add(_sentence(_words(idx)));
+        final bullets = formatNoteBulletLines(_words(idx));
+        _notes.addAll(bullets);
         _used
           ..add(i)
           ..addAll(idx);
       } else if (_allergyCues.contains(w)) {
         final idx = _span(i + 1);
         if (idx.isEmpty) continue;
-        _notes.add('Allergic to ${_words(idx)}');
+        final bullets = formatNoteBulletLines('allergies for ${_words(idx)}');
+        _notes.addAll(bullets);
         _used
           ..add(i)
           ..addAll(idx);
@@ -1449,31 +1441,29 @@ class _Parser {
           ..addAll(idx);
       } else if (_conditionCues.contains(w)) {
         var s = i + 1;
-        while (const {'with', 'from', 'of'}.contains(_at(s))) {
+        while (const {
+          'with',
+          'from',
+          'of',
+          'is',
+          'are',
+          'has',
+          'having',
+          'my',
+          'the',
+          'a',
+          'an',
+          'serving',
+          'suffering',
+        }.contains(_at(s))) {
           s++;
         }
         final idx = _span(s);
         if (idx.isEmpty) continue;
-        // "diabetes and high BP" → two conditions.
-        final chunk = <int>[];
-        void flush() {
-          if (chunk.isEmpty) return;
-          final known = chunk
-              .map((k) => _conditionWords[t[k]])
-              .whereType<String>()
-              .firstOrNull;
-          _addCondition(known ?? _sentence(_words(chunk)));
-          chunk.clear();
+        final detected = extractMedicalConditions(t, start: s, end: s + idx.length);
+        for (final c in detected) {
+          _addCondition(c);
         }
-
-        for (final k in idx) {
-          if (const {'and', 'also', 'plus'}.contains(t[k])) {
-            flush();
-          } else {
-            chunk.add(k);
-          }
-        }
-        flush();
         _used
           ..add(i)
           ..addAll(idx);
@@ -1488,21 +1478,13 @@ class _Parser {
   }
 
   void _conditionKeywords() {
+    final remaining = <String>[];
     for (var i = 0; i < t.length; i++) {
-      if (_used.contains(i)) continue;
-      var c = _conditionWords[t[i]];
-      if (t[i] == 'blood' && _at(i + 1) == 'pressure') {
-        c = 'Hypertension';
-        _used.add(i + 1);
-      } else if (t[i] == 'heart' &&
-          const {'disease', 'patient', 'problem'}.contains(_at(i + 1))) {
-        c = 'Heart disease';
-        _used.add(i + 1);
-      }
-      if (c == null) continue;
+      if (!_used.contains(i)) remaining.add(t[i]);
+    }
+    final detected = extractMedicalConditions(remaining);
+    for (final c in detected) {
       _addCondition(c);
-      _used.add(i);
-      if (_at(i - 1) == 'high') _used.add(i - 1);
     }
   }
 

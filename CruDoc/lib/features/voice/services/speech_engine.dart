@@ -14,13 +14,21 @@ import 'package:sherpa_onnx/sherpa_onnx.dart' as sherpa;
 /// One transcript update. [isFinal] is true once the doctor lets go of the
 /// talk key; partials arrive while they are still speaking.
 class VoiceTranscript {
-  const VoiceTranscript(this.text, {required this.isFinal, this.latencyMs});
+  const VoiceTranscript(
+    this.text, {
+    required this.isFinal,
+    this.latencyMs,
+    this.source = 'fast',
+  });
 
   final String text;
   final bool isFinal;
 
   /// How long the model took to produce this text.
   final int? latencyMs;
+
+  /// Which stream produced this transcript: 'fast' (base.en) or 'accurate' (large-v3-turbo).
+  final String source;
 }
 
 /// Offline speech-to-text for the Windows demo build, using Parakeet or
@@ -73,7 +81,8 @@ class SpeechEngine {
   int _prerollCount = 0;
   final _audio = <Float32List>[];
   int _samples = 0;
-  int _decodedSamples = 0;
+  int _fastDecodedSamples = 0;
+  int _accurateDecodedSamples = 0;
   bool _listening = false;
   int _utterance = 0;
   Future<void>? _initFuture;
@@ -285,9 +294,13 @@ class SpeechEngine {
     _samples = _prerollCount;
     _preroll.clear();
     _prerollCount = 0;
-    _decodedSamples = 0;
+    _fastDecodedSamples = 0;
+    _accurateDecodedSamples = 0;
     _listening = true;
-    unawaited(_pump(_utterance));
+    unawaited(_pumpFast(_utterance));
+    if (model == 'server') {
+      unawaited(_pumpAccurate(_utterance));
+    }
   }
 
   /// Stops listening and emits the final text. Call on talk-key up.
@@ -302,7 +315,9 @@ class SpeechEngine {
     level.value = 0;
 
     if (_samples < _sampleRate ~/ 4) {
-      _transcripts.add(const VoiceTranscript('', isFinal: true));
+      _transcripts.add(
+        const VoiceTranscript('', isFinal: true, source: 'accurate'),
+      );
       return;
     }
     final short = _samples < _sampleRate * _shortSeconds;
@@ -311,33 +326,85 @@ class SpeechEngine {
       pass: short ? 'short' : 'accurate',
     );
     if (utterance != _utterance) return;
-    _transcripts.add(VoiceTranscript(text, isFinal: true, latencyMs: ms));
+    _transcripts.add(
+      VoiceTranscript(text, isFinal: true, latencyMs: ms, source: 'accurate'),
+    );
   }
 
-  /// Live passes, back to back, while the key is held.
-  Future<void> _pump(int utterance) async {
+  /// Live fast passes (base.en): fires every ~60ms when new audio arrives.
+  /// Uses a rolling window of the last 3 seconds (up to 48000 samples).
+  Future<void> _pumpFast(int utterance) async {
     while (_listening && utterance == _utterance) {
       // Wait for new audio, and for enough of it that Whisper doesn't
       // invent words from a fraction of a second.
-      if (_samples - _decodedSamples < _minNewSamples ||
+      if (_samples - _fastDecodedSamples < _minNewSamples ||
           _samples < _sampleRate * 0.4) {
-        await Future<void>.delayed(const Duration(milliseconds: 30));
+        await Future<void>.delayed(const Duration(milliseconds: 25));
         continue;
       }
-      _decodedSamples = _samples;
-      final (text, ms) = await _transcribe(_snapshot(), pass: 'fast');
+      _fastDecodedSamples = _samples;
+      final (text, ms) = await _transcribe(
+        _snapshot(maxSamples: _sampleRate * 3),
+        pass: 'fast',
+      );
       if (_listening && utterance == _utterance && text.isNotEmpty) {
-        _transcripts.add(VoiceTranscript(text, isFinal: false, latencyMs: ms));
+        _transcripts.add(
+          VoiceTranscript(
+            text,
+            isFinal: false,
+            latencyMs: ms,
+            source: 'fast',
+          ),
+        );
       }
     }
   }
 
-  Float32List _snapshot() {
-    final out = Float32List(_samples);
-    var o = 0;
+  /// Live accurate passes (large-v3-turbo) in parallel: clean field values.
+  /// Fires whenever large-v3-turbo finishes and at least ~0.5s of new audio is ready.
+  /// Uses a rolling window of the last 6 seconds (up to 96000 samples).
+  Future<void> _pumpAccurate(int utterance) async {
+    while (_listening && utterance == _utterance) {
+      if (_samples - _accurateDecodedSamples < 8000 ||
+          _samples < _sampleRate * 0.6) {
+        await Future<void>.delayed(const Duration(milliseconds: 40));
+        continue;
+      }
+      _accurateDecodedSamples = _samples;
+      final (text, ms) = await _transcribe(
+        _snapshot(maxSamples: _sampleRate * 6),
+        pass: 'accurate',
+      );
+      if (_listening && utterance == _utterance && text.isNotEmpty) {
+        _transcripts.add(
+          VoiceTranscript(
+            text,
+            isFinal: false,
+            latencyMs: ms,
+            source: 'accurate',
+          ),
+        );
+      }
+    }
+  }
+
+  Float32List _snapshot({int? maxSamples}) {
+    final count = maxSamples != null ? math.min(_samples, maxSamples) : _samples;
+    if (count <= 0) return Float32List(0);
+    final out = Float32List(count);
+    final skip = _samples - count;
+    var current = 0;
+    var written = 0;
     for (final chunk in _audio) {
-      out.setAll(o, chunk);
-      o += chunk.length;
+      final chunkStart = current;
+      final chunkEnd = current + chunk.length;
+      current = chunkEnd;
+      if (chunkEnd <= skip) continue;
+      final offsetInChunk = math.max(0, skip - chunkStart);
+      final take = math.min(chunk.length - offsetInChunk, count - written);
+      out.setRange(written, written + take, chunk, offsetInChunk);
+      written += take;
+      if (written >= count) break;
     }
     return out;
   }

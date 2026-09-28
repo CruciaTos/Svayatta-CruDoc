@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/appointments/presentation/widgets
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/voice/presentation/ai_blur_reveal.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
 /// Opens Reschedule for [item]. Returns the new start when the visit was
@@ -51,6 +52,11 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
   DateTime? _capAt;
   DateTime? _capNextFree;
   String? _error;
+
+  int _revealDate = 0;
+  int _revealTime = 0;
+  bool _pendingDate = false;
+  bool _pendingTime = false;
 
   @override
   void initState() {
@@ -104,11 +110,59 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
 
   @override
   void onVoiceFill(VoiceFill f) {
-    if (f.date == null && f.time == null) return;
+    final raw = (f.rawText ?? '').toLowerCase();
+
     setState(() {
-      if (f.date != null) _date = ApptsBuilder.dateOnly(f.date!);
-      if (f.time != null) _time = f.time!;
-      _clearErrors();
+      // 1. Live speech detection (dissolve into smoke)
+      if (f.date == null &&
+          (raw.contains('date') ||
+              raw.contains('tomorrow') ||
+              raw.contains('today') ||
+              raw.contains('monday') ||
+              raw.contains('tuesday') ||
+              raw.contains('wednesday') ||
+              raw.contains('thursday') ||
+              raw.contains('friday') ||
+              raw.contains('saturday') ||
+              raw.contains('sunday') ||
+              raw.contains('next week') ||
+              raw.contains('this week'))) {
+        _pendingDate = true;
+      }
+      if (f.time == null &&
+          (raw.contains('time') ||
+              raw.contains('at ') ||
+              raw.contains('pm') ||
+              raw.contains('am') ||
+              raw.contains('morning') ||
+              raw.contains('afternoon') ||
+              raw.contains('evening') ||
+              raw.contains("o'clock"))) {
+        _pendingTime = true;
+      }
+
+      // 2. Field emergence
+      if (f.date != null) {
+        final d = ApptsBuilder.dateOnly(f.date!);
+        if (_date != d) {
+          _date = d;
+          _pendingDate = false;
+          _revealDate++;
+          _clearErrors();
+        }
+      }
+      if (f.time != null && _time != f.time!) {
+        _time = f.time!;
+        _pendingTime = false;
+        _revealTime++;
+        _clearErrors();
+      }
+
+      // 3. Final cleanup
+      if (f.isFinal) {
+        _pendingDate = false;
+        _pendingTime = false;
+      }
     });
   }
 
@@ -226,6 +280,8 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
             value: ApptFormat.dateLine(_date),
             semanticLabel: 'Date, ${ApptFormat.dateLine(_date)}',
             onTap: _pickDate,
+            aiRevealKey: _revealDate,
+            aiPending: _pendingDate,
           ),
           const SizedBox(height: CruSpace.s14),
           const _FieldLabel('Time'),
@@ -238,6 +294,8 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
             ),
             semanticLabel: 'Time, ${ApptFormat.time(_start)}',
             onTap: _pickTime,
+            aiRevealKey: _revealTime,
+            aiPending: _pendingTime,
           ),
           if (_capAt != null) ...[
             const SizedBox(height: CruSpace.s8),
@@ -269,12 +327,16 @@ class _PickerField extends StatelessWidget {
     required this.value,
     required this.semanticLabel,
     required this.onTap,
+    this.aiRevealKey,
+    this.aiPending = false,
   });
 
   final CruIconData icon;
   final String value;
   final String semanticLabel;
   final VoidCallback onTap;
+  final Object? aiRevealKey;
+  final bool aiPending;
 
   @override
   Widget build(BuildContext context) {
@@ -297,11 +359,15 @@ class _PickerField extends StatelessWidget {
             CruIcon(icon, size: 17, strokeWidth: 2, color: c.label2),
             const SizedBox(width: CruSpace.s10),
             Expanded(
-              child: Text(
-                value,
-                style: CruType.input.tabular.tint(c.label),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: AiBlurReveal(
+                revealKey: aiRevealKey,
+                isPending: aiPending,
+                child: Text(
+                  value,
+                  style: CruType.input.tabular.tint(c.label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
             CruIcon(CruIcons.chevronDown, size: 16, color: c.label3),

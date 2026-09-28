@@ -15,11 +15,15 @@ class CruCard extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(CruSpace.s24),
+    this.borderColor,
+    this.borderWidth = 1,
     this.semanticLabel,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
+  final Color? borderColor;
+  final double borderWidth;
 
   /// Region name for assistive tech (the reference's `aria-label`).
   final String? semanticLabel;
@@ -27,19 +31,23 @@ class CruCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final side = BorderSide(
+      color: borderColor ?? c.hairline,
+      width: borderWidth,
+    );
     return Semantics(
       container: true,
       label: semanticLabel,
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: c.surface,
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+          shape: cruShape(CruRadius.card, side: side),
           shadows: c.cardShadow,
         ),
-        // The 1 px border is painted inside the shape; inset the content
+        // The border is painted inside the shape; inset the content
         // by it too so sizes match the reference (CSS border-box).
         child: Padding(
-          padding: padding.add(const EdgeInsets.all(1)),
+          padding: padding.add(EdgeInsets.all(borderWidth)),
           child: child,
         ),
       ),

@@ -8,6 +8,7 @@ import 'package:doctor_management_app/features/scribe/data/models/physio_finding
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
 import 'package:doctor_management_app/features/scribe/presentation/widgets/scribe_palette.dart';
+import 'package:doctor_management_app/features/voice/presentation/ai_blur_reveal.dart';
 
 /// Editable AI-draft form shared by the mobile review screen and the
 /// desktop review phase. Not scrollable itself — the host provides the
@@ -250,6 +251,7 @@ class ScribeDraftForm extends StatelessWidget {
         controller.chiefComplaint,
         hint: 'e.g. Right knee pain for 3 weeks',
         capitalization: TextCapitalization.sentences,
+        fieldKey: 'chiefComplaint',
       ),
     );
   }
@@ -266,6 +268,8 @@ class ScribeDraftForm extends StatelessWidget {
         palette: palette,
         onAdd: controller.addSymptom,
         onRemove: controller.removeSymptom,
+        revealKey: controller.revealKeyFor('symptoms'),
+        isPending: controller.isPending('symptoms'),
       ),
     );
   }
@@ -323,6 +327,8 @@ class ScribeDraftForm extends StatelessWidget {
             palette: palette,
             onAdd: controller.addDiagnosis,
             onRemove: controller.removeDiagnosis,
+            revealKey: controller.revealKeyFor('diagnoses'),
+            isPending: controller.isPending('diagnoses'),
           ),
           if (added > 0 && existingDiagnoses.isNotEmpty) ...[
             const SizedBox(height: 10),
@@ -367,6 +373,8 @@ class ScribeDraftForm extends StatelessWidget {
               key: ValueKey(row.id),
               row: row,
               palette: palette,
+              revealKey: controller.revealKeyFor('medicines'),
+              isPending: controller.isPending('medicines'),
               onRemove: () => controller.removeMedicine(row),
             ),
           Align(
@@ -400,6 +408,7 @@ class ScribeDraftForm extends StatelessWidget {
         hint: 'e.g. Avoid forward bending, ice 15 min twice daily',
         maxLines: 5,
         capitalization: TextCapitalization.sentences,
+        fieldKey: 'advice',
       ),
     );
   }
@@ -414,7 +423,7 @@ class ScribeDraftForm extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _labelledField('Blood pressure', controller.bp, 'e.g. 120/80 mmHg'),
+          _labelledField('Blood pressure', controller.bp, 'e.g. 120/80 mmHg', fieldKey: 'bp'),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -423,11 +432,12 @@ class ScribeDraftForm extends StatelessWidget {
                   'Temperature',
                   controller.temp,
                   'e.g. 99.1 °F',
+                  fieldKey: 'temp',
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _labelledField('Pulse', controller.pulse, 'e.g. 78 bpm'),
+                child: _labelledField('Pulse', controller.pulse, 'e.g. 78 bpm', fieldKey: 'pulse'),
               ),
             ],
           ),
@@ -539,6 +549,7 @@ class ScribeDraftForm extends StatelessWidget {
                     compact[i].label,
                     controller.physioText[compact[i].key]!,
                     compact[i].hint,
+                    fieldKey: compact[i].key,
                   ),
                 ),
               ],
@@ -556,6 +567,7 @@ class ScribeDraftForm extends StatelessWidget {
             hint: nature.hint,
             maxLines: nature.maxLines,
             capitalization: TextCapitalization.sentences,
+            fieldKey: nature.key,
           ),
         ],
       ),
@@ -571,6 +583,7 @@ class ScribeDraftForm extends StatelessWidget {
         hint: spec.hint,
         maxLines: spec.maxLines + 2,
         capitalization: TextCapitalization.sentences,
+        fieldKey: spec.key,
       ),
     );
   }
@@ -597,6 +610,8 @@ class ScribeDraftForm extends StatelessWidget {
       palette: palette,
       onAdd: ([v]) => controller.addPhysioListItem(spec.key, v),
       onRemove: (i) => controller.removePhysioListItem(spec.key, i),
+      revealKey: controller.revealKeyFor(spec.key),
+      isPending: controller.isPending(spec.key),
     );
   }
 
@@ -656,8 +671,9 @@ class ScribeDraftForm extends StatelessWidget {
     required String hint,
     int maxLines = 1,
     TextCapitalization capitalization = TextCapitalization.none,
+    String? fieldKey,
   }) {
-    return TextField(
+    final input = TextField(
       controller: c,
       minLines: 1,
       maxLines: maxLines,
@@ -665,9 +681,36 @@ class ScribeDraftForm extends StatelessWidget {
       style: TextStyle(fontSize: 14, color: palette.textPrimary, height: 1.4),
       decoration: palette.fieldDecoration(hint),
     );
+
+    if (fieldKey == null) return input;
+
+    return AiBlurReveal(
+      revealKey: controller.revealKeyFor(fieldKey),
+      isPending: controller.isPending(fieldKey),
+      child: input,
+    );
   }
 
-  Widget _labelledField(String label, TextEditingController c, String hint) {
+  Widget _labelledField(
+    String label,
+    TextEditingController c,
+    String hint, {
+    String? fieldKey,
+  }) {
+    final input = TextField(
+      controller: c,
+      style: TextStyle(fontSize: 13.5, color: palette.textPrimary),
+      decoration: palette.fieldDecoration(hint, dense: true),
+    );
+
+    final wrappedInput = fieldKey == null
+        ? input
+        : AiBlurReveal(
+            revealKey: controller.revealKeyFor(fieldKey),
+            isPending: controller.isPending(fieldKey),
+            child: input,
+          );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -680,11 +723,7 @@ class ScribeDraftForm extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 5),
-        TextField(
-          controller: c,
-          style: TextStyle(fontSize: 13.5, color: palette.textPrimary),
-          decoration: palette.fieldDecoration(hint, dense: true),
-        ),
+        wrappedInput,
       ],
     );
   }
@@ -1018,6 +1057,8 @@ class _ChipEditor extends StatelessWidget {
     required this.palette,
     required this.onAdd,
     required this.onRemove,
+    this.revealKey,
+    this.isPending = false,
   });
 
   final List<String> items;
@@ -1027,6 +1068,8 @@ class _ChipEditor extends StatelessWidget {
   final ScribePalette palette;
   final void Function([String?]) onAdd;
   final void Function(int index) onRemove;
+  final Object? revealKey;
+  final bool isPending;
 
   @override
   Widget build(BuildContext context) {
@@ -1034,17 +1077,21 @@ class _ChipEditor extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (items.isNotEmpty) ...[
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (var i = 0; i < items.length; i++)
-                _Pill(
-                  label: items[i],
-                  color: color,
-                  onRemove: () => onRemove(i),
-                ),
-            ],
+          AiBlurReveal(
+            revealKey: revealKey,
+            isPending: isPending,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  _Pill(
+                    label: items[i],
+                    color: color,
+                    onRemove: () => onRemove(i),
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 10),
         ],
@@ -1082,11 +1129,15 @@ class _MedicineRowEditor extends StatelessWidget {
     required this.row,
     required this.palette,
     required this.onRemove,
+    this.revealKey,
+    this.isPending = false,
   });
 
   final ScribeMedicineRow row;
   final ScribePalette palette;
   final VoidCallback onRemove;
+  final Object? revealKey;
+  final bool isPending;
 
   @override
   Widget build(BuildContext context) {
@@ -1110,13 +1161,17 @@ class _MedicineRowEditor extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: TextField(
-                  controller: row.name,
-                  textCapitalization: TextCapitalization.words,
-                  style: style.copyWith(fontWeight: FontWeight.w600),
-                  decoration: palette
-                      .fieldDecoration('Medicine name', dense: true)
-                      .copyWith(fillColor: palette.card),
+                child: AiBlurReveal(
+                  revealKey: revealKey,
+                  isPending: isPending,
+                  child: TextField(
+                    controller: row.name,
+                    textCapitalization: TextCapitalization.words,
+                    style: style.copyWith(fontWeight: FontWeight.w600),
+                    decoration: palette
+                        .fieldDecoration('Medicine name', dense: true)
+                        .copyWith(fillColor: palette.card),
+                  ),
                 ),
               ),
               IconButton(
@@ -1137,26 +1192,34 @@ class _MedicineRowEditor extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: row.dosage,
-                    minLines: 1,
-                    maxLines: 3,
-                    style: style,
-                    decoration: palette
-                        .fieldDecoration('Dose & frequency', dense: true)
-                        .copyWith(fillColor: palette.card),
+                  child: AiBlurReveal(
+                    revealKey: revealKey,
+                    isPending: isPending,
+                    child: TextField(
+                      controller: row.dosage,
+                      minLines: 1,
+                      maxLines: 3,
+                      style: style,
+                      decoration: palette
+                          .fieldDecoration('Dose & frequency', dense: true)
+                          .copyWith(fillColor: palette.card),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: TextField(
-                    controller: row.instructions,
-                    minLines: 1,
-                    maxLines: 3,
-                    style: style,
-                    decoration: palette
-                        .fieldDecoration('Instructions', dense: true)
-                        .copyWith(fillColor: palette.card),
+                  child: AiBlurReveal(
+                    revealKey: revealKey,
+                    isPending: isPending,
+                    child: TextField(
+                      controller: row.instructions,
+                      minLines: 1,
+                      maxLines: 3,
+                      style: style,
+                      decoration: palette
+                          .fieldDecoration('Instructions', dense: true)
+                          .copyWith(fillColor: palette.card),
+                    ),
                   ),
                 ),
               ],
@@ -1184,6 +1247,9 @@ class _TranscriptSectionState extends State<_TranscriptSection> {
   @override
   Widget build(BuildContext context) {
     final p = widget.palette;
+    final text = widget.transcript.trim();
+    final hasDialogue = text.contains('Doctor:') || text.contains('Patient:');
+
     return _Section(
       label: 'TRANSCRIPT',
       palette: p,
@@ -1208,19 +1274,94 @@ class _TranscriptSectionState extends State<_TranscriptSection> {
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            maxHeight: _expanded ? double.infinity : 96,
+            maxHeight: _expanded ? double.infinity : 120,
           ),
           child: ClipRect(
-            child: SelectableText(
-              widget.transcript,
+            child: hasDialogue
+                ? _buildDialogue(text, p)
+                : SelectableText(
+                    text,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.55,
+                      color: p.textSecondary,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogue(String text, ScribePalette p) {
+    final blocks = text
+        .split('\n\n')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < blocks.length; i++) ...[
+          _buildTurn(blocks[i], p),
+          if (i < blocks.length - 1) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildTurn(String turn, ScribePalette p) {
+    final isDoctor = turn.startsWith('Doctor:');
+    final isPatient = turn.startsWith('Patient:');
+
+    if (!isDoctor && !isPatient) {
+      return SelectableText(
+        turn,
+        style: TextStyle(fontSize: 13, height: 1.55, color: p.textSecondary),
+      );
+    }
+
+    final speaker = isDoctor ? 'Doctor' : 'Patient';
+    final content = turn.substring(isDoctor ? 7 : 8).trim();
+    final badgeColor = isDoctor ? p.primary : p.accent;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: p.field.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(p.fieldRadius),
+        border: Border.all(color: p.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+            decoration: BoxDecoration(
+              color: badgeColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              speaker.toUpperCase(),
               style: TextStyle(
-                fontSize: 13,
-                height: 1.55,
-                color: p.textSecondary,
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: badgeColor,
+                letterSpacing: 0.5,
               ),
             ),
           ),
-        ),
+          const SizedBox(height: 5),
+          SelectableText(
+            content,
+            style: TextStyle(
+              fontSize: 13,
+              height: 1.45,
+              color: p.textPrimary,
+            ),
+          ),
+        ],
       ),
     );
   }

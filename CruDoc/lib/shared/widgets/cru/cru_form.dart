@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:doctor_management_app/features/voice/presentation/ai_blur_reveal.dart';
 import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru_button.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru_card.dart';
@@ -465,7 +466,20 @@ class CruTextField extends StatefulWidget {
     this.onSubmitted,
     this.focusNode,
     this.tabular = false,
+    this.aiRevealKey,
+    this.aiPending = false,
+    this.aiStagger = Duration.zero,
   });
+
+  /// Key to trigger the PS2-style blur reveal when AI fills this field.
+  final Object? aiRevealKey;
+
+  /// Whether voice input for this field was detected and is currently in progress.
+  /// Causes the field to immediately dissolve into smoke and stay foggy while waiting.
+  final bool aiPending;
+
+  /// Stagger delay before starting the blur reveal.
+  final Duration aiStagger;
 
   final String label;
   final TextEditingController controller;
@@ -501,10 +515,46 @@ class _CruTextFieldState extends State<CruTextField> {
   FocusNode? _ownFocus;
   FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
+  late String _lastKnownText;
+  String? _outgoingText;
+  Object? _lastRevealKey;
+
   @override
   void initState() {
     super.initState();
+    _lastKnownText = widget.controller.text;
+    _lastRevealKey = widget.aiRevealKey;
     _focus.addListener(_onFocus);
+  }
+
+  void _snapshotOutgoing() {
+    if (_lastKnownText.trim().isNotEmpty) {
+      _outgoingText = _lastKnownText;
+    } else {
+      _outgoingText = null;
+    }
+  }
+
+  @override
+  void didUpdateWidget(CruTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      _lastKnownText = widget.controller.text;
+    }
+
+    if (widget.aiPending && !oldWidget.aiPending) {
+      // Input detected for this field! Snapshot previous user text (if any) to dissolve into smoke.
+      _snapshotOutgoing();
+    }
+
+    if (widget.aiRevealKey != null && widget.aiRevealKey != _lastRevealKey) {
+      // Voice / AI fill was finalized.
+      _lastKnownText = widget.controller.text;
+      _lastRevealKey = widget.aiRevealKey;
+      _outgoingText = null;
+    } else if (!widget.aiPending && oldWidget.aiPending) {
+      _outgoingText = null;
+    }
   }
 
   @override
@@ -533,6 +583,22 @@ class _CruTextFieldState extends State<CruTextField> {
                 ? BorderSide(color: c.accent, width: 1.5)
                 : BorderSide(color: c.inset.withValues(alpha: 0), width: 1.5);
         final base = CruType.input.tint(c.label);
+
+        // Snapshot widget for real outgoing user text dissolving into fog
+        final outgoingText = _outgoingText;
+        Widget? outgoingWidget;
+        if (outgoingText != null && outgoingText.isNotEmpty) {
+          outgoingWidget = Align(
+            alignment: multiline ? Alignment.topLeft : Alignment.centerLeft,
+            child: Text(
+              outgoingText,
+              style: widget.tabular ? base.tabular : base,
+              maxLines: widget.maxLines,
+              overflow: TextOverflow.ellipsis,
+            ),
+          );
+        }
+
         return CruFieldFrame(
           label: widget.label,
           optional: widget.optional,
@@ -566,29 +632,38 @@ class _CruTextFieldState extends State<CruTextField> {
                   const SizedBox(width: CruSpace.s6),
                 ],
                 Expanded(
-                  child: TextField(
-                    controller: widget.controller,
-                    focusNode: _focus,
-                    autofocus: widget.autofocus,
-                    minLines: multiline ? widget.maxLines : 1,
-                    maxLines: widget.maxLines,
-                    keyboardType: multiline
-                        ? TextInputType.multiline
-                        : widget.keyboardType,
-                    textInputAction: widget.textInputAction ??
-                        (multiline ? TextInputAction.newline : TextInputAction.next),
-                    textCapitalization: widget.textCapitalization,
-                    inputFormatters: widget.inputFormatters,
-                    cursorColor: c.accent,
-                    style: widget.tabular ? base.tabular : base,
-                    onChanged: (v) {
-                      field.didChange(v);
-                      widget.onChanged?.call(v);
-                    },
-                    onSubmitted: widget.onSubmitted,
-                    decoration: InputDecoration.collapsed(
-                      hintText: widget.hint,
-                      hintStyle: CruType.input.tint(c.label3),
+                  child: AiBlurReveal(
+                    revealKey: widget.aiRevealKey,
+                    isPending: widget.aiPending,
+                    stagger: widget.aiStagger,
+                    outgoingChild: outgoingWidget,
+                    child: TextField(
+                      controller: widget.controller,
+                      focusNode: _focus,
+                      autofocus: widget.autofocus,
+                      minLines: multiline ? widget.maxLines : 1,
+                      maxLines: widget.maxLines,
+                      keyboardType: multiline
+                          ? TextInputType.multiline
+                          : widget.keyboardType,
+                      textInputAction: widget.textInputAction ??
+                          (multiline ? TextInputAction.newline : TextInputAction.next),
+                      textCapitalization: widget.textCapitalization,
+                      inputFormatters: widget.inputFormatters,
+                      cursorColor: c.accent,
+                      style: widget.tabular ? base.tabular : base,
+                      onChanged: (v) {
+                        _lastKnownText = v;
+                        field.didChange(v);
+                        widget.onChanged?.call(v);
+                      },
+                      onSubmitted: widget.onSubmitted,
+                      decoration: InputDecoration.collapsed(
+                        hintText: (widget.aiPending || widget.controller.text.isNotEmpty)
+                            ? null
+                            : widget.hint,
+                        hintStyle: CruType.input.tint(c.label3),
+                      ),
                     ),
                   ),
                 ),
@@ -603,7 +678,7 @@ class _CruTextFieldState extends State<CruTextField> {
 
 /// A 44 px inset field that opens a picker: icon, value (or placeholder),
 /// an optional trailing widget and a chevron.
-class CruPickerField extends StatelessWidget {
+class CruPickerField extends StatefulWidget {
   const CruPickerField({
     super.key,
     required this.label,
@@ -614,6 +689,9 @@ class CruPickerField extends StatelessWidget {
     this.optional = false,
     this.trailing,
     this.error,
+    this.aiRevealKey,
+    this.aiPending = false,
+    this.aiStagger = Duration.zero,
   });
 
   final String label;
@@ -627,17 +705,88 @@ class CruPickerField extends StatelessWidget {
   final Widget? trailing;
   final String? error;
 
+  final Object? aiRevealKey;
+  final bool aiPending;
+  final Duration aiStagger;
+
+  @override
+  State<CruPickerField> createState() => _CruPickerFieldState();
+}
+
+class _CruPickerFieldState extends State<CruPickerField> {
+  String? _lastText;
+  bool _lastHadValue = false;
+  String? _outgoingText;
+  bool _outgoingHadValue = false;
+  Object? _lastRevealKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastText = widget.value ?? widget.placeholder;
+    _lastHadValue = widget.value != null;
+    _lastRevealKey = widget.aiRevealKey;
+  }
+
+  void _snapshotOutgoing() {
+    if (_lastHadValue && _lastText != null && _lastText!.isNotEmpty) {
+      _outgoingText = _lastText;
+      _outgoingHadValue = true;
+    } else {
+      _outgoingText = null;
+      _outgoingHadValue = false;
+    }
+  }
+
+  @override
+  void didUpdateWidget(CruPickerField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.aiPending && !oldWidget.aiPending) {
+      _snapshotOutgoing();
+    }
+
+    if (widget.aiRevealKey != null && widget.aiRevealKey != _lastRevealKey) {
+      _lastText = widget.value;
+      _lastHadValue = widget.value != null;
+      _lastRevealKey = widget.aiRevealKey;
+      _outgoingText = null;
+    } else if (!widget.aiPending && oldWidget.aiPending) {
+      _outgoingText = null;
+    } else if (widget.value != oldWidget.value ||
+        widget.placeholder != oldWidget.placeholder) {
+      _lastText = widget.value;
+      _lastHadValue = widget.value != null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final hasValue = value != null;
+    final hasValue = widget.value != null;
+
+    final outgoingText = _outgoingText;
+    final outgoingHadValue = _outgoingHadValue;
+    Widget? outgoingWidget;
+    if (outgoingText != null) {
+      outgoingWidget = Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          outgoingText,
+          style: CruType.input.tabular.tint(outgoingHadValue ? c.label : c.label3),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      );
+    }
+
     return CruFieldFrame(
-      label: label,
-      optional: optional,
-      error: error,
+      label: widget.label,
+      optional: widget.optional,
+      error: widget.error,
       child: CruPressable(
-        onTap: onTap,
-        semanticLabel: '$label, ${value ?? placeholder}',
+        onTap: widget.onTap,
+        semanticLabel: '${widget.label}, ${widget.value ?? widget.placeholder}',
         scaleOnPress: false,
         builder: (context, hovered) => AnimatedContainer(
           duration: CruMotion.of(context, CruMotion.fast),
@@ -649,25 +798,31 @@ class CruPickerField extends StatelessWidget {
             shape: cruShape(
               CruRadius.control,
               side: BorderSide(
-                color: error != null ? c.amber : c.inset.withValues(alpha: 0),
+                color: widget.error != null ? c.amber : c.inset.withValues(alpha: 0),
                 width: 1.5,
               ),
             ),
           ),
           child: Row(
             children: [
-              CruIcon(icon, size: 17, strokeWidth: 2, color: c.label3),
+              CruIcon(widget.icon, size: 17, strokeWidth: 2, color: c.label3),
               const SizedBox(width: CruSpace.s10),
               Expanded(
-                child: Text(
-                  value ?? placeholder,
-                  style: CruType.input.tabular.tint(hasValue ? c.label : c.label3),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                child: AiBlurReveal(
+                  revealKey: widget.aiRevealKey,
+                  isPending: widget.aiPending,
+                  stagger: widget.aiStagger,
+                  outgoingChild: outgoingWidget,
+                  child: Text(
+                    widget.value ?? (widget.aiPending ? '' : widget.placeholder),
+                    style: CruType.input.tabular.tint(hasValue ? c.label : c.label3),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ),
-              if (trailing != null) ...[
-                trailing!,
+              if (widget.trailing != null) ...[
+                widget.trailing!,
                 const SizedBox(width: CruSpace.s8),
               ],
               CruIcon(CruIcons.chevronDown, size: 16, color: c.label3),
@@ -692,6 +847,9 @@ class CruTagField extends StatefulWidget {
     this.hint,
     this.suggestions = const [],
     this.optional = false,
+    this.aiRevealKey,
+    this.aiPending = false,
+    this.aiStagger = Duration.zero,
   });
 
   final String label;
@@ -701,6 +859,10 @@ class CruTagField extends StatefulWidget {
   final String? hint;
   final List<String> suggestions;
   final bool optional;
+
+  final Object? aiRevealKey;
+  final bool aiPending;
+  final Duration aiStagger;
 
   @override
   State<CruTagField> createState() => _CruTagFieldState();
@@ -712,9 +874,15 @@ class _CruTagFieldState extends State<CruTagField> {
 
   bool get _full => widget.values.length >= widget.max;
 
+  List<String> _lastValues = const [];
+  List<String>? _outgoingValues;
+  Object? _lastRevealKey;
+
   @override
   void initState() {
     super.initState();
+    _lastValues = List.of(widget.values);
+    _lastRevealKey = widget.aiRevealKey;
     _focus.addListener(() => setState(() {}));
     _focus.onKeyEvent = (node, event) {
       if (event is KeyDownEvent &&
@@ -726,6 +894,25 @@ class _CruTagFieldState extends State<CruTagField> {
       }
       return KeyEventResult.ignored;
     };
+  }
+
+  @override
+  void didUpdateWidget(CruTagField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.aiPending && !oldWidget.aiPending) {
+      _outgoingValues = List.of(_lastValues);
+    }
+
+    if (widget.aiRevealKey != null && widget.aiRevealKey != _lastRevealKey) {
+      _lastValues = List.of(widget.values);
+      _lastRevealKey = widget.aiRevealKey;
+      _outgoingValues = null;
+    } else if (!widget.aiPending && oldWidget.aiPending) {
+      _outgoingValues = null;
+    } else if (widget.values != oldWidget.values) {
+      _lastValues = List.of(widget.values);
+    }
   }
 
   @override
@@ -755,6 +942,21 @@ class _CruTagFieldState extends State<CruTagField> {
         .where((s) => !lower.contains(s.toLowerCase()))
         .take(5)
         .toList();
+
+    Widget? outgoingWidget;
+    final outgoing = _outgoingValues;
+    if (outgoing != null && outgoing.isNotEmpty) {
+      outgoingWidget = Wrap(
+        spacing: CruSpace.s6,
+        runSpacing: CruSpace.s6,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          for (final v in outgoing)
+            _Tag(label: v, onRemove: () {}),
+        ],
+      );
+    }
+
     return CruFieldFrame(
       label: widget.label,
       optional: widget.optional,
@@ -786,47 +988,54 @@ class _CruTagFieldState extends State<CruTagField> {
                   ),
                 ),
               ),
-              child: Wrap(
-                spacing: CruSpace.s6,
-                runSpacing: CruSpace.s6,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  for (final v in widget.values)
-                    _Tag(label: v, onRemove: () => _remove(v)),
-                  if (!_full)
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(
-                        minWidth: CruSize.formTagInput,
-                      ),
-                      child: IntrinsicWidth(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: CruSpace.s6,
-                            vertical: CruSpace.s6,
-                          ),
-                          child: TextField(
-                            controller: _input,
-                            focusNode: _focus,
-                            cursorColor: c.accent,
-                            textCapitalization: TextCapitalization.sentences,
-                            style: CruType.input.tint(c.label),
-                            onChanged: (v) {
-                              if (v.endsWith(',')) _add(v);
-                            },
-                            onSubmitted: (v) {
-                              _add(v);
-                              _focus.requestFocus();
-                            },
-                            decoration: InputDecoration.collapsed(
-                              hintText:
-                                  widget.values.isEmpty ? widget.hint : 'Add another',
-                              hintStyle: CruType.input.tint(c.label3),
+              child: AiBlurReveal(
+                revealKey: widget.aiRevealKey,
+                isPending: widget.aiPending,
+                stagger: widget.aiStagger,
+                outgoingChild: outgoingWidget,
+                child: Wrap(
+                  spacing: CruSpace.s6,
+                  runSpacing: CruSpace.s6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    for (final v in widget.values)
+                      _Tag(label: v, onRemove: () => _remove(v)),
+                    if (!_full)
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(
+                          minWidth: CruSize.formTagInput,
+                        ),
+                        child: IntrinsicWidth(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: CruSpace.s6,
+                              vertical: CruSpace.s6,
+                            ),
+                            child: TextField(
+                              controller: _input,
+                              focusNode: _focus,
+                              cursorColor: c.accent,
+                              textCapitalization: TextCapitalization.sentences,
+                              style: CruType.input.tint(c.label),
+                              onChanged: (v) {
+                                if (v.endsWith(',')) _add(v);
+                              },
+                              onSubmitted: (v) {
+                                _add(v);
+                                _focus.requestFocus();
+                              },
+                              decoration: InputDecoration.collapsed(
+                                hintText: widget.aiPending
+                                    ? null
+                                    : (widget.values.isEmpty ? widget.hint : 'Add another'),
+                                hintStyle: CruType.input.tint(c.label3),
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

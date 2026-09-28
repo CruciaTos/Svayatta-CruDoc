@@ -15,9 +15,11 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_view_providers.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
+import 'package:doctor_management_app/features/patients/data/models/medical_document.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
+import 'package:doctor_management_app/features/patients/data/services/medical_document_local_service.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_view_providers.dart';
@@ -203,6 +205,140 @@ class VoiceController {
   }
 
   Future<void> onTranscript(VoiceTranscript t) async {
+    if (t.source == 'fast') {
+      await _onFastTranscript(t);
+    } else {
+      await _onAccurateTranscript(t);
+    }
+  }
+
+  /// FAST STREAM (base.en, ~60ms):
+  /// High-speed intent detection, navigation, and immediate form opening.
+  Future<void> _onFastTranscript(VoiceTranscript t) async {
+    final cmd = VoiceCommand.parse(t.text, DateTime.now());
+
+    // A voice-ready form the doctor opened by hand: adopt it.
+    final kind = VoiceBus.openKind.value;
+    if (_open == null && kind != null) _adopt(kind);
+
+    // With a form open, a question on the pill (a spelling) is answered first.
+    final pendingAsk = asking.value;
+    if (_open != null && pendingAsk != null) {
+      final i = _matchChoice(pendingAsk, cmd, t.text);
+      if (i != null) return;
+    }
+
+    if (_open != null) {
+      if (_switchTo != null) return;
+      if (!_switchedPatient(cmd, false)) {
+        // Fast stream only signals live speech / field mentions for UI dissolution.
+        // Field values (names, phones, etc.) are populated by the accurate stream.
+        VoiceBus.emit(VoiceFill(isFinal: false, rawText: t.text));
+      }
+      return;
+    }
+
+    if (_acted) return;
+
+    // An answer to the question on the pill ("this month", "the second one", "yes").
+    final question = asking.value;
+    if (question != null) {
+      const newCommand = {
+        VoiceIntent.addPatient,
+        VoiceIntent.addAppointment,
+        VoiceIntent.reschedule,
+        VoiceIntent.editPatient,
+        VoiceIntent.openPatient,
+      };
+      final i = newCommand.contains(cmd.intent)
+          ? null
+          : _matchChoice(question, cmd, t.text);
+      if (i != null) return;
+    }
+
+    if (_tryNavigate(t, cmd)) return;
+
+    // "Rahul Patel tomorrow at 5" with no verb is a booking.
+    var intent = cmd.intent;
+    if (intent == VoiceIntent.none &&
+        cmd.name.isNotEmpty &&
+        (cmd.date != null || cmd.time != null)) {
+      intent = VoiceIntent.addAppointment;
+    }
+    // "The last patient", "the next patient" on their own: open them.
+    if (intent == VoiceIntent.none && _patientRef(t.text) != null) {
+      intent = (cmd.date != null || cmd.time != null)
+          ? VoiceIntent.addAppointment
+          : VoiceIntent.openPatient;
+    }
+
+    // "Nah, make it today 6 pm", "book his appointment to Friday" right after a booking.
+    final recent = _recent;
+    if (recent != null && _changesRecent(cmd, intent, t.text, recent)) {
+      _acted = true;
+      _focus = recent.patient;
+      _formOpenedNow = true;
+      _start(VoiceIntent.reschedule, recent.patient);
+      await _openReschedule(
+        recent.patient,
+        visitId: recent.visitId,
+        cmd: cmd,
+      );
+      return;
+    }
+
+    // "His email is …", "her phone number is …" about the patient in focus.
+    if (intent == VoiceIntent.none &&
+        cmd.name.isEmpty &&
+        _focus != null &&
+        _refersBack(t.text, VoiceIntent.editPatient) &&
+        (cmd.phone != null ||
+            cmd.email != null ||
+            cmd.dateOfBirth != null ||
+            cmd.age != null ||
+            cmd.notes != null ||
+            cmd.conditions.isNotEmpty)) {
+      intent = VoiceIntent.editPatient;
+    }
+
+    switch (intent) {
+      case VoiceIntent.none:
+      case VoiceIntent.confirm:
+      case VoiceIntent.cancel:
+        return;
+      case VoiceIntent.cancelAppointment:
+        await _askCancel(cmd, t);
+      case VoiceIntent.markDone:
+      case VoiceIntent.markMissed:
+      case VoiceIntent.recordPayment:
+      case VoiceIntent.addNote:
+        await _withPatient(cmd, intent, false, t.text);
+      case VoiceIntent.deletePatient:
+      case VoiceIntent.deleteFile:
+        return;
+      case VoiceIntent.editPatient:
+        await _withPatient(cmd, intent, false, t.text);
+      case VoiceIntent.addPatient:
+        _acted = true;
+        _start(VoiceIntent.addPatient, null);
+        _fill(cmd, isFinal: false, rawText: t.text);
+        _track(
+          showDesktopAddEditPatientDialog(
+            _context(),
+            repository: _ref.read(patientRepositoryProvider),
+          ).then((saved) => saved == true),
+        );
+      case VoiceIntent.openPatient:
+        await _withPatient(cmd, intent, false, t.text);
+      case VoiceIntent.addAppointment:
+      case VoiceIntent.reschedule:
+        await _withPatient(cmd, intent, false, t.text);
+    }
+  }
+
+  /// ACCURATE STREAM (large-v3-turbo, ~260ms partials + final pass):
+  /// High-precision field values (name, phone, date, time, reason) and final saving.
+  Future<void> _onAccurateTranscript(VoiceTranscript t) async {
     final cmd = VoiceCommand.parse(t.text, DateTime.now());
 
     // "Stop listening" turns hands-free off.
@@ -216,14 +352,46 @@ class VoiceController {
       return;
     }
 
-    // A voice-ready form the doctor opened by hand: fill it too.
+    // A voice-ready form the doctor opened by hand: adopt it.
     final kind = VoiceBus.openKind.value;
     if (_open == null && kind != null) _adopt(kind);
 
-    // With a form open, a question on the pill (a spelling) is answered
-    // first; anything else carries on filling the form.
+    // With a question or ask-card showing on the pill:
     final pendingAsk = asking.value;
-    if (_open != null && pendingAsk != null) {
+    if (pendingAsk != null) {
+      // If the ask-card was for a name disambiguation tie, check if the cleaner
+      // accurate transcription resolves it automatically without requiring tap:
+      if (cmd.name.isNotEmpty) {
+        final match = matchPatient(cmd.name, _patients);
+        if (match.isSure) {
+          asking.value = null;
+          if (_open != null) {
+            if (_patient?.id != match.best!.id) {
+              _patient = match.best;
+              _focus = match.best;
+              understood.value = '${_label(_open!)} · ${match.best!.fullName}';
+            }
+          } else {
+            var intent = cmd.intent;
+            if (intent == VoiceIntent.none &&
+                (cmd.date != null || cmd.time != null)) {
+              intent = VoiceIntent.addAppointment;
+            } else if (intent == VoiceIntent.none) {
+              intent = VoiceIntent.openPatient;
+            }
+            final opened = await _actOn(cmd, intent, match.best!, t.isFinal);
+            if (opened &&
+                t.isFinal &&
+                intent != VoiceIntent.openPatient &&
+                cmd.confirmAtEnd) {
+              unawaited(_confirmWhenReady());
+            }
+            return;
+          }
+        }
+      }
+
+      // Check if user answered the question ("the second one", "yes", etc.)
       final i = _matchChoice(pendingAsk, cmd, t.text);
       if (i != null) {
         if (t.isFinal) await pickChoice(i);
@@ -239,12 +407,18 @@ class VoiceController {
       } else if (t.isFinal && cmd.intent == VoiceIntent.cancel) {
         VoiceBus.emit(const VoiceCancel());
       } else if (!_switchedPatient(cmd, t.isFinal)) {
-        _fill(cmd);
-        if (t.isFinal && cmd.confirmAtEnd) unawaited(_confirmWhenReady());
-        if (t.isFinal && !cmd.confirmAtEnd) _askSpelling();
+        // High accuracy progressive field fill
+        _fill(cmd, isFinal: t.isFinal, rawText: t.text);
+        if (t.isFinal) {
+          if (cmd.confirmAtEnd) {
+            unawaited(_confirmWhenReady());
+          }
+          _askSpelling();
+        }
       }
       return;
     }
+
     if (!_acted && _isUndo(t.text)) {
       if (t.isFinal) {
         _acted = true;
@@ -252,6 +426,7 @@ class VoiceController {
       }
       return;
     }
+
     if (_acted) {
       // The accurate final pass heard a different patient than the quick
       // live pass that opened this one: open the right one.
@@ -268,8 +443,7 @@ class VoiceController {
       return;
     }
 
-    // An answer to the question on the pill ("this month", "the second
-    // one", "yes"). A new command instead moves on.
+    // Fast stream didn't act: fall back to executing from accurate stream
     final question = asking.value;
     if (question != null) {
       const newCommand = {
@@ -291,22 +465,18 @@ class VoiceController {
 
     if (_tryNavigate(t, cmd)) return;
 
-    // "Rahul Patel tomorrow at 5" with no verb is a booking.
     var intent = cmd.intent;
     if (intent == VoiceIntent.none &&
         cmd.name.isNotEmpty &&
         (cmd.date != null || cmd.time != null)) {
       intent = VoiceIntent.addAppointment;
     }
-    // "The last patient", "the next patient" on their own: open them.
     if (intent == VoiceIntent.none && _patientRef(t.text) != null) {
       intent = (cmd.date != null || cmd.time != null)
           ? VoiceIntent.addAppointment
           : VoiceIntent.openPatient;
     }
 
-    // "Nah, make it today 6 pm", "book his appointment to Friday" right
-    // after a booking: move that booking rather than make another.
     final recent = _recent;
     if (recent != null && _changesRecent(cmd, intent, t.text, recent)) {
       _acted = true;
@@ -324,8 +494,6 @@ class VoiceController {
       return;
     }
 
-    // "His email is …", "her phone number is …" about the patient in
-    // focus: edit their record.
     if (intent == VoiceIntent.none &&
         cmd.name.isEmpty &&
         _focus != null &&
@@ -356,6 +524,10 @@ class VoiceController {
       case VoiceIntent.recordPayment:
       case VoiceIntent.addNote:
         await _withPatient(cmd, intent, t.isFinal, t.text);
+      case VoiceIntent.deletePatient:
+        await _deletePatientVoice(cmd, t);
+      case VoiceIntent.deleteFile:
+        await _deleteFileVoice(cmd, t);
       case VoiceIntent.editPatient:
         final opened = await _withPatient(cmd, intent, t.isFinal, t.text);
         if (opened && t.isFinal && cmd.confirmAtEnd) {
@@ -364,16 +536,21 @@ class VoiceController {
       case VoiceIntent.addPatient:
         _acted = true;
         _start(VoiceIntent.addPatient, null);
-        _fill(cmd);
+        _fill(cmd, isFinal: t.isFinal, rawText: t.text);
         _track(
           showDesktopAddEditPatientDialog(
             _context(),
             repository: _ref.read(patientRepositoryProvider),
           ).then((saved) => saved == true),
         );
-        if (t.isFinal && !cmd.confirmAtEnd) _askSpelling();
-        if (t.isFinal && cmd.confirmAtEnd) unawaited(_confirmWhenReady());
+        if (t.isFinal) {
+          if (cmd.confirmAtEnd) {
+            unawaited(_confirmWhenReady());
+          }
+          _askSpelling();
+        }
       case VoiceIntent.openPatient:
+        await _withPatient(cmd, intent, t.isFinal, t.text);
       case VoiceIntent.addAppointment:
       case VoiceIntent.reschedule:
         final opened = await _withPatient(cmd, intent, t.isFinal, t.text);
@@ -503,7 +680,9 @@ class VoiceController {
         final tied = match.tied.take(4).toList();
         _askPatient(tied, (p) async {
           final opened = await _actOn(cmd, intent, p, true);
-          if (opened && cmd.confirmAtEnd) unawaited(_confirmWhenReady());
+          if (opened && intent != VoiceIntent.openPatient && cmd.confirmAtEnd) {
+            unawaited(_confirmWhenReady());
+          }
         });
       } else if (intent == VoiceIntent.openPatient &&
           await _semanticNavigate(text)) {
@@ -781,7 +960,7 @@ class VoiceController {
       case VoiceIntent.addAppointment:
         _formOpenedNow = true;
         _start(VoiceIntent.addAppointment, p);
-        _fill(cmd);
+        _fill(cmd, isFinal: isFinal);
         _openAppointment(p);
         return true;
       case VoiceIntent.reschedule:
@@ -791,7 +970,7 @@ class VoiceController {
       case VoiceIntent.editPatient:
         _formOpenedNow = true;
         _start(VoiceIntent.editPatient, p);
-        _fill(cmd);
+        _fill(cmd, isFinal: isFinal);
         _track(
           showDesktopAddEditPatientDialog(
             _context(),
@@ -888,30 +1067,14 @@ class VoiceController {
     final v = visit;
     final money =
         '₹${NumberFormat.decimalPattern('en_IN').format(amount.round())}';
-    _ask(
-      'Record $money from ${p.fullName} for ${_when(v.scheduledStart)}?',
-      const [
-        VoiceChoice(
-          'Yes, record it',
-          words: ['yes', 'yeah', 'confirm', 'sure', 'do it', 'record it'],
-        ),
-        VoiceChoice('No', words: ['no', 'nope', 'nah', 'dont', 'cancel']),
-      ],
-      (i) async {
-        if (i == 1) {
-          understood.value = 'Not recorded';
-          return;
-        }
-        try {
-          await _ref
-              .read(visitRepositoryProvider)
-              .recordPayment(v.id, amount: amount);
-          understood.value = '$money recorded · ${p.fullName}';
-        } catch (e) {
-          understood.value = "Couldn't record: $e";
-        }
-      },
-    );
+    try {
+      await _ref
+          .read(visitRepositoryProvider)
+          .recordPayment(v.id, amount: amount);
+      understood.value = '$money recorded · ${p.fullName}';
+    } catch (e) {
+      understood.value = "Couldn't record: $e";
+    }
   }
 
   /// "Add a note to his file: allergic to penicillin".
@@ -1218,6 +1381,162 @@ class VoiceController {
     );
   }
 
+  /// Voice command to delete a patient record (guarded with confirmation).
+  Future<void> _deletePatientVoice(VoiceCommand cmd, VoiceTranscript t) async {
+    if (!t.isFinal) {
+      understood.value = 'Delete patient…';
+      return;
+    }
+    Patient? p;
+    if (cmd.name.isNotEmpty) {
+      final m = matchPatient(cmd.name, _patients);
+      if (!m.isSure) {
+        if (m.runnerUp == null) {
+          understood.value = 'No patient called "${cmd.name}"';
+          return;
+        }
+        final tied = m.tied.take(4).toList();
+        final pick = _pickDetail(cmd, t.text, tied, inline: true) ??
+            tied.where((c) => c.id == _focus?.id).firstOrNull;
+        if (pick == null) {
+          _askPatient(tied, (c) => _confirmDeletePatient(c));
+          return;
+        }
+        p = pick;
+      } else {
+        p = m.best;
+      }
+    } else {
+      p = _focus ?? _recent?.patient;
+    }
+    if (p == null) {
+      understood.value = 'Which patient to delete?';
+      return;
+    }
+    await _confirmDeletePatient(p);
+  }
+
+  Future<void> _confirmDeletePatient(Patient p) async {
+    _acted = true;
+    _focus = p;
+    _ask(
+      'Delete ${p.fullName}? Their record and visits will be removed.',
+      const [
+        VoiceChoice(
+          'Yes, delete patient',
+          words: [
+            'yes',
+            'yeah',
+            'confirm',
+            'sure',
+            'delete',
+            'remove',
+            'do it',
+            'delete patient',
+          ],
+        ),
+        VoiceChoice(
+          'No, keep patient',
+          words: [
+            'no',
+            'nope',
+            'nah',
+            'keep',
+            'dont',
+            'leave',
+            'cancel',
+            'never mind',
+          ],
+        ),
+      ],
+      (i) async {
+        if (i == 1) {
+          understood.value = 'Kept ${p.fullName}';
+          return;
+        }
+        try {
+          await _ref.read(patientRepositoryProvider).deletePatient(p.id);
+          if (_focus?.id == p.id) _focus = null;
+          understood.value = 'Deleted ${p.fullName}';
+        } catch (e) {
+          understood.value = "Couldn't delete ${p.fullName}: $e";
+        }
+      },
+    );
+  }
+
+  /// Voice command to delete a medical document / file (guarded with confirmation).
+  Future<void> _deleteFileVoice(VoiceCommand cmd, VoiceTranscript t) async {
+    if (!t.isFinal) {
+      understood.value = 'Delete file…';
+      return;
+    }
+    final p = _focus ?? _recent?.patient;
+    if (p == null) {
+      understood.value = 'Open a patient to delete their file';
+      return;
+    }
+    final docs =
+        await MedicalDocumentLocalService.instance.getDocumentsForPatient(p.id);
+    if (docs.isEmpty) {
+      understood.value = 'No files found for ${p.fullName}';
+      return;
+    }
+    MedicalDocument? target;
+    if (cmd.name.isNotEmpty) {
+      final q = cmd.name.toLowerCase();
+      target =
+          docs.where((d) => d.fileName.toLowerCase().contains(q)).firstOrNull;
+    }
+    target ??= docs.first;
+    final file = target;
+    _acted = true;
+    _ask(
+      'Delete "${file.fileName}" for ${p.fullName}?',
+      const [
+        VoiceChoice(
+          'Yes, delete file',
+          words: [
+            'yes',
+            'yeah',
+            'confirm',
+            'sure',
+            'delete',
+            'remove',
+            'do it',
+            'delete file',
+          ],
+        ),
+        VoiceChoice(
+          'No, keep file',
+          words: [
+            'no',
+            'nope',
+            'nah',
+            'keep',
+            'dont',
+            'leave',
+            'cancel',
+            'never mind',
+          ],
+        ),
+      ],
+      (i) async {
+        if (i == 1) {
+          understood.value = 'Kept "${file.fileName}"';
+          return;
+        }
+        try {
+          await MedicalDocumentLocalService.instance
+              .softDeleteDocument(file.documentId);
+          understood.value = 'Deleted "${file.fileName}"';
+        } catch (e) {
+          understood.value = "Couldn't delete file: $e";
+        }
+      },
+    );
+  }
+
   /// Remembers the visit a voice booking just created (the newest one).
   Future<void> _rememberBooking(Patient p) async {
     final visits = await _ref
@@ -1327,6 +1646,8 @@ class VoiceController {
       VoiceIntent.confirm,
       VoiceIntent.editPatient,
       VoiceIntent.cancelAppointment,
+      VoiceIntent.deletePatient,
+      VoiceIntent.deleteFile,
     };
     final result = resolveNavigation(t.text, _visibleTabs(), DateTime.now());
     // Questions first: "when is Rahul's next appointment?" names a patient.
@@ -1818,7 +2139,7 @@ class VoiceController {
   }
 
   /// Sends what was heard to the open form and updates the strip.
-  void _fill(VoiceCommand cmd) {
+  void _fill(VoiceCommand cmd, {bool isFinal = false, String? rawText}) {
     final open = _open!;
     var date = cmd.date;
     var time = cmd.time;
@@ -1914,6 +2235,8 @@ class VoiceController {
 
     VoiceBus.emit(
       VoiceFill(
+        rawText: rawText,
+        isFinal: isFinal,
         date: date,
         time: time,
         firstName: first,
@@ -1979,6 +2302,19 @@ class VoiceController {
       ...heard,
     ].join(' · ');
     _updateReady();
+  }
+
+  /// Whether an open form or dialog can be confirmed right now.
+  bool get canConfirm => _open != null || VoiceBus.openKind.value != null;
+
+  /// Confirms the active form or action (called when doctor says "confirm"
+  /// or presses the Enter key).
+  void confirm() {
+    final kind = VoiceBus.openKind.value;
+    if (_open == null && kind != null) _adopt(kind);
+    if (_open != null) {
+      _confirm();
+    }
   }
 
   void _confirm() {
@@ -2081,8 +2417,7 @@ class VoiceController {
     return DateTime(d.year, d.month, d.day, t.hour, t.minute);
   }
 
-  static String _joinNotes(String a, String b) =>
-      [a, b].where((s) => s.isNotEmpty).join('. ');
+  static String _joinNotes(String a, String b) => joinBulletNotes(a, b);
 
   static String _label(VoiceIntent i) => switch (i) {
     VoiceIntent.openPatient => 'Open patient',
@@ -2095,6 +2430,8 @@ class VoiceController {
     VoiceIntent.markMissed => 'Mark no-show',
     VoiceIntent.recordPayment => 'Record payment',
     VoiceIntent.addNote => 'Add note',
+    VoiceIntent.deletePatient => 'Delete patient',
+    VoiceIntent.deleteFile => 'Delete file',
     _ => '',
   };
 

@@ -268,9 +268,10 @@ class WeekBreakBand extends StatelessWidget {
                 color: c.inset,
                 shape: cruShape(CruRadius.segmentInner),
               ),
-              child: Text(
+              child: CruTimeText(
                 'Break · ${DashFormat.timeRange(from, to)}',
                 style: CruType.caption.tabular.tint(c.label2),
+                timeColor: c.accentText,
               ),
             ),
           ),

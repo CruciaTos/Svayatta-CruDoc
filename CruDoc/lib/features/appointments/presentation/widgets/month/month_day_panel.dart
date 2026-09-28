@@ -86,11 +86,12 @@ class MonthDayPanel extends ConsumerWidget {
                     alignment: Alignment.centerLeft,
                     child: SkeletonBox(width: 160, height: 12),
                   )
-                : Text(
+                : CruTimeText(
                     summary(counts, date, today),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: CruType.subhead.tabular.tint(c.label2),
+                    timeColor: c.accentText,
                   ),
           ),
           const SizedBox(height: CruSpace.s12),

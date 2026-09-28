@@ -175,3 +175,100 @@ class CruDateTile extends StatelessWidget {
     );
   }
 }
+
+/// Renders text with any detected time expression (e.g. "12:11 AM", "8:00 PM",
+/// "6:00", "10:30 am") highlighted in blue ([timeColor] or [CruColors.accentText]).
+class CruTimeText extends StatelessWidget {
+  const CruTimeText(
+    this.text, {
+    super.key,
+    this.style,
+    this.timeColor,
+    this.maxLines,
+    this.overflow,
+    this.textAlign,
+    this.softWrap,
+  });
+
+  final String text;
+  final TextStyle? style;
+  final Color? timeColor;
+  final int? maxLines;
+  final TextOverflow? overflow;
+  final TextAlign? textAlign;
+  final bool? softWrap;
+
+  static final RegExp timeRegex = RegExp(
+    r'\b(?:\d{1,2}:\d{2}(?:\s*[AaPp][Mm])?|\d{1,2}\s*[AaPp][Mm])\b',
+  );
+
+  static final RegExp _dashRegex = RegExp(r'[-–—]');
+
+  static void _appendNonTime(
+    List<InlineSpan> spans,
+    String segment,
+    TextStyle baseStyle,
+  ) {
+    int last = 0;
+    for (final m in _dashRegex.allMatches(segment)) {
+      if (m.start > last) {
+        spans.add(TextSpan(
+          text: segment.substring(last, m.start),
+          style: baseStyle,
+        ));
+      }
+      spans.add(TextSpan(
+        text: m.group(0),
+        style: baseStyle.copyWith(fontWeight: FontWeight.w700),
+      ));
+      last = m.end;
+    }
+    if (last < segment.length) {
+      spans.add(TextSpan(
+        text: segment.substring(last),
+        style: baseStyle,
+      ));
+    }
+  }
+
+  static List<InlineSpan> buildSpans(
+    String text,
+    TextStyle baseStyle,
+    Color timeColor,
+  ) {
+    final spans = <InlineSpan>[];
+    int lastIndex = 0;
+    for (final match in timeRegex.allMatches(text)) {
+      if (match.start > lastIndex) {
+        _appendNonTime(spans, text.substring(lastIndex, match.start), baseStyle);
+      }
+      spans.add(TextSpan(
+        text: match.group(0),
+        style: baseStyle.copyWith(
+          color: timeColor,
+          fontWeight: FontWeight.w600,
+          fontFeatures: CruType.tabular,
+        ),
+      ));
+      lastIndex = match.end;
+    }
+    if (lastIndex < text.length) {
+      _appendNonTime(spans, text.substring(lastIndex), baseStyle);
+    }
+    return spans;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final color = timeColor ?? c.accentText;
+    final effectiveStyle = style ?? DefaultTextStyle.of(context).style;
+    return Text.rich(
+      TextSpan(children: buildSpans(text, effectiveStyle, color)),
+      maxLines: maxLines,
+      overflow: overflow,
+      textAlign: textAlign,
+      softWrap: softWrap,
+    );
+  }
+}

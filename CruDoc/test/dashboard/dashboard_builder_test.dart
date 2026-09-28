@@ -1256,18 +1256,18 @@ void main() {
     });
 
     test('timeRange within one half of the day names AM/PM once', () {
-      expect(DashFormat.timeRange(at(17, 0), at(18, 10)), '5:00 to 6:10 PM');
-      expect(DashFormat.timeRange(at(9, 30), at(11, 45)), '9:30 to 11:45 AM');
+      expect(DashFormat.timeRange(at(17, 0), at(18, 10)), '5:00 - 6:10 PM');
+      expect(DashFormat.timeRange(at(9, 30), at(11, 45)), '9:30 - 11:45 AM');
     });
 
     test('timeRange across noon names AM/PM on both ends', () {
       expect(
         DashFormat.timeRange(at(9, 30), at(18, 10)),
-        '9:30 AM to 6:10 PM',
+        '9:30 AM - 6:10 PM',
       );
       expect(
         DashFormat.timeRange(at(11, 30), at(12, 15)),
-        '11:30 AM to 12:15 PM',
+        '11:30 AM - 12:15 PM',
       );
     });
 

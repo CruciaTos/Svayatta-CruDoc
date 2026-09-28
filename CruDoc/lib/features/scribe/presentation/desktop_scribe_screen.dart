@@ -79,13 +79,31 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     });
   }
 
+  int _simulationStep = 0;
+
+  void _simulateSampleConsultation(ScribeSessionController session) {
+    const samples = [
+      'Patient came complaining of acute lower back pain radiating down right leg for 3 days.',
+      'Examination shows BP is 128 over 82, pulse 76, temperature 98.4 degrees.',
+      'Patient rates pain right now at 6 out of 10, worst pain 8 out of 10, sharp aching at lumbar spine.',
+      'Diagnosis is acute lumbar radiculopathy with muscle spasm.',
+      'Prescribing Tab Paracetamol 650mg three times daily after food for 5 days, and Tab Thiocolchicoside 4mg twice daily for 5 days.',
+      'Advised ice packs for 15 minutes twice daily, avoid forward bending, and follow up in 5 days.',
+    ];
+    final text = samples[_simulationStep % samples.length];
+    _simulationStep++;
+    session.simulateSpeechTurn(text);
+  }
+
   void _onSessionChanged() {
     final session = _session;
     final draft = session?.draft;
     if (session?.phase == ScribeSessionPhase.done &&
         draft != null &&
         _form == null) {
-      setState(() => _form = ScribeDraftFormController(draft));
+      setState(() => _form = session?.takeActiveDraftForm() ?? ScribeDraftFormController(draft));
+    } else {
+      setState(() {});
     }
   }
 
@@ -260,9 +278,29 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
   // ---- Session (visit picker + recorder) ----
 
   Widget _buildSessionBody() {
+    final session = _session;
+    final isLiveRecording = session != null &&
+        (session.phase == ScribeSessionPhase.recording ||
+            session.phase == ScribeSessionPhase.paused);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth >= 820) {
+          if (isLiveRecording) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: 300,
+                  child: _buildVisitList(scrollable: true),
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: _buildLiveRecordingWorkspace(session),
+                ),
+              ],
+            );
+          }
           return Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -270,6 +308,18 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
               const SizedBox(width: 20),
               SizedBox(width: 420, child: _buildSessionPanel(expand: true)),
             ],
+          );
+        }
+        if (isLiveRecording) {
+          return SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildLiveRecordingWorkspace(session),
+                const SizedBox(height: 16),
+                _buildVisitList(scrollable: false),
+              ],
+            ),
           );
         }
         return SingleChildScrollView(
@@ -352,35 +402,65 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
             child: Row(
               children: [
-                Text("TODAY'S VISITS", style: _p.sectionLabel),
-                if (count != null) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _p.field,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _p.border),
-                    ),
-                    child: Text(
-                      '$count',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: _p.textSecondary,
+                Expanded(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          "TODAY'S VISITS",
+                          style: _p.sectionLabel,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
+                      if (count != null) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _p.field,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: _p.border),
+                          ),
+                          child: Text(
+                            '$count',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: _p.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (locked) ...[
+                  const SizedBox(width: 8),
+                  Tooltip(
+                    message:
+                        'Finish or discard the current recording to switch visits',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.lock_outline_rounded,
+                            size: 13, color: _p.hint),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Locked',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _p.hint,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
-                const Spacer(),
-                if (locked)
-                  Text(
-                    'Finish or discard the current recording to switch',
-                    style: TextStyle(fontSize: 11.5, color: _p.hint),
-                  ),
               ],
             ),
           ),
@@ -462,6 +542,141 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
           ),
         );
       },
+    );
+  }
+
+  Widget _buildLiveRecordingWorkspace(ScribeSessionController session) {
+    final activeForm = session.activeDraftForm;
+    final paused = session.phase == ScribeSessionPhase.paused;
+    final statusColor = paused ? _p.warning : _p.danger;
+
+    return _Card(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _PatientSummary(visit: _visit!, patient: _patient),
+          Divider(height: 1, color: _p.border),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            color: _p.field,
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.35)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: statusColor,
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        paused ? 'PAUSED' : 'LIVE SCRIBE (LOCAL)',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          color: statusColor,
+                          letterSpacing: 0.7,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                ValueListenableBuilder<Duration>(
+                  valueListenable: session.elapsed,
+                  builder: (context, elapsed, _) => Text(
+                    formatScribeDuration(elapsed),
+                    style: TextStyle(
+                      fontFamily: AppColors.headingFontFamily,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: _p.textPrimary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: SizedBox(
+                    height: 28,
+                    child: ScribeWaveform(
+                      levels: session.levels,
+                      color: paused ? _p.hint : _p.danger,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+                TextButton.icon(
+                  onPressed: () => _simulateSampleConsultation(session),
+                  icon: Icon(Icons.auto_fix_high_rounded, size: 16, color: _p.accent),
+                  label: Text(
+                    'Simulate Turn',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _p.accent,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  style: TextButton.styleFrom(
+                    backgroundColor: _p.accentSoft,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                IconButton(
+                  tooltip: paused ? 'Resume recording' : 'Pause recording',
+                  icon: Icon(paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+                  color: _p.textPrimary,
+                  onPressed: paused ? session.resume : session.pause,
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Discard recording',
+                  icon: const Icon(Icons.delete_outline_rounded),
+                  color: _p.textSecondary,
+                  onPressed: _discardRecording,
+                ),
+                const SizedBox(width: 10),
+                FilledButton.icon(
+                  onPressed: session.finish,
+                  icon: const Icon(Icons.stop_rounded, size: 18),
+                  label: const Text('Finish & Review'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _p.primary,
+                    foregroundColor: Colors.white,
+                    textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: _p.border),
+          Expanded(
+            child: activeForm != null
+                ? SingleChildScrollView(
+                    padding: const EdgeInsets.all(20),
+                    child: ScribeDraftForm(
+                      controller: activeForm,
+                      palette: _p,
+                      existingDiagnoses: _patient?.diagnosis ?? const [],
+                    ),
+                  )
+                : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ],
+      ),
     );
   }
 

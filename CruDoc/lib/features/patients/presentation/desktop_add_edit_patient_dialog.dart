@@ -1,7 +1,9 @@
-import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
+import 'package:doctor_management_app/features/voice/domain/medical_conditions.dart';
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
@@ -81,7 +83,29 @@ class _DesktopAddEditPatientDialogState
 
   /// True when [_dateOfBirth] was worked out from a typed age.
   bool _dobFromAge = false;
+
+  int _revealFirstName = 0;
+  int _revealLastName = 0;
+  int _revealDob = 0;
+  int _revealAge = 0;
+  int _revealPhone = 0;
+  int _revealEmail = 0;
+  int _revealConditions = 0;
+  int _revealNotes = 0;
+  int _revealBalance = 0;
+
+  bool _pendingFirstName = false;
+  bool _pendingLastName = false;
+  bool _pendingDob = false;
+  bool _pendingAge = false;
+  bool _pendingPhone = false;
+  bool _pendingEmail = false;
+  bool _pendingConditions = false;
+  bool _pendingNotes = false;
+  bool _pendingBalance = false;
+
   late List<String> _conditions;
+  List<String> _baseConditions = const [];
 
   bool _dirty = false;
   bool _saving = false;
@@ -110,6 +134,7 @@ class _DesktopAddEditPatientDialogState
     final g = p?.gender.trim().toLowerCase() ?? '';
     _sex = _sexes.where((s) => s.toLowerCase() == g).firstOrNull;
     _conditions = List.of(p?.diagnosis ?? const <String>[]);
+    _baseConditions = List.of(_conditions);
   }
 
   @override
@@ -149,64 +174,226 @@ class _DesktopAddEditPatientDialogState
   /// changed; heard conditions are added to the ones already entered, and
   /// heard notes are appended.
   void _applyVoiceFill(PatientVoiceFill fill) {
-    if (fill.firstName.isNotEmpty) _firstName.text = fill.firstName;
-    if (fill.lastName.isNotEmpty) _lastName.text = fill.lastName;
-    if (fill.phone.isNotEmpty) _phone.text = fill.phone;
-    if (fill.email.isNotEmpty) _email.text = fill.email;
-    if (fill.gender != null && _sexes.contains(fill.gender)) _sex = fill.gender;
-    if (fill.dateOfBirth != null) {
-      _dateOfBirth = fill.dateOfBirth;
-      _dobFromAge = false;
-      _age.text = '${_ageOn(_dateOfBirth)}';
-    } else if (fill.ageYears != null) {
-      _age.text = '${fill.ageYears}';
-      _onAgeChanged(_age.text);
-    }
-    if (fill.conditions.isNotEmpty) {
-      final seen = <String>{};
-      _conditions = [..._conditions, ...fill.conditions]
-          .where((c) => seen.add(c.toLowerCase()))
-          .take(Patient.maxDiagnoses)
-          .toList();
-    }
-    if (fill.notes.isNotEmpty) {
-      final existing = _notes.text.trim();
-      _notes.text = existing.isEmpty ? fill.notes : '$existing\n${fill.notes}';
-    }
-    if (fill.packageBalance != null) {
-      _balance.text = fill.packageBalance!.toStringAsFixed(0);
-    }
-    _edited();
+    onVoiceFill(
+      VoiceFill(
+        isFinal: true,
+        firstName: fill.firstName.isEmpty ? null : fill.firstName,
+        lastName: fill.lastName.isEmpty ? null : fill.lastName,
+        phone: fill.phone.isEmpty ? null : fill.phone,
+        email: fill.email.isEmpty ? null : fill.email,
+        gender: fill.gender,
+        dateOfBirth: fill.dateOfBirth,
+        age: fill.ageYears,
+        conditions: fill.conditions,
+        notes: fill.notes.isEmpty ? null : fill.notes,
+        balance: fill.packageBalance,
+      ),
+    );
   }
 
   @override
   void onVoiceFill(VoiceFill f) {
-    if (f.firstName != null) _firstName.text = f.firstName!;
-    if (f.lastName != null) _lastName.text = f.lastName!;
-    if (f.phone != null) _phone.text = f.phone!;
-    if (f.email != null) _email.text = f.email!;
-    if (f.gender != null && _sexes.contains(f.gender)) _sex = f.gender;
-    if (f.dateOfBirth != null) {
-      _dateOfBirth = f.dateOfBirth;
-      _dobFromAge = false;
-      _age.text = '${_ageOn(_dateOfBirth)}';
-    } else if (f.age != null) {
-      _age.text = '${f.age}';
-      _onAgeChanged(_age.text);
-    }
-    if (f.conditions.isNotEmpty) {
-      final seen = <String>{};
-      _conditions = [..._conditions, ...f.conditions]
-          .where((c) => seen.add(c.toLowerCase()))
-          .take(Patient.maxDiagnoses)
-          .toList();
-    }
-    if (f.notes != null) {
-      _voiceNotesBase ??= _notes.text.trim();
-      _notes.text =
-          [_voiceNotesBase!, f.notes!].where((s) => s.isNotEmpty).join('\n');
-    }
-    if (f.balance != null) _balance.text = f.balance!.toStringAsFixed(0);
+    final raw = (f.rawText ?? '').toLowerCase();
+
+    setState(() {
+      // 1. FAST STREAM FIELD DETECTION (Dissolve into smoke):
+      // If a field was mentioned in speech but hasn't received its value yet,
+      // dissolve it into smoke immediately so it is waiting in fog.
+      if (f.firstName == null &&
+          f.lastName == null &&
+          (raw.contains('name') ||
+              raw.contains('called') ||
+              raw.contains('patient') ||
+              raw.contains('mr ') ||
+              raw.contains('mrs '))) {
+        if (_firstName.text.isEmpty) _pendingFirstName = true;
+        if (_lastName.text.isEmpty) _pendingLastName = true;
+      }
+
+      if (f.dateOfBirth == null &&
+          (raw.contains('birth') ||
+              raw.contains('born') ||
+              raw.contains('dob'))) {
+        if (_dateOfBirth == null) {
+          _pendingDob = true;
+          _pendingAge = true;
+        }
+      } else if (f.age == null &&
+          (raw.contains('age') ||
+              raw.contains('years old') ||
+              raw.contains('year old'))) {
+        if (_age.text.isEmpty) _pendingAge = true;
+      }
+
+      if (f.phone == null &&
+          (raw.contains('phone') ||
+              raw.contains('mobile') ||
+              raw.contains('contact') ||
+              raw.contains('number'))) {
+        if (_phone.text.isEmpty) _pendingPhone = true;
+      }
+
+      if (f.email == null &&
+          (raw.contains('email') ||
+              raw.contains('mail') ||
+              raw.contains('@'))) {
+        if (_email.text.isEmpty) _pendingEmail = true;
+      }
+
+      if (f.conditions.isEmpty &&
+          (raw.contains('suffer') ||
+              raw.contains('condition') ||
+              raw.contains('diagnos') ||
+              raw.contains('pain') ||
+              raw.contains('complains'))) {
+        _pendingConditions = true;
+      }
+
+      if (f.notes == null &&
+          (raw.contains('note') ||
+              raw.contains('allerg') ||
+              raw.contains('medicine') ||
+              raw.contains('surger'))) {
+        _pendingNotes = true;
+      }
+
+      if (f.balance == null &&
+          (raw.contains('balance') ||
+              raw.contains('package') ||
+              raw.contains('advance') ||
+              raw.contains('paid') ||
+              raw.contains('rupees'))) {
+        if (_balance.text.isEmpty) _pendingBalance = true;
+      }
+
+      // 2. LIVE PROGRESSIVE FIELD POPULATION (Emergence while user is STILL speaking):
+      // As soon as ANY field value is recognized, populate it immediately! Do NOT wait for key-up!
+      // But for names, wait until the user finishes speaking or moves past the name
+      // to prevent flickering and stuttering on intermediate syllable guesses.
+      final movedPastName = f.isFinal ||
+          f.gender != null ||
+          f.dateOfBirth != null ||
+          f.age != null ||
+          f.phone != null ||
+          f.email != null ||
+          f.conditions.isNotEmpty ||
+          f.notes != null ||
+          f.balance != null ||
+          raw.contains('years') ||
+          raw.contains('year old') ||
+          raw.contains('age') ||
+          raw.contains('born') ||
+          raw.contains('dob') ||
+          raw.contains('male') ||
+          raw.contains('female') ||
+          raw.contains('phone') ||
+          raw.contains('contact') ||
+          raw.contains('email') ||
+          raw.contains('note') ||
+          raw.contains('allerg') ||
+          raw.contains('diagnos') ||
+          raw.contains('suffer');
+
+      if (movedPastName) {
+        if (f.firstName != null &&
+            f.firstName!.isNotEmpty &&
+            _firstName.text != f.firstName!) {
+          _firstName.text = f.firstName!;
+          _pendingFirstName = false;
+          _revealFirstName++;
+        }
+        if (f.lastName != null &&
+            f.lastName!.isNotEmpty &&
+            _lastName.text != f.lastName!) {
+          _lastName.text = f.lastName!;
+          _pendingLastName = false;
+          _revealLastName++;
+        }
+      }
+      if (f.phone != null &&
+          f.phone!.isNotEmpty &&
+          _phone.text != f.phone!) {
+        _phone.text = f.phone!;
+        _pendingPhone = false;
+        _revealPhone++;
+      }
+      if (f.email != null &&
+          f.email!.isNotEmpty &&
+          _email.text != f.email!) {
+        _email.text = f.email!;
+        _pendingEmail = false;
+        _revealEmail++;
+      }
+      // Sex is toggled directly without blur or disappearing animation
+      if (f.gender != null &&
+          _sexes.contains(f.gender) &&
+          _sex != f.gender) {
+        _sex = f.gender;
+      }
+      if (f.dateOfBirth != null && _dateOfBirth != f.dateOfBirth) {
+        _dateOfBirth = f.dateOfBirth;
+        _dobFromAge = false;
+        _pendingDob = false;
+        _revealDob++;
+        final aStr = '${_ageOn(_dateOfBirth)}';
+        if (_age.text != aStr) {
+          _age.text = aStr;
+          _pendingAge = false;
+          _revealAge++;
+        }
+      } else if (f.age != null && _age.text != '${f.age}') {
+        _age.text = '${f.age}';
+        _onAgeChanged(_age.text);
+        _pendingAge = false;
+        _revealAge++;
+      }
+      if (f.conditions.isNotEmpty) {
+        final seen = <String>{};
+        final newConds = [..._baseConditions, ...f.conditions]
+            .where((c) => seen.add(c.toLowerCase()))
+            .take(Patient.maxDiagnoses)
+            .toList();
+        if (_conditions.length != newConds.length) {
+          _conditions = newConds;
+          _baseConditions = List.of(_conditions);
+          _pendingConditions = false;
+          _revealConditions++;
+        }
+      }
+      if (f.notes != null && f.notes!.trim().isNotEmpty) {
+        _voiceNotesBase ??= _notes.text.trim();
+        final base = _voiceNotesBase!;
+        final combined = base.isEmpty
+            ? f.notes!.trim()
+            : joinBulletNotes(base, f.notes!);
+        if (_notes.text != combined) {
+          _notes.text = combined;
+          _pendingNotes = false;
+          _revealNotes++;
+        }
+      }
+      if (f.balance != null) {
+        final balStr = f.balance!.toStringAsFixed(0);
+        if (_balance.text != balStr) {
+          _balance.text = balStr;
+          _pendingBalance = false;
+          _revealBalance++;
+        }
+      }
+
+      // 3. FINAL CLEANUP (When spacebar is finally released):
+      if (f.isFinal) {
+        _pendingFirstName = false;
+        _pendingLastName = false;
+        _pendingDob = false;
+        _pendingAge = false;
+        _pendingPhone = false;
+        _pendingEmail = false;
+        _pendingConditions = false;
+        _pendingNotes = false;
+        _pendingBalance = false;
+      }
+    });
     _edited();
   }
 
@@ -382,23 +569,29 @@ class _DesktopAddEditPatientDialogState
               first: true,
               title: 'Patient',
               description: 'As it will appear on the record and on bills.',
-              children: [
-                CruFieldRow(
+              children: [                CruFieldRow(
                   children: [
                     CruTextField(
                       label: 'First name',
+                      hint: 'e.g. Maya',
                       controller: _firstName,
                       autofocus: !_isEditing,
                       textCapitalization: TextCapitalization.words,
                       validator: (v) => _required(v, 'Add a first name.'),
                       onChanged: _edited,
+                      aiRevealKey: _revealFirstName,
+                      aiPending: _pendingFirstName,
                     ),
                     CruTextField(
                       label: 'Last name',
+                      hint: 'e.g. Patel',
                       controller: _lastName,
                       textCapitalization: TextCapitalization.words,
                       validator: (v) => _required(v, 'Add a last name.'),
                       onChanged: _edited,
+                      aiRevealKey: _revealLastName,
+                      aiPending: _pendingLastName,
+                      aiStagger: const Duration(milliseconds: 60),
                     ),
                   ],
                 ),
@@ -434,6 +627,8 @@ class _DesktopAddEditPatientDialogState
                       error: _submitted && _dateOfBirth == null
                           ? 'Add a date of birth or an age.'
                           : null,
+                      aiRevealKey: _revealDob,
+                      aiPending: _pendingDob,
                     ),
                     CruTextField(
                       label: 'Age',
@@ -447,6 +642,9 @@ class _DesktopAddEditPatientDialogState
                       ],
                       validator: _validateAge,
                       onChanged: _onAgeChanged,
+                      aiRevealKey: _revealAge,
+                      aiPending: _pendingAge,
+                      aiStagger: const Duration(milliseconds: 180),
                     ),
                   ],
                 ),
@@ -471,6 +669,9 @@ class _DesktopAddEditPatientDialogState
                       ],
                       validator: _validatePhone,
                       onChanged: _edited,
+                      aiRevealKey: _revealPhone,
+                      aiPending: _pendingPhone,
+                      aiStagger: const Duration(milliseconds: 240),
                     ),
                     CruTextField(
                       label: 'Email',
@@ -480,6 +681,9 @@ class _DesktopAddEditPatientDialogState
                       keyboardType: TextInputType.emailAddress,
                       validator: _validateEmail,
                       onChanged: _edited,
+                      aiRevealKey: _revealEmail,
+                      aiPending: _pendingEmail,
+                      aiStagger: const Duration(milliseconds: 300),
                     ),
                   ],
                 ),
@@ -498,8 +702,12 @@ class _DesktopAddEditPatientDialogState
                   suggestions: _commonConditions,
                   onChanged: (v) {
                     _conditions = v;
+                    _baseConditions = List.of(_conditions);
                     _edited();
                   },
+                  aiRevealKey: _revealConditions,
+                  aiPending: _pendingConditions,
+                  aiStagger: const Duration(milliseconds: 360),
                 ),
                 CruTextField(
                   label: 'Notes',
@@ -509,6 +717,9 @@ class _DesktopAddEditPatientDialogState
                   hint: 'Allergies, regular medicines, past surgeries…',
                   textCapitalization: TextCapitalization.sentences,
                   onChanged: _edited,
+                  aiRevealKey: _revealNotes,
+                  aiPending: _pendingNotes,
+                  aiStagger: const Duration(milliseconds: 420),
                 ),
               ],
             ),
@@ -533,6 +744,9 @@ class _DesktopAddEditPatientDialogState
                       textInputAction: TextInputAction.done,
                       onSubmitted: (_) => _save(),
                       onChanged: _edited,
+                      aiRevealKey: _revealBalance,
+                      aiPending: _pendingBalance,
+                      aiStagger: const Duration(milliseconds: 480),
                     ),
                     const SizedBox.shrink(),
                   ],

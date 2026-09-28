@@ -40,14 +40,35 @@ class DashboardSearchField extends ConsumerStatefulWidget {
 
 class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
   final _controller = TextEditingController();
-  FocusNode? _ownFocus;
+  late final FocusNode _internalFocus =
+      FocusNode(debugLabel: 'dashboard search field');
 
-  FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode?.addListener(_onExternalFocusChanged);
+  }
+
+  @override
+  void didUpdateWidget(DashboardSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.focusNode != widget.focusNode) {
+      oldWidget.focusNode?.removeListener(_onExternalFocusChanged);
+      widget.focusNode?.addListener(_onExternalFocusChanged);
+    }
+  }
+
+  void _onExternalFocusChanged() {
+    if (widget.focusNode?.hasFocus == true && !_internalFocus.hasFocus) {
+      _internalFocus.requestFocus();
+    }
+  }
 
   @override
   void dispose() {
+    widget.focusNode?.removeListener(_onExternalFocusChanged);
+    _internalFocus.dispose();
     _controller.dispose();
-    _ownFocus?.dispose();
     super.dispose();
   }
 
@@ -69,7 +90,7 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
 
   void _select(_Option option) {
     _controller.clear();
-    _focus.unfocus();
+    _internalFocus.unfocus();
     switch (option) {
       case _PatientOption(:final patient):
         DashboardActions.openPatient(context, patient);
@@ -89,7 +110,7 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
       height: CruSize.control,
       child: RawAutocomplete<_Option>(
         textEditingController: _controller,
-        focusNode: _focus,
+        focusNode: _internalFocus,
         optionsBuilder: _options,
         displayStringForOption: (_) => '',
         onSelected: _select,

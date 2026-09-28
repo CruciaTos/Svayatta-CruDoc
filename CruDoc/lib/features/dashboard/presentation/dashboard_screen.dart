@@ -59,12 +59,6 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     final compact = width < CruBreakpoint.compact;
 
     final left = <Widget>[
-      if (!data.scheduleReady)
-        const SkeletonCard(rows: 2, rowHeight: 48)
-      else if (data.upNext != null)
-        UpNextCard(data: data.upNext!, navigate: widget.onNavigateToTab)
-      else
-        NoOneWaitingCard(nextBooking: data.nextBooking),
       data.schedule == null
           ? const SkeletonCard(rows: 5)
           : ScheduleCard(items: data.schedule!, now: data.now),
@@ -80,7 +74,14 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
         RadiologyTodayCard(onNavigate: widget.onNavigateToTab),
     ];
 
+    final upNext = !data.scheduleReady
+        ? const SkeletonCard(rows: 2, rowHeight: 48)
+        : data.upNext != null
+            ? UpNextCard(data: data.upNext!, navigate: widget.onNavigateToTab)
+            : NoOneWaitingCard(nextBooking: data.nextBooking);
+
     final right = <Widget>[
+      upNext,
       ..._rightColumnTop(context, data),
       data.collections == null
           ? const SkeletonCard(rows: 1, rowHeight: 140)

@@ -32,11 +32,11 @@ abstract final class DashFormat {
   /// 11:30 AM.
   static String time(DateTime t) => DateFormat('h:mm a').format(t);
 
-  /// "9:30 AM to 6:10 PM", or "5:00 to 6:10 PM" within one half of the day.
+  /// "9:30 AM - 6:10 PM", or "5:00 - 6:10 PM" within one half of the day.
   static String timeRange(DateTime a, DateTime b) {
     final (ha, pa) = timeParts(a);
-    if (a.hour < 12 == b.hour < 12) return '$ha to ${time(b)}';
-    return '$ha $pa to ${time(b)}';
+    if (a.hour < 12 == b.hour < 12) return '$ha - ${time(b)}';
+    return '$ha $pa - ${time(b)}';
   }
 
   /// Wednesday, 23 September.

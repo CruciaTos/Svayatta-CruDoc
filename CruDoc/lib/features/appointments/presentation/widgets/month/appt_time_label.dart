@@ -22,11 +22,11 @@ class ApptTimeLabel extends StatelessWidget {
         children: [
           TextSpan(
             text: hm,
-            style: CruType.callout.tabular.tint(color ?? c.label),
+            style: CruType.callout.w600.tabular.tint(color ?? c.accentText),
           ),
           TextSpan(
             text: ' $ampm',
-            style: CruType.micro.tint(c.label3),
+            style: CruType.micro.w600.tint(color ?? c.accentText),
           ),
         ],
       ),

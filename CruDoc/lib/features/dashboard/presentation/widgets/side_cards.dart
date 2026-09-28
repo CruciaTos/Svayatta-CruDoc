@@ -38,12 +38,14 @@ class ActionRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
+                CruTimeText(title,
                     style: CruType.callout.tabular.tint(c.label),
+                    timeColor: c.accentText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
-                Text(subtitle,
+                CruTimeText(subtitle,
                     style: CruType.subhead.tabular.tint(c.label2),
+                    timeColor: c.accentText,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
               ],

@@ -163,12 +163,16 @@ class CruPill extends StatelessWidget {
     required this.text,
     required this.background,
     required this.foreground,
+    this.borderColor,
+    this.borderWidth = 1,
     this.icon,
   });
 
   final String text;
   final Color background;
   final Color foreground;
+  final Color? borderColor;
+  final double borderWidth;
   final CruIconData? icon;
 
   @override
@@ -178,7 +182,11 @@ class CruPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
       decoration: ShapeDecoration(
         color: background,
-        shape: const StadiumBorder(),
+        shape: StadiumBorder(
+          side: borderColor != null
+              ? BorderSide(color: borderColor!, width: borderWidth)
+              : BorderSide.none,
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -234,6 +242,7 @@ class CruProgressRing extends StatelessWidget {
     required this.value,
     this.size = CruSize.progressRing,
     this.strokeWidth = CruSize.progressStroke,
+    this.color,
     this.semanticLabel,
   });
 
@@ -241,6 +250,9 @@ class CruProgressRing extends StatelessWidget {
   final double value;
   final double size;
   final double strokeWidth;
+
+  /// Arc colour. Defaults to accent (accentText in Evening).
+  final Color? color;
   final String? semanticLabel;
 
   @override
@@ -259,7 +271,7 @@ class CruProgressRing extends StatelessWidget {
             value: v,
             track: c.track,
             // Evening uses the lighter accent so the arc reads on dark.
-            arc: c.isEvening ? c.accentText : c.accent,
+            arc: color ?? (c.isEvening ? c.accentText : c.accent),
             strokeWidth: strokeWidth,
           ),
         ),

@@ -1050,7 +1050,10 @@ class _SessionTimelineTile extends StatelessWidget {
                         ),
                         Text(
                           time,
-                          style: AppColors.bodySmall,
+                          style: AppColors.bodySmall.copyWith(
+                            color: const Color(0xFF3155E0),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),

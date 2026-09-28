@@ -28,9 +28,6 @@ class GeminiJsonClient {
   static const _envApiKey = String.fromEnvironment('GEMINI_API_KEY');
   static const _envModel = String.fromEnvironment('GEMINI_MODEL');
 
-  static const defaultScribeApiKey =
-      'AIzaSyBEJGmmNiiWT2GqGtfLBzoa7jqcryui1SM';
-
   static String _readKeyFromEnvFile(File file, String keyName) {
     try {
       if (file.existsSync()) {
@@ -53,9 +50,12 @@ class GeminiJsonClient {
       final platKey = Platform.environment['GEMINI_API_KEY'];
       if (platKey != null && platKey.isNotEmpty) return platKey;
     } catch (_) {}
-    // Check .env.local in current directory
+    // Check .env.local in current directory or CruDoc subdirectory
     final localKey = _readKeyFromEnvFile(File('.env.local'), 'GEMINI_API_KEY');
     if (localKey.isNotEmpty) return localKey;
+    final subLocalKey =
+        _readKeyFromEnvFile(File('CruDoc/.env.local'), 'GEMINI_API_KEY');
+    if (subLocalKey.isNotEmpty) return subLocalKey;
 
     // Check .env.local next to executable for standalone / release builds
     try {
@@ -67,7 +67,7 @@ class GeminiJsonClient {
       if (exeKey.isNotEmpty) return exeKey;
     } catch (_) {}
 
-    return defaultScribeApiKey;
+    return '';
   }
 
   static String _resolveModel() {
@@ -78,6 +78,9 @@ class GeminiJsonClient {
     } catch (_) {}
     final localModel = _readKeyFromEnvFile(File('.env.local'), 'GEMINI_MODEL');
     if (localModel.isNotEmpty) return localModel;
+    final subLocalModel =
+        _readKeyFromEnvFile(File('CruDoc/.env.local'), 'GEMINI_MODEL');
+    if (subLocalModel.isNotEmpty) return subLocalModel;
     return '';
   }
 

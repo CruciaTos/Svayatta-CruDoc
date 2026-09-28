@@ -8,6 +8,8 @@ import 'package:doctor_management_app/core/services/gemini_json_client.dart';
 
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
+import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
+import 'package:doctor_management_app/features/scribe/services/scribe_transcript_formatter.dart';
 
 /// Handles the core AI processing step for the scribe:
 /// local audio → Gemini via Firebase AI Logic → structured draft note.
@@ -204,6 +206,82 @@ CRITICAL RULES — read these carefully:
     } catch (e) {
       return 'Could not read the recording file: $e';
     }
+  }
+
+  /// Processes consultation locally from live extracted data and transcript,
+  /// avoiding cloud Gemini API key requirement.
+  ConsultationNote processLocally({
+    required String transcript,
+    required String noteId,
+    required String doctorId,
+    required String patientId,
+    required String visitId,
+    required DateTime consentAt,
+    ConsultationNote? existingDraft,
+  }) {
+    final formatted = ScribeTranscriptFormatter.format(transcript);
+
+    if (existingDraft != null) {
+      return ConsultationNote(
+        id: noteId,
+        doctorId: doctorId,
+        patientId: patientId,
+        visitId: visitId,
+        transcript:
+            formatted.isNotEmpty ? formatted : existingDraft.transcript,
+        chiefComplaint: existingDraft.chiefComplaint,
+        symptoms: existingDraft.symptoms,
+        diagnosisSuggestions: existingDraft.diagnosisSuggestions,
+        medicines: existingDraft.medicines,
+        advice: existingDraft.advice,
+        followUpDate: existingDraft.followUpDate,
+        vitals: existingDraft.vitals,
+        physio: existingDraft.physio,
+        confidenceNote: existingDraft.confidenceNote,
+        consentGiven: true,
+        consentAt: consentAt,
+        audioStoragePath: existingDraft.audioStoragePath,
+        status: ConsultationNoteStatus.draft,
+        createdAt: existingDraft.createdAt,
+        confirmedAt: existingDraft.confirmedAt,
+        updatedAt: DateTime.now(),
+      );
+    }
+
+    const extractor = ScribeLiveExtractor();
+    final ext = extractor.extract(formatted.isNotEmpty ? formatted : transcript);
+
+    return ConsultationNote(
+      id: noteId,
+      doctorId: doctorId,
+      patientId: patientId,
+      visitId: visitId,
+      transcript: formatted,
+      chiefComplaint: ext.chiefComplaint ?? '',
+      symptoms: ext.symptoms,
+      diagnosisSuggestions: ext.diagnoses,
+      medicines: ext.medicines,
+      advice: ext.advice ?? '',
+      followUpDate: ext.followUpDate,
+      vitals: {'bp': ext.bp, 'temp': ext.temp, 'pulse': ext.pulse},
+      physio: PhysioFindings.fromJson({
+        if (ext.painNow != null) 'painNow': ext.painNow,
+        if (ext.painWorst != null) 'painWorst': ext.painWorst,
+        if (ext.painLocation != null) 'painLocation': [ext.painLocation!],
+        if (ext.painNature != null) 'painNature': ext.painNature,
+        if (ext.onset != null) 'onset': ext.onset,
+        if (ext.history != null) 'history': ext.history,
+        if (ext.patientGoals != null) 'patientGoals': ext.patientGoals,
+        if (ext.aggravating.isNotEmpty) 'aggravating': ext.aggravating,
+        if (ext.easing.isNotEmpty) 'easing': ext.easing,
+        if (ext.functionalLimits.isNotEmpty)
+          'functionalLimits': ext.functionalLimits,
+      }),
+      consentGiven: true,
+      consentAt: consentAt,
+      status: ConsultationNoteStatus.draft,
+      createdAt: DateTime.now(),
+    );
   }
 
   /// Processes the recorded audio and returns a structured draft note.

@@ -174,10 +174,11 @@ class VisitRow extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
+                CruTimeText(
                   sub,
                   style: CruType.subhead.tabular
                       .tint(notRecorded ? c.amberText : c.label2),
+                  timeColor: c.accentText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

@@ -12,6 +12,7 @@ import 'package:doctor_management_app/features/appointments/data/repo/visits_rep
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_cap_notice.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
+import 'package:doctor_management_app/features/voice/domain/medical_conditions.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_dialogs.dart';
@@ -105,6 +106,18 @@ class _DesktopScheduleVisitDialogState
   bool _dirty = false;
   bool _saving = false;
   String? _notice;
+
+  int _revealDate = 0;
+  int _revealTime = 0;
+  int _revealReason = 0;
+  int _revealNotes = 0;
+  int _revealAddress = 0;
+
+  bool _pendingDate = false;
+  bool _pendingTime = false;
+  bool _pendingReason = false;
+  bool _pendingNotes = false;
+  bool _pendingAddress = false;
 
   /// Refused at this start by the cap of 4; shown under the time field
   /// with the next free slot.
@@ -209,14 +222,104 @@ class _DesktopScheduleVisitDialogState
 
   @override
   void onVoiceFill(VoiceFill f) {
-    if (f.reason != null) _reason.text = f.reason!;
-    if (f.address != null) _address.text = f.address!;
-    if (f.notes != null) {
-      _voiceNotesBase ??= _notes.text.trim();
-      _notes.text =
-          [_voiceNotesBase!, f.notes!].where((s) => s.isNotEmpty).join('\n');
-    }
+    final raw = (f.rawText ?? '').toLowerCase();
+
     setState(() {
+      // 1. Live speech / field mention detection (dissolve into smoke)
+      if (f.date == null &&
+          (raw.contains('date') ||
+              raw.contains('tomorrow') ||
+              raw.contains('today') ||
+              raw.contains('monday') ||
+              raw.contains('tuesday') ||
+              raw.contains('wednesday') ||
+              raw.contains('thursday') ||
+              raw.contains('friday') ||
+              raw.contains('saturday') ||
+              raw.contains('sunday') ||
+              raw.contains('next week') ||
+              raw.contains('this week'))) {
+        _pendingDate = true;
+      }
+      if (f.time == null &&
+          (raw.contains('time') ||
+              raw.contains('at ') ||
+              raw.contains('pm') ||
+              raw.contains('am') ||
+              raw.contains('morning') ||
+              raw.contains('afternoon') ||
+              raw.contains('evening') ||
+              raw.contains("o'clock"))) {
+        _pendingTime = true;
+      }
+      if (f.reason == null &&
+          (raw.contains('reason') ||
+              raw.contains('because') ||
+              raw.contains('for ') ||
+              raw.contains('pain') ||
+              raw.contains('complaint') ||
+              raw.contains('checkup') ||
+              raw.contains('consultation'))) {
+        if (_reason.text.isEmpty) _pendingReason = true;
+      }
+      if (f.notes == null &&
+          (raw.contains('note') ||
+              raw.contains('notes') ||
+              raw.contains('allerg') ||
+              raw.contains('remark'))) {
+        if (_notes.text.isEmpty) _pendingNotes = true;
+      }
+      if (f.address == null &&
+          (raw.contains('address') ||
+              raw.contains('street') ||
+              raw.contains('road') ||
+              raw.contains('flat') ||
+              raw.contains('sector') ||
+              raw.contains('nagar'))) {
+        if (_address.text.isEmpty) _pendingAddress = true;
+      }
+
+      // 2. Progressive field emergence
+      if (f.date != null && _date != f.date) {
+        _date = f.date!;
+        _pendingDate = false;
+        _revealDate++;
+        _timeEdited();
+      }
+      if (f.time != null && _time != f.time) {
+        _time = f.time!;
+        _pendingTime = false;
+        _revealTime++;
+        _timeEdited();
+      }
+      if (f.reason != null &&
+          f.reason!.isNotEmpty &&
+          _reason.text != f.reason!) {
+        _reason.text = f.reason!;
+        _pendingReason = false;
+        _revealReason++;
+      }
+      if (f.address != null &&
+          f.address!.isNotEmpty &&
+          _address.text != f.address!) {
+        _address.text = f.address!;
+        _pendingAddress = false;
+        _revealAddress++;
+      }
+      if (f.notes != null && f.notes!.trim().isNotEmpty) {
+        _voiceNotesBase ??= _notes.text.trim();
+        final base = _voiceNotesBase!;
+        final combined = base.isEmpty
+            ? f.notes!.trim()
+            : joinBulletNotes(base, f.notes!);
+        if (_notes.text != combined) {
+          _notes.text = combined;
+          _pendingNotes = false;
+          _revealNotes++;
+        }
+      }
+
+      // Toggles (selection tabs / switches toggle directly)
       for (final p in f.others) {
         final taken = p.id == widget.patient.id ||
             _others.any((o) => o.$1.id == p.id);
@@ -226,11 +329,7 @@ class _DesktopScheduleVisitDialogState
         _sendWhatsApp = f.sendWhatsApp!;
       }
       if (f.addToQueue != null) _addToQueue = f.addToQueue!;
-      if (f.date != null) _date = f.date!;
-      if (f.time != null) _time = f.time!;
-      if (f.date != null || f.time != null) _timeEdited();
       if (f.durationMinutes != null) {
-        // The form offers fixed lengths; take the closest.
         _duration = _durations.reduce(
           (a, b) =>
               (a - f.durationMinutes!).abs() <= (b - f.durationMinutes!).abs()
@@ -240,6 +339,15 @@ class _DesktopScheduleVisitDialogState
       }
       if (f.homeVisit != null && ref.read(isPhysiotherapyProvider)) {
         _type = f.homeVisit! ? VisitType.home : VisitType.clinic;
+      }
+
+      // 3. Final cleanup when user finishes speaking
+      if (f.isFinal) {
+        _pendingDate = false;
+        _pendingTime = false;
+        _pendingReason = false;
+        _pendingNotes = false;
+        _pendingAddress = false;
       }
     });
     _edited();
@@ -491,6 +599,8 @@ class _DesktopScheduleVisitDialogState
                     value: _dateLabel(_date),
                     placeholder: 'Pick a date',
                     onTap: _pickDate,
+                    aiRevealKey: _revealDate,
+                    aiPending: _pendingDate,
                   ),
                   CruPickerField(
                     label: 'Time',
@@ -502,6 +612,9 @@ class _DesktopScheduleVisitDialogState
                     placeholder: 'Pick a time',
                     onTap: _pickTime,
                     error: _timeError,
+                    aiRevealKey: _revealTime,
+                    aiPending: _pendingTime,
+                    aiStagger: const Duration(milliseconds: 60),
                   ),
                 ],
               ),
@@ -564,6 +677,8 @@ class _DesktopScheduleVisitDialogState
                       _lng = lng;
                       _edited();
                     },
+                    aiRevealKey: _revealAddress,
+                    aiPending: _pendingAddress,
                   ),
                   CruTextField(
                     label: 'Google Maps link',
@@ -632,6 +747,9 @@ class _DesktopScheduleVisitDialogState
                     hint: 'Follow-up, consultation, procedure…',
                     textCapitalization: TextCapitalization.sentences,
                     onChanged: _edited,
+                    aiRevealKey: _revealReason,
+                    aiPending: _pendingReason,
+                    aiStagger: const Duration(milliseconds: 120),
                   ),
                   const SizedBox(height: CruSpace.s8),
                   Wrap(
@@ -662,6 +780,9 @@ class _DesktopScheduleVisitDialogState
                 hint: 'Complaints, equipment to bring, preparation…',
                 textCapitalization: TextCapitalization.sentences,
                 onChanged: _edited,
+                aiRevealKey: _revealNotes,
+                aiPending: _pendingNotes,
+                aiStagger: const Duration(milliseconds: 180),
               ),
             ],
           ),
@@ -705,11 +826,15 @@ class _AddressField extends ConsumerStatefulWidget {
     required this.controller,
     required this.onChanged,
     required this.onPlaceSelected,
+    this.aiRevealKey,
+    this.aiPending = false,
   });
 
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
   final void Function(double lat, double lng) onPlaceSelected;
+  final Object? aiRevealKey;
+  final bool aiPending;
 
   @override
   ConsumerState<_AddressField> createState() => _AddressFieldState();
@@ -827,6 +952,8 @@ class _AddressFieldState extends ConsumerState<_AddressField> {
               ? Text('Searching…', style: CruType.caption.tint(c.label3))
               : null,
           onChanged: _onChanged,
+          aiRevealKey: widget.aiRevealKey,
+          aiPending: widget.aiPending,
         ),
         if (_predictions.isNotEmpty) ...[
           const SizedBox(height: CruSpace.s6),

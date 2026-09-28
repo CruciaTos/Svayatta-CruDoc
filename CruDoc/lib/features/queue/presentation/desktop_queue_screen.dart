@@ -1925,8 +1925,9 @@ class _Tag extends StatelessWidget {
             CruIcon(icon!, size: 12, strokeWidth: 2.2, color: fg),
             const SizedBox(width: CruSpace.s4),
           ],
-          Text(
+          CruTimeText(
             label,
+            timeColor: c.accentText,
             style: CruType.micro.tabular.copyWith(
               color: fg,
               fontWeight: strong || tone != _TagTone.surface

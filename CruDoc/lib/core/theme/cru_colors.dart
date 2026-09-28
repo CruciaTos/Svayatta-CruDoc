@@ -153,7 +153,7 @@ class CruColors extends ThemeExtension<CruColors> {
 
   static const CruColors day = CruColors(
     appearance: CruAppearance.day,
-    canvas: Color(0xFFF1F4F9),
+    canvas: Color(0xFFDBEAFE),
     surface: Color(0xFFFFFFFF),
     inset: Color(0xFFF2F4F7),
     track: Color(0xFFE6EAF0),
@@ -161,7 +161,7 @@ class CruColors extends ThemeExtension<CruColors> {
     label2: Color(0xFF6E6E73),
     label3: Color(0xFF86868B),
     separator: Color(0x14101828),
-    hairline: Color(0x0F101828),
+    hairline: Color(0xFFE2E8F0),
     ink: CruBrand.ink700,
     accent: CruBrand.ink600,
     onAccent: CruBrand.white,
@@ -184,7 +184,7 @@ class CruColors extends ThemeExtension<CruColors> {
     segmentSelected: Color(0xFFFFFFFF),
     hoverFill: Color(0xFFF2F4F7),
     cardShadow: [
-      BoxShadow(color: Color(0x0A101828), blurRadius: 2, offset: Offset(0, 1)),
+      BoxShadow(color: Color(0x0F000000), blurRadius: 2, offset: Offset(0, 1)),
     ],
     segmentShadow: [
       BoxShadow(color: Color(0x1F101828), blurRadius: 3, offset: Offset(0, 1)),

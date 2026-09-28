@@ -219,10 +219,11 @@ class _CompactRow extends StatelessWidget {
                             : CruType.row.w500.tabular.tint(c.label),
                   ),
                   if (sub != null)
-                    Text(
+                    CruTimeText(
                       sub,
                       maxLines: 1,
                       style: CruType.caption.tabular.tint(c.label2),
+                      timeColor: c.accentText,
                     ),
                 ],
               ),

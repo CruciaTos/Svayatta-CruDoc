@@ -2,6 +2,7 @@ import 'package:flutter/widgets.dart';
 
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
+import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
 
 /// Editable state for one medicine row. Owns its controllers so typing
 /// never loses the cursor, and carries a stable [id] for widget keys so
@@ -136,6 +137,262 @@ class ScribeDraftFormController extends ChangeNotifier {
 
   DateTime? _followUpDate;
   DateTime? get followUpDate => _followUpDate;
+
+  final Map<String, int> _revealKeys = {};
+  final Set<String> _pendingFields = {};
+
+  int revealKeyFor(String fieldKey) => _revealKeys[fieldKey] ?? 0;
+  bool isPending(String fieldKey) => _pendingFields.contains(fieldKey);
+
+  void setFieldPending(String fieldKey, bool pending) {
+    if (pending) {
+      if (_pendingFields.add(fieldKey)) notifyListeners();
+    } else {
+      if (_pendingFields.remove(fieldKey)) notifyListeners();
+    }
+  }
+
+  void updateChiefComplaint(String text) {
+    final clean = text.trim();
+    if (clean.isEmpty || chiefComplaint.text.trim() == clean) return;
+    chiefComplaint.text = clean;
+    _revealKeys['chiefComplaint'] = (_revealKeys['chiefComplaint'] ?? 0) + 1;
+    _pendingFields.remove('chiefComplaint');
+    notifyListeners();
+  }
+
+  void mergeSymptoms(List<String> newSymptoms) {
+    var changed = false;
+    for (final s in newSymptoms) {
+      final clean = s.trim();
+      if (clean.isEmpty) continue;
+      if (!symptoms.any((e) => e.toLowerCase() == clean.toLowerCase())) {
+        symptoms.add(clean);
+        changed = true;
+      }
+    }
+    if (changed) {
+      _revealKeys['symptoms'] = (_revealKeys['symptoms'] ?? 0) + 1;
+      _pendingFields.remove('symptoms');
+      notifyListeners();
+    }
+  }
+
+  void mergeDiagnoses(List<String> newDiagnoses) {
+    var changed = false;
+    for (final d in newDiagnoses) {
+      final clean = d.trim();
+      if (clean.isEmpty) continue;
+      if (!diagnoses.any((e) => e.toLowerCase() == clean.toLowerCase())) {
+        diagnoses.add(clean);
+        changed = true;
+      }
+    }
+    if (changed) {
+      _revealKeys['diagnoses'] = (_revealKeys['diagnoses'] ?? 0) + 1;
+      _pendingFields.remove('diagnoses');
+      notifyListeners();
+    }
+  }
+
+  void mergeMedicines(List<NotedMedicine> newMedicines) {
+    var changed = false;
+    for (final med in newMedicines) {
+      final name = med.name.trim();
+      if (name.isEmpty) continue;
+      final existing = medicines
+          .where((r) => r.name.text.trim().toLowerCase() == name.toLowerCase())
+          .firstOrNull;
+      if (existing == null) {
+        final row = ScribeMedicineRow(_nextRowId++, med);
+        medicines.add(row);
+        _listenToRow(row);
+        changed = true;
+      } else {
+        if (med.dosage.isNotEmpty && existing.dosage.text.trim() != med.dosage.trim()) {
+          existing.dosage.text = med.dosage.trim();
+          changed = true;
+        }
+        if (med.instructions.isNotEmpty &&
+            existing.instructions.text.trim() != med.instructions.trim()) {
+          existing.instructions.text = med.instructions.trim();
+          changed = true;
+        }
+      }
+    }
+    if (changed) {
+      _revealKeys['medicines'] = (_revealKeys['medicines'] ?? 0) + 1;
+      _pendingFields.remove('medicines');
+      notifyListeners();
+    }
+  }
+
+  void updateAdvice(String text) {
+    final clean = text.trim();
+    if (clean.isEmpty) return;
+    final current = advice.text.trim();
+    if (!current.toLowerCase().contains(clean.toLowerCase())) {
+      advice.text = current.isEmpty ? clean : '$current\n• $clean';
+      _revealKeys['advice'] = (_revealKeys['advice'] ?? 0) + 1;
+      _pendingFields.remove('advice');
+      notifyListeners();
+    }
+  }
+
+  void updateVitals({String? newBp, String? newTemp, String? newPulse}) {
+    var changed = false;
+    if (newBp != null && newBp.trim().isNotEmpty && bp.text.trim() != newBp.trim()) {
+      bp.text = newBp.trim();
+      _revealKeys['bp'] = (_revealKeys['bp'] ?? 0) + 1;
+      _pendingFields.remove('bp');
+      changed = true;
+    }
+    if (newTemp != null && newTemp.trim().isNotEmpty && temp.text.trim() != newTemp.trim()) {
+      temp.text = newTemp.trim();
+      _revealKeys['temp'] = (_revealKeys['temp'] ?? 0) + 1;
+      _pendingFields.remove('temp');
+      changed = true;
+    }
+    if (newPulse != null && newPulse.trim().isNotEmpty && pulse.text.trim() != newPulse.trim()) {
+      pulse.text = newPulse.trim();
+      _revealKeys['pulse'] = (_revealKeys['pulse'] ?? 0) + 1;
+      _pendingFields.remove('pulse');
+      changed = true;
+    }
+    if (changed) notifyListeners();
+  }
+
+  void updatePain({String? now, String? worst, String? location, String? nature}) {
+    var changed = false;
+    if (now != null && now.isNotEmpty && physioText['painNow']?.text.trim() != now.trim()) {
+      physioText['painNow']?.text = now.trim();
+      _revealKeys['painNow'] = (_revealKeys['painNow'] ?? 0) + 1;
+      _pendingFields.remove('painNow');
+      changed = true;
+    }
+    if (worst != null && worst.isNotEmpty && physioText['painWorst']?.text.trim() != worst.trim()) {
+      physioText['painWorst']?.text = worst.trim();
+      _revealKeys['painWorst'] = (_revealKeys['painWorst'] ?? 0) + 1;
+      _pendingFields.remove('painWorst');
+      changed = true;
+    }
+    if (nature != null && nature.isNotEmpty && physioText['painNature']?.text.trim() != nature.trim()) {
+      physioText['painNature']?.text = nature.trim();
+      _revealKeys['painNature'] = (_revealKeys['painNature'] ?? 0) + 1;
+      _pendingFields.remove('painNature');
+      changed = true;
+    }
+    if (location != null && location.isNotEmpty) {
+      final locs = physioLists['painLocation'];
+      if (locs != null && !locs.any((l) => l.toLowerCase() == location.trim().toLowerCase())) {
+        locs.add(location.trim());
+        _revealKeys['painLocation'] = (_revealKeys['painLocation'] ?? 0) + 1;
+        _pendingFields.remove('painLocation');
+        changed = true;
+      }
+    }
+    if (changed) notifyListeners();
+  }
+
+  void mergeLiveExtraction(ScribeLiveExtraction ext) {
+    for (final field in ext.cuedFields) {
+      _pendingFields.add(field);
+    }
+    if (ext.chiefComplaint != null) {
+      updateChiefComplaint(ext.chiefComplaint!);
+    }
+    if (ext.symptoms.isNotEmpty) {
+      mergeSymptoms(ext.symptoms);
+    }
+    if (ext.diagnoses.isNotEmpty) {
+      mergeDiagnoses(ext.diagnoses);
+    }
+    if (ext.medicines.isNotEmpty) {
+      mergeMedicines(ext.medicines);
+    }
+    if (ext.advice != null) {
+      updateAdvice(ext.advice!);
+    }
+    if (ext.bp != null || ext.temp != null || ext.pulse != null) {
+      updateVitals(newBp: ext.bp, newTemp: ext.temp, newPulse: ext.pulse);
+    }
+    if (ext.painNow != null ||
+        ext.painWorst != null ||
+        ext.painLocation != null ||
+        ext.painNature != null) {
+      updatePain(
+        now: ext.painNow,
+        worst: ext.painWorst,
+        location: ext.painLocation,
+        nature: ext.painNature,
+      );
+    }
+    if (ext.followUpDate != null) {
+      setFollowUpDate(ext.followUpDate);
+    }
+    if (ext.aggravating.isNotEmpty) {
+      final list = physioLists['aggravating'];
+      if (list != null) {
+        for (final item in ext.aggravating) {
+          if (!list.any((x) => x.toLowerCase() == item.toLowerCase())) {
+            list.add(item);
+            _revealKeys['aggravating'] = (_revealKeys['aggravating'] ?? 0) + 1;
+            _pendingFields.remove('aggravating');
+          }
+        }
+      }
+    }
+    if (ext.easing.isNotEmpty) {
+      final list = physioLists['easing'];
+      if (list != null) {
+        for (final item in ext.easing) {
+          if (!list.any((x) => x.toLowerCase() == item.toLowerCase())) {
+            list.add(item);
+            _revealKeys['easing'] = (_revealKeys['easing'] ?? 0) + 1;
+            _pendingFields.remove('easing');
+          }
+        }
+      }
+    }
+    if (ext.functionalLimits.isNotEmpty) {
+      final list = physioLists['functionalLimits'];
+      if (list != null) {
+        for (final item in ext.functionalLimits) {
+          if (!list.any((x) => x.toLowerCase() == item.toLowerCase())) {
+            list.add(item);
+            _revealKeys['functionalLimits'] =
+                (_revealKeys['functionalLimits'] ?? 0) + 1;
+            _pendingFields.remove('functionalLimits');
+          }
+        }
+      }
+    }
+    if (ext.onset != null && ext.onset!.isNotEmpty) {
+      final c = physioText['onset'];
+      if (c != null && c.text.trim().isEmpty) {
+        c.text = ext.onset!;
+        _revealKeys['onset'] = (_revealKeys['onset'] ?? 0) + 1;
+        _pendingFields.remove('onset');
+      }
+    }
+    if (ext.history != null && ext.history!.isNotEmpty) {
+      final c = physioText['history'];
+      if (c != null && c.text.trim().isEmpty) {
+        c.text = ext.history!;
+        _revealKeys['history'] = (_revealKeys['history'] ?? 0) + 1;
+        _pendingFields.remove('history');
+      }
+    }
+    if (ext.patientGoals != null && ext.patientGoals!.isNotEmpty) {
+      final c = physioText['patientGoals'];
+      if (c != null && c.text.trim().isEmpty) {
+        c.text = ext.patientGoals!;
+        _revealKeys['patientGoals'] = (_revealKeys['patientGoals'] ?? 0) + 1;
+        _pendingFields.remove('patientGoals');
+      }
+    }
+    notifyListeners();
+  }
 
   bool _reviewed = false;
 
@@ -285,8 +542,13 @@ class ScribeDraftFormController extends ChangeNotifier {
       n.vitals.values.every((v) => v == null || v.trim().isEmpty) &&
       n.physio.isEmpty;
 
+  bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
+
   @override
   void dispose() {
+    if (_isDisposed) return;
+    _isDisposed = true;
     for (final c in [
       ..._textControllers,
       symptomInput,

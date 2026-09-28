@@ -21,99 +21,109 @@ class UpNextCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return CruInkCard(
       semanticLabel: 'Up next',
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Builder(builder: (context) {
         final c = context.cru; // on-ink colours
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
-                Text('Up next', style: CruType.subhead.w600.tint(c.accentText)),
-                if (data.tokenNumber != null) ...[
-                  const SizedBox(width: CruSpace.s8),
-                  Text('·', style: CruType.subhead.tint(c.label3)),
-                  const SizedBox(width: CruSpace.s8),
-                  Text(
-                    'Token ${data.tokenNumber}',
-                    style: CruType.subhead.w500.tabular.tint(c.label2),
-                  ),
-                ],
+                Text('Up next', style: CruType.callout.w600.tint(c.accentText)),
                 const Spacer(),
                 CruPill(
                   text: 'Waiting ${DashFormat.minutes(data.waitMinutes)}',
                   icon: CruIcons.clock,
-                  background: c.amberTint,
-                  foreground: c.amberText,
+                  background: CruBrand.white,
+                  foreground: c.amber,
+                  borderColor: c.amber,
+                  borderWidth: 1.5,
                 ),
+                const SizedBox(width: CruSpace.s6),
+                _MoreMenu(data: data, navigate: navigate),
               ],
             ),
-            const SizedBox(height: CruSpace.s18),
+            const SizedBox(height: CruSpace.s12),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 CruMonogram(
                   name: data.name,
-                  size: CruSize.monogramUpNext,
+                  size: 40,
                   foreground: c.label,
                 ),
-                const SizedBox(width: CruSpace.s16),
+                const SizedBox(width: CruSpace.s12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
                         data.name,
-                        style: CruType.title.tint(c.label),
+                        style: CruType.headline.tint(c.label),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: CruSpace.s2),
                       Text(
                         data.details,
-                        style: CruType.text.tabular.tint(c.label2),
+                        style: CruType.caption.tabular.tint(c.label2),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                if (data.tokenNumber != null) ...[
+                  const SizedBox(width: CruSpace.s8),
+                  Text(
+                    '# ${data.tokenNumber}',
+                    style: const TextStyle(
+                      fontFamily: CruType.family,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.5,
+                      height: 1.0,
+                      color: CruBrand.white,
+                      fontFeatures: CruType.tabular,
+                    ),
+                  ),
+                ],
               ],
             ),
             if (data.reason != null) ...[
-              const SizedBox(height: CruSpace.s18),
-              Text('Reason for visit', style: CruType.subhead.w500.tint(c.label2)),
-              const SizedBox(height: CruSpace.s4),
+              const SizedBox(height: CruSpace.s8),
               Text(
                 data.reason!,
-                style: CruType.body.tint(c.label),
-                maxLines: 3,
+                style: CruType.callout.tint(c.label),
+                maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: CruSpace.s18 + CruSpace.s2),
+            const SizedBox(height: CruSpace.s12),
             Row(
               children: [
-                CruButton(
-                  label: 'Start consultation',
-                  large: true,
-                  onPressed: () => DashboardActions.startConsultation(
-                    context,
-                    ref,
-                    data,
-                    navigate: navigate,
+                Expanded(
+                  child: CruButton(
+                    label: 'Start consultation',
+                    onPressed: () => DashboardActions.startConsultation(
+                      context,
+                      ref,
+                      data,
+                      navigate: navigate,
+                    ),
                   ),
                 ),
                 if (data.patient != null) ...[
-                  const SizedBox(width: CruSpace.s10),
+                  const SizedBox(width: CruSpace.s8),
                   CruButton(
-                    label: 'View history',
+                    label: 'History',
                     kind: CruButtonKind.inset,
-                    large: true,
                     onPressed: () =>
                         DashboardActions.openPatient(context, data.patient!),
                   ),
                 ],
-                const Spacer(),
-                _MoreMenu(data: data, navigate: navigate),
               ],
             ),
           ],
@@ -133,6 +143,8 @@ class _MoreMenu extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return CruIconButton(
       icon: CruIcons.more,
+      size: 26,
+      iconSize: 18,
       semanticLabel: 'More actions for ${data.name}',
       tooltip: 'More actions',
       onPressed: () async {
@@ -179,20 +191,22 @@ class NoOneWaitingCard extends StatelessWidget {
     final c = context.cru;
     return CruCard(
       semanticLabel: 'Up next',
-      padding: const EdgeInsets.fromLTRB(24, 20, 20, 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text('No one waiting', style: CruType.headline.tint(c.label)),
+                Text('No one waiting', style: CruType.subhead.w600.tint(c.label)),
                 const SizedBox(height: CruSpace.s2),
-                Text(
+                CruTimeText(
                   nextBooking == null
                       ? 'No more bookings today'
                       : 'Next booking at ${DashFormat.time(nextBooking!)}',
-                  style: CruType.subhead.tabular.tint(c.label2),
+                  style: CruType.caption.tabular.tint(c.label2),
+                  timeColor: c.accentText,
                 ),
               ],
             ),

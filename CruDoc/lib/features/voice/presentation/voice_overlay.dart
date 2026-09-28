@@ -131,8 +131,35 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
   /// Hold Space (or F2): push-to-talk. Tap it: hands-free on or off. In a
   /// text field a tap still types a space; holding it switches to voice.
   bool _onKey(KeyEvent e) {
-    // 1–4 answer the question on the pill.
     final ask = _voice.asking.value;
+
+    // Enter confirms an active form or answers an open question on the pill.
+    if (e is KeyDownEvent) {
+      final isEnter = e.logicalKey == LogicalKeyboardKey.enter ||
+          e.logicalKey == LogicalKeyboardKey.numpadEnter;
+      if (isEnter) {
+        final field = _typingField();
+        final isMultiline =
+            field != null && (field.maxLines == null || field.maxLines! > 1);
+        final isControl = HardwareKeyboard.instance.isControlPressed ||
+            HardwareKeyboard.instance.isMetaPressed;
+
+        // In a multiline text area, allow normal Enter for newline unless Ctrl is held.
+        // In all other cases (single-line fields, or outside fields), Enter confirms.
+        if (!isMultiline || isControl) {
+          if (ask != null && ask.options.isNotEmpty) {
+            _voice.pickChoice(0);
+            return true;
+          }
+          if (_voice.canConfirm) {
+            _voice.confirm();
+            return true;
+          }
+        }
+      }
+    }
+
+    // 1–4 answer the question on the pill.
     if (ask != null && e is KeyDownEvent && _typingField() == null) {
       const keys = [
         LogicalKeyboardKey.digit1,
@@ -514,7 +541,7 @@ class _Strip extends StatelessWidget {
       line = understood!;
     }
     final hint = ready
-        ? 'say "confirm"'
+        ? 'say "confirm" or press Enter'
         : need ?? (ms != null && loaded && error == null ? '$ms ms' : null);
     return ConstrainedBox(
       constraints: const BoxConstraints(minWidth: 220, maxWidth: _maxWidth),

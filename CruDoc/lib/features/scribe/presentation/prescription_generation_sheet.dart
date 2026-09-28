@@ -228,7 +228,7 @@ class _PrescriptionGenerationSheetState extends State<PrescriptionGenerationShee
                                   width: 54,
                                   height: 54,
                                   fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => const Icon(Icons.local_hospital_rounded, size: 36, color: Color(0xFF8B5CF6)),
+                                  errorWidget: (context, url, error) => const Icon(Icons.local_hospital_rounded, size: 36, color: Color(0xFF8B5CF6)),
                                 ),
                               ),
                             )

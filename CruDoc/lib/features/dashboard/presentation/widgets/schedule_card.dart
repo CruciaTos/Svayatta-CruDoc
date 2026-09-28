@@ -61,7 +61,9 @@ class _ScheduleCardState extends State<ScheduleCard> {
                           style: CruType.headline.tint(c.label)),
                     ),
                     const SizedBox(height: CruSpace.s2),
-                    Text(subtitle, style: CruType.subhead.tabular.tint(c.label2)),
+                    CruTimeText(subtitle,
+                        style: CruType.subhead.tabular.tint(c.label2),
+                        timeColor: c.accentText),
                   ],
                 ),
                 if (items.isNotEmpty)
@@ -206,7 +208,6 @@ class ScheduleRow extends StatelessWidget {
     final c = context.cru;
     final isNow = item.status.isNow;
     final (hm, ampm) = DashFormat.timeParts(item.time);
-    final timeColor = isNow ? c.accentText : c.label;
 
     return CruPressable(
       onTap: item.patient == null
@@ -231,10 +232,13 @@ class ScheduleRow extends StatelessWidget {
               width: CruSize.timeColumn,
               child: Text.rich(
                 TextSpan(children: [
-                  TextSpan(text: hm, style: CruType.row.tabular.tint(timeColor)),
+                  TextSpan(
+                    text: hm,
+                    style: CruType.row.w600.tabular.tint(c.accentText),
+                  ),
                   TextSpan(
                     text: ' $ampm',
-                    style: CruType.micro.tint(isNow ? c.accentText : c.label3),
+                    style: CruType.micro.w600.tint(c.accentText),
                   ),
                 ]),
                 // "11:30 AM" is a hair wider than the 64 px column; let it
@@ -246,7 +250,7 @@ class ScheduleRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: CruSpace.s14),
-            CruStatusDot(_dotKind(item.status)),
+            CruStatusDot(_dotKind(item.status), size: 12),
             const SizedBox(width: CruSpace.s14),
             CruMonogram(
               name: item.name,
@@ -373,9 +377,10 @@ class _CollapsedRow extends StatelessWidget {
             Text(title, style: CruType.callout.tabular.tint(c.label)),
             const SizedBox(width: CruSpace.s12),
             Expanded(
-              child: Text(
+              child: CruTimeText(
                 detail,
                 style: CruType.subhead.tabular.tint(c.label2),
+                timeColor: c.accentText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -411,11 +416,15 @@ class _SessionDivider extends StatelessWidget {
         children: [
           Text('Evening session', style: CruType.groupLabel.tint(c.label2)),
           const SizedBox(width: CruSpace.s10),
-          Text(range, style: CruType.groupLabel.w500.copyWith(
-            fontWeight: FontWeight.w400,
-            color: c.label3,
-            fontFeatures: CruType.tabular,
-          )),
+          CruTimeText(
+            range,
+            timeColor: c.accentText,
+            style: CruType.groupLabel.w500.copyWith(
+              fontWeight: FontWeight.w400,
+              color: c.label3,
+              fontFeatures: CruType.tabular,
+            ),
+          ),
           const SizedBox(width: CruSpace.s10),
           Expanded(child: SizedBox(height: 1, child: ColoredBox(color: c.separator))),
         ],

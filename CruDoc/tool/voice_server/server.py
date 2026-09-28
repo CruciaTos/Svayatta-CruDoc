@@ -1,24 +1,34 @@
-"""Local speech-to-text server for the CruDoc voice demo.
+"""Local voice-intelligence server for the CruDoc voice demo.
 
-Runs three Whisper sizes on the laptop's NVIDIA GPU (falls back to CPU) and
-transcribes whatever audio the app posts:
-  fast      base.en, ~60 ms: the live words while the doctor talks
-  short     small.en, ~140 ms: the final pass of short commands ("confirm")
-  accurate  large-v3-turbo, ~260 ms: the final pass of longer sentences
+Two-speed architecture — navigation is instantaneous, form-filling is smart:
 
-The app starts this itself
-(lib/features/voice/services/speech_engine.dart); to run it by hand:
+  FAST PATH  (navigation: openPatient, markDone, cancel, …)
+    POST /transcribe  X-Model: fast   → base.en Whisper, ~60 ms, no LLM
+    POST /transcribe  X-Model: short  → small.en Whisper, ~140 ms, no LLM
+    POST /intent      → all-MiniLM-L6-v2 embedding match, ~5 ms, no LLM
 
+  HEAVY PATH  (form-filling: addAppointment, reschedule, addPatient)
+    POST /transcribe  X-Model: accurate → large-v3-turbo, ~260 ms
+    POST /extract     → llama-cpp-python LLM, ~300 ms
+                        runs ONLY on the final transcript, never on partials
+                        handles name disambiguation + richer field extraction
+
+The LLM loads in a background thread at startup so Whisper is never blocked.
+If the GGUF file is missing, /extract returns 503 and the app falls back to
+the phonetic matcher + regex (safe degradation, no crash).
+
+To run by hand:
     .venv\\Scripts\\python server.py
 
 POST /transcribe   body: 16 kHz mono PCM16 little-endian
                    header X-Hints: URL-encoded patient names, comma separated
                    header X-Model: fast | short | accurate (default)
                    -> {"text": "...", "ms": 123}
+POST /extract      body: JSON — see extraction.py for the full contract
+                   -> {"patientId": ..., "patientConfidence": ..., ...}
 POST /intent       body: {"text": "...", "options": [{"id": "...", "phrases": [...]}]}
-                   -> {"id": "...", "score": 0.72}: the option closest in
-                   meaning (all-MiniLM-L6-v2 on the CPU, a few ms)
-GET  /health       -> {"ok": true, "device": "cuda"}
+                   -> {"id": "...", "score": 0.72}
+GET  /health       -> {"ok": true, "device": "cuda", "llm": "ready"|"loading"|"unavailable"}
 """
 
 import json
@@ -156,11 +166,21 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _error(self, code: int, msg: str):
+        body = json.dumps({"error": msg}).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
     def do_GET(self):
         self._json({"ok": True, "device": device})
 
     def do_POST(self):
         body = self.rfile.read(int(self.headers.get("Content-Length", 0)))
+
+        # ── Semantic intent matching ──────────────────────────────────────────
         if self.path.startswith("/intent"):
             req = json.loads(body or b"{}")
             t0 = time.perf_counter()
@@ -171,6 +191,8 @@ class Handler(BaseHTTPRequestHandler):
                 "ms": int((time.perf_counter() - t0) * 1000),
             })
             return
+
+        # ── Fast path: Whisper transcription ─────────────────────────────────
         pcm = body
         hints = unquote(self.headers.get("X-Hints", ""))
         which = self.headers.get("X-Model", "accurate")

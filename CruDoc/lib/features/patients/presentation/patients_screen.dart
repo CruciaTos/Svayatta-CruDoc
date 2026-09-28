@@ -39,24 +39,21 @@ class _PatientsScreenState extends ConsumerState<PatientsScreen> {
     final detailsId = ref.watch(
       patientsListControllerProvider.select((s) => s.detailsId),
     );
-    return ColoredBox(
-      color: context.cru.canvas,
-      child: detailsId != null
-          ? PatientDetailsView(
-              key: ValueKey(detailsId),
-              patientId: detailsId,
-              onBack: () {
-                // Opened from another screen: go back there.
-                final back = ref.read(patientDetailsReturnTabProvider);
-                ref.read(patientsListControllerProvider.notifier).closeDetails();
-                if (back != null) {
-                  ref.read(patientDetailsReturnTabProvider.notifier).state = null;
-                  ref.read(shellNavigatorProvider)?.call(back);
-                }
-              },
-            )
-          : const _PatientsList(),
-    );
+    return detailsId != null
+        ? PatientDetailsView(
+            key: ValueKey(detailsId),
+            patientId: detailsId,
+            onBack: () {
+              // Opened from another screen: go back there.
+              final back = ref.read(patientDetailsReturnTabProvider);
+              ref.read(patientsListControllerProvider.notifier).closeDetails();
+              if (back != null) {
+                ref.read(patientDetailsReturnTabProvider.notifier).state = null;
+                ref.read(shellNavigatorProvider)?.call(back);
+              }
+            },
+          )
+        : const _PatientsList();
   }
 }
 

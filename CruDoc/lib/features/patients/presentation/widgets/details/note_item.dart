@@ -49,7 +49,9 @@ class NoteItem extends StatelessWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: CruSpace.s12),
-                Text(trailing!, style: CruType.caption.tabular.tint(c.label3)),
+                CruTimeText(trailing!,
+                    style: CruType.caption.tabular.tint(c.label3),
+                    timeColor: c.accentText),
               ],
             ],
           ),

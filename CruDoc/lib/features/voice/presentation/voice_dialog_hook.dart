@@ -12,6 +12,7 @@ sealed class VoiceEvent {
 /// Fields heard so far. Null means "not said"; keep what the form has.
 class VoiceFill extends VoiceEvent {
   const VoiceFill({
+    this.rawText,
     this.date,
     this.time,
     this.firstName,
@@ -31,7 +32,11 @@ class VoiceFill extends VoiceEvent {
     this.sendWhatsApp,
     this.addToQueue,
     this.others = const [],
+    this.isFinal = false,
   });
+
+  final String? rawText;
+  final bool isFinal;
 
   final DateTime? date;
   final TimeOfDay? time;
@@ -97,7 +102,7 @@ abstract final class VoiceBus {
   static Stream<VoiceEvent> get events => _events.stream;
 
   static void emit(VoiceEvent e) {
-    if (e is VoiceFill) last = e;
+    if (e is VoiceFill && e.isFinal) last = e;
     _events.add(e);
   }
 }

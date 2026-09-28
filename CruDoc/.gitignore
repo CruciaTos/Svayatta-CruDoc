@@ -12,6 +12,8 @@ build/
 *.mocks.dart
 .coverage/
 coverage/
+failures/
+**/failures/
 **/doc/api/
 .flutter-plugins
 .flutter-plugins-dependencies

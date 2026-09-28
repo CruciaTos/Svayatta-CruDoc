@@ -61,13 +61,16 @@ abstract final class CruSpace {
   /// Vertical rhythm of the main column.
   static const double stackGap = 22;
 
-  static const EdgeInsets sidebarPadding =
-      EdgeInsets.fromLTRB(20, 24, 12, 20);
+  static const EdgeInsets sidebarPadding = EdgeInsets.fromLTRB(20, 24, 12, 20);
   static const EdgeInsets mainPadding = EdgeInsets.fromLTRB(12, 28, 32, 32);
 
   /// Main padding below [CruBreakpoint.compact] (as the dashboard).
-  static const EdgeInsets mainPaddingCompact =
-      EdgeInsets.fromLTRB(12, 24, 24, 24);
+  static const EdgeInsets mainPaddingCompact = EdgeInsets.fromLTRB(
+    12,
+    24,
+    24,
+    24,
+  );
 
   /// The "Bring your existing patients" panel.
   static const EdgeInsets firstWeekPanel = EdgeInsets.fromLTRB(32, 40, 32, 36);
@@ -75,7 +78,7 @@ abstract final class CruSpace {
 
 /// Fixed sizes used by the layout and components.
 abstract final class CruSize {
-  static const double sidebar = 248;
+  static const double sidebar = 260;
   static const double sidebarCollapsed = 72;
   static const double rightColumn = 384;
 
@@ -96,14 +99,14 @@ abstract final class CruSize {
   static const double scheduleRow = 60;
   static const double collapsedRow = 48;
   static const double timeColumn = 64;
-  static const double statusDot = 8;
+  static const double statusDot = 10;
   static const double smallDot = 6;
 
   static const double monogramRow = 34;
   static const double monogramUpNext = 56;
   static const double iconTile = 36;
-  static const double progressRing = 52;
-  static const double progressStroke = 6;
+  static const double progressRing = 72;
+  static const double progressStroke = 9;
 
   static const double barWidth = 24;
   static const double barMaxHeight = 80;
@@ -231,7 +234,5 @@ abstract final class CruMotion {
 
   /// [standard], or zero when the platform asks for reduced motion.
   static Duration of(BuildContext context, [Duration d = standard]) =>
-      MediaQuery.maybeDisableAnimationsOf(context) ?? false
-          ? Duration.zero
-          : d;
+      MediaQuery.maybeDisableAnimationsOf(context) ?? false ? Duration.zero : d;
 }

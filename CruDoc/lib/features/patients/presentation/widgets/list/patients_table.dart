@@ -305,10 +305,11 @@ class PatientTableRow extends StatelessWidget {
           children: [
             top,
             if (bottom != null)
-              Text(
+              CruTimeText(
                 bottom,
                 style: (tabularBottom ? CruType.subhead.tabular : CruType.subhead)
                     .tint(c.label2),
+                timeColor: c.accentText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),

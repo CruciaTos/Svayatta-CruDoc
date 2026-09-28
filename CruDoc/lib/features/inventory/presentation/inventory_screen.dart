@@ -336,14 +336,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
       );
     }
 
-    return ColoredBox(
-      color: c.canvas,
-      child: Shortcuts(
-        shortcuts: _shortcuts,
-        child: Actions(
-          actions: _actions,
-          child: Focus(focusNode: _keysFocus, child: body),
-        ),
+    return Shortcuts(
+      shortcuts: _shortcuts,
+      child: Actions(
+        actions: _actions,
+        child: Focus(focusNode: _keysFocus, child: body),
       ),
     );
   }

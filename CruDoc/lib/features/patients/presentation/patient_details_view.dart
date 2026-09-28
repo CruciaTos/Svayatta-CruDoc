@@ -82,7 +82,7 @@ class PatientDetailsScreen extends ConsumerWidget {
       data: CruTheme.of(ref.watch(resolvedAppearanceProvider)),
       child: Builder(
         builder: (context) => Scaffold(
-          backgroundColor: context.cru.canvas,
+          backgroundColor: Colors.transparent,
           body: SafeArea(
             child: PatientDetailsView(
               patientId: patientId,

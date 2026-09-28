@@ -127,7 +127,7 @@ class _NextCell extends StatelessWidget {
       return _Cell(
         label: 'Next visit',
         value: GlanceMetric(PatientFormat.day(next.scheduledStart, now)),
-        caption: Text(_timeAndTreatment(next)),
+        caption: CruTimeText(_timeAndTreatment(next)),
       );
     }
     if (overdue != null) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/schedule_card.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/side_cards.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
@@ -67,9 +68,9 @@ void main() {
     final collections = tester.getRect(find.byType(CollectionsCard));
     final upNext = tester.getRect(find.byType(UpNextCard));
     expect(collections.width, CruSize.rightColumn);
-    expect(collections.left, greaterThan(upNext.right));
-    // Sidebar 248 + main left padding 12.
-    expect(upNext.left, CruSize.sidebar + 12);
+    expect(upNext.width, CruSize.rightColumn);
+    expect(upNext.left, collections.left);
+    expect(collections.top, greaterThan(upNext.bottom));
     expect(tester.getSize(find.byType(CruSidebar)).width, CruSize.sidebar);
   });
 
@@ -77,8 +78,8 @@ void main() {
       (tester) async {
     await _pumpAt(tester, sizes[1024]!);
     final collections = tester.getRect(find.byType(CollectionsCard));
-    final upNext = tester.getRect(find.byType(UpNextCard));
-    expect(collections.top, greaterThan(upNext.bottom));
+    final schedule = tester.getRect(find.byType(ScheduleCard));
+    expect(collections.top, greaterThan(schedule.bottom));
   });
 
   testWidgets('sidebar collapses to icons under 960', (tester) async {
@@ -108,7 +109,7 @@ void main() {
     await _pumpAt(tester, sizes[1440]!);
     expect(find.text('Good morning, Dr. Deshpande'), findsOneWidget);
     expect(find.text('Wednesday, 23 September'), findsOneWidget);
-    expect(find.text('Token 7'), findsOneWidget);
+    expect(find.text('# 7'), findsOneWidget);
     expect(find.text('Waiting 8 min'), findsOneWidget);
     expect(find.text('₹3,400'), findsOneWidget);
     expect(find.text('₹21,300'), findsOneWidget);

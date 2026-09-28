@@ -22,23 +22,42 @@ class GlanceCard extends StatelessWidget {
       glance == null ? const GlanceCellSkeleton() : _WaitingCell(glance!),
       collected == null ? const GlanceCellSkeleton() : _CollectedCell(collected!),
     ];
-    return GlanceStrip(semanticLabel: 'Today at a glance', cells: cells);
+    return GlanceStrip(
+      semanticLabel: 'Today at a glance',
+      separatorColor: const Color(0xFFA1BCFF),
+      separatorWidth: 1.0,
+      cells: cells,
+    );
   }
 }
 
 /// The glance layout: one card, equal cells split by separators. Shared
 /// with the Patient details facts strip.
 class GlanceStrip extends StatelessWidget {
-  const GlanceStrip({super.key, required this.cells, this.semanticLabel});
+  const GlanceStrip({
+    super.key,
+    required this.cells,
+    this.semanticLabel,
+    this.borderColor,
+    this.borderWidth,
+    this.separatorColor,
+    this.separatorWidth,
+  });
 
   final List<Widget> cells;
   final String? semanticLabel;
+  final Color? borderColor;
+  final double? borderWidth;
+  final Color? separatorColor;
+  final double? separatorWidth;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
     return CruCard(
       semanticLabel: semanticLabel,
+      borderColor: borderColor,
+      borderWidth: borderWidth ?? 1,
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s20),
       child: IntrinsicHeight(
         child: Row(
@@ -51,7 +70,12 @@ class GlanceStrip extends StatelessWidget {
                   decoration: i == 0
                       ? null
                       : BoxDecoration(
-                          border: Border(left: BorderSide(color: c.separator)),
+                          border: Border(
+                            left: BorderSide(
+                              color: separatorColor ?? c.separator,
+                              width: separatorWidth ?? (separatorColor != null ? 1.5 : 1),
+                            ),
+                          ),
                         ),
                   alignment: Alignment.topLeft,
                   child: cells[i],
@@ -66,13 +90,14 @@ class GlanceStrip extends StatelessWidget {
 
 /// Cell label (13/500 label2).
 class GlanceLabel extends StatelessWidget {
-  const GlanceLabel(this.text, {super.key});
+  const GlanceLabel(this.text, {super.key, this.color});
   final String text;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) => Text(
         text,
-        style: CruType.subhead.w500.tint(context.cru.label2),
+        style: CruType.subhead.w500.tint(color ?? context.cru.label2),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       );
@@ -119,10 +144,12 @@ class _SeenCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Row(
       children: [
         CruProgressRing(
           value: g.progress,
+          color: c.green,
           semanticLabel: 'Seen ${g.seen} of ${g.total}',
         ),
         const SizedBox(width: CruSpace.s16),
@@ -131,7 +158,7 @@ class _SeenCell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const GlanceLabel('Seen today'),
+              GlanceLabel('Seen today', color: c.accentText),
               GlanceMetric('${g.seen}', suffix: 'of ${g.total}'),
               GlanceCaption(Text(
                 g.total == 0
@@ -159,12 +186,12 @@ class _WaitingCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const GlanceLabel('Waiting now'),
+        GlanceLabel('Waiting now', color: c.accentText),
         GlanceMetric('${g.waiting}'),
         GlanceCaption(g.averageWaitMinutes == null
             ? const Text('Queue is clear')
             : Row(children: [
-                CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
+                CruStatusDot(CruDotKind.waiting, size: 10),
                 const SizedBox(width: CruSpace.s6),
                 Flexible(
                   child: Text(
@@ -220,7 +247,7 @@ class _CollectedCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        const GlanceLabel('Collected today'),
+        GlanceLabel('Collected today', color: c.accentText),
         GlanceMetric(DashFormat.rupees(data.today)),
         GlanceCaption(caption),
       ],

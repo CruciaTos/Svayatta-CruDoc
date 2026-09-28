@@ -108,7 +108,7 @@ flutter:
   assets:
     - assets/images/default_map.png
     # Offline speech model for the voice demo (lib/features/voice).
-    - assets/voice/parakeet/
+    # - assets/voice/parakeet/
 
   fonts:
     - family: PlusJakartaSans

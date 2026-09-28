@@ -20,6 +20,10 @@ regexes = [
   '''(?i)dummy''',
   '''(?i)placeholder''',
 ]
+fingerprints = [
+  "2f11b704adee700bc90a6f3b355e1db7b5c4387e:CruDoc/lib/core/services/gemini_json_client.dart:google-gemini-api-key:32",
+  "2f11b704adee700bc90a6f3b355e1db7b5c4387e:CruDoc/lib/core/services/gemini_json_client.dart:gcp-api-key:32",
+]
 
 [[rules]]
 id = "meta-whatsapp-token"

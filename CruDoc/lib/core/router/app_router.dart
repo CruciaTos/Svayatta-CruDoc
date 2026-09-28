@@ -57,6 +57,10 @@ GoRouter _createAppRouter() {
 
       // If user is logged in via Demo Session (instant dev bypass)
       if (isDemo) {
+        if (DemoSessionService.isSuperAdminMode) {
+          if (!isAdminRoute) return '/admin';
+          return null;
+        }
         if (isAdminRoute) return '/dashboard';
         if (isAuthRoute) return '/dashboard';
         return null;

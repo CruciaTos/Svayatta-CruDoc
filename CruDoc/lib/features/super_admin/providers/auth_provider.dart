@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import '../config/enums.dart';
 import '../models/super_admin_model.dart';
 import '../services/auth_service.dart';
@@ -58,6 +59,26 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
 
   /// Initialize auth state — check if already logged in as Super Admin.
   Future<void> _initialize() async {
+    if (DemoSessionService.isSuperAdminMode) {
+      state = state.copyWith(
+        currentAdmin: SuperAdminModel(
+          id: 'demo_super_admin_id',
+          email: 'admin@crudoc.com',
+          name: 'CruDoc Administrator (Dev)',
+          role: UserRole.superAdmin,
+          isActive: true,
+          isTwoFAEnabled: false,
+          isTwoFAVerified: true,
+          accountCreated: DateTime(2024, 1, 1),
+          lastLogin: DateTime.now(),
+        ),
+        isAuthenticated: true,
+        isTwoFARequired: false,
+        isTwoFAVerified: true,
+      );
+      return;
+    }
+
     try {
       final admin = await _authService.getCurrentAdmin();
       if (admin != null && admin.role == UserRole.superAdmin) {
@@ -136,8 +157,40 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
     }
   }
 
+  /// Fast 1-Click login into Super Admin Demo / Dev Mode.
+  /// Bypasses network blockers and authenticates with a local SuperAdminModel.
+  Future<bool> loginDemoDev({
+    String email = 'admin@crudoc.com',
+    String name = 'CruDoc Administrator (Dev)',
+  }) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    await Future.delayed(const Duration(milliseconds: 250));
+    final demoAdmin = SuperAdminModel(
+      id: 'demo_super_admin_id',
+      email: email,
+      name: name,
+      role: UserRole.superAdmin,
+      isActive: true,
+      isTwoFAEnabled: false,
+      isTwoFAVerified: true,
+      accountCreated: DateTime(2024, 1, 1),
+      lastLogin: DateTime.now(),
+    );
+    DemoSessionService.startSuperAdminDemoSession();
+    state = state.copyWith(
+      currentAdmin: demoAdmin,
+      isAuthenticated: true,
+      isLoading: false,
+      isTwoFARequired: false,
+      isTwoFAVerified: true,
+      errorMessage: null,
+    );
+    return true;
+  }
+
   /// Sign out.
   Future<void> logout() async {
+    DemoSessionService.endDemoSession();
     await _authService.signOut();
     state = const SuperAdminAuthState();
   }

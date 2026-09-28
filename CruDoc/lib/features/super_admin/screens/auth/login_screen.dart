@@ -86,6 +86,36 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
     }
   }
 
+  Future<void> _handleDemoDevLogin() async {
+    final success =
+        await ref.read(superAdminAuthProvider.notifier).loginDemoDev();
+    if (success && mounted) {
+      context.go('/admin');
+    }
+  }
+
+  void _fillDemoAdminCredentials() {
+    setState(() {
+      _emailController.text = 'admin@crudoc.com';
+      _passwordController.text = 'admin123';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.admin_panel_settings, color: Colors.amber, size: 18),
+            SizedBox(width: 8),
+            Text('Super Admin demo credentials filled (admin@crudoc.com)!'),
+          ],
+        ),
+        backgroundColor: const Color(0xFF0F172A),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(superAdminAuthProvider);
@@ -223,6 +253,58 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
                   : const Text('Sign In', style: TextStyle(fontSize: 16)),
             ),
           ),
+          const SizedBox(height: 14),
+
+          // 1-Click Super Admin Demo / Dev Access Button
+          SizedBox(
+            height: 46,
+            child: OutlinedButton.icon(
+              onPressed: authState.isLoading ? null : _handleDemoDevLogin,
+              icon: const Icon(Icons.bolt_rounded,
+                  color: Color(0xFF2563EB), size: 20),
+              label: const Text(
+                '⚡ Launch Super Admin Demo (Dev Access)',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF2563EB),
+                ),
+              ),
+              style: OutlinedButton.styleFrom(
+                backgroundColor:
+                    const Color(0xFF2563EB).withValues(alpha: 0.08),
+                side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Quick fill demo credentials
+          Center(
+            child: TextButton.icon(
+              icon: const Icon(Icons.edit_note_rounded, size: 16),
+              label: const Text(
+                'Fill Demo Credentials (admin@crudoc.com)',
+                style: TextStyle(fontSize: 12),
+              ),
+              onPressed: _fillDemoAdminCredentials,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 6),
+
+          // Back to Doctor Clinic Portal
+          Center(
+            child: TextButton.icon(
+              icon: const Icon(Icons.arrow_back_rounded, size: 16),
+              label: const Text('Back to Doctor Clinic Portal'),
+              onPressed: () => context.go('/auth'),
+            ),
+          ),
         ],
       ),
     );
@@ -302,7 +384,31 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
                 : const Text('Verify', style: TextStyle(fontSize: 16)),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
+
+        // Dev Bypass 2FA
+        SizedBox(
+          height: 44,
+          child: OutlinedButton.icon(
+            onPressed: authState.isLoading ? null : _handleDemoDevLogin,
+            icon: const Icon(Icons.bolt_rounded, color: Color(0xFF059669)),
+            label: const Text(
+              'Bypass 2FA (Dev Demo Mode)',
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF059669),
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              backgroundColor: const Color(0xFF059669).withValues(alpha: 0.08),
+              side: const BorderSide(color: Color(0xFF059669)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
 
         TextButton(
           onPressed: () {

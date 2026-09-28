@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
 import '../../config/enums.dart';
 import '../../models/doctor_model.dart';
 import '../../providers/doctor_provider.dart';
-import '../../providers/feature_management_provider.dart';
 import '../../services/doctor_service.dart';
 import 'upgrade_requests_screen.dart';
 
-/// Super Admin Feature Management Screen.
-/// Displays real doctors from Firestore with interactive feature toggle switches.
+/// Super Admin Feature Management Screen redesigned into the CruDoc Calm Clinical design system.
+/// Displays real doctors from Firestore with interactive module toggle switches categorized into suites.
 class SuperAdminFeaturesScreen extends ConsumerStatefulWidget {
   const SuperAdminFeaturesScreen({super.key});
 
@@ -125,8 +126,8 @@ class _SuperAdminFeaturesScreenState
     if (!_doctorFeatures.containsKey(doctor.id)) {
       final set = <FeatureModule>{};
       for (final modStr in doctor.enabledModules) {
-        final parsed = _parseModule(modStr);
-        if (parsed != null) set.add(parsed);
+        final mod = _parseModule(modStr);
+        if (mod != null) set.add(mod);
       }
       _doctorFeatures[doctor.id] = set;
     }
@@ -144,9 +145,6 @@ class _SuperAdminFeaturesScreenState
     });
 
     final updatedModuleStrings = set.map(_moduleToString).toList();
-
-    // Derive allowMultiDevice from enabled modules so DeviceSessionService
-    // picks up the change immediately.
     final allowMultiDevice = updatedModuleStrings.contains('multi_device_access');
 
     try {
@@ -179,111 +177,14 @@ class _SuperAdminFeaturesScreenState
     }
   }
 
-  Future<void> _setDoctorMaxDeviceLimit(DoctorModel doctor, int limit) async {
-    setState(() => _isSaving = true);
-    try {
-      await _doctorService.setMaxDeviceLimit(doctor.id, limit);
-      if (!mounted) return;
-      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            limit == 0
-                ? 'Device limit set to Unlimited for ${doctor.name}'
-                : 'Device limit set to max $limit devices for ${doctor.name}',
-          ),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update limit: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  Future<void> _forceRevokeSessions(DoctorModel doctor) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Force Revoke All Sessions?'),
-        content: Text(
-          'This will immediately sign out ${doctor.name} from all active devices and tablets.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFDC2626),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Revoke All'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    setState(() => _isSaving = true);
-    try {
-      await _doctorService.revokeAllSessions(doctor.id);
-      if (!mounted) return;
-      ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('All sessions revoked for ${doctor.name}'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to revoke sessions: $e'),
-          backgroundColor: Colors.red,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _isSaving = false);
-    }
-  }
-
-  double _calculateMonthlyTotal(Set<FeatureModule> enabled) {
-    double total = 0;
-    for (final module in enabled) {
-      total += module.defaultAddonPrice;
-    }
-    return total;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final doctorState = ref.watch(doctorListProvider);
-    final featureState = ref.watch(featureManagementProvider);
     final isMobile = MediaQuery.of(context).size.width < 768;
 
     if (doctorState.isLoading && doctorState.doctors.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(40.0),
-          child: CircularProgressIndicator(),
-        ),
-      );
+      return const Center(child: Padding(padding: EdgeInsets.all(48.0), child: CircularProgressIndicator()));
     }
 
     final doctors = doctorState.doctors;
@@ -295,17 +196,17 @@ class _SuperAdminFeaturesScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.people_outline, size: 48, color: Colors.grey),
-              const SizedBox(height: 16),
+              CruIcon(CruIcons.patients, size: 48, color: c.label3),
+              const SizedBox(height: CruSpace.s16),
               Text(
                 'No doctors found in system',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                style: CruType.headline.tint(c.label),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: CruSpace.s8),
               Text(
                 'Create a new doctor account in the Doctors tab to manage their feature permissions.',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey[600]),
+                style: CruType.text.tint(c.label2),
               ),
             ],
           ),
@@ -313,7 +214,6 @@ class _SuperAdminFeaturesScreenState
       );
     }
 
-    // Ensure selected doctor exists
     if (_selectedDoctorId == null || !doctors.any((d) => d.id == _selectedDoctorId)) {
       _selectedDoctorId = doctors.first.id;
     }
@@ -324,570 +224,311 @@ class _SuperAdminFeaturesScreenState
     );
 
     final enabledModules = _getEnabledModules(selectedDoctor);
-    final totalMonthlyPrice = _calculateMonthlyTotal(enabledModules);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.all(isMobile ? 16 : 24),
-      child: Center(
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // 1. Header
-              _buildHeader(context),
-              const SizedBox(height: 20),
+      physics: const BouncingScrollPhysics(),
+      padding: EdgeInsets.all(isMobile ? 16 : 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Header
+          _buildHeader(context),
 
-              // 2. Doctor Selector Dropdown Menu Card
-              _buildDoctorDropdownCard(context, doctors, selectedDoctor, enabledModules),
-              const SizedBox(height: 20),
+          const SizedBox(height: CruSpace.s20),
 
-              // 3. Feature Toggles List inside Doctor Container
-              _buildFeatureTogglesCard(
-                context,
-                selectedDoctor,
-                featureState,
-                enabledModules,
-                totalMonthlyPrice,
-              ),
-            ],
-          ),
-        ),
+          // 2. Doctor Selector Card
+          _buildDoctorSelectorCard(context, doctors, selectedDoctor, enabledModules),
+
+          const SizedBox(height: CruSpace.s24),
+
+          // 3. Categorized Feature Suites
+          _buildFeatureSuites(context, selectedDoctor, enabledModules),
+        ],
       ),
     );
   }
 
-  // ==================== 1. HEADER ====================
   Widget _buildHeader(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    final c = context.cru;
+
+    return Row(
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                'Doctor Feature Management',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Feature Modules & Rollouts',
+                style: CruType.largeTitle.tint(c.label),
               ),
-            ),
-            if (_isSaving) ...[
-              const SizedBox(width: 12),
-              const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(strokeWidth: 2),
+              const SizedBox(height: CruSpace.s4),
+              Text(
+                'Activate and assign core clinical suites, PACS DICOM viewer, RVG sensor bridges, and Gemini AI scribe.',
+                style: CruType.text.tint(c.label2),
               ),
-              const SizedBox(width: 12),
             ],
-            FilledButton.icon(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SuperAdminUpgradeRequestsScreen(),
-                  ),
-                );
-              },
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF1E78FF),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              icon: const Icon(Icons.inbox_rounded, size: 18),
-              label: const Text(
-                'Upgrade Requests',
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-              ),
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          'Select a doctor from the drop-down menu to enable or disable individual feature modules.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+        if (_isSaving) ...[
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: CruSpace.s12),
+        ],
+        CruButton(
+          label: 'Upgrade Requests',
+          kind: CruButtonKind.secondary,
+          icon: CruIcons.box,
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SuperAdminUpgradeRequestsScreen()),
+            );
+          },
         ),
       ],
     );
   }
 
-  // ==================== 2. DOCTOR DROPDOWN CARD ====================
-  Widget _buildDoctorDropdownCard(
+  Widget _buildDoctorSelectorCard(
     BuildContext context,
     List<DoctorModel> doctors,
     DoctorModel selectedDoctor,
     Set<FeatureModule> enabledModules,
   ) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    final c = context.cru;
+
+    return CruCard(
+      padding: const EdgeInsets.all(CruSpace.s20),
+      child: Row(
+        children: [
+          CruMonogram(name: selectedDoctor.name, size: 44, background: c.track),
+          const SizedBox(width: CruSpace.s14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text('Active Doctor Target: ', style: CruType.caption.tint(c.label3)),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: ShapeDecoration(
+                        color: c.accentTint,
+                        shape: cruShape(CruRadius.full),
+                      ),
+                      child: Text(
+                        '${enabledModules.length} Modules Active',
+                        style: CruType.caption.w600.tabular.tint(c.accentText),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s4),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: selectedDoctor.id,
+                    isDense: true,
+                    style: CruType.row.tint(c.label),
+                    items: doctors.map((doc) {
+                      return DropdownMenuItem(
+                        value: doc.id,
+                        child: Text('${doc.name} (${doc.clinicName.isNotEmpty ? doc.clinicName : doc.specialization})'),
+                      );
+                    }).toList(),
+                    onChanged: (id) {
+                      if (id != null) setState(() => _selectedDoctorId = id);
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: ShapeDecoration(
+              color: c.inset,
+              shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
+            ),
+            child: Text(
+              selectedDoctor.subscriptionPlan.label,
+              style: CruType.caption.w600.tint(c.label),
+            ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFeatureSuites(
+    BuildContext context,
+    DoctorModel doctor,
+    Set<FeatureModule> enabled,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSuiteSection(
+          context,
+          title: 'Core Clinical Suite',
+          subtitle: 'Essential operational workflows and communication pipelines',
+          icon: CruIcons.home,
+          modules: [
+            FeatureModule.dashboard,
+            FeatureModule.appointments,
+            FeatureModule.patients,
+            FeatureModule.revenue,
+            FeatureModule.inventory,
+            FeatureModule.queue,
+            FeatureModule.omnichannelMessaging,
+            FeatureModule.multiDeviceAccess,
+          ],
+          doctor: doctor,
+          enabled: enabled,
+        ),
+        const SizedBox(height: CruSpace.s20),
+        _buildSuiteSection(
+          context,
+          title: 'Dental Specialization Suite',
+          subtitle: 'Chairside charting, FDI/Universal odontogram, and perio records',
+          icon: CruIcons.flask,
+          modules: [
+            FeatureModule.dentalSuite,
+            FeatureModule.homeVisits,
+          ],
+          doctor: doctor,
+          enabled: enabled,
+        ),
+        const SizedBox(height: CruSpace.s20),
+        _buildSuiteSection(
+          context,
+          title: 'Radiology & Imaging Suite',
+          subtitle: 'Direct hardware USB sensor bridge and DICOM PACS server links',
+          icon: CruIcons.box,
+          modules: [
+            FeatureModule.radiology,
+            FeatureModule.rvgSensor,
+          ],
+          doctor: doctor,
+          enabled: enabled,
+        ),
+        const SizedBox(height: CruSpace.s20),
+        _buildSuiteSection(
+          context,
+          title: 'Clinical AI Intelligence Suite',
+          subtitle: 'Gemini multimodal consultation scribe and 2nd read diagnostic guard',
+          icon: CruIcons.sparkle,
+          modules: [
+            FeatureModule.aiScribeSecondRead,
+            FeatureModule.aiAssistant,
+            FeatureModule.aiAgenticCalling,
+          ],
+          doctor: doctor,
+          enabled: enabled,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSuiteSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required CruIconData icon,
+    required List<FeatureModule> modules,
+    required DoctorModel doctor,
+    required Set<FeatureModule> enabled,
+  }) {
+    final c = context.cru;
+
+    return CruCard(
+      padding: const EdgeInsets.all(CruSpace.s20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.person_pin_rounded,
-                  color: Color(0xFF8B5CF6), size: 22),
-              const SizedBox(width: 8),
-              const Text(
-                'SELECT DOCTOR',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF8B5CF6),
-                  letterSpacing: 0.8,
-                ),
-              ),
-              const Spacer(),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
+                width: 32,
+                height: 32,
+                alignment: Alignment.center,
+                decoration: ShapeDecoration(
+                  color: c.accentTint,
+                  shape: cruShape(CruRadius.appMark),
                 ),
-                child: Text(
-                  '${enabledModules.length} Active Features',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF047857),
-                  ),
+                child: CruIcon(icon, size: 16, color: c.accentText),
+              ),
+              const SizedBox(width: CruSpace.s12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: CruType.headline.tint(c.label)),
+                    Text(subtitle, style: CruType.caption.tint(c.label3)),
+                  ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Dropdown Menu
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: selectedDoctor.id,
-                isExpanded: true,
-                icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                    color: Color(0xFF64748B), size: 24),
-                items: doctors.map((doctor) {
-                  final initialLetter = doctor.name.isNotEmpty ? doctor.name[0].toUpperCase() : 'D';
-                  return DropdownMenuItem<String>(
-                    value: doctor.id,
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 14,
-                          backgroundColor: const Color(0xFF8B5CF6)
-                              .withValues(alpha: 0.12),
-                          child: Text(
-                            initialLetter,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF8B5CF6),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                doctor.name,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              Text(
-                                '${doctor.clinicName.isNotEmpty ? doctor.clinicName : "Clinic"} • ${doctor.email}',
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
-                onChanged: (val) {
-                  if (val != null) {
-                    setState(() {
-                      _selectedDoctorId = val;
-                    });
-                  }
-                },
-              ),
-            ),
-          ),
+          const SizedBox(height: CruSpace.s16),
+          Divider(height: 1, color: c.hairline),
+          for (final mod in modules) ...[
+            _buildModuleRow(c, mod, doctor, enabled.contains(mod)),
+            Divider(height: 1, color: c.hairline),
+          ],
         ],
       ),
     );
   }
 
-  // ==================== 3. FEATURE TOGGLES LIST ====================
-  Widget _buildFeatureTogglesCard(
-    BuildContext context,
-    DoctorModel selectedDoctor,
-    FeatureManagementState state,
-    Set<FeatureModule> enabledModules,
-    double totalMonthlyPrice,
+  Widget _buildModuleRow(
+    CruColors c,
+    FeatureModule module,
+    DoctorModel doctor,
+    bool isEnabled,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
         children: [
-          // Card Header
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
-              border: Border(
-                bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
-              ),
-            ),
-            child: Row(
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.toggle_on_rounded,
-                    color: Color(0xFF2563EB), size: 22),
-                const SizedBox(width: 8),
-                const Text(
-                  'FEATURE MODULE TOGGLES',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF2563EB),
-                    letterSpacing: 0.8,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  'Monthly Rate: ',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                ),
-                Text(
-                  '\$${totalMonthlyPrice.toStringAsFixed(2)}/mo',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF10B981),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Toggles List
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: state.features.length,
-            separatorBuilder: (_, _) => Divider(
-              height: 1,
-              thickness: 1,
-              color: Colors.grey.withValues(alpha: 0.1),
-            ),
-            itemBuilder: (context, index) {
-              final feature = state.features[index];
-              final isEnabled = enabledModules.contains(feature.module);
-
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Row(
-                      children: [
-                        // Module Icon
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: isEnabled
-                                ? const Color(0xFF10B981).withValues(alpha: 0.1)
-                                : Colors.grey.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Icon(
-                            _moduleIcon(feature.module),
-                            color: isEnabled
-                                ? const Color(0xFF10B981)
-                                : Colors.grey[400],
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-
-                        // Module Title + Description
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(
-                                    feature.module.label,
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w700,
-                                      color: isEnabled
-                                          ? null
-                                          : Colors.grey[500],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 1),
-                                    decoration: BoxDecoration(
-                                      color: feature.monthlyPrice == 0
-                                          ? const Color(0xFFECFDF5)
-                                          : const Color(0xFFEFF6FF),
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: feature.monthlyPrice == 0
-                                            ? const Color(0xFFA7F3D0)
-                                            : const Color(0xFFBFDBFE),
-                                      ),
-                                    ),
-                                    child: Text(
-                                      feature.monthlyPrice == 0
-                                          ? 'Free'
-                                          : '+\$${feature.monthlyPrice.toStringAsFixed(0)}/mo',
-                                      style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w800,
-                                        color: feature.monthlyPrice == 0
-                                            ? const Color(0xFF047857)
-                                            : const Color(0xFF1D4ED8),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                feature.description,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: isEnabled
-                                      ? Colors.grey[600]
-                                      : Colors.grey[400],
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-
-                        // Toggle Switch
-                        Switch(
-                          value: isEnabled,
-                          onChanged: (val) {
-                            _toggleModule(selectedDoctor, feature.module, val);
-                          },
-                          activeThumbColor: const Color(0xFF10B981),
-                        ),
-                      ],
-                    ),
-                    if (feature.module == FeatureModule.multiDeviceAccess && isEnabled) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        margin: const EdgeInsets.only(left: 44),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF64748B)),
-                                const SizedBox(width: 8),
-                                const Expanded(
-                                  child: Text(
-                                    'Simultaneous Device Cap:',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF334155),
-                                    ),
-                                  ),
-                                ),
-                                DropdownButton<int>(
-                                  value: selectedDoctor.maxDeviceLimit,
-                                  isDense: true,
-                                  underline: const SizedBox(),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF2563EB),
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(value: 0, child: Text('Unlimited Devices')),
-                                    DropdownMenuItem(value: 2, child: Text('Max 2 Devices')),
-                                    DropdownMenuItem(value: 3, child: Text('Max 3 Devices')),
-                                    DropdownMenuItem(value: 5, child: Text('Max 5 Devices')),
-                                    DropdownMenuItem(value: 10, child: Text('Max 10 Devices')),
-                                  ],
-                                  onChanged: _isSaving
-                                      ? null
-                                      : (val) {
-                                          if (val != null) {
-                                            _setDoctorMaxDeviceLimit(selectedDoctor, val);
-                                          }
-                                        },
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton.icon(
-                                onPressed: _isSaving ? null : () => _forceRevokeSessions(selectedDoctor),
-                                icon: const Icon(Icons.phonelink_erase_rounded, size: 15, color: Color(0xFFDC2626)),
-                                label: const Text(
-                                  'Revoke All Active Sessions',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFFDC2626),
-                                  ),
-                                ),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  minimumSize: Size.zero,
-                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                    Text(module.label, style: CruType.row.tint(c.label)),
+                    const SizedBox(width: CruSpace.s8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: ShapeDecoration(
+                        color: isEnabled ? c.greenTint : c.inset,
+                        shape: cruShape(CruRadius.full),
                       ),
-                    ],
+                      child: Text(
+                        isEnabled ? 'ENABLED' : 'INACTIVE',
+                        style: CruType.caption.w600.tint(isEnabled ? c.greenText : c.label3),
+                      ),
+                    ),
                   ],
                 ),
-              );
-            },
-          ),
-
-          // Card Footer
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
-              borderRadius:
-                  const BorderRadius.vertical(bottom: Radius.circular(16)),
-              border: Border(
-                top: BorderSide(color: Colors.grey.withValues(alpha: 0.15)),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
+                const SizedBox(height: CruSpace.s2),
                 Text(
-                  'Total Calculated Subscription Rate:',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                Text(
-                  '\$${totalMonthlyPrice.toStringAsFixed(2)} / month',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
-                    color: Color(0xFF047857),
-                  ),
+                  module.description,
+                  style: CruType.caption.tint(c.label2),
                 ),
               ],
             ),
           ),
+          Switch.adaptive(
+            value: isEnabled,
+            activeTrackColor: c.accent,
+            onChanged: (val) => _toggleModule(doctor, module, val),
+          ),
         ],
       ),
     );
-  }
-
-  // ==================== HELPERS ====================
-  IconData _moduleIcon(FeatureModule module) {
-    switch (module) {
-      case FeatureModule.dashboard:
-        return Icons.dashboard_rounded;
-      case FeatureModule.revenue:
-        return Icons.account_balance_wallet_rounded;
-      case FeatureModule.patients:
-        return Icons.people_alt_rounded;
-      case FeatureModule.appointments:
-        return Icons.calendar_month_rounded;
-      case FeatureModule.inventory:
-        return Icons.inventory_2_rounded;
-      case FeatureModule.homeVisits:
-        return Icons.home_work_rounded;
-      case FeatureModule.aiAssistant:
-        return Icons.auto_awesome_rounded;
-      case FeatureModule.aiAgenticCalling:
-        return Icons.phone_in_talk_rounded;
-      case FeatureModule.omnichannelMessaging:
-        return Icons.mark_chat_read_rounded;
-      case FeatureModule.multiDeviceAccess:
-        return Icons.devices_rounded;
-      case FeatureModule.queue:
-        return Icons.format_list_numbered_rounded;
-      case FeatureModule.dentalSuite:
-        return Icons.medical_services_rounded;
-      case FeatureModule.radiology:
-        return Icons.camera_alt_rounded;
-      case FeatureModule.rvgSensor:
-        return Icons.sensors_rounded;
-      case FeatureModule.aiScribeSecondRead:
-        return Icons.psychology_rounded;
-    }
   }
 }

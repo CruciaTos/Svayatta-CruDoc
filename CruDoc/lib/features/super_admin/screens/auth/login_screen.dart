@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../providers/auth_provider.dart';
-import '../../config/app_constants.dart';
 
-/// Super Admin Login Screen with email/password and 2FA support.
+import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+
+import '../../config/app_constants.dart';
+import '../../providers/auth_provider.dart';
+
+/// Super Admin Login Screen redesigned into the CruDoc Calm Clinical design system.
+/// Features email/password login, 2FA prompt, and 1-click Dev Demo Access.
 class SuperAdminLoginScreen extends ConsumerStatefulWidget {
   final bool show2FA;
 
   const SuperAdminLoginScreen({super.key, this.show2FA = false});
 
   @override
-  ConsumerState<SuperAdminLoginScreen> createState() => _SuperAdminLoginScreenState();
+  ConsumerState<SuperAdminLoginScreen> createState() =>
+      _SuperAdminLoginScreenState();
 }
 
 class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
@@ -48,7 +54,6 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
     if (success && mounted) {
       context.go('/admin');
     } else if (!success && mounted) {
-      // Check if 2FA is required
       final state = ref.read(superAdminAuthProvider);
       if (state.isTwoFARequired) {
         setState(() => _is2FAMode = true);
@@ -105,7 +110,7 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
           children: [
             Icon(Icons.admin_panel_settings, color: Colors.amber, size: 18),
             SizedBox(width: 8),
-            Text('Super Admin demo credentials filled (admin@crudoc.com)!'),
+            Text('Super Admin demo credentials pre-filled (admin@crudoc.com)!'),
           ],
         ),
         backgroundColor: const Color(0xFF0F172A),
@@ -118,103 +123,145 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final authState = ref.watch(superAdminAuthProvider);
-    final screenSize = MediaQuery.of(context).size;
-    final isMobile = screenSize.width < 600;
 
     return Scaffold(
-      body: Center(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.all(isMobile ? 24 : 48),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: _is2FAMode ? _build2FAForm(authState) : _buildLoginForm(authState),
+      backgroundColor: c.canvas,
+      body: CruAmbientBackground(
+        isEvening: c.isEvening,
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: CruCard(
+                padding: const EdgeInsets.all(CruSpace.s32),
+                child: _is2FAMode
+                    ? _build2FAForm(c, authState)
+                    : _buildLoginForm(c, authState),
+              ),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildLoginForm(SuperAdminAuthState authState) {
+  Widget _buildLoginForm(CruColors c, SuperAdminAuthState authState) {
     return Form(
       key: _formKey,
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Logo & Title
-          Icon(Icons.admin_panel_settings, size: 64, color: Theme.of(context).primaryColor),
-          const SizedBox(height: 16),
+          // Logo & Brand Header
+          Center(
+            child: Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: ShapeDecoration(
+                color: c.accent,
+                shape: cruShape(CruRadius.appMark),
+              ),
+              child: CruIcon(
+                CruIcons.plus,
+                size: 26,
+                strokeWidth: 3.4,
+                color: c.onAccent,
+              ),
+            ),
+          ),
+          const SizedBox(height: CruSpace.s16),
           Text(
             SuperAdminConstants.appName,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: CruType.largeTitle.tint(c.label),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CruSpace.s4),
           Text(
-            'Sign in to manage your platform',
+            'Master Platform Root & System Administration',
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Colors.grey[600],
-                ),
+            style: CruType.caption.tint(c.label2),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: CruSpace.s24),
 
-          // Error message
+          // Error Message Banner
           if (authState.errorMessage != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red[200]!),
+              decoration: ShapeDecoration(
+                color: c.redTint,
+                shape: cruShape(CruRadius.control),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.error_outline, color: Colors.red[700], size: 20),
-                  const SizedBox(width: 8),
+                  CruIcon(CruIcons.warning, size: 16, color: c.redText),
+                  const SizedBox(width: CruSpace.s8),
                   Expanded(
                     child: Text(
                       authState.errorMessage!,
-                      style: TextStyle(color: Colors.red[700], fontSize: 13),
+                      style: CruType.caption.w600.tint(c.redText),
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: CruSpace.s16),
           ],
 
-          // Email
+          // Email Input
           TextFormField(
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              prefixIcon: Icon(Icons.email_outlined),
-              border: OutlineInputBorder(),
+            style: CruType.text.tint(c.label),
+            decoration: InputDecoration(
+              labelText: 'Administrator Email',
+              hintText: 'admin@crudoc.com',
+              filled: true,
+              fillColor: c.inset,
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(12),
+                child: CruIcon(CruIcons.user, size: 18, color: c.label3),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                borderSide: BorderSide(color: c.hairline),
+              ),
             ),
             validator: (v) {
               if (v == null || v.trim().isEmpty) return 'Email is required';
-              if (!v.contains('@')) return 'Invalid email';
+              if (!v.contains('@')) return 'Invalid email address';
               return null;
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: CruSpace.s14),
 
-          // Password
+          // Password Input
           TextFormField(
             controller: _passwordController,
             obscureText: _obscurePassword,
+            style: CruType.text.tint(c.label),
             decoration: InputDecoration(
-              labelText: 'Password',
-              prefixIcon: const Icon(Icons.lock_outlined),
-              border: const OutlineInputBorder(),
+              labelText: 'Master Password',
+              filled: true,
+              fillColor: c.inset,
+              prefixIcon: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Icon(Icons.lock_outline, size: 18, color: c.label3),
+              ),
               suffixIcon: IconButton(
-                icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  size: 18,
+                  color: c.label3,
+                ),
                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                borderSide: BorderSide(color: c.hairline),
               ),
             ),
             validator: (v) {
@@ -222,87 +269,94 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
               return null;
             },
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CruSpace.s8),
 
-          // Forgot password
+          // Forgot Password Link
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: _handleForgotPassword,
-              child: const Text('Forgot Password?'),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Login button
-          SizedBox(
-            height: 48,
-            child: ElevatedButton(
-              onPressed: authState.isLoading ? null : _handleLogin,
-              style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              child: authState.isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Text('Sign In', style: TextStyle(fontSize: 16)),
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // 1-Click Super Admin Demo / Dev Access Button
-          SizedBox(
-            height: 46,
-            child: OutlinedButton.icon(
-              onPressed: authState.isLoading ? null : _handleDemoDevLogin,
-              icon: const Icon(Icons.bolt_rounded,
-                  color: Color(0xFF2563EB), size: 20),
-              label: const Text(
-                '⚡ Launch Super Admin Demo (Dev Access)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2563EB),
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF2563EB).withValues(alpha: 0.08),
-                side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+            child: CruPressable(
+              onTap: _handleForgotPassword,
+              builder: (ctx, hovered) => Text(
+                'Forgot password?',
+                style: CruType.caption.tint(c.accentText),
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: CruSpace.s20),
 
-          // Quick fill demo credentials
+          // Primary Sign-in Button
+          CruButton(
+            label: 'Sign in to Console',
+            kind: CruButtonKind.primary,
+            large: true,
+            expand: true,
+            onPressed: authState.isLoading ? null : _handleLogin,
+          ),
+
+          const SizedBox(height: CruSpace.s20),
+          Divider(height: 1, color: c.hairline),
+          const SizedBox(height: CruSpace.s16),
+
+          // ⚡ DEV DEMO ACCESS CARD
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: ShapeDecoration(
+              color: c.inset,
+              shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    CruIcon(CruIcons.sparkle, size: 16, color: c.amberText),
+                    const SizedBox(width: CruSpace.s6),
+                    Text(
+                      'DEVELOPER DEMO ACCESS',
+                      style: CruType.caption.w600.tint(c.label),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s6),
+                Text(
+                  'Bypasses external Firebase network rate-limits and launches the Super Admin suite in mock admin mode.',
+                  style: CruType.caption.tint(c.label3),
+                ),
+                const SizedBox(height: CruSpace.s12),
+                CruButton(
+                  label: '⚡ Launch Super Admin Demo (Dev Access)',
+                  kind: CruButtonKind.tinted,
+                  expand: true,
+                  onPressed: _handleDemoDevLogin,
+                ),
+                const SizedBox(height: CruSpace.s8),
+                CruPressable(
+                  onTap: _fillDemoAdminCredentials,
+                  builder: (ctx, hovered) => Text(
+                    'Pre-fill credentials (admin@crudoc.com)',
+                    style: CruType.caption.tint(c.label2),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: CruSpace.s16),
+
+          // Return to Clinic Login Portal
           Center(
-            child: TextButton.icon(
-              icon: const Icon(Icons.edit_note_rounded, size: 16),
-              label: const Text(
-                'Fill Demo Credentials (admin@crudoc.com)',
-                style: TextStyle(fontSize: 12),
+            child: CruPressable(
+              onTap: () => context.go('/auth'),
+              builder: (ctx, hovered) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CruIcon(CruIcons.chevronLeft, size: 14, color: c.label2),
+                  const SizedBox(width: CruSpace.s6),
+                  Text(
+                    'Return to Doctor Clinic Login',
+                    style: CruType.caption.tint(c.label2),
+                  ),
+                ],
               ),
-              onPressed: _fillDemoAdminCredentials,
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Divider(),
-          const SizedBox(height: 6),
-
-          // Back to Doctor Clinic Portal
-          Center(
-            child: TextButton.icon(
-              icon: const Icon(Icons.arrow_back_rounded, size: 16),
-              label: const Text('Back to Doctor Clinic Portal'),
-              onPressed: () => context.go('/auth'),
             ),
           ),
         ],
@@ -310,112 +364,90 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
     );
   }
 
-  Widget _build2FAForm(SuperAdminAuthState authState) {
+  Widget _build2FAForm(CruColors c, SuperAdminAuthState authState) {
     return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Icon(Icons.security, size: 64, color: Theme.of(context).primaryColor),
-        const SizedBox(height: 16),
+        Center(
+          child: Container(
+            width: 52,
+            height: 52,
+            alignment: Alignment.center,
+            decoration: ShapeDecoration(
+              color: c.accentTint,
+              shape: cruShape(CruRadius.appMark),
+            ),
+            child: Icon(Icons.lock_outline, size: 24, color: c.accentText),
+          ),
+        ),
+        const SizedBox(height: CruSpace.s16),
         Text(
           'Two-Factor Authentication',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+          style: CruType.largeTitle.tint(c.label),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: CruSpace.s4),
         Text(
-          'Enter the 6-digit code from your authenticator app',
+          'Enter the 6-digit verification code from your authenticator app.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey[600]),
+          style: CruType.caption.tint(c.label2),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: CruSpace.s24),
 
         if (authState.errorMessage != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.red[50],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              authState.errorMessage!,
-              style: TextStyle(color: Colors.red[700]),
-            ),
+            decoration: ShapeDecoration(color: c.redTint, shape: cruShape(CruRadius.control)),
+            child: Text(authState.errorMessage!, style: CruType.caption.w600.tint(c.redText)),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: CruSpace.s16),
         ],
 
-        // OTP Input
-        TextFormField(
+        TextField(
           controller: _otpController,
           keyboardType: TextInputType.number,
-          maxLength: 6,
           textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 24, letterSpacing: 8),
-          decoration: const InputDecoration(
-            labelText: 'Verification Code',
-            border: OutlineInputBorder(),
+          maxLength: 6,
+          style: CruType.metric.tint(c.label),
+          decoration: InputDecoration(
+            hintText: '000000',
             counterText: '',
+            filled: true,
+            fillColor: c.inset,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(CruRadius.control),
+              borderSide: BorderSide(color: c.hairline),
+            ),
           ),
           onChanged: (v) {
             if (v.length == 6) _handle2FA();
           },
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: CruSpace.s20),
 
-        // Verify button
-        SizedBox(
-          height: 48,
-          child: ElevatedButton(
-            onPressed: authState.isLoading ? null : _handle2FA,
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: authState.isLoading
-                ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Verify', style: TextStyle(fontSize: 16)),
-          ),
+        CruButton(
+          label: 'Verify Code',
+          kind: CruButtonKind.primary,
+          large: true,
+          expand: true,
+          onPressed: _handle2FA,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
 
-        // Dev Bypass 2FA
-        SizedBox(
-          height: 44,
-          child: OutlinedButton.icon(
-            onPressed: authState.isLoading ? null : _handleDemoDevLogin,
-            icon: const Icon(Icons.bolt_rounded, color: Color(0xFF059669)),
-            label: const Text(
-              'Bypass 2FA (Dev Demo Mode)',
-              style: TextStyle(
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF059669),
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFF059669).withValues(alpha: 0.08),
-              side: const BorderSide(color: Color(0xFF059669)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
+        CruButton(
+          label: '⚡ Bypass 2FA (Dev Demo Mode)',
+          kind: CruButtonKind.secondary,
+          expand: true,
+          onPressed: _handleDemoDevLogin,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: CruSpace.s12),
 
-        TextButton(
-          onPressed: () {
-            setState(() => _is2FAMode = false);
-            ref.read(superAdminAuthProvider.notifier).clearError();
-          },
-          child: const Text('Back to Login'),
+        Center(
+          child: CruPressable(
+            onTap: () => setState(() => _is2FAMode = false),
+            builder: (ctx, hovered) => Text('Back to Login', style: CruType.caption.tint(c.label2)),
+          ),
         ),
       ],
     );

@@ -456,6 +456,42 @@ enum FeatureModule {
         return 'ai_scribe_second_read';
     }
   }
+
+  /// Brief description of the module
+  String get description {
+    switch (this) {
+      case FeatureModule.dashboard:
+        return 'Core platform overview, KPIs, and clinic glance metrics';
+      case FeatureModule.revenue:
+        return 'Financial billing ledger, collection receipts, and invoices';
+      case FeatureModule.patients:
+        return 'Comprehensive patient EMR records and medical histories';
+      case FeatureModule.appointments:
+        return 'Multi-doctor clinic schedule, calendar slots, and reminders';
+      case FeatureModule.inventory:
+        return 'Stock levels, batch expiry tracking, and supply orders';
+      case FeatureModule.homeVisits:
+        return 'Domiciliary doctor visitation routes and home care logging';
+      case FeatureModule.aiAssistant:
+        return 'Clinical copilot for treatment questions and literature lookup';
+      case FeatureModule.aiAgenticCalling:
+        return 'Automated AI phone agent for recall and follow-up calls';
+      case FeatureModule.omnichannelMessaging:
+        return 'Automated WhatsApp, SMS, and email communication channel';
+      case FeatureModule.multiDeviceAccess:
+        return 'Concurrent multi-tablet and multi-workstation login support';
+      case FeatureModule.queue:
+        return 'Live reception triage and walk-in token numbering system';
+      case FeatureModule.dentalSuite:
+        return 'Interactive FDI/Universal odontogram, perio charts, and sterilization';
+      case FeatureModule.radiology:
+        return 'Full DICOM PACS web viewer with windowing, zoom, and worklist';
+      case FeatureModule.rvgSensor:
+        return 'Direct USB intraoral RVG sensor capture bridge on port 8766';
+      case FeatureModule.aiScribeSecondRead:
+        return 'Ambient consultation audio transcription and AI second read guard';
+    }
+  }
 }
 
 /// User roles in the system

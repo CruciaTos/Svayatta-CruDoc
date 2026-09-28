@@ -187,8 +187,8 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
 
   @override
   Widget build(BuildContext context) {
-    final appearance = ref.watch(resolvedAppearanceProvider);
-    final theme = CruTheme.of(appearance);
+    // Super Admin is locked permanently in Night / Evening mode
+    final theme = CruTheme.evening();
 
     return Theme(
       data: theme,
@@ -228,7 +228,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
   }
 
   Widget _buildShell(BuildContext context) {
-    final c = context.cru;
+    final c = CruColors.evening;
     final uiState = ref.watch(superAdminUIProvider);
     final authState = ref.watch(superAdminAuthProvider);
     final width = MediaQuery.of(context).size.width;
@@ -246,45 +246,45 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
     );
 
     if (isMobile) {
-      return CruAmbientBackground(
-        isEvening: c.isEvening,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            backgroundColor: c.surface,
-            elevation: 0,
-            leading: Builder(
-              builder: (innerContext) => IconButton(
-                icon: CruIcon(CruIcons.dashboard, size: 20, color: c.label),
-                onPressed: () => Scaffold.of(innerContext).openDrawer(),
-              ),
+      return Scaffold(
+        backgroundColor: c.canvas,
+        appBar: AppBar(
+          backgroundColor: c.surface,
+          elevation: 0,
+          leading: Builder(
+            builder: (innerContext) => IconButton(
+              icon: CruIcon(CruIcons.dashboard, size: 20, color: c.label),
+              onPressed: () => Scaffold.of(innerContext).openDrawer(),
             ),
-            title: Row(
-              children: [
-                _AdminBrandMark(size: 26),
-                const SizedBox(width: CruSpace.s10),
-                Text(
-                  uiState.selectedTab.label,
-                  style: CruType.callout.tint(c.label),
-                ),
-              ],
-            ),
-            actions: [
-              IconButton(
-                tooltip: 'Return to Clinic Portal',
-                icon: CruIcon(CruIcons.arrowUpRight, size: 18, color: c.accentText),
-                onPressed: () {
-                  DemoSessionService.startDemoSession();
-                  context.go('/dashboard');
-                },
+          ),
+          title: Row(
+            children: [
+              _AdminBrandMark(size: 26),
+              const SizedBox(width: CruSpace.s10),
+              Text(
+                uiState.selectedTab.label,
+                style: CruType.callout.tint(c.label),
               ),
             ],
           ),
-          drawer: Drawer(
-            backgroundColor: c.surface,
-            child: sidebar,
-          ),
-          body: _buildContent(uiState.selectedTab),
+          actions: [
+            IconButton(
+              tooltip: 'Return to Clinic Portal',
+              icon: CruIcon(CruIcons.arrowUpRight, size: 18, color: c.accentText),
+              onPressed: () {
+                DemoSessionService.startDemoSession();
+                context.go('/dashboard');
+              },
+            ),
+          ],
+        ),
+        drawer: Drawer(
+          backgroundColor: c.surface,
+          child: sidebar,
+        ),
+        body: CruAmbientBackground(
+          isEvening: true,
+          child: _buildContent(uiState.selectedTab),
         ),
       );
     }
@@ -292,7 +292,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
     return Scaffold(
       backgroundColor: c.canvas,
       body: CruAmbientBackground(
-        isEvening: c.isEvening,
+        isEvening: true,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -446,7 +446,6 @@ class _AdminTopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final isDemo = DemoSessionService.isSuperAdminMode;
-    final appMode = ref.watch(appearanceModeProvider);
 
     return Container(
       height: 64,
@@ -572,20 +571,22 @@ class _AdminTopBar extends ConsumerWidget {
             const SizedBox(width: CruSpace.s12),
           ],
 
-          // Appearance Toggle
-          IconButton(
-            tooltip: appMode == AppearanceMode.evening ? 'Day theme' : 'Evening theme',
-            icon: CruIcon(
-              appMode == AppearanceMode.evening ? CruIcons.sun : CruIcons.moon,
-              size: 18,
-              color: c.label2,
+          // Night Mode Status Pill (Always Active in Super Admin)
+          Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            decoration: ShapeDecoration(
+              color: c.surface,
+              shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
             ),
-            onPressed: () {
-              final next = appMode == AppearanceMode.evening
-                  ? AppearanceMode.day
-                  : AppearanceMode.evening;
-              ref.read(appearanceModeProvider.notifier).select(next);
-            },
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CruIcon(CruIcons.moon, size: 14, color: c.accentText),
+                const SizedBox(width: CruSpace.s6),
+                Text('Night Mode', style: CruType.caption.w600.tint(c.label)),
+              ],
+            ),
           ),
 
           const SizedBox(width: CruSpace.s8),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import '../../models/api_key_model.dart';
 import '../../providers/api_key_provider.dart';
 
@@ -60,7 +61,7 @@ class _SuperAdminApiUsageScreenState
     final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: CruColors.evening.canvas,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(135),
         child: Container(

@@ -222,9 +222,10 @@ class MoodyDashboardApp extends StatelessWidget {
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
-      // Calm Clinical Day theme app-wide. The Evening appearance is scoped
-      // to the desktop shell + dashboard (see DesktopShell).
-      theme: CruTheme.day(),
+      // Calm Clinical Evening (Night) theme always active
+      theme: CruTheme.evening(),
+      darkTheme: CruTheme.evening(),
+      themeMode: ThemeMode.dark,
       routerConfig: appRouter,
       builder: (context, child) => VoiceOverlay(
         child: child ?? const SizedBox.shrink(),

@@ -123,23 +123,26 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = context.cru;
+    final c = CruColors.evening;
     final authState = ref.watch(superAdminAuthProvider);
 
-    return Scaffold(
-      backgroundColor: c.canvas,
-      body: CruAmbientBackground(
-        isEvening: c.isEvening,
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: CruCard(
-                padding: const EdgeInsets.all(CruSpace.s32),
-                child: _is2FAMode
-                    ? _build2FAForm(c, authState)
-                    : _buildLoginForm(c, authState),
+    return Theme(
+      data: CruTheme.evening(),
+      child: Scaffold(
+        backgroundColor: c.canvas,
+        body: CruAmbientBackground(
+          isEvening: true,
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 460),
+                child: CruCard(
+                  padding: const EdgeInsets.all(CruSpace.s32),
+                  child: _is2FAMode
+                      ? _build2FAForm(c, authState)
+                      : _buildLoginForm(c, authState),
+                ),
               ),
             ),
           ),

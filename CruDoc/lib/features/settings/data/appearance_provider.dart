@@ -18,7 +18,7 @@ class AppearanceModeNotifier extends Notifier<AppearanceMode> {
       final stored = await ref.read(appearancePreferencesProvider).getMode();
       if (ref.mounted && stored != state) state = stored;
     });
-    return AppearanceMode.auto;
+    return AppearanceMode.evening;
   }
 
   Future<void> select(AppearanceMode mode) async {

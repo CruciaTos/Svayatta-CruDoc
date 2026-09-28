@@ -65,6 +65,22 @@ class _SuperAdminFeaturesScreenState
       case 'queue':
       case 'walk_in_queue':
         return FeatureModule.queue;
+      case 'dental_suite':
+      case 'dental':
+      case 'odontogram':
+        return FeatureModule.dentalSuite;
+      case 'radiology':
+      case 'dicom':
+      case 'imaging':
+        return FeatureModule.radiology;
+      case 'rvg_sensor':
+      case 'rvg':
+      case 'sensor':
+        return FeatureModule.rvgSensor;
+      case 'ai_scribe_second_read':
+      case 'ai_scribe':
+      case 'second_read':
+        return FeatureModule.aiScribeSecondRead;
       default:
         return null;
     }
@@ -94,6 +110,14 @@ class _SuperAdminFeaturesScreenState
         return 'multi_device_access';
       case FeatureModule.queue:
         return 'queue';
+      case FeatureModule.dentalSuite:
+        return 'dental_suite';
+      case FeatureModule.radiology:
+        return 'radiology';
+      case FeatureModule.rvgSensor:
+        return 'rvg_sensor';
+      case FeatureModule.aiScribeSecondRead:
+        return 'ai_scribe_second_read';
     }
   }
 
@@ -856,6 +880,14 @@ class _SuperAdminFeaturesScreenState
         return Icons.devices_rounded;
       case FeatureModule.queue:
         return Icons.format_list_numbered_rounded;
+      case FeatureModule.dentalSuite:
+        return Icons.medical_services_rounded;
+      case FeatureModule.radiology:
+        return Icons.camera_alt_rounded;
+      case FeatureModule.rvgSensor:
+        return Icons.sensors_rounded;
+      case FeatureModule.aiScribeSecondRead:
+        return Icons.psychology_rounded;
     }
   }
 }

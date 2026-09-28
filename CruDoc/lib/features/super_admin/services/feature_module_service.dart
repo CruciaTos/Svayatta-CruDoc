@@ -125,10 +125,11 @@ class SuperAdminFeatureModuleService {
     return FeatureModule.values.map((module) {
       final planAvailability = <String, bool>{};
       for (final plan in SubscriptionPlan.values) {
-        planAvailability[plan.label] = plan.includedModules.contains(module.name);
+        planAvailability[plan.label] = plan.includedModules.contains(module.id) ||
+            plan.includedModules.contains(module.name);
       }
       return {
-        'id': module.name,
+        'id': module.id,
         'label': module.label,
         'planAvailability': planAvailability,
       };

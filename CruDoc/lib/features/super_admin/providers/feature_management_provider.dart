@@ -253,6 +253,47 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
         totalDoctors: _totalDoctors,
         planAvailability: planMap(FeatureModule.queue),
       ),
+      FeatureModuleItem(
+        module: FeatureModule.dentalSuite,
+        description:
+            'Interactive FDI/Universal 2D/3D Odontogram, 6-point periodontal depth charting, and multi-stage dental treatment planning.',
+        iconCategory: IconCategory.clinical,
+        isGloballyEnabled: true,
+        enabledDoctorsCount: 38,
+        totalDoctors: _totalDoctors,
+        planAvailability: planMap(FeatureModule.dentalSuite),
+      ),
+      FeatureModuleItem(
+        module: FeatureModule.radiology,
+        description:
+            'Diagnostic DICOM viewer with window/level presets, MPR multi-planar reconstruction, slice navigation, and Ceph tracing.',
+        iconCategory: IconCategory.clinical,
+        isGloballyEnabled: true,
+        enabledDoctorsCount: 29,
+        totalDoctors: _totalDoctors,
+        planAvailability: planMap(FeatureModule.radiology),
+      ),
+      FeatureModuleItem(
+        module: FeatureModule.rvgSensor,
+        description:
+            'Direct USB/TWAIN hardware capture bridge for digital intraoral dental sensors with simulated fallback and live calibration.',
+        iconCategory: IconCategory.clinical,
+        isGloballyEnabled: true,
+        enabledDoctorsCount: 22,
+        totalDoctors: _totalDoctors,
+        planAvailability: planMap(FeatureModule.rvgSensor),
+      ),
+      FeatureModuleItem(
+        module: FeatureModule.aiScribeSecondRead,
+        description:
+            'Real-time ambient consultation voice transcription, automated clinical SOAP note structuring, and AI radiology 2nd read anomaly detection.',
+        iconCategory: IconCategory.advanced,
+        isGloballyEnabled: true,
+        isBeta: true,
+        enabledDoctorsCount: 18,
+        totalDoctors: _totalDoctors,
+        planAvailability: planMap(FeatureModule.aiScribeSecondRead),
+      ),
     ];
   }
 

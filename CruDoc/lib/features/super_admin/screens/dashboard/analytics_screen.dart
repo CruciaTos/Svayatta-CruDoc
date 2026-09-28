@@ -78,6 +78,22 @@ class _SuperAdminAnalyticsScreenState
       case 'queue':
       case 'walk_in_queue':
         return FeatureModule.queue;
+      case 'dental_suite':
+      case 'dental':
+      case 'odontogram':
+        return FeatureModule.dentalSuite;
+      case 'radiology':
+      case 'dicom':
+      case 'imaging':
+        return FeatureModule.radiology;
+      case 'rvg_sensor':
+      case 'rvg':
+      case 'sensor':
+        return FeatureModule.rvgSensor;
+      case 'ai_scribe_second_read':
+      case 'ai_scribe':
+      case 'second_read':
+        return FeatureModule.aiScribeSecondRead;
       default:
         return null;
     }
@@ -714,6 +730,14 @@ class _SuperAdminAnalyticsScreenState
         return AppColors.slateBlue;
       case FeatureModule.queue:
         return const Color(0xFF2563EB); // blue
+      case FeatureModule.dentalSuite:
+        return const Color(0xFF0EA5E9); // sky blue
+      case FeatureModule.radiology:
+        return const Color(0xFF8B5CF6); // purple
+      case FeatureModule.rvgSensor:
+        return const Color(0xFFF59E0B); // amber
+      case FeatureModule.aiScribeSecondRead:
+        return const Color(0xFFD946EF); // fuchsia
     }
   }
 

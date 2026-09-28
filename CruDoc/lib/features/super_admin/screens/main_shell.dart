@@ -9,6 +9,7 @@ import 'dashboard/support_screen.dart';
 import 'dashboard/features_screen.dart';
 import 'dashboard/analytics_screen.dart';
 import 'dashboard/api_usage_screen.dart';
+import 'dashboard/settings_screen.dart';
 
 /// Main Super Admin shell with sidebar navigation and content area.
 class SuperAdminShell extends ConsumerStatefulWidget {
@@ -260,12 +261,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
       case SuperAdminTab.auditLogs:
         return const SuperAdminAuditLogsScreen();
       case SuperAdminTab.settings:
-        return const _ComingSoonTab(
-          icon: Icons.settings_outlined,
-          title: 'Settings',
-          description:
-              'Configure platform settings, profile, 2FA, and system configuration.',
-        );
+        return const SuperAdminSettingsScreen();
     }
   }
 
@@ -309,84 +305,6 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
             child: const Text('Sign Out'),
           ),
         ],
-      ),
-    );
-  }
-}
-
-/// "Coming Soon" placeholder tab for screens not yet built.
-class _ComingSoonTab extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String description;
-
-  const _ComingSoonTab({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(48),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                icon,
-                size: 48,
-                color: Theme.of(context).primaryColor,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 12),
-            Text(
-              description,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyLarge?.copyWith(color: Colors.grey[600]),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.amber[50],
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.amber[200]!),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.construction, size: 18, color: Colors.amber[800]),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Coming Soon',
-                    style: TextStyle(
-                      color: Colors.amber[800],
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

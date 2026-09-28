@@ -66,9 +66,9 @@ enum SubscriptionPlan {
       case SubscriptionPlan.professional:
         return 20.0;
       case SubscriptionPlan.clinic:
-        return 50.0;
+        return 100.0;
       case SubscriptionPlan.enterprise:
-        return 200.0;
+        return 500.0;
     }
   }
 
@@ -161,6 +161,7 @@ enum SubscriptionPlan {
           'home_visits',
           'analytics',
           'omnichannel_messaging',
+          'dental_suite',
         ];
       case SubscriptionPlan.clinic:
         return [
@@ -173,6 +174,9 @@ enum SubscriptionPlan {
           'prescription_generator',
           'packages',
           'ai_assistant',
+          'dental_suite',
+          'radiology',
+          'rvg_sensor',
         ];
       case SubscriptionPlan.enterprise:
         return [
@@ -190,6 +194,10 @@ enum SubscriptionPlan {
           'ai_assistant',
           'ai_agentic_calling',
           'custom_branding',
+          'dental_suite',
+          'radiology',
+          'rvg_sensor',
+          'ai_scribe_second_read',
         ];
     }
   }
@@ -336,7 +344,11 @@ enum FeatureModule {
   aiAgenticCalling,
   omnichannelMessaging,
   multiDeviceAccess,
-  queue;
+  queue,
+  dentalSuite,
+  radiology,
+  rvgSensor,
+  aiScribeSecondRead;
 
   String get label {
     switch (this) {
@@ -362,6 +374,14 @@ enum FeatureModule {
         return 'Multi-Device Account Access';
       case FeatureModule.queue:
         return 'Walk-in Queue Management';
+      case FeatureModule.dentalSuite:
+        return 'Dental Specialty Suite (Odontogram & Perio)';
+      case FeatureModule.radiology:
+        return 'Radiology & DICOM Studio';
+      case FeatureModule.rvgSensor:
+        return 'Direct RVG Sensor Hardware Integration';
+      case FeatureModule.aiScribeSecondRead:
+        return 'AI Ambient Scribe & Radiology 2nd Read';
     }
   }
 
@@ -390,6 +410,50 @@ enum FeatureModule {
         return 35.0;
       case FeatureModule.aiAgenticCalling:
         return 60.0;
+      case FeatureModule.dentalSuite:
+        return 45.0;
+      case FeatureModule.radiology:
+        return 50.0;
+      case FeatureModule.rvgSensor:
+        return 35.0;
+      case FeatureModule.aiScribeSecondRead:
+        return 65.0;
+    }
+  }
+
+  /// Unique string identifier (snake_case)
+  String get id {
+    switch (this) {
+      case FeatureModule.dashboard:
+        return 'dashboard';
+      case FeatureModule.revenue:
+        return 'revenue';
+      case FeatureModule.patients:
+        return 'patients';
+      case FeatureModule.appointments:
+        return 'appointments';
+      case FeatureModule.inventory:
+        return 'inventory';
+      case FeatureModule.homeVisits:
+        return 'home_visits';
+      case FeatureModule.aiAssistant:
+        return 'ai_assistant';
+      case FeatureModule.aiAgenticCalling:
+        return 'ai_agentic_calling';
+      case FeatureModule.omnichannelMessaging:
+        return 'omnichannel_messaging';
+      case FeatureModule.multiDeviceAccess:
+        return 'multi_device_access';
+      case FeatureModule.queue:
+        return 'queue';
+      case FeatureModule.dentalSuite:
+        return 'dental_suite';
+      case FeatureModule.radiology:
+        return 'radiology';
+      case FeatureModule.rvgSensor:
+        return 'rvg_sensor';
+      case FeatureModule.aiScribeSecondRead:
+        return 'ai_scribe_second_read';
     }
   }
 }

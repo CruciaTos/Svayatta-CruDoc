@@ -123,6 +123,7 @@ class SidebarCallbacks {
     required this.onToggleCollapsed,
     this.appearanceMenu,
     this.onSuperAdmin,
+    this.onToggleTheme,
   });
 
   final ValueChanged<int> onNavigate;
@@ -136,6 +137,7 @@ class SidebarCallbacks {
   final VoidCallback onLogout;
   final VoidCallback onToggleCollapsed;
   final VoidCallback? onSuperAdmin;
+  final VoidCallback? onToggleTheme;
 
   /// Extra account-menu entries (appearance), built by the shell with the
   /// sidebar's current colours.
@@ -320,6 +322,29 @@ class CruSidebar extends ConsumerWidget {
                 ),
                 if (collapsed && canExpand) ...[
                   const SizedBox(height: CruSpace.s8),
+                  if (callbacks.onToggleTheme != null) ...[
+                    CruPressable(
+                      onTap: callbacks.onToggleTheme,
+                      tooltip: c.isEvening
+                          ? 'Night Mode (Click to switch to Day Mode)'
+                          : 'Day Mode (Click to switch to Night Mode)',
+                      builder: (context, hovered) => Container(
+                        width: 32,
+                        height: 32,
+                        alignment: Alignment.center,
+                        decoration: ShapeDecoration(
+                          color: hovered ? c.hoverFill : Colors.transparent,
+                          shape: cruShape(8),
+                        ),
+                        child: CruIcon(
+                          c.isEvening ? CruIcons.moon : CruIcons.sun,
+                          size: 16,
+                          color: c.isEvening ? c.accentText : c.amberText,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: CruSpace.s4),
+                  ],
                   CruPressable(
                     onTap: callbacks.onToggleCollapsed,
                     tooltip: 'Expand sidebar (Ctrl+B)',
@@ -733,6 +758,29 @@ class _ProfileButton extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (callbacks.onToggleTheme != null)
+                    CruPressable(
+                      onTap: callbacks.onToggleTheme,
+                      tooltip: c.isEvening
+                          ? 'Night Mode active (Click to switch to Day Mode)'
+                          : 'Day Mode active (Click to switch to Night Mode)',
+                      builder: (context, hovered) => Container(
+                        width: 28,
+                        height: 28,
+                        alignment: Alignment.center,
+                        decoration: ShapeDecoration(
+                          color: hovered
+                              ? (c.isEvening ? c.inset : c.hoverFill)
+                              : Colors.transparent,
+                          shape: cruShape(8),
+                        ),
+                        child: CruIcon(
+                          c.isEvening ? CruIcons.moon : CruIcons.sun,
+                          size: 16,
+                          color: c.isEvening ? c.accentText : c.amberText,
+                        ),
+                      ),
+                    ),
                 ],
               ),
       ),

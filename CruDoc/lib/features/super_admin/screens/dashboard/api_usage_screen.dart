@@ -61,7 +61,7 @@ class _SuperAdminApiUsageScreenState
     final isMobile = MediaQuery.of(context).size.width < 768;
 
     return Scaffold(
-      backgroundColor: CruColors.evening.canvas,
+      backgroundColor: context.cru.canvas,
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(135),
         child: Container(

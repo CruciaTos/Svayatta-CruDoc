@@ -465,6 +465,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       },
       onToggleCollapsed: _toggleSidebar,
       appearanceMenu: _appearanceMenu,
+      onToggleTheme: () => ref.read(appearanceModeProvider.notifier).toggle(),
       onSuperAdmin: () async {
         await ref.read(superAdminAuthProvider.notifier).loginDemoDev();
         if (!context.mounted) return;

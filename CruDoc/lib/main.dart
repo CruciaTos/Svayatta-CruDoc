@@ -15,6 +15,7 @@ import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
 import 'core/services/maps_key.dart';
 import 'core/theme/cru_theme.dart';
+import 'features/settings/data/appearance_provider.dart';
 import 'features/voice/presentation/voice_overlay.dart';
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
@@ -213,19 +214,22 @@ void _wireDoctorScopedStartup() {
   });
 }
 
-class MoodyDashboardApp extends StatelessWidget {
+class MoodyDashboardApp extends ConsumerWidget {
   const MoodyDashboardApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final appearance = ref.watch(resolvedAppearanceProvider);
+    final isEvening = appearance == CruAppearance.evening;
+
     return MaterialApp.router(
       scaffoldMessengerKey: rootScaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: 'Moody Blues Dashboard',
-      // Calm Clinical Evening (Night) theme always active
-      theme: CruTheme.evening(),
+      // Starts in Calm Clinical Night (Evening) theme by default, fully toggleable across the app
+      theme: CruTheme.day(),
       darkTheme: CruTheme.evening(),
-      themeMode: ThemeMode.dark,
+      themeMode: isEvening ? ThemeMode.dark : ThemeMode.light,
       routerConfig: appRouter,
       builder: (context, child) => VoiceOverlay(
         child: child ?? const SizedBox.shrink(),

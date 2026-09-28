@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -123,30 +124,84 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final c = CruColors.evening;
+    final appearance = ref.watch(resolvedAppearanceProvider);
+    final isEvening = appearance == CruAppearance.evening;
     final authState = ref.watch(superAdminAuthProvider);
 
-    return Theme(
-      data: CruTheme.evening(),
-      child: Scaffold(
-        backgroundColor: c.canvas,
-        body: CruAmbientBackground(
-          isEvening: true,
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: CruCard(
-                  padding: const EdgeInsets.all(CruSpace.s32),
-                  child: _is2FAMode
-                      ? _build2FAForm(c, authState)
-                      : _buildLoginForm(c, authState),
+    return AnimatedTheme(
+      data: CruTheme.of(appearance),
+      duration: CruMotion.of(context),
+      curve: CruMotion.curve,
+      child: Builder(
+        builder: (themedContext) {
+          final c = themedContext.cru;
+          return Scaffold(
+            backgroundColor: c.canvas,
+            body: Stack(
+              children: [
+                CruAmbientBackground(
+                  isEvening: isEvening,
+                  child: Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(24),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: CruCard(
+                          padding: const EdgeInsets.all(CruSpace.s32),
+                          child: _is2FAMode
+                              ? _build2FAForm(c, authState)
+                              : _buildLoginForm(c, authState),
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+                Positioned(
+                  top: 24,
+                  right: 24,
+                  child: CruPressable(
+                    onTap: () =>
+                        ref.read(appearanceModeProvider.notifier).toggle(),
+                    tooltip: isEvening
+                        ? 'Night Mode active (Click to switch to Day Mode)'
+                        : 'Day Mode active (Click to switch to Night Mode)',
+                    builder: (context, hovered) => Container(
+                      height: 34,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: ShapeDecoration(
+                        color: hovered ? c.hoverFill : c.surface,
+                        shape: cruShape(
+                          CruRadius.full,
+                          side: BorderSide(
+                            color: isEvening
+                                ? c.accent.withValues(alpha: 0.35)
+                                : c.hairline,
+                          ),
+                        ),
+                        shadows: c.cardShadow,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CruIcon(
+                            isEvening ? CruIcons.moon : CruIcons.sun,
+                            size: 14,
+                            color: isEvening ? c.accentText : c.amberText,
+                          ),
+                          const SizedBox(width: CruSpace.s6),
+                          Text(
+                            isEvening ? 'Night Mode' : 'Day Mode',
+                            style: CruType.caption.w600.tint(c.label),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

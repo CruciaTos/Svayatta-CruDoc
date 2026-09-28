@@ -187,11 +187,13 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
 
   @override
   Widget build(BuildContext context) {
-    // Super Admin is locked permanently in Night / Evening mode
-    final theme = CruTheme.evening();
+    final appearance = ref.watch(resolvedAppearanceProvider);
+    final theme = CruTheme.of(appearance);
 
-    return Theme(
+    return AnimatedTheme(
       data: theme,
+      duration: CruMotion.of(context),
+      curve: CruMotion.curve,
       child: Shortcuts(
         shortcuts: _keyboardShortcuts,
         child: Actions(
@@ -228,7 +230,9 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
   }
 
   Widget _buildShell(BuildContext context) {
-    final c = CruColors.evening;
+    final appearance = ref.watch(resolvedAppearanceProvider);
+    final isEvening = appearance == CruAppearance.evening;
+    final c = context.cru;
     final uiState = ref.watch(superAdminUIProvider);
     final authState = ref.watch(superAdminAuthProvider);
     final width = MediaQuery.of(context).size.width;
@@ -269,6 +273,15 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
           ),
           actions: [
             IconButton(
+              tooltip: isEvening ? 'Switch to Day Mode' : 'Switch to Night Mode',
+              icon: CruIcon(
+                isEvening ? CruIcons.moon : CruIcons.sun,
+                size: 18,
+                color: isEvening ? c.accentText : c.amberText,
+              ),
+              onPressed: () => ref.read(appearanceModeProvider.notifier).toggle(),
+            ),
+            IconButton(
               tooltip: 'Return to Clinic Portal',
               icon: CruIcon(CruIcons.arrowUpRight, size: 18, color: c.accentText),
               onPressed: () {
@@ -283,7 +296,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
           child: sidebar,
         ),
         body: CruAmbientBackground(
-          isEvening: true,
+          isEvening: isEvening,
           child: _buildContent(uiState.selectedTab),
         ),
       );
@@ -292,7 +305,7 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
     return Scaffold(
       backgroundColor: c.canvas,
       body: CruAmbientBackground(
-        isEvening: true,
+        isEvening: isEvening,
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -571,21 +584,42 @@ class _AdminTopBar extends ConsumerWidget {
             const SizedBox(width: CruSpace.s12),
           ],
 
-          // Night Mode Status Pill (Always Active in Super Admin)
-          Container(
-            height: 32,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: ShapeDecoration(
-              color: c.surface,
-              shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CruIcon(CruIcons.moon, size: 14, color: c.accentText),
-                const SizedBox(width: CruSpace.s6),
-                Text('Night Mode', style: CruType.caption.w600.tint(c.label)),
-              ],
+          // Interactive Night / Day Mode Toggle Button
+          CruPressable(
+            onTap: () => ref.read(appearanceModeProvider.notifier).toggle(),
+            tooltip: c.isEvening
+                ? 'Night Mode active (Click to switch to Day Mode)'
+                : 'Day Mode active (Click to switch to Night Mode)',
+            builder: (context, hovered) => Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: ShapeDecoration(
+                color: hovered ? c.hoverFill : c.surface,
+                shape: cruShape(
+                  CruRadius.full,
+                  side: BorderSide(
+                    color: c.isEvening
+                        ? c.accent.withValues(alpha: 0.35)
+                        : c.hairline,
+                  ),
+                ),
+                shadows: c.cardShadow,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CruIcon(
+                    c.isEvening ? CruIcons.moon : CruIcons.sun,
+                    size: 14,
+                    color: c.isEvening ? c.accentText : c.amberText,
+                  ),
+                  const SizedBox(width: CruSpace.s6),
+                  Text(
+                    c.isEvening ? 'Night Mode' : 'Day Mode',
+                    style: CruType.caption.w600.tint(c.label),
+                  ),
+                ],
+              ),
             ),
           ),
 

@@ -25,6 +25,15 @@ class AppearanceModeNotifier extends Notifier<AppearanceMode> {
     state = mode;
     await ref.read(appearancePreferencesProvider).setMode(mode);
   }
+
+  /// Toggles between Evening (Night mode) and Day mode.
+  Future<void> toggle() async {
+    final current = ref.read(resolvedAppearanceProvider);
+    final next = current == CruAppearance.evening
+        ? AppearanceMode.day
+        : AppearanceMode.evening;
+    await select(next);
+  }
 }
 
 final appearanceModeProvider =

@@ -188,8 +188,7 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
     String email = 'admin@crudoc.com',
     String name = 'CruDoc Administrator (Dev)',
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true);
-    await Future.delayed(const Duration(milliseconds: 250));
+    DemoSessionService.startSuperAdminDemoSession();
     final demoAdmin = SuperAdminModel(
       id: 'demo_super_admin_id',
       email: email,
@@ -201,7 +200,6 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
       accountCreated: DateTime(2024, 1, 1),
       lastLogin: DateTime.now(),
     );
-    DemoSessionService.startSuperAdminDemoSession();
     state = state.copyWith(
       currentAdmin: demoAdmin,
       isAuthenticated: true,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import '../providers/auth_provider.dart';
 import '../screens/auth/login_screen.dart';
 
@@ -11,6 +12,10 @@ class SuperAdminAuthGuard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (DemoSessionService.isSuperAdminMode) {
+      return child;
+    }
+
     final authState = ref.watch(superAdminAuthProvider);
 
     if (!authState.isAuthenticated && !authState.isLoading) {

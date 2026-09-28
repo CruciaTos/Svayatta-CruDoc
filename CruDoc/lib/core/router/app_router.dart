@@ -19,6 +19,7 @@ class _FirebaseAuthListenable extends ChangeNotifier {
       notifyListeners();
     });
     DemoSessionService.sessionStateNotifier.addListener(notifyListeners);
+    DemoSessionService.sessionRevisionNotifier.addListener(notifyListeners);
   }
 
   late final StreamSubscription<User?> _subscription;
@@ -27,6 +28,7 @@ class _FirebaseAuthListenable extends ChangeNotifier {
   void dispose() {
     _subscription.cancel();
     DemoSessionService.sessionStateNotifier.removeListener(notifyListeners);
+    DemoSessionService.sessionRevisionNotifier.removeListener(notifyListeners);
     super.dispose();
   }
 }

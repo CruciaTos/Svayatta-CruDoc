@@ -702,7 +702,7 @@ class _TrendChartPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (points.isEmpty) return;
+    if (points.length < 2) return;
 
     final gridPaint = Paint()
       ..color = Colors.grey.withValues(alpha: 0.1)
@@ -718,7 +718,7 @@ class _TrendChartPainter extends CustomPainter {
       ..color = lineColor
       ..style = PaintingStyle.fill;
 
-    final double maxVal = (points.reduce((a, b) => a > b ? a : b) * 1.2).clamp(10.0, 10000.0);
+    final double maxVal = (points.reduce((a, b) => a > b ? a : b) * 1.2).clamp(10.0, double.infinity);
     const double paddingLeft = 36;
     const double paddingBottom = 24;
     final double width = size.width - paddingLeft;

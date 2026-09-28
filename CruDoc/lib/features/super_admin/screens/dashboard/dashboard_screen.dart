@@ -784,7 +784,7 @@ class _DashboardTrendPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (dataPoints.isEmpty) return;
+    if (dataPoints.length < 2) return;
 
     final gridPaint = Paint()
       ..color = Colors.grey.withValues(alpha: 0.1)
@@ -804,7 +804,8 @@ class _DashboardTrendPainter extends CustomPainter {
       ..color = Colors.white
       ..style = PaintingStyle.fill;
 
-    final double maxVal = (dataPoints.reduce((a, b) => a > b ? a : b) * 1.2).clamp(10.0, 100.0);
+    final highest = dataPoints.reduce((a, b) => a > b ? a : b);
+    final double maxVal = (highest * 1.2).clamp(10.0, double.infinity);
     const double paddingLeft = 32;
     const double paddingBottom = 24;
     final double width = size.width - paddingLeft - 8;

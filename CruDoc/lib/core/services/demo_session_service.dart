@@ -20,6 +20,8 @@ class DemoSessionService {
     false,
   );
 
+  static final ValueNotifier<int> sessionRevisionNotifier = ValueNotifier<int>(0);
+
   static final ValueNotifier<DoctorSpecialty> specialtyNotifier =
       ValueNotifier<DoctorSpecialty>(DoctorSpecialty.defaultSpecialty);
 
@@ -108,6 +110,7 @@ class DemoSessionService {
     _isSuperAdminMode = false;
     _activeSpecialty = specialty ?? DoctorSpecialty.defaultSpecialty;
     sessionStateNotifier.value = true;
+    sessionRevisionNotifier.value++;
     specialtyNotifier.value = _activeSpecialty;
     _profileStreamController.add(currentMockProfile);
   }
@@ -117,6 +120,7 @@ class DemoSessionService {
     _isDemoMode = true;
     _isSuperAdminMode = true;
     sessionStateNotifier.value = true;
+    sessionRevisionNotifier.value++;
     _profileStreamController.add(currentMockProfile);
   }
 
@@ -132,6 +136,7 @@ class DemoSessionService {
     _isDemoMode = false;
     _isSuperAdminMode = false;
     sessionStateNotifier.value = false;
+    sessionRevisionNotifier.value++;
     _activeSpecialty = DoctorSpecialty.defaultSpecialty;
     specialtyNotifier.value = _activeSpecialty;
   }

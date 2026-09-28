@@ -289,36 +289,39 @@ class _SuperAdminShellState extends ConsumerState<SuperAdminShell> {
       );
     }
 
-    return CruAmbientBackground(
-      isEvening: c.isEvening,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Calm Clinical Floating Sidebar
-          sidebar,
+    return Scaffold(
+      backgroundColor: c.canvas,
+      body: CruAmbientBackground(
+        isEvening: c.isEvening,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Calm Clinical Floating Sidebar
+            sidebar,
 
-          // Main Screen Area with Header
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Calm Clinical Top Header Bar
-                _AdminTopBar(
-                  selectedTab: uiState.selectedTab,
-                  searchFocusNode: _searchFocusNode,
-                  searchController: _searchController,
-                  isSidebarOpen: uiState.isSidebarOpen,
-                  onToggleSidebar: _toggleSidebar,
-                ),
+            // Main Screen Area with Header
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Calm Clinical Top Header Bar
+                  _AdminTopBar(
+                    selectedTab: uiState.selectedTab,
+                    searchFocusNode: _searchFocusNode,
+                    searchController: _searchController,
+                    isSidebarOpen: uiState.isSidebarOpen,
+                    onToggleSidebar: _toggleSidebar,
+                  ),
 
-                // Selected Tab Content
-                Expanded(
-                  child: _buildContent(uiState.selectedTab),
-                ),
-              ],
+                  // Selected Tab Content
+                  Expanded(
+                    child: _buildContent(uiState.selectedTab),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

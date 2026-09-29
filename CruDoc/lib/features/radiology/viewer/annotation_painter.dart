@@ -59,7 +59,8 @@ class RadRoiCache {
   /// "Mean 1234 ± 56" or null.
   String? text(RadAnnotation a, RadPixels? px) {
     if (px == null) return null;
-    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect) return null;
+    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect)
+      return null;
     final hit = _cache[a.id];
     if (hit != null && identical(hit.$1, a.points)) return hit.$2;
     final s = RadMeasure.roiStats(a, px.values, px.width, px.height);
@@ -146,7 +147,9 @@ class RadAnnotationPainter {
           both((p) => canvas.drawLine(pts[0], pts[1], p));
           for (final end in [pts[0], pts[1]]) {
             final d = pts[1] - pts[0];
-            final n = d.distance == 0 ? Offset.zero : Offset(-d.dy, d.dx) / d.distance * 6 * k;
+            final n = d.distance == 0
+                ? Offset.zero
+                : Offset(-d.dy, d.dx) / d.distance * 6 * k;
             both((p) => canvas.drawLine(end - n, end + n, p));
           }
           labelAt = Offset.lerp(pts[0], pts[1], 0.5)! + Offset(8 * k, 8 * k);
@@ -165,9 +168,18 @@ class RadAnnotationPainter {
             sweep += 2 * math.pi;
           }
           final r = 22 * k;
-          both((p) => canvas.drawArc(Rect.fromCircle(center: pts[1], radius: r), a1, sweep, false, p));
+          both(
+            (p) => canvas.drawArc(
+              Rect.fromCircle(center: pts[1], radius: r),
+              a1,
+              sweep,
+              false,
+              p,
+            ),
+          );
           final mid = a1 + sweep / 2;
-          labelAt = pts[1] + Offset(math.cos(mid), math.sin(mid)) * (r + 10 * k);
+          labelAt =
+              pts[1] + Offset(math.cos(mid), math.sin(mid)) * (r + 10 * k);
         }
       case RadAnnoKind.polygon:
       case RadAnnoKind.polyline:
@@ -214,9 +226,15 @@ class RadAnnotationPainter {
             final size = 12 * k;
             final wing = Path()
               ..moveTo(head.dx, head.dy)
-              ..lineTo((head - u * size + n * size * 0.5).dx, (head - u * size + n * size * 0.5).dy)
+              ..lineTo(
+                (head - u * size + n * size * 0.5).dx,
+                (head - u * size + n * size * 0.5).dy,
+              )
               ..moveTo(head.dx, head.dy)
-              ..lineTo((head - u * size - n * size * 0.5).dx, (head - u * size - n * size * 0.5).dy);
+              ..lineTo(
+                (head - u * size - n * size * 0.5).dx,
+                (head - u * size - n * size * 0.5).dy,
+              );
             both((p) => canvas.drawPath(wing, p));
           }
           labelAt = tail + Offset(6 * k, 6 * k);
@@ -254,7 +272,9 @@ class RadAnnotationPainter {
           for (var i = 0; i < lines.length; i++)
             TextSpan(
               text: i == 0 ? lines[i] : '\n${lines[i]}',
-              style: i == 0 ? TextStyle(fontWeight: FontWeight.w600, color: ink) : null,
+              style: i == 0
+                  ? TextStyle(fontWeight: FontWeight.w600, color: ink)
+                  : null,
             ),
         ],
       ),
@@ -262,7 +282,12 @@ class RadAnnotationPainter {
     )..layout();
     final pad = EdgeInsets.symmetric(horizontal: 6 * k, vertical: 3 * k);
     final r = RRect.fromRectAndRadius(
-      Rect.fromLTWH(at.dx, at.dy, tp.width + pad.horizontal, tp.height + pad.vertical),
+      Rect.fromLTWH(
+        at.dx,
+        at.dy,
+        tp.width + pad.horizontal,
+        tp.height + pad.vertical,
+      ),
       Radius.circular(CruRadius.keycap * k),
     );
     canvas.drawRRect(r, Paint()..color = RadInk.labelFill);
@@ -285,7 +310,10 @@ class RadAnnotationPainter {
       Rect.fromCenter(center: at, width: w, height: h),
       Radius.circular(h / 2),
     );
-    canvas.drawRRect(r.inflate(1 * k), Paint()..color = const Color(0x99000000));
+    canvas.drawRRect(
+      r.inflate(1 * k),
+      Paint()..color = const Color(0x99000000),
+    );
     canvas.drawRRect(r, Paint()..color = ink);
     tp.paint(canvas, at - Offset(tp.width / 2, tp.height / 2));
   }
@@ -302,7 +330,11 @@ double _segDist(Offset p, Offset a, Offset b) {
 }
 
 /// Distance in pane pixels from [s] to the annotation's ink.
-double radAnnotationDistance(RadAnnotation a, Offset s, Offset Function(RadPoint) toScreen) {
+double radAnnotationDistance(
+  RadAnnotation a,
+  Offset s,
+  Offset Function(RadPoint) toScreen,
+) {
   final pts = [for (final p in a.points) toScreen(p)];
   if (pts.isEmpty) return double.infinity;
   switch (a.kind) {
@@ -311,7 +343,12 @@ double radAnnotationDistance(RadAnnotation a, Offset s, Offset Function(RadPoint
       final d = (s - pts[0]).distance;
       // The label to the right of a note is part of it too.
       if (a.kind == RadAnnoKind.text) {
-        final label = Rect.fromLTWH(pts[0].dx, pts[0].dy - 10, 8.0 * math.max(a.text.length, 4) + 12, 22);
+        final label = Rect.fromLTWH(
+          pts[0].dx,
+          pts[0].dy - 10,
+          8.0 * math.max(a.text.length, 4) + 12,
+          22,
+        );
         if (label.contains(s)) return 0;
       }
       return math.max(0, d - 10);
@@ -322,12 +359,19 @@ double radAnnotationDistance(RadAnnotation a, Offset s, Offset Function(RadPoint
       if (r.contains(s)) {
         if (a.kind == RadAnnoKind.rect) return 0;
         final c = r.center;
-        final dx = (s.dx - c.dx) / math.max(r.width / 2, 1), dy = (s.dy - c.dy) / math.max(r.height / 2, 1);
+        final dx = (s.dx - c.dx) / math.max(r.width / 2, 1),
+            dy = (s.dy - c.dy) / math.max(r.height / 2, 1);
         if (dx * dx + dy * dy <= 1) return 0;
       }
       return math.min(
-        math.min(_segDist(s, r.topLeft, r.topRight), _segDist(s, r.topRight, r.bottomRight)),
-        math.min(_segDist(s, r.bottomRight, r.bottomLeft), _segDist(s, r.bottomLeft, r.topLeft)),
+        math.min(
+          _segDist(s, r.topLeft, r.topRight),
+          _segDist(s, r.topRight, r.bottomRight),
+        ),
+        math.min(
+          _segDist(s, r.bottomRight, r.bottomLeft),
+          _segDist(s, r.bottomLeft, r.topLeft),
+        ),
       );
     case RadAnnoKind.polygon:
       var best = double.infinity;
@@ -366,7 +410,12 @@ RadAnnotation? radHitAnnotation(
 }
 
 /// The index of the handle of [a] under [s], if any.
-int? radHitHandle(RadAnnotation a, Offset s, Offset Function(RadPoint) toScreen, {double tolerance = 9}) {
+int? radHitHandle(
+  RadAnnotation a,
+  Offset s,
+  Offset Function(RadPoint) toScreen, {
+  double tolerance = 9,
+}) {
   if (a.kind == RadAnnoKind.freehand) return null;
   for (var i = a.points.length - 1; i >= 0; i--) {
     if ((toScreen(a.points[i]) - s).distance <= tolerance) return i;
@@ -377,7 +426,12 @@ int? radHitHandle(RadAnnotation a, Offset s, Offset Function(RadPoint) toScreen,
 // ───────────────────────────── Scale bar ─────────────────────────────
 
 /// A millimetre scale bar in the bottom-right corner of a pane.
-void radPaintScaleBar(Canvas canvas, Size size, double mmPerScreenPx, {double k = 1}) {
+void radPaintScaleBar(
+  Canvas canvas,
+  Size size,
+  double mmPerScreenPx, {
+  double k = 1,
+}) {
   if (mmPerScreenPx <= 0 || !mmPerScreenPx.isFinite) return;
   const nice = [0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0];
   var mm = nice.first;

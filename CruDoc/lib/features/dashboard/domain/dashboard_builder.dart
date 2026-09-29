@@ -43,8 +43,9 @@ DashboardData buildDashboard({
 
     final seen = schedule.where((i) => i.status == ScheduleStatus.done).length;
     final open = schedule.where((i) => i.status.isOpen).length;
-    final waiting =
-        schedule.where((i) => i.status == ScheduleStatus.waiting).toList();
+    final waiting = schedule
+        .where((i) => i.status == ScheduleStatus.waiting)
+        .toList();
     glance = GlanceData(
       seen: seen,
       total: seen + open,
@@ -52,8 +53,8 @@ DashboardData buildDashboard({
       averageWaitMinutes: waiting.isEmpty
           ? null
           : (waiting.fold<int>(0, (s, i) => s + (i.waitMinutes ?? 0)) /
-                  waiting.length)
-              .round(),
+                    waiting.length)
+                .round(),
     );
   }
 
@@ -72,18 +73,23 @@ DashboardData buildDashboard({
       sameDayLastWeek: on(lastWeek),
       weekdayName: DashFormat.weekday(today),
     );
-    collections = CollectionsData(days: [
-      for (var i = 6; i >= 0; i--)
-        () {
-          final day = DateTime(today.year, today.month, today.day - i);
-          return CollectionDay(date: day, amount: on(day), isToday: i == 0);
-        }(),
-    ]);
+    collections = CollectionsData(
+      days: [
+        for (var i = 6; i >= 0; i--)
+          () {
+            final day = DateTime(today.year, today.month, today.day - i);
+            return CollectionDay(date: day, amount: on(day), isToday: i == 0);
+          }(),
+      ],
+    );
   }
 
   List<AttentionItem>? attention;
   if (medicines != null) {
-    attention = _buildAttention(now, medicines).take(maxAttentionItems).toList();
+    attention = _buildAttention(
+      now,
+      medicines,
+    ).take(maxAttentionItems).toList();
   }
 
   return DashboardData(
@@ -114,20 +120,26 @@ _ScheduleResult _buildSchedule({
 }) {
   final todayKey = queueDateKeyFor(now);
   final todaysEntries = queue
-      .where((e) =>
-          !e.isDeleted &&
-          e.queueDate == todayKey &&
-          e.status != QueueStatus.cancelled)
+      .where(
+        (e) =>
+            !e.isDeleted &&
+            e.queueDate == todayKey &&
+            e.status != QueueStatus.cancelled,
+      )
       .toList();
   final activeVisits = visits.where((v) => !v.isDeleted).toList();
   final visitsById = {for (final v in activeVisits) v.id: v};
   final todaysVisits = activeVisits
-      .where((v) =>
-          _sameDay(v.scheduledStart, today) &&
-          v.status != VisitStatus.cancelled)
+      .where(
+        (v) =>
+            _sameDay(v.scheduledStart, today) &&
+            v.status != VisitStatus.cancelled,
+      )
       .toList();
-  final queuedVisitIds =
-      todaysEntries.map((e) => e.linkedVisitId).whereType<String>().toSet();
+  final queuedVisitIds = todaysEntries
+      .map((e) => e.linkedVisitId)
+      .whereType<String>()
+      .toSet();
 
   // Earlier visits per patient, for "Returning" and "Last visit".
   final earlier = <String, Visit>{};
@@ -154,8 +166,7 @@ _ScheduleResult _buildSchedule({
   // and checkedInAt = its appointment time, before the patient arrives.
   // There's no arrival timestamp, so it only counts as waiting once that
   // time has passed, and the wait is measured from the appointment time.
-  bool arrived(QueueEntry e) =>
-      !e.isPrebooked || !e.checkedInAt.isAfter(now);
+  bool arrived(QueueEntry e) => !e.isPrebooked || !e.checkedInAt.isAfter(now);
 
   for (final e in todaysEntries) {
     final visit = e.linkedVisitId == null ? null : visitsById[e.linkedVisitId];
@@ -172,23 +183,25 @@ _ScheduleResult _buildSchedule({
     };
     final group = e.groupId ?? visit?.groupId;
     if (group != null && group.isNotEmpty) groupOf['q_${e.id}'] = group;
-    items.add(ScheduleItem(
-      id: 'q_${e.id}',
-      time: visit?.scheduledStart ?? e.checkedInAt,
-      name: name,
-      firstName: _firstName(patient, name),
-      status: status,
-      ageSex: _ageSex(patient, now),
-      reason: _clean(e.reason) ?? _clean(visit?.treatmentType),
-      kindLabel: kindFor(patient, visit),
-      waitMinutes: status == ScheduleStatus.waiting
-          ? _minutesBetween(e.checkedInAt, now)
-          : null,
-      tokenNumber: e.tokenNumber > 0 ? e.tokenNumber : null,
-      patient: patient,
-      queueEntryId: e.id,
-      visitId: visit?.id ?? e.linkedVisitId,
-    ));
+    items.add(
+      ScheduleItem(
+        id: 'q_${e.id}',
+        time: visit?.scheduledStart ?? e.checkedInAt,
+        name: name,
+        firstName: _firstName(patient, name),
+        status: status,
+        ageSex: _ageSex(patient, now),
+        reason: _clean(e.reason) ?? _clean(visit?.treatmentType),
+        kindLabel: kindFor(patient, visit),
+        waitMinutes: status == ScheduleStatus.waiting
+            ? _minutesBetween(e.checkedInAt, now)
+            : null,
+        tokenNumber: e.tokenNumber > 0 ? e.tokenNumber : null,
+        patient: patient,
+        queueEntryId: e.id,
+        visitId: visit?.id ?? e.linkedVisitId,
+      ),
+    );
   }
 
   for (final v in todaysVisits) {
@@ -197,22 +210,24 @@ _ScheduleResult _buildSchedule({
     final name = _displayName(patient, null);
     final group = v.groupId;
     if (group != null && group.isNotEmpty) groupOf['v_${v.id}'] = group;
-    items.add(ScheduleItem(
-      id: 'v_${v.id}',
-      time: v.scheduledStart,
-      name: name,
-      firstName: _firstName(patient, name),
-      status: switch (v.status) {
-        VisitStatus.completed => ScheduleStatus.done,
-        VisitStatus.missed => ScheduleStatus.missed,
-        _ => ScheduleStatus.booked,
-      },
-      ageSex: _ageSex(patient, now),
-      reason: _clean(v.treatmentType),
-      kindLabel: kindFor(patient, v),
-      patient: patient,
-      visitId: v.id,
-    ));
+    items.add(
+      ScheduleItem(
+        id: 'v_${v.id}',
+        time: v.scheduledStart,
+        name: name,
+        firstName: _firstName(patient, name),
+        status: switch (v.status) {
+          VisitStatus.completed => ScheduleStatus.done,
+          VisitStatus.missed => ScheduleStatus.missed,
+          _ => ScheduleStatus.booked,
+        },
+        ageSex: _ageSex(patient, now),
+        reason: _clean(v.treatmentType),
+        kindLabel: kindFor(patient, v),
+        patient: patient,
+        visitId: v.id,
+      ),
+    );
   }
 
   items.sort((a, b) {
@@ -249,10 +264,9 @@ _ScheduleResult _buildSchedule({
     return t != 0 ? t : a.checkedInAt.compareTo(b.checkedInAt);
   }
 
-  final rawWaiting = todaysEntries
-      .where((e) => e.status == QueueStatus.waiting)
-      .toList()
-    ..sort(callOrder);
+  final rawWaiting =
+      todaysEntries.where((e) => e.status == QueueStatus.waiting).toList()
+        ..sort(callOrder);
   final waiting = rawWaiting.where(arrived).toList();
   final serving = todaysEntries.where((e) => e.isActiveServing).firstOrNull;
 
@@ -296,10 +310,14 @@ Iterable<AttentionItem> _buildAttention(
     });
   for (final m in low) {
     final unit = m.unit.trim();
-    final stock = unit.isEmpty ? '${m.currentStock} left' : '${m.currentStock} $unit';
+    final stock = unit.isEmpty
+        ? '${m.currentStock} left'
+        : '${m.currentStock} $unit';
     yield AttentionItem(
       kind: AttentionKind.lowStock,
-      title: m.currentStock <= 0 ? '${m.name} is out of stock' : '${m.name} is low',
+      title: m.currentStock <= 0
+          ? '${m.name} is out of stock'
+          : '${m.name} is low',
       subtitle: '$stock · reorder level ${m.reorderThreshold}',
       actionLabel: 'Reorder',
     );
@@ -308,13 +326,16 @@ Iterable<AttentionItem> _buildAttention(
   // Same 30-day window as MedicineModel.isExpiringSoon, measured from
   // `now` rather than the wall clock so the builder stays pure.
   final lowIds = low.map((m) => m.id).toSet();
-  final expiring = active
-      .where((m) =>
-          m.expiryDate != null &&
-          m.expiryDate!.difference(now).inDays <= 30 &&
-          !lowIds.contains(m.id))
-      .toList()
-    ..sort((a, b) => a.expiryDate!.compareTo(b.expiryDate!));
+  final expiring =
+      active
+          .where(
+            (m) =>
+                m.expiryDate != null &&
+                m.expiryDate!.difference(now).inDays <= 30 &&
+                !lowIds.contains(m.id),
+          )
+          .toList()
+        ..sort((a, b) => a.expiryDate!.compareTo(b.expiryDate!));
   for (final m in expiring) {
     final days = _calendarDaysBetween(now, m.expiryDate!);
     final unit = m.unit.trim();
@@ -325,8 +346,8 @@ Iterable<AttentionItem> _buildAttention(
     final (title, timing) = days < 0
         ? ('${m.name} expired', '${DashFormat.plural(-days, 'day')} ago · ')
         : days == 0
-            ? ('${m.name} expires today', '')
-            : ('${m.name} expiring', 'In ${DashFormat.plural(days, 'day')} · ');
+        ? ('${m.name} expires today', '')
+        : ('${m.name} expiring', 'In ${DashFormat.plural(days, 'day')} · ');
     yield AttentionItem(
       kind: AttentionKind.expiring,
       title: title,
@@ -412,17 +433,18 @@ bool _sameDay(DateTime a, DateTime b) =>
 
 /// Whole calendar days from [from] to [to], immune to daylight-saving
 /// shifts (compared as UTC dates).
-int _calendarDaysBetween(DateTime from, DateTime to) =>
-    DateTime.utc(to.year, to.month, to.day)
-        .difference(DateTime.utc(from.year, from.month, from.day))
-        .inDays;
+int _calendarDaysBetween(DateTime from, DateTime to) => DateTime.utc(
+  to.year,
+  to.month,
+  to.day,
+).difference(DateTime.utc(from.year, from.month, from.day)).inDays;
 
 /// "Rahul Verma & Priya Verma"; three or more: "Rahul Verma + 2".
 String _joinNames(List<String> n) => n.length == 1
     ? n.first
     : n.length == 2
-        ? '${n[0]} & ${n[1]}'
-        : '${n.first} + ${n.length - 1}';
+    ? '${n[0]} & ${n[1]}'
+    : '${n.first} + ${n.length - 1}';
 
 /// Patients seen together (one group) become one schedule row: both
 /// names, their reasons joined. [items] is sorted; the group keeps its
@@ -445,21 +467,23 @@ void _groupSchedule(List<ScheduleItem> items, Map<String, String> groupOf) {
     }
     if (!identical(group.first, i)) continue;
     final reasons = {for (final m in group) ?m.reason};
-    out.add(ScheduleItem(
-      id: i.id,
-      time: i.time,
-      name: _joinNames([for (final m in group) m.name]),
-      firstName: _joinNames([for (final m in group) m.firstName]),
-      status: i.status,
-      ageSex: i.ageSex,
-      reason: reasons.isEmpty ? null : reasons.join(' · '),
-      kindLabel: i.kindLabel,
-      waitMinutes: i.waitMinutes,
-      tokenNumber: i.tokenNumber,
-      patient: i.patient,
-      queueEntryId: i.queueEntryId,
-      visitId: i.visitId,
-    ));
+    out.add(
+      ScheduleItem(
+        id: i.id,
+        time: i.time,
+        name: _joinNames([for (final m in group) m.name]),
+        firstName: _joinNames([for (final m in group) m.firstName]),
+        status: i.status,
+        ageSex: i.ageSex,
+        reason: reasons.isEmpty ? null : reasons.join(' · '),
+        kindLabel: i.kindLabel,
+        waitMinutes: i.waitMinutes,
+        tokenNumber: i.tokenNumber,
+        patient: i.patient,
+        queueEntryId: i.queueEntryId,
+        visitId: i.visitId,
+      ),
+    );
   }
   items
     ..clear()

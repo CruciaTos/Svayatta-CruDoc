@@ -28,14 +28,16 @@ final doctorEnabledModulesStreamProvider = StreamProvider<List<String>>((ref) {
 
 /// Reactive check if Walk-in Queue feature is enabled by Super Admin.
 final isQueueFeatureEnabledProvider = Provider<bool>((ref) {
-  final modules = ref.watch(doctorEnabledModulesStreamProvider).value ??
+  final modules =
+      ref.watch(doctorEnabledModulesStreamProvider).value ??
       DoctorFeatureGuard.defaultModules;
   return DoctorFeatureGuard.isEnabled(modules, 'queue');
 });
 
 /// Reactive check if Appointments feature is enabled by Super Admin.
 final isAppointmentsFeatureEnabledProvider = Provider<bool>((ref) {
-  final modules = ref.watch(doctorEnabledModulesStreamProvider).value ??
+  final modules =
+      ref.watch(doctorEnabledModulesStreamProvider).value ??
       DoctorFeatureGuard.defaultModules;
   return DoctorFeatureGuard.isEnabled(modules, 'appointments');
 });
@@ -76,10 +78,18 @@ enum QueueSourceFilter {
   const QueueSourceFilter(this.label);
 }
 
-final queuePeriodProvider = StateProvider<QueuePeriod>((ref) => QueuePeriod.today);
-final queueCustomDateRangeProvider = StateProvider<DateTimeRange?>((ref) => null);
-final queueSessionFilterProvider = StateProvider<QueueSessionFilter>((ref) => QueueSessionFilter.all);
-final queueSourceFilterProvider = StateProvider<QueueSourceFilter>((ref) => QueueSourceFilter.all);
+final queuePeriodProvider = StateProvider<QueuePeriod>(
+  (ref) => QueuePeriod.today,
+);
+final queueCustomDateRangeProvider = StateProvider<DateTimeRange?>(
+  (ref) => null,
+);
+final queueSessionFilterProvider = StateProvider<QueueSessionFilter>(
+  (ref) => QueueSessionFilter.all,
+);
+final queueSourceFilterProvider = StateProvider<QueueSourceFilter>(
+  (ref) => QueueSourceFilter.all,
+);
 
 /// Resolved boundary dates for the currently selected [QueuePeriod].
 class DateBounds {
@@ -101,39 +111,51 @@ final activeQueueDateBoundsProvider = Provider<DateBounds>((ref) {
 
   return switch (period) {
     QueuePeriod.today => DateBounds(
-        start: DateTime(now.year, now.month, now.day),
-        end: DateTime(now.year, now.month, now.day, 23, 59, 59),
-        label: 'Today',
-      ),
+      start: DateTime(now.year, now.month, now.day),
+      end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+      label: 'Today',
+    ),
     QueuePeriod.tomorrow => () {
-        final tomorrow = now.add(const Duration(days: 1));
-        return DateBounds(
-          start: DateTime(tomorrow.year, tomorrow.month, tomorrow.day),
-          end: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59),
-          label: 'Tomorrow',
-        );
-      }(),
+      final tomorrow = now.add(const Duration(days: 1));
+      return DateBounds(
+        start: DateTime(tomorrow.year, tomorrow.month, tomorrow.day),
+        end: DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59),
+        label: 'Tomorrow',
+      );
+    }(),
     QueuePeriod.thisWeek => () {
-        final weekday = now.weekday; // 1 = Mon, 7 = Sun
-        final monday = now.subtract(Duration(days: weekday - 1));
-        final sunday = monday.add(const Duration(days: 6));
-        return DateBounds(
-          start: DateTime(monday.year, monday.month, monday.day),
-          end: DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59),
-          label: 'This Week',
-        );
-      }(),
-    QueuePeriod.custom => customRange != null
-        ? DateBounds(
-            start: DateTime(customRange.start.year, customRange.start.month, customRange.start.day),
-            end: DateTime(customRange.end.year, customRange.end.month, customRange.end.day, 23, 59, 59),
-            label: 'Custom',
-          )
-        : DateBounds(
-            start: DateTime(now.year, now.month, now.day),
-            end: DateTime(now.year, now.month, now.day, 23, 59, 59),
-            label: 'Custom',
-          ),
+      final weekday = now.weekday; // 1 = Mon, 7 = Sun
+      final monday = now.subtract(Duration(days: weekday - 1));
+      final sunday = monday.add(const Duration(days: 6));
+      return DateBounds(
+        start: DateTime(monday.year, monday.month, monday.day),
+        end: DateTime(sunday.year, sunday.month, sunday.day, 23, 59, 59),
+        label: 'This Week',
+      );
+    }(),
+    QueuePeriod.custom =>
+      customRange != null
+          ? DateBounds(
+              start: DateTime(
+                customRange.start.year,
+                customRange.start.month,
+                customRange.start.day,
+              ),
+              end: DateTime(
+                customRange.end.year,
+                customRange.end.month,
+                customRange.end.day,
+                23,
+                59,
+                59,
+              ),
+              label: 'Custom',
+            )
+          : DateBounds(
+              start: DateTime(now.year, now.month, now.day),
+              end: DateTime(now.year, now.month, now.day, 23, 59, 59),
+              label: 'Custom',
+            ),
   };
 });
 
@@ -169,7 +191,9 @@ class QueueEntryWithPatient {
   bool get isPrebooked => entry.isPrebooked || linkedVisit != null;
 
   /// The scheduled appointment time if pre-booked.
-  DateTime? get appointmentTime => linkedVisit?.scheduledStart ?? (entry.isPrebooked ? entry.checkedInAt : null);
+  DateTime? get appointmentTime =>
+      linkedVisit?.scheduledStart ??
+      (entry.isPrebooked ? entry.checkedInAt : null);
 
   /// Best available display name: linked patient's name, walk-in name, or fallback.
   String get displayName {
@@ -210,8 +234,9 @@ bool _matchesSource(QueueEntryWithPatient item, QueueSourceFilter source) {
 /// 2. If Appointments feature is enabled by Super Admin, seamlessly checks in / links
 ///    pre-booked clinic visits for that period so they appear with badges & timing.
 /// 3. Applies [QueueSessionFilter] (morning/afternoon/evening) and [QueueSourceFilter].
-final periodQueueWithPatientsProvider =
-    Provider<AsyncValue<List<QueueEntryWithPatient>>>((ref) {
+final periodQueueWithPatientsProvider = Provider<AsyncValue<List<QueueEntryWithPatient>>>((
+  ref,
+) {
   final queueAsync = ref.watch(allQueueProvider);
   final patientsAsync = ref.watch(patientsStreamProvider);
   final bounds = ref.watch(activeQueueDateBoundsProvider);
@@ -220,10 +245,13 @@ final periodQueueWithPatientsProvider =
   final isAppointmentsEnabled = ref.watch(isAppointmentsFeatureEnabledProvider);
 
   // If appointments enabled, also watch allVisitsProvider
-  final AsyncValue<List<Visit>>? visitsAsync =
-      isAppointmentsEnabled ? ref.watch(allVisitsProvider) : null;
+  final AsyncValue<List<Visit>>? visitsAsync = isAppointmentsEnabled
+      ? ref.watch(allVisitsProvider)
+      : null;
 
-  if (queueAsync.isLoading || patientsAsync.isLoading || (visitsAsync != null && visitsAsync.isLoading)) {
+  if (queueAsync.isLoading ||
+      patientsAsync.isLoading ||
+      (visitsAsync != null && visitsAsync.isLoading)) {
     return const AsyncValue.loading();
   }
   if (queueAsync.hasError) {
@@ -238,7 +266,9 @@ final periodQueueWithPatientsProvider =
 
   final allEntries = queueAsync.value!.where((e) => !e.isDeleted).toList();
   final patientsById = {for (final p in patientsAsync.value!) p.id: p};
-  final allVisits = (visitsAsync?.value ?? const <Visit>[]).where((v) => !v.isDeleted).toList();
+  final allVisits = (visitsAsync?.value ?? const <Visit>[])
+      .where((v) => !v.isDeleted)
+      .toList();
   final visitsById = {for (final v in allVisits) v.id: v};
 
   // 1. Filter existing SQLite queue entries within the active date bounds
@@ -250,8 +280,12 @@ final periodQueueWithPatientsProvider =
   final Map<String, QueueEntryWithPatient> combinedByTokenId = {};
 
   for (final entry in periodEntries) {
-    final linkedVisit = entry.linkedVisitId != null ? visitsById[entry.linkedVisitId] : null;
-    final patient = entry.patientId != null ? patientsById[entry.patientId] : null;
+    final linkedVisit = entry.linkedVisitId != null
+        ? visitsById[entry.linkedVisitId]
+        : null;
+    final patient = entry.patientId != null
+        ? patientsById[entry.patientId]
+        : null;
     combinedByTokenId[entry.id] = QueueEntryWithPatient(
       entry: entry,
       patient: patient,
@@ -276,9 +310,7 @@ final periodQueueWithPatientsProvider =
     for (final visit in clinicVisitsInPeriod) {
       if (!queuedVisitIds.contains(visit.id)) {
         // Auto-register with QueueRepository in background so SQLite assigns official token
-        unawaited(
-          ref.read(queueRepositoryProvider).checkInVisit(visit),
-        );
+        unawaited(ref.read(queueRepositoryProvider).checkInVisit(visit));
 
         // Pre-render immediately in memory until SQLite reactive re-emit
         final tempEntry = QueueEntry(
@@ -290,10 +322,13 @@ final periodQueueWithPatientsProvider =
           status: visit.status == VisitStatus.completed
               ? QueueStatus.completed
               : (visit.status == VisitStatus.cancelled
-                  ? QueueStatus.cancelled
-                  : QueueStatus.waiting),
+                    ? QueueStatus.cancelled
+                    : QueueStatus.waiting),
           priority: QueuePriority.normal,
-          reason: visit.treatmentType ?? visit.therapistNotes ?? 'Pre-booked Appointment',
+          reason:
+              visit.treatmentType ??
+              visit.therapistNotes ??
+              'Pre-booked Appointment',
           checkedInAt: visit.scheduledStart,
           linkedVisitId: visit.id,
           groupId: visit.groupId,
@@ -340,9 +375,14 @@ final activeQueueEntryProvider = Provider<QueueEntryWithPatient?>((ref) {
 
 /// Every token being served right now (called or in consultation). More
 /// than one only when sessions run in parallel (physiotherapy).
-final servingQueueEntriesProvider = Provider<List<QueueEntryWithPatient>>((ref) {
+final servingQueueEntriesProvider = Provider<List<QueueEntryWithPatient>>((
+  ref,
+) {
   final combined = ref.watch(periodQueueWithPatientsProvider).value ?? const [];
-  return [for (final item in combined) if (item.entry.isActiveServing) item];
+  return [
+    for (final item in combined)
+      if (item.entry.isActiveServing) item,
+  ];
 });
 
 /// Tokens still [QueueStatus.waiting], in call order — urgent tokens

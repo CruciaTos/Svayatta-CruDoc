@@ -13,11 +13,9 @@ class CampaignRepository {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
 
-  CampaignRepository({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  CampaignRepository({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   String get _currentDoctorId {
     return _auth.currentUser?.uid ?? 'anonymous';
@@ -28,15 +26,21 @@ class CampaignRepository {
   }
 
   CollectionReference<Map<String, dynamic>> _recipientsCol(
-      String doctorId, String campaignId) {
+    String doctorId,
+    String campaignId,
+  ) {
     return _campaignsCol(doctorId).doc(campaignId).collection('recipients');
   }
 
   /// Creates a new campaign document in Firestore.
   Future<void> createCampaign(CampaignModel campaign) async {
-    final doctorId = campaign.doctorId.isNotEmpty ? campaign.doctorId : _currentDoctorId;
+    final doctorId = campaign.doctorId.isNotEmpty
+        ? campaign.doctorId
+        : _currentDoctorId;
     if (doctorId == 'anonymous') {
-      throw Exception('Unauthenticated: Doctor must be logged in to create campaigns.');
+      throw Exception(
+        'Unauthenticated: Doctor must be logged in to create campaigns.',
+      );
     }
 
     final docRef = _campaignsCol(doctorId).doc(campaign.id);
@@ -45,7 +49,9 @@ class CampaignRepository {
 
   /// Updates an existing campaign document.
   Future<void> updateCampaign(CampaignModel campaign) async {
-    final doctorId = campaign.doctorId.isNotEmpty ? campaign.doctorId : _currentDoctorId;
+    final doctorId = campaign.doctorId.isNotEmpty
+        ? campaign.doctorId
+        : _currentDoctorId;
     final docRef = _campaignsCol(doctorId).doc(campaign.id);
     await docRef.update(campaign.toMap());
   }
@@ -79,27 +85,36 @@ class CampaignRepository {
     return _campaignsCol(doctorId)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) =>
-            snap.docs.map((doc) => CampaignModel.fromFirestore(doc)).toList());
+        .map(
+          (snap) =>
+              snap.docs.map((doc) => CampaignModel.fromFirestore(doc)).toList(),
+        );
   }
 
   /// Real-time stream of recipient delivery logs for a specific campaign.
   Stream<List<CampaignRecipientLog>> watchRecipientLogs(
-      String doctorId, String campaignId) {
+    String doctorId,
+    String campaignId,
+  ) {
     return _recipientsCol(doctorId, campaignId)
         .orderBy('dispatchedAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs
-            .map((doc) => CampaignRecipientLog.fromFirestore(doc))
-            .toList());
+        .map(
+          (snap) => snap.docs
+              .map((doc) => CampaignRecipientLog.fromFirestore(doc))
+              .toList(),
+        );
   }
 
   /// Fetches recipient logs with a single query.
   Future<List<CampaignRecipientLog>> getRecipientLogs(
-      String doctorId, String campaignId) async {
-    final snap = await _recipientsCol(doctorId, campaignId)
-        .orderBy('dispatchedAt', descending: false)
-        .get();
+    String doctorId,
+    String campaignId,
+  ) async {
+    final snap = await _recipientsCol(
+      doctorId,
+      campaignId,
+    ).orderBy('dispatchedAt', descending: false).get();
     return snap.docs
         .map((doc) => CampaignRecipientLog.fromFirestore(doc))
         .toList();
@@ -107,19 +122,25 @@ class CampaignRepository {
 
   /// Saves or updates a recipient log entry.
   Future<void> saveRecipientLog(CampaignRecipientLog log) async {
-    await _recipientsCol(log.doctorId, log.campaignId)
-        .doc(log.id)
-        .set(log.toMap(), SetOptions(merge: true));
+    await _recipientsCol(
+      log.doctorId,
+      log.campaignId,
+    ).doc(log.id).set(log.toMap(), SetOptions(merge: true));
   }
 
   /// Batch writes multiple recipient logs.
   Future<void> saveRecipientLogsBatch(
-      String doctorId, String campaignId, List<CampaignRecipientLog> logs) async {
+    String doctorId,
+    String campaignId,
+    List<CampaignRecipientLog> logs,
+  ) async {
     if (logs.isEmpty) return;
     const batchSize = 450;
     for (var i = 0; i < logs.length; i += batchSize) {
       final chunk = logs.sublist(
-          i, i + batchSize > logs.length ? logs.length : i + batchSize);
+        i,
+        i + batchSize > logs.length ? logs.length : i + batchSize,
+      );
       final batch = _firestore.batch();
       for (final log in chunk) {
         final docRef = _recipientsCol(doctorId, campaignId).doc(log.id);
@@ -152,8 +173,9 @@ class CampaignRepository {
       final totalSent = totalEmailsSent + totalWhatsAppSent;
       final totalFailed = totalEmailsFailed + totalWhatsAppFailed;
       final totalAttempts = totalSent + totalFailed;
-      final double overallSuccessRate =
-          totalAttempts > 0 ? (totalSent / totalAttempts) * 100.0 : 100.0;
+      final double overallSuccessRate = totalAttempts > 0
+          ? (totalSent / totalAttempts) * 100.0
+          : 100.0;
 
       return {
         'totalCampaigns': totalCampaigns,

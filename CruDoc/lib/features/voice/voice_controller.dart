@@ -279,11 +279,7 @@ class VoiceController {
       _focus = recent.patient;
       _formOpenedNow = true;
       _start(VoiceIntent.reschedule, recent.patient);
-      await _openReschedule(
-        recent.patient,
-        visitId: recent.visitId,
-        cmd: cmd,
-      );
+      await _openReschedule(recent.patient, visitId: recent.visitId, cmd: cmd);
       return;
     }
 
@@ -1396,7 +1392,8 @@ class VoiceController {
           return;
         }
         final tied = m.tied.take(4).toList();
-        final pick = _pickDetail(cmd, t.text, tied, inline: true) ??
+        final pick =
+            _pickDetail(cmd, t.text, tied, inline: true) ??
             tied.where((c) => c.id == _focus?.id).firstOrNull;
         if (pick == null) {
           _askPatient(tied, (c) => _confirmDeletePatient(c));
@@ -1476,8 +1473,8 @@ class VoiceController {
       understood.value = 'Open a patient to delete their file';
       return;
     }
-    final docs =
-        await MedicalDocumentLocalService.instance.getDocumentsForPatient(p.id);
+    final docs = await MedicalDocumentLocalService.instance
+        .getDocumentsForPatient(p.id);
     if (docs.isEmpty) {
       understood.value = 'No files found for ${p.fullName}';
       return;
@@ -1485,8 +1482,9 @@ class VoiceController {
     MedicalDocument? target;
     if (cmd.name.isNotEmpty) {
       final q = cmd.name.toLowerCase();
-      target =
-          docs.where((d) => d.fileName.toLowerCase().contains(q)).firstOrNull;
+      target = docs
+          .where((d) => d.fileName.toLowerCase().contains(q))
+          .firstOrNull;
     }
     target ??= docs.first;
     final file = target;
@@ -1527,8 +1525,9 @@ class VoiceController {
           return;
         }
         try {
-          await MedicalDocumentLocalService.instance
-              .softDeleteDocument(file.documentId);
+          await MedicalDocumentLocalService.instance.softDeleteDocument(
+            file.documentId,
+          );
           understood.value = 'Deleted "${file.fileName}"';
         } catch (e) {
           understood.value = "Couldn't delete file: $e";

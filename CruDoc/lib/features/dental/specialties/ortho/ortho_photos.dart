@@ -14,14 +14,46 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// The 8 standard orthodontic clinical photo slots.
 enum OrthoPhotoSlot {
-  frontal('Extraoral Frontal', 'Facial at rest', 'M12 2a7 7 0 0 0-7 7v4a7 7 0 0 0 14 0V9a7 7 0 0 0-7-7z'),
-  smile('Extraoral Smile', 'Full smile display', 'M12 2a7 7 0 0 0-7 7v4a7 7 0 0 0 14 0V9a7 7 0 0 0-7-7zM8 13s1.5 2 4 2 4-2 4-2'),
-  profile('Extraoral Profile', 'Lateral soft tissue', 'M9 3a6 6 0 0 1 6 6v3a2 2 0 0 1-2 2h-1v2a3 3 0 0 1-3 3'),
-  intraFrontal('Intraoral Frontal', 'Centric occlusion', 'M4 8h16v8H4zM4 12h16'),
-  intraRight('Intraoral Right', 'Right molar / canine relation', 'M6 8h12v8H6zM14 8v8'),
-  intraLeft('Intraoral Left', 'Left molar / canine relation', 'M6 8h12v8H6zM10 8v8'),
-  occlusalUpper('Occlusal Upper', 'Maxillary arch & palate', 'M4 16c2-8 14-8 16 0'),
-  occlusalLower('Occlusal Lower', 'Mandibular arch alignment', 'M4 8c2 8 14 8 16 0');
+  frontal(
+    'Extraoral Frontal',
+    'Facial at rest',
+    'M12 2a7 7 0 0 0-7 7v4a7 7 0 0 0 14 0V9a7 7 0 0 0-7-7z',
+  ),
+  smile(
+    'Extraoral Smile',
+    'Full smile display',
+    'M12 2a7 7 0 0 0-7 7v4a7 7 0 0 0 14 0V9a7 7 0 0 0-7-7zM8 13s1.5 2 4 2 4-2 4-2',
+  ),
+  profile(
+    'Extraoral Profile',
+    'Lateral soft tissue',
+    'M9 3a6 6 0 0 1 6 6v3a2 2 0 0 1-2 2h-1v2a3 3 0 0 1-3 3',
+  ),
+  intraFrontal(
+    'Intraoral Frontal',
+    'Centric occlusion',
+    'M4 8h16v8H4zM4 12h16',
+  ),
+  intraRight(
+    'Intraoral Right',
+    'Right molar / canine relation',
+    'M6 8h12v8H6zM14 8v8',
+  ),
+  intraLeft(
+    'Intraoral Left',
+    'Left molar / canine relation',
+    'M6 8h12v8H6zM10 8v8',
+  ),
+  occlusalUpper(
+    'Occlusal Upper',
+    'Maxillary arch & palate',
+    'M4 16c2-8 14-8 16 0',
+  ),
+  occlusalLower(
+    'Occlusal Lower',
+    'Mandibular arch alignment',
+    'M4 8c2 8 14 8 16 0',
+  );
 
   final String title;
   final String subtitle;
@@ -61,7 +93,9 @@ class OrthoPhotoSet {
     return OrthoPhotoSet(
       id: r.id,
       patientId: r.patientId,
-      label: (d['label'] as String?)?.isNotEmpty == true ? d['label'] as String : 'Series',
+      label: (d['label'] as String?)?.isNotEmpty == true
+          ? d['label'] as String
+          : 'Series',
       date: r.recordedAt,
       photos: photosMap,
       record: r,
@@ -97,7 +131,8 @@ class OrthoPhotosDialog extends ConsumerStatefulWidget {
   });
 
   final Patient patient;
-  final void Function(OrthoPhotoSet before, OrthoPhotoSet after)? onCompareRequested;
+  final void Function(OrthoPhotoSet before, OrthoPhotoSet after)?
+  onCompareRequested;
 
   @override
   ConsumerState<OrthoPhotosDialog> createState() => _OrthoPhotosDialogState();
@@ -122,7 +157,12 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
             Wrap(
               spacing: CruSpace.s8,
               children: [
-                for (final preset in ['Start', 'Progress', 'Debond', 'Retention'])
+                for (final preset in [
+                  'Start',
+                  'Progress',
+                  'Debond',
+                  'Retention',
+                ])
                   DentalChoiceChip(
                     label: preset,
                     selected: labelCtrl.text == preset,
@@ -134,10 +174,7 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
               ],
             ),
             const SizedBox(height: CruSpace.s12),
-            CruTextField(
-              label: 'Series label',
-              controller: labelCtrl,
-            ),
+            CruTextField(label: 'Series label', controller: labelCtrl),
           ],
         ),
       ),
@@ -145,15 +182,10 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
 
     if (chosen != null && chosen.isNotEmpty) {
       final now = DateTime.now();
-      final record = DentalRecord.create(
-        widget.patient.id,
-        RecKind.photoSet,
-        {
-          'label': chosen,
-          'photos': <String, String>{},
-        },
-        at: now,
-      );
+      final record = DentalRecord.create(widget.patient.id, RecKind.photoSet, {
+        'label': chosen,
+        'photos': <String, String>{},
+      }, at: now);
       await saveDentalRecord(ref, record);
       if (mounted) {
         setState(() => _selectedSetId = record.id);
@@ -190,10 +222,7 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
       nextPhotos[slot.name] = destPath;
 
       final updated = set.record.copyWith(
-        data: {
-          ...set.record.data,
-          'photos': nextPhotos,
-        },
+        data: {...set.record.data, 'photos': nextPhotos},
       );
       await saveDentalRecord(ref, updated);
       if (mounted) {
@@ -226,10 +255,7 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
 
     final nextPhotos = Map<String, String>.from(set.photos)..remove(slot.name);
     final updated = set.record.copyWith(
-      data: {
-        ...set.record.data,
-        'photos': nextPhotos,
-      },
+      data: {...set.record.data, 'photos': nextPhotos},
     );
     await saveDentalRecord(ref, updated);
     if (mounted) {
@@ -238,7 +264,12 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
     }
   }
 
-  void _viewFullPhoto(String path, String title, OrthoPhotoSet set, OrthoPhotoSlot slot) {
+  void _viewFullPhoto(
+    String path,
+    String title,
+    OrthoPhotoSet set,
+    OrthoPhotoSlot slot,
+  ) {
     showDialog<void>(
       context: context,
       builder: (ctx) {
@@ -291,10 +322,7 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
                   child: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(CruSpace.s16),
-                      child: Image.file(
-                        File(path),
-                        fit: BoxFit.contain,
-                      ),
+                      child: Image.file(File(path), fit: BoxFit.contain),
                     ),
                   ),
                 ),
@@ -310,7 +338,10 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final recordsAsync = ref.watch(
-      patientRecordsProvider((patientId: widget.patient.id, kind: RecKind.photoSet)),
+      patientRecordsProvider((
+        patientId: widget.patient.id,
+        kind: RecKind.photoSet,
+      )),
     );
 
     return recordsAsync.when(
@@ -332,7 +363,8 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
             body: DentalEmptyState(
               icon: CruIcons.box,
               title: 'No photo series captured yet',
-              body: 'Record standard 8-view orthodontic photo sets for start, progress, and debond.',
+              body:
+                  'Record standard 8-view orthodontic photo sets for start, progress, and debond.',
               actions: [
                 CruButton(
                   label: 'Start photo series',
@@ -344,7 +376,8 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
           );
         }
 
-        final activeSet = sets.where((s) => s.id == _selectedSetId).firstOrNull ?? sets.first;
+        final activeSet =
+            sets.where((s) => s.id == _selectedSetId).firstOrNull ?? sets.first;
 
         return DentalPanelDialog(
           title: 'Orthodontic Photo Series',
@@ -363,7 +396,8 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
                       icon: CruIcons.importExport,
                       kind: CruButtonKind.secondary,
                       onPressed: () {
-                        final sortedOldestFirst = [...sets]..sort((a, b) => a.date.compareTo(b.date));
+                        final sortedOldestFirst = [...sets]
+                          ..sort((a, b) => a.date.compareTo(b.date));
                         if (widget.onCompareRequested != null) {
                           widget.onCompareRequested!(
                             sortedOldestFirst.first,
@@ -402,9 +436,11 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
                         children: [
                           for (final s in sets) ...[
                             DentalChoiceChip(
-                              label: '${s.label} (${DentalFormat.date(s.date)})',
+                              label:
+                                  '${s.label} (${DentalFormat.date(s.date)})',
                               selected: s.id == activeSet.id,
-                              onTap: () => setState(() => _selectedSetId = s.id),
+                              onTap: () =>
+                                  setState(() => _selectedSetId = s.id),
                             ),
                             const SizedBox(width: CruSpace.s6),
                           ],
@@ -415,22 +451,30 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
                   const SizedBox(width: CruSpace.s12),
                   CruPill(
                     text: '${activeSet.filledCount} of 8',
-                    background: activeSet.filledCount == 8 ? c.greenTint : c.inset,
-                    foreground: activeSet.filledCount == 8 ? c.greenText : c.label2,
+                    background: activeSet.filledCount == 8
+                        ? c.greenTint
+                        : c.inset,
+                    foreground: activeSet.filledCount == 8
+                        ? c.greenText
+                        : c.label2,
                   ),
                   const SizedBox(width: CruSpace.s8),
                   PopupMenuButton<String>(
                     tooltip: 'Series actions',
                     icon: CruIcon(CruIcons.more, size: 18, color: c.label2),
                     itemBuilder: (_) => [
-                      const PopupMenuItem(value: 'delete', child: Text('Delete series')),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete series'),
+                      ),
                     ],
                     onSelected: (action) async {
                       if (action == 'delete') {
                         final ok = await confirmDental(
                           context,
                           title: 'Delete series?',
-                          body: 'Delete "${activeSet.label}" and all attached photos?',
+                          body:
+                              'Delete "${activeSet.label}" and all attached photos?',
                           action: 'Delete',
                         );
                         if (ok) {
@@ -456,12 +500,13 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: CruSpace.s12,
-                      mainAxisSpacing: CruSpace.s12,
-                      childAspectRatio: 1.15,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: CruSpace.s12,
+                          mainAxisSpacing: CruSpace.s12,
+                          childAspectRatio: 1.15,
+                        ),
                     itemCount: OrthoPhotoSlot.values.length,
                     itemBuilder: (context, index) {
                       final slot = OrthoPhotoSlot.values[index];
@@ -471,7 +516,12 @@ class _OrthoPhotosDialogState extends ConsumerState<OrthoPhotosDialog> {
                         photoPath: photoPath,
                         onTap: () {
                           if (photoPath != null) {
-                            _viewFullPhoto(photoPath, slot.title, activeSet, slot);
+                            _viewFullPhoto(
+                              photoPath,
+                              slot.title,
+                              activeSet,
+                              slot,
+                            );
                           } else {
                             _pickPhoto(activeSet, slot);
                           }
@@ -522,10 +572,7 @@ class _PhotoSlotTile extends StatelessWidget {
           fit: StackFit.expand,
           children: [
             if (hasPhoto)
-              Image.file(
-                File(photoPath!),
-                fit: BoxFit.cover,
-              )
+              Image.file(File(photoPath!), fit: BoxFit.cover)
             else
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -549,7 +596,9 @@ class _PhotoSlotTile extends StatelessWidget {
                   ),
                   const SizedBox(height: CruSpace.s2),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s8,
+                    ),
                     child: Text(
                       slot.subtitle,
                       textAlign: TextAlign.center,
@@ -590,7 +639,11 @@ class _PhotoSlotTile extends StatelessWidget {
                           style: CruType.micro.w600.tint(Colors.white),
                         ),
                       ),
-                      const CruIcon(CruIcons.check, size: 14, color: Colors.white),
+                      const CruIcon(
+                        CruIcons.check,
+                        size: 14,
+                        color: Colors.white,
+                      ),
                     ],
                   ),
                 ),

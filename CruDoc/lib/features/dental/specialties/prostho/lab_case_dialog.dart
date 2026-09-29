@@ -28,11 +28,7 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Dialog to create or edit a prosthodontic lab case.
 class LabCaseEditDialog extends ConsumerStatefulWidget {
-  const LabCaseEditDialog({
-    super.key,
-    this.initialCase,
-    this.initialPatient,
-  });
+  const LabCaseEditDialog({super.key, this.initialCase, this.initialPatient});
 
   final LabCase? initialCase;
   final Patient? initialPatient;
@@ -93,7 +89,11 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
 
   List<String> _parseAndValidateTeeth(String raw) {
     if (raw.trim().isEmpty) return const [];
-    final tokens = raw.split(RegExp(r'[, ]+')).map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+    final tokens = raw
+        .split(RegExp(r'[, ]+'))
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
     for (final t in tokens) {
       if (!DentalChart.isValid(t)) {
         throw FormatException('Invalid FDI tooth number: "$t"');
@@ -121,8 +121,12 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
     if (result == null || result.files.isEmpty) return;
 
     final appSupport = await getApplicationSupportDirectory();
-    final caseId = widget.initialCase?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    final targetDir = Directory(p.join(appSupport.path, 'dental', 'labcases', caseId));
+    final caseId =
+        widget.initialCase?.id ??
+        'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final targetDir = Directory(
+      p.join(appSupport.path, 'dental', 'labcases', caseId),
+    );
     if (!targetDir.existsSync()) {
       targetDir.createSync(recursive: true);
     }
@@ -135,9 +139,14 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
       await src.copy(destPath);
 
       final lowerName = f.name.toLowerCase();
-      final kind = (lowerName.endsWith('.stl') || lowerName.endsWith('.ply') || lowerName.endsWith('.obj'))
+      final kind =
+          (lowerName.endsWith('.stl') ||
+              lowerName.endsWith('.ply') ||
+              lowerName.endsWith('.obj'))
           ? 'scan'
-          : (lowerName.endsWith('.jpg') || lowerName.endsWith('.png') ? 'photo' : 'other');
+          : (lowerName.endsWith('.jpg') || lowerName.endsWith('.png')
+                ? 'photo'
+                : 'other');
 
       newFiles.add(LabCaseFile(path: destPath, name: f.name, kind: kind));
     }
@@ -179,37 +188,32 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                   'stage': _stage.name,
                   'at': now.millisecondsSinceEpoch,
                   'note': 'Stage updated to ${_stage.label}',
-                }
+                },
             ]
           : [
               {
                 'stage': _stage.name,
                 'at': now.millisecondsSinceEpoch,
                 'note': 'Lab case created',
-              }
+              },
             ];
 
       if (c == null) {
-        final record = DentalRecord.create(
-          _patient!.id,
-          RecKind.labCase,
-          {
-            'labContactId': labContactId,
-            'labName': labName,
-            'type': _type,
-            'teeth': parsedTeeth,
-            'material': _material,
-            'shade': _shade,
-            'shadeSystem': 'VITA classical',
-            'margin': _margin,
-            'notes': _notes.text.trim(),
-            'due': _due.millisecondsSinceEpoch,
-            'stage': _stage.name,
-            'history': nextHistory,
-            'files': _files.map((f) => f.toJson()).toList(),
-          },
-          at: now,
-        );
+        final record = DentalRecord.create(_patient!.id, RecKind.labCase, {
+          'labContactId': labContactId,
+          'labName': labName,
+          'type': _type,
+          'teeth': parsedTeeth,
+          'material': _material,
+          'shade': _shade,
+          'shadeSystem': 'VITA classical',
+          'margin': _margin,
+          'notes': _notes.text.trim(),
+          'due': _due.millisecondsSinceEpoch,
+          'stage': _stage.name,
+          'history': nextHistory,
+          'files': _files.map((f) => f.toJson()).toList(),
+        }, at: now);
         await saveDentalRecord(ref, record);
         if (mounted) recToast(context, 'Lab case created');
       } else {
@@ -247,15 +251,20 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
     final c = context.cru;
     final labs = ref.watch(labPartnersProvider);
     final allContacts = ref.watch(referralContactsProvider);
-    final numbering = ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
 
     // Resolve selected lab
     if (_selectedLab == null && widget.initialCase != null) {
-      _selectedLab = allContacts.where((cnt) => cnt.id == widget.initialCase!.labContactId).firstOrNull;
+      _selectedLab = allContacts
+          .where((cnt) => cnt.id == widget.initialCase!.labContactId)
+          .firstOrNull;
     }
 
     return CruFormDialog(
-      title: widget.initialCase == null ? 'New lab prescription' : 'Edit lab case',
+      title: widget.initialCase == null
+          ? 'New lab prescription'
+          : 'Edit lab case',
       subtitle: '${_patient?.fullName ?? 'Patient'} · $_type',
       width: 600,
       busy: _busy,
@@ -274,7 +283,9 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                     _patient != null
                         ? '${_patient!.fullName} (${_patient!.age}y, ${_patient!.gender.toUpperCase()})'
                         : 'No patient selected',
-                    style: CruType.body.tint(_patient != null ? c.label : c.label3),
+                    style: CruType.body.tint(
+                      _patient != null ? c.label : c.label3,
+                    ),
                   ),
                 ),
                 CruCapsuleButton(
@@ -298,11 +309,14 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                       isExpanded: true,
                       value: _selectedLab?.id,
                       hint: Text(
-                        labs.isEmpty ? 'No dental labs saved' : 'Select dental lab',
+                        labs.isEmpty
+                            ? 'No dental labs saved'
+                            : 'Select dental lab',
                         style: CruType.body.tint(c.label3),
                       ),
                       items: [
-                        for (final lab in (labs.isNotEmpty ? labs : allContacts))
+                        for (final lab
+                            in (labs.isNotEmpty ? labs : allContacts))
                           DropdownMenuItem<String>(
                             value: lab.id,
                             child: Text(
@@ -313,9 +327,14 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                       ],
                       onChanged: (id) {
                         setState(() {
-                          _selectedLab = allContacts.where((cnt) => cnt.id == id).firstOrNull;
-                          if (_selectedLab?.turnaroundDays != null && widget.initialCase == null) {
-                            _due = DateTime.now().add(Duration(days: _selectedLab!.turnaroundDays!));
+                          _selectedLab = allContacts
+                              .where((cnt) => cnt.id == id)
+                              .firstOrNull;
+                          if (_selectedLab?.turnaroundDays != null &&
+                              widget.initialCase == null) {
+                            _due = DateTime.now().add(
+                              Duration(days: _selectedLab!.turnaroundDays!),
+                            );
                           }
                         });
                       },
@@ -330,14 +349,21 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                     final newContact = await showDialog<ReferralContact>(
                       context: context,
                       builder: (_) => const EditContactDialog(
-                        contact: ReferralContact(id: '', name: '', specialty: 'Dental lab'),
+                        contact: ReferralContact(
+                          id: '',
+                          name: '',
+                          specialty: 'Dental lab',
+                        ),
                       ),
                     );
                     if (newContact != null && mounted) {
                       setState(() {
                         _selectedLab = newContact;
-                        if (newContact.turnaroundDays != null && widget.initialCase == null) {
-                          _due = DateTime.now().add(Duration(days: newContact.turnaroundDays!));
+                        if (newContact.turnaroundDays != null &&
+                            widget.initialCase == null) {
+                          _due = DateTime.now().add(
+                            Duration(days: newContact.turnaroundDays!),
+                          );
                         }
                       });
                     }
@@ -360,7 +386,10 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                       value: _type,
                       items: [
                         for (final t in labCaseTypes)
-                          DropdownMenuItem<String>(value: t, child: Text(t, style: CruType.body.tint(c.label))),
+                          DropdownMenuItem<String>(
+                            value: t,
+                            child: Text(t, style: CruType.body.tint(c.label)),
+                          ),
                       ],
                       onChanged: (t) {
                         if (t != null) setState(() => _type = t);
@@ -379,7 +408,10 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                       value: _material,
                       items: [
                         for (final m in labMaterials)
-                          DropdownMenuItem<String>(value: m, child: Text(m, style: CruType.body.tint(c.label))),
+                          DropdownMenuItem<String>(
+                            value: m,
+                            child: Text(m, style: CruType.body.tint(c.label)),
+                          ),
                       ],
                       onChanged: (m) {
                         if (m != null) setState(() => _material = m);
@@ -434,7 +466,10 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
                       value: _margin,
                       items: [
                         for (final m in labMargins)
-                          DropdownMenuItem<String>(value: m, child: Text(m, style: CruType.body.tint(c.label))),
+                          DropdownMenuItem<String>(
+                            value: m,
+                            child: Text(m, style: CruType.body.tint(c.label)),
+                          ),
                       ],
                       onChanged: (m) {
                         if (m != null) setState(() => _margin = m);
@@ -495,7 +530,8 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
             label: 'Clinical instructions & occlusal clearance',
             controller: _notes,
             maxLines: 4,
-            hint: 'Provide specific instructions: contact tightness, anatomy, translucency, bite registration...',
+            hint:
+                'Provide specific instructions: contact tightness, anatomy, translucency, bite registration...',
           ),
           const SizedBox(height: CruSpace.s16),
 
@@ -544,7 +580,10 @@ class _LabCaseEditDialogState extends ConsumerState<LabCaseEditDialog> {
               Padding(
                 padding: const EdgeInsets.only(bottom: CruSpace.s4),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: CruSpace.s12,
+                    vertical: CruSpace.s6,
+                  ),
                   decoration: BoxDecoration(
                     color: c.surface,
                     borderRadius: BorderRadius.circular(CruRadius.control),
@@ -618,7 +657,15 @@ class PatientLabCasesDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final records = ref.watch(patientRecordsProvider((patientId: patient.id, kind: RecKind.labCase))).value ??
+    final records =
+        ref
+            .watch(
+              patientRecordsProvider((
+                patientId: patient.id,
+                kind: RecKind.labCase,
+              )),
+            )
+            .value ??
         const <DentalRecord>[];
     final cases = records.map(LabCase.fromRecord).toList()
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
@@ -640,7 +687,8 @@ class PatientLabCasesDialog extends ConsumerWidget {
           ? DentalEmptyState(
               icon: CruIcons.box,
               title: 'No lab cases for this patient',
-              body: 'Create an Rx for crowns, bridges, dentures or night guards.',
+              body:
+                  'Create an Rx for crowns, bridges, dentures or night guards.',
               actions: [
                 CruButton(
                   label: 'New lab case',
@@ -667,13 +715,19 @@ class PatientLabCasesDialog extends ConsumerWidget {
                     ),
                     child: Row(
                       children: [
-                        CruIconTile(icon: CruIcons.box, tone: CruTileTone.neutral),
+                        CruIconTile(
+                          icon: CruIcons.box,
+                          tone: CruTileTone.neutral,
+                        ),
                         const SizedBox(width: CruSpace.s12),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('${lc.type} (${lc.material})', style: CruType.callout.w600.tint(c.label)),
+                              Text(
+                                '${lc.type} (${lc.material})',
+                                style: CruType.callout.w600.tint(c.label),
+                              ),
                               Text(
                                 '${lc.teeth.join(', ')} · Due ${DentalFormat.date(lc.due)} · Lab: ${lc.labName.isNotEmpty ? lc.labName : 'Partner'}',
                                 style: CruType.caption.tint(c.label2),
@@ -685,10 +739,14 @@ class PatientLabCasesDialog extends ConsumerWidget {
                           text: lc.stage.label,
                           background: lc.stage == LabCaseStage.fitted
                               ? c.greenTint
-                              : (lc.isOverdue(DateTime.now()) ? c.amberTint : c.inset),
+                              : (lc.isOverdue(DateTime.now())
+                                    ? c.amberTint
+                                    : c.inset),
                           foreground: lc.stage == LabCaseStage.fitted
                               ? c.greenText
-                              : (lc.isOverdue(DateTime.now()) ? c.amberText : c.label2),
+                              : (lc.isOverdue(DateTime.now())
+                                    ? c.amberText
+                                    : c.label2),
                         ),
                       ],
                     ),
@@ -716,7 +774,7 @@ Future<void> updateLabCaseStage(
       'stage': nextStage.name,
       'at': now.millisecondsSinceEpoch,
       'note': 'Stage updated to ${nextStage.label}',
-    }
+    },
   ];
 
   final updated = labCase.record.copyWith(
@@ -733,18 +791,22 @@ Future<void> updateLabCaseStage(
   }
 
   // When stage becomes 'received', offer to message the patient
-  if (nextStage == LabCaseStage.received && patient != null && context.mounted) {
+  if (nextStage == LabCaseStage.received &&
+      patient != null &&
+      context.mounted) {
     final send = await confirmDental(
       context,
       title: 'Notify patient?',
-      body: 'Send WhatsApp to ${patient.fullName}: "Your ${labCase.type.toLowerCase()} is ready. Please book a visit to fit it."',
+      body:
+          'Send WhatsApp to ${patient.fullName}: "Your ${labCase.type.toLowerCase()} is ready. Please book a visit to fit it."',
       action: 'Message patient',
     );
     if (send && context.mounted) {
       await PatientActions.whatsApp(
         context,
         patient,
-        message: 'Your ${labCase.type.toLowerCase()} is ready. Please book a visit to fit it.',
+        message:
+            'Your ${labCase.type.toLowerCase()} is ready. Please book a visit to fit it.',
       );
     }
   }
@@ -758,7 +820,9 @@ Future<void> sendLabCaseToLab(
   Patient patient,
 ) async {
   final contacts = ref.read(referralContactsProvider);
-  final lab = contacts.where((cnt) => cnt.id == labCase.labContactId).firstOrNull;
+  final lab = contacts
+      .where((cnt) => cnt.id == labCase.labContactId)
+      .firstOrNull;
   final phone = lab?.phone ?? '';
 
   final pdfPath = await LabRxPdfService.saveRxToFolder(
@@ -768,12 +832,22 @@ Future<void> sendLabCaseToLab(
   );
 
   if (labCase.stage == LabCaseStage.scanned && context.mounted) {
-    await updateLabCaseStage(context, ref, labCase, LabCaseStage.sent, patient: patient);
+    await updateLabCaseStage(
+      context,
+      ref,
+      labCase,
+      LabCaseStage.sent,
+      patient: patient,
+    );
   }
 
   if (phone.isNotEmpty) {
-    final message = 'Hello ${labCase.labName}, prescription for ${patient.fullName} (${labCase.type} ${labCase.teeth.join(',')}). Due: ${DentalFormat.date(labCase.due)}. Prescription PDF generated.';
-    final uri = WhatsAppTemplateService.buildDirectWhatsAppUrl(rawPhone: phone, message: message);
+    final message =
+        'Hello ${labCase.labName}, prescription for ${patient.fullName} (${labCase.type} ${labCase.teeth.join(',')}). Due: ${DentalFormat.date(labCase.due)}. Prescription PDF generated.';
+    final uri = WhatsAppTemplateService.buildDirectWhatsAppUrl(
+      rawPhone: phone,
+      message: message,
+    );
     if (uri != null) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }

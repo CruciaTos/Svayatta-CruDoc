@@ -21,7 +21,8 @@ class RadSettingsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(radSettingsProvider).value;
     final fees = ref.watch(radFeesProvider).value ?? const <RadFee>[];
-    final servers = ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
+    final servers =
+        ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
     if (settings == null) return const SizedBox(height: 200);
 
     final gap = const SizedBox(height: CruSpace.cardGap);
@@ -57,7 +58,8 @@ class RadSettingsSection extends ConsumerWidget {
               const CruSeparator(),
               _ActionRow(
                 title: 'Receive from scanners',
-                detail: 'AE title ${settings.aeTitle} · port ${settings.dicomPort} · not connected yet',
+                detail:
+                    'AE title ${settings.aeTitle} · port ${settings.dicomPort} · not connected yet',
                 action: 'Set up',
                 onTap: () => showRadDicomReceiverDialog(context),
               ),
@@ -67,7 +69,8 @@ class RadSettingsSection extends ConsumerWidget {
         gap,
         const _Card(
           title: 'AI assistance',
-          description: 'Suggestions you confirm or reject; never a diagnosis on its own.',
+          description:
+              'Suggestions you confirm or reject; never a diagnosis on its own.',
           child: RadAiSwitches(),
         ),
         gap,
@@ -131,10 +134,12 @@ class _ActionRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title, style: CruType.callout.tint(c.label)),
-                Text(detail,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.subhead.tabular.tint(c.label2)),
+                Text(
+                  detail,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.subhead.tabular.tint(c.label2),
+                ),
               ],
             ),
           ),
@@ -175,11 +180,15 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
   Future<void> _save() async {
     setState(() => _saving = true);
     final s = await ref.read(radSettingsProvider.future);
-    await ref.read(radiologyProvider).saveSettings(s.copyWith(
-          signatureName: _name.text.trim(),
-          qualification: _qual.text.trim(),
-          regNo: _reg.text.trim(),
-        ));
+    await ref
+        .read(radiologyProvider)
+        .saveSettings(
+          s.copyWith(
+            signatureName: _name.text.trim(),
+            qualification: _qual.text.trim(),
+            regNo: _reg.text.trim(),
+          ),
+        );
     if (!mounted) return;
     setState(() {
       _saving = false;
@@ -200,20 +209,22 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CruFieldRow(children: [
-            CruTextField(
-              label: 'Name',
-              controller: _name,
-              hint: 'Dr. Meera Kulkarni',
-              textCapitalization: TextCapitalization.words,
-              onChanged: edited,
-            ),
-            CruTextField(
-              label: 'Registration no.',
-              controller: _reg,
-              onChanged: edited,
-            ),
-          ]),
+          CruFieldRow(
+            children: [
+              CruTextField(
+                label: 'Name',
+                controller: _name,
+                hint: 'Dr. Meera Kulkarni',
+                textCapitalization: TextCapitalization.words,
+                onChanged: edited,
+              ),
+              CruTextField(
+                label: 'Registration no.',
+                controller: _reg,
+                onChanged: edited,
+              ),
+            ],
+          ),
           const SizedBox(height: CruSpace.s12),
           CruTextField(
             label: 'Qualification',
@@ -225,7 +236,10 @@ class _SignatureCardState extends ConsumerState<_SignatureCard> {
             const SizedBox(height: CruSpace.s16),
             Align(
               alignment: Alignment.centerRight,
-              child: CruButton(label: _saving ? 'Saving…' : 'Save', onPressed: _saving ? null : _save),
+              child: CruButton(
+                label: _saving ? 'Saving…' : 'Save',
+                onPressed: _saving ? null : _save,
+              ),
             ),
           ],
         ],
@@ -248,7 +262,9 @@ class _TurnaroundCard extends ConsumerStatefulWidget {
 class _TurnaroundCardState extends ConsumerState<_TurnaroundCard> {
   late final Map<RadPriority, TextEditingController> _hours = {
     for (final p in RadPriority.values)
-      p: TextEditingController(text: '${widget.settings.turnaround(p).inHours}'),
+      p: TextEditingController(
+        text: '${widget.settings.turnaround(p).inHours}',
+      ),
   };
   bool _dirty = false;
 
@@ -262,11 +278,19 @@ class _TurnaroundCardState extends ConsumerState<_TurnaroundCard> {
 
   Future<void> _save() async {
     final s = await ref.read(radSettingsProvider.future);
-    await ref.read(radiologyProvider).saveSettings(s.copyWith(tatHours: {
-          for (final e in _hours.entries)
-            e.key.name: (int.tryParse(e.value.text.trim()) ?? s.turnaround(e.key).inHours)
-                .clamp(1, 24 * 30),
-        }));
+    await ref
+        .read(radiologyProvider)
+        .saveSettings(
+          s.copyWith(
+            tatHours: {
+              for (final e in _hours.entries)
+                e.key.name:
+                    (int.tryParse(e.value.text.trim()) ??
+                            s.turnaround(e.key).inHours)
+                        .clamp(1, 24 * 30),
+            },
+          ),
+        );
     if (!mounted) return;
     setState(() => _dirty = false);
     radToast(context, 'Turnaround times saved. New studies use them.');
@@ -276,24 +300,30 @@ class _TurnaroundCardState extends ConsumerState<_TurnaroundCard> {
   Widget build(BuildContext context) {
     return _Card(
       title: 'Turnaround times',
-      description: 'When a report is due after the scan arrives. The worklist turns amber when a study is late.',
+      description:
+          'When a report is due after the scan arrives. The worklist turns amber when a study is late.',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CruFieldRow(children: [
-            for (final p in RadPriority.values)
-              CruTextField(
-                label: p.label,
-                controller: _hours[p]!,
-                tabular: true,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                trailing: Text('hours', style: CruType.subhead.tint(context.cru.label3)),
-                onChanged: (_) {
-                  if (!_dirty) setState(() => _dirty = true);
-                },
-              ),
-          ]),
+          CruFieldRow(
+            children: [
+              for (final p in RadPriority.values)
+                CruTextField(
+                  label: p.label,
+                  controller: _hours[p]!,
+                  tabular: true,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  trailing: Text(
+                    'hours',
+                    style: CruType.subhead.tint(context.cru.label3),
+                  ),
+                  onChanged: (_) {
+                    if (!_dirty) setState(() => _dirty = true);
+                  },
+                ),
+            ],
+          ),
           if (_dirty) ...[
             const SizedBox(height: CruSpace.s16),
             Align(
@@ -356,7 +386,8 @@ class _StorageCardState extends ConsumerState<_StorageCard> {
           const CruSeparator(),
           _ActionRow(
             title: 'Audit log',
-            detail: 'Who opened, changed, signed, exported or shared each study',
+            detail:
+                'Who opened, changed, signed, exported or shared each study',
             action: 'View',
             onTap: () => showRadAuditDialog(context),
           ),

@@ -227,8 +227,7 @@ CRITICAL RULES — read these carefully:
         doctorId: doctorId,
         patientId: patientId,
         visitId: visitId,
-        transcript:
-            formatted.isNotEmpty ? formatted : existingDraft.transcript,
+        transcript: formatted.isNotEmpty ? formatted : existingDraft.transcript,
         chiefComplaint: existingDraft.chiefComplaint,
         symptoms: existingDraft.symptoms,
         diagnosisSuggestions: existingDraft.diagnosisSuggestions,
@@ -249,7 +248,9 @@ CRITICAL RULES — read these carefully:
     }
 
     const extractor = ScribeLiveExtractor();
-    final ext = extractor.extract(formatted.isNotEmpty ? formatted : transcript);
+    final ext = extractor.extract(
+      formatted.isNotEmpty ? formatted : transcript,
+    );
 
     return ConsultationNote(
       id: noteId,

@@ -34,7 +34,11 @@ abstract final class ApptsBuilder {
     final start = weekStart(first);
     final end = weekStart(last).add(const Duration(days: 6));
     final days = <DateTime>[];
-    for (var d = start; !d.isAfter(end); d = DateTime(d.year, d.month, d.day + 1)) {
+    for (
+      var d = start;
+      !d.isAfter(end);
+      d = DateTime(d.year, d.month, d.day + 1)
+    ) {
       days.add(d);
     }
     return days;
@@ -60,10 +64,11 @@ abstract final class ApptsBuilder {
           e.linkedVisitId!: e,
     };
 
-    final live = visits
-        .where((v) => !v.isDeleted && v.status != VisitStatus.cancelled)
-        .toList()
-      ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+    final live =
+        visits
+            .where((v) => !v.isDeleted && v.status != VisitStatus.cancelled)
+            .toList()
+          ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
 
     // First visit per patient, for New vs Returning.
     final firstVisitId = <String, String>{};
@@ -112,7 +117,8 @@ abstract final class ApptsBuilder {
   static int patientsWith(Iterable<ApptItem> items, ApptStatus status) =>
       items.fold(
         0,
-        (n, i) => n +
+        (n, i) =>
+            n +
             (i.isGroup
                 ? i.members.where((m) => m.status == status).length
                 : (i.status == status ? 1 : 0)),
@@ -126,9 +132,14 @@ abstract final class ApptsBuilder {
     DateTime now,
   ) {
     final name = p == null ? 'Patient' : p.fullName.trim();
-    final parts = name.split(RegExp(r'\s+')).where((s) => s.isNotEmpty).toList();
+    final parts = name
+        .split(RegExp(r'\s+'))
+        .where((s) => s.isNotEmpty)
+        .toList();
     final first = parts.isEmpty ? name : parts.first;
-    final short = parts.length > 1 ? '$first ${parts.last[0].toUpperCase()}.' : first;
+    final short = parts.length > 1
+        ? '$first ${parts.last[0].toUpperCase()}.'
+        : first;
 
     // A pre-booked visit enters the queue as "waiting" at its appointment
     // time, before the patient arrives, so it only counts as waiting once
@@ -138,13 +149,12 @@ abstract final class ApptsBuilder {
       VisitStatus.completed => ApptStatus.done,
       VisitStatus.missed => ApptStatus.missed,
       _ => switch (q?.status) {
-          QueueStatus.completed => ApptStatus.done,
-          QueueStatus.inConsultation ||
-          QueueStatus.called =>
-            ApptStatus.inConsultation,
-          QueueStatus.waiting when arrived => ApptStatus.waiting,
-          _ => ApptStatus.booked,
-        },
+        QueueStatus.completed => ApptStatus.done,
+        QueueStatus.inConsultation ||
+        QueueStatus.called => ApptStatus.inConsultation,
+        QueueStatus.waiting when arrived => ApptStatus.waiting,
+        _ => ApptStatus.booked,
+      },
     };
 
     final reason = _clean(v.treatmentType) ?? _clean(q?.reason);
@@ -175,10 +185,12 @@ abstract final class ApptsBuilder {
         ..sort((a, b) => a.start.compareTo(b.start));
 
   /// Items starting within [from, to).
-  static List<ApptItem> inRange(List<ApptItem> all, DateTime from, DateTime to) =>
-      all
-          .where((i) => !i.start.isBefore(from) && i.start.isBefore(to))
-          .toList()
+  static List<ApptItem> inRange(
+    List<ApptItem> all,
+    DateTime from,
+    DateTime to,
+  ) =>
+      all.where((i) => !i.start.isBefore(from) && i.start.isBefore(to)).toList()
         ..sort((a, b) => a.start.compareTo(b.start));
 
   // ---------------------------------------------------------------------
@@ -189,7 +201,8 @@ abstract final class ApptsBuilder {
   /// greedily by start time. Every item lands in exactly one group; a
   /// group of one is not an overlap.
   static List<OverlapGroup> groups(List<ApptItem> dayItems, DateTime now) {
-    final sorted = [...dayItems]..sort((a, b) {
+    final sorted = [...dayItems]
+      ..sort((a, b) {
         final c = a.start.compareTo(b.start);
         return c != 0 ? c : b.end.compareTo(a.end);
       });
@@ -250,8 +263,9 @@ abstract final class ApptsBuilder {
   }
 
   /// The visit to suggest moving: the most recently booked (createdAt).
-  static ApptItem latestBooked(OverlapGroup g) =>
-      g.items.reduce((a, b) => b.visit.createdAt.isAfter(a.visit.createdAt) ? b : a);
+  static ApptItem latestBooked(OverlapGroup g) => g.items.reduce(
+    (a, b) => b.visit.createdAt.isAfter(a.visit.createdAt) ? b : a,
+  );
 
   // ---------------------------------------------------------------------
   // Ranges, slots, counts
@@ -265,12 +279,14 @@ abstract final class ApptsBuilder {
   static DayRange range(List<ApptItem> items, DateTime day) {
     final d = dateOnly(day);
     if (items.isEmpty) {
-      return DayRange(sessions: [
-        ClinicSession(
-          start: d.add(const Duration(hours: 9)),
-          end: d.add(const Duration(hours: 18)),
-        ),
-      ]);
+      return DayRange(
+        sessions: [
+          ClinicSession(
+            start: d.add(const Duration(hours: 9)),
+            end: d.add(const Duration(hours: 18)),
+          ),
+        ],
+      );
     }
     var startMin = 24 * 60;
     var endMin = 0;
@@ -282,12 +298,14 @@ abstract final class ApptsBuilder {
     }
     final startHour = startMin ~/ 60;
     final endHour = math.min(24, (endMin + 59) ~/ 60);
-    return DayRange(sessions: [
-      ClinicSession(
-        start: d.add(Duration(hours: startHour)),
-        end: d.add(Duration(hours: math.max(endHour, startHour + 1))),
-      ),
-    ]);
+    return DayRange(
+      sessions: [
+        ClinicSession(
+          start: d.add(Duration(hours: startHour)),
+          end: d.add(Duration(hours: math.max(endHour, startHour + 1))),
+        ),
+      ],
+    );
   }
 
   /// Snaps [t] down to the [kApptSnapMinutes] grid.
@@ -315,20 +333,25 @@ abstract final class ApptsBuilder {
       after,
       for (final o in others)
         if (!o.end.isBefore(after)) o.end,
-    }.toList()
-      ..sort();
+    }.toList()..sort();
     final d = Duration(minutes: durationMinutes);
     for (final t in candidates) {
       final end = t.add(d);
       if (end.isAfter(rangeEnd)) continue;
-      final clash = others.any((o) => t.isBefore(o.end) && o.start.isBefore(end));
+      final clash = others.any(
+        (o) => t.isBefore(o.end) && o.start.isBefore(end),
+      );
       if (!clash) return t;
     }
     return null;
   }
 
   /// Counts for one day's items.
-  static ApptDayCounts counts(List<ApptItem> dayItems, DateTime day, DateTime now) {
+  static ApptDayCounts counts(
+    List<ApptItem> dayItems,
+    DateTime day,
+    DateTime now,
+  ) {
     final groups = ApptsBuilder.groups(dayItems, now);
     return ApptDayCounts(
       date: dateOnly(day),
@@ -336,8 +359,9 @@ abstract final class ApptsBuilder {
       // Appointments by slot, seen and missed by patient.
       seen: patientsWith(dayItems, ApptStatus.done),
       missed: patientsWith(dayItems, ApptStatus.missed),
-      inConsultation:
-          dayItems.where((i) => i.status == ApptStatus.inConsultation).length,
+      inConsultation: dayItems
+          .where((i) => i.status == ApptStatus.inConsultation)
+          .length,
       waiting: dayItems.where((i) => i.status == ApptStatus.waiting).length,
       booked: dayItems.where((i) => i.status == ApptStatus.booked).length,
       unsortedOverlaps: groups

@@ -34,7 +34,7 @@ class MedicalPdfPreviewScreen extends StatelessWidget {
         title: Text(documentData.previewTitle),
         backgroundColor: Colors.white,
         foregroundColor: const Color(0xFF0F172A),
-        elevation: 0.5,
+        elevation: 0,
       ),
       body: PdfPreview(
         build: (_) => _buildPdf(),
@@ -50,7 +50,11 @@ class MedicalPdfPreviewScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.picture_as_pdf_rounded, size: 42, color: Color(0xFFEF4444)),
+                const Icon(
+                  Icons.picture_as_pdf_rounded,
+                  size: 42,
+                  color: Color(0xFFEF4444),
+                ),
                 const SizedBox(height: 12),
                 const Text(
                   'Unable to generate PDF preview',

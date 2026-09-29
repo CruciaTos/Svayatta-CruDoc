@@ -16,6 +16,7 @@ class AppColors {
   static const chartBarDim = Color.fromARGB(255, 140, 188, 255);
   static const accentBlue = Color(0xFF2D9CDB);
   static const positiveGreen = Color(0xFF7FBF8F);
+
   /// Muted red companion for expenses / negative amounts.
   /// Used on amount text, filter chips, and avatar backgrounds.
   static const negativeRed = Color(0xFFEF5350);

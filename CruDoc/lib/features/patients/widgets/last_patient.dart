@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class LastPatientsCard extends ConsumerWidget {
   const LastPatientsCard({super.key});
@@ -15,9 +16,8 @@ class LastPatientsCard extends ConsumerWidget {
     final lastPatientAsync = ref.watch(lastPatientProvider);
 
     return lastPatientAsync.when(
-      loading: () => const _CardShell(
-        child: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const _CardShell(child: Center(child: CircularProgressIndicator())),
       error: (error, stack) => const _CardShell(
         child: Center(
           child: Text(
@@ -65,17 +65,14 @@ class _LastPatientContent extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final visitsAsync = ref.watch(visitsForPatientProvider(patient.id));
-    final sessionsCount = visitsAsync.value
+    final sessionsCount =
+        visitsAsync.value
             ?.where((v) => v.status == VisitStatus.completed)
             .length ??
         0;
 
-    final initial = patient.fullName.isNotEmpty
-        ? patient.fullName[0].toUpperCase()
-        : '?';
-
     return _CardShell(
-      padding: const EdgeInsets.all(14),               // reduced from 20
+      padding: const EdgeInsets.all(14), // reduced from 20
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -88,7 +85,7 @@ class _LastPatientContent extends ConsumerWidget {
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   color: AppColors.textPrimary,
-                  fontSize: 14,                         // was 16
+                  fontSize: 14, // was 16
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -103,31 +100,24 @@ class _LastPatientContent extends ConsumerWidget {
                   style: const TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
                     color: AppColors.textSecondary,
-                    fontSize: 11,                       // was 12
+                    fontSize: 11, // was 12
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),                   // reduced from 20
+          const SizedBox(height: 12), // reduced from 20
           // Patient Info Row
           Row(
             children: [
-              CircleAvatar(
-                radius: 24,                             // was 28
-                backgroundColor: AppColors.silver.withValues(alpha: 0.2),
-                child: Text(
-                  initial,
-                  style: const TextStyle(
-                    fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textPrimary,
-                    fontSize: 18,                       // was 22
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+              CruMonogram(
+                name: patient.fullName,
+                size: 48,
+                background: AppColors.silver.withValues(alpha: 0.2),
+                foreground: AppColors.textPrimary,
               ),
-              const SizedBox(width: 12),                // reduced from 16
+              const SizedBox(width: 12), // reduced from 16
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -137,19 +127,19 @@ class _LastPatientContent extends ConsumerWidget {
                       style: const TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textPrimary,
-                        fontSize: 15,                   // was 17
+                        fontSize: 15, // was 17
                         fontWeight: FontWeight.w600,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    const SizedBox(height: 2),          // reduced from 4
+                    const SizedBox(height: 2), // reduced from 4
                     Text(
                       _buildSubtitle(patient, sessionsCount),
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         color: AppColors.textSecondary.withValues(alpha: 0.9),
-                        fontSize: 12,                   // was 14
+                        fontSize: 12, // was 14
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -166,8 +156,9 @@ class _LastPatientContent extends ConsumerWidget {
 
   // Builds the subtitle line: diagnosis, gender, age, and session count.
   String _buildSubtitle(Patient patient, int sessionsCount) {
-    final String diagnosisPart =
-        patient.diagnosis.isNotEmpty ? '${patient.diagnosisDisplay}  •  ' : '';
+    final String diagnosisPart = patient.diagnosis.isNotEmpty
+        ? '${patient.diagnosisDisplay}  •  '
+        : '';
     final String genderAge = '${patient.gender}, ${patient.age}';
     final String sessionsPart =
         '  •  $sessionsCount ${sessionsCount == 1 ? 'session' : 'sessions'}';
@@ -194,13 +185,7 @@ class _CardShell extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: child,
     );

@@ -62,7 +62,8 @@ class CruButton extends StatelessWidget {
     final base = large ? CruType.row : CruType.text;
     final style = base.copyWith(
       color: fg,
-      fontWeight: isPrimary ||
+      fontWeight:
+          isPrimary ||
               kind == CruButtonKind.tinted ||
               kind == CruButtonKind.outline
           ? FontWeight.w600
@@ -72,8 +73,8 @@ class CruButton extends StatelessWidget {
     final padding = large
         ? EdgeInsets.symmetric(horizontal: isPrimary ? 20 : 18)
         : (icon != null && isPrimary
-            ? const EdgeInsets.fromLTRB(13, 0, 16, 0)
-            : const EdgeInsets.symmetric(horizontal: 14));
+              ? const EdgeInsets.fromLTRB(13, 0, 16, 0)
+              : const EdgeInsets.symmetric(horizontal: 14));
 
     return CruPressable(
       onTap: onPressed,
@@ -96,7 +97,7 @@ class CruButton extends StatelessWidget {
                 _ => BorderSide.none,
               },
             ),
-            shadows: kind == CruButtonKind.secondary ? c.cardShadow : null,
+            shadows: const [],
           ),
           child: Row(
             mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
@@ -190,7 +191,7 @@ class CruCapsuleButton extends StatelessWidget {
                 ? BorderSide(color: c.hairline)
                 : BorderSide.none,
           ),
-          shadows: kind == CruCapsuleKind.surface ? c.cardShadow : null,
+          shadows: const [],
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -252,7 +253,7 @@ class CruSquareButton extends StatelessWidget {
             secondary ? CruRadius.control : CruRadius.iconTile,
             side: secondary ? BorderSide(color: c.hairline) : BorderSide.none,
           ),
-          shadows: secondary ? c.cardShadow : null,
+          shadows: const [],
         ),
         child: CruIcon(
           icon,
@@ -339,7 +340,10 @@ class CruLink extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (leading != null) ...[
-            IconTheme(data: IconThemeData(color: fg), child: leading!),
+            IconTheme(
+              data: IconThemeData(color: fg),
+              child: leading!,
+            ),
             const SizedBox(width: CruSpace.s2),
           ],
           Text(
@@ -352,7 +356,10 @@ class CruLink extends StatelessWidget {
           ),
           if (trailing != null) ...[
             const SizedBox(width: CruSpace.s4),
-            IconTheme(data: IconThemeData(color: fg), child: trailing!),
+            IconTheme(
+              data: IconThemeData(color: fg),
+              child: trailing!,
+            ),
           ],
         ],
       ),

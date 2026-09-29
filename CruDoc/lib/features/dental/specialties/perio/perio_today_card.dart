@@ -37,7 +37,8 @@ class PerioTodayCard extends ConsumerWidget {
             detail: switch (maintenance) {
               null => '',
               0 => 'None in the next 14 days',
-              final n => '${DashFormat.plural(n, 'recall')} due in 14 days or overdue',
+              final n =>
+                '${DashFormat.plural(n, 'recall')} due in 14 days or overdue',
             },
             tone: (maintenance ?? 0) > 0 ? c.amberText : c.label2,
             onTap: () => onNavigate(DesktopTab.recalls),
@@ -49,7 +50,8 @@ class PerioTodayCard extends ConsumerWidget {
             detail: switch (active) {
               null => '',
               0 => 'No stage III/IV or 6 mm pockets',
-              final n => '${DashFormat.plural(n, 'patient')} · stage III/IV or pockets ≥ 6 mm',
+              final n =>
+                '${DashFormat.plural(n, 'patient')} · stage III/IV or pockets ≥ 6 mm',
             },
             tone: c.label2,
             onTap: () => onNavigate(DesktopTab.perioPatients),

@@ -48,7 +48,8 @@ String plusImageLabel(RadStudy s, String imageId) {
   for (var i = 0; i < s.images.length; i++) {
     final ref = s.images[i];
     if (ref.id != imageId) continue;
-    if (ref.seriesDescription.trim().isNotEmpty) return ref.seriesDescription.trim();
+    if (ref.seriesDescription.trim().isNotEmpty)
+      return ref.seriesDescription.trim();
     return s.images.length == 1 ? s.modality.label : 'Image ${i + 1}';
   }
   return 'Image';
@@ -56,10 +57,16 @@ String plusImageLabel(RadStudy s, String imageId) {
 
 /// Decodes one image of [s] off the UI thread. Throws [RadUnsupportedImage]
 /// with a message for the stage when it can't be shown.
-Future<RadPixels> plusLoadPixels(RadiologyController rad, RadStudy s, String imageId) async {
+Future<RadPixels> plusLoadPixels(
+  RadiologyController rad,
+  RadStudy s,
+  String imageId,
+) async {
   final ref = plusImageRef(s, imageId);
-  if (ref == null) throw RadUnsupportedImage('This image is no longer in the study');
-  if (ref.compressed) throw RadUnsupportedImage("This image format isn't supported yet");
+  if (ref == null)
+    throw RadUnsupportedImage('This image is no longer in the study');
+  if (ref.compressed)
+    throw RadUnsupportedImage("This image format isn't supported yet");
   return loadRadPixels(await rad.fileOf(s, ref.path), ref.kind);
 }
 
@@ -145,7 +152,13 @@ class PlusRaster {
 /// RGBA bytes to an image the canvas can draw.
 Future<ui.Image> plusDecode(Uint8List rgba, int width, int height) {
   final done = Completer<ui.Image>();
-  ui.decodeImageFromPixels(rgba, width, height, ui.PixelFormat.rgba8888, done.complete);
+  ui.decodeImageFromPixels(
+    rgba,
+    width,
+    height,
+    ui.PixelFormat.rgba8888,
+    done.complete,
+  );
   return done.future;
 }
 
@@ -203,7 +216,10 @@ class PlusView extends ChangeNotifier {
     if (!_fitted) {
       _fit();
     } else if (!old.isEmpty) {
-      offset += Offset((size.width - old.width) / 2, (size.height - old.height) / 2);
+      offset += Offset(
+        (size.width - old.width) / 2,
+        (size.height - old.height) / 2,
+      );
     }
   }
 
@@ -215,10 +231,12 @@ class PlusView extends ChangeNotifier {
   void _fit() {
     if (imageSize.isEmpty || viewport.isEmpty) return;
     const margin = CruSpace.s24;
-    scale = math.min(
-      (viewport.width - margin * 2) / imageSize.width,
-      (viewport.height - margin * 2) / imageSize.height,
-    ).clamp(0.01, 40.0);
+    scale = math
+        .min(
+          (viewport.width - margin * 2) / imageSize.width,
+          (viewport.height - margin * 2) / imageSize.height,
+        )
+        .clamp(0.01, 40.0);
     offset = Offset(
       (viewport.width - imageSize.width * scale) / 2,
       (viewport.height - imageSize.height * scale) / 2,
@@ -308,10 +326,13 @@ class _PlusCanvasState extends State<PlusCanvas> {
     widget.focusNode?.requestFocus();
     _last = e.localPosition;
     final b = e.buttons;
-    final space =
-        HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.space);
+    final space = HardwareKeyboard.instance.logicalKeysPressed.contains(
+      LogicalKeyboardKey.space,
+    );
     if (b & kSecondaryMouseButton != 0) {
-      _setDrag(widget.onWindowDrag == null ? _StageDrag.pan : _StageDrag.window);
+      _setDrag(
+        widget.onWindowDrag == null ? _StageDrag.pan : _StageDrag.window,
+      );
       return;
     }
     if (b & kMiddleMouseButton != 0 || space) {
@@ -319,7 +340,9 @@ class _PlusCanvasState extends State<PlusCanvas> {
       return;
     }
     if (b & kPrimaryMouseButton == 0) return;
-    final taken = widget.onPrimaryDown?.call(widget.view.toImage(e.localPosition)) ?? false;
+    final taken =
+        widget.onPrimaryDown?.call(widget.view.toImage(e.localPosition)) ??
+        false;
     if (taken) {
       _setDrag(_StageDrag.primary);
       return;
@@ -369,43 +392,48 @@ class _PlusCanvasState extends State<PlusCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, box) {
-      widget.view.setViewport(box.biggest);
-      return Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: _down,
-        onPointerMove: _move,
-        onPointerUp: _up,
-        onPointerCancel: _up,
-        onPointerSignal: _signal,
-        onPointerPanZoomStart: (_) => _pinch = 1,
-        onPointerPanZoomUpdate: (e) {
-          widget.view.pan(e.localPanDelta);
-          if (e.scale > 0 && e.scale != _pinch) {
-            widget.view.zoomAt(e.localPosition, e.scale / _pinch);
-            _pinch = e.scale;
-          }
-        },
-        child: MouseRegion(
-          cursor: _drag == _StageDrag.pan ? SystemMouseCursors.grabbing : widget.cursor,
-          onHover: (e) => widget.onHover?.call(widget.view.toImage(e.localPosition)),
-          onExit: (_) => widget.onHover?.call(null),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              const ColoredBox(color: PlusStage.background),
-              CustomPaint(
-                painter: _StagePainter(
-                  widget.painter,
-                  Listenable.merge([widget.view, ?widget.repaint]),
+    return LayoutBuilder(
+      builder: (context, box) {
+        widget.view.setViewport(box.biggest);
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _down,
+          onPointerMove: _move,
+          onPointerUp: _up,
+          onPointerCancel: _up,
+          onPointerSignal: _signal,
+          onPointerPanZoomStart: (_) => _pinch = 1,
+          onPointerPanZoomUpdate: (e) {
+            widget.view.pan(e.localPanDelta);
+            if (e.scale > 0 && e.scale != _pinch) {
+              widget.view.zoomAt(e.localPosition, e.scale / _pinch);
+              _pinch = e.scale;
+            }
+          },
+          child: MouseRegion(
+            cursor: _drag == _StageDrag.pan
+                ? SystemMouseCursors.grabbing
+                : widget.cursor,
+            onHover: (e) =>
+                widget.onHover?.call(widget.view.toImage(e.localPosition)),
+            onExit: (_) => widget.onHover?.call(null),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                const ColoredBox(color: PlusStage.background),
+                CustomPaint(
+                  painter: _StagePainter(
+                    widget.painter,
+                    Listenable.merge([widget.view, ?widget.repaint]),
+                  ),
                 ),
-              ),
-              ...widget.overlays,
-            ],
+                ...widget.overlays,
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }
 
@@ -434,14 +462,22 @@ void plusPaintImage(Canvas canvas, PlusView view, ui.Image image) {
     ..drawImage(
       image,
       Offset.zero,
-      Paint()..filterQuality = view.scale < 1 ? FilterQuality.medium : FilterQuality.low,
+      Paint()
+        ..filterQuality = view.scale < 1
+            ? FilterQuality.medium
+            : FilterQuality.low,
     )
     ..restore();
 }
 
 /// A millimetre scale bar in the bottom-right corner (1–100 mm, whatever
 /// is 60–160 screen pixels long). Nothing when the image isn't calibrated.
-void plusPaintScaleBar(Canvas canvas, Size size, PlusView view, double? mmPerPx) {
+void plusPaintScaleBar(
+  Canvas canvas,
+  Size size,
+  PlusView view,
+  double? mmPerPx,
+) {
   if (mmPerPx == null || mmPerPx <= 0) return;
   final pxPerMm = view.scale / mmPerPx;
   double mm = 1;
@@ -465,7 +501,10 @@ void plusPaintScaleBar(Canvas canvas, Size size, PlusView view, double? mmPerPx)
   final tp = TextPainter(
     text: TextSpan(
       text: '${mm.toStringAsFixed(0)} mm',
-      style: CruType.micro.tabular.copyWith(color: ink.label, shadows: PlusStage.textShadow),
+      style: CruType.micro.tabular.copyWith(
+        color: ink.label,
+        shadows: const [],
+      ),
     ),
     textDirection: TextDirection.ltr,
   )..layout();
@@ -475,9 +514,16 @@ void plusPaintScaleBar(Canvas canvas, Size size, PlusView view, double? mmPerPx)
 // ───────────────────────────── Saving pictures ─────────────────────────────
 
 /// Draws [paint] into a [width] × [height] PNG.
-Future<Uint8List> plusRenderPng(int width, int height, void Function(Canvas canvas) paint) async {
+Future<Uint8List> plusRenderPng(
+  int width,
+  int height,
+  void Function(Canvas canvas) paint,
+) async {
   final recorder = ui.PictureRecorder();
-  final canvas = Canvas(recorder, Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()));
+  final canvas = Canvas(
+    recorder,
+    Rect.fromLTWH(0, 0, width.toDouble(), height.toDouble()),
+  );
   paint(canvas);
   final picture = recorder.endRecording();
   final image = await picture.toImage(width, height);
@@ -529,7 +575,24 @@ Future<String?> plusSavePngAs(Uint8List png, String suggestedName) async {
 /// refuses in file names.
 String plusFileName(RadStudy s, String what) {
   final d = s.studyDate;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  final name = '${s.patientName} $what ${d.day} ${months[d.month - 1]} ${d.year}.png';
-  return name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '-').replaceAll(RegExp(r'\s+'), ' ').trim();
+  const months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  final name =
+      '${s.patientName} $what ${d.day} ${months[d.month - 1]} ${d.year}.png';
+  return name
+      .replaceAll(RegExp(r'[\\/:*?"<>|]'), '-')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }

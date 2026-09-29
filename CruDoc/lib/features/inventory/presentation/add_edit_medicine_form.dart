@@ -24,10 +24,8 @@ Future<void> showAddEditMedicineForm(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => AddEditMedicineForm(
-      medicine: medicine,
-      repository: repository,
-    ),
+    builder: (_) =>
+        AddEditMedicineForm(medicine: medicine, repository: repository),
   );
 }
 
@@ -191,9 +189,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
     });
 
     try {
-      final result = await OcrService.instance.scanMedicineReceipt(
-        image,
-      );
+      final result = await OcrService.instance.scanMedicineReceipt(image);
 
       if (!mounted) return;
 
@@ -220,8 +216,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
           _expiryDate = result.expiryDate;
         }
         if (result.quantity != null &&
-            (_stockController.text.isEmpty ||
-                _stockController.text == '0')) {
+            (_stockController.text.isEmpty || _stockController.text == '0')) {
           _stockController.text = '${result.quantity}';
         }
       });
@@ -281,7 +276,10 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
               borderRadius: BorderRadius.circular(16),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 28,
+                  horizontal: 16,
+                ),
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
@@ -333,10 +331,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                   child: AspectRatio(
                     aspectRatio: 16 / 9,
                     child: kIsWeb
-                        ? Image.network(
-                            _receiptImage!.path,
-                            fit: BoxFit.cover,
-                          )
+                        ? Image.network(_receiptImage!.path, fit: BoxFit.cover)
                         : Image.file(
                             File(_receiptImage!.path),
                             fit: BoxFit.cover,
@@ -356,8 +351,8 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                           color: _isScanning
                               ? AppColors.beige
                               : _ocrFieldsFilled > 0
-                                  ? const Color(0xFFE8F5E9)
-                                  : AppColors.beige,
+                              ? const Color(0xFFE8F5E9)
+                              : AppColors.beige,
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
@@ -389,9 +384,9 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                               _isScanning
                                   ? 'Scanning…'
                                   : _ocrFieldsFilled > 0
-                                      ? '$_ocrFieldsFilled field'
+                                  ? '$_ocrFieldsFilled field'
                                         '${_ocrFieldsFilled == 1 ? '' : 's'} filled'
-                                      : 'Tap scan to auto-fill',
+                                  : 'Tap scan to auto-fill',
                               style: AppColors.bodyMedium.copyWith(
                                 fontSize: 11,
                                 fontWeight: FontWeight.w600,
@@ -463,9 +458,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: Colors.grey.shade300,
-              ),
+              border: Border.all(color: Colors.grey.shade300),
             ),
             child: _imageUrl != null && _imageUrl!.isNotEmpty
                 ? Stack(

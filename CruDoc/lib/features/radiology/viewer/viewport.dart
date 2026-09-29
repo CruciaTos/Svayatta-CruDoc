@@ -148,7 +148,8 @@ class _RadViewportState extends State<RadViewport> {
     if (e.buttons & kMiddleMouseButton != 0) return _startDrag(prefs.middle);
     if (e.buttons & kPrimaryMouseButton == 0) return;
 
-    final isDouble = _lastClick != null &&
+    final isDouble =
+        _lastClick != null &&
         e.timeStamp - _lastClick! < const Duration(milliseconds: 350) &&
         (pos - _lastClickPos).distance < 6;
     _lastClick = isDouble ? null : e.timeStamp;
@@ -157,7 +158,8 @@ class _RadViewportState extends State<RadViewport> {
     final draft = pane.draft;
     if (isDouble) {
       if (draft != null &&
-          (draft.kind == RadAnnoKind.polygon || draft.kind == RadAnnoKind.polyline)) {
+          (draft.kind == RadAnnoKind.polygon ||
+              draft.kind == RadAnnoKind.polyline)) {
         _finishPath(draft);
         return;
       }
@@ -168,7 +170,9 @@ class _RadViewportState extends State<RadViewport> {
       }
     }
 
-    if (HardwareKeyboard.instance.logicalKeysPressed.contains(LogicalKeyboardKey.space)) {
+    if (HardwareKeyboard.instance.logicalKeysPressed.contains(
+      LogicalKeyboardKey.space,
+    )) {
       return _startDrag(RadDragAction.pan);
     }
 
@@ -303,7 +307,8 @@ class _RadViewportState extends State<RadViewport> {
           pane.touch();
         }
       case _Drag.freehand:
-        if (d != null && (pane.pointToScreen(d.points.last) - pos).distance >= 2) {
+        if (d != null &&
+            (pane.pointToScreen(d.points.last) - pos).distance >= 2) {
           pane.draft = d.copyWith(points: [...d.points, _imagePoint(pos)]);
           pane.touch();
         }
@@ -313,15 +318,19 @@ class _RadViewportState extends State<RadViewport> {
         final now = pane.toImage(pos);
         final RadAnnotation next;
         if (_editHandle >= 0) {
-          next = orig.copyWith(points: [
-            for (var i = 0; i < orig.points.length; i++)
-              i == _editHandle ? RadPoint(now.dx, now.dy) : orig.points[i],
-          ]);
+          next = orig.copyWith(
+            points: [
+              for (var i = 0; i < orig.points.length; i++)
+                i == _editHandle ? RadPoint(now.dx, now.dy) : orig.points[i],
+            ],
+          );
         } else {
           final dd = now - _editStart;
-          next = orig.copyWith(points: [
-            for (final p in orig.points) RadPoint(p.x + dd.dx, p.y + dd.dy),
-          ]);
+          next = orig.copyWith(
+            points: [
+              for (final p in orig.points) RadPoint(p.x + dd.dx, p.y + dd.dy),
+            ],
+          );
         }
         widget.host.updateAnnotation(pane, next);
     }
@@ -376,7 +385,9 @@ class _RadViewportState extends State<RadViewport> {
       if (!pane.hasImage) return;
       var action = widget.host.prefs.wheel;
       if (HardwareKeyboard.instance.isControlPressed) {
-        action = action == RadWheelAction.zoom ? RadWheelAction.scroll : RadWheelAction.zoom;
+        action = action == RadWheelAction.zoom
+            ? RadWheelAction.scroll
+            : RadWheelAction.zoom;
       }
       if (action == RadWheelAction.zoom) {
         pane.zoomAt(s.localPosition, math.exp(-s.scrollDelta.dy / 300));
@@ -399,12 +410,15 @@ class _RadViewportState extends State<RadViewport> {
       _Drag.window => SystemMouseCursors.allScroll,
       _Drag.edit => SystemMouseCursors.move,
       _ => switch (widget.tool) {
-          RadTool.select => SystemMouseCursors.basic,
-          RadTool.pan => SystemMouseCursors.grab,
-          RadTool.zoom => SystemMouseCursors.zoomIn,
-          RadTool.window => SystemMouseCursors.allScroll,
-          _ => widget.canAnnotate ? SystemMouseCursors.precise : SystemMouseCursors.grab,
-        },
+        RadTool.select => SystemMouseCursors.basic,
+        RadTool.pan => SystemMouseCursors.grab,
+        RadTool.zoom => SystemMouseCursors.zoomIn,
+        RadTool.window => SystemMouseCursors.allScroll,
+        _ =>
+          widget.canAnnotate
+              ? SystemMouseCursors.precise
+              : SystemMouseCursors.grab,
+      },
     };
   }
 
@@ -462,12 +476,15 @@ class _RadViewportState extends State<RadViewport> {
                     ),
                   ),
                   _Corners(pane: pane, title: widget.title, host: widget.host),
-                  if (candidates.isNotEmpty || (widget.active && widget.showActive))
+                  if (candidates.isNotEmpty ||
+                      (widget.active && widget.showActive))
                     IgnorePointer(
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           border: Border.all(
-                            color: candidates.isNotEmpty ? RadInk.overlay : c.accent,
+                            color: candidates.isNotEmpty
+                                ? RadInk.overlay
+                                : c.accent,
                             width: candidates.isNotEmpty ? 2 : 1.5,
                           ),
                         ),
@@ -497,8 +514,14 @@ class _ImagePainter extends CustomPainter {
   void _drawImage(Canvas canvas) {
     final img = pane.image ?? pane.placeholder;
     if (img == null) return;
-    final w = (pane.px?.width ?? (pane.nominalWidth > 0 ? pane.nominalWidth : img.width)).toDouble();
-    final h = (pane.px?.height ?? (pane.nominalHeight > 0 ? pane.nominalHeight : img.height)).toDouble();
+    final w =
+        (pane.px?.width ??
+                (pane.nominalWidth > 0 ? pane.nominalWidth : img.width))
+            .toDouble();
+    final h =
+        (pane.px?.height ??
+                (pane.nominalHeight > 0 ? pane.nominalHeight : img.height))
+            .toDouble();
     if (w <= 0 || h <= 0) return;
     canvas.save();
     pane.applyTransform(canvas);
@@ -507,7 +530,9 @@ class _ImagePainter extends CustomPainter {
       Rect.fromLTWH(0, 0, img.width.toDouble(), img.height.toDouble()),
       Rect.fromLTWH(0, 0, w, h),
       Paint()
-        ..filterQuality = pane.zoom >= 2.5 ? FilterQuality.none : FilterQuality.medium,
+        ..filterQuality = pane.zoom >= 2.5
+            ? FilterQuality.none
+            : FilterQuality.medium,
     );
     canvas.restore();
   }
@@ -543,7 +568,8 @@ class _ImagePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_ImagePainter old) => old.pane != pane || old.loupe != loupe;
+  bool shouldRepaint(_ImagePainter old) =>
+      old.pane != pane || old.loupe != loupe;
 }
 
 class _OverlayPainter extends CustomPainter {
@@ -581,7 +607,8 @@ class _OverlayPainter extends CustomPainter {
     painter.paintAll(canvas, annotations, selectedId: selectedId);
     final d = pane.draft;
     if (d != null) {
-      final rubber = d.kind == RadAnnoKind.angle ||
+      final rubber =
+          d.kind == RadAnnoKind.angle ||
           d.kind == RadAnnoKind.polygon ||
           d.kind == RadAnnoKind.polyline;
       painter.paint(
@@ -596,7 +623,8 @@ class _OverlayPainter extends CustomPainter {
       _paintAiFindings(canvas, size);
     }
     final mm = mmPerPx;
-    if (mm != null && pane.zoom > 0) radPaintScaleBar(canvas, size, mm / pane.zoom);
+    if (mm != null && pane.zoom > 0)
+      radPaintScaleBar(canvas, size, mm / pane.zoom);
     canvas.restore();
   }
 
@@ -693,7 +721,7 @@ class _Corners extends StatelessWidget {
   Widget build(BuildContext context) {
     final style = CruType.micro.tabular.copyWith(
       color: RadInk.overlay,
-      shadows: const [Shadow(color: RadInk.labelFill, blurRadius: 3)],
+      shadows: const [],
     );
     return ListenableBuilder(
       listenable: pane,
@@ -701,12 +729,18 @@ class _Corners extends StatelessWidget {
         final px = pane.px;
         if (pane.imageId.isEmpty) {
           return Center(
-            child: Text('Drag an image here', style: CruType.subhead.tint(RadInk.overlayQuiet)),
+            child: Text(
+              'Drag an image here',
+              style: CruType.subhead.tint(RadInk.overlayQuiet),
+            ),
           );
         }
         if (pane.loading && px == null && pane.placeholder == null) {
           return Center(
-            child: Text('Opening image…', style: CruType.subhead.tint(RadInk.overlayQuiet)),
+            child: Text(
+              'Opening image…',
+              style: CruType.subhead.tint(RadInk.overlayQuiet),
+            ),
           );
         }
         final error = pane.error;
@@ -718,18 +752,26 @@ class _Corners extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const CruIcon(RadIcons.unlink, size: 22, color: RadInk.overlayQuiet),
+                  const CruIcon(
+                    RadIcons.unlink,
+                    size: 22,
+                    color: RadInk.overlayQuiet,
+                  ),
                   const SizedBox(height: CruSpace.s10),
                   Text(
-                    unsupported ? "This image format isn't supported yet" : error,
+                    unsupported
+                        ? "This image format isn't supported yet"
+                        : error,
                     textAlign: TextAlign.center,
                     style: CruType.callout.tint(RadInk.overlay),
                   ),
                   if (unsupported) ...[
                     const SizedBox(height: CruSpace.s4),
-                    Text(error,
-                        textAlign: TextAlign.center,
-                        style: CruType.caption.tint(RadInk.overlayQuiet)),
+                    Text(
+                      error,
+                      textAlign: TextAlign.center,
+                      style: CruType.caption.tint(RadInk.overlayQuiet),
+                    ),
                   ],
                 ],
               ),
@@ -743,15 +785,20 @@ class _Corners extends StatelessWidget {
         final valueText = probe == null
             ? null
             : rgb != null
-                ? 'x ${probe.x} · y ${probe.y} · RGB ${rgb[0]} ${rgb[1]} ${rgb[2]}'
-                : 'x ${probe.x} · y ${probe.y} · ${_num(probe.value, range)}';
+            ? 'x ${probe.x} · y ${probe.y} · RGB ${rgb[0]} ${rgb[1]} ${rgb[2]}'
+            : 'x ${probe.x} · y ${probe.y} · ${_num(probe.value, range)}';
         return Stack(
           children: [
             Positioned(
               left: CruSpace.s12,
               top: CruSpace.s10,
               right: 140,
-              child: Text(title, style: style, maxLines: 1, overflow: TextOverflow.ellipsis),
+              child: Text(
+                title,
+                style: style,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             Positioned(
               right: CruSpace.s12,
@@ -778,7 +825,9 @@ class _Corners extends StatelessWidget {
                 left: 0,
                 right: 0,
                 bottom: CruSpace.s10,
-                child: Center(child: _FrameSlider(pane: pane, host: host)),
+                child: Center(
+                  child: _FrameSlider(pane: pane, host: host),
+                ),
               ),
           ],
         );
@@ -802,13 +851,23 @@ class _FrameSlider extends StatelessWidget {
       width: 320,
       height: CruSize.chip,
       padding: const EdgeInsets.only(left: CruSpace.s12),
-      decoration: const ShapeDecoration(color: RadInk.overlayFill, shape: StadiumBorder()),
+      decoration: const ShapeDecoration(
+        color: RadInk.overlayFill,
+        shape: StadiumBorder(),
+      ),
       child: Row(
         children: [
-          const CruIcon(RadViewerIcons.frames, size: 14, strokeWidth: 2, color: RadInk.overlay),
+          const CruIcon(
+            RadViewerIcons.frames,
+            size: 14,
+            strokeWidth: 2,
+            color: RadInk.overlay,
+          ),
           const SizedBox(width: CruSpace.s6),
-          Text('${pane.stack != null ? 'Slice' : 'Frame'} ${i + 1} / $n',
-              style: CruType.micro.tabular.tint(RadInk.overlay)),
+          Text(
+            '${pane.stack != null ? 'Slice' : 'Frame'} ${i + 1} / $n',
+            style: CruType.micro.tabular.tint(RadInk.overlay),
+          ),
           Expanded(
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(

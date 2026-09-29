@@ -46,6 +46,8 @@ class WeekBlock extends StatelessWidget {
           ),
           child: Row(
             children: [
+              CruMonogram(name: item.name, size: 18),
+              const SizedBox(width: CruSpace.s4),
               Flexible(
                 child: Text(
                   item.shortName,

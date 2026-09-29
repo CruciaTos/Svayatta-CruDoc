@@ -30,7 +30,8 @@ Map<String, List<String>> radStacks(RadStudy s) {
   for (final e in bySeries.entries) {
     final list = e.value;
     if (list.length < 2 || list.any((i) => i.frames > 1)) continue;
-    final sliced = s.modality.isVolume ||
+    final sliced =
+        s.modality.isVolume ||
         list.every((i) => i.position != null) ||
         list.every((i) => i.dicomModality == 'CT');
     if (!sliced) continue;
@@ -62,7 +63,8 @@ int _sliceOrder(RadImageRef a, RadImageRef b) {
 }
 
 /// Loads one frame of one image of a study.
-typedef RadPixelLoader = Future<RadPixels> Function(String studyId, String imageId, int frame);
+typedef RadPixelLoader =
+    Future<RadPixels> Function(String studyId, String imageId, int frame);
 
 /// Keeps the last few decoded images so switching panes, frames and
 /// layouts doesn't decode the same file again.
@@ -83,9 +85,14 @@ class RadPixelCache {
     final f = _load(studyId, imageId, frame);
     _entries[key] = f;
     // A failed decode isn't kept: the next try reads the file again.
-    unawaited(f.then<void>((_) {}, onError: (Object e) {
-      if (identical(_entries[key], f)) _entries.remove(key);
-    }));
+    unawaited(
+      f.then<void>(
+        (_) {},
+        onError: (Object e) {
+          if (identical(_entries[key], f)) _entries.remove(key);
+        },
+      ),
+    );
     while (_entries.length > capacity) {
       _entries.remove(_entries.keys.first);
     }
@@ -173,12 +180,12 @@ class RadPane extends ChangeNotifier {
   }
 
   RadDisplay get display => RadDisplay(
-        center: center,
-        width: width,
-        invert: invert,
-        gamma: filters.gamma,
-        colormap: isColor ? 'gray' : filters.colormap,
-      );
+    center: center,
+    width: width,
+    invert: invert,
+    gamma: filters.gamma,
+    colormap: isColor ? 'gray' : filters.colormap,
+  );
 
   void touch() {
     if (!_disposed) notifyListeners();
@@ -320,7 +327,8 @@ class RadPane extends ChangeNotifier {
   }
 
   Future<void> setFilters(RadFilterSettings f) async {
-    final valuesChanged = f.sharpen != filters.sharpen || f.clahe != filters.clahe;
+    final valuesChanged =
+        f.sharpen != filters.sharpen || f.clahe != filters.clahe;
     filters = f;
     if (px == null) {
       touch();
@@ -472,8 +480,13 @@ class RadPane extends ChangeNotifier {
 
   /// Applies the image → pane transform to [canvas].
   void applyTransform(Canvas canvas) {
-    final w = (px?.width ?? (nominalWidth > 0 ? nominalWidth : placeholder?.width))?.toDouble();
-    final h = (px?.height ?? (nominalHeight > 0 ? nominalHeight : placeholder?.height))?.toDouble();
+    final w =
+        (px?.width ?? (nominalWidth > 0 ? nominalWidth : placeholder?.width))
+            ?.toDouble();
+    final h =
+        (px?.height ??
+                (nominalHeight > 0 ? nominalHeight : placeholder?.height))
+            ?.toDouble();
     if (w == null || h == null || w <= 0 || h <= 0) return;
     final o = _origin;
     canvas
@@ -544,7 +557,13 @@ class RadPane extends ChangeNotifier {
       x: x,
       y: y,
       value: p.valueAt(x, y),
-      rgb: rgba == null ? null : Uint8List.sublistView(rgba, (y * p.width + x) * 4, (y * p.width + x) * 4 + 3),
+      rgb: rgba == null
+          ? null
+          : Uint8List.sublistView(
+              rgba,
+              (y * p.width + x) * 4,
+              (y * p.width + x) * 4 + 3,
+            ),
     );
   }
 

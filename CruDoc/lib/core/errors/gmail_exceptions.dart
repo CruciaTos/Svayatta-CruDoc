@@ -22,7 +22,8 @@ class GmailAuthCancelledException extends GmailException {
 /// from their Google Account settings, or the refresh token is no longer valid.
 class GmailAuthRevokedException extends GmailException {
   const GmailAuthRevokedException([
-    super.message = 'Gmail access has been revoked. Please reconnect your Gmail account.',
+    super.message =
+        'Gmail access has been revoked. Please reconnect your Gmail account.',
   ]);
 }
 
@@ -55,6 +56,7 @@ class GmailSendException extends GmailException {
 /// Thrown when network connectivity fails during an OAuth or send request.
 class GmailNetworkException extends GmailException {
   const GmailNetworkException([
-    super.message = 'Network error while communicating with Gmail. Check your internet connection.',
+    super.message =
+        'Network error while communicating with Gmail. Check your internet connection.',
   ]);
 }

@@ -40,8 +40,9 @@ class _VisitsCardState extends State<VisitsCard> {
     final upcoming = widget.summary.upcoming(widget.now);
     final past = widget.summary.past(widget.now);
     final more = past.length > kVisitsCardPastLimit;
-    final shownPast =
-        _all || !more ? past : past.take(kVisitsCardPastLimit).toList();
+    final shownPast = _all || !more
+        ? past
+        : past.take(kVisitsCardPastLimit).toList();
 
     return CruCard(
       semanticLabel: 'Visits',
@@ -75,7 +76,12 @@ class _VisitsCardState extends State<VisitsCard> {
           ],
           if (shownPast.isNotEmpty) ...[
             Padding(
-              padding: EdgeInsets.fromLTRB(12, upcoming.isEmpty ? 12 : 14, 12, 6),
+              padding: EdgeInsets.fromLTRB(
+                12,
+                upcoming.isEmpty ? 12 : 14,
+                12,
+                6,
+              ),
               child: const DetailsSectionLabel('Past'),
             ),
             ..._rows(shownPast, upcomingSection: false),
@@ -86,20 +92,20 @@ class _VisitsCardState extends State<VisitsCard> {
   }
 
   List<Widget> _rows(List<Visit> visits, {required bool upcomingSection}) => [
-        for (var i = 0; i < visits.length; i++) ...[
-          if (i > 0)
-            const CruSeparator(
-              indent: CruSize.visitTextInset,
-              endIndent: CruSpace.s12,
-            ),
-          VisitRow(
-            visit: visits[i],
-            now: widget.now,
-            upcoming: upcomingSection,
-            onUpdate: () => widget.onUpdate(visits[i]),
-          ),
-        ],
-      ];
+    for (var i = 0; i < visits.length; i++) ...[
+      if (i > 0)
+        const CruSeparator(
+          indent: CruSize.visitTextInset,
+          endIndent: CruSpace.s12,
+        ),
+      VisitRow(
+        visit: visits[i],
+        now: widget.now,
+        upcoming: upcomingSection,
+        onUpdate: () => widget.onUpdate(visits[i]),
+      ),
+    ],
+  ];
 }
 
 /// Date tile, title, "Wed · 10:00 AM" and the status on the right.
@@ -128,26 +134,35 @@ class VisitRow extends StatelessWidget {
         : (visit.visitType == VisitType.home ? 'Home visit' : 'Clinic visit');
     final day = PatientFormat.day(t, now);
     final relative = day == 'Today' || day == 'Tomorrow' || day == 'Yesterday';
-    var sub = '${relative ? day : PatientFormat.weekdayShort(t)} · '
+    var sub =
+        '${relative ? day : PatientFormat.weekdayShort(t)} · '
         '${DashFormat.time(t)}';
     final notRecorded = status == VisitRowStatus.notRecorded;
     if (notRecorded) sub = '$sub · not recorded';
 
     final Widget trailing = switch (status) {
-      VisitRowStatus.booked =>
-        Text('Booked', style: CruType.subhead.w500.tint(c.label3)),
-      VisitRowStatus.done =>
-        Text('Done', style: CruType.subhead.w600.tint(c.greenText)),
+      VisitRowStatus.booked => Text(
+        'Booked',
+        style: CruType.subhead.w500.tint(c.label3),
+      ),
+      VisitRowStatus.done => Text(
+        'Done',
+        style: CruType.subhead.w600.tint(c.greenText),
+      ),
       VisitRowStatus.notRecorded => CruCapsuleButton(
-          label: 'Update',
-          height: CruSize.rowCapsule,
-          semanticLabel: 'Update the visit on ${PatientFormat.weekdayDate(t)}',
-          onPressed: onUpdate,
-        ),
-      VisitRowStatus.cancelled =>
-        Text('Cancelled', style: CruType.subhead.w500.tint(c.label3)),
-      VisitRowStatus.missed =>
-        Text('Missed', style: CruType.subhead.w500.tint(c.label2)),
+        label: 'Update',
+        height: CruSize.rowCapsule,
+        semanticLabel: 'Update the visit on ${PatientFormat.weekdayDate(t)}',
+        onPressed: onUpdate,
+      ),
+      VisitRowStatus.cancelled => Text(
+        'Cancelled',
+        style: CruType.subhead.w500.tint(c.label3),
+      ),
+      VisitRowStatus.missed => Text(
+        'Missed',
+        style: CruType.subhead.w500.tint(c.label2),
+      ),
     };
 
     return Padding(
@@ -176,8 +191,9 @@ class VisitRow extends StatelessWidget {
                 ),
                 CruTimeText(
                   sub,
-                  style: CruType.subhead.tabular
-                      .tint(notRecorded ? c.amberText : c.label2),
+                  style: CruType.subhead.tabular.tint(
+                    notRecorded ? c.amberText : c.label2,
+                  ),
                   timeColor: c.accentText,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -188,9 +204,10 @@ class VisitRow extends StatelessWidget {
                   Consumer(
                     builder: (context, ref, _) {
                       final names = ref.watch(
-                        visitGroupNamesProvider(
-                          (groupId: visit.groupId!, visitId: visit.id),
-                        ),
+                        visitGroupNamesProvider((
+                          groupId: visit.groupId!,
+                          visitId: visit.id,
+                        )),
                       );
                       if (names.isEmpty) return const SizedBox.shrink();
                       return Row(

@@ -12,9 +12,9 @@ class InvoiceRepository {
     InvoiceLocalService? localService,
     FirebaseFirestore? firestore,
     FirebaseAuth? auth,
-  })  : _localService = localService ?? InvoiceLocalService(),
-        _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  }) : _localService = localService ?? InvoiceLocalService(),
+       _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance;
 
   final InvoiceLocalService _localService;
   final FirebaseFirestore _firestore;
@@ -30,13 +30,17 @@ class InvoiceRepository {
   String sanitizeInput(String input) {
     return input
         .replaceAll(RegExp(r'[<>]'), '') // remove dangerous HTML tags
-        .replaceAll(RegExp(r'^[=+@-]'), '\'') // escape formula injection characters
+        .replaceAll(
+          RegExp(r'^[=+@-]'),
+          '\'',
+        ) // escape formula injection characters
         .trim();
   }
 
   Map<String, dynamic> _encryptMap(Map<String, dynamic> map) {
     final out = Map<String, dynamic>.from(map);
-    if (out['patientName'] is String && (out['patientName'] as String).isNotEmpty) {
+    if (out['patientName'] is String &&
+        (out['patientName'] as String).isNotEmpty) {
       out['patientName'] = FieldCipher.encrypt(out['patientName'] as String);
     }
     if (out['service'] is String && (out['service'] as String).isNotEmpty) {
@@ -53,7 +57,8 @@ class InvoiceRepository {
 
   Map<String, dynamic> _decryptMap(Map<String, dynamic> map) {
     final out = Map<String, dynamic>.from(map);
-    if (out['patientName'] is String && (out['patientName'] as String).isNotEmpty) {
+    if (out['patientName'] is String &&
+        (out['patientName'] as String).isNotEmpty) {
       out['patientName'] = FieldCipher.decrypt(out['patientName'] as String);
     }
     if (out['service'] is String && (out['service'] as String).isNotEmpty) {
@@ -83,30 +88,31 @@ class InvoiceRepository {
         .where('doctorId', isEqualTo: doctorId)
         .snapshots()
         .map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) {
-            final data = Map<String, dynamic>.from(doc.data());
-            data['id'] = doc.id;
+          final list = snapshot.docs
+              .map((doc) {
+                final data = Map<String, dynamic>.from(doc.data());
+                data['id'] = doc.id;
 
-            // Multi-tenant protection: verify doctorId matching
-            final docDoctorId = (data['doctorId'] ?? '').toString();
-            if (docDoctorId.isNotEmpty &&
-                doctorId != 'anonymous' &&
-                docDoctorId != doctorId) {
-              return null;
-            }
+                // Multi-tenant protection: verify doctorId matching
+                final docDoctorId = (data['doctorId'] ?? '').toString();
+                if (docDoctorId.isNotEmpty &&
+                    doctorId != 'anonymous' &&
+                    docDoctorId != doctorId) {
+                  return null;
+                }
 
-            final decrypted = _decryptMap(data);
-            return InvoiceModel.fromMap(decrypted);
-          })
-          .whereType<InvoiceModel>()
-          .toList();
+                final decrypted = _decryptMap(data);
+                return InvoiceModel.fromMap(decrypted);
+              })
+              .whereType<InvoiceModel>()
+              .toList();
 
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    }).handleError((error) {
-      return <InvoiceModel>[];
-    });
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        })
+        .handleError((error) {
+          return <InvoiceModel>[];
+        });
   }
 
   /// Creates a new invoice with sanitized fields and encrypted values.
@@ -129,7 +135,8 @@ class InvoiceRepository {
     final sanitizedNotes = sanitizeInput(notes);
 
     final now = DateTime.now();
-    final id = 'INV-${now.year}-${now.millisecondsSinceEpoch.toString().substring(7)}';
+    final id =
+        'INV-${now.year}-${now.millisecondsSinceEpoch.toString().substring(7)}';
 
     final invoice = InvoiceModel(
       id: id,

@@ -54,13 +54,16 @@ class CampaignRecipientLog {
   }
 
   factory CampaignRecipientLog.fromFirestore(
-      DocumentSnapshot<Map<String, dynamic>> doc) {
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? {};
     return CampaignRecipientLog.fromMap(data, id: doc.id);
   }
 
-  factory CampaignRecipientLog.fromMap(Map<String, dynamic> map,
-      {required String id}) {
+  factory CampaignRecipientLog.fromMap(
+    Map<String, dynamic> map, {
+    required String id,
+  }) {
     DateTime parseDate(dynamic val, DateTime fallback) {
       if (val is Timestamp) return val.toDate();
       if (val is String) {
@@ -79,9 +82,12 @@ class CampaignRecipientLog {
       patientName: map['patientName'] as String? ?? '',
       email: map['email'] as String? ?? '',
       phone: map['phone'] as String? ?? '',
-      emailStatus: RecipientDeliveryStatus.fromString(map['emailStatus'] as String?),
-      whatsAppStatus:
-          RecipientDeliveryStatus.fromString(map['whatsAppStatus'] as String?),
+      emailStatus: RecipientDeliveryStatus.fromString(
+        map['emailStatus'] as String?,
+      ),
+      whatsAppStatus: RecipientDeliveryStatus.fromString(
+        map['whatsAppStatus'] as String?,
+      ),
       emailMessageId: map['emailMessageId'] as String?,
       whatsAppMessageId: map['whatsAppMessageId'] as String?,
       emailError: map['emailError'] as String?,

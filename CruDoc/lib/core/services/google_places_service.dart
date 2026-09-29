@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:doctor_management_app/core/services/maps_key.dart';
 
 import 'places_service_stub.dart'
-    if (dart.library.js) 'places_service_web.dart' as web_impl;
+    if (dart.library.js) 'places_service_web.dart'
+    as web_impl;
 
 /// A single place suggestion returned by the Google Places Autocomplete API.
 class PlacePrediction {
@@ -38,7 +39,7 @@ class PlacePrediction {
   factory PlacePrediction.fromJson(Map<String, dynamic> json) {
     final structured =
         json['structured_formatting'] as Map<String, dynamic>? ??
-            const <String, dynamic>{};
+        const <String, dynamic>{};
     return PlacePrediction(
       description: json['description'] as String? ?? '',
       placeId: json['place_id'] as String? ?? '',
@@ -100,10 +101,7 @@ class GooglePlacesService {
     try {
       final response = await http.post(
         Uri.parse('https://places.googleapis.com/v1/places:autocomplete'),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': apiKey,
-        },
+        headers: {'Content-Type': 'application/json', 'X-Goog-Api-Key': apiKey},
         body: jsonEncode({
           'input': trimmed,
           'includedRegionCodes': [countryCode.toUpperCase()],
@@ -118,10 +116,7 @@ class GooglePlacesService {
               },
             },
             // Makes Google return each place's distance from the clinic.
-            'origin': {
-              'latitude': near.latitude,
-              'longitude': near.longitude,
-            },
+            'origin': {'latitude': near.latitude, 'longitude': near.longitude},
           },
         }),
       );
@@ -142,21 +137,24 @@ class GooglePlacesService {
         if (prediction == null) continue;
         final structured =
             prediction['structuredFormat'] as Map<String, dynamic>?;
-        list.add(PlacePrediction(
-          description:
-              (prediction['text'] as Map<String, dynamic>?)?['text']
-                      as String? ??
-                  '',
-          placeId: prediction['placeId'] as String? ?? '',
-          mainText: (structured?['mainText'] as Map<String, dynamic>?)?['text']
-                  as String? ??
-              '',
-          secondaryText:
-              (structured?['secondaryText'] as Map<String, dynamic>?)?['text']
-                      as String? ??
-                  '',
-          distanceMeters: (prediction['distanceMeters'] as num?)?.toInt(),
-        ));
+        list.add(
+          PlacePrediction(
+            description:
+                (prediction['text'] as Map<String, dynamic>?)?['text']
+                    as String? ??
+                '',
+            placeId: prediction['placeId'] as String? ?? '',
+            mainText:
+                (structured?['mainText'] as Map<String, dynamic>?)?['text']
+                    as String? ??
+                '',
+            secondaryText:
+                (structured?['secondaryText'] as Map<String, dynamic>?)?['text']
+                    as String? ??
+                '',
+            distanceMeters: (prediction['distanceMeters'] as num?)?.toInt(),
+          ),
+        );
       }
 
       // Closest first; Google's order breaks ties (and places without a
@@ -203,8 +201,10 @@ class GooglePlacesService {
         final body = jsonDecode(response.body) as Map<String, dynamic>;
         final results = body['results'] as List<dynamic>? ?? const [];
         if (results.isNotEmpty) {
-          final location = ((results.first as Map<String, dynamic>)['geometry']
-              as Map<String, dynamic>?)?['location'] as Map<String, dynamic>?;
+          final location =
+              ((results.first as Map<String, dynamic>)['geometry']
+                      as Map<String, dynamic>?)?['location']
+                  as Map<String, dynamic>?;
           final lat = (location?['lat'] as num?)?.toDouble();
           final lng = (location?['lng'] as num?)?.toDouble();
           if (lat != null && lng != null) {

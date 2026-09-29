@@ -12,25 +12,25 @@ import 'package:doctor_management_app/features/inventory/domain/inventory_models
 /// the items change or a new movement is recorded. Tests override it.
 final stockHistoryProvider =
     FutureProvider<Map<String, List<StockTransactionModel>>>((ref) async {
-  // Watched before the first await so both keep this provider fresh.
-  final medicinesFuture = ref.watch(medicinesStreamProvider.future);
-  ref.watch(recentStockTransactionsProvider);
-  final repository = ref.watch(inventoryRepositoryProvider);
+      // Watched before the first await so both keep this provider fresh.
+      final medicinesFuture = ref.watch(medicinesStreamProvider.future);
+      ref.watch(recentStockTransactionsProvider);
+      final repository = ref.watch(inventoryRepositoryProvider);
 
-  final medicines = await medicinesFuture;
-  final entries = await Future.wait([
-    for (final m in medicines)
-      if (m.isActive)
-        repository
-            .getTransactionsForMedicine(m.id)
-            .then((t) => MapEntry(m.id, t))
-            // One unreadable history must not blank the whole screen.
-            .catchError(
-              (Object _) => MapEntry(m.id, const <StockTransactionModel>[]),
-            ),
-  ]);
-  return Map.fromEntries(entries);
-});
+      final medicines = await medicinesFuture;
+      final entries = await Future.wait([
+        for (final m in medicines)
+          if (m.isActive)
+            repository
+                .getTransactionsForMedicine(m.id)
+                .then((t) => MapEntry(m.id, t))
+                // One unreadable history must not blank the whole screen.
+                .catchError(
+                  (Object _) => MapEntry(m.id, const <StockTransactionModel>[]),
+                ),
+      ]);
+      return Map.fromEntries(entries);
+    });
 
 final inventoryViewPreferencesProvider = Provider<InventoryViewPreferences>(
   (ref) => InventoryViewPreferences(),
@@ -76,17 +76,16 @@ class InventoryState {
     bool? panelOpen,
     InventoryViewMode? viewMode,
     int? limit,
-  }) =>
-      InventoryState(
-        tab: tab ?? this.tab,
-        filter: filter ?? this.filter,
-        sort: sort ?? this.sort,
-        query: query ?? this.query,
-        selectedId: clearSelected ? null : (selectedId ?? this.selectedId),
-        panelOpen: panelOpen ?? this.panelOpen,
-        viewMode: viewMode ?? this.viewMode,
-        limit: limit ?? this.limit,
-      );
+  }) => InventoryState(
+    tab: tab ?? this.tab,
+    filter: filter ?? this.filter,
+    sort: sort ?? this.sort,
+    query: query ?? this.query,
+    selectedId: clearSelected ? null : (selectedId ?? this.selectedId),
+    panelOpen: panelOpen ?? this.panelOpen,
+    viewMode: viewMode ?? this.viewMode,
+    limit: limit ?? this.limit,
+  );
 }
 
 class InventoryController extends Notifier<InventoryState> {
@@ -99,8 +98,9 @@ class InventoryController extends Notifier<InventoryState> {
   InventoryState build() {
     if (initial != null) return initial!;
     Future(() async {
-      final stored =
-          await ref.read(inventoryViewPreferencesProvider).getViewMode();
+      final stored = await ref
+          .read(inventoryViewPreferencesProvider)
+          .getViewMode();
       if (ref.mounted && stored != state.viewMode) {
         state = state.copyWith(viewMode: stored);
       }
@@ -111,16 +111,14 @@ class InventoryController extends Notifier<InventoryState> {
   void setTab(InventoryTab tab) => state = state.copyWith(tab: tab);
 
   void setFilter(InventoryFilter filter) => state = state.copyWith(
-        filter: filter,
-        limit: InventoryBuilder.pageSize,
-        clearSelected: true,
-        panelOpen: false,
-      );
+    filter: filter,
+    limit: InventoryBuilder.pageSize,
+    clearSelected: true,
+    panelOpen: false,
+  );
 
-  void setSort(InventorySort sort) => state = state.copyWith(
-        sort: sort,
-        limit: InventoryBuilder.pageSize,
-      );
+  void setSort(InventorySort sort) =>
+      state = state.copyWith(sort: sort, limit: InventoryBuilder.pageSize);
 
   void setQuery(String query) {
     if (query == state.query) return;
@@ -149,8 +147,8 @@ class InventoryController extends Notifier<InventoryState> {
 
 final inventoryControllerProvider =
     NotifierProvider<InventoryController, InventoryState>(
-  InventoryController.new,
-);
+      InventoryController.new,
+    );
 
 /// Everything the Items section shows. Loading until the items and their
 /// movements arrive; an unreadable movement history counts as none.

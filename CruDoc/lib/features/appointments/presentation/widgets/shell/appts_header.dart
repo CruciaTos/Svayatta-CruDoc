@@ -77,6 +77,10 @@ class ScheduleHeaderFrame extends StatelessWidget {
   Widget _row(BuildContext context, {required bool switcher}) {
     return Row(
       children: [
+        Expanded(
+          child: Align(alignment: Alignment.centerLeft, child: title),
+        ),
+        const SizedBox(width: CruSpace.s16),
         CruButton(
           label: 'Today',
           kind: CruButtonKind.secondary,
@@ -96,9 +100,7 @@ class ScheduleHeaderFrame extends StatelessWidget {
           size: CruSize.squareButton,
           onPressed: () => onStep(1),
         ),
-        const SizedBox(width: CruSpace.s16),
-        Expanded(child: title),
-        const SizedBox(width: CruSpace.s24),
+        const SizedBox(width: CruSpace.s12),
         if (switcher) ...[
           const ScheduleViewSwitcher(),
           const SizedBox(width: CruSpace.s10),

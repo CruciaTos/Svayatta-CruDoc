@@ -26,7 +26,8 @@ class AuthScreen extends ConsumerStatefulWidget {
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
 }
 
-class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStateMixin {
+class _AuthScreenState extends ConsumerState<AuthScreen>
+    with TickerProviderStateMixin {
   // Mobile Controllers
   late final PageController _pageController;
   late final AnimationController _backgroundController;
@@ -52,7 +53,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   void initState() {
     super.initState();
     _pageController = PageController(initialPage: _currentPage);
-    
+
     _backgroundController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
@@ -74,7 +75,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
       final rememberFlag = await _secureStorage.read(key: 'remember_me');
       if (mounted) {
         setState(() {
-          if (rememberFlag == 'true' && savedEmail != null && savedEmail.trim().isNotEmpty) {
+          if (rememberFlag == 'true' &&
+              savedEmail != null &&
+              savedEmail.trim().isNotEmpty) {
             _rememberMe = true;
             _emailController.text = savedEmail.trim();
           } else {
@@ -152,8 +155,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
 
         final user = userCred.user;
         if (user != null) {
-          final docRef =
-              FirebaseFirestore.instance.collection('users').doc(user.uid);
+          final docRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid);
           await docRef.set({
             'uid': user.uid,
             'email': spec.demoEmail,
@@ -172,8 +176,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
     }());
 
     if (_rememberMe) {
-      unawaited(_secureStorage.write(
-          key: 'remembered_email', value: spec.demoEmail));
+      unawaited(
+        _secureStorage.write(key: 'remembered_email', value: spec.demoEmail),
+      );
       unawaited(_secureStorage.write(key: 'remember_me', value: 'true'));
     }
 
@@ -204,14 +209,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
       final snap = await ref.get();
 
       String derivedName = name?.trim() ?? '';
-      if (derivedName.isEmpty && user.displayName != null && user.displayName!.trim().isNotEmpty) {
+      if (derivedName.isEmpty &&
+          user.displayName != null &&
+          user.displayName!.trim().isNotEmpty) {
         derivedName = user.displayName!.trim();
       }
       if (derivedName.isEmpty && user.email != null && user.email!.isNotEmpty) {
         final emailPart = user.email!.split('@').first;
-        final parts = emailPart.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+        final parts = emailPart
+            .split(RegExp(r'[._-]'))
+            .where((p) => p.isNotEmpty);
         if (parts.isNotEmpty) {
-          derivedName = parts.map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase()).join(' ');
+          derivedName = parts
+              .map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase())
+              .join(' ');
         }
       }
       if (derivedName.isEmpty) derivedName = 'Doctor';
@@ -242,7 +253,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   String _sanitizeAuthInput(String input) {
     return input
         .replaceAll(RegExp(r'<[^>]*>'), '') // Strip HTML & script tags
-        .replaceAll(RegExp(r'[\x00-\x1F\x7F]'), '') // Strip non-printable control chars
+        .replaceAll(
+          RegExp(r'[\x00-\x1F\x7F]'),
+          '',
+        ) // Strip non-printable control chars
         .replaceAll(RegExp(r"['\x22;\\]"), '') // Strip injection delimiters
         .trim();
   }
@@ -268,22 +282,23 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
             child: Center(
               child: Container(
                 constraints: const BoxConstraints(maxWidth: 520),
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
-                  color: isError ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
+                  color: isError
+                      ? const Color(0xFFDC2626)
+                      : const Color(0xFF16A34A),
                   borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.18),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
+                  boxShadow: const [],
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+                      isError
+                          ? Icons.error_outline_rounded
+                          : Icons.check_circle_outline_rounded,
                       color: Colors.white,
                       size: 20,
                     ),
@@ -391,7 +406,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
               if (querySnap.docs.isNotEmpty) {
                 existsInDatabase = true;
                 final data = querySnap.docs.first.data();
-                if (data['status'] == 'Disabled' || data['status'] == 'Inactive') {
+                if (data['status'] == 'Disabled' ||
+                    data['status'] == 'Inactive') {
                   isDisabled = true;
                 }
               }
@@ -483,8 +499,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
             break;
           case 'user-disabled':
             errorTitle = 'Account Disabled';
-            errorMessage =
-                'Your account has been disabled by Super Admin.';
+            errorMessage = 'Your account has been disabled by Super Admin.';
             break;
           case 'too-many-requests':
             errorTitle = 'Too Many Requests';
@@ -507,10 +522,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
         }
       }
 
-      _showUserDoesNotExistDialog(
-        title: errorTitle,
-        message: errorMessage,
-      );
+      _showUserDoesNotExistDialog(title: errorTitle, message: errorMessage);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -545,14 +557,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
     setState(() => _isLoading = true);
 
     try {
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
       if (credential.user != null) {
         await _syncUserProfile(credential.user!, name: name);
-        await DeviceSessionService.instance.registerNewSession(credential.user!.uid);
+        await DeviceSessionService.instance.registerNewSession(
+          credential.user!.uid,
+        );
       }
       if (!mounted) return;
       _enterApp();
@@ -598,10 +609,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   Future<void> _handlePhoneSignIn() async {
     if (_isLoading) return;
 
-    final result = await showPhoneAuthSheet(
-      context,
-      authService: _authService,
-    );
+    final result = await showPhoneAuthSheet(context, authService: _authService);
 
     if (result != null) {
       final currentUser = FirebaseAuth.instance.currentUser;
@@ -623,9 +631,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
           .doc(user.uid)
           .get();
       final data = doc.data();
-      final hasSpecialty = data != null &&
+      final hasSpecialty =
+          data != null &&
           ((data['specialty'] as String?)?.trim().isNotEmpty == true ||
-           (data['specialization'] as String?)?.trim().isNotEmpty == true);
+              (data['specialization'] as String?)?.trim().isNotEmpty == true);
       if (!hasSpecialty && mounted) {
         await showSpecialtyOnboardingDialog(context);
       }
@@ -635,12 +644,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final bool isDesktopLayout = screenWidth > 800 && (
-      kIsWeb ||
-      defaultTargetPlatform == TargetPlatform.windows ||
-      defaultTargetPlatform == TargetPlatform.macOS ||
-      defaultTargetPlatform == TargetPlatform.linux
-    );
+    final bool isDesktopLayout =
+        screenWidth > 800 &&
+        (kIsWeb ||
+            defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
 
     if (isDesktopLayout) {
       return _buildWebAuthView(context);
@@ -795,9 +804,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                             passwordController: _passwordController,
                             selectedSpecialty: selectedSpecialty,
                             onObscureToggle: () => setState(
-                                () => _obscurePassword = !_obscurePassword),
-                            onRememberMeToggle: () => setState(
-                                () => _rememberMe = !_rememberMe),
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            onRememberMeToggle: () =>
+                                setState(() => _rememberMe = !_rememberMe),
                             onPrimarySubmit: _handleEmailLogin,
                             onTrialDemoLogin: _handleTrialDemoLogin,
                             onSuperAdminDemoLogin: _handleSuperAdminDemoLogin,
@@ -816,9 +826,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
                 padding: const EdgeInsets.symmetric(horizontal: 48),
                 decoration: const BoxDecoration(
                   color: Colors.white,
-                  border: Border(
-                    top: BorderSide(color: Color(0xFFF1F5F9)),
-                  ),
+                  border: Border(top: BorderSide(color: Color(0xFFF1F5F9))),
                 ),
                 child: Row(
                   children: [
@@ -866,8 +874,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> with TickerProviderStat
 }
 
 // ==================== WEB NAVBAR HEADER ====================
-
-
 
 // ==================== WEB ILLUSTRATION PANEL ====================
 
@@ -948,13 +954,7 @@ class _WebIllustrationPanel extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.55),
                     borderRadius: BorderRadius.circular(220),
-                    boxShadow: [
-                      BoxShadow(
-                        color: selectedSpecialty.accentColor.withValues(alpha: 0.12),
-                        blurRadius: 50,
-                        spreadRadius: 6,
-                      ),
-                    ],
+                    boxShadow: const [],
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -977,9 +977,9 @@ class _WebIllustrationPanel extends StatelessWidget {
                     'CruDoc ${selectedSpecialty.shortLabel} Suite',
                     key: ValueKey(selectedSpecialty.type),
                     style: TextStyle(
-                      color: HSLColor.fromColor(selectedSpecialty.accentColor)
-                          .withLightness(0.22)
-                          .toColor(),
+                      color: HSLColor.fromColor(
+                        selectedSpecialty.accentColor,
+                      ).withLightness(0.22).toColor(),
                       fontSize: 26,
                       fontWeight: FontWeight.w900,
                       letterSpacing: -0.5,
@@ -994,9 +994,9 @@ class _WebIllustrationPanel extends StatelessWidget {
                     selectedSpecialty.tagline,
                     key: ValueKey(selectedSpecialty.tagline),
                     style: TextStyle(
-                      color: HSLColor.fromColor(selectedSpecialty.accentColor)
-                          .withLightness(0.30)
-                          .toColor(),
+                      color: HSLColor.fromColor(
+                        selectedSpecialty.accentColor,
+                      ).withLightness(0.30).toColor(),
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1042,13 +1042,7 @@ class _SpecialtyHeroIcon extends StatelessWidget {
         decoration: BoxDecoration(
           color: specialty.accentColor,
           shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(
-              color: specialty.accentColor.withValues(alpha: 0.35),
-              blurRadius: 24,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: const [],
         ),
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),
@@ -1076,8 +1070,9 @@ class _SpecialtyPillBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasSubs =
-        DoctorSpecialty.subspecialtiesOf(selectedSpecialty.rootType).isNotEmpty;
+    final hasSubs = DoctorSpecialty.subspecialtiesOf(
+      selectedSpecialty.rootType,
+    ).isNotEmpty;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1126,15 +1121,7 @@ class _SpecialtyPillBar extends StatelessWidget {
                           : Colors.black.withValues(alpha: 0.06),
                       width: 1.5,
                     ),
-                    boxShadow: isSelected
-                        ? [
-                            BoxShadow(
-                              color: spec.accentColor.withValues(alpha: 0.30),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ]
-                        : [],
+                    boxShadow: const [],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1142,9 +1129,7 @@ class _SpecialtyPillBar extends StatelessWidget {
                       Icon(
                         spec.icon,
                         size: 15,
-                        color: isSelected
-                            ? Colors.white
-                            : spec.accentColor,
+                        color: isSelected ? Colors.white : spec.accentColor,
                       ),
                       const SizedBox(width: 6),
                       Text(
@@ -1196,13 +1181,7 @@ class _DoctorFigure extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE0E0E0), width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 8,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -1238,8 +1217,9 @@ class _DoctorFigure extends StatelessWidget {
                 color: isFemale
                     ? const Color(0xFF1A237E)
                     : const Color(0xFF424242),
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(5)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(5),
+                ),
               ),
             ),
             const SizedBox(width: 5),
@@ -1250,8 +1230,9 @@ class _DoctorFigure extends StatelessWidget {
                 color: isFemale
                     ? const Color(0xFF1A237E)
                     : const Color(0xFF424242),
-                borderRadius:
-                    const BorderRadius.vertical(bottom: Radius.circular(5)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(5),
+                ),
               ),
             ),
           ],
@@ -1262,8 +1243,6 @@ class _DoctorFigure extends StatelessWidget {
 }
 
 // _HeartIcon replaced by _SpecialtyHeroIcon above.
-
-
 
 // ==================== WEB ILLUSTRATION PAINTER ====================
 
@@ -1304,7 +1283,8 @@ class _WebIllustrationPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WebIllustrationPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.accentColor != accentColor;
+      oldDelegate.progress != progress ||
+      oldDelegate.accentColor != accentColor;
 }
 
 // ==================== WEB AUTH PORTAL CARD (LOGIN ONLY) ====================
@@ -1354,13 +1334,7 @@ class _WebAuthPortalCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: selectedSpecialty.accentColor,
                 borderRadius: BorderRadius.circular(8),
-                boxShadow: [
-                  BoxShadow(
-                    color: selectedSpecialty.accentColor.withValues(alpha: 0.25),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+                boxShadow: const [],
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -1519,8 +1493,8 @@ class _WebAuthPortalCard extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: selectedSpecialty.accentColor,
                 foregroundColor: Colors.white,
-                disabledBackgroundColor:
-                    selectedSpecialty.accentColor.withValues(alpha: 0.6),
+                disabledBackgroundColor: selectedSpecialty.accentColor
+                    .withValues(alpha: 0.6),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -1553,8 +1527,11 @@ class _WebAuthPortalCard extends StatelessWidget {
           height: 46,
           child: OutlinedButton.icon(
             onPressed: isLoading ? null : onTrialDemoLogin,
-            icon: const Icon(Icons.bolt_rounded,
-                color: Color(0xFF059669), size: 20),
+            icon: const Icon(
+              Icons.bolt_rounded,
+              color: Color(0xFF059669),
+              size: 20,
+            ),
             label: const Text(
               'Launch Trial Demo Mode (Dev Account)',
               style: TextStyle(
@@ -1565,8 +1542,7 @@ class _WebAuthPortalCard extends StatelessWidget {
               ),
             ),
             style: OutlinedButton.styleFrom(
-              backgroundColor:
-                  const Color(0xFF059669).withValues(alpha: 0.06),
+              backgroundColor: const Color(0xFF059669).withValues(alpha: 0.06),
               side: const BorderSide(color: Color(0xFF059669), width: 1.2),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
@@ -1580,8 +1556,11 @@ class _WebAuthPortalCard extends StatelessWidget {
             height: 44,
             child: OutlinedButton.icon(
               onPressed: isLoading ? null : onSuperAdminDemoLogin,
-              icon: const Icon(Icons.admin_panel_settings_rounded,
-                  color: Color(0xFF2563EB), size: 19),
+              icon: const Icon(
+                Icons.admin_panel_settings_rounded,
+                color: Color(0xFF2563EB),
+                size: 19,
+              ),
               label: const Text(
                 'Super Admin Console (Dev Access)',
                 style: TextStyle(
@@ -1592,8 +1571,9 @@ class _WebAuthPortalCard extends StatelessWidget {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF2563EB).withValues(alpha: 0.06),
+                backgroundColor: const Color(
+                  0xFF2563EB,
+                ).withValues(alpha: 0.06),
                 side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -1641,35 +1621,29 @@ class _WebTextField extends StatelessWidget {
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
         hintText: hintText,
-        hintStyle: const TextStyle(
-          color: Color(0xFFCBD5E1),
-          fontSize: 13,
-        ),
+        hintStyle: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 13),
         prefixIcon: Icon(icon, color: const Color(0xFF00ACC1), size: 18),
         suffixIcon: trailing,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 15,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(
-            color: Color(0xFF00ACC1),
-            width: 1.8,
-          ),
+          borderSide: const BorderSide(color: Color(0xFF00ACC1), width: 1.8),
         ),
       ),
     );
   }
 }
-
-
 
 // ==================== ORIGINAL MOBILE INTRO PANEL ====================
 
@@ -2020,15 +1994,7 @@ class _AuthForm extends StatelessWidget {
                               : const Color(0xFFE2E8F0),
                           width: 1.2,
                         ),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: spec.accentColor.withValues(alpha: 0.25),
-                                  blurRadius: 6,
-                                  offset: const Offset(0, 2),
-                                ),
-                              ]
-                            : [],
+                        boxShadow: const [],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -2036,9 +2002,7 @@ class _AuthForm extends StatelessWidget {
                           Icon(
                             spec.icon,
                             size: 13,
-                            color: isSelected
-                                ? Colors.white
-                                : spec.accentColor,
+                            color: isSelected ? Colors.white : spec.accentColor,
                           ),
                           const SizedBox(width: 4),
                           Text(
@@ -2096,8 +2060,8 @@ class _AuthForm extends StatelessWidget {
         _PrimaryButton(
           label: _isLogin
               ? (selectedSpecialty != null
-                  ? 'Log in as ${selectedSpecialty!.shortLabel}'
-                  : 'Log in')
+                    ? 'Log in as ${selectedSpecialty!.shortLabel}'
+                    : 'Log in')
               : 'Sign up',
           isLoading: isLoading,
           onPressed: onPrimary,
@@ -2109,8 +2073,11 @@ class _AuthForm extends StatelessWidget {
             height: 42,
             child: OutlinedButton.icon(
               onPressed: isLoading ? null : onTrialDemoLogin,
-              icon: const Icon(Icons.bolt_rounded,
-                  color: Color(0xFF059669), size: 18),
+              icon: const Icon(
+                Icons.bolt_rounded,
+                color: Color(0xFF059669),
+                size: 18,
+              ),
               label: Text(
                 selectedSpecialty != null
                     ? 'Launch ${selectedSpecialty!.shortLabel} Trial Demo'
@@ -2122,8 +2089,9 @@ class _AuthForm extends StatelessWidget {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF059669).withValues(alpha: 0.08),
+                backgroundColor: const Color(
+                  0xFF059669,
+                ).withValues(alpha: 0.08),
                 side: const BorderSide(color: Color(0xFF059669), width: 1.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -2139,8 +2107,11 @@ class _AuthForm extends StatelessWidget {
             height: 42,
             child: OutlinedButton.icon(
               onPressed: isLoading ? null : onSuperAdminDemoLogin,
-              icon: const Icon(Icons.admin_panel_settings_rounded,
-                  color: Color(0xFF2563EB), size: 18),
+              icon: const Icon(
+                Icons.admin_panel_settings_rounded,
+                color: Color(0xFF2563EB),
+                size: 18,
+              ),
               label: const Text(
                 'Super Admin Console (Dev Access)',
                 style: TextStyle(
@@ -2150,8 +2121,9 @@ class _AuthForm extends StatelessWidget {
                 ),
               ),
               style: OutlinedButton.styleFrom(
-                backgroundColor:
-                    const Color(0xFF2563EB).withValues(alpha: 0.08),
+                backgroundColor: const Color(
+                  0xFF2563EB,
+                ).withValues(alpha: 0.08),
                 side: const BorderSide(color: Color(0xFF2563EB), width: 1.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
@@ -2260,15 +2232,14 @@ class _PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          elevation: 4,
+          elevation: 0,
           shadowColor: const Color(0xFF0A7BFF).withValues(alpha: 0.22),
           backgroundColor: const Color(0xFF0A7BFF),
-          disabledBackgroundColor:
-              const Color(0xFF0A7BFF).withValues(alpha: 0.6),
+          disabledBackgroundColor: const Color(
+            0xFF0A7BFF,
+          ).withValues(alpha: 0.6),
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         ),
         child: isLoading
             ? const SizedBox(
@@ -2315,8 +2286,9 @@ class _SocialButton extends StatelessWidget {
         style: ElevatedButton.styleFrom(
           elevation: 0,
           backgroundColor: outlined ? Colors.transparent : Colors.white,
-          foregroundColor:
-              outlined ? const Color(0xFF9A9A9A) : const Color(0xFF4A4A4A),
+          foregroundColor: outlined
+              ? const Color(0xFF9A9A9A)
+              : const Color(0xFF4A4A4A),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
             side: BorderSide(
@@ -2338,8 +2310,9 @@ class _SocialButton extends StatelessWidget {
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color:
-                    outlined ? const Color(0xFF9A9A9A) : const Color(0xFF4A4A4A),
+                color: outlined
+                    ? const Color(0xFF9A9A9A)
+                    : const Color(0xFF4A4A4A),
               ),
             ),
           ],
@@ -2367,8 +2340,8 @@ class _AuthButton extends StatelessWidget {
     final Color foreground = filled
         ? Colors.white
         : darkText
-            ? const Color(0xFF9A9A9A)
-            : const Color(0xFF0A7BFF);
+        ? const Color(0xFF9A9A9A)
+        : const Color(0xFF0A7BFF);
 
     return SizedBox(
       width: double.infinity,
@@ -2376,7 +2349,7 @@ class _AuthButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
-          elevation: filled ? 4 : 0,
+          elevation: 0,
           shadowColor: const Color(0xFF0A7BFF).withValues(alpha: 0.22),
           backgroundColor: filled ? const Color(0xFF0A7BFF) : Colors.white,
           foregroundColor: foreground,
@@ -2630,17 +2603,18 @@ class _AuthBackgroundPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Paint glowPaint = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          Colors.white.withValues(alpha: 0.16),
-          Colors.white.withValues(alpha: 0.00),
-        ],
-      ).createShader(
-        Rect.fromCircle(
-          center: Offset(size.width * 0.18, size.height * 0.16),
-          radius: size.width * 0.5,
-        ),
-      );
+      ..shader =
+          RadialGradient(
+            colors: [
+              Colors.white.withValues(alpha: 0.16),
+              Colors.white.withValues(alpha: 0.00),
+            ],
+          ).createShader(
+            Rect.fromCircle(
+              center: Offset(size.width * 0.18, size.height * 0.16),
+              radius: size.width * 0.5,
+            ),
+          );
     canvas.drawRect(Offset.zero & size, glowPaint);
 
     final Paint bubblePaint = Paint()

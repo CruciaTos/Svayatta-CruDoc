@@ -27,11 +27,11 @@ class VisitValidationException extends VisitException {
 /// that doesn't resolve to an actual Patient document.
 class PatientNotFoundException extends VisitException {
   PatientNotFoundException(String patientId)
-      : super(
-          'No patient found with id "$patientId". Create the patient '
-          'first, then create the visit using its id — never the '
-          'other way around.',
-        );
+    : super(
+        'No patient found with id "$patientId". Create the patient '
+        'first, then create the visit using its id — never the '
+        'other way around.',
+      );
 }
 
 /// The target patient exists but is archived (`isArchived == true`).
@@ -41,10 +41,10 @@ class PatientNotFoundException extends VisitException {
 /// selected. Reactivate the patient first if this is intentional.
 class InactivePatientException extends VisitException {
   InactivePatientException(String patientId)
-      : super(
-          'Patient "$patientId" is archived and cannot be booked for a '
-          'new visit. Reactivate the patient first.',
-        );
+    : super(
+        'Patient "$patientId" is archived and cannot be booked for a '
+        'new visit. Reactivate the patient first.',
+      );
 }
 
 /// The same patient already has another active visit that overlaps
@@ -58,10 +58,10 @@ class InactivePatientException extends VisitException {
 class SamePatientDoubleBookingException extends VisitException {
   final Visit conflict;
   SamePatientDoubleBookingException(this.conflict)
-      : super(
-          'This patient already has a visit scheduled at '
-          '${conflict.scheduledStart} that overlaps this time.',
-        );
+    : super(
+        'This patient already has a visit scheduled at '
+        '${conflict.scheduledStart} that overlaps this time.',
+      );
 }
 
 /// One or more *different* patients already have active visits
@@ -73,10 +73,10 @@ class SamePatientDoubleBookingException extends VisitException {
 class VisitOverlapWarning extends VisitException {
   final List<Visit> conflicts;
   VisitOverlapWarning(this.conflicts)
-      : super(
-          'This time overlaps ${conflicts.length} existing visit(s). '
-          'Confirm to save anyway.',
-        );
+    : super(
+        'This time overlaps ${conflicts.length} existing visit(s). '
+        'Confirm to save anyway.',
+      );
 }
 
 /// Saving this visit would push the number of simultaneously
@@ -87,10 +87,10 @@ class VisitOverlapWarning extends VisitException {
 class VisitOverlapLimitExceededException extends VisitException {
   final List<Visit> conflicts;
   VisitOverlapLimitExceededException(this.conflicts)
-      : super(
-          'Cannot schedule this visit — it would exceed the maximum of '
-          '$kMaxOverlappingVisits overlapping visits at the same time.',
-        );
+    : super(
+        'Cannot schedule this visit — it would exceed the maximum of '
+        '$kMaxOverlappingVisits overlapping visits at the same time.',
+      );
 }
 
 /// The visit's address could not be converted into coordinates —

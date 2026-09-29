@@ -87,21 +87,18 @@ class _MonthDayTileState extends ConsumerState<MonthDayTile> {
     return CruPressable(
       onTap: _handleTap,
       scaleOnPress: false,
-      semanticLabel: '${DashFormat.dateLine(widget.date)}'
+      semanticLabel:
+          '${DashFormat.dateLine(widget.date)}'
           '${summary.isEmpty ? '' : ', $summary'}',
       builder: (context, hovered) {
-        // Selected: accent wash + 2 px accent ring. Past: 55% white +
-        // hairline. Today and future: white + hairline + soft shadow.
+        // Selected tiles retain their accent ring; past tiles are muted.
         Color fill = c.surface;
         BorderSide side = BorderSide(color: c.hairline);
-        List<BoxShadow>? shadows = c.cardShadow;
         if (widget.selected) {
           fill = c.accentWash;
           side = BorderSide(color: c.accent, width: MonthMetrics.ringWidth);
-          shadows = null;
         } else if (kind == MonthTileKind.past) {
           fill = c.surface.withValues(alpha: MonthMetrics.pastTileAlpha);
-          shadows = null;
         }
         return AnimatedContainer(
           duration: CruMotion.of(context, CruMotion.fast),
@@ -111,7 +108,7 @@ class _MonthDayTileState extends ConsumerState<MonthDayTile> {
           decoration: ShapeDecoration(
             color: hovered ? cruHoverShade(fill, c) : fill,
             shape: cruShape(MonthMetrics.tileRadius, side: side),
-            shadows: shadows,
+            shadows: const [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -152,35 +149,41 @@ class _MonthDayTileState extends ConsumerState<MonthDayTile> {
   /// Past: "N seen", then "N missed" on its own line. Today: "N booked"
   /// and an accent "N seen so far". Future: "N booked". Empty days show
   /// nothing.
-  List<({String text, TextStyle style})> _lines(ApptDayCounts? counts, CruColors c) {
+  List<({String text, TextStyle style})> _lines(
+    ApptDayCounts? counts,
+    CruColors c,
+  ) {
     if (counts == null || counts.appointments == 0) return const [];
     return switch (widget.kind) {
       MonthTileKind.past => [
-          (text: '${counts.seen} seen', style: CruType.caption.tabular.tint(c.label2)),
-          if (counts.missed > 0)
-            (
-              text: '${counts.missed} missed',
-              style: CruType.caption.tabular.tint(c.label3),
-            ),
-        ],
+        (
+          text: '${counts.seen} seen',
+          style: CruType.caption.tabular.tint(c.label2),
+        ),
+        if (counts.missed > 0)
+          (
+            text: '${counts.missed} missed',
+            style: CruType.caption.tabular.tint(c.label3),
+          ),
+      ],
       MonthTileKind.today => [
+        (
+          text: '${counts.appointments} booked',
+          style: CruType.caption.w500.tabular.tint(c.label),
+        ),
+        if (counts.seen > 0)
           (
-            text: '${counts.appointments} booked',
-            style: CruType.caption.w500.tabular.tint(c.label),
+            text: '${counts.seen} seen so far',
+            // 12 px in the design; caption (12.5) clips on a 97 px tile.
+            style: CruType.micro.w600.tabular.tint(c.accentText),
           ),
-          if (counts.seen > 0)
-            (
-              text: '${counts.seen} seen so far',
-              // 12 px in the design; caption (12.5) clips on a 97 px tile.
-              style: CruType.micro.w600.tabular.tint(c.accentText),
-            ),
-        ],
+      ],
       MonthTileKind.future => [
-          (
-            text: '${counts.appointments} booked',
-            style: CruType.caption.w500.tabular.tint(c.label),
-          ),
-        ],
+        (
+          text: '${counts.appointments} booked',
+          style: CruType.caption.w500.tabular.tint(c.label),
+        ),
+      ],
       MonthTileKind.otherMonth => const [],
     };
   }

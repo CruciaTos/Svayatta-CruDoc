@@ -22,23 +22,21 @@ abstract final class InventoryActions {
     BuildContext context,
     WidgetRef ref,
     MedicineModel medicine,
-  ) =>
-      showDesktopAddEditMedicineDialog(
-        context,
-        medicine: medicine,
-        repository: ref.read(inventoryRepositoryProvider),
-      );
+  ) => showDesktopAddEditMedicineDialog(
+    context,
+    medicine: medicine,
+    repository: ref.read(inventoryRepositoryProvider),
+  );
 
   static Future<void> adjustStock(
     BuildContext context,
     WidgetRef ref,
     MedicineModel medicine,
-  ) =>
-      showStockAdjustmentDialog(
-        context,
-        medicine: medicine,
-        repository: ref.read(inventoryRepositoryProvider),
-      );
+  ) => showStockAdjustmentDialog(
+    context,
+    medicine: medicine,
+    repository: ref.read(inventoryRepositoryProvider),
+  );
 
   /// The existing item details screen (Enter).
   static Future<void> openDetails(BuildContext context, MedicineModel m) =>
@@ -77,7 +75,9 @@ abstract final class InventoryActions {
       await repository.deleteMedicine(medicine.id);
     } catch (_) {
       messenger?.showSnackBar(
-        SnackBar(content: Text("Couldn't archive ${medicine.name}. Try again.")),
+        SnackBar(
+          content: Text("Couldn't archive ${medicine.name}. Try again."),
+        ),
       );
     }
   }

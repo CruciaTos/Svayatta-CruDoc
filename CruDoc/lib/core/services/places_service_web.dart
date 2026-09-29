@@ -13,13 +13,16 @@ Future<List<PlacePrediction>> getWebAutocomplete(String input) {
         try {
           final List<dynamic> list = jsonDecode(jsonResults);
           final predictions = list
-              .map((item) => PlacePrediction.fromJson(item as Map<String, dynamic>))
+              .map(
+                (item) =>
+                    PlacePrediction.fromJson(item as Map<String, dynamic>),
+              )
               .toList();
           completer.complete(predictions);
         } catch (_) {
           completer.complete([]);
         }
-      })
+      }),
     ]);
   } catch (_) {
     completer.complete([]);
@@ -44,15 +47,17 @@ Future<PlaceDetails?> getWebPlaceDetails(String placeId) {
           final location = geometry['location'] as Map<String, dynamic>;
           final lat = location['lat'] as double;
           final lng = location['lng'] as double;
-          completer.complete(PlaceDetails(
-            latitude: lat,
-            longitude: lng,
-            formattedAddress: formattedAddress,
-          ));
+          completer.complete(
+            PlaceDetails(
+              latitude: lat,
+              longitude: lng,
+              formattedAddress: formattedAddress,
+            ),
+          );
         } catch (_) {
           completer.complete(null);
         }
-      })
+      }),
     ]);
   } catch (_) {
     completer.complete(null);

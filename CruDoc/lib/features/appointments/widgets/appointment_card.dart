@@ -90,7 +90,8 @@ class _AppointmentCardState extends State<AppointmentCard> {
         ? 'Ongoing now'
         : _formatCountdown(widget.scheduledStart.difference(now));
 
-    final hasMenu = widget.onReschedule != null ||
+    final hasMenu =
+        widget.onReschedule != null ||
         widget.onMarkCompleted != null ||
         widget.onCancel != null ||
         widget.onDelete != null;

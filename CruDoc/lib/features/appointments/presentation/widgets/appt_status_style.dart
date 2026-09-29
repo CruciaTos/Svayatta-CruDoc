@@ -35,33 +35,33 @@ class ApptStatusStyle {
   static ApptStatusStyle of(ApptStatus status, CruColors c) {
     return switch (status) {
       ApptStatus.done => ApptStatusStyle(
-          fill: c.inset,
-          text: c.label2,
-          subText: c.label2,
-          check: true,
-        ),
+        fill: c.inset,
+        text: c.label2,
+        subText: c.label2,
+        check: true,
+      ),
       ApptStatus.missed => ApptStatusStyle(
-          fill: c.inset,
-          text: c.label3,
-          subText: c.label3,
-          strike: true,
-        ),
+        fill: c.inset,
+        text: c.label3,
+        subText: c.label3,
+        strike: true,
+      ),
       ApptStatus.inConsultation => ApptStatusStyle(
-          fill: c.accentTint,
-          text: c.accentText,
-          subText: c.accentText,
-        ),
+        fill: c.accentTint,
+        text: c.accentText,
+        subText: c.accentText,
+      ),
       ApptStatus.waiting => ApptStatusStyle(
-          fill: c.amberTint,
-          text: c.amberText,
-          subText: c.amberText,
-        ),
+        fill: c.amberTint,
+        text: c.amberText,
+        subText: c.amberText,
+      ),
       ApptStatus.booked => ApptStatusStyle(
-          fill: c.surface,
-          border: c.hairline,
-          text: c.label,
-          subText: c.label2,
-        ),
+        fill: c.surface,
+        border: c.hairline,
+        text: c.label,
+        subText: c.label2,
+      ),
     };
   }
 }

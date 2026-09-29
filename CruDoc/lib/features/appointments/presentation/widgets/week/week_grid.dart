@@ -113,7 +113,8 @@ class _Gutter extends StatelessWidget {
                   WeekMetrics.nowPill)
             Positioned(
               right: WeekMetrics.hourLabelEnd,
-              top: (m - startMinute) * WeekMetrics.pxPerMinute -
+              top:
+                  (m - startMinute) * WeekMetrics.pxPerMinute -
                   WeekMetrics.hourLabelLift,
               child: Text(
                 hourFormat.format(DateTime(2000, 1, 1, m ~/ 60 % 24)),
@@ -181,20 +182,25 @@ class _DayColumn extends StatelessWidget {
           for (final item in g.items) {
             final col = g.columnOf[item.id] ?? 0;
             final m = item.start.hour * 60 + item.start.minute;
-            blocks.add(Positioned(
-              left: WeekMetrics.blockInset + col * (bw + WeekMetrics.overlapGap),
-              width: bw < 0 ? 0 : bw,
-              top: (m - startMinute) * WeekMetrics.pxPerMinute + 1,
-              height: WeekMetrics.blockHeight,
-              child: WeekBlock(item: item, onTap: () => onOpenVisit(item)),
-            ));
+            blocks.add(
+              Positioned(
+                left:
+                    WeekMetrics.blockInset +
+                    col * (bw + WeekMetrics.overlapGap),
+                width: bw < 0 ? 0 : bw,
+                top: (m - startMinute) * WeekMetrics.pxPerMinute + 1,
+                height: WeekMetrics.blockHeight,
+                child: WeekBlock(item: item, onTap: () => onOpenVisit(item)),
+              ),
+            );
           }
         }
 
         return Stack(
           clipBehavior: Clip.none,
           children: [
-            if (isToday) Positioned.fill(child: ColoredBox(color: c.accentWash)),
+            if (isToday)
+              Positioned.fill(child: ColoredBox(color: c.accentWash)),
             for (final m in _hours(startMinute, endMinute))
               Positioned(
                 left: 0,

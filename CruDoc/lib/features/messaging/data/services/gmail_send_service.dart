@@ -13,10 +13,7 @@ class GmailSendResult {
   final String messageId;
   final String? threadId;
 
-  const GmailSendResult({
-    required this.messageId,
-    this.threadId,
-  });
+  const GmailSendResult({required this.messageId, this.threadId});
 }
 
 /// Service that constructs RFC 2822/2047 MIME messages and dispatches them via the Gmail REST API.
@@ -31,8 +28,8 @@ class GmailSendService {
   GmailSendService({
     required GmailAuthService authService,
     http.Client? httpClient,
-  })  : _authService = authService,
-        _httpClient = httpClient;
+  }) : _authService = authService,
+       _httpClient = httpClient;
 
   final GmailAuthService _authService;
   final http.Client? _httpClient;
@@ -60,7 +57,8 @@ class GmailSendService {
     final sender = fromEmail ?? _authService.connectedEmail ?? '';
 
     // Auto-detect HTML if not explicitly specified
-    final bool htmlMode = isHtml ??
+    final bool htmlMode =
+        isHtml ??
         (body.trim().startsWith('<!DOCTYPE html>') ||
             body.trim().startsWith('<html') ||
             body.contains('</p>') ||
@@ -134,7 +132,9 @@ class GmailSendService {
   String _validateAndSanitizeRecipient(String email) {
     final trimmed = email.trim();
     if (trimmed.isEmpty) {
-      throw const GmailValidationException('Recipient email address cannot be empty.');
+      throw const GmailValidationException(
+        'Recipient email address cannot be empty.',
+      );
     }
 
     // CRLF / Header-injection prevention
@@ -172,8 +172,7 @@ class GmailSendService {
     bool isHtml = false,
   }) {
     // RFC 2047 B-encoded subject for full Unicode safety
-    final encodedSubject =
-        '=?UTF-8?B?${base64Encode(utf8.encode(subject))}?=';
+    final encodedSubject = '=?UTF-8?B?${base64Encode(utf8.encode(subject))}?=';
 
     final contentType = isHtml
         ? 'text/html; charset="UTF-8"'
@@ -211,7 +210,9 @@ class GmailSendService {
       for (final doc in attachments) {
         buffer.writeln('--$boundary');
         buffer.writeln('Content-Type: ${doc.mimeType}; name="${doc.fileName}"');
-        buffer.writeln('Content-Disposition: attachment; filename="${doc.fileName}"');
+        buffer.writeln(
+          'Content-Disposition: attachment; filename="${doc.fileName}"',
+        );
         buffer.writeln('Content-Transfer-Encoding: base64');
         buffer.writeln();
         buffer.writeln(_chunkBase64(base64Encode(doc.bytes)));

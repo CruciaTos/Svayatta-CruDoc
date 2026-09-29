@@ -23,19 +23,28 @@ class CampaignDispatchService {
   final GmailSendService _gmailSendService;
   final http.Client _httpClient;
 
-  static const _devMetaToken = String.fromEnvironment('WHATSAPP_DEV_TOKEN', defaultValue: '');
-  static const _metaPhoneId = String.fromEnvironment('WHATSAPP_PHONE_NUMBER_ID', defaultValue: '1260194177180019');
+  static const _devMetaToken = String.fromEnvironment(
+    'WHATSAPP_DEV_TOKEN',
+    defaultValue: '',
+  );
+  static const _metaPhoneId = String.fromEnvironment(
+    'WHATSAPP_PHONE_NUMBER_ID',
+    defaultValue: '1260194177180019',
+  );
 
   CampaignDispatchService({
     CampaignRepository? campaignRepository,
     GmailAuthService? gmailAuthService,
     GmailSendService? gmailSendService,
     http.Client? httpClient,
-  })  : _campaignRepository = campaignRepository ?? CampaignRepository(),
-        _gmailAuthService = gmailAuthService ?? GmailAuthService(),
-        _gmailSendService = gmailSendService ??
-            GmailSendService(authService: gmailAuthService ?? GmailAuthService()),
-        _httpClient = httpClient ?? http.Client();
+  }) : _campaignRepository = campaignRepository ?? CampaignRepository(),
+       _gmailAuthService = gmailAuthService ?? GmailAuthService(),
+       _gmailSendService =
+           gmailSendService ??
+           GmailSendService(
+             authService: gmailAuthService ?? GmailAuthService(),
+           ),
+       _httpClient = httpClient ?? http.Client();
 
   static const _uuid = Uuid();
 
@@ -92,7 +101,10 @@ class CampaignDispatchService {
       );
     }
     await _campaignRepository.saveRecipientLogsBatch(
-        doctorId, campaignId, initialLogs);
+      doctorId,
+      campaignId,
+      initialLogs,
+    );
 
     int emailsSent = 0;
     int emailsFailed = 0;
@@ -105,144 +117,156 @@ class CampaignDispatchService {
     }
 
     if (isGmailConnected) {
-      debugPrint('[Campaign Dispatch] ✅ Gmail is connected (${_gmailAuthService.connectedEmail}). Dispatching real emails via Gmail API.');
+      debugPrint(
+        '[Campaign Dispatch] ✅ Gmail is connected (${_gmailAuthService.connectedEmail}). Dispatching real emails via Gmail API.',
+      );
     } else {
-      debugPrint('[Campaign Dispatch] ℹ️ Gmail account is not connected in Doctor Profile. Connect Gmail in Profile > Settings to send actual emails.');
+      debugPrint(
+        '[Campaign Dispatch] ℹ️ Gmail account is not connected in Doctor Profile. Connect Gmail in Profile > Settings to send actual emails.',
+      );
     }
 
     // 3. Process in batches of 10 to protect resources and allow reactive UI updates
     const chunkSize = 10;
     for (var i = 0; i < targetPatients.length; i += chunkSize) {
       final chunk = targetPatients.sublist(
-          i, i + chunkSize > targetPatients.length ? targetPatients.length : i + chunkSize);
+        i,
+        i + chunkSize > targetPatients.length
+            ? targetPatients.length
+            : i + chunkSize,
+      );
 
-      await Future.wait(chunk.map((patient) async {
-        final logId = 'rec_${campaignId}_${patient.id}';
-        var emailStatus = campaign.channels.includesEmail
-            ? RecipientDeliveryStatus.queued
-            : RecipientDeliveryStatus.skipped;
-        var whatsAppStatus = campaign.channels.includesWhatsApp
-            ? RecipientDeliveryStatus.queued
-            : RecipientDeliveryStatus.skipped;
-        String? emailMessageId;
-        String? whatsAppMessageId;
-        String? emailError;
-        String? whatsAppError;
+      await Future.wait(
+        chunk.map((patient) async {
+          final logId = 'rec_${campaignId}_${patient.id}';
+          var emailStatus = campaign.channels.includesEmail
+              ? RecipientDeliveryStatus.queued
+              : RecipientDeliveryStatus.skipped;
+          var whatsAppStatus = campaign.channels.includesWhatsApp
+              ? RecipientDeliveryStatus.queued
+              : RecipientDeliveryStatus.skipped;
+          String? emailMessageId;
+          String? whatsAppMessageId;
+          String? emailError;
+          String? whatsAppError;
 
-        // --- Channel 1: Email Dispatch ---
-        if (campaign.channels.includesEmail) {
-          if (!CampaignAudienceHelper.isValidEmail(patient.email)) {
-            emailStatus = RecipientDeliveryStatus.failed;
-            emailError = patient.email.isEmpty
-                ? 'No email address registered'
-                : 'Invalid email format (${patient.email})';
-            emailsFailed++;
-          } else {
-            try {
-              final emailSubject = CampaignAudienceHelper.buildEmailSubject(
-                campaign.title,
-                clinicName: clinicName,
-              );
-              final emailHtml = CampaignAudienceHelper.buildFormattedEmailHtml(
-                campaign.message,
-                title: campaign.title,
-                patient: patient,
-                category: campaign.category,
-                clinicName: clinicName,
-                doctorName: doctorName,
-                mediaUrl: campaign.mediaUrl,
-              );
-
-              if (isGmailConnected) {
-                final result = await _gmailSendService.sendEmail(
-                  to: patient.email.trim(),
-                  subject: emailSubject,
-                  body: emailHtml,
-                );
-                emailMessageId = result.messageId;
-              } else {
-                // Simulated robust dispatch for dev/unconnected mode
-                await Future.delayed(const Duration(milliseconds: 60));
-                emailMessageId = 'sim_mail_${_uuid.v4().substring(0, 8)}';
-              }
-
-              emailStatus = RecipientDeliveryStatus.sent;
-              emailsSent++;
-            } catch (e) {
-              debugPrint('Campaign Email Error for ${patient.email}: $e');
+          // --- Channel 1: Email Dispatch ---
+          if (campaign.channels.includesEmail) {
+            if (!CampaignAudienceHelper.isValidEmail(patient.email)) {
               emailStatus = RecipientDeliveryStatus.failed;
-              emailError = e.toString().replaceAll('Exception: ', '');
+              emailError = patient.email.isEmpty
+                  ? 'No email address registered'
+                  : 'Invalid email format (${patient.email})';
               emailsFailed++;
+            } else {
+              try {
+                final emailSubject = CampaignAudienceHelper.buildEmailSubject(
+                  campaign.title,
+                  clinicName: clinicName,
+                );
+                final emailHtml =
+                    CampaignAudienceHelper.buildFormattedEmailHtml(
+                      campaign.message,
+                      title: campaign.title,
+                      patient: patient,
+                      category: campaign.category,
+                      clinicName: clinicName,
+                      doctorName: doctorName,
+                      mediaUrl: campaign.mediaUrl,
+                    );
+
+                if (isGmailConnected) {
+                  final result = await _gmailSendService.sendEmail(
+                    to: patient.email.trim(),
+                    subject: emailSubject,
+                    body: emailHtml,
+                  );
+                  emailMessageId = result.messageId;
+                } else {
+                  // Simulated robust dispatch for dev/unconnected mode
+                  await Future.delayed(const Duration(milliseconds: 60));
+                  emailMessageId = 'sim_mail_${_uuid.v4().substring(0, 8)}';
+                }
+
+                emailStatus = RecipientDeliveryStatus.sent;
+                emailsSent++;
+              } catch (e) {
+                debugPrint('Campaign Email Error for ${patient.email}: $e');
+                emailStatus = RecipientDeliveryStatus.failed;
+                emailError = e.toString().replaceAll('Exception: ', '');
+                emailsFailed++;
+              }
             }
           }
-        }
 
-        // --- Channel 2: WhatsApp Dispatch ---
-        if (campaign.channels.includesWhatsApp) {
-          if (!WhatsAppTemplateService.isValidWhatsAppPhone(patient.phone)) {
-            whatsAppStatus = RecipientDeliveryStatus.failed;
-            whatsAppError = patient.phone.isEmpty
-                ? 'No phone number registered'
-                : 'Invalid phone number format (${patient.phone})';
-            whatsAppFailed++;
-          } else {
-            try {
-              final formattedWa = CampaignAudienceHelper.buildFormattedWhatsAppMessage(
-                campaign.message,
-                title: campaign.title,
-                patient: patient,
-                category: campaign.category,
-                clinicName: clinicName,
-                doctorName: doctorName,
-                mediaUrl: campaign.mediaUrl,
-              );
+          // --- Channel 2: WhatsApp Dispatch ---
+          if (campaign.channels.includesWhatsApp) {
+            if (!WhatsAppTemplateService.isValidWhatsAppPhone(patient.phone)) {
+              whatsAppStatus = RecipientDeliveryStatus.failed;
+              whatsAppError = patient.phone.isEmpty
+                  ? 'No phone number registered'
+                  : 'Invalid phone number format (${patient.phone})';
+              whatsAppFailed++;
+            } else {
+              try {
+                final formattedWa =
+                    CampaignAudienceHelper.buildFormattedWhatsAppMessage(
+                      campaign.message,
+                      title: campaign.title,
+                      patient: patient,
+                      category: campaign.category,
+                      clinicName: clinicName,
+                      doctorName: doctorName,
+                      mediaUrl: campaign.mediaUrl,
+                    );
 
-              final res = await _dispatchWhatsAppDirect(
-                phone: patient.phone,
-                formattedText: formattedWa,
-              );
+                final res = await _dispatchWhatsAppDirect(
+                  phone: patient.phone,
+                  formattedText: formattedWa,
+                );
 
-              if (res.success) {
-                whatsAppMessageId = res.messageId;
-                whatsAppStatus = RecipientDeliveryStatus.delivered;
-                whatsAppSent++;
-              } else {
+                if (res.success) {
+                  whatsAppMessageId = res.messageId;
+                  whatsAppStatus = RecipientDeliveryStatus.delivered;
+                  whatsAppSent++;
+                } else {
+                  whatsAppStatus = RecipientDeliveryStatus.failed;
+                  whatsAppError = res.error ?? 'WhatsApp delivery error';
+                  whatsAppFailed++;
+                }
+              } catch (e) {
+                debugPrint('Campaign WhatsApp Error for ${patient.phone}: $e');
                 whatsAppStatus = RecipientDeliveryStatus.failed;
-                whatsAppError = res.error ?? 'WhatsApp delivery error';
+                whatsAppError = e.toString().replaceAll('Exception: ', '');
                 whatsAppFailed++;
               }
-            } catch (e) {
-              debugPrint('Campaign WhatsApp Error for ${patient.phone}: $e');
-              whatsAppStatus = RecipientDeliveryStatus.failed;
-              whatsAppError = e.toString().replaceAll('Exception: ', '');
-              whatsAppFailed++;
             }
           }
-        }
 
-        // Save updated recipient log
-        final updatedLog = CampaignRecipientLog(
-          id: logId,
-          campaignId: campaignId,
-          doctorId: doctorId,
-          patientId: patient.id,
-          patientName: patient.fullName,
-          email: patient.email,
-          phone: patient.phone,
-          emailStatus: emailStatus,
-          whatsAppStatus: whatsAppStatus,
-          emailMessageId: emailMessageId,
-          whatsAppMessageId: whatsAppMessageId,
-          emailError: emailError,
-          whatsAppError: whatsAppError,
-          dispatchedAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        );
-        await _campaignRepository.saveRecipientLog(updatedLog);
+          // Save updated recipient log
+          final updatedLog = CampaignRecipientLog(
+            id: logId,
+            campaignId: campaignId,
+            doctorId: doctorId,
+            patientId: patient.id,
+            patientName: patient.fullName,
+            email: patient.email,
+            phone: patient.phone,
+            emailStatus: emailStatus,
+            whatsAppStatus: whatsAppStatus,
+            emailMessageId: emailMessageId,
+            whatsAppMessageId: whatsAppMessageId,
+            emailError: emailError,
+            whatsAppError: whatsAppError,
+            dispatchedAt: DateTime.now(),
+            updatedAt: DateTime.now(),
+          );
+          await _campaignRepository.saveRecipientLog(updatedLog);
 
-        processedCount++;
-        onProgress?.call(processedCount, targetPatients.length);
-      }));
+          processedCount++;
+          onProgress?.call(processedCount, targetPatients.length);
+        }),
+      );
 
       // Periodic batch aggregate update
       currentCampaign = currentCampaign.copyWith(
@@ -290,10 +314,16 @@ class CampaignDispatchService {
     String? doctorName,
     void Function(int processed, int total)? onProgress,
   }) async {
-    final campaign = await _campaignRepository.getCampaign(doctorId, campaignId);
+    final campaign = await _campaignRepository.getCampaign(
+      doctorId,
+      campaignId,
+    );
     if (campaign == null) throw Exception('Campaign not found');
 
-    final logs = await _campaignRepository.getRecipientLogs(doctorId, campaignId);
+    final logs = await _campaignRepository.getRecipientLogs(
+      doctorId,
+      campaignId,
+    );
     final failedLogs = logs.where((l) => l.hasFailed).toList();
 
     if (failedLogs.isEmpty) return campaign;
@@ -383,15 +413,16 @@ class CampaignDispatchService {
       if (whatsAppStatus == RecipientDeliveryStatus.failed &&
           WhatsAppTemplateService.isValidWhatsAppPhone(log.phone)) {
         try {
-          final formattedWa = CampaignAudienceHelper.buildFormattedWhatsAppMessage(
-            campaign.message,
-            title: campaign.title,
-            patient: patient,
-            category: campaign.category,
-            clinicName: clinicName,
-            doctorName: doctorName,
-            mediaUrl: campaign.mediaUrl,
-          );
+          final formattedWa =
+              CampaignAudienceHelper.buildFormattedWhatsAppMessage(
+                campaign.message,
+                title: campaign.title,
+                patient: patient,
+                category: campaign.category,
+                clinicName: clinicName,
+                doctorName: doctorName,
+                mediaUrl: campaign.mediaUrl,
+              );
 
           final res = await _dispatchWhatsAppDirect(
             phone: log.phone,
@@ -452,28 +483,35 @@ class CampaignDispatchService {
   }
 
   /// Sends a WhatsApp message via Meta WhatsApp Business Cloud API with template fallback.
-  Future<({bool success, String? messageId, String? error})> _dispatchWhatsAppDirect({
+  Future<({bool success, String? messageId, String? error})>
+  _dispatchWhatsAppDirect({
     required String phone,
     required String formattedText,
   }) async {
-    final normalizedPhone = WhatsAppTemplateService.normalizePhone(phone) ?? phone;
+    final normalizedPhone =
+        WhatsAppTemplateService.normalizePhone(phone) ?? phone;
 
     // 1. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
       final currentDoctorId = FirebaseAuth.instance.currentUser?.uid;
       if (currentDoctorId != null && currentDoctorId.isNotEmpty) {
-        final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-            .httpsCallable('sendWhatsAppCampaignMessage');
-        final result = await callable.call<Map<String, dynamic>>({
-          'doctorId': currentDoctorId,
-          'phone': normalizedPhone,
-          'templateName': 'appointment_confirmation',
-        }).timeout(const Duration(seconds: 12));
+        final callable = FirebaseFunctions.instanceFor(
+          region: 'asia-south1',
+        ).httpsCallable('sendWhatsAppCampaignMessage');
+        final result = await callable
+            .call<Map<String, dynamic>>({
+              'doctorId': currentDoctorId,
+              'phone': normalizedPhone,
+              'templateName': 'appointment_confirmation',
+            })
+            .timeout(const Duration(seconds: 12));
 
         final data = result.data;
         if (data['success'] == true) {
           final id = data['messageId'] as String?;
-          debugPrint('[Campaign WhatsApp] Dispatched to $normalizedPhone via Cloud Function ($id)');
+          debugPrint(
+            '[Campaign WhatsApp] Dispatched to $normalizedPhone via Cloud Function ($id)',
+          );
           return (success: true, messageId: id, error: null);
         }
       }
@@ -483,7 +521,9 @@ class CampaignDispatchService {
 
     // 2. Development Direct Meta Dispatch (only if dev explicitly sets WHATSAPP_DEV_TOKEN)
     if (_devMetaToken.isNotEmpty) {
-      final metaUrl = Uri.parse('https://graph.facebook.com/v20.0/$_metaPhoneId/messages');
+      final metaUrl = Uri.parse(
+        'https://graph.facebook.com/v20.0/$_metaPhoneId/messages',
+      );
       String? lastError;
 
       try {
@@ -492,44 +532,44 @@ class CampaignDispatchService {
           'recipient_type': 'individual',
           'to': normalizedPhone,
           'type': 'text',
-          'text': {
-            'preview_url': true,
-            'body': formattedText,
-          },
+          'text': {'preview_url': true, 'body': formattedText},
         });
 
-        final response = await _httpClient.post(
-          metaUrl,
-          headers: {
-            'Authorization': 'Bearer $_devMetaToken',
-            'Content-Type': 'application/json',
-          },
-          body: textBody,
-        ).timeout(const Duration(seconds: 12));
+        final response = await _httpClient
+            .post(
+              metaUrl,
+              headers: {
+                'Authorization': 'Bearer $_devMetaToken',
+                'Content-Type': 'application/json',
+              },
+              body: textBody,
+            )
+            .timeout(const Duration(seconds: 12));
 
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         if (response.statusCode == 200) {
           final messages = data['messages'] as List<dynamic>?;
-          final id = (messages != null && messages.isNotEmpty) ? messages[0]['id'] as String? : null;
+          final id = (messages != null && messages.isNotEmpty)
+              ? messages[0]['id'] as String?
+              : null;
           return (success: true, messageId: id, error: null);
         } else {
-          lastError = data['error']?['message'] as String? ?? 'HTTP ${response.statusCode} from Meta';
+          lastError =
+              data['error']?['message'] as String? ??
+              'HTTP ${response.statusCode} from Meta';
         }
       } catch (e) {
         lastError = e.toString();
       }
 
-      return (
-        success: false,
-        messageId: null,
-        error: 'Meta API: $lastError',
-      );
+      return (success: false, messageId: null, error: 'Meta API: $lastError');
     }
 
     // 3. Fallback for testing/unconnected dev environment
     final simId = 'sim_wa_${_uuid.v4().substring(0, 8)}';
-    debugPrint('[Campaign WhatsApp] Simulated delivery to $normalizedPhone ($simId)');
+    debugPrint(
+      '[Campaign WhatsApp] Simulated delivery to $normalizedPhone ($simId)',
+    );
     return (success: true, messageId: simId, error: null);
   }
 }
-

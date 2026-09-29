@@ -31,8 +31,12 @@ class _Pose {
   final double open;
 
   _Pose copyWith({double? yaw, double? pitch, double? dist, double? open}) =>
-      _Pose(yaw ?? this.yaw, pitch ?? this.pitch, dist ?? this.dist,
-          open ?? this.open);
+      _Pose(
+        yaw ?? this.yaw,
+        pitch ?? this.pitch,
+        dist ?? this.dist,
+        open ?? this.open,
+      );
 
   static _Pose lerp(_Pose a, _Pose b, double t) {
     var dy = (b.yaw - a.yaw) % (2 * math.pi);
@@ -123,7 +127,11 @@ class _ToothChart3DState extends State<ToothChart3D>
 
   void _onAnim() {
     setState(() {
-      _pose = _Pose.lerp(_from, _to, Curves.easeOutCubic.transform(_anim.value));
+      _pose = _Pose.lerp(
+        _from,
+        _to,
+        Curves.easeOutCubic.transform(_anim.value),
+      );
     });
   }
 
@@ -141,11 +149,11 @@ class _ToothChart3DState extends State<ToothChart3D>
   }
 
   static _Pose _clamp(_Pose p) => _Pose(
-        p.yaw,
-        p.pitch.clamp(-1.45, 1.45),
-        p.dist.clamp(70.0, 260.0),
-        p.open.clamp(0.0, 1.0),
-      );
+    p.yaw,
+    p.pitch.clamp(-1.45, 1.45),
+    p.dist.clamp(70.0, 260.0),
+    p.open.clamp(0.0, 1.0),
+  );
 
   void _zoom(double factor) =>
       _setPose(_pose.copyWith(dist: _pose.dist * factor));
@@ -157,12 +165,14 @@ class _ToothChart3DState extends State<ToothChart3D>
     if (upper && _jaws == _Jaws.lower || !upper && _jaws == _Jaws.upper) {
       setState(() => _jaws = _Jaws.both);
     }
-    _animateTo(_Pose(
-      math.atan2(-f.outward.x, f.outward.z),
-      upper ? -0.3 : 0.38,
-      98,
-      _pose.open,
-    ));
+    _animateTo(
+      _Pose(
+        math.atan2(-f.outward.x, f.outward.z),
+        upper ? -0.3 : 0.38,
+        98,
+        _pose.open,
+      ),
+    );
   }
 
   // ------------------------------------------------------------- input
@@ -212,10 +222,12 @@ class _ToothChart3DState extends State<ToothChart3D>
   }
 
   void _rotate(Offset delta) {
-    _setPose(_pose.copyWith(
-      yaw: _pose.yaw + delta.dx * 0.0085,
-      pitch: _pose.pitch + delta.dy * 0.0085,
-    ));
+    _setPose(
+      _pose.copyWith(
+        yaw: _pose.yaw + delta.dx * 0.0085,
+        pitch: _pose.pitch + delta.dy * 0.0085,
+      ),
+    );
   }
 
   void _onPointerUp(PointerEvent e) {
@@ -230,7 +242,8 @@ class _ToothChart3DState extends State<ToothChart3D>
         DateTime.now().difference(down) < const Duration(milliseconds: 400)) {
       final tooth = _pick(e.localPosition);
       final now = DateTime.now();
-      final isDouble = _lastTapAt != null &&
+      final isDouble =
+          _lastTapAt != null &&
           now.difference(_lastTapAt!) < kDoubleTapTimeout &&
           _lastTapTooth == tooth;
       _lastTapAt = now;
@@ -310,7 +323,8 @@ class _ToothChart3DState extends State<ToothChart3D>
       focusNode: _focus,
       onKeyEvent: _onKey,
       child: Semantics(
-        label: '3D jaws. Drag or use the arrow keys to turn, scroll or '
+        label:
+            '3D jaws. Drag or use the arrow keys to turn, scroll or '
             'plus and minus to zoom, O to open the mouth.',
         child: SizedBox(
           height: widget.height,
@@ -344,10 +358,8 @@ class _ToothChart3DState extends State<ToothChart3D>
                           gestures: {
                             EagerGestureRecognizer:
                                 GestureRecognizerFactoryWithHandlers<
-                                    EagerGestureRecognizer>(
-                              EagerGestureRecognizer.new,
-                              (_) {},
-                            ),
+                                  EagerGestureRecognizer
+                                >(EagerGestureRecognizer.new, (_) {}),
                           },
                           child: Listener(
                             onPointerDown: _onPointerDown,
@@ -361,8 +373,8 @@ class _ToothChart3DState extends State<ToothChart3D>
                               cursor: _dragging
                                   ? SystemMouseCursors.grabbing
                                   : _hover != null
-                                      ? SystemMouseCursors.click
-                                      : SystemMouseCursors.grab,
+                                  ? SystemMouseCursors.click
+                                  : SystemMouseCursors.grab,
                               onHover: _onHover,
                               onExit: (_) => setState(() => _hover = null),
                               child: CustomPaint(
@@ -402,7 +414,8 @@ class _ToothChart3DState extends State<ToothChart3D>
                               label: 'Open mouth',
                               selected: _to.open > 0.5 && _pose.open > 0.01,
                               onTap: () => _animateTo(
-                                  _pose.copyWith(open: _pose.open > 0.5 ? 0 : 1)),
+                                _pose.copyWith(open: _pose.open > 0.5 ? 0 : 1),
+                              ),
                             ),
                             const SizedBox(width: CruSpace.s8),
                             DentalChoiceChip(
@@ -424,10 +437,26 @@ class _ToothChart3DState extends State<ToothChart3D>
                           children: [
                             for (final (label, pose, jaws) in [
                               ('Front', _Pose.front, _Jaws.both),
-                              ('Left side', const _Pose(-1.15, 0.12, 140, 0), _Jaws.both),
-                              ('Right side', const _Pose(1.15, 0.12, 140, 0), _Jaws.both),
-                              ('Upper teeth', const _Pose(0, -1.2, 135, 1), _Jaws.upper),
-                              ('Lower teeth', const _Pose(0, 1.2, 135, 1), _Jaws.lower),
+                              (
+                                'Left side',
+                                const _Pose(-1.15, 0.12, 140, 0),
+                                _Jaws.both,
+                              ),
+                              (
+                                'Right side',
+                                const _Pose(1.15, 0.12, 140, 0),
+                                _Jaws.both,
+                              ),
+                              (
+                                'Upper teeth',
+                                const _Pose(0, -1.2, 135, 1),
+                                _Jaws.upper,
+                              ),
+                              (
+                                'Lower teeth',
+                                const _Pose(0, 1.2, 135, 1),
+                                _Jaws.lower,
+                              ),
                             ])
                               _ViewChip(
                                 label: label,
@@ -649,7 +678,11 @@ class _Renderer {
           } else {
             base = switch (v.state) {
               ToothState.needsCare => Color.lerp(base, c.amber, 0.5)!,
-              ToothState.treated => Color.lerp(base, c.green, v.capped ? 0.45 : 0.3)!,
+              ToothState.treated => Color.lerp(
+                base,
+                c.green,
+                v.capped ? 0.45 : 0.3,
+              )!,
               _ => base,
             };
           }
@@ -824,17 +857,19 @@ class _Renderer {
         dot = toothColors(c, v.state).text;
       }
       final label = toothLabel(tooth, numbering);
-      callouts.add(_Callout(
-        tooth: tooth,
-        text: text == null ? label : '$label  $text',
-        anchor: pa,
-        at: Offset(
-          at.dx.clamp(60.0, size.width - 60),
-          at.dy.clamp(56.0, size.height - 56),
+      callouts.add(
+        _Callout(
+          tooth: tooth,
+          text: text == null ? label : '$label  $text',
+          anchor: pa,
+          at: Offset(
+            at.dx.clamp(60.0, size.width - 60),
+            at.dy.clamp(56.0, size.height - 56),
+          ),
+          dot: dot,
+          selected: isSel,
         ),
-        dot: dot,
-        selected: isSel,
-      ));
+      );
     }
     final shown = _spread(
       callouts.length <= 12
@@ -849,8 +884,11 @@ class _Renderer {
     return _Frame(
       positions.isEmpty
           ? null
-          : ui.Vertices.raw(ui.VertexMode.triangles, positions,
-              colors: colorsArr),
+          : ui.Vertices.raw(
+              ui.VertexMode.triangles,
+              positions,
+              colors: colorsArr,
+            ),
       positions,
       owners,
       shown,
@@ -914,7 +952,11 @@ class _FramePainter extends CustomPainter {
         ..color = c.selected ? colors.accent : colors.label3
         ..strokeWidth = 1.2;
       canvas.drawLine(c.anchor, c.at, paint);
-      canvas.drawCircle(c.anchor, 3, Paint()..color = c.selected ? colors.accent : colors.surface);
+      canvas.drawCircle(
+        c.anchor,
+        3,
+        Paint()..color = c.selected ? colors.accent : colors.surface,
+      );
       canvas.drawCircle(
         c.anchor,
         3,
@@ -944,8 +986,9 @@ class _CalloutChip extends StatelessWidget {
     final text = Text(
       label.text,
       maxLines: 1,
-      style: CruType.caption.w600.tabular
-          .tint(label.selected ? c.onAccent : c.label),
+      style: CruType.caption.w600.tabular.tint(
+        label.selected ? c.onAccent : c.label,
+      ),
     );
     return Positioned(
       left: label.at.dx,
@@ -957,16 +1000,15 @@ class _CalloutChip extends StatelessWidget {
           semanticLabel: 'Tooth ${label.text}',
           builder: (context, hovered) => Container(
             height: h,
-            padding: const EdgeInsets.fromLTRB(
-                CruSpace.s8, 0, CruSpace.s10, 0),
+            padding: const EdgeInsets.fromLTRB(CruSpace.s8, 0, CruSpace.s10, 0),
             decoration: ShapeDecoration(
               color: label.selected
                   ? c.accent
                   : hovered
-                      ? cruHoverShade(c.surface, c)
-                      : c.surface,
+                  ? cruHoverShade(c.surface, c)
+                  : c.surface,
               shape: StadiumBorder(side: BorderSide(color: c.hairline)),
-              shadows: c.cardShadow,
+              shadows: const [],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -1012,9 +1054,7 @@ class _ViewChip extends StatelessWidget {
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: CruType.subhead.w500.tint(c.label2)),
-          ],
+          children: [Text(label, style: CruType.subhead.w500.tint(c.label2))],
         ),
       ),
     );

@@ -29,13 +29,7 @@ class LetterheadBrandingCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -83,14 +77,18 @@ class LetterheadBrandingCard extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.tune_rounded, color: Color(0xFF1E78FF)),
+                  icon: const Icon(
+                    Icons.tune_rounded,
+                    color: Color(0xFF1E78FF),
+                  ),
                   tooltip: 'Customize Letterhead',
-                  onPressed: () => _openLetterheadCustomizerSheet(context, config),
+                  onPressed: () =>
+                      _openLetterheadCustomizerSheet(context, config),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const Divider(height: 1),
 
           // ---- Live Letterhead Mini-Preview ----
           Padding(
@@ -113,13 +111,19 @@ class LetterheadBrandingCard extends StatelessWidget {
                         width: 48,
                         height: 48,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E78FF).withValues(alpha: 0.08),
+                          color: const Color(
+                            0xFF1E78FF,
+                          ).withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: const Color(0xFF1E78FF).withValues(alpha: 0.2),
+                            color: const Color(
+                              0xFF1E78FF,
+                            ).withValues(alpha: 0.2),
                           ),
                         ),
-                        child: (config.logoUrl != null && config.logoUrl!.trim().isNotEmpty)
+                        child:
+                            (config.logoUrl != null &&
+                                config.logoUrl!.trim().isNotEmpty)
                             ? ClipRRect(
                                 borderRadius: BorderRadius.circular(11),
                                 child: CachedNetworkImage(
@@ -212,7 +216,8 @@ class LetterheadBrandingCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _openPrescriptionGenerator(context, config),
+                    onPressed: () =>
+                        _openPrescriptionGenerator(context, config),
                     icon: const Icon(Icons.medication_rounded, size: 16),
                     label: const Text('Generate Rx'),
                     style: OutlinedButton.styleFrom(
@@ -229,7 +234,8 @@ class LetterheadBrandingCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _openMedicalReportGenerator(context, config),
+                    onPressed: () =>
+                        _openMedicalReportGenerator(context, config),
                     icon: const Icon(Icons.description_rounded, size: 16),
                     label: const Text('Report'),
                     style: OutlinedButton.styleFrom(
@@ -251,7 +257,10 @@ class LetterheadBrandingCard extends StatelessWidget {
     );
   }
 
-  void _openLetterheadCustomizerSheet(BuildContext context, DoctorLetterheadConfig config) {
+  void _openLetterheadCustomizerSheet(
+    BuildContext context,
+    DoctorLetterheadConfig config,
+  ) {
     final clinicNameCtrl = TextEditingController(text: config.clinicName);
     final qualCtrl = TextEditingController(text: config.qualifications);
     final regNoCtrl = TextEditingController(text: config.registrationNumber);
@@ -297,7 +306,11 @@ class LetterheadBrandingCard extends StatelessWidget {
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(Icons.edit_note_rounded, color: Color(0xFF1E78FF), size: 24),
+                    const Icon(
+                      Icons.edit_note_rounded,
+                      color: Color(0xFF1E78FF),
+                      size: 24,
+                    ),
                     const SizedBox(width: 8),
                     const Text(
                       'Customize Letterhead & Logo',
@@ -318,49 +331,86 @@ class LetterheadBrandingCard extends StatelessWidget {
                 const SizedBox(height: 20),
 
                 // Clinic Name
-                _buildField(clinicNameCtrl, 'Clinic / Hospital Name', Icons.local_hospital_rounded),
+                _buildField(
+                  clinicNameCtrl,
+                  'Clinic / Hospital Name',
+                  Icons.local_hospital_rounded,
+                ),
                 const SizedBox(height: 12),
 
                 // Qualifications & Registration
                 Row(
                   children: [
                     Expanded(
-                      child: _buildField(qualCtrl, 'Degrees (e.g. MBBS, MD)', Icons.school_rounded),
+                      child: _buildField(
+                        qualCtrl,
+                        'Degrees (e.g. MBBS, MD)',
+                        Icons.school_rounded,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _buildField(regNoCtrl, 'Reg. No (e.g. MMC-1234)', Icons.badge_rounded),
+                      child: _buildField(
+                        regNoCtrl,
+                        'Reg. No (e.g. MMC-1234)',
+                        Icons.badge_rounded,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
                 // Address
-                _buildField(addressCtrl, 'Clinic Address / Location', Icons.location_on_rounded),
+                _buildField(
+                  addressCtrl,
+                  'Clinic Address / Location',
+                  Icons.location_on_rounded,
+                ),
                 const SizedBox(height: 12),
 
                 // Contact Phone & Email
                 Row(
                   children: [
                     Expanded(
-                      child: _buildField(phoneCtrl, 'Contact Phone', Icons.phone_rounded),
+                      child: _buildField(
+                        phoneCtrl,
+                        'Contact Phone',
+                        Icons.phone_rounded,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _buildField(emailCtrl, 'Clinic Email', Icons.email_rounded),
+                      child: _buildField(
+                        emailCtrl,
+                        'Clinic Email',
+                        Icons.email_rounded,
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 12),
 
                 // Logo URL
-                _buildField(logoUrlCtrl, 'Logo Image URL (Optional)', Icons.image_rounded),
+                _buildField(
+                  logoUrlCtrl,
+                  'Logo Image URL (Optional)',
+                  Icons.image_rounded,
+                ),
                 const SizedBox(height: 12),
 
                 // Tagline & Footer
-                _buildField(taglineCtrl, 'Header Tagline / Subtitle', Icons.short_text_rounded),
+                _buildField(
+                  taglineCtrl,
+                  'Header Tagline / Subtitle',
+                  Icons.short_text_rounded,
+                ),
                 const SizedBox(height: 12),
-                _buildField(footerCtrl, 'Footer Disclaimer / Notes', Icons.notes_rounded, maxLines: 2),
+                _buildField(
+                  footerCtrl,
+                  'Footer Disclaimer / Notes',
+                  Icons.notes_rounded,
+                  maxLines: 2,
+                ),
                 const SizedBox(height: 24),
 
                 // Save Button
@@ -381,14 +431,18 @@ class LetterheadBrandingCard extends StatelessWidget {
                                 clinicEmail: emailCtrl.text,
                                 tagline: taglineCtrl.text,
                                 footerDisclaimer: footerCtrl.text,
-                                logoUrl: logoUrlCtrl.text.isNotEmpty ? logoUrlCtrl.text : null,
+                                logoUrl: logoUrlCtrl.text.isNotEmpty
+                                    ? logoUrlCtrl.text
+                                    : null,
                                 user: user,
                               );
                               if (ctx.mounted) Navigator.pop(ctx);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Letterhead & Branding saved successfully!'),
+                                    content: Text(
+                                      'Letterhead & Branding saved successfully!',
+                                    ),
                                     backgroundColor: Color(0xFF16A34A),
                                   ),
                                 );
@@ -424,7 +478,10 @@ class LetterheadBrandingCard extends StatelessWidget {
                           )
                         : const Text(
                             'Save Letterhead Settings',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 15,
+                            ),
                           ),
                   ),
                 ),
@@ -436,7 +493,12 @@ class LetterheadBrandingCard extends StatelessWidget {
     );
   }
 
-  Widget _buildField(TextEditingController ctrl, String label, IconData icon, {int maxLines = 1}) {
+  Widget _buildField(
+    TextEditingController ctrl,
+    String label,
+    IconData icon, {
+    int maxLines = 1,
+  }) {
     return TextField(
       controller: ctrl,
       maxLines: maxLines,
@@ -445,14 +507,17 @@ class LetterheadBrandingCard extends StatelessWidget {
         prefixIcon: Icon(icon, size: 18, color: const Color(0xFF1E78FF)),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -471,7 +536,10 @@ class LetterheadBrandingCard extends StatelessWidget {
     );
   }
 
-  void _openPrescriptionGenerator(BuildContext context, DoctorLetterheadConfig config) {
+  void _openPrescriptionGenerator(
+    BuildContext context,
+    DoctorLetterheadConfig config,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -480,7 +548,10 @@ class LetterheadBrandingCard extends StatelessWidget {
     );
   }
 
-  void _openMedicalReportGenerator(BuildContext context, DoctorLetterheadConfig config) {
+  void _openMedicalReportGenerator(
+    BuildContext context,
+    DoctorLetterheadConfig config,
+  ) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,

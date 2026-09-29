@@ -113,15 +113,15 @@ const TextStyle inventoryTileQuantity = TextStyle(
 /// stocked, an Ink blue between the good and reorder levels, amber at or
 /// below the reorder level, red when critically low.
 Color stockFill(CruColors c, StockState s) => switch (s) {
-      StockState.good => c.green,
-      StockState.okay => c.isEvening ? CruBrand.ink500 : CruBrand.ink400,
-      StockState.low => c.amber,
-      StockState.critical => c.redText,
-    };
+  StockState.good => c.green,
+  StockState.okay => c.isEvening ? CruBrand.ink500 : CruBrand.ink400,
+  StockState.low => c.amber,
+  StockState.critical => c.redText,
+};
 
 /// The stock number: amber when low, red when critical, plain otherwise.
 Color stockText(CruColors c, StockState s) => switch (s) {
-      StockState.low => c.amberText,
-      StockState.critical => c.redText,
-      _ => c.label,
-    };
+  StockState.low => c.amberText,
+  StockState.critical => c.redText,
+  _ => c.label,
+};

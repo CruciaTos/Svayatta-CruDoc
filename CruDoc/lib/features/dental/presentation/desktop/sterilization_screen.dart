@@ -43,35 +43,50 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
     final async = ref.watch(clinicSterilizationProvider);
     final logs = async.value == null
         ? null
-        : ([...async.value!]..sort((a, b) => b.cycleDate.compareTo(a.cycleDate)));
+        : ([...async.value!]
+            ..sort((a, b) => b.cycleDate.compareTo(a.cycleDate)));
     final now = DateTime.now();
 
-    final today = logs?.where((l) => DentalFormat.sameDay(l.cycleDate, now)).toList() ?? const [];
-    final weekStart = DateTime(now.year, now.month, now.day)
-        .subtract(Duration(days: now.weekday - 1));
-    final week = logs?.where((l) => !l.cycleDate.isBefore(weekStart)).toList() ?? const [];
-    final month = logs
-            ?.where((l) => now.difference(l.cycleDate).inDays < 30)
-            .toList() ??
+    final today =
+        logs?.where((l) => DentalFormat.sameDay(l.cycleDate, now)).toList() ??
+        const [];
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
+    final week =
+        logs?.where((l) => !l.cycleDate.isBefore(weekStart)).toList() ??
+        const [];
+    final month =
+        logs?.where((l) => now.difference(l.cycleDate).inDays < 30).toList() ??
         const [];
     SterilizationResult r(SterilizationLogModel l) =>
         SterilizationResult.fromString(l.result);
-    final failed30 = month.where((l) => r(l) == SterilizationResult.fail).length;
-    final passed30 = month.where((l) => r(l) == SterilizationResult.pass).length;
+    final failed30 = month
+        .where((l) => r(l) == SterilizationResult.fail)
+        .length;
+    final passed30 = month
+        .where((l) => r(l) == SterilizationResult.pass)
+        .length;
 
     final q = _query.trim().toLowerCase();
     final shown = (logs ?? const <SterilizationLogModel>[])
-        .where((l) => switch (_filter) {
-              _CycleFilter.all => true,
-              _CycleFilter.passed => r(l) == SterilizationResult.pass,
-              _CycleFilter.failed => r(l) == SterilizationResult.fail,
-              _CycleFilter.incomplete => r(l) == SterilizationResult.incomplete,
-            })
-        .where((l) =>
-            q.isEmpty ||
-            l.loadDescription.toLowerCase().contains(q) ||
-            l.operatorName.toLowerCase().contains(q) ||
-            l.notes.toLowerCase().contains(q))
+        .where(
+          (l) => switch (_filter) {
+            _CycleFilter.all => true,
+            _CycleFilter.passed => r(l) == SterilizationResult.pass,
+            _CycleFilter.failed => r(l) == SterilizationResult.fail,
+            _CycleFilter.incomplete => r(l) == SterilizationResult.incomplete,
+          },
+        )
+        .where(
+          (l) =>
+              q.isEmpty ||
+              l.loadDescription.toLowerCase().contains(q) ||
+              l.operatorName.toLowerCase().contains(q) ||
+              l.notes.toLowerCase().contains(q),
+        )
         .toList();
 
     // Grouped by day, newest first.
@@ -81,10 +96,14 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
     }
 
     Widget cell(String label, String value, Widget caption) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [GlanceLabel(label), GlanceMetric(value), GlanceCaption(caption)],
-        );
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GlanceLabel(label),
+        GlanceMetric(value),
+        GlanceCaption(caption),
+      ],
+    );
     final last = logs == null || logs.isEmpty ? null : logs.first;
 
     return Padding(
@@ -97,8 +116,8 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
             subtitle: last == null
                 ? 'Autoclave cycles for your infection-control records'
                 : 'Last cycle ${DentalFormat.day(last.cycleDate, now).toLowerCase()} '
-                    'at ${DentalFormat.time(last.cycleDate)} · '
-                    '${sterilizationWord(last.result)}',
+                      'at ${DentalFormat.time(last.cycleDate)} · '
+                      '${sterilizationWord(last.result)}',
             actions: [
               CruButton(
                 label: 'Log cycle',
@@ -118,26 +137,46 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
                   'Today',
                   '${today.length}',
                   today.isEmpty
-                      ? Text('No cycle logged yet',
-                          style: CruType.caption.tint(c.amberText))
-                      : Text('Last at ${DentalFormat.time(today.first.cycleDate)}'),
+                      ? Text(
+                          'No cycle logged yet',
+                          style: CruType.caption.tint(c.amberText),
+                        )
+                      : Text(
+                          'Last at ${DentalFormat.time(today.first.cycleDate)}',
+                        ),
                 ),
-                cell('This week', '${week.length}',
-                    Text(DashFormat.plural(week.where((l) => r(l) == SterilizationResult.pass).length, 'passed cycle'))),
+                cell(
+                  'This week',
+                  '${week.length}',
+                  Text(
+                    DashFormat.plural(
+                      week
+                          .where((l) => r(l) == SterilizationResult.pass)
+                          .length,
+                      'passed cycle',
+                    ),
+                  ),
+                ),
                 cell(
                   'Failed',
                   '$failed30',
                   failed30 == 0
                       ? const Text('None in 30 days')
-                      : Text('In 30 days · re-run those loads',
-                          style: CruType.caption.tint(c.redText)),
+                      : Text(
+                          'In 30 days · re-run those loads',
+                          style: CruType.caption.tint(c.redText),
+                        ),
                 ),
                 cell(
                   'Pass rate',
-                  month.isEmpty ? '—' : '${(passed30 * 100 / month.length).round()}%',
-                  Text(month.isEmpty
-                      ? 'No cycles in 30 days'
-                      : 'of ${DashFormat.plural(month.length, 'cycle')} in 30 days'),
+                  month.isEmpty
+                      ? '—'
+                      : '${(passed30 * 100 / month.length).round()}%',
+                  Text(
+                    month.isEmpty
+                        ? 'No cycles in 30 days'
+                        : 'of ${DashFormat.plural(month.length, 'cycle')} in 30 days',
+                  ),
                 ),
               ],
             ),
@@ -174,39 +213,47 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
               child: logs == null
                   ? const SizedBox.shrink()
                   : shown.isEmpty
-                      ? Center(
-                          child: SingleChildScrollView(
-                            child: DentalEmptyState(
-                              icon: DentalIcons.shield,
-                              title: logs.isEmpty ? 'No cycles logged yet' : 'No cycles here',
-                              body: logs.isEmpty
-                                  ? 'Log each autoclave run: what went in, who ran '
-                                      'it and whether it passed. It keeps your '
-                                      'infection-control record ready for inspection.'
-                                  : 'Try another filter or search.',
-                              actions: [
-                                if (logs.isEmpty)
-                                  CruButton(
-                                    label: 'Log cycle',
-                                    icon: CruIcons.plus,
-                                    onPressed: () => showSterilizationDialog(context),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          children: [
-                            for (final e in groups.entries) ...[
-                              DentalGroupLabel(e.key,
-                                  trailing: DashFormat.plural(e.value.length, 'cycle')),
-                              for (var i = 0; i < e.value.length; i++) ...[
-                                if (i > 0) const CruSeparator(indent: 12 + 76 + 12),
-                                _CycleRow(log: e.value[i]),
-                              ],
-                            ],
+                  ? Center(
+                      child: SingleChildScrollView(
+                        child: DentalEmptyState(
+                          icon: DentalIcons.shield,
+                          title: logs.isEmpty
+                              ? 'No cycles logged yet'
+                              : 'No cycles here',
+                          body: logs.isEmpty
+                              ? 'Log each autoclave run: what went in, who ran '
+                                    'it and whether it passed. It keeps your '
+                                    'infection-control record ready for inspection.'
+                              : 'Try another filter or search.',
+                          actions: [
+                            if (logs.isEmpty)
+                              CruButton(
+                                label: 'Log cycle',
+                                icon: CruIcons.plus,
+                                onPressed: () =>
+                                    showSterilizationDialog(context),
+                              ),
                           ],
                         ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final e in groups.entries) ...[
+                          DentalGroupLabel(
+                            e.key,
+                            trailing: DashFormat.plural(
+                              e.value.length,
+                              'cycle',
+                            ),
+                          ),
+                          for (var i = 0; i < e.value.length; i++) ...[
+                            if (i > 0) const CruSeparator(indent: 12 + 76 + 12),
+                            _CycleRow(log: e.value[i]),
+                          ],
+                        ],
+                      ],
+                    ),
             ),
           ),
         ],
@@ -250,7 +297,8 @@ class _CycleRow extends StatelessWidget {
                 ),
                 Text(
                   [
-                    if (log.operatorName.trim().isNotEmpty) 'By ${log.operatorName.trim()}',
+                    if (log.operatorName.trim().isNotEmpty)
+                      'By ${log.operatorName.trim()}',
                     if (notes.isNotEmpty) notes,
                   ].join(' · '),
                   maxLines: 1,
@@ -307,14 +355,23 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
     super.initState();
     final e = widget.existing;
     // The last operator is usually the same person.
-    final lastOperator = ref.read(clinicSterilizationProvider).value?.firstOrNull?.operatorName;
+    final lastOperator = ref
+        .read(clinicSterilizationProvider)
+        .value
+        ?.firstOrNull
+        ?.operatorName;
     final me = ref.read(doctorIdentityProvider).fullName;
     _operator = TextEditingController(
-        text: e?.operatorName ?? (lastOperator?.trim().isNotEmpty == true ? lastOperator : me));
+      text:
+          e?.operatorName ??
+          (lastOperator?.trim().isNotEmpty == true ? lastOperator : me),
+    );
     _load = TextEditingController(text: e?.loadDescription ?? '');
     _notes = TextEditingController(text: e?.notes ?? '');
     _at = e?.cycleDate ?? DateTime.now();
-    _result = e == null ? SterilizationResult.pass : SterilizationResult.fromString(e.result);
+    _result = e == null
+        ? SterilizationResult.pass
+        : SterilizationResult.fromString(e.result);
   }
 
   @override
@@ -337,17 +394,19 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: Theme.of(ctx).colorScheme.copyWith(
-                primary: c.accent,
-                onPrimary: c.onAccent,
-                surface: c.surface,
-                onSurface: c.label,
-              ),
+            primary: c.accent,
+            onPrimary: c.onAccent,
+            surface: c.surface,
+            onSurface: c.label,
+          ),
         ),
         child: child!,
       ),
     );
     if (t == null) return;
-    setState(() => _at = DateTime(_at.year, _at.month, _at.day, t.hour, t.minute));
+    setState(
+      () => _at = DateTime(_at.year, _at.month, _at.day, t.hour, t.minute),
+    );
     _edited();
   }
 
@@ -361,7 +420,9 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
     try {
       final now = DateTime.now();
       final e = widget.existing;
-      await ref.read(dentalRepositoryProvider).saveSterilizationLog(
+      await ref
+          .read(dentalRepositoryProvider)
+          .saveSterilizationLog(
             SterilizationLogModel(
               id: e?.id ?? const Uuid().v4(),
               doctorId: ref.read(dentalDoctorIdProvider),
@@ -391,13 +452,20 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
     final ok = await confirmDental(
       context,
       title: 'Delete this cycle?',
-      body: 'The ${DentalFormat.time(e.cycleDate)} cycle on '
+      body:
+          'The ${DentalFormat.time(e.cycleDate)} cycle on '
           '${DentalFormat.date(e.cycleDate)} will be removed from the log.',
       action: 'Delete',
     );
     if (!ok || !mounted) return;
-    await ref.read(dentalRepositoryProvider).saveSterilizationLog(
-          e.copyWith(isDeleted: true, updatedAt: DateTime.now(), syncStatus: 'pending'),
+    await ref
+        .read(dentalRepositoryProvider)
+        .saveSterilizationLog(
+          e.copyWith(
+            isDeleted: true,
+            updatedAt: DateTime.now(),
+            syncStatus: 'pending',
+          ),
         );
     ref.invalidate(clinicSterilizationProvider);
     if (mounted) Navigator.of(context).pop(true);
@@ -407,9 +475,14 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
   Widget build(BuildContext context) {
     final failed = _result == SterilizationResult.fail;
     return CruFormDialog(
-      title: widget.existing == null ? 'Log autoclave cycle' : 'Autoclave cycle',
+      title: widget.existing == null
+          ? 'Log autoclave cycle'
+          : 'Autoclave cycle',
       subtitle: '${DentalFormat.date(_at)} · ${DentalFormat.time(_at)}',
-      leading: const CruIconTile(icon: DentalIcons.shield, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: DentalIcons.shield,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.existing == null ? 'Log cycle' : 'Save changes',
       onSubmit: _save,
       busy: _saving,
@@ -418,8 +491,9 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
       footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -439,10 +513,21 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                           ? const CruInfoPill(text: 'Today')
                           : null,
                       onTap: () async {
-                        final d = await pickDentalDate(context,
-                            initial: _at, last: DateTime.now());
+                        final d = await pickDentalDate(
+                          context,
+                          initial: _at,
+                          last: DateTime.now(),
+                        );
                         if (d != null) {
-                          setState(() => _at = DateTime(d.year, d.month, d.day, _at.hour, _at.minute));
+                          setState(
+                            () => _at = DateTime(
+                              d.year,
+                              d.month,
+                              d.day,
+                              _at.hour,
+                              _at.minute,
+                            ),
+                          );
                           _edited();
                         }
                       },
@@ -461,7 +546,9 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                   controller: _operator,
                   hint: 'Who loaded and started it',
                   textCapitalization: TextCapitalization.words,
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Add who ran the cycle.' : null,
+                  validator: (v) => (v ?? '').trim().isEmpty
+                      ? 'Add who ran the cycle.'
+                      : null,
                   onChanged: (_) => _edited(),
                 ),
                 CruTextField(
@@ -469,7 +556,8 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                   controller: _load,
                   hint: 'Kit 3, 4 handpieces, 12 pouches',
                   textCapitalization: TextCapitalization.sentences,
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Say what went in.' : null,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Say what went in.' : null,
                   onChanged: (_) => _edited(),
                 ),
               ],
@@ -489,7 +577,10 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                       segments: const [
                         CruSegment(SterilizationResult.pass, 'Passed'),
                         CruSegment(SterilizationResult.fail, 'Failed'),
-                        CruSegment(SterilizationResult.incomplete, 'Incomplete'),
+                        CruSegment(
+                          SterilizationResult.incomplete,
+                          'Incomplete',
+                        ),
                       ],
                       selected: _result,
                       onChanged: (r) {
@@ -516,7 +607,10 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
                 if (widget.existing != null)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: CruLink(label: 'Delete this cycle', onPressed: _delete),
+                    child: CruLink(
+                      label: 'Delete this cycle',
+                      onPressed: _delete,
+                    ),
                   ),
               ],
             ),

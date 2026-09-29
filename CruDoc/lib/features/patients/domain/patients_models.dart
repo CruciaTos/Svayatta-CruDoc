@@ -119,11 +119,15 @@ class PatientSummary {
   }
 
   /// Visits ahead, soonest first.
-  List<Visit> upcoming(DateTime now) => visits
-      .where((v) =>
-          v.status == VisitStatus.scheduled && !v.scheduledStart.isBefore(now))
-      .toList()
-    ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+  List<Visit> upcoming(DateTime now) =>
+      visits
+          .where(
+            (v) =>
+                v.status == VisitStatus.scheduled &&
+                !v.scheduledStart.isBefore(now),
+          )
+          .toList()
+        ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
 
   /// Visits that have started, newest first.
   List<Visit> past(DateTime now) =>

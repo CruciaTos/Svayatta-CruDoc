@@ -707,7 +707,7 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
           backgroundColor: c.canvas,
           surfaceTintColor: c.canvas.withValues(alpha: 0),
           insetPadding: const EdgeInsets.all(CruSpace.s24),
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: BoxConstraints(
@@ -1683,7 +1683,7 @@ class _Tile extends StatelessWidget {
               CruRadius.largeTile,
               side: selected ? BorderSide.none : BorderSide(color: c.hairline),
             ),
-            shadows: selected ? null : c.cardShadow,
+            shadows: const [],
           ),
           child: Column(
             children: [
@@ -2044,7 +2044,7 @@ class _PerioCell extends StatelessWidget {
             CruRadius.control,
             side: BorderSide(color: c.hairline),
           ),
-          shadows: c.cardShadow,
+          shadows: const [],
         ),
         child: Column(
           children: [

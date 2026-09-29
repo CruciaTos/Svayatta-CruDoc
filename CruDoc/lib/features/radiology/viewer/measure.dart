@@ -38,8 +38,9 @@ abstract final class RadMeasure {
     return s;
   }
 
-  static String _len(double px, double? mmPerPx) =>
-      mmPerPx == null ? '${px.toStringAsFixed(0)} px' : '${(px * mmPerPx).toStringAsFixed(1)} mm';
+  static String _len(double px, double? mmPerPx) => mmPerPx == null
+      ? '${px.toStringAsFixed(0)} px'
+      : '${(px * mmPerPx).toStringAsFixed(1)} mm';
 
   static String _area(double px2, double? mmPerPx) => mmPerPx == null
       ? '${px2.toStringAsFixed(0)} px²'
@@ -55,7 +56,9 @@ abstract final class RadMeasure {
       case RadAnnoKind.polyline:
         return p.length < 2 ? null : _len(pathLengthPx(p), mmPerPx);
       case RadAnnoKind.angle:
-        return p.length < 3 ? null : '${angleDeg(p[0], p[1], p[2]).toStringAsFixed(1)}°';
+        return p.length < 3
+            ? null
+            : '${angleDeg(p[0], p[1], p[2]).toStringAsFixed(1)}°';
       case RadAnnoKind.polygon:
         return p.length < 3 ? null : _area(polygonAreaPx(p), mmPerPx);
       case RadAnnoKind.rect:
@@ -64,7 +67,8 @@ abstract final class RadMeasure {
         return '${_len(w, mmPerPx)} × ${_len(h, mmPerPx)} · ${_area(w * h, mmPerPx)}';
       case RadAnnoKind.ellipse:
         if (p.length < 2) return null;
-        final rx = (p[1].x - p[0].x).abs() / 2, ry = (p[1].y - p[0].y).abs() / 2;
+        final rx = (p[1].x - p[0].x).abs() / 2,
+            ry = (p[1].y - p[0].y).abs() / 2;
         return _area(math.pi * rx * ry, mmPerPx);
       case RadAnnoKind.arrow:
       case RadAnnoKind.text:
@@ -76,17 +80,17 @@ abstract final class RadMeasure {
 
   /// "Length", "Angle"…
   static String kindLabel(RadAnnoKind k) => switch (k) {
-        RadAnnoKind.length => 'Length',
-        RadAnnoKind.angle => 'Angle',
-        RadAnnoKind.polygon => 'Area',
-        RadAnnoKind.ellipse => 'Ellipse',
-        RadAnnoKind.rect => 'Rectangle',
-        RadAnnoKind.polyline => 'Path',
-        RadAnnoKind.arrow => 'Arrow',
-        RadAnnoKind.text => 'Note',
-        RadAnnoKind.freehand => 'Drawing',
-        RadAnnoKind.toothLabel => 'Tooth',
-      };
+    RadAnnoKind.length => 'Length',
+    RadAnnoKind.angle => 'Angle',
+    RadAnnoKind.polygon => 'Area',
+    RadAnnoKind.ellipse => 'Ellipse',
+    RadAnnoKind.rect => 'Rectangle',
+    RadAnnoKind.polyline => 'Path',
+    RadAnnoKind.arrow => 'Arrow',
+    RadAnnoKind.text => 'Note',
+    RadAnnoKind.freehand => 'Drawing',
+    RadAnnoKind.toothLabel => 'Tooth',
+  };
 
   /// Mean and standard deviation of the pixel [values] inside an ellipse
   /// or rectangle ROI (image [width] × [height], row by row). Null for
@@ -98,14 +102,17 @@ abstract final class RadMeasure {
     int height,
   ) {
     if (a.points.length < 2) return null;
-    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect) return null;
+    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect)
+      return null;
     final p = a.points;
     final x0 = math.min(p[0].x, p[1].x), x1 = math.max(p[0].x, p[1].x);
     final y0 = math.min(p[0].y, p[1].y), y1 = math.max(p[0].y, p[1].y);
     final cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     final rx = math.max((x1 - x0) / 2, 0.5), ry = math.max((y1 - y0) / 2, 0.5);
-    final ix0 = x0.floor().clamp(0, width - 1), ix1 = x1.ceil().clamp(0, width - 1);
-    final iy0 = y0.floor().clamp(0, height - 1), iy1 = y1.ceil().clamp(0, height - 1);
+    final ix0 = x0.floor().clamp(0, width - 1),
+        ix1 = x1.ceil().clamp(0, width - 1);
+    final iy0 = y0.floor().clamp(0, height - 1),
+        iy1 = y1.ceil().clamp(0, height - 1);
     // Large ROIs are sampled on a grid: the statistics barely move and
     // dragging stays smooth.
     final area = (ix1 - ix0 + 1) * (iy1 - iy0 + 1);
@@ -143,21 +150,31 @@ abstract final class RadMeasure {
   /// Every measurement in the study for the report: 2D annotations
   /// (labelled with their text or kind) and any values modules added to
   /// `extras['reportMeasurements']` (CBCT, ceph).
-  static List<({String id, String label, String value})> reportRows(RadStudy s) {
+  static List<({String id, String label, String value})> reportRows(
+    RadStudy s,
+  ) {
     final out = <({String id, String label, String value})>[];
     for (final e in s.annotations.entries) {
       final cal = mmPerPx(s, e.key);
       for (final a in e.value) {
         final v = valueText(a, cal);
         if (v == null) continue;
-        out.add((id: a.id, label: a.text.isNotEmpty ? a.text : kindLabel(a.kind), value: v));
+        out.add((
+          id: a.id,
+          label: a.text.isNotEmpty ? a.text : kindLabel(a.kind),
+          value: v,
+        ));
       }
     }
     final extra = s.extras['reportMeasurements'];
     if (extra is List) {
       for (final m in extra) {
         if (m is Map) {
-          out.add((id: '${m['id']}', label: '${m['label']}', value: '${m['value']}'));
+          out.add((
+            id: '${m['id']}',
+            label: '${m['label']}',
+            value: '${m['value']}',
+          ));
         }
       }
     }

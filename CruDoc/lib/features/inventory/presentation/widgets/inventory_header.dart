@@ -28,10 +28,25 @@ class InventoryHeader extends StatelessWidget {
     final v = view;
     final subtitle = v == null
         ? null
-        : [
-            InventoryFormat.plural(v.all.length, 'item'),
-            if (v.hasPrices) '${InventoryFormat.rupees(v.stockValue)} in stock',
-          ].join(' · ');
+        : Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: InventoryFormat.plural(v.all.length, 'item'),
+                  style: CruType.text.tabular.tint(c.accentText),
+                ),
+                if (v.hasPrices) ...[
+                  const TextSpan(text: ' · '),
+                  TextSpan(
+                    text: '${InventoryFormat.rupees(v.stockValue)} in stock',
+                    style: CruType.text.tabular.tint(c.greenText),
+                  ),
+                ],
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          );
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
@@ -55,12 +70,7 @@ class InventoryHeader extends StatelessWidget {
                         alignment: Alignment.centerLeft,
                         child: SkeletonBox(width: 180, height: 12),
                       )
-                    : Text(
-                        subtitle,
-                        style: CruType.text.tabular.tint(c.label2),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                    : subtitle,
               ),
             ],
           ),
@@ -73,11 +83,7 @@ class InventoryHeader extends StatelessWidget {
           onPressed: onNewOrder,
         ),
         const SizedBox(width: CruSpace.s10),
-        CruButton(
-          label: 'Add item',
-          icon: CruIcons.plus,
-          onPressed: onAddItem,
-        ),
+        CruButton(label: 'Add item', icon: CruIcons.plus, onPressed: onAddItem),
       ],
     );
   }

@@ -222,11 +222,11 @@ abstract final class CruType {
 
   /// Monogram initials; the size scales with the avatar.
   static TextStyle monogram(double size) => TextStyle(
-        fontFamily: family,
-        fontSize: size,
-        height: 1,
-        fontWeight: FontWeight.w600,
-      );
+    fontFamily: family,
+    fontSize: size,
+    height: 1,
+    fontWeight: FontWeight.w600,
+  );
 }
 
 extension CruTextStyleX on TextStyle {
@@ -235,5 +235,6 @@ extension CruTextStyleX on TextStyle {
 
   TextStyle get w500 => copyWith(fontWeight: FontWeight.w500);
   TextStyle get w600 => copyWith(fontWeight: FontWeight.w600);
+  TextStyle get w700 => copyWith(fontWeight: FontWeight.w700);
   TextStyle tint(Color color) => copyWith(color: color);
 }

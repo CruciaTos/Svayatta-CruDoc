@@ -31,7 +31,9 @@ abstract final class PlusIcons {
   static const invert = CruIconData('M12 3.5v17', circles: [(12, 12, 8.5)]);
 
   /// Planes: crossing lines.
-  static const planes = CruIconData('M3.5 8.5 20.5 6M3.5 15.5l17 3.5M8.5 3.5l3 17');
+  static const planes = CruIconData(
+    'M3.5 8.5 20.5 6M3.5 15.5l17 3.5M8.5 3.5l3 17',
+  );
 
   /// Labels: a tag.
   static const labels = CruIconData('M4 4.5h7.5l8 8-7 7-8-8zM8.5 8.5h.01');
@@ -45,8 +47,12 @@ abstract final class PlusIcons {
     'M4.5 12a7.5 7.5 0 1 0 2.2-5.3M4.5 4.5v4h4',
   );
 
-  static const undo = CruIconData('M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11');
-  static const redo = CruIconData('M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13');
+  static const undo = CruIconData(
+    'M9 14 4 9l5-5M4 9h10.5a5.5 5.5 0 0 1 0 11H11',
+  );
+  static const redo = CruIconData(
+    'M15 14l5-5-5-5M20 9H9.5a5.5 5.5 0 0 0 0 11H13',
+  );
 
   /// Key image: a bookmark.
   static const keyImage = CruIconData('M7 3.5h10v17l-5-3.5-5 3.5z');
@@ -93,14 +99,18 @@ class PlusTopBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.headline.tint(c.label)),
-                Text(subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.caption.tint(c.label2)),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.headline.tint(c.label),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.caption.tint(c.label2),
+                ),
               ],
             ),
           ),
@@ -161,9 +171,7 @@ class _PlusSidePanelState extends State<PlusSidePanel> {
         },
         child: SizedBox(
           width: PlusSize.panelHandle,
-          child: Center(
-            child: Container(width: 1, color: c.separator),
-          ),
+          child: Center(child: Container(width: 1, color: c.separator)),
         ),
       ),
     );
@@ -193,7 +201,10 @@ class PlusStageBar extends StatelessWidget {
       padding: const EdgeInsets.all(CruSpace.s4),
       decoration: ShapeDecoration(
         color: PlusStage.scrim,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: PlusStage.ink.hairline)),
+        shape: cruShape(
+          CruRadius.control,
+          side: BorderSide(color: PlusStage.ink.hairline),
+        ),
       ),
       child: Row(mainAxisSize: MainAxisSize.min, children: children),
     );
@@ -206,11 +217,11 @@ class PlusStageDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: 1,
-        height: CruSpace.s20,
-        margin: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
-        color: PlusStage.ink.separator,
-      );
+    width: 1,
+    height: CruSpace.s20,
+    margin: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
+    color: PlusStage.ink.separator,
+  );
 }
 
 /// An icon button on the stage. [active] marks a toggle that is on.
@@ -248,15 +259,17 @@ class PlusStageButton extends StatelessWidget {
             color: active
                 ? ink.track
                 : hovered
-                    ? ink.inset
-                    : ink.inset.withValues(alpha: 0),
+                ? ink.inset
+                : ink.inset.withValues(alpha: 0),
             shape: cruShape(CruRadius.iconTile),
           ),
           child: CruIcon(
             icon,
             size: 18,
             strokeWidth: 1.8,
-            color: !enabled ? ink.label3.withValues(alpha: 0.5) : (active ? ink.label : ink.label2),
+            color: !enabled
+                ? ink.label3.withValues(alpha: 0.5)
+                : (active ? ink.label : ink.label2),
           ),
         ),
       ),
@@ -276,10 +289,16 @@ class PlusStageNote extends StatelessWidget {
     const ink = PlusStage.ink;
     return Container(
       constraints: const BoxConstraints(maxWidth: 360),
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s12,
+        vertical: CruSpace.s8,
+      ),
       decoration: ShapeDecoration(
         color: PlusStage.scrim,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: ink.hairline)),
+        shape: cruShape(
+          CruRadius.control,
+          side: BorderSide(color: ink.hairline),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -304,17 +323,22 @@ class PlusStageReadout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: CruType.micro.tabular.copyWith(
-          color: PlusStage.ink.label2,
-          shadows: PlusStage.textShadow,
-        ),
-      );
+    text,
+    style: CruType.micro.tabular.copyWith(
+      color: PlusStage.ink.label2,
+      shadows: const [],
+    ),
+  );
 }
 
 /// Centre-of-stage state: loading, or why the image can't be shown.
 class PlusStageMessage extends StatelessWidget {
-  const PlusStageMessage({super.key, required this.title, this.body, this.loading = false});
+  const PlusStageMessage({
+    super.key,
+    required this.title,
+    this.body,
+    this.loading = false,
+  });
 
   final String title;
   final String? body;
@@ -333,14 +357,25 @@ class PlusStageMessage extends StatelessWidget {
               SizedBox(
                 width: CruSpace.s24,
                 height: CruSpace.s24,
-                child: CircularProgressIndicator(strokeWidth: 2, color: ink.label2),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: ink.label2,
+                ),
               ),
               const SizedBox(height: CruSpace.s12),
             ],
-            Text(title, textAlign: TextAlign.center, style: CruType.callout.tint(ink.label)),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: CruType.callout.tint(ink.label),
+            ),
             if (body != null) ...[
               const SizedBox(height: CruSpace.s4),
-              Text(body!, textAlign: TextAlign.center, style: CruType.caption.tint(ink.label2)),
+              Text(
+                body!,
+                textAlign: TextAlign.center,
+                style: CruType.caption.tint(ink.label2),
+              ),
             ],
           ],
         ),
@@ -401,7 +436,10 @@ class PlusSlider extends StatelessWidget {
         Row(
           children: [
             Expanded(child: Text(label, style: CruType.subhead.tint(c.label))),
-            Text(format(value), style: CruType.subhead.w500.tabular.tint(c.label2)),
+            Text(
+              format(value),
+              style: CruType.subhead.w500.tabular.tint(c.label2),
+            ),
           ],
         ),
         SliderTheme(

@@ -42,10 +42,13 @@ class _SuperAdminAuditLogsScreenState
           l.timestamp.month == now.month &&
           l.timestamp.day == now.day;
     }).length;
-    final failedLogs =
-        auditState.logs.where((l) => l.status.toLowerCase() == 'failed').length;
-    final activeAdminsCount =
-        auditState.logs.map((l) => l.adminEmail).toSet().length;
+    final failedLogs = auditState.logs
+        .where((l) => l.status.toLowerCase() == 'failed')
+        .length;
+    final activeAdminsCount = auditState.logs
+        .map((l) => l.adminEmail)
+        .toSet()
+        .length;
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -54,12 +57,24 @@ class _SuperAdminAuditLogsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Header Bar
-          _buildHeaderBar(context, notifier, filteredLogs.length, auditState.isLoading),
+          _buildHeaderBar(
+            context,
+            notifier,
+            filteredLogs.length,
+            auditState.isLoading,
+          ),
 
           const SizedBox(height: CruSpace.s20),
 
           // 2. Metrics Summary Row
-          _buildMetricsRow(context, isMobile, totalLogs, todayLogs, failedLogs, activeAdminsCount),
+          _buildMetricsRow(
+            context,
+            isMobile,
+            totalLogs,
+            todayLogs,
+            failedLogs,
+            activeAdminsCount,
+          ),
 
           const SizedBox(height: CruSpace.s24),
 
@@ -94,10 +109,16 @@ class _SuperAdminAuditLogsScreenState
             children: [
               Row(
                 children: [
-                  Text('Security & Audit Logs', style: CruType.largeTitle.tint(c.label)),
+                  Text(
+                    'Security & Audit Logs',
+                    style: CruType.largeTitle.tint(c.label),
+                  ),
                   const SizedBox(width: CruSpace.s12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: ShapeDecoration(
                       color: c.accentTint,
                       shape: cruShape(CruRadius.full),
@@ -148,19 +169,37 @@ class _SuperAdminAuditLogsScreenState
     final c = context.cru;
 
     final cards = [
-      _AuditMetric(title: 'Total Logged Actions', value: '$totalLogs', icon: CruIcons.clock),
-      _AuditMetric(title: 'Actions Today', value: '$todayLogs', icon: CruIcons.calendar),
-      _AuditMetric(title: 'Failed / Denied Ops', value: '$failedLogs', icon: CruIcons.warning),
-      _AuditMetric(title: 'Active Root Admins', value: '$activeAdmins', icon: CruIcons.user),
+      _AuditMetric(
+        title: 'Total Logged Actions',
+        value: '$totalLogs',
+        icon: CruIcons.clock,
+      ),
+      _AuditMetric(
+        title: 'Actions Today',
+        value: '$todayLogs',
+        icon: CruIcons.calendar,
+      ),
+      _AuditMetric(
+        title: 'Failed / Denied Ops',
+        value: '$failedLogs',
+        icon: CruIcons.warning,
+      ),
+      _AuditMetric(
+        title: 'Active Root Admins',
+        value: '$activeAdmins',
+        icon: CruIcons.user,
+      ),
     ];
 
     if (isMobile) {
       return Column(
         children: cards
-            .map((m) => Padding(
-                  padding: const EdgeInsets.only(bottom: CruSpace.s12),
-                  child: _buildMetricTile(c, m),
-                ))
+            .map(
+              (m) => Padding(
+                padding: const EdgeInsets.only(bottom: CruSpace.s12),
+                child: _buildMetricTile(c, m),
+              ),
+            )
             .toList(),
       );
     }
@@ -226,7 +265,8 @@ class _SuperAdminAuditLogsScreenState
               onChanged: (val) => notifier.setSearchQuery(val),
               style: CruType.text.tint(c.label),
               decoration: InputDecoration(
-                hintText: 'Search audit records by admin email, action name, or target doctor...',
+                hintText:
+                    'Search audit records by admin email, action name, or target doctor...',
                 hintStyle: CruType.text.tint(c.label3),
                 filled: true,
                 fillColor: c.inset,
@@ -236,7 +276,11 @@ class _SuperAdminAuditLogsScreenState
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: CruIcon(CruIcons.close, size: 14, color: c.label3),
+                        icon: CruIcon(
+                          CruIcons.close,
+                          size: 14,
+                          color: c.label3,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           notifier.setSearchQuery('');
@@ -277,14 +321,18 @@ class _SuperAdminAuditLogsScreenState
                   selected: state.actionTypeFilter == type,
                   onTap: () => notifier.setActionTypeFilter(type),
                 ),
-              if (_searchController.text.isNotEmpty || state.actionTypeFilter != null) ...[
+              if (_searchController.text.isNotEmpty ||
+                  state.actionTypeFilter != null) ...[
                 const SizedBox(width: CruSpace.s8),
                 CruPressable(
                   onTap: () {
                     _searchController.clear();
                     notifier.clearFilters();
                   },
-                  builder: (ctx, hovered) => Text('Reset', style: CruType.caption.w600.tint(c.accentText)),
+                  builder: (ctx, hovered) => Text(
+                    'Reset',
+                    style: CruType.caption.w600.tint(c.accentText),
+                  ),
                 ),
               ],
             ],
@@ -310,14 +358,19 @@ class _SuperAdminAuditLogsScreenState
             color: selected
                 ? c.accent
                 : hovered
-                    ? c.hoverFill
-                    : c.inset,
-            shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
+                ? c.hoverFill
+                : c.inset,
+            shape: cruShape(
+              CruRadius.full,
+              side: BorderSide(color: c.hairline),
+            ),
           ),
           child: Text(
             label,
             style: CruType.caption
-                .copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w500)
+                .copyWith(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                )
                 .tint(selected ? CruBrand.white : c.label2),
           ),
         );
@@ -345,21 +398,56 @@ class _SuperAdminAuditLogsScreenState
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
                 color: c.inset,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(CruRadius.card)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(CruRadius.card),
+                ),
                 border: Border(bottom: BorderSide(color: c.hairline)),
               ),
               child: Row(
                 children: [
-                  Expanded(flex: 3, child: Text('ACTION & EVENT', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 3, child: Text('ADMIN / ACTOR', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 3, child: Text('TARGET RESOURCE', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('TIMESTAMP', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 1, child: Text('STATUS', style: CruType.groupLabel.tint(c.label3))),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'ACTION & EVENT',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'ADMIN / ACTOR',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'TARGET RESOURCE',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'TIMESTAMP',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: Text(
+                      'STATUS',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
                 ],
               ),
             ),
           if (state.isLoading && logs.isEmpty)
-            const Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.all(48),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (logs.isEmpty)
             Padding(
               padding: const EdgeInsets.all(48),
@@ -368,7 +456,10 @@ class _SuperAdminAuditLogsScreenState
                   children: [
                     CruIcon(CruIcons.clock, size: 40, color: c.label3),
                     const SizedBox(height: CruSpace.s12),
-                    Text('No audit records match filters', style: CruType.headline.tint(c.label)),
+                    Text(
+                      'No audit records match filters',
+                      style: CruType.headline.tint(c.label),
+                    ),
                   ],
                 ),
               ),
@@ -386,7 +477,10 @@ class _SuperAdminAuditLogsScreenState
                   builder: (ctx, hovered) {
                     return Container(
                       color: hovered ? c.hoverFill : Colors.transparent,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       child: Row(
                         children: [
                           Expanded(
@@ -394,7 +488,9 @@ class _SuperAdminAuditLogsScreenState
                             child: Row(
                               children: [
                                 CruStatusDot(
-                                  log.status.toLowerCase() == 'success' ? CruDotKind.done : CruDotKind.inactive,
+                                  log.status.toLowerCase() == 'success'
+                                      ? CruDotKind.done
+                                      : CruDotKind.inactive,
                                   size: 8,
                                 ),
                                 const SizedBox(width: CruSpace.s10),
@@ -412,7 +508,10 @@ class _SuperAdminAuditLogsScreenState
                             flex: 3,
                             child: Row(
                               children: [
-                                CruMonogram(name: log.adminEmail, size: 26, background: c.track),
+                                CruMonogram(
+                                  name: log.adminEmail,
+                                  size: 26,
+                                ),
                                 const SizedBox(width: CruSpace.s8),
                                 Expanded(
                                   child: Text(
@@ -427,7 +526,10 @@ class _SuperAdminAuditLogsScreenState
                           Expanded(
                             flex: 3,
                             child: Text(
-                              log.targetDoctorName ?? (log.details != null ? log.details.toString() : 'System Action'),
+                              log.targetDoctorName ??
+                                  (log.details != null
+                                      ? log.details.toString()
+                                      : 'System Action'),
                               style: CruType.caption.tint(c.label),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -435,7 +537,9 @@ class _SuperAdminAuditLogsScreenState
                           Expanded(
                             flex: 2,
                             child: Text(
-                              DateFormat('dd MMM, HH:mm:ss').format(log.timestamp),
+                              DateFormat(
+                                'dd MMM, HH:mm:ss',
+                              ).format(log.timestamp),
                               style: CruType.caption.tabular.tint(c.label3),
                             ),
                           ),
@@ -444,15 +548,22 @@ class _SuperAdminAuditLogsScreenState
                             child: Align(
                               alignment: Alignment.centerLeft,
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: ShapeDecoration(
-                                  color: log.status.toLowerCase() == 'success' ? c.greenTint : c.redTint,
+                                  color: log.status.toLowerCase() == 'success'
+                                      ? c.greenTint
+                                      : c.redTint,
                                   shape: cruShape(CruRadius.full),
                                 ),
                                 child: Text(
                                   log.status.toUpperCase(),
                                   style: CruType.caption.w600.tint(
-                                    log.status.toLowerCase() == 'success' ? c.greenText : c.redText,
+                                    log.status.toLowerCase() == 'success'
+                                        ? c.greenText
+                                        : c.redText,
                                   ),
                                 ),
                               ),
@@ -494,10 +605,17 @@ class _SuperAdminAuditLogsScreenState
               _detailRow(c, 'Initiator Admin', log.adminEmail),
               _detailRow(c, 'Target Doctor', log.targetDoctorName ?? 'N/A'),
               _detailRow(c, 'IP Address', log.ipAddress ?? 'N/A'),
-              _detailRow(c, 'Timestamp', DateFormat('dd MMMM yyyy, hh:mm:ss a').format(log.timestamp)),
+              _detailRow(
+                c,
+                'Timestamp',
+                DateFormat('dd MMMM yyyy, hh:mm:ss a').format(log.timestamp),
+              ),
               _detailRow(c, 'Status', log.status.toUpperCase()),
               const SizedBox(height: CruSpace.s12),
-              Text('Description / Payload Details:', style: CruType.caption.w600.tint(c.label3)),
+              Text(
+                'Description / Payload Details:',
+                style: CruType.caption.w600.tint(c.label3),
+              ),
               const SizedBox(height: CruSpace.s4),
               Container(
                 width: double.infinity,

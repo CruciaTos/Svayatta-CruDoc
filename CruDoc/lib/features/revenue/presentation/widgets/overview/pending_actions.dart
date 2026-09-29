@@ -40,17 +40,19 @@ abstract final class PendingActions {
       }
     }
     if (messenger == null) return;
-    messenger.showSnackBar(SnackBar(
-      behavior: SnackBarBehavior.floating,
-      content: Text(
-        error == null
-            ? '${group.name} · ${DashFormat.rupees(group.total)} marked paid'
-            : settled == 0
-                ? "Couldn't mark ${group.name}'s payment as paid."
-                : 'Marked $settled of ${group.rows.length} payments paid. '
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        content: Text(
+          error == null
+              ? '${group.name} · ${DashFormat.rupees(group.total)} marked paid'
+              : settled == 0
+              ? "Couldn't mark ${group.name}'s payment as paid."
+              : 'Marked $settled of ${group.rows.length} payments paid. '
                     "The rest couldn't be updated.",
+        ),
       ),
-    ));
+    );
   }
 
   /// Lists the patients who can get a WhatsApp reminder, one capsule
@@ -144,7 +146,7 @@ class _RemindersDialog extends ConsumerWidget {
     return Dialog(
       backgroundColor: c.surface,
       surfaceTintColor: c.surface.withValues(alpha: 0),
-      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: CruSize.remindersDialog,
@@ -236,7 +238,6 @@ class _ReminderRow extends StatelessWidget {
           CruMonogram(
             name: g.name,
             size: CruSize.monogramList,
-            background: c.inset,
           ),
           const SizedBox(width: CruSpace.s12),
           Expanded(

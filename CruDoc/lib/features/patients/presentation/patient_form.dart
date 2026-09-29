@@ -110,20 +110,23 @@ class PatientFormState extends State<PatientForm> {
   @override
   void initState() {
     super.initState();
-    _firstNameController =
-        TextEditingController(text: widget.initialFirstName ?? '');
-    _lastNameController =
-        TextEditingController(text: widget.initialLastName ?? '');
+    _firstNameController = TextEditingController(
+      text: widget.initialFirstName ?? '',
+    );
+    _lastNameController = TextEditingController(
+      text: widget.initialLastName ?? '',
+    );
     _phoneController = TextEditingController(text: widget.initialPhone ?? '');
     _emailController = TextEditingController(text: widget.initialEmail ?? '');
 
     final initialDiagnoses = widget.initialDiagnoses;
-    _diagnosisControllers = (initialDiagnoses == null || initialDiagnoses.isEmpty)
+    _diagnosisControllers =
+        (initialDiagnoses == null || initialDiagnoses.isEmpty)
         ? [TextEditingController()]
         : initialDiagnoses
-            .take(_maxDiagnoses)
-            .map((diagnosis) => TextEditingController(text: diagnosis))
-            .toList();
+              .take(_maxDiagnoses)
+              .map((diagnosis) => TextEditingController(text: diagnosis))
+              .toList();
 
     _packageBalanceController = TextEditingController(
       text: widget.initialPackageBalance != null
@@ -184,10 +187,10 @@ class PatientFormState extends State<PatientForm> {
             .map((c) => c.text.trim())
             .where((t) => t.isNotEmpty);
         final seen = <String>{};
-        final merged = [...existing, ...fill.conditions]
-            .where((d) => seen.add(d.toLowerCase()))
-            .take(_maxDiagnoses)
-            .toList();
+        final merged = [
+          ...existing,
+          ...fill.conditions,
+        ].where((d) => seen.add(d.toLowerCase())).take(_maxDiagnoses).toList();
         for (final c in _diagnosisControllers) {
           c.dispose();
         }
@@ -341,10 +344,7 @@ class PatientFormState extends State<PatientForm> {
           const SizedBox(height: 16),
           const _SectionLabel(text: 'Date of Birth'),
           const SizedBox(height: 8),
-          _DateOfBirthField(
-            date: _dateOfBirth,
-            onTap: _pickDateOfBirth,
-          ),
+          _DateOfBirthField(date: _dateOfBirth, onTap: _pickDateOfBirth),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -433,19 +433,24 @@ class _FormField extends StatelessWidget {
           decoration: InputDecoration(
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF2563EB),
+                width: 1.5,
+              ),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -490,19 +495,24 @@ class _DiagnosisFieldRow extends StatelessWidget {
                 ),
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Colors.transparent),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Colors.transparent),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF2563EB),
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
@@ -549,7 +559,9 @@ class _AddDiagnosisButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFFEFF6FF),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.3)),
+          border: Border.all(
+            color: const Color(0xFF2563EB).withValues(alpha: 0.3),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -589,9 +601,7 @@ class _GenderSelector extends StatelessWidget {
         final isSelected = option == selected;
         return Expanded(
           child: Padding(
-            padding: EdgeInsets.only(
-              right: option == options.last ? 0 : 8,
-            ),
+            padding: EdgeInsets.only(right: option == options.last ? 0 : 8),
             child: InkWell(
               borderRadius: BorderRadius.circular(12),
               onTap: () => onChanged(option),
@@ -613,9 +623,7 @@ class _GenderSelector extends StatelessWidget {
                   option,
                   style: AppColors.bodyMeta.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: isSelected
-                        ? Colors.white
-                        : const Color(0xFF475569),
+                    color: isSelected ? Colors.white : const Color(0xFF475569),
                   ),
                 ),
               ),
@@ -639,8 +647,8 @@ class _DateOfBirthField extends StatelessWidget {
     final label = date == null
         ? 'Select date of birth'
         : '${date!.day.toString().padLeft(2, '0')}/'
-            '${date!.month.toString().padLeft(2, '0')}/'
-            '${date!.year}';
+              '${date!.month.toString().padLeft(2, '0')}/'
+              '${date!.year}';
 
     return InkWell(
       borderRadius: BorderRadius.circular(12),
@@ -655,8 +663,11 @@ class _DateOfBirthField extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(Icons.calendar_today_outlined,
-                color: const Color(0xFF2563EB).withValues(alpha: 0.7), size: 18),
+            Icon(
+              Icons.calendar_today_outlined,
+              color: const Color(0xFF2563EB).withValues(alpha: 0.7),
+              size: 18,
+            ),
             const SizedBox(width: 10),
             Text(
               label,
@@ -728,7 +739,7 @@ Future<bool?> showEditPatientSheet(
 
 class AddPatientSheet extends StatefulWidget {
   const AddPatientSheet({super.key, PatientRepository? repository})
-      : _repository = repository;
+    : _repository = repository;
 
   final PatientRepository? _repository;
 
@@ -776,9 +787,9 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -826,8 +837,11 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.person_add_alt_1_rounded,
-                                color: Color(0xFF2563EB), size: 22),
+                            Icon(
+                              Icons.person_add_alt_1_rounded,
+                              color: Color(0xFF2563EB),
+                              size: 22,
+                            ),
                             SizedBox(width: 10),
                             Text(
                               'Add New Patient',
@@ -849,7 +863,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                         ),
                       ],
                     ),
-                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 20),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -868,8 +882,9 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                         onPressed: _isSaving ? null : _onSavePressed,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor:
-                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          disabledBackgroundColor: const Color(
+                            0xFF2563EB,
+                          ).withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -911,7 +926,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
 
 class AddPatientPage extends StatefulWidget {
   const AddPatientPage({super.key, PatientRepository? repository})
-      : _repository = repository;
+    : _repository = repository;
 
   final PatientRepository? _repository;
 
@@ -959,9 +974,9 @@ class _AddPatientPageState extends State<AddPatientPage> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -1001,8 +1016,9 @@ class _AddPatientPageState extends State<AddPatientPage> {
                     onPressed: _isSaving ? null : _onSavePressed,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.slateBlue,
-                      disabledBackgroundColor:
-                          AppColors.slateBlue.withValues(alpha: 0.5),
+                      disabledBackgroundColor: AppColors.slateBlue.withValues(
+                        alpha: 0.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -1045,8 +1061,11 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: AppColors.textPrimary, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+            size: 20,
+          ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           onPressed: () => Navigator.pop(context),
@@ -1116,9 +1135,9 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -1189,7 +1208,7 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                         ),
                       ],
                     ),
-                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 20),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -1216,8 +1235,9 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                         onPressed: _isSaving ? null : _onSavePressed,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor:
-                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          disabledBackgroundColor: const Color(
+                            0xFF2563EB,
+                          ).withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

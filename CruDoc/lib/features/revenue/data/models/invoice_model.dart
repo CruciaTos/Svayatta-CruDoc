@@ -91,14 +91,14 @@ class InvoiceModel {
       amount: map['amount'] is num
           ? (map['amount'] as num).toDouble()
           : (map['amount'] is String
-              ? (double.tryParse(map['amount'] as String) ?? 0.0)
-              : 0.0),
+                ? (double.tryParse(map['amount'] as String) ?? 0.0)
+                : 0.0),
       status: (map['status'] ?? 'Pending').toString(),
       date: map['date'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['date'] as int)
           : (map['date'] is String
-              ? DateTime.tryParse(map['date'] as String) ?? DateTime.now()
-              : DateTime.now()),
+                ? DateTime.tryParse(map['date'] as String) ?? DateTime.now()
+                : DateTime.now()),
       dueDate: map['dueDate'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['dueDate'] as int)
           : null,

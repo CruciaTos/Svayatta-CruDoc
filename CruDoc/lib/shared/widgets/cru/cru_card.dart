@@ -9,7 +9,7 @@ ShapeBorder cruShape(double radius, {BorderSide side = BorderSide.none}) =>
       side: side,
     );
 
-/// A surface card: radius 24, hairline border, Day shadow.
+/// A surface card with a subtle outline and no elevation shadow.
 class CruCard extends StatelessWidget {
   const CruCard({
     super.key,
@@ -32,7 +32,7 @@ class CruCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final side = BorderSide(
-      color: borderColor ?? c.hairline,
+      color: borderColor ?? c.cardBorder,
       width: borderWidth,
     );
     return Semantics(
@@ -42,7 +42,7 @@ class CruCard extends StatelessWidget {
         decoration: ShapeDecoration(
           color: c.surface,
           shape: cruShape(CruRadius.card, side: side),
-          shadows: c.cardShadow,
+          shadows: const [],
         ),
         // The border is painted inside the shape; inset the content
         // by it too so sizes match the reference (CSS border-box).
@@ -75,17 +75,25 @@ class CruInkCard extends StatelessWidget {
     final theme = Theme.of(context);
     final c = context.cru;
     final onInk = c.onInk();
+    final isEv = c.isEvening;
     return Semantics(
       container: true,
       label: semanticLabel,
       child: DecoratedBox(
         decoration: ShapeDecoration(
-          color: c.ink,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: const [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+          ),
           shape: cruShape(
             CruRadius.card,
-            side: c.isEvening ? BorderSide(color: c.inkBorder) : BorderSide.none,
+            side: isEv
+                ? BorderSide(color: c.inkBorder)
+                : BorderSide(
+                    color: const Color(0xFF60A5FA).withValues(alpha: 0.35),
+                  ),
           ),
-          shadows: c.inkShadow,
         ),
         child: Theme(
           data: theme.copyWith(extensions: [onInk]),

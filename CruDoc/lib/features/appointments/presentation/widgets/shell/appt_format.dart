@@ -13,7 +13,8 @@ abstract final class ApptFormat {
   static String time(DateTime t) => DashFormat.time(t);
 
   /// "5:30 to 6:00" inside a block.
-  static String blockRange(DateTime a, DateTime b) => '${clock(a)} to ${clock(b)}';
+  static String blockRange(DateTime a, DateTime b) =>
+      '${clock(a)} to ${clock(b)}';
 
   /// "11:50 AM to 12:10 PM", "12:30 to 12:50 PM".
   static String range(DateTime a, DateTime b) => DashFormat.timeRange(a, b);
@@ -38,7 +39,8 @@ abstract final class ApptFormat {
   /// Age in whole years at [now] (the screen's clock, so tests are stable).
   static int ageAt(DateTime dob, DateTime now) {
     var years = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) {
+    if (now.month < dob.month ||
+        (now.month == dob.month && now.day < dob.day)) {
       years--;
     }
     return years < 0 ? 0 : years;

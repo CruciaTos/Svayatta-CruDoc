@@ -8,8 +8,8 @@ final whatsappRepositoryProvider = Provider<WhatsAppRepository>((ref) {
 });
 
 /// Stream provider for real-time WhatsApp delivery status updates for a specific visit/appointment.
-final visitWhatsAppStatusProvider =
-    StreamProvider.autoDispose.family<WhatsAppNotificationLog?, String>((ref, visitId) {
-  final repo = ref.watch(whatsappRepositoryProvider);
-  return repo.watchVisitWhatsAppStatus(visitId);
-});
+final visitWhatsAppStatusProvider = StreamProvider.autoDispose
+    .family<WhatsAppNotificationLog?, String>((ref, visitId) {
+      final repo = ref.watch(whatsappRepositoryProvider);
+      return repo.watchVisitWhatsAppStatus(visitId);
+    });

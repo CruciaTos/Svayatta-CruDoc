@@ -108,15 +108,7 @@ class _DraggableFloatingChatbotButtonState
                 color: Colors.white.withValues(alpha: 0.6),
                 width: 1.5,
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(
-                    0xFF1E78FF,
-                  ).withValues(alpha: _isDragging ? 0.6 : 0.4),
-                  blurRadius: _isDragging ? 20 : 12,
-                  offset: Offset(0, _isDragging ? 8 : 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: Stack(
               alignment: Alignment.center,

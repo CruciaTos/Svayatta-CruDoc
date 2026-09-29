@@ -294,20 +294,87 @@ final List<String> kMultiWordConditions = () {
 /// Non-condition conversational words and pronouns that must NEVER be
 /// interpreted as a medical condition.
 const Set<String> kJunkConditionWords = {
-  'he', 'she', 'they', 'i', 'we', 'you', 'it',
-  'his', 'her', 'their', 'my', 'your', 'its',
-  'is', 'are', 'was', 'were', 'am', 'be', 'been', 'being',
-  'has', 'have', 'had', 'having',
-  'suffering', 'suffers', 'serving', 'serves',
-  'diagnosed', 'diagnosis', 'condition', 'conditions',
-  'patient', 'patients', 'case', 'known',
-  'from', 'with', 'of', 'in', 'on', 'at', 'to', 'for', 'by',
-  'a', 'an', 'the', 'this', 'that', 'these', 'those',
-  'and', 'or', 'also', 'plus', 'but', 'so',
-  'add', 'added', 'put', 'enter', 'write', 'say', 'saying',
-  'mild', 'severe', 'acute', 'chronic', 'moderate',
-  'very', 'much', 'some', 'lot', 'lots',
-  'yes', 'no', 'not', 'none', 'nah',
+  'he',
+  'she',
+  'they',
+  'i',
+  'we',
+  'you',
+  'it',
+  'his',
+  'her',
+  'their',
+  'my',
+  'your',
+  'its',
+  'is',
+  'are',
+  'was',
+  'were',
+  'am',
+  'be',
+  'been',
+  'being',
+  'has',
+  'have',
+  'had',
+  'having',
+  'suffering',
+  'suffers',
+  'serving',
+  'serves',
+  'diagnosed',
+  'diagnosis',
+  'condition',
+  'conditions',
+  'patient',
+  'patients',
+  'case',
+  'known',
+  'from',
+  'with',
+  'of',
+  'in',
+  'on',
+  'at',
+  'to',
+  'for',
+  'by',
+  'a',
+  'an',
+  'the',
+  'this',
+  'that',
+  'these',
+  'those',
+  'and',
+  'or',
+  'also',
+  'plus',
+  'but',
+  'so',
+  'add',
+  'added',
+  'put',
+  'enter',
+  'write',
+  'say',
+  'saying',
+  'mild',
+  'severe',
+  'acute',
+  'chronic',
+  'moderate',
+  'very',
+  'much',
+  'some',
+  'lot',
+  'lots',
+  'yes',
+  'no',
+  'not',
+  'none',
+  'nah',
 };
 
 /// Content-aware medical condition extractor.
@@ -315,7 +382,11 @@ const Set<String> kJunkConditionWords = {
 /// Scans [tokens] or raw text, identifies genuine clinical conditions,
 /// maps them to canonical diagnosis names, and guarantees zero non-medical
 /// noise or conversational phrases (like "he serving", "he is", "my") get added.
-List<String> extractMedicalConditions(List<String> tokens, {int start = 0, int? end}) {
+List<String> extractMedicalConditions(
+  List<String> tokens, {
+  int start = 0,
+  int? end,
+}) {
   final stop = end ?? tokens.length;
   if (start >= stop) return const [];
 
@@ -387,7 +458,10 @@ List<String> extractMedicalConditions(List<String> tokens, {int start = 0, int? 
 /// Checks whether a note phrase is an incomplete fragment
 /// (e.g., "Has an", "He has", "Allergic to", "Patient is", etc.).
 bool isIncompleteNoteFragment(String s) {
-  final trimmed = s.trim().replaceAll(RegExp(r'^[•\s*\\-]+|[,\s.:;•*\\-]+$'), '').trim();
+  final trimmed = s
+      .trim()
+      .replaceAll(RegExp(r'^[•\s*\\-]+|[,\s.:;•*\\-]+$'), '')
+      .trim();
   if (trimmed.isEmpty) return true;
   final words = trimmed.split(RegExp(r'\s+'));
   if (words.length < 2) return true;
@@ -427,10 +501,7 @@ List<String> splitNoteObservations(String raw) {
   );
 
   final parts = trimmed.split(splitRegex);
-  return parts
-      .map((p) => p.trim())
-      .where((p) => p.isNotEmpty)
-      .toList();
+  return parts.map((p) => p.trim()).where((p) => p.isNotEmpty).toList();
 }
 
 /// Cleans spoken note phrases by stripping conversational speech wrappers
@@ -454,23 +525,37 @@ String cleanNoteText(String raw) {
   s = s.replaceFirst(prefixRegex, '').trim();
 
   // Strip optional leading "that", "he is", "she is", "patient is", etc.
-  s = s.replaceFirst(
-    RegExp(
-      r'^(?:that\s+)?(?:the\s+patient\s+|patient\s+|he\s+|she\s+|they\s+)?(?:is\s+|has\s+|are\s+)?',
-      caseSensitive: false,
-    ),
-    '',
-  ).trim();
+  s = s
+      .replaceFirst(
+        RegExp(
+          r'^(?:that\s+)?(?:the\s+patient\s+|patient\s+|he\s+|she\s+|they\s+)?(?:is\s+|has\s+|are\s+)?',
+          caseSensitive: false,
+        ),
+        '',
+      )
+      .trim();
 
   // Allergy phrasing normalizations:
   // "allergies for apple seeds" -> "Has allergy for apple seeds"
   // "allergy for cucumbers" -> "Has allergy for cucumbers"
   // "an allergy for cucumbers" -> "Has allergy for cucumbers"
   // "allergies to penicillin" -> "Has allergy to penicillin"
-  if (RegExp(r'^(?:has\s+)?(?:an\s+)?(?:allergies|allergy)\s+(?:for|to)\s+', caseSensitive: false).hasMatch(s)) {
-    s = s.replaceFirst(RegExp(r'^(?:has\s+)?(?:an\s+)?(?:allergies|allergy)\s+', caseSensitive: false), 'Has allergy ');
+  if (RegExp(
+    r'^(?:has\s+)?(?:an\s+)?(?:allergies|allergy)\s+(?:for|to)\s+',
+    caseSensitive: false,
+  ).hasMatch(s)) {
+    s = s.replaceFirst(
+      RegExp(
+        r'^(?:has\s+)?(?:an\s+)?(?:allergies|allergy)\s+',
+        caseSensitive: false,
+      ),
+      'Has allergy ',
+    );
   } else if (RegExp(r'^allergic\s+to\s+', caseSensitive: false).hasMatch(s)) {
-    s = s.replaceFirst(RegExp(r'^allergic\s+to\s+', caseSensitive: false), 'Allergic to ');
+    s = s.replaceFirst(
+      RegExp(r'^allergic\s+to\s+', caseSensitive: false),
+      'Allergic to ',
+    );
   }
 
   // Capitalize first character
@@ -495,7 +580,9 @@ List<String> formatNoteBulletLines(String note) {
     final clean = cleanNoteText(part);
     if (clean.isNotEmpty && !isIncompleteNoteFragment(clean)) {
       final b = clean.startsWith('•') ? clean : '• $clean';
-      if (!bullets.any((existing) => existing.toLowerCase() == b.toLowerCase())) {
+      if (!bullets.any(
+        (existing) => existing.toLowerCase() == b.toLowerCase(),
+      )) {
         bullets.add(b);
       }
     }

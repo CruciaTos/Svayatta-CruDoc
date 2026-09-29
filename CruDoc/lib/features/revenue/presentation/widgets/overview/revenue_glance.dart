@@ -16,7 +16,11 @@ const double _arrowGap = 3;
 
 /// Collected, Expenses, Net and Pending for the selected period.
 class RevenueGlance extends StatelessWidget {
-  const RevenueGlance({super.key, required this.overview, required this.pending});
+  const RevenueGlance({
+    super.key,
+    required this.overview,
+    required this.pending,
+  });
 
   /// Null while revenue entries load.
   final RevenueOverview? overview;
@@ -40,7 +44,11 @@ class RevenueGlance extends StatelessWidget {
 }
 
 class _Cell extends StatelessWidget {
-  const _Cell({required this.label, required this.value, required this.caption});
+  const _Cell({
+    required this.label,
+    required this.value,
+    required this.caption,
+  });
 
   final String label;
   final String value;
@@ -81,28 +89,32 @@ class _CollectedCell extends StatelessWidget {
       // Up is green; down is amber (needs attention), never red.
       final up = pct > 0;
       final tone = up ? c.greenText : c.amberText;
-      caption = Row(children: [
-        CruIcon(
-          up ? CruIcons.arrowUp : CruIcons.arrowDown,
-          size: _arrowSize,
-          strokeWidth: _arrowStroke,
-          color: tone,
-        ),
-        const SizedBox(width: _arrowGap),
-        Flexible(
-          child: Text.rich(
-            TextSpan(children: [
-              TextSpan(
-                text: '${pct.abs()}%',
-                style: CruType.caption.w600.tabular.tint(tone),
-              ),
-              TextSpan(text: ' vs $vs'),
-            ]),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+      caption = Row(
+        children: [
+          CruIcon(
+            up ? CruIcons.arrowUp : CruIcons.arrowDown,
+            size: _arrowSize,
+            strokeWidth: _arrowStroke,
+            color: tone,
           ),
-        ),
-      ]);
+          const SizedBox(width: _arrowGap),
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${pct.abs()}%',
+                    style: CruType.caption.w600.tabular.tint(tone),
+                  ),
+                  TextSpan(text: ' vs $vs'),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
     }
     return _Cell(
       label: 'Collected',
@@ -118,10 +130,10 @@ class _ExpensesCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _Cell(
-        label: 'Expenses',
-        value: DashFormat.rupees(o.expenses),
-        caption: Text(o.expenseCaption),
-      );
+    label: 'Expenses',
+    value: DashFormat.rupees(o.expenses),
+    caption: Text(o.expenseCaption),
+  );
 }
 
 class _NetCell extends StatelessWidget {
@@ -138,7 +150,9 @@ class _NetCell extends StatelessWidget {
     return _Cell(
       label: 'Net',
       value: value,
-      caption: Text(pct == null ? 'Nothing collected yet' : '$pct% of collections'),
+      caption: Text(
+        pct == null ? 'Nothing collected yet' : '$pct% of collections',
+      ),
     );
   }
 }
@@ -156,19 +170,21 @@ class _PendingCell extends StatelessWidget {
       caption = const Text('All settled');
     } else {
       final oldest = groups.first.ageDays;
-      caption = Row(children: [
-        const CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
-        const SizedBox(width: CruSpace.s6),
-        Flexible(
-          child: Text(
-            '${DashFormat.plural(groups.length, 'patient')}'
-            ' · oldest ${RevenueBuilder.age(oldest)}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: CruType.caption.tabular.tint(c.label2),
+      caption = Row(
+        children: [
+          const CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
+          const SizedBox(width: CruSpace.s6),
+          Flexible(
+            child: Text(
+              '${DashFormat.plural(groups.length, 'patient')}'
+              ' · oldest ${RevenueBuilder.age(oldest)}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CruType.caption.tabular.tint(c.label2),
+            ),
           ),
-        ),
-      ]);
+        ],
+      );
     }
     return _Cell(
       label: 'Pending',

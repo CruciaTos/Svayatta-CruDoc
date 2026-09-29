@@ -6,7 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
+    as vmodel;
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_records.dart';
@@ -26,10 +27,7 @@ import 'package:doctor_management_app/features/patients/data/providers/patient_p
 // ==================== CAREDOC ALL-IN-ONE WEB DASHBOARD ====================
 
 class WebDashboardView extends ConsumerStatefulWidget {
-  const WebDashboardView({
-    super.key,
-    this.onNavigateToTab,
-  });
+  const WebDashboardView({super.key, this.onNavigateToTab});
 
   final ValueChanged<int>? onNavigateToTab;
 
@@ -39,13 +37,15 @@ class WebDashboardView extends ConsumerStatefulWidget {
 
 class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   final RevenueRepository _revenueRepository = RevenueRepository();
-  int _selectedNavIndex = 0; // 0: Dashboard, 1: Appointments, 2: Patients, 3: Inventory, 4: Revenue, 5: Invoices
+  int _selectedNavIndex =
+      0; // 0: Dashboard, 1: Appointments, 2: Patients, 3: Inventory, 4: Revenue, 5: Invoices
   String _selectedStatusFilter = 'All Status';
   bool _hideRevenue = false;
   final TextEditingController _searchController = TextEditingController();
 
   // ==================== INVOICE SECTION STATE ====================
-  final TextEditingController _invoiceSearchController = TextEditingController();
+  final TextEditingController _invoiceSearchController =
+      TextEditingController();
   String _invoiceStatusFilter = 'All';
 
   // Invoices List (Stored securely in state)
@@ -65,7 +65,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     if (val is num) return val.toDouble();
     final str = val.toString().trim();
     if (str.isEmpty) return 0.0;
-    
+
     // Decrypt if encrypted with FieldCipher
     final decStr = FieldCipher.decrypt(str);
     return double.tryParse(decStr) ?? double.tryParse(str) ?? 0.0;
@@ -76,7 +76,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     if (val == null) return '';
     if (val is int) {
       try {
-        return DateFormat('MMM dd, yyyy').format(DateTime.fromMillisecondsSinceEpoch(val));
+        return DateFormat(
+          'MMM dd, yyyy',
+        ).format(DateTime.fromMillisecondsSinceEpoch(val));
       } catch (_) {
         return '';
       }
@@ -106,7 +108,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
       out['notes'] = FieldCipher.decrypt(out['notes'].toString());
     }
     if (out['clinicalNotes'] != null) {
-      out['clinicalNotes'] = FieldCipher.decrypt(out['clinicalNotes'].toString());
+      out['clinicalNotes'] = FieldCipher.decrypt(
+        out['clinicalNotes'].toString(),
+      );
     }
     // Parse amount safely
     out['amount'] = _parseAmount(out['amount']);
@@ -129,17 +133,20 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
       _latestDbUserData = dbData;
     }
 
-    final data = dbData ?? (user?.uid == _lastUserId ? _latestDbUserData : null);
+    final data =
+        dbData ?? (user?.uid == _lastUserId ? _latestDbUserData : null);
 
     if (data != null) {
       // 1. Check explicit Full Name fields first
-      final fullName = (data['fullName'] ?? 
-                        data['full_name'] ?? 
-                        data['doctorName'] ?? 
-                        data['doctor_name'] ?? 
-                        data['name'] ?? 
-                        data['displayName'] ?? 
-                        data['userName']) as String?;
+      final fullName =
+          (data['fullName'] ??
+                  data['full_name'] ??
+                  data['doctorName'] ??
+                  data['doctor_name'] ??
+                  data['name'] ??
+                  data['displayName'] ??
+                  data['userName'])
+              as String?;
 
       if (fullName != null && fullName.trim().isNotEmpty) {
         final clean = fullName.trim();
@@ -147,15 +154,22 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
       }
 
       // 2. Combine First Name + Last Name if stored in separate fields
-      final firstName = (data['firstName'] ?? data['first_name'] ?? data['givenName']) as String?;
-      final lastName = (data['lastName'] ?? data['last_name'] ?? data['familyName']) as String?;
+      final firstName =
+          (data['firstName'] ?? data['first_name'] ?? data['givenName'])
+              as String?;
+      final lastName =
+          (data['lastName'] ?? data['last_name'] ?? data['familyName'])
+              as String?;
 
       if (firstName != null && firstName.trim().isNotEmpty) {
-        final combined = ((lastName != null && lastName.trim().isNotEmpty)
-                ? '${firstName.trim()} ${lastName.trim()}'
-                : firstName.trim())
-            .trim();
-        return combined.toLowerCase().startsWith('dr') ? combined : 'Dr. $combined';
+        final combined =
+            ((lastName != null && lastName.trim().isNotEmpty)
+                    ? '${firstName.trim()} ${lastName.trim()}'
+                    : firstName.trim())
+                .trim();
+        return combined.toLowerCase().startsWith('dr')
+            ? combined
+            : 'Dr. $combined';
       }
     }
 
@@ -169,9 +183,13 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     if (user?.email != null && user!.email!.trim().isNotEmpty) {
       final rawName = user.email!.split('@').first;
       final cleanHandle = rawName.replaceAll(RegExp(r'\d+$'), '');
-      final parts = cleanHandle.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+      final parts = cleanHandle
+          .split(RegExp(r'[._-]'))
+          .where((p) => p.isNotEmpty);
       if (parts.isNotEmpty) {
-        final formatted = parts.map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase()).join(' ');
+        final formatted = parts
+            .map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase())
+            .join(' ');
         return 'Dr. $formatted';
       }
     }
@@ -180,7 +198,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   }
 
   Stream<Map<String, dynamic>?> _watchDoctorProfileStream(User user) async* {
-    final uidDocRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final uidDocRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid);
     await for (final snap in uidDocRef.snapshots()) {
       if (snap.exists && snap.data() != null) {
         yield snap.data();
@@ -209,8 +229,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     }
   }
 
-  String get _doctorName =>
-      _getFormattedDoctorName(FirebaseAuth.instance.currentUser, _latestDbUserData);
+  String get _doctorName => _getFormattedDoctorName(
+    FirebaseAuth.instance.currentUser,
+    _latestDbUserData,
+  );
 
   void _openAddPatient() {
     showAddPatientSheet(context);
@@ -237,38 +259,38 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         .doc(user.uid)
         .snapshots()
         .map((doc) {
-      if (!doc.exists || doc.data() == null) {
-        return [
-          'dashboard',
-          'patients',
-          'appointments',
-          'inventory',
-          'revenue',
-          'home_visits',
-          'ai_assistant',
-          'ai_agentic_calling',
-          'omnichannel_messaging',
-          'multi_device_access',
-        ];
-      }
-      final data = doc.data()!;
-      final rawList = data['enabledModules'] as List<dynamic>?;
-      if (rawList == null) {
-        return [
-          'dashboard',
-          'patients',
-          'appointments',
-          'inventory',
-          'revenue',
-          'home_visits',
-          'ai_assistant',
-          'ai_agentic_calling',
-          'omnichannel_messaging',
-          'multi_device_access',
-        ];
-      }
-      return rawList.map((e) => e.toString().trim().toLowerCase()).toList();
-    });
+          if (!doc.exists || doc.data() == null) {
+            return [
+              'dashboard',
+              'patients',
+              'appointments',
+              'inventory',
+              'revenue',
+              'home_visits',
+              'ai_assistant',
+              'ai_agentic_calling',
+              'omnichannel_messaging',
+              'multi_device_access',
+            ];
+          }
+          final data = doc.data()!;
+          final rawList = data['enabledModules'] as List<dynamic>?;
+          if (rawList == null) {
+            return [
+              'dashboard',
+              'patients',
+              'appointments',
+              'inventory',
+              'revenue',
+              'home_visits',
+              'ai_assistant',
+              'ai_agentic_calling',
+              'omnichannel_messaging',
+              'multi_device_access',
+            ];
+          }
+          return rawList.map((e) => e.toString().trim().toLowerCase()).toList();
+        });
   }
 
   Widget _buildFeatureDisabledView(String featureName) {
@@ -281,13 +303,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: const [],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -335,21 +351,25 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     return StreamBuilder<List<String>>(
       stream: _watchDoctorModulesStream(user),
       builder: (context, snapshot) {
-        final enabledModules = snapshot.data ?? const [
-          'dashboard',
-          'patients',
-          'appointments',
-          'inventory',
-          'revenue',
-          'home_visits',
-          'ai_assistant',
-          'ai_agentic_calling',
-          'omnichannel_messaging',
-          'multi_device_access',
-        ];
+        final enabledModules =
+            snapshot.data ??
+            const [
+              'dashboard',
+              'patients',
+              'appointments',
+              'inventory',
+              'revenue',
+              'home_visits',
+              'ai_assistant',
+              'ai_agentic_calling',
+              'omnichannel_messaging',
+              'multi_device_access',
+            ];
 
         return Scaffold(
-          backgroundColor: const Color(0xFFF8FAFC), // Crisp Light Slate Background
+          backgroundColor: const Color(
+            0xFFF8FAFC,
+          ), // Crisp Light Slate Background
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -369,7 +389,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         duration: const Duration(milliseconds: 200),
                         child: Align(
                           alignment: Alignment.topCenter,
-                          child: _buildSelectedTabWorkspace(context, enabledModules),
+                          child: _buildSelectedTabWorkspace(
+                            context,
+                            enabledModules,
+                          ),
                         ),
                       ),
                     ),
@@ -385,7 +408,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
   // ==================== DYNAMIC TAB WORKSPACE SWITCHER ====================
 
-  Widget _buildSelectedTabWorkspace(BuildContext context, List<String> enabledModules) {
+  Widget _buildSelectedTabWorkspace(
+    BuildContext context,
+    List<String> enabledModules,
+  ) {
     switch (_selectedNavIndex) {
       case 0:
         // Tab 0: Main Dashboard Overview
@@ -416,13 +442,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -442,13 +462,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -468,13 +482,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -494,13 +502,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(16),
@@ -546,8 +548,11 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   color: const Color(0xFF2563EB),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.medical_services_rounded,
-                    color: Colors.white, size: 20),
+                child: const Icon(
+                  Icons.medical_services_rounded,
+                  color: Colors.white,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               const Text(
@@ -575,9 +580,24 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           ),
           const SizedBox(height: 10),
           _buildSidebarNavItem(0, Icons.grid_view_rounded, 'Dashboard', true),
-          _buildSidebarNavItem(1, Icons.calendar_today_rounded, 'Appointments', hasAppointments),
-          _buildSidebarNavItem(2, Icons.people_alt_outlined, 'Patients', hasPatients),
-          _buildSidebarNavItem(3, Icons.inventory_2_outlined, 'Inventory', hasInventory),
+          _buildSidebarNavItem(
+            1,
+            Icons.calendar_today_rounded,
+            'Appointments',
+            hasAppointments,
+          ),
+          _buildSidebarNavItem(
+            2,
+            Icons.people_alt_outlined,
+            'Patients',
+            hasPatients,
+          ),
+          _buildSidebarNavItem(
+            3,
+            Icons.inventory_2_outlined,
+            'Inventory',
+            hasInventory,
+          ),
 
           const SizedBox(height: 20),
 
@@ -592,8 +612,18 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             ),
           ),
           const SizedBox(height: 10),
-          _buildSidebarNavItem(4, Icons.payments_outlined, 'Revenue Log', hasRevenue),
-          _buildSidebarNavItem(5, Icons.receipt_long_outlined, 'Invoices', hasRevenue),
+          _buildSidebarNavItem(
+            4,
+            Icons.payments_outlined,
+            'Revenue Log',
+            hasRevenue,
+          ),
+          _buildSidebarNavItem(
+            5,
+            Icons.receipt_long_outlined,
+            'Invoices',
+            hasRevenue,
+          ),
 
           const Spacer(),
 
@@ -615,8 +645,11 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.logout_rounded,
-                      color: Color(0xFFEF4444), size: 18),
+                  Icon(
+                    Icons.logout_rounded,
+                    color: Color(0xFFEF4444),
+                    size: 18,
+                  ),
                   SizedBox(width: 10),
                   Text(
                     'Log Out',
@@ -635,8 +668,13 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     );
   }
 
-  Widget _buildSidebarNavItem(int index, IconData icon, String title, bool isEnabled,
-      {List<String>? subItems}) {
+  Widget _buildSidebarNavItem(
+    int index,
+    IconData icon,
+    String title,
+    bool isEnabled, {
+    List<String>? subItems,
+  }) {
     final isSelected = _selectedNavIndex == index;
 
     return Column(
@@ -650,9 +688,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? const Color(0xFFEFF6FF)
-                  : Colors.transparent,
+              color: isSelected ? const Color(0xFFEFF6FF) : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -662,8 +698,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   color: !isEnabled
                       ? Colors.grey[400]
                       : isSelected
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFF64748B),
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFF64748B),
                   size: 18,
                 ),
                 const SizedBox(width: 12),
@@ -674,10 +710,12 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       color: !isEnabled
                           ? Colors.grey[400]
                           : isSelected
-                              ? const Color(0xFF2563EB)
-                              : const Color(0xFF334155),
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFF334155),
                       fontSize: 13,
-                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: isSelected
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                     ),
                   ),
                 ),
@@ -780,8 +818,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           ),
           const Spacer(),
 
-
-
           // Add Patient Primary Button (Top Navigation Bar)
           ElevatedButton.icon(
             onPressed: _openAddPatient,
@@ -837,15 +873,21 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   }
 
                   final displayName = _getFormattedDoctorName(user, dbData);
-                  final initial = displayName.replaceAll('Dr. ', '').trim().isNotEmpty
-                      ? displayName.replaceAll('Dr. ', '').trim()[0].toUpperCase()
+                  final initial =
+                      displayName.replaceAll('Dr. ', '').trim().isNotEmpty
+                      ? displayName
+                            .replaceAll('Dr. ', '')
+                            .trim()[0]
+                            .toUpperCase()
                       : 'D';
 
                   return GestureDetector(
                     onTap: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (_) => const ProfileScreen()),
+                        MaterialPageRoute(
+                          builder: (_) => const ProfileScreen(),
+                        ),
                       );
                     },
                     child: Row(
@@ -885,7 +927,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
   // ==================== OVERVIEW STATS ROW ====================
 
-  Widget _buildOverviewStatsRow(BuildContext context, List<String> enabledModules) {
+  Widget _buildOverviewStatsRow(
+    BuildContext context,
+    List<String> enabledModules,
+  ) {
     final isRevenueEnabled = enabledModules.contains('revenue');
     final isInventoryEnabled = enabledModules.contains('inventory');
 
@@ -910,7 +955,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       iconBg: const Color(0xFFEFF6FF),
                       iconColor: const Color(0xFF2563EB),
                       action: GestureDetector(
-                        onTap: () => setState(() => _hideRevenue = !_hideRevenue),
+                        onTap: () =>
+                            setState(() => _hideRevenue = !_hideRevenue),
                         child: Icon(
                           _hideRevenue
                               ? Icons.visibility_off_outlined
@@ -933,7 +979,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
               child: isInventoryEnabled
                   ? Consumer(
                       builder: (context, ref, child) {
-                        final medicinesAsync = ref.watch(medicinesStreamProvider);
+                        final medicinesAsync = ref.watch(
+                          medicinesStreamProvider,
+                        );
                         final countText = medicinesAsync.when(
                           data: (medicines) => '${medicines.length} Items',
                           loading: () => 'Loading...',
@@ -947,7 +995,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                           iconBg: const Color(0xFFECFDF5),
                           iconColor: const Color(0xFF10B981),
                           action: TextButton(
-                            onPressed: () => setState(() => _selectedNavIndex = 3),
+                            onPressed: () =>
+                                setState(() => _selectedNavIndex = 3),
                             child: const Text(
                               'View Inventory',
                               style: TextStyle(
@@ -1008,13 +1057,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1068,13 +1111,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1088,10 +1125,12 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       data: (rawVisits) {
                         final visits = rawVisits.where((vw) {
                           if (_selectedStatusFilter == 'Completed') {
-                            return vw.visit.status == vmodel.VisitStatus.completed;
+                            return vw.visit.status ==
+                                vmodel.VisitStatus.completed;
                           }
                           if (_selectedStatusFilter == 'Scheduled') {
-                            return vw.visit.status == vmodel.VisitStatus.scheduled;
+                            return vw.visit.status ==
+                                vmodel.VisitStatus.scheduled;
                           }
                           return true;
                         }).toList();
@@ -1123,11 +1162,14 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         child: DropdownButton<String>(
                           value: _selectedStatusFilter,
                           style: const TextStyle(
-                              color: Color(0xFF334155),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600),
-                          icon: const Icon(Icons.arrow_drop_down,
-                              color: Color(0xFF64748B)),
+                            color: Color(0xFF334155),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          icon: const Icon(
+                            Icons.arrow_drop_down,
+                            color: Color(0xFF64748B),
+                          ),
                           items: ['All Status', 'Completed', 'Scheduled']
                               .map(
                                 (status) => DropdownMenuItem(
@@ -1147,7 +1189,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   ],
                 ),
               ),
-              const Divider(color: Color(0xFFF1F5F9), height: 1),
+              const Divider(height: 1),
 
               // Table Content
               visitsAsync.when(
@@ -1169,7 +1211,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         child: Text(
                           'No visits or appointments found in database.',
                           style: TextStyle(
-                              color: Color(0xFF94A3B8), fontSize: 13),
+                            color: Color(0xFF94A3B8),
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     );
@@ -1181,13 +1225,14 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       Container(
                         color: const Color(0xFFF8FAFC),
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 20, vertical: 12),
+                          horizontal: 20,
+                          vertical: 12,
+                        ),
                         child: const Row(
                           children: [
                             SizedBox(
                               width: 90,
-                              child: Text('Patient ID',
-                                  style: _thStyle),
+                              child: Text('Patient ID', style: _thStyle),
                             ),
                             Expanded(
                               flex: 3,
@@ -1211,8 +1256,11 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             ),
                             SizedBox(
                               width: 60,
-                              child: Text('Actions',
-                                  style: _thStyle, textAlign: TextAlign.center),
+                              child: Text(
+                                'Actions',
+                                style: _thStyle,
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ],
                         ),
@@ -1224,25 +1272,36 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: visits.length,
                         separatorBuilder: (context, index) =>
-                            const Divider(color: Color(0xFFF1F5F9), height: 1),
+                            const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final vw = visits[index];
                           final visit = vw.visit;
                           final patient = vw.patient;
                           final pId = patient?.id ?? visit.patientId;
-                          final shortId = pId.length >= 4 ? pId.substring(0, 4) : pId;
-                          final patientName = (patient?.fullName != null && patient!.fullName.isNotEmpty)
+                          final shortId = pId.length >= 4
+                              ? pId.substring(0, 4)
+                              : pId;
+                          final patientName =
+                              (patient?.fullName != null &&
+                                  patient!.fullName.isNotEmpty)
                               ? patient.fullName
                               : 'Patient #$shortId';
-                          final timeStr = DateFormat('hh:mm a').format(visit.scheduledStart);
-                          final phoneStr = (patient?.phone != null && patient!.phone.isNotEmpty)
+                          final timeStr = DateFormat(
+                            'hh:mm a',
+                          ).format(visit.scheduledStart);
+                          final phoneStr =
+                              (patient?.phone != null &&
+                                  patient!.phone.isNotEmpty)
                               ? patient.phone
                               : '+91 98765 43210';
-                          final isCompleted = visit.status == vmodel.VisitStatus.completed;
+                          final isCompleted =
+                              visit.status == vmodel.VisitStatus.completed;
 
                           return Padding(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 20, vertical: 14),
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
                             child: Row(
                               children: [
                                 SizedBox(
@@ -1262,8 +1321,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                     children: [
                                       CircleAvatar(
                                         radius: 14,
-                                        backgroundColor: const Color(0xFF2563EB)
-                                            .withValues(alpha: 0.12),
+                                        backgroundColor: const Color(
+                                          0xFF2563EB,
+                                        ).withValues(alpha: 0.12),
                                         child: Text(
                                           patientName[0].toUpperCase(),
                                           style: const TextStyle(
@@ -1339,20 +1399,26 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     color: Colors.white,
-                                    elevation: 4,
+                                    elevation: 0,
                                     tooltip: 'Actions',
                                     itemBuilder: (context) => [
                                       const PopupMenuItem(
                                         value: 'view',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.visibility_outlined,
-                                                size: 16, color: Color(0xFF2563EB)),
+                                            Icon(
+                                              Icons.visibility_outlined,
+                                              size: 16,
+                                              color: Color(0xFF2563EB),
+                                            ),
                                             SizedBox(width: 10),
-                                            Text('View Details',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600)),
+                                            Text(
+                                              'View Details',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1361,13 +1427,20 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                           value: 'complete',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.check_circle_outline_rounded,
-                                                  size: 16, color: Color(0xFF16A34A)),
+                                              Icon(
+                                                Icons
+                                                    .check_circle_outline_rounded,
+                                                size: 16,
+                                                color: Color(0xFF16A34A),
+                                              ),
                                               SizedBox(width: 10),
-                                              Text('Mark Completed',
-                                                  style: TextStyle(
-                                                      fontSize: 12,
-                                                      fontWeight: FontWeight.w600)),
+                                              Text(
+                                                'Mark Completed',
+                                                style: TextStyle(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
                                             ],
                                           ),
                                         ),
@@ -1375,13 +1448,19 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         value: 'cancel',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.cancel_outlined,
-                                                size: 16, color: Color(0xFFEAB308)),
+                                            Icon(
+                                              Icons.cancel_outlined,
+                                              size: 16,
+                                              color: Color(0xFFEAB308),
+                                            ),
                                             SizedBox(width: 10),
-                                            Text('Cancel Visit',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600)),
+                                            Text(
+                                              'Cancel Visit',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1389,14 +1468,20 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         value: 'delete',
                                         child: Row(
                                           children: [
-                                            Icon(Icons.delete_outline_rounded,
-                                                size: 16, color: Color(0xFFDC2626)),
+                                            Icon(
+                                              Icons.delete_outline_rounded,
+                                              size: 16,
+                                              color: Color(0xFFDC2626),
+                                            ),
                                             SizedBox(width: 10),
-                                            Text('Delete Visit',
-                                                style: TextStyle(
-                                                    fontSize: 12,
-                                                    fontWeight: FontWeight.w600,
-                                                    color: Color(0xFFDC2626))),
+                                            Text(
+                                              'Delete Visit',
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFFDC2626),
+                                              ),
+                                            ),
                                           ],
                                         ),
                                       ),
@@ -1415,28 +1500,38 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         case 'complete':
                                           await ref
                                               .read(visitRepositoryProvider)
-                                              .updateStatus(visit.id,
-                                                  vmodel.VisitStatus.completed);
+                                              .updateStatus(
+                                                visit.id,
+                                                vmodel.VisitStatus.completed,
+                                              );
                                           if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               const SnackBar(
-                                                  content: Text(
-                                                      'Appointment marked as Completed')),
+                                                content: Text(
+                                                  'Appointment marked as Completed',
+                                                ),
+                                              ),
                                             );
                                           }
                                           break;
                                         case 'cancel':
                                           await ref
                                               .read(visitRepositoryProvider)
-                                              .updateStatus(visit.id,
-                                                  vmodel.VisitStatus.cancelled);
+                                              .updateStatus(
+                                                visit.id,
+                                                vmodel.VisitStatus.cancelled,
+                                              );
                                           if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               const SnackBar(
-                                                  content: Text(
-                                                      'Appointment cancelled')),
+                                                content: Text(
+                                                  'Appointment cancelled',
+                                                ),
+                                              ),
                                             );
                                           }
                                           break;
@@ -1445,11 +1540,14 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                               .read(visitRepositoryProvider)
                                               .softDeleteVisit(visit.id);
                                           if (context.mounted) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
                                               const SnackBar(
-                                                  content: Text(
-                                                      'Appointment deleted')),
+                                                content: Text(
+                                                  'Appointment deleted',
+                                                ),
+                                              ),
                                             );
                                           }
                                           break;
@@ -1468,7 +1566,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                 loading: () => const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
                   child: Center(
-                      child: CircularProgressIndicator(strokeWidth: 2)),
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
                 ),
                 error: (err, _) => Padding(
                   padding: const EdgeInsets.all(20),
@@ -1483,7 +1582,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   }
 
   Widget _buildStatusBadge(bool isCompleted) {
-    final color = isCompleted ? const Color(0xFF10B981) : const Color(0xFF2563EB);
+    final color = isCompleted
+        ? const Color(0xFF10B981)
+        : const Color(0xFF2563EB);
     final bg = isCompleted ? const Color(0xFFECFDF5) : const Color(0xFFEFF6FF);
     final label = isCompleted ? 'Completed' : 'Accepted';
 
@@ -1517,9 +1618,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     final currentDoctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance
-          .collection('invoices')
-          .snapshots(),
+      stream: FirebaseFirestore.instance.collection('invoices').snapshots(),
       builder: (context, snapshot) {
         List<Map<String, dynamic>> allInvoices = List.from(_invoicesList);
 
@@ -1530,7 +1629,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                 data['id'] = doc.id;
 
                 // Multi-tenant protection: verify doctorId/doctorUid matching
-                final docDoctorId = (data['doctorId'] ?? data['doctorUid'] ?? '').toString();
+                final docDoctorId =
+                    (data['doctorId'] ?? data['doctorUid'] ?? '').toString();
                 if (docDoctorId.isNotEmpty &&
                     currentDoctorId.isNotEmpty &&
                     docDoctorId != currentDoctorId) {
@@ -1550,7 +1650,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
         }
 
         // Input sanitization on search filter
-        final searchQuery = _sanitizeInput(_invoiceSearchController.text.toLowerCase());
+        final searchQuery = _sanitizeInput(
+          _invoiceSearchController.text.toLowerCase(),
+        );
 
         final filteredInvoices = allInvoices.where((inv) {
           final name = (inv['patientName'] ?? '').toString().toLowerCase();
@@ -1558,19 +1660,24 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           final service = (inv['service'] ?? '').toString().toLowerCase();
           final status = (inv['status'] ?? '').toString();
 
-          final matchesSearch = searchQuery.isEmpty ||
+          final matchesSearch =
+              searchQuery.isEmpty ||
               name.contains(searchQuery) ||
               id.contains(searchQuery) ||
               service.contains(searchQuery);
 
-          final matchesStatus = _invoiceStatusFilter == 'All' ||
+          final matchesStatus =
+              _invoiceStatusFilter == 'All' ||
               status.toLowerCase() == _invoiceStatusFilter.toLowerCase();
 
           return matchesSearch && matchesStatus;
         }).toList();
 
         // Financial calculations with safe amount parsing
-        double totalInvoiced = allInvoices.fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
+        double totalInvoiced = allInvoices.fold(
+          0.0,
+          (sum, i) => sum + _parseAmount(i['amount']),
+        );
         double paidTotal = allInvoices
             .where((i) => i['status'] == 'Paid')
             .fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
@@ -1581,365 +1688,448 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
             .where((i) => i['status'] == 'Overdue')
             .fold(0.0, (sum, i) => sum + _parseAmount(i['amount']));
 
-        final currencyFormat = NumberFormat.currency(symbol: '₹', decimalDigits: 0);
+        final currencyFormat = NumberFormat.currency(
+          symbol: '₹',
+          decimalDigits: 0,
+        );
 
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(28, 20, 28, 28),
           child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header title & action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // Header title & action
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Invoices & Billing',
-                    style: TextStyle(
-                      color: Color(0xFF0F172A),
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Invoices & Billing',
+                        style: TextStyle(
+                          color: Color(0xFF0F172A),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Manage patient bills, payment receipts, and pending invoices securely',
+                        style: TextStyle(
+                          color: Color(0xFF64748B),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Manage patient bills, payment receipts, and pending invoices securely',
-                    style: TextStyle(
-                      color: Color(0xFF64748B),
-                      fontSize: 13,
+                  ElevatedButton.icon(
+                    onPressed: () => _showCreateInvoiceDialog(context),
+                    icon: const Icon(Icons.add_rounded, size: 18),
+                    label: const Text('Create Invoice'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2563EB),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
                     ),
                   ),
                 ],
               ),
-              ElevatedButton.icon(
-                onPressed: () => _showCreateInvoiceDialog(context),
-                icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Create Invoice'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2563EB),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
-          // Stat Summary Cards
-          Row(
-            children: [
-              Expanded(
-                child: _buildInvoiceStatCard(
-                  title: 'Total Invoiced',
-                  amount: currencyFormat.format(totalInvoiced),
-                  icon: Icons.receipt_long_rounded,
-                  color: const Color(0xFF2563EB),
-                  bg: const Color(0xFFEFF6FF),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildInvoiceStatCard(
-                  title: 'Paid Invoices',
-                  amount: currencyFormat.format(paidTotal),
-                  icon: Icons.check_circle_outline_rounded,
-                  color: const Color(0xFF10B981),
-                  bg: const Color(0xFFECFDF5),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildInvoiceStatCard(
-                  title: 'Pending',
-                  amount: currencyFormat.format(pendingTotal),
-                  icon: Icons.hourglass_top_rounded,
-                  color: const Color(0xFFF59E0B),
-                  bg: const Color(0xFFFFFBEB),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _buildInvoiceStatCard(
-                  title: 'Overdue',
-                  amount: currencyFormat.format(overdueTotal),
-                  icon: Icons.warning_amber_rounded,
-                  color: const Color(0xFFEF4444),
-                  bg: const Color(0xFFFEF2F2),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Filter & Search Controls Bar
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Row(
-              children: [
-                // Search Input with Sanitization
-                Expanded(
-                  child: Container(
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
+              // Stat Summary Cards
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildInvoiceStatCard(
+                      title: 'Total Invoiced',
+                      amount: currencyFormat.format(totalInvoiced),
+                      icon: Icons.receipt_long_rounded,
+                      color: const Color(0xFF2563EB),
+                      bg: const Color(0xFFEFF6FF),
                     ),
-                    child: TextField(
-                      controller: _invoiceSearchController,
-                      onChanged: (_) => setState(() {}),
-                      decoration: const InputDecoration(
-                        hintText: 'Search by Invoice #, Patient Name, Service...',
-                        hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 13),
-                        prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF94A3B8), size: 18),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 10),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildInvoiceStatCard(
+                      title: 'Paid Invoices',
+                      amount: currencyFormat.format(paidTotal),
+                      icon: Icons.check_circle_outline_rounded,
+                      color: const Color(0xFF10B981),
+                      bg: const Color(0xFFECFDF5),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildInvoiceStatCard(
+                      title: 'Pending',
+                      amount: currencyFormat.format(pendingTotal),
+                      icon: Icons.hourglass_top_rounded,
+                      color: const Color(0xFFF59E0B),
+                      bg: const Color(0xFFFFFBEB),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildInvoiceStatCard(
+                      title: 'Overdue',
+                      amount: currencyFormat.format(overdueTotal),
+                      icon: Icons.warning_amber_rounded,
+                      color: const Color(0xFFEF4444),
+                      bg: const Color(0xFFFEF2F2),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Filter & Search Controls Bar
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  children: [
+                    // Search Input with Sanitization
+                    Expanded(
+                      child: Container(
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: TextField(
+                          controller: _invoiceSearchController,
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            hintText:
+                                'Search by Invoice #, Patient Name, Service...',
+                            hintStyle: TextStyle(
+                              color: Color(0xFF94A3B8),
+                              fontSize: 13,
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: Color(0xFF94A3B8),
+                              size: 18,
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 10),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 16),
+                    const SizedBox(width: 16),
 
-                // Status Filter Chips
-                Wrap(
-                  spacing: 8,
-                  children: ['All', 'Paid', 'Pending', 'Overdue'].map((status) {
-                    final isSelected = _invoiceStatusFilter == status;
-                    return ChoiceChip(
-                      label: Text(
+                    // Status Filter Chips
+                    Wrap(
+                      spacing: 8,
+                      children: ['All', 'Paid', 'Pending', 'Overdue'].map((
                         status,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                      ) {
+                        final isSelected = _invoiceStatusFilter == status;
+                        return ChoiceChip(
+                          label: Text(
+                            status,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: isSelected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                          selected: isSelected,
+                          onSelected: (val) {
+                            if (val) {
+                              setState(() => _invoiceStatusFilter = status);
+                            }
+                          },
+                          selectedColor: const Color(0xFFEFF6FF),
+                          backgroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? const Color(0xFF2563EB)
+                                  : const Color(0xFFE2E8F0),
+                            ),
+                          ),
+                          showCheckmark: false,
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Invoices Data Table Card
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Column(
+                  children: [
+                    // Table Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(12),
                         ),
                       ),
-                      selected: isSelected,
-                      onSelected: (val) {
-                        if (val) {
-                          setState(() => _invoiceStatusFilter = status);
-                        }
-                      },
-                      selectedColor: const Color(0xFFEFF6FF),
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        side: BorderSide(
-                          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
-                        ),
-                      ),
-                      showCheckmark: false,
-                    );
-                  }).toList(),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Invoices Data Table Card
-          Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: [
-                // Table Header
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
-                  ),
-                  child: const Row(
-                    children: [
-                      Expanded(flex: 2, child: Text('INVOICE ID', style: _thStyle)),
-                      Expanded(flex: 3, child: Text('PATIENT NAME', style: _thStyle)),
-                      Expanded(flex: 3, child: Text('SERVICE / DESCRIPTION', style: _thStyle)),
-                      Expanded(flex: 2, child: Text('DUE DATE', style: _thStyle)),
-                      Expanded(flex: 2, child: Text('AMOUNT', style: _thStyle)),
-                      Expanded(flex: 2, child: Text('STATUS', style: _thStyle)),
-                      Expanded(flex: 2, child: Text('ACTIONS', style: _thStyle)),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-                // Table Rows
-                if (filteredInvoices.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(40),
-                    child: Center(
-                      child: Text(
-                        'No invoices found matching your criteria',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+                      child: const Row(
+                        children: [
+                          Expanded(
+                            flex: 2,
+                            child: Text('INVOICE ID', style: _thStyle),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Text('PATIENT NAME', style: _thStyle),
+                          ),
+                          Expanded(
+                            flex: 3,
+                            child: Text(
+                              'SERVICE / DESCRIPTION',
+                              style: _thStyle,
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text('DUE DATE', style: _thStyle),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text('AMOUNT', style: _thStyle),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text('STATUS', style: _thStyle),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text('ACTIONS', style: _thStyle),
+                          ),
+                        ],
                       ),
                     ),
-                  )
-                else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: filteredInvoices.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
-                    itemBuilder: (context, index) {
-                      final inv = filteredInvoices[index];
-                      final status = (inv['status'] ?? 'Pending').toString();
-                      Color statusColor;
-                      Color statusBg;
+                    const Divider(height: 1),
 
-                      if (status == 'Paid') {
-                        statusColor = const Color(0xFF10B981);
-                        statusBg = const Color(0xFFECFDF5);
-                      } else if (status == 'Pending') {
-                        statusColor = const Color(0xFFF59E0B);
-                        statusBg = const Color(0xFFFFFBEB);
-                      } else {
-                        statusColor = const Color(0xFFEF4444);
-                        statusBg = const Color(0xFFFEF2F2);
-                      }
-
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                        child: Row(
-                          children: [
-                            // ID
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                (inv['id'] ?? '').toString(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0F172A),
-                                  fontSize: 13,
-                                ),
-                              ),
+                    // Table Rows
+                    if (filteredInvoices.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.all(40),
+                        child: Center(
+                          child: Text(
+                            'No invoices found matching your criteria',
+                            style: TextStyle(
+                              color: Color(0xFF64748B),
+                              fontSize: 14,
                             ),
-                            // Patient Name
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                (inv['patientName'] ?? '').toString(),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF334155),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            // Service
-                            Expanded(
-                              flex: 3,
-                              child: Text(
-                                (inv['service'] ?? '-').toString(),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            // Due Date
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                _parseDateField(inv['dueDate']),
-                                style: const TextStyle(
-                                  color: Color(0xFF64748B),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            // Amount
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                currencyFormat.format(_parseAmount(inv['amount'])),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF0F172A),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ),
-                            // Status Badge
-                            Expanded(
-                              flex: 2,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(
-                                  color: statusBg,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  status,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: statusColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
-                            ),
-                            // Actions
-                            Expanded(
-                              flex: 2,
-                              child: Row(
-                                children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF64748B)),
-                                    tooltip: 'View Details',
-                                    onPressed: () => _showInvoiceDetailsDialog(context, inv),
-                                  ),
-                                  if (status != 'Paid')
-                                    IconButton(
-                                      icon: const Icon(Icons.check_circle_outline_rounded, size: 18, color: Color(0xFF10B981)),
-                                      tooltip: 'Mark Paid',
-                                      onPressed: () {
-                                        setState(() {
-                                          inv['status'] = 'Paid';
-                                        });
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          SnackBar(
-                                            content: Text('Invoice ${inv['id']} marked as Paid!'),
-                                            backgroundColor: const Color(0xFF10B981),
-                                            behavior: SnackBarBehavior.floating,
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
-                      );
-                    },
-                  ),
-              ],
-            ),
+                      )
+                    else
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: filteredInvoices.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final inv = filteredInvoices[index];
+                          final status = (inv['status'] ?? 'Pending')
+                              .toString();
+                          Color statusColor;
+                          Color statusBg;
+
+                          if (status == 'Paid') {
+                            statusColor = const Color(0xFF10B981);
+                            statusBg = const Color(0xFFECFDF5);
+                          } else if (status == 'Pending') {
+                            statusColor = const Color(0xFFF59E0B);
+                            statusBg = const Color(0xFFFFFBEB);
+                          } else {
+                            statusColor = const Color(0xFFEF4444);
+                            statusBg = const Color(0xFFFEF2F2);
+                          }
+
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 20,
+                              vertical: 14,
+                            ),
+                            child: Row(
+                              children: [
+                                // ID
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    (inv['id'] ?? '').toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                // Patient Name
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    (inv['patientName'] ?? '').toString(),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF334155),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                // Service
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    (inv['service'] ?? '-').toString(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                // Due Date
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    _parseDateField(inv['dueDate']),
+                                    style: const TextStyle(
+                                      color: Color(0xFF64748B),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                // Amount
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    currencyFormat.format(
+                                      _parseAmount(inv['amount']),
+                                    ),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF0F172A),
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                ),
+                                // Status Badge
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: statusBg,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      status,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: statusColor,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                // Actions
+                                Expanded(
+                                  flex: 2,
+                                  child: Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(
+                                          Icons.visibility_outlined,
+                                          size: 18,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                        tooltip: 'View Details',
+                                        onPressed: () =>
+                                            _showInvoiceDetailsDialog(
+                                              context,
+                                              inv,
+                                            ),
+                                      ),
+                                      if (status != 'Paid')
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.check_circle_outline_rounded,
+                                            size: 18,
+                                            color: Color(0xFF10B981),
+                                          ),
+                                          tooltip: 'Mark Paid',
+                                          onPressed: () {
+                                            setState(() {
+                                              inv['status'] = 'Paid';
+                                            });
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Text(
+                                                  'Invoice ${inv['id']} marked as Paid!',
+                                                ),
+                                                backgroundColor: const Color(
+                                                  0xFF10B981,
+                                                ),
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
-  },
-);
-}
+  }
 
   Widget _buildInvoiceStatCard({
     required String title,
@@ -2020,15 +2210,22 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
           builder: (context, setModalState) {
             // Live financial calculations (treatments + medicines)
             final double treatmentFees = treatmentsList.fold(
-                0.0, (sum, item) => sum + _parseAmount(item['price']));
+              0.0,
+              (sum, item) => sum + _parseAmount(item['price']),
+            );
             final double medicineFees = medicinesList.fold(
-                0.0, (sum, item) => sum + _parseAmount(item['price']));
+              0.0,
+              (sum, item) => sum + _parseAmount(item['price']),
+            );
             final double fees = treatmentFees + medicineFees;
-            final double discount = double.tryParse(discountCtrl.text.trim()) ?? 0.0;
+            final double discount =
+                double.tryParse(discountCtrl.text.trim()) ?? 0.0;
             final double total = (fees - discount).clamp(0.0, double.infinity);
 
             return Dialog(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               child: Container(
                 width: 680,
                 constraints: BoxConstraints(
@@ -2043,35 +2240,47 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   children: [
                     // Header Bar (Harmonized Royal Blue Gradient)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       decoration: const BoxDecoration(
                         gradient: LinearGradient(
                           colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
                           begin: Alignment.centerLeft,
                           end: Alignment.centerRight,
                         ),
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(16),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Row(
                             children: [
-                              Icon(Icons.local_hospital_rounded, color: Colors.white, size: 24),
+                              Icon(
+                                Icons.local_hospital_rounded,
+                                color: Colors.white,
+                                size: 24,
+                              ),
                               SizedBox(width: 10),
                               const Text(
-                'cru.doc',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  fontFamily: AppColors.headingFontFamily,
-                ),
-              ),
+                                'cru.doc',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.w900,
+                                  fontFamily: AppColors.headingFontFamily,
+                                ),
+                              ),
                             ],
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, color: Colors.white),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              color: Colors.white,
+                            ),
                             onPressed: () => Navigator.of(dialogCtx).pop(),
                           ),
                         ],
@@ -2091,7 +2300,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               decoration: BoxDecoration(
                                 color: const Color(0xFFF8FAFC),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                                border: Border.all(
+                                  color: const Color(0xFFE2E8F0),
+                                ),
                               ),
                               child: Column(
                                 children: [
@@ -2108,27 +2319,43 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                               lastDate: DateTime(2030),
                                             );
                                             if (picked != null) {
-                                              setModalState(() => selectedDate = picked);
+                                              setModalState(
+                                                () => selectedDate = picked,
+                                              );
                                             }
                                           },
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 10),
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: Colors.white,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: const Color(0xFFCBD5E1),
+                                              ),
                                             ),
                                             child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Text(
-                                                  DateFormat('dd/MM/yyyy').format(selectedDate),
+                                                  DateFormat(
+                                                    'dd/MM/yyyy',
+                                                  ).format(selectedDate),
                                                   style: const TextStyle(
-                                                      fontWeight: FontWeight.w600, fontSize: 13),
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                                const Icon(Icons.calendar_month_rounded,
-                                                    size: 18, color: Color(0xFF64748B)),
+                                                const Icon(
+                                                  Icons.calendar_month_rounded,
+                                                  size: 18,
+                                                  color: Color(0xFF64748B),
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -2144,27 +2371,41 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                               initialTime: selectedTime,
                                             );
                                             if (picked != null) {
-                                              setModalState(() => selectedTime = picked);
+                                              setModalState(
+                                                () => selectedTime = picked,
+                                              );
                                             }
                                           },
                                           child: Container(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 12, vertical: 10),
+                                              horizontal: 12,
+                                              vertical: 10,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: Colors.white,
-                                              borderRadius: BorderRadius.circular(8),
-                                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: const Color(0xFFCBD5E1),
+                                              ),
                                             ),
                                             child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
                                               children: [
                                                 Text(
                                                   selectedTime.format(context),
                                                   style: const TextStyle(
-                                                      fontWeight: FontWeight.w600, fontSize: 13),
+                                                    fontWeight: FontWeight.w600,
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
-                                                const Icon(Icons.access_time_rounded,
-                                                    size: 18, color: Color(0xFF64748B)),
+                                                const Icon(
+                                                  Icons.access_time_rounded,
+                                                  size: 18,
+                                                  color: Color(0xFF64748B),
+                                                ),
                                               ],
                                             ),
                                           ),
@@ -2176,17 +2417,21 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   // Doctor Info Field
                                   Row(
                                     children: [
-                                      const Text('Doctor: ',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: Color(0xFF475569),
-                                              fontSize: 13)),
+                                      const Text(
+                                        'Doctor: ',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF475569),
+                                          fontSize: 13,
+                                        ),
+                                      ),
                                       Text(
                                         _doctorName,
                                         style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF0F172A),
-                                            fontSize: 14),
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF0F172A),
+                                          fontSize: 14,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -2194,78 +2439,168 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   // Patient Search Autocomplete / Add New
                                   Consumer(
                                     builder: (context, ref, child) {
-                                      final patientsAsync = ref.watch(patientsStreamProvider);
-                                      final patientsList = patientsAsync.value ?? <Patient>[];
+                                      final patientsAsync = ref.watch(
+                                        patientsStreamProvider,
+                                      );
+                                      final patientsList =
+                                          patientsAsync.value ?? <Patient>[];
 
                                       return Autocomplete<Patient>(
-                                        displayStringForOption: (Patient p) => p.fullName,
-                                        optionsBuilder: (TextEditingValue textEditingValue) {
-                                          if (textEditingValue.text.isEmpty) {
-                                            return patientsList;
-                                          }
-                                          final q = textEditingValue.text.toLowerCase().trim();
-                                          return patientsList.where((Patient p) {
-                                            return p.fullName.toLowerCase().contains(q) ||
-                                                p.phone.contains(q) ||
-                                                p.id.toLowerCase().contains(q);
-                                          });
-                                        },
+                                        displayStringForOption: (Patient p) =>
+                                            p.fullName,
+                                        optionsBuilder:
+                                            (
+                                              TextEditingValue textEditingValue,
+                                            ) {
+                                              if (textEditingValue
+                                                  .text
+                                                  .isEmpty) {
+                                                return patientsList;
+                                              }
+                                              final q = textEditingValue.text
+                                                  .toLowerCase()
+                                                  .trim();
+                                              return patientsList.where((
+                                                Patient p,
+                                              ) {
+                                                return p.fullName
+                                                        .toLowerCase()
+                                                        .contains(q) ||
+                                                    p.phone.contains(q) ||
+                                                    p.id.toLowerCase().contains(
+                                                      q,
+                                                    );
+                                              });
+                                            },
                                         onSelected: (Patient selected) {
-                                          patientNameCtrl.text = selected.fullName;
+                                          patientNameCtrl.text =
+                                              selected.fullName;
                                         },
-                                        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                                          if (controller.text.isEmpty && patientNameCtrl.text.isNotEmpty) {
-                                            controller.text = patientNameCtrl.text;
-                                          }
-                                          controller.addListener(() {
-                                            patientNameCtrl.text = controller.text;
-                                          });
-                                          return TextField(
-                                            controller: controller,
-                                            focusNode: focusNode,
-                                            decoration: const InputDecoration(
-                                              labelText: 'Search Existing Patient or Add New Name',
-                                              hintText: 'Type patient name or phone number...',
-                                              isDense: true,
-                                              border: OutlineInputBorder(),
-                                              prefixIcon: Icon(Icons.person_search_rounded, size: 20),
-                                            ),
-                                          );
-                                        },
+                                        fieldViewBuilder:
+                                            (
+                                              context,
+                                              controller,
+                                              focusNode,
+                                              onFieldSubmitted,
+                                            ) {
+                                              if (controller.text.isEmpty &&
+                                                  patientNameCtrl
+                                                      .text
+                                                      .isNotEmpty) {
+                                                controller.text =
+                                                    patientNameCtrl.text;
+                                              }
+                                              controller.addListener(() {
+                                                patientNameCtrl.text =
+                                                    controller.text;
+                                              });
+                                              return TextField(
+                                                controller: controller,
+                                                focusNode: focusNode,
+                                                decoration: const InputDecoration(
+                                                  labelText:
+                                                      'Search Existing Patient or Add New Name',
+                                                  hintText:
+                                                      'Type patient name or phone number...',
+                                                  isDense: true,
+                                                  border: OutlineInputBorder(),
+                                                  prefixIcon: Icon(
+                                                    Icons.person_search_rounded,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              );
+                                            },
                                         optionsViewBuilder: (context, onSelected, options) {
                                           return Align(
                                             alignment: Alignment.topLeft,
                                             child: Material(
-                                              elevation: 6,
+                                              elevation: 0,
                                               color: Colors.white,
-                                              borderRadius: BorderRadius.circular(10),
+                                              borderRadius:
+                                                  BorderRadius.circular(10),
                                               child: Container(
                                                 width: 480,
-                                                constraints: const BoxConstraints(maxHeight: 220),
+                                                constraints:
+                                                    const BoxConstraints(
+                                                      maxHeight: 220,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color: Colors.white,
-                                                  borderRadius: BorderRadius.circular(10),
-                                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                                  borderRadius:
+                                                      BorderRadius.circular(10),
+                                                  border: Border.all(
+                                                    color: const Color(
+                                                      0xFFE2E8F0,
+                                                    ),
+                                                  ),
                                                 ),
                                                 child: ListView.separated(
-                                                  padding: const EdgeInsets.symmetric(vertical: 4),
+                                                  padding:
+                                                      const EdgeInsets.symmetric(
+                                                        vertical: 4,
+                                                      ),
                                                   shrinkWrap: true,
                                                   itemCount: options.length,
-                                                  separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                                                  separatorBuilder: (_, __) =>
+                                                      const Divider(
+                                                        height: 1,
+                                                      ),
                                                   itemBuilder: (BuildContext context, int index) {
-                                                    final Patient option = options.elementAt(index);
+                                                    final Patient option =
+                                                        options.elementAt(
+                                                          index,
+                                                        );
                                                     return ListTile(
                                                       dense: true,
                                                       leading: CircleAvatar(
                                                         radius: 13,
-                                                        backgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.1),
+                                                        backgroundColor:
+                                                            const Color(
+                                                              0xFF2563EB,
+                                                            ).withValues(
+                                                              alpha: 0.1,
+                                                            ),
                                                         child: Text(
-                                                          option.fullName.isNotEmpty ? option.fullName[0].toUpperCase() : 'P',
-                                                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                                                          option
+                                                                  .fullName
+                                                                  .isNotEmpty
+                                                              ? option
+                                                                    .fullName[0]
+                                                                    .toUpperCase()
+                                                              : 'P',
+                                                          style:
+                                                              const TextStyle(
+                                                                fontSize: 11,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .bold,
+                                                                color: Color(
+                                                                  0xFF2563EB,
+                                                                ),
+                                                              ),
                                                         ),
                                                       ),
-                                                      title: Text(option.fullName, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A))),
-                                                      subtitle: Text('${option.gender}, ${option.age} yrs • ${option.phone}', style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                                      title: Text(
+                                                        option.fullName,
+                                                        style: const TextStyle(
+                                                          fontWeight:
+                                                              FontWeight.w700,
+                                                          fontSize: 13,
+                                                          color: Color(
+                                                            0xFF0F172A,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                      subtitle: Text(
+                                                        '${option.gender}, ${option.age} yrs • ${option.phone}',
+                                                        style: const TextStyle(
+                                                          fontSize: 11,
+                                                          color: Color(
+                                                            0xFF64748B,
+                                                          ),
+                                                        ),
+                                                      ),
                                                       onTap: () {
                                                         onSelected(option);
                                                       },
@@ -2288,25 +2623,32 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                             Container(
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                                border: Border.all(
+                                  color: const Color(0xFFCBD5E1),
+                                ),
                               ),
                               child: Column(
                                 children: [
                                   InkWell(
-                                    onTap: () =>
-                                        setModalState(() => isNotesExpanded = !isNotesExpanded),
+                                    onTap: () => setModalState(
+                                      () => isNotesExpanded = !isNotesExpanded,
+                                    ),
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                          horizontal: 14, vertical: 10),
+                                        horizontal: 14,
+                                        vertical: 10,
+                                      ),
                                       child: Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
                                         children: [
                                           const Text(
                                             'Clinical Notes:',
                                             style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                                color: Color(0xFF0F172A)),
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 14,
+                                              color: Color(0xFF0F172A),
+                                            ),
                                           ),
                                           Icon(
                                             isNotesExpanded
@@ -2321,13 +2663,18 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   ),
                                   if (isNotesExpanded)
                                     Padding(
-                                      padding:
-                                          const EdgeInsets.fromLTRB(14, 0, 14, 12),
+                                      padding: const EdgeInsets.fromLTRB(
+                                        14,
+                                        0,
+                                        14,
+                                        12,
+                                      ),
                                       child: TextField(
                                         controller: clinicalNotesCtrl,
                                         maxLines: 3,
                                         decoration: const InputDecoration(
-                                          hintText: 'Enter clinical observations, symptoms or diagnosis notes...',
+                                          hintText:
+                                              'Enter clinical observations, symptoms or diagnosis notes...',
                                           border: OutlineInputBorder(),
                                           isDense: true,
                                         ),
@@ -2343,7 +2690,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                                border: Border.all(
+                                  color: const Color(0xFFCBD5E1),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2351,9 +2700,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   const Text(
                                     'Treatment:',
                                     style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Color(0xFF0F172A)),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Color(0xFF0F172A),
+                                    ),
                                   ),
                                   const SizedBox(height: 10),
                                   // Treatment Input Row
@@ -2364,7 +2714,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         child: TextField(
                                           controller: treatmentNameCtrl,
                                           decoration: const InputDecoration(
-                                            hintText: 'Treatment (e.g. Followup Consultation)',
+                                            hintText:
+                                                'Treatment (e.g. Followup Consultation)',
                                             isDense: true,
                                             border: OutlineInputBorder(),
                                           ),
@@ -2386,28 +2737,47 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                       const SizedBox(width: 8),
                                       OutlinedButton(
                                         style: OutlinedButton.styleFrom(
-                                          foregroundColor: const Color(0xFF2563EB),
-                                          backgroundColor: const Color(0xFFEFF6FF),
-                                          side: const BorderSide(color: Color(0xFF2563EB)),
+                                          foregroundColor: const Color(
+                                            0xFF2563EB,
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFFEFF6FF,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xFF2563EB),
+                                          ),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8)),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
                                         ),
                                         onPressed: () {
-                                          final name = _sanitizeInput(treatmentNameCtrl.text);
-                                          final price = double.tryParse(
-                                                  treatmentPriceCtrl.text.trim()) ??
+                                          final name = _sanitizeInput(
+                                            treatmentNameCtrl.text,
+                                          );
+                                          final price =
+                                              double.tryParse(
+                                                treatmentPriceCtrl.text.trim(),
+                                              ) ??
                                               0.0;
                                           if (name.isNotEmpty && price > 0) {
                                             setModalState(() {
-                                              treatmentsList
-                                                  .add({'name': name, 'price': price});
+                                              treatmentsList.add({
+                                                'name': name,
+                                                'price': price,
+                                              });
                                               treatmentNameCtrl.clear();
                                               treatmentPriceCtrl.clear();
                                             });
                                           }
                                         },
-                                        child: const Text('Add',
-                                            style: TextStyle(fontWeight: FontWeight.bold)),
+                                        child: const Text(
+                                          'Add',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -2415,33 +2785,44 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   // Added Treatments List
                                   if (treatmentsList.isNotEmpty)
                                     Column(
-                                      children: treatmentsList.asMap().entries.map((entry) {
+                                      children: treatmentsList.asMap().entries.map((
+                                        entry,
+                                      ) {
                                         final idx = entry.key;
                                         final item = entry.value;
                                         return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
                                           child: Row(
                                             children: [
                                               Expanded(
                                                 child: Text(
                                                   item['name'],
                                                   style: const TextStyle(
-                                                      fontWeight: FontWeight.w500,
-                                                      fontSize: 13),
+                                                    fontWeight: FontWeight.w500,
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
                                               ),
                                               Text(
                                                 '₹ ${(item['price'] as double).toStringAsFixed(0)}',
                                                 style: const TextStyle(
-                                                    fontWeight: FontWeight.bold,
-                                                    fontSize: 13),
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                ),
                                               ),
                                               IconButton(
-                                                icon: const Icon(Icons.close_rounded,
-                                                    color: Color(0xFFEF4444), size: 18),
+                                                icon: const Icon(
+                                                  Icons.close_rounded,
+                                                  color: Color(0xFFEF4444),
+                                                  size: 18,
+                                                ),
                                                 onPressed: () {
                                                   setModalState(() {
-                                                    treatmentsList.removeAt(idx);
+                                                    treatmentsList.removeAt(
+                                                      idx,
+                                                    );
                                                   });
                                                 },
                                               ),
@@ -2460,7 +2841,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               padding: const EdgeInsets.all(14),
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
+                                border: Border.all(
+                                  color: const Color(0xFFCBD5E1),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2468,9 +2851,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   const Text(
                                     'Medicine:',
                                     style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14,
-                                        color: Color(0xFF0F172A)),
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Color(0xFF0F172A),
+                                    ),
                                   ),
                                   const SizedBox(height: 10),
                                   // Medicine Input Row
@@ -2481,7 +2865,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         child: TextField(
                                           controller: medicineNameCtrl,
                                           decoration: const InputDecoration(
-                                            hintText: 'Medicine (e.g. Tab Rantac 150mg)',
+                                            hintText:
+                                                'Medicine (e.g. Tab Rantac 150mg)',
                                             isDense: true,
                                             border: OutlineInputBorder(),
                                           ),
@@ -2515,28 +2900,52 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                       const SizedBox(width: 8),
                                       OutlinedButton(
                                         style: OutlinedButton.styleFrom(
-                                          foregroundColor: const Color(0xFF2563EB),
-                                          backgroundColor: const Color(0xFFEFF6FF),
-                                          side: const BorderSide(color: Color(0xFF2563EB)),
+                                          foregroundColor: const Color(
+                                            0xFF2563EB,
+                                          ),
+                                          backgroundColor: const Color(
+                                            0xFFEFF6FF,
+                                          ),
+                                          side: const BorderSide(
+                                            color: Color(0xFF2563EB),
+                                          ),
                                           shape: RoundedRectangleBorder(
-                                              borderRadius: BorderRadius.circular(8)),
+                                            borderRadius: BorderRadius.circular(
+                                              8,
+                                            ),
+                                          ),
                                         ),
                                         onPressed: () {
-                                          final medName = _sanitizeInput(medicineNameCtrl.text);
-                                          final dosage = _sanitizeInput(medicineDosageCtrl.text);
-                                          final price = double.tryParse(medicinePriceCtrl.text.trim()) ?? 0.0;
+                                          final medName = _sanitizeInput(
+                                            medicineNameCtrl.text,
+                                          );
+                                          final dosage = _sanitizeInput(
+                                            medicineDosageCtrl.text,
+                                          );
+                                          final price =
+                                              double.tryParse(
+                                                medicinePriceCtrl.text.trim(),
+                                              ) ??
+                                              0.0;
                                           if (medName.isNotEmpty) {
                                             setModalState(() {
-                                              medicinesList.add(
-                                                  {'name': medName, 'dosage': dosage, 'price': price});
+                                              medicinesList.add({
+                                                'name': medName,
+                                                'dosage': dosage,
+                                                'price': price,
+                                              });
                                               medicineNameCtrl.clear();
                                               medicineDosageCtrl.clear();
                                               medicinePriceCtrl.clear();
                                             });
                                           }
                                         },
-                                        child: const Text('Add',
-                                            style: TextStyle(fontWeight: FontWeight.bold)),
+                                        child: const Text(
+                                          'Add',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -2544,30 +2953,44 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   // Added Medicines List
                                   if (medicinesList.isNotEmpty)
                                     Column(
-                                      children: medicinesList.asMap().entries.map((entry) {
+                                      children: medicinesList.asMap().entries.map((
+                                        entry,
+                                      ) {
                                         final idx = entry.key;
                                         final item = entry.value;
-                                        final price = _parseAmount(item['price']);
+                                        final price = _parseAmount(
+                                          item['price'],
+                                        );
                                         return Padding(
-                                          padding: const EdgeInsets.symmetric(vertical: 4),
+                                          padding: const EdgeInsets.symmetric(
+                                            vertical: 4,
+                                          ),
                                           child: Row(
                                             children: [
                                               Expanded(
                                                 child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
                                                   children: [
                                                     Text(
                                                       item['name'],
                                                       style: const TextStyle(
-                                                          fontWeight: FontWeight.bold,
-                                                          fontSize: 13),
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        fontSize: 13,
+                                                      ),
                                                     ),
-                                                    if ((item['dosage'] as String).isNotEmpty)
+                                                    if ((item['dosage']
+                                                            as String)
+                                                        .isNotEmpty)
                                                       Text(
                                                         item['dosage'],
                                                         style: const TextStyle(
-                                                            color: Color(0xFF64748B),
-                                                            fontSize: 11),
+                                                          color: Color(
+                                                            0xFF64748B,
+                                                          ),
+                                                          fontSize: 11,
+                                                        ),
                                                       ),
                                                   ],
                                                 ),
@@ -2576,12 +2999,16 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                                 Text(
                                                   '₹ ${price.toStringAsFixed(0)}',
                                                   style: const TextStyle(
-                                                      fontWeight: FontWeight.bold,
-                                                      fontSize: 13),
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 13,
+                                                  ),
                                                 ),
                                               IconButton(
-                                                icon: const Icon(Icons.close_rounded,
-                                                    color: Color(0xFFEF4444), size: 18),
+                                                icon: const Icon(
+                                                  Icons.close_rounded,
+                                                  color: Color(0xFFEF4444),
+                                                  size: 18,
+                                                ),
                                                 onPressed: () {
                                                   setModalState(() {
                                                     medicinesList.removeAt(idx);
@@ -2607,62 +3034,88 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
                                 ),
                                 child: Column(
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('Fees:',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF475569))),
-                                        Text(fees.toStringAsFixed(0),
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF0F172A))),
+                                        const Text(
+                                          'Fees:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF475569),
+                                          ),
+                                        ),
+                                        Text(
+                                          fees.toStringAsFixed(0),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                     const SizedBox(height: 8),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('Discount:',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF475569))),
+                                        const Text(
+                                          'Discount:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF475569),
+                                          ),
+                                        ),
                                         SizedBox(
                                           width: 80,
                                           child: TextField(
                                             controller: discountCtrl,
                                             keyboardType: TextInputType.number,
                                             textAlign: TextAlign.end,
-                                            onChanged: (_) => setModalState(() {}),
+                                            onChanged: (_) =>
+                                                setModalState(() {}),
                                             decoration: const InputDecoration(
                                               isDense: true,
-                                              contentPadding: EdgeInsets.symmetric(
-                                                  horizontal: 8, vertical: 6),
+                                              contentPadding:
+                                                  EdgeInsets.symmetric(
+                                                    horizontal: 8,
+                                                    vertical: 6,
+                                                  ),
                                               border: OutlineInputBorder(),
                                             ),
                                           ),
                                         ),
                                       ],
                                     ),
-                                    const Divider(height: 16, color: Color(0xFFCBD5E1)),
+                                    const Divider(
+                                      height: 16,
+                                    ),
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
-                                        const Text('Total:',
-                                            style: TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 16,
-                                                color: Color(0xFF0F172A))),
-                                        Text(total.toStringAsFixed(0),
-                                            style: const TextStyle(
-                                                fontWeight: FontWeight.w900,
-                                                fontSize: 16,
-                                                color: Color(0xFF2563EB))),
+                                        const Text(
+                                          'Total:',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                            color: Color(0xFF0F172A),
+                                          ),
+                                        ),
+                                        Text(
+                                          total.toStringAsFixed(0),
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 16,
+                                            color: Color(0xFF2563EB),
+                                          ),
+                                        ),
                                       ],
                                     ),
                                   ],
@@ -2676,18 +3129,25 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
                     // Dialog Actions Footer
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                       decoration: const BoxDecoration(
                         color: Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(16),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
                             onPressed: () => Navigator.of(dialogCtx).pop(),
-                            child: const Text('Cancel',
-                                style: TextStyle(color: Color(0xFF64748B))),
+                            child: const Text(
+                              'Cancel',
+                              style: TextStyle(color: Color(0xFF64748B)),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           ElevatedButton.icon(
@@ -2695,21 +3155,32 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               backgroundColor: const Color(0xFF2563EB),
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 12),
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
                               shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
                               elevation: 0,
                             ),
-                            icon: const Icon(Icons.receipt_long_rounded, size: 18),
-                            label: const Text('Generate & Save Invoice',
-                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            icon: const Icon(
+                              Icons.receipt_long_rounded,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              'Generate & Save Invoice',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
                             onPressed: () async {
-                              final patientName =
-                                  _sanitizeInput(patientNameCtrl.text);
+                              final patientName = _sanitizeInput(
+                                patientNameCtrl.text,
+                              );
                               if (patientName.isEmpty) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
-                                    content: Text('Please enter a patient name'),
+                                    content: Text(
+                                      'Please enter a patient name',
+                                    ),
                                     backgroundColor: Color(0xFFEF4444),
                                   ),
                                 );
@@ -2717,15 +3188,20 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               }
 
                               final serviceSummary = treatmentsList.isNotEmpty
-                                  ? treatmentsList.map((e) => e['name']).join(', ')
+                                  ? treatmentsList
+                                        .map((e) => e['name'])
+                                        .join(', ')
                                   : 'Clinical Services';
 
                               final newId =
                                   'INV-${selectedDate.year}-00${_invoicesList.length + 1}';
-                              final issueDateStr =
-                                  DateFormat('MMM dd, yyyy').format(selectedDate);
+                              final issueDateStr = DateFormat(
+                                'MMM dd, yyyy',
+                              ).format(selectedDate);
                               final dueDateStr = DateFormat('MMM dd, yyyy')
-                                  .format(selectedDate.add(const Duration(days: 14)));
+                                  .format(
+                                    selectedDate.add(const Duration(days: 14)),
+                                  );
 
                               final newInvoiceObj = {
                                 'id': newId,
@@ -2739,10 +3215,14 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                 'service': serviceSummary,
                                 'treatments': treatmentsList,
                                 'medicines': medicinesList,
-                                'clinicalNotes':
-                                    _sanitizeInput(clinicalNotesCtrl.text),
-                                'createdAt': DateTime.now().millisecondsSinceEpoch,
-                                'doctorUid': FirebaseAuth.instance.currentUser?.uid ?? '',
+                                'clinicalNotes': _sanitizeInput(
+                                  clinicalNotesCtrl.text,
+                                ),
+                                'createdAt':
+                                    DateTime.now().millisecondsSinceEpoch,
+                                'doctorUid':
+                                    FirebaseAuth.instance.currentUser?.uid ??
+                                    '',
                               };
 
                               setState(() {
@@ -2751,13 +3231,23 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
 
                               // Persist directly to Database (Cloud Firestore) with FieldCipher encryption
                               try {
-                                final currentDoctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
+                                final currentDoctorId =
+                                    FirebaseAuth.instance.currentUser?.uid ??
+                                    '';
                                 final firestoreData = {
                                   ...newInvoiceObj,
-                                  'patientName': FieldCipher.encrypt(newInvoiceObj['patientName']?.toString()),
-                                  'service': FieldCipher.encrypt(newInvoiceObj['service']?.toString()),
-                                  'clinicalNotes': FieldCipher.encrypt(newInvoiceObj['clinicalNotes']?.toString()),
-                                  'amount': FieldCipher.encrypt(newInvoiceObj['amount']?.toString()),
+                                  'patientName': FieldCipher.encrypt(
+                                    newInvoiceObj['patientName']?.toString(),
+                                  ),
+                                  'service': FieldCipher.encrypt(
+                                    newInvoiceObj['service']?.toString(),
+                                  ),
+                                  'clinicalNotes': FieldCipher.encrypt(
+                                    newInvoiceObj['clinicalNotes']?.toString(),
+                                  ),
+                                  'amount': FieldCipher.encrypt(
+                                    newInvoiceObj['amount']?.toString(),
+                                  ),
                                   'doctorId': currentDoctorId,
                                   'doctorUid': currentDoctorId,
                                 };
@@ -2772,8 +3262,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               Navigator.of(dialogCtx).pop();
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content:
-                                      Text('Clinical Invoice $newId created!'),
+                                  content: Text(
+                                    'Clinical Invoice $newId created!',
+                                  ),
                                   backgroundColor: const Color(0xFF10B981),
                                   behavior: SnackBarBehavior.floating,
                                 ),
@@ -2793,7 +3284,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     );
   }
 
-  void _showInvoiceDetailsDialog(BuildContext context, Map<String, dynamic> inv) {
+  void _showInvoiceDetailsDialog(
+    BuildContext context,
+    Map<String, dynamic> inv,
+  ) {
     final treatments = (inv['treatments'] as List<dynamic>?) ?? [];
     final medicines = (inv['medicines'] as List<dynamic>?) ?? [];
     final status = (inv['status'] ?? 'Pending').toString();
@@ -2809,7 +3303,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
       context: context,
       builder: (dialogCtx) {
         return Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: Container(
             width: 580,
             constraints: BoxConstraints(
@@ -2830,7 +3326,11 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                     children: [
                       const Row(
                         children: [
-                          Icon(Icons.local_hospital_rounded, color: Color(0xFF2563EB), size: 24),
+                          Icon(
+                            Icons.local_hospital_rounded,
+                            color: Color(0xFF2563EB),
+                            size: 24,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'cru.doc',
@@ -2844,12 +3344,15 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         ],
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B)),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF64748B),
+                        ),
                         onPressed: () => Navigator.of(dialogCtx).pop(),
                       ),
                     ],
                   ),
-                  const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                  const Divider(height: 20),
 
                   // Header Meta: Date, Bill No, Patient Name
                   Row(
@@ -2858,16 +3361,18 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       Text(
                         'Date: ${_parseDateField(inv['issueDate'])}',
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Color(0xFF0F172A)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
                       Text(
                         'Bill No: ${inv['id'] ?? ''}',
                         style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: Color(0xFF0F172A)),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                          color: Color(0xFF0F172A),
+                        ),
                       ),
                     ],
                   ),
@@ -2875,9 +3380,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   Text(
                     'Patient Name: ${inv['patientName'] ?? 'Ravi Teja'}',
                     style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                        color: Color(0xFF475569)),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                      color: Color(0xFF475569),
+                    ),
                   ),
                   const SizedBox(height: 16),
 
@@ -2894,24 +3400,47 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                     children: [
                       // Header Row
                       TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF1F5F9),
+                        ),
                         children: [
                           _buildGridCell('', isHeader: true),
-                          _buildGridCell('Qty.', isHeader: true, alignRight: true),
-                          _buildGridCell('Rate', isHeader: true, alignRight: true),
-                          _buildGridCell('Amt.', isHeader: true, alignRight: true),
-                          _buildGridCell('Net', isHeader: true, alignRight: true),
+                          _buildGridCell(
+                            'Qty.',
+                            isHeader: true,
+                            alignRight: true,
+                          ),
+                          _buildGridCell(
+                            'Rate',
+                            isHeader: true,
+                            alignRight: true,
+                          ),
+                          _buildGridCell(
+                            'Amt.',
+                            isHeader: true,
+                            alignRight: true,
+                          ),
+                          _buildGridCell(
+                            'Net',
+                            isHeader: true,
+                            alignRight: true,
+                          ),
                         ],
                       ),
                       // Date Subheader inside table
                       TableRow(
                         children: [
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             child: Text(
                               (inv['issueDate'] ?? '').toString(),
                               style: const TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 12),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
                             ),
                           ),
                           _buildGridCell(''),
@@ -2940,7 +3469,8 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         final item = m as Map<String, dynamic>;
                         final price = _parseAmount(item['price']);
                         final priceStr = currencyFormat.format(price);
-                        final nameWithDosage = (item['dosage'] ?? '').toString().isNotEmpty
+                        final nameWithDosage =
+                            (item['dosage'] ?? '').toString().isNotEmpty
                             ? '${item['name']} (${item['dosage']})'
                             : (item['name'] ?? '').toString();
                         return TableRow(
@@ -2957,24 +3487,48 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                       if (treatments.isEmpty && medicines.isEmpty)
                         TableRow(
                           children: [
-                            _buildGridCell((inv['service'] ?? 'General Consultation').toString()),
+                            _buildGridCell(
+                              (inv['service'] ?? 'General Consultation')
+                                  .toString(),
+                            ),
                             _buildGridCell('1', alignRight: true),
-                            _buildGridCell(currencyFormat.format(totalAmount), alignRight: true),
-                            _buildGridCell(currencyFormat.format(totalAmount), alignRight: true),
-                            _buildGridCell(currencyFormat.format(totalAmount), alignRight: true),
+                            _buildGridCell(
+                              currencyFormat.format(totalAmount),
+                              alignRight: true,
+                            ),
+                            _buildGridCell(
+                              currencyFormat.format(totalAmount),
+                              alignRight: true,
+                            ),
+                            _buildGridCell(
+                              currencyFormat.format(totalAmount),
+                              alignRight: true,
+                            ),
                           ],
                         ),
                       // Total Row
                       TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFFF8FAFC)),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF8FAFC),
+                        ),
                         children: [
-                          _buildGridCell('Total', isHeader: true, alignRight: true),
+                          _buildGridCell(
+                            'Total',
+                            isHeader: true,
+                            alignRight: true,
+                          ),
                           _buildGridCell(''),
                           _buildGridCell(''),
-                          _buildGridCell(currencyFormat.format(totalAmount),
-                              isHeader: true, alignRight: true),
-                          _buildGridCell(currencyFormat.format(totalAmount),
-                              isHeader: true, alignRight: true),
+                          _buildGridCell(
+                            currencyFormat.format(totalAmount),
+                            isHeader: true,
+                            alignRight: true,
+                          ),
+                          _buildGridCell(
+                            currencyFormat.format(totalAmount),
+                            isHeader: true,
+                            alignRight: true,
+                          ),
                         ],
                       ),
                     ],
@@ -2987,32 +3541,70 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                     child: SizedBox(
                       width: 220,
                       child: Table(
-                        border: TableBorder.all(color: Colors.black87, width: 1),
+                        border: TableBorder.all(
+                          color: Colors.black87,
+                          width: 1,
+                        ),
                         columnWidths: const {
                           0: FlexColumnWidth(2),
                           1: FlexColumnWidth(2),
                         },
                         children: [
-                          TableRow(children: [
-                            _buildGridCell('Amount:', alignRight: true, isHeader: true),
-                            _buildGridCell(currencyFormat.format(totalAmount), alignRight: true),
-                          ]),
-                          TableRow(children: [
-                            _buildGridCell('Total:', alignRight: true, isHeader: true),
-                            _buildGridCell(currencyFormat.format(totalAmount), alignRight: true),
-                          ]),
-                          TableRow(children: [
-                            _buildGridCell('Payments:', alignRight: true, isHeader: true),
-                            _buildGridCell(
-                              isPaid ? '-${currencyFormat.format(payments)}' : '0',
-                              alignRight: true,
-                            ),
-                          ]),
-                          TableRow(children: [
-                            _buildGridCell('Balance:', alignRight: true, isHeader: true),
-                            _buildGridCell(currencyFormat.format(balance),
-                                alignRight: true, isHeader: true),
-                          ]),
+                          TableRow(
+                            children: [
+                              _buildGridCell(
+                                'Amount:',
+                                alignRight: true,
+                                isHeader: true,
+                              ),
+                              _buildGridCell(
+                                currencyFormat.format(totalAmount),
+                                alignRight: true,
+                              ),
+                            ],
+                          ),
+                          TableRow(
+                            children: [
+                              _buildGridCell(
+                                'Total:',
+                                alignRight: true,
+                                isHeader: true,
+                              ),
+                              _buildGridCell(
+                                currencyFormat.format(totalAmount),
+                                alignRight: true,
+                              ),
+                            ],
+                          ),
+                          TableRow(
+                            children: [
+                              _buildGridCell(
+                                'Payments:',
+                                alignRight: true,
+                                isHeader: true,
+                              ),
+                              _buildGridCell(
+                                isPaid
+                                    ? '-${currencyFormat.format(payments)}'
+                                    : '0',
+                                alignRight: true,
+                              ),
+                            ],
+                          ),
+                          TableRow(
+                            children: [
+                              _buildGridCell(
+                                'Balance:',
+                                alignRight: true,
+                                isHeader: true,
+                              ),
+                              _buildGridCell(
+                                currencyFormat.format(balance),
+                                alignRight: true,
+                                isHeader: true,
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -3028,12 +3620,19 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                   if (isPaid)
                     Text(
                       'Rs. ${currencyFormat.format(totalAmount)}/- on ${_parseDateField(inv['issueDate'])} by Online / Cash',
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF334155)),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF334155),
+                      ),
                     )
                   else
                     const Text(
                       'Payment Pending',
-                      style: TextStyle(fontSize: 12, color: Color(0xFFEF4444), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFEF4444),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   const SizedBox(height: 24),
 
@@ -3046,9 +3645,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         const Text(
                           'For CruDoc Medical Clinic',
                           style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF475569)),
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF475569),
+                          ),
                         ),
                         const SizedBox(height: 6),
                         // Signature Container Box
@@ -3076,9 +3676,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         Text(
                           'Dr. $_doctorName',
                           style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF334155)),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF334155),
+                          ),
                         ),
                       ],
                     ),
@@ -3124,7 +3725,9 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                 Navigator.of(dialogCtx).pop();
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
-                                    content: Text('Invoice ${inv['id']} marked as Paid!'),
+                                    content: Text(
+                                      'Invoice ${inv['id']} marked as Paid!',
+                                    ),
                                     backgroundColor: const Color(0xFF10B981),
                                     behavior: SnackBarBehavior.floating,
                                   ),
@@ -3150,7 +3753,11 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     );
   }
 
-  Widget _buildGridCell(String text, {bool isHeader = false, bool alignRight = false}) {
+  Widget _buildGridCell(
+    String text, {
+    bool isHeader = false,
+    bool alignRight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       child: Text(
@@ -3169,12 +3776,19 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: Color(0xFF64748B), fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(color: Color(0xFF64748B), fontSize: 13),
+        ),
         Flexible(
           child: Text(
             value,
             textAlign: TextAlign.end,
-            style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F172A), fontSize: 13),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF0F172A),
+              fontSize: 13,
+            ),
           ),
         ),
       ],
@@ -3220,8 +3834,7 @@ class _LowStockBannerState extends ConsumerState<LowStockBanner> {
     final parts = <String>[
       if (lowStockCount > 0)
         '$lowStockCount medicine${lowStockCount == 1 ? '' : 's'} low on stock',
-      if (expiringCount > 0)
-        '$expiringCount expiring soon',
+      if (expiringCount > 0) '$expiringCount expiring soon',
     ];
 
     return Padding(
@@ -3237,7 +3850,9 @@ class _LowStockBannerState extends ConsumerState<LowStockBanner> {
             decoration: BoxDecoration(
               color: AppColors.cardSurface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.35)),
+              border: Border.all(
+                color: Colors.redAccent.withValues(alpha: 0.35),
+              ),
             ),
             child: Row(
               children: [
@@ -3257,7 +3872,11 @@ class _LowStockBannerState extends ConsumerState<LowStockBanner> {
                 ),
                 GestureDetector(
                   onTap: () => setState(() => _dismissed = true),
-                  child: const Icon(Icons.close, size: 18, color: AppColors.silver),
+                  child: const Icon(
+                    Icons.close,
+                    size: 18,
+                    color: AppColors.silver,
+                  ),
                 ),
               ],
             ),
@@ -3267,4 +3886,3 @@ class _LowStockBannerState extends ConsumerState<LowStockBanner> {
     );
   }
 }
-

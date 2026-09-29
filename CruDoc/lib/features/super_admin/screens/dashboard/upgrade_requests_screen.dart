@@ -61,14 +61,14 @@ class _SuperAdminUpgradeRequestsScreenState
 
       // 2. Update doctor_settings if exists
       try {
-        await firestore.collection('doctor_settings').doc(request.doctorId).set(
-          {
-            'doctorId': request.doctorId,
-            'enabledModules': request.requestedModules,
-            'lastModified': Timestamp.fromDate(now),
-          },
-          SetOptions(merge: true),
-        );
+        await firestore
+            .collection('doctor_settings')
+            .doc(request.doctorId)
+            .set({
+              'doctorId': request.doctorId,
+              'enabledModules': request.requestedModules,
+              'lastModified': Timestamp.fromDate(now),
+            }, SetOptions(merge: true));
       } catch (_) {}
 
       // 3. Mark request as approved
@@ -152,11 +152,11 @@ class _SuperAdminUpgradeRequestsScreenState
           .collection('upgrade_requests')
           .doc(request.id)
           .update({
-        'status': UpgradeRequestStatus.rejected.value,
-        'rejectionReason': reasonController.text.trim(),
-        'processedAt': Timestamp.fromDate(now),
-        'processedBy': 'Super Admin',
-      });
+            'status': UpgradeRequestStatus.rejected.value,
+            'rejectionReason': reasonController.text.trim(),
+            'processedAt': Timestamp.fromDate(now),
+            'processedBy': 'Super Admin',
+          });
 
       if (mounted) {
         setState(() => _isProcessing = false);
@@ -245,7 +245,9 @@ class _SuperAdminUpgradeRequestsScreenState
 
           // Filter by status if selected
           if (_statusFilter != null) {
-            requests = requests.where((r) => r.status == _statusFilter).toList();
+            requests = requests
+                .where((r) => r.status == _statusFilter)
+                .toList();
           }
 
           if (requests.isEmpty) {
@@ -272,10 +274,7 @@ class _SuperAdminUpgradeRequestsScreenState
                   const SizedBox(height: 4),
                   Text(
                     'Upgrade requests submitted by doctors will appear here.',
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey.shade500,
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade500),
                   ),
                 ],
               ),
@@ -318,10 +317,7 @@ class _SuperAdminUpgradeRequestsScreenState
     );
   }
 
-  Widget _buildRequestCard(
-    UpgradeRequest req,
-    NumberFormat currencyFormatter,
-  ) {
+  Widget _buildRequestCard(UpgradeRequest req, NumberFormat currencyFormatter) {
     final isPending = req.status == UpgradeRequestStatus.pending;
     final isApproved = req.status == UpgradeRequestStatus.approved;
 
@@ -353,7 +349,9 @@ class _SuperAdminUpgradeRequestsScreenState
               children: [
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: const Color(0xFF1E78FF).withValues(alpha: 0.12),
+                  backgroundColor: const Color(
+                    0xFF1E78FF,
+                  ).withValues(alpha: 0.12),
                   child: Text(
                     req.doctorName.isNotEmpty
                         ? req.doctorName.substring(0, 1).toUpperCase()
@@ -409,7 +407,7 @@ class _SuperAdminUpgradeRequestsScreenState
               ],
             ),
             const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFF1F5F9)),
+            const Divider(height: 1),
             const SizedBox(height: 12),
 
             // Requested Modules List
@@ -492,7 +490,9 @@ class _SuperAdminUpgradeRequestsScreenState
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _isProcessing ? null : () => _rejectRequest(req),
+                      onPressed: _isProcessing
+                          ? null
+                          : () => _rejectRequest(req),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFFDC2626),
                         side: const BorderSide(color: Color(0xFFFCA5A5)),
@@ -510,7 +510,9 @@ class _SuperAdminUpgradeRequestsScreenState
                   Expanded(
                     flex: 2,
                     child: FilledButton.icon(
-                      onPressed: _isProcessing ? null : () => _approveRequest(req),
+                      onPressed: _isProcessing
+                          ? null
+                          : () => _approveRequest(req),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF16A34A),
                         shape: RoundedRectangleBorder(

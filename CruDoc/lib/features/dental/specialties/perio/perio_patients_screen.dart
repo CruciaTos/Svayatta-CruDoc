@@ -72,9 +72,8 @@ class PerioOverview {
       dxByExam.putIfAbsent(d.str('examId'), () => d);
     }
 
-    final open =
-        recalls.where((r) => recallStatusOf(r).isOpen).toList()
-          ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
+    final open = recalls.where((r) => recallStatusOf(r).isOpen).toList()
+      ..sort((a, b) => a.recordedAt.compareTo(b.recordedAt));
     final nextRecall = <String, DentalRecord>{};
     for (final r in open) {
       nextRecall.putIfAbsent(r.patientId, () => r);
@@ -116,8 +115,7 @@ class PerioOverview {
   final int examsThisMonth;
 
   int get deepPockets => rows.where((r) => r.summary.deep6 > 0).length;
-  int get bleeding30 =>
-      rows.where((r) => (r.summary.bopPct ?? 0) >= 30).length;
+  int get bleeding30 => rows.where((r) => (r.summary.bopPct ?? 0) >= 30).length;
   int get activeDisease => rows.where((r) => r.activeDisease).length;
 }
 

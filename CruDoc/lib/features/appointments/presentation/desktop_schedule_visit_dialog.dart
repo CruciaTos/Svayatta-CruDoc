@@ -321,8 +321,8 @@ class _DesktopScheduleVisitDialogState
 
       // Toggles (selection tabs / switches toggle directly)
       for (final p in f.others) {
-        final taken = p.id == widget.patient.id ||
-            _others.any((o) => o.$1.id == p.id);
+        final taken =
+            p.id == widget.patient.id || _others.any((o) => o.$1.id == p.id);
         if (!taken) _others.add((p, TextEditingController()));
       }
       if (f.sendWhatsApp != null && _canWhatsApp) {
@@ -364,8 +364,8 @@ class _DesktopScheduleVisitDialogState
 
   @override
   List<String> voiceMissing() => [
-        if (_type == VisitType.home && _address.text.trim().isEmpty) 'address',
-      ];
+    if (_type == VisitType.home && _address.text.trim().isEmpty) 'address',
+  ];
 
   Future<void> _addOther() async {
     final picked = await showPatientPickerDialog(
@@ -966,7 +966,7 @@ class _AddressFieldState extends ConsumerState<_AddressField> {
                 CruRadius.control,
                 side: BorderSide(color: c.hairline),
               ),
-              shadows: c.cardShadow,
+              shadows: const [],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

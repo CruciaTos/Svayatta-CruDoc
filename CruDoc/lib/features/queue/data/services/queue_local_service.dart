@@ -90,7 +90,9 @@ class QueueLocalService {
     final db = await _databaseService.localDatabase;
     await ensureTableCreated(db);
 
-    final doctorId = draft.doctorId.isNotEmpty ? draft.doctorId : _currentDoctorId;
+    final doctorId = draft.doctorId.isNotEmpty
+        ? draft.doctorId
+        : _currentDoctorId;
     final dateKey = draft.queueDate.isNotEmpty
         ? draft.queueDate
         : queueDateKeyFor(draft.checkedInAt);
@@ -151,7 +153,10 @@ class QueueLocalService {
   }
 
   /// Fetches non-deleted queue entries for the signed-in doctor within a date range (inclusive).
-  Future<List<QueueEntry>> getQueueForDateRange(DateTime start, DateTime end) async {
+  Future<List<QueueEntry>> getQueueForDateRange(
+    DateTime start,
+    DateTime end,
+  ) async {
     final db = await _databaseService.localDatabase;
     await ensureTableCreated(db);
 
@@ -161,7 +166,8 @@ class QueueLocalService {
 
     final rows = await db.query(
       tableName,
-      where: 'doctorId = ? AND queueDate >= ? AND queueDate <= ? AND isDeleted = 0',
+      where:
+          'doctorId = ? AND queueDate >= ? AND queueDate <= ? AND isDeleted = 0',
       whereArgs: [doctorId, startKey, endKey],
       orderBy: 'queueDate ASC, tokenNumber ASC',
     );
@@ -228,7 +234,9 @@ class QueueLocalService {
       queueDate: dateKey,
       status: status,
       priority: priority,
-      reason: reason?.trim().isEmpty == true ? 'Pre-booked Appointment' : reason?.trim(),
+      reason: reason?.trim().isEmpty == true
+          ? 'Pre-booked Appointment'
+          : reason?.trim(),
       checkedInAt: scheduledStart,
       linkedVisitId: visitId,
       groupId: groupId,
@@ -248,7 +256,10 @@ class QueueLocalService {
   }
 
   /// Everyone from [groupId] in the queue on [dateKey].
-  Future<List<QueueEntry>> getGroupEntries(String groupId, String dateKey) async {
+  Future<List<QueueEntry>> getGroupEntries(
+    String groupId,
+    String dateKey,
+  ) async {
     final db = await _databaseService.localDatabase;
     await ensureTableCreated(db);
     final rows = await db.query(
@@ -334,12 +345,7 @@ class QueueLocalService {
       row['lastSyncedAt'] = lastSyncedAt;
     }
 
-    await db.update(
-      tableName,
-      row,
-      where: 'id = ?',
-      whereArgs: [entryId],
-    );
+    await db.update(tableName, row, where: 'id = ?', whereArgs: [entryId]);
 
     await _emitTodaysQueue();
   }
@@ -382,14 +388,10 @@ class QueueLocalService {
 
   /// Soft-deletes an entry from the queue.
   Future<void> softDeleteEntry(String entryId) async {
-    await updateEntry(
-      entryId,
-      {
-        'isDeleted': true,
-        'updatedAt': DateTime.now(),
-      },
-      pendingDelete: true,
-    );
+    await updateEntry(entryId, {
+      'isDeleted': true,
+      'updatedAt': DateTime.now(),
+    }, pendingDelete: true);
   }
 
   /// Streams today's active walk-in queue entries in real-time.
@@ -448,7 +450,9 @@ class QueueLocalService {
       'reason': entry.reason,
       'checkedInAt': _dateTimeToMillis(entry.checkedInAt),
       'calledAt': _nullableDateTimeToMillis(entry.calledAt),
-      'consultationStartedAt': _nullableDateTimeToMillis(entry.consultationStartedAt),
+      'consultationStartedAt': _nullableDateTimeToMillis(
+        entry.consultationStartedAt,
+      ),
       'completedAt': _nullableDateTimeToMillis(entry.completedAt),
       'linkedVisitId': entry.linkedVisitId,
       'groupId': entry.groupId,

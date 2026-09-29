@@ -63,17 +63,21 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
       } else {
         final existing = s.patient.notes.trim();
         final dated = '[${DateFormat('d MMM y').format(widget.now)}] $text';
-        await ref.read(patientRepositoryProvider).updateDoctorsNote(
+        await ref
+            .read(patientRepositoryProvider)
+            .updateDoctorsNote(
               s.id,
               existing.isEmpty ? dated : '$existing\n$dated',
             );
       }
       _controller.clear();
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(
-        content: Text("Couldn't save the note: $e"),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text("Couldn't save the note: $e"),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -146,11 +150,8 @@ class _NoteComposerState extends ConsumerState<NoteComposer> {
               const SizedBox(width: CruSpace.s8),
             ],
             _MicButton(
-              onPressed: () => PatientActions.dictate(
-                context,
-                widget.summary,
-                widget.now,
-              ),
+              onPressed: () =>
+                  PatientActions.dictate(context, widget.summary, widget.now),
             ),
           ],
         ),
@@ -183,7 +184,7 @@ class _MicButton extends StatelessWidget {
             CruRadius.iconTile,
             side: BorderSide(color: c.hairline),
           ),
-          shadows: c.cardShadow,
+          shadows: const [],
         ),
         child: CruIcon(CruIcons.mic, size: 18, strokeWidth: 1.9, color: c.ai),
       ),

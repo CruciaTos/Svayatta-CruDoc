@@ -113,10 +113,7 @@ class VisitLocationMap extends StatelessWidget {
         child: Stack(
           children: [
             GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: position,
-                zoom: 15,
-              ),
+              initialCameraPosition: CameraPosition(target: position, zoom: 15),
               markers: {
                 Marker(
                   markerId: const MarkerId('visit_location'),
@@ -132,7 +129,8 @@ class VisitLocationMap extends StatelessWidget {
               zoomControlsEnabled: !lite,
               myLocationButtonEnabled: false,
               mapToolbarEnabled: false,
-              liteModeEnabled: lite && defaultTargetPlatform == TargetPlatform.android,
+              liteModeEnabled:
+                  lite && defaultTargetPlatform == TargetPlatform.android,
             ),
             // Overlay "Open in Maps" button in the top-right corner.
             if (onOpenMaps != null)
@@ -142,7 +140,7 @@ class VisitLocationMap extends StatelessWidget {
                 child: Material(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(8),
-                  elevation: 2,
+                  elevation: 0,
                   child: InkWell(
                     onTap: onOpenMaps,
                     borderRadius: BorderRadius.circular(8),
@@ -207,8 +205,10 @@ class VisitLocationMap extends StatelessWidget {
                 left: 0,
                 right: 0,
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,

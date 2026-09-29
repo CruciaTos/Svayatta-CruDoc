@@ -94,8 +94,11 @@ class UpdateAvailableDialog extends ConsumerWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.priority_high_rounded,
-                        size: 16, color: Colors.redAccent),
+                    const Icon(
+                      Icons.priority_high_rounded,
+                      size: 16,
+                      color: Colors.redAccent,
+                    ),
                     const SizedBox(width: 6),
                     const Expanded(
                       child: Text(
@@ -152,9 +155,7 @@ class UpdateAvailableDialog extends ConsumerWidget {
               onPressed: isBusy
                   ? null
                   : () {
-                      ref
-                          .read(updateControllerProvider.notifier)
-                          .remindLater();
+                      ref.read(updateControllerProvider.notifier).remindLater();
                       Navigator.pop(context);
                     },
               child: const Text(
@@ -176,8 +177,9 @@ class UpdateAvailableDialog extends ConsumerWidget {
               backgroundColor: AppColors.chartBarLight,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             child: const Text(
               'Update now',

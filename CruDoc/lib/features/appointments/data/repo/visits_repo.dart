@@ -77,7 +77,9 @@ class VisitRepository {
       out['address'] = FieldCipher.encrypt(out['address'] as String);
     }
     if (out['therapistNotes'] is String) {
-      out['therapistNotes'] = FieldCipher.encrypt(out['therapistNotes'] as String);
+      out['therapistNotes'] = FieldCipher.encrypt(
+        out['therapistNotes'] as String,
+      );
     }
     return out;
   }
@@ -88,7 +90,9 @@ class VisitRepository {
       out['address'] = FieldCipher.decrypt(out['address'] as String);
     }
     if (out['therapistNotes'] is String) {
-      out['therapistNotes'] = FieldCipher.decrypt(out['therapistNotes'] as String);
+      out['therapistNotes'] = FieldCipher.decrypt(
+        out['therapistNotes'] as String,
+      );
     }
     return out;
   }
@@ -119,14 +123,24 @@ class VisitRepository {
     controller.onListen = () {
       sub1 = appts.listen((snap) {
         lastAppts = snap.docs
-            .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+            .map(
+              (doc) => Visit.fromMap(
+                _decryptedFromFirestore(doc.data()),
+                id: doc.id,
+              ),
+            )
             .where((v) => !v.isDeleted)
             .toList();
         emit();
       });
       sub2 = visitations.listen((snap) {
         lastVisits = snap.docs
-            .map((doc) => Visit.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
+            .map(
+              (doc) => Visit.fromMap(
+                _decryptedFromFirestore(doc.data()),
+                id: doc.id,
+              ),
+            )
             .where((v) => !v.isDeleted)
             .toList();
         emit();
@@ -245,15 +259,23 @@ class VisitRepository {
           .collection(collection)
           .doc(id)
           .set(_encryptedForFirestore(visitWithId.toMap()));
-      unawaited(_whatsappRepository.sendAppointmentConfirmation(visit: visitWithId));
-      unawaited(_messagingRepository.sendAppointmentConfirmation(visit: visitWithId));
+      unawaited(
+        _whatsappRepository.sendAppointmentConfirmation(visit: visitWithId),
+      );
+      unawaited(
+        _messagingRepository.sendAppointmentConfirmation(visit: visitWithId),
+      );
       return id;
     }
 
     await _localService.upsertVisit(visitWithId);
     unawaited(_syncService.triggerPostWriteSync());
-    unawaited(_whatsappRepository.sendAppointmentConfirmation(visit: visitWithId));
-    unawaited(_messagingRepository.sendAppointmentConfirmation(visit: visitWithId));
+    unawaited(
+      _whatsappRepository.sendAppointmentConfirmation(visit: visitWithId),
+    );
+    unawaited(
+      _messagingRepository.sendAppointmentConfirmation(visit: visitWithId),
+    );
     return id;
   }
 
@@ -292,7 +314,10 @@ class VisitRepository {
     final saved = <Visit>[];
     for (final v in visits) {
       final grouped = v.copyWith(groupId: groupId);
-      final id = await createVisit(grouped, acknowledgeOverlap: acknowledgeOverlap);
+      final id = await createVisit(
+        grouped,
+        acknowledgeOverlap: acknowledgeOverlap,
+      );
       saved.add(grouped.copyWith(id: id));
     }
     return saved;
@@ -307,7 +332,10 @@ class VisitRepository {
     var groupId = lead.groupId;
     if (groupId == null || groupId.isEmpty) {
       groupId = const Uuid().v4();
-      await updateVisit(lead.id, {'groupId': groupId, 'updatedAt': DateTime.now()});
+      await updateVisit(lead.id, {
+        'groupId': groupId,
+        'updatedAt': DateTime.now(),
+      });
     }
     final id = await createVisit(
       visit.copyWith(
@@ -335,7 +363,8 @@ class VisitRepository {
         'One appointment can hold at most $kMaxGroupPatients patients.',
       );
     }
-    final groupId = visits
+    final groupId =
+        visits
             .map((v) => v.groupId)
             .firstWhere((g) => g != null && g.isNotEmpty, orElse: () => null) ??
         const Uuid().v4();
@@ -355,7 +384,10 @@ class VisitRepository {
           acknowledgeOverlap: true,
         );
       }
-      await updateVisit(v.id, {'groupId': groupId, 'updatedAt': DateTime.now()});
+      await updateVisit(v.id, {
+        'groupId': groupId,
+        'updatedAt': DateTime.now(),
+      });
     }
     return groupId;
   }
@@ -366,7 +398,10 @@ class VisitRepository {
   Future<void> leaveGroup(Visit visit, List<Visit> others) async {
     await updateVisit(visit.id, {'groupId': null, 'updatedAt': DateTime.now()});
     if (others.length == 1) {
-      await updateVisit(others.first.id, {'groupId': null, 'updatedAt': DateTime.now()});
+      await updateVisit(others.first.id, {
+        'groupId': null,
+        'updatedAt': DateTime.now(),
+      });
     }
   }
 
@@ -605,15 +640,11 @@ class VisitRepository {
     } catch (_) {}
 
     // 2. Soft-delete and hide in local SQLite database
-    await _localService.updateVisit(
-      visitId,
-      {
-        'isDeleted': true,
-        'isActive': false,
-        'updatedAt': now,
-      },
-      pendingDelete: true,
-    );
+    await _localService.updateVisit(visitId, {
+      'isDeleted': true,
+      'isActive': false,
+      'updatedAt': now,
+    }, pendingDelete: true);
 
     unawaited(_syncService.triggerPostWriteSync());
   }
@@ -661,10 +692,7 @@ class VisitRepository {
     final patient = await _patientRepository.getPatient(visit.patientId);
     final now = DateTime.now();
 
-    await updateVisit(visitId, {
-      'isPaid': true,
-      'amountCharged': amount,
-    });
+    await updateVisit(visitId, {'isPaid': true, 'amountCharged': amount});
 
     return _revenueRepository.createRevenueEntry(
       RevenueEntry(
@@ -692,14 +720,20 @@ class VisitRepository {
           .doc(visitId)
           .get();
       if (docA.exists && docA.data() != null) {
-        return Visit.fromMap(_decryptedFromFirestore(docA.data()!), id: docA.id);
+        return Visit.fromMap(
+          _decryptedFromFirestore(docA.data()!),
+          id: docA.id,
+        );
       }
       final docV = await FirebaseFirestore.instance
           .collection('visitations')
           .doc(visitId)
           .get();
       if (docV.exists && docV.data() != null) {
-        return Visit.fromMap(_decryptedFromFirestore(docV.data()!), id: docV.id);
+        return Visit.fromMap(
+          _decryptedFromFirestore(docV.data()!),
+          id: docV.id,
+        );
       }
       return null;
     }
@@ -727,12 +761,15 @@ class VisitRepository {
     if (kIsWeb) {
       final now = DateTime.now();
       return _watchWebVisits().map((list) {
-        final filtered = list.where((v) =>
-          !v.isDeleted &&
-          v.scheduledStart.year == now.year &&
-          v.scheduledStart.month == now.month &&
-          v.scheduledStart.day == now.day
-        ).toList();
+        final filtered = list
+            .where(
+              (v) =>
+                  !v.isDeleted &&
+                  v.scheduledStart.year == now.year &&
+                  v.scheduledStart.month == now.month &&
+                  v.scheduledStart.day == now.day,
+            )
+            .toList();
         filtered.sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
         return filtered;
       });
@@ -747,9 +784,12 @@ class VisitRepository {
   }) {
     if (kIsWeb) {
       return _watchWebVisits().map((list) {
-        final filtered = list.where((v) =>
-          v.patientId == patientId && (includeDeleted || !v.isDeleted)
-        ).toList();
+        final filtered = list
+            .where(
+              (v) =>
+                  v.patientId == patientId && (includeDeleted || !v.isDeleted),
+            )
+            .toList();
         filtered.sort((a, b) => b.scheduledStart.compareTo(a.scheduledStart));
         return filtered;
       });

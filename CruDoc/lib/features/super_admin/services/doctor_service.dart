@@ -40,7 +40,9 @@ class SuperAdminDoctorService {
         }
 
         if (planFilter != null) {
-          final plan = data['subscriptionPlan'] as String? ?? SubscriptionPlan.starter.name;
+          final plan =
+              data['subscriptionPlan'] as String? ??
+              SubscriptionPlan.starter.name;
           if (plan != planFilter.name) continue;
         }
 
@@ -87,12 +89,15 @@ class SuperAdminDoctorService {
 
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final queryLower = searchQuery.toLowerCase();
-        return doctors.where((d) {
-          return d.name.toLowerCase().contains(queryLower) ||
-              d.email.toLowerCase().contains(queryLower) ||
-              d.phone.contains(queryLower) ||
-              d.clinicName.toLowerCase().contains(queryLower);
-        }).take(limit).toList();
+        return doctors
+            .where((d) {
+              return d.name.toLowerCase().contains(queryLower) ||
+                  d.email.toLowerCase().contains(queryLower) ||
+                  d.phone.contains(queryLower) ||
+                  d.clinicName.toLowerCase().contains(queryLower);
+            })
+            .take(limit)
+            .toList();
       }
 
       return doctors.take(limit).toList();
@@ -109,9 +114,18 @@ class SuperAdminDoctorService {
       final data = doc.data() as Map<String, dynamic>;
       final decryptedData = <String, dynamic>{
         ...data,
-        'name': DoctorEncryptionService.decryptForDoctor(data['name'] as String?, doctorId),
-        'email': DoctorEncryptionService.decryptForDoctor(data['email'] as String?, doctorId),
-        'phone': DoctorEncryptionService.decryptForDoctor(data['phone'] as String?, doctorId),
+        'name': DoctorEncryptionService.decryptForDoctor(
+          data['name'] as String?,
+          doctorId,
+        ),
+        'email': DoctorEncryptionService.decryptForDoctor(
+          data['email'] as String?,
+          doctorId,
+        ),
+        'phone': DoctorEncryptionService.decryptForDoctor(
+          data['phone'] as String?,
+          doctorId,
+        ),
         'specialization': DoctorEncryptionService.decryptForDoctor(
           data['specialization'] as String?,
           doctorId,
@@ -120,9 +134,18 @@ class SuperAdminDoctorService {
           data['clinicName'] as String?,
           doctorId,
         ),
-        'country': DoctorEncryptionService.decryptForDoctor(data['country'] as String?, doctorId),
-        'timeZone': DoctorEncryptionService.decryptForDoctor(data['timeZone'] as String?, doctorId),
-        'notes': DoctorEncryptionService.decryptForDoctor(data['notes'] as String?, doctorId),
+        'country': DoctorEncryptionService.decryptForDoctor(
+          data['country'] as String?,
+          doctorId,
+        ),
+        'timeZone': DoctorEncryptionService.decryptForDoctor(
+          data['timeZone'] as String?,
+          doctorId,
+        ),
+        'notes': DoctorEncryptionService.decryptForDoctor(
+          data['notes'] as String?,
+          doctorId,
+        ),
       };
       return DoctorModel.fromJson(decryptedData, doc.id);
     } catch (e) {
@@ -150,7 +173,9 @@ class SuperAdminDoctorService {
 
     // --- Approach 1: Try Production Cloud Function ---
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1').httpsCallable('createDoctor');
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'asia-south1',
+      ).httpsCallable('createDoctor');
       final result = await callable.call<Map<String, dynamic>>({
         'name': name,
         'email': email,
@@ -185,8 +210,11 @@ class SuperAdminDoctorService {
         );
       }
     } catch (cfError) {
-      debugPrint('Cloud Function createDoctor skipped/failed (${cfError.toString()}), falling back to secondary app creation.');
-      if (cfError.toString().contains('already exists') || cfError.toString().contains('email-already-in-use')) {
+      debugPrint(
+        'Cloud Function createDoctor skipped/failed (${cfError.toString()}), falling back to secondary app creation.',
+      );
+      if (cfError.toString().contains('already exists') ||
+          cfError.toString().contains('email-already-in-use')) {
         throw Exception('A doctor with this email already exists');
       }
     }
@@ -221,13 +249,34 @@ class SuperAdminDoctorService {
       final batch = _fb.batch();
       final now = DateTime.now();
 
-      final encryptedName = DoctorEncryptionService.encryptForDoctor(name, doctorId);
-      final encryptedEmail = DoctorEncryptionService.encryptForDoctor(email, doctorId);
-      final encryptedPhone = DoctorEncryptionService.encryptForDoctor(phone, doctorId);
-      final encryptedSpec = DoctorEncryptionService.encryptForDoctor(specialization, doctorId);
-      final encryptedClinic = DoctorEncryptionService.encryptForDoctor(clinicName, doctorId);
-      final encryptedCountry = DoctorEncryptionService.encryptForDoctor(country, doctorId);
-      final encryptedTZ = DoctorEncryptionService.encryptForDoctor(timeZone, doctorId);
+      final encryptedName = DoctorEncryptionService.encryptForDoctor(
+        name,
+        doctorId,
+      );
+      final encryptedEmail = DoctorEncryptionService.encryptForDoctor(
+        email,
+        doctorId,
+      );
+      final encryptedPhone = DoctorEncryptionService.encryptForDoctor(
+        phone,
+        doctorId,
+      );
+      final encryptedSpec = DoctorEncryptionService.encryptForDoctor(
+        specialization,
+        doctorId,
+      );
+      final encryptedClinic = DoctorEncryptionService.encryptForDoctor(
+        clinicName,
+        doctorId,
+      );
+      final encryptedCountry = DoctorEncryptionService.encryptForDoctor(
+        country,
+        doctorId,
+      );
+      final encryptedTZ = DoctorEncryptionService.encryptForDoctor(
+        timeZone,
+        doctorId,
+      );
 
       batch.set(_fb.usersCollection.doc(doctorId), {
         'displayName': name,
@@ -305,14 +354,19 @@ class SuperAdminDoctorService {
       throw Exception('Auth error: ${e.message}');
     } catch (e) {
       if (createdUid != null) {
-        debugPrint('Warning: Auth user $createdUid created but Firestore write failed.');
+        debugPrint(
+          'Warning: Auth user $createdUid created but Firestore write failed.',
+        );
       }
       throw Exception('Failed to create doctor: ${e.toString()}');
     }
   }
 
   /// Update doctor details.
-  Future<void> updateDoctor(String doctorId, Map<String, dynamic> updates) async {
+  Future<void> updateDoctor(
+    String doctorId,
+    Map<String, dynamic> updates,
+  ) async {
     try {
       final encryptedUpdates = <String, dynamic>{...updates};
       for (final entry in <MapEntry<String, dynamic>>[
@@ -326,10 +380,11 @@ class SuperAdminDoctorService {
         MapEntry('notes', updates['notes']),
       ]) {
         if (entry.value is String) {
-          encryptedUpdates[entry.key] = DoctorEncryptionService.encryptForDoctor(
-            entry.value as String,
-            doctorId,
-          );
+          encryptedUpdates[entry.key] =
+              DoctorEncryptionService.encryptForDoctor(
+                entry.value as String,
+                doctorId,
+              );
         }
       }
 
@@ -443,7 +498,10 @@ class SuperAdminDoctorService {
   /// Force-revoke all active sessions for a doctor.
   Future<void> revokeAllSessions(String doctorId) async {
     try {
-      final sessions = await _fb.usersCollection.doc(doctorId).collection('active_sessions').get();
+      final sessions = await _fb.usersCollection
+          .doc(doctorId)
+          .collection('active_sessions')
+          .get();
       final batch = _fb.batch();
       for (final doc in sessions.docs) {
         batch.delete(doc.reference);

@@ -13,10 +13,7 @@ import 'package:doctor_management_app/features/update/providers/update_providers
 /// [release]. This is the only call site for `UpdateController.startUpdate`
 /// — [UpdateAvailableDialog]'s "Update now" button opens this sheet
 /// rather than starting the download itself.
-Future<void> showUpdateProgressSheet(
-  BuildContext context,
-  AppRelease release,
-) {
+Future<void> showUpdateProgressSheet(BuildContext context, AppRelease release) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
@@ -59,13 +56,16 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
   Widget build(BuildContext context) {
     final progress = ref.watch(updateProgressProvider);
     final state = progress?.state ?? UpdateProgressState.idle;
-    final canDismiss = state == UpdateProgressState.failed ||
+    final canDismiss =
+        state == UpdateProgressState.failed ||
         state == UpdateProgressState.idle;
 
     return PopScope(
       canPop: canDismiss,
       child: Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(context).bottom,
+        ),
         child: SafeArea(
           top: false,
           child: Padding(
@@ -93,17 +93,22 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
                 Text(_labelFor(state), style: AppColors.bodyMedium),
                 const SizedBox(height: 20),
                 switch (state) {
-                  UpdateProgressState.downloading =>
-                    _DownloadingBody(progress: progress),
-                  UpdateProgressState.verifying =>
-                    const _SpinnerRow(label: 'Verifying download…'),
-                  UpdateProgressState.readyToInstall =>
-                    const _SpinnerRow(label: 'Ready to install…'),
-                  UpdateProgressState.installing =>
-                    const _SpinnerRow(label: 'Installing…'),
+                  UpdateProgressState.downloading => _DownloadingBody(
+                    progress: progress,
+                  ),
+                  UpdateProgressState.verifying => const _SpinnerRow(
+                    label: 'Verifying download…',
+                  ),
+                  UpdateProgressState.readyToInstall => const _SpinnerRow(
+                    label: 'Ready to install…',
+                  ),
+                  UpdateProgressState.installing => const _SpinnerRow(
+                    label: 'Installing…',
+                  ),
                   UpdateProgressState.failed => _FailedBody(onRetry: _retry),
-                  UpdateProgressState.idle =>
-                    const _SpinnerRow(label: 'Starting download…'),
+                  UpdateProgressState.idle => const _SpinnerRow(
+                    label: 'Starting download…',
+                  ),
                 },
               ],
             ),
@@ -114,13 +119,13 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
   }
 
   String _labelFor(UpdateProgressState state) => switch (state) {
-        UpdateProgressState.idle => 'Preparing…',
-        UpdateProgressState.downloading => 'Downloading update',
-        UpdateProgressState.verifying => 'Verifying integrity',
-        UpdateProgressState.readyToInstall => 'Ready to install',
-        UpdateProgressState.installing => 'Installing',
-        UpdateProgressState.failed => 'Update failed',
-      };
+    UpdateProgressState.idle => 'Preparing…',
+    UpdateProgressState.downloading => 'Downloading update',
+    UpdateProgressState.verifying => 'Verifying integrity',
+    UpdateProgressState.readyToInstall => 'Ready to install',
+    UpdateProgressState.installing => 'Installing',
+    UpdateProgressState.failed => 'Update failed',
+  };
 }
 
 class _DownloadingBody extends StatelessWidget {
@@ -150,7 +155,7 @@ class _DownloadingBody extends StatelessWidget {
         Text(
           total > 0
               ? '${_formatBytes(downloaded)} of ${_formatBytes(total)} · '
-                  '${(percent * 100).toStringAsFixed(0)}%'
+                    '${(percent * 100).toStringAsFixed(0)}%'
               : _formatBytes(downloaded),
           style: AppColors.bodySmall,
         ),
@@ -216,8 +221,9 @@ class _FailedBody extends StatelessWidget {
               backgroundColor: AppColors.chartBarLight,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
-              shape:
-                  RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
             child: const Text('Retry'),
           ),

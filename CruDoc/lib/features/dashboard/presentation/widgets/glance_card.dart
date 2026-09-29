@@ -18,9 +18,13 @@ class GlanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cells = <Widget>[
-      glance == null ? const GlanceCellSkeleton(ring: true) : _SeenCell(glance!),
+      glance == null
+          ? const GlanceCellSkeleton(ring: true)
+          : _SeenCell(glance!),
       glance == null ? const GlanceCellSkeleton() : _WaitingCell(glance!),
-      collected == null ? const GlanceCellSkeleton() : _CollectedCell(collected!),
+      collected == null
+          ? const GlanceCellSkeleton()
+          : _CollectedCell(collected!),
     ];
     return GlanceStrip(
       semanticLabel: 'Today at a glance',
@@ -73,7 +77,9 @@ class GlanceStrip extends StatelessWidget {
                           border: Border(
                             left: BorderSide(
                               color: separatorColor ?? c.separator,
-                              width: separatorWidth ?? (separatorColor != null ? 1.5 : 1),
+                              width:
+                                  separatorWidth ??
+                                  (separatorColor != null ? 1.5 : 1),
                             ),
                           ),
                         ),
@@ -96,11 +102,11 @@ class GlanceLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: CruType.subhead.w500.tint(color ?? context.cru.label2),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      );
+    text,
+    style: CruType.subhead.w500.tint(color ?? context.cru.accentText),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+  );
 }
 
 /// Cell value (28/600) with an optional quieter suffix ("of 13").
@@ -113,11 +119,16 @@ class GlanceMetric extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     return Text.rich(
-      TextSpan(children: [
-        TextSpan(text: value, style: CruType.metric.tint(c.label)),
-        if (suffix != null)
-          TextSpan(text: ' $suffix', style: CruType.metricSuffix.tint(c.label2)),
-      ]),
+      TextSpan(
+        children: [
+          TextSpan(text: value, style: CruType.metric.tint(c.label)),
+          if (suffix != null)
+            TextSpan(
+              text: ' $suffix',
+              style: CruType.metricSuffix.tint(c.label2),
+            ),
+        ],
+      ),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );
@@ -131,11 +142,11 @@ class GlanceCaption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => DefaultTextStyle(
-        style: CruType.caption.tabular.tint(context.cru.label2),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        child: child,
-      );
+    style: CruType.caption.tabular.tint(context.cru.label2),
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    child: child,
+  );
 }
 
 class _SeenCell extends StatelessWidget {
@@ -145,7 +156,9 @@ class _SeenCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final percent = g.total > 0 ? ((g.seen / g.total) * 100).toInt() : 0;
     return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         CruProgressRing(
           value: g.progress,
@@ -158,15 +171,41 @@ class _SeenCell extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              GlanceLabel('Seen today', color: c.accentText),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: GlanceLabel('Seen today', color: c.accentText),
+                  ),
+                  const SizedBox(width: CruSpace.s6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 5,
+                      vertical: 1.5,
+                    ),
+                    decoration: ShapeDecoration(
+                      color: c.greenTint,
+                      shape: cruShape(6),
+                    ),
+                    child: Text(
+                      '$percent%',
+                      style: CruType.micro.w700.tabular.tint(c.greenText),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
               GlanceMetric('${g.seen}', suffix: 'of ${g.total}'),
-              GlanceCaption(Text(
-                g.total == 0
-                    ? 'No appointments yet'
-                    : g.stillToSee == 0
-                        ? 'Everyone seen'
-                        : '${g.stillToSee} still to see',
-              )),
+              const SizedBox(height: 2),
+              GlanceCaption(
+                Text(
+                  g.total == 0
+                      ? 'No appointments yet'
+                      : g.stillToSee == 0
+                      ? '✓ Everyone seen'
+                      : '${g.stillToSee} still to see',
+                ),
+              ),
             ],
           ),
         ),
@@ -186,21 +225,33 @@ class _WaitingCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        GlanceLabel('Waiting now', color: c.accentText),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(child: GlanceLabel('Waiting now', color: c.accentText)),
+          ],
+        ),
+        const SizedBox(height: 2),
         GlanceMetric('${g.waiting}'),
-        GlanceCaption(g.averageWaitMinutes == null
-            ? const Text('Queue is clear')
-            : Row(children: [
-                CruStatusDot(CruDotKind.waiting, size: 10),
-                const SizedBox(width: CruSpace.s6),
-                Flexible(
-                  child: Text(
-                    'Average wait ${DashFormat.minutes(g.averageWaitMinutes!)}',
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.caption.tabular.tint(c.label2),
-                  ),
+        const SizedBox(height: 2),
+        GlanceCaption(
+          g.averageWaitMinutes == null
+              ? const Text('Queue is clear')
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CruStatusDot(CruDotKind.waiting, size: 8),
+                    const SizedBox(width: CruSpace.s6),
+                    Flexible(
+                      child: Text(
+                        'Avg wait ${DashFormat.minutes(g.averageWaitMinutes!)}',
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.caption.tabular.tint(c.label2),
+                      ),
+                    ),
+                  ],
                 ),
-              ])),
+        ),
       ],
     );
   }
@@ -221,34 +272,53 @@ class _CollectedCell extends StatelessWidget {
     } else if (diff == 0) {
       caption = Text('Same as last ${data.weekdayName}');
     } else {
-      // Up is green ("money up"). Down stays neutral: red is reserved
-      // for allergies and patient safety.
       final up = diff > 0;
       final tone = up ? c.greenText : c.label2;
-      caption = Row(children: [
-        CruIcon(up ? CruIcons.arrowUp : CruIcons.arrowDown,
-            size: 13, strokeWidth: 2.4, color: tone),
-        const SizedBox(width: 3),
-        Flexible(
-          child: Text.rich(
-            TextSpan(children: [
-              TextSpan(
-                text: DashFormat.rupees(diff.abs()),
-                style: CruType.caption.w600.tabular.tint(tone),
-              ),
-              TextSpan(text: ' $vs'),
-            ]),
-            overflow: TextOverflow.ellipsis,
+      caption = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: ShapeDecoration(
+              color: up ? c.greenTint : c.inset,
+              shape: cruShape(4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CruIcon(
+                  up ? CruIcons.arrowUp : CruIcons.arrowDown,
+                  size: 11,
+                  strokeWidth: 2.6,
+                  color: tone,
+                ),
+                const SizedBox(width: 2),
+                Text(
+                  DashFormat.rupees(diff.abs()),
+                  style: CruType.micro.w700.tabular.tint(tone),
+                ),
+              ],
+            ),
           ),
-        ),
-      ]);
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              vs,
+              style: CruType.caption.tabular.tint(c.label2),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         GlanceLabel('Collected today', color: c.accentText),
+        const SizedBox(height: 2),
         GlanceMetric(DashFormat.rupees(data.today)),
+        const SizedBox(height: 2),
         GlanceCaption(caption),
       ],
     );
@@ -274,14 +344,16 @@ class GlanceCellSkeleton extends StatelessWidget {
       ],
     );
     if (!ring) return column;
-    return Row(children: [
-      const SkeletonBox(
-        width: CruSize.progressRing,
-        height: CruSize.progressRing,
-        circle: true,
-      ),
-      const SizedBox(width: CruSpace.s16),
-      Expanded(child: column),
-    ]);
+    return Row(
+      children: [
+        const SkeletonBox(
+          width: CruSize.progressRing,
+          height: CruSize.progressRing,
+          circle: true,
+        ),
+        const SizedBox(width: CruSpace.s16),
+        Expanded(child: column),
+      ],
+    );
   }
 }

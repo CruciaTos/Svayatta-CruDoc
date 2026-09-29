@@ -14,7 +14,11 @@ const double kTxnWhenWidth = 76;
 /// Where row separators start: padding 12 + when 76 + gap 12 + tile 36
 /// + gap 12.
 const double kTxnTextInset =
-    CruSpace.s12 + kTxnWhenWidth + CruSpace.s12 + CruSize.iconTile + CruSpace.s12;
+    CruSpace.s12 +
+    kTxnWhenWidth +
+    CruSpace.s12 +
+    CruSize.iconTile +
+    CruSpace.s12;
 
 /// Day and time, icon tile, payer or item with what it was for, amount.
 /// The amount is green (+) for money in and red (−) for money out.
@@ -56,16 +60,18 @@ class TransactionRow extends StatelessWidget {
                     style: CruType.subhead.tint(c.label2),
                   ),
                   Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                        text: row.time,
-                        style: CruType.subhead.w600.tabular.tint(c.label),
-                      ),
-                      TextSpan(
-                        text: ' ${row.meridiem}',
-                        style: CruType.micro.tint(c.label3),
-                      ),
-                    ]),
+                    TextSpan(
+                      children: [
+                        TextSpan(
+                          text: row.time,
+                          style: CruType.subhead.w600.tabular.tint(c.label),
+                        ),
+                        TextSpan(
+                          text: ' ${row.meridiem}',
+                          style: CruType.micro.tint(c.label3),
+                        ),
+                      ],
+                    ),
                     maxLines: 1,
                   ),
                 ],
@@ -100,8 +106,9 @@ class TransactionRow extends StatelessWidget {
             const SizedBox(width: CruSpace.s12),
             Text(
               row.amount,
-              style: CruType.row.tabular
-                  .tint(row.moneyOut ? c.redText : c.greenText),
+              style: CruType.row.tabular.tint(
+                row.moneyOut ? c.redText : c.greenText,
+              ),
             ),
           ],
         ),

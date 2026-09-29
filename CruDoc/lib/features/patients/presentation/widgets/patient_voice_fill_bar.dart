@@ -162,13 +162,7 @@ class _PatientVoiceFillBarState extends State<PatientVoiceFillBar> {
           decoration: BoxDecoration(
             color: _recordRed,
             shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: _recordRed.withValues(alpha: 0.35),
-                blurRadius: 4 + 14 * _level,
-                spreadRadius: 1 + 5 * _level,
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: const Icon(Icons.mic_rounded, color: Colors.white, size: 22),
         );

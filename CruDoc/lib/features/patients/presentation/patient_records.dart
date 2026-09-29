@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/patients/presentation/patient_det
 import 'package:doctor_management_app/features/patients/presentation/add_patient.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class PatientRecords extends StatelessWidget {
   const PatientRecords({super.key});
@@ -21,10 +22,7 @@ class PatientRecords extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Patients Record',
-                style: AppColors.pageHeading,
-              ),
+              const Text('Patients Record', style: AppColors.pageHeading),
               const SizedBox(height: 8),
               const _SearchBar(),
               const SizedBox(height: 16),
@@ -32,14 +30,14 @@ class PatientRecords extends StatelessWidget {
               const SizedBox(height: 16),
               const UpcomingPatientCard(),
               // ------ "All Patients" section (same rhythm as other screens) ------
-              const SizedBox(height: 28),                         // more breathing room above heading
+              const SizedBox(height: 28), // more breathing room above heading
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'All Patients',
                     style: AppColors.pageHeading.copyWith(
-                      fontSize: 18,                               // smaller, consistent
+                      fontSize: 18, // smaller, consistent
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -49,21 +47,27 @@ class PatientRecords extends StatelessWidget {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.chartBarLight,           // accent-blue fill (matches + buttons)
+                        color: AppColors
+                            .chartBarLight, // accent-blue fill (matches + buttons)
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.add,
-                              color: Colors.white, size: 18),     // white icon
+                          Icon(
+                            Icons.add,
+                            color: Colors.white,
+                            size: 18,
+                          ), // white icon
                           SizedBox(width: 4),
                           Text(
                             'Add',
                             style: TextStyle(
-                              color: Colors.white,                // white text
+                              color: Colors.white, // white text
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
@@ -74,10 +78,8 @@ class PatientRecords extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 8),                           // tighter gap to list below
-              const Expanded(
-                child: _PatientsList(),
-              ),
+              const SizedBox(height: 8), // tighter gap to list below
+              const Expanded(child: _PatientsList()),
             ],
           ),
         ),
@@ -220,8 +222,6 @@ class _PatientTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = patient.fullName.isNotEmpty ? patient.fullName[0].toUpperCase() : '?';
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
@@ -247,22 +247,11 @@ class _PatientTile extends StatelessWidget {
             child: Row(
               children: [
                 // Patient Initial Avatar Badge
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEFF6FF),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    initial,
-                    style: const TextStyle(
-                      color: Color(0xFF2563EB),
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                CruMonogram(
+                  name: patient.fullName,
+                  size: 44,
+                  background: const Color(0xFFEFF6FF),
+                  foreground: const Color(0xFF2563EB),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -290,7 +279,11 @@ class _PatientTile extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8), size: 22),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 22,
+                ),
               ],
             ),
           ),

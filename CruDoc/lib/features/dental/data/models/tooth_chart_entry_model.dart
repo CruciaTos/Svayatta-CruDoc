@@ -174,7 +174,9 @@ class ToothChartEntryModel {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'syncStatus': syncStatus,
       'pendingDelete': pendingDelete,
-      'lastSyncedAt': lastSyncedAt != null ? Timestamp.fromDate(lastSyncedAt!) : null,
+      'lastSyncedAt': lastSyncedAt != null
+          ? Timestamp.fromDate(lastSyncedAt!)
+          : null,
     };
   }
 
@@ -257,7 +259,9 @@ class ToothChartEntryModel {
       surface: clearSurface ? null : (surface ?? this.surface),
       condition: clearCondition ? null : (condition ?? this.condition),
       treatment: clearTreatment ? null : (treatment ?? this.treatment),
-      procedureLogId: clearProcedureLogId ? null : (procedureLogId ?? this.procedureLogId),
+      procedureLogId: clearProcedureLogId
+          ? null
+          : (procedureLogId ?? this.procedureLogId),
       notes: notes ?? this.notes,
       recordedAt: recordedAt ?? this.recordedAt,
       isDeleted: isDeleted ?? this.isDeleted,
@@ -265,7 +269,9 @@ class ToothChartEntryModel {
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       pendingDelete: pendingDelete ?? this.pendingDelete,
-      lastSyncedAt: clearLastSyncedAt ? null : (lastSyncedAt ?? this.lastSyncedAt),
+      lastSyncedAt: clearLastSyncedAt
+          ? null
+          : (lastSyncedAt ?? this.lastSyncedAt),
     );
   }
 
@@ -302,24 +308,24 @@ class ToothChartEntryModel {
 
   @override
   int get hashCode => Object.hashAll([
-        id,
-        doctorId,
-        patientId,
-        toothNumber,
-        notationSystem,
-        surface,
-        condition,
-        treatment,
-        procedureLogId,
-        notes,
-        recordedAt,
-        isDeleted,
-        createdAt,
-        updatedAt,
-        syncStatus,
-        pendingDelete,
-        lastSyncedAt,
-      ]);
+    id,
+    doctorId,
+    patientId,
+    toothNumber,
+    notationSystem,
+    surface,
+    condition,
+    treatment,
+    procedureLogId,
+    notes,
+    recordedAt,
+    isDeleted,
+    createdAt,
+    updatedAt,
+    syncStatus,
+    pendingDelete,
+    lastSyncedAt,
+  ]);
 
   @override
   String toString() {

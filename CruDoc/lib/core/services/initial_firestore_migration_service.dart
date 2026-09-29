@@ -22,7 +22,7 @@ class InitialFirestoreMigrationService {
   static const List<String> _collections = [
     'patients',
     'appointments', // VisitType.clinic  → visits SQLite table
-    'visitations',  // VisitType.home    → visits SQLite table
+    'visitations', // VisitType.home    → visits SQLite table
     'revenue_entries',
     'pending_payments',
   ];
@@ -106,12 +106,7 @@ class InitialFirestoreMigrationService {
       }
 
       if (existing.isNotEmpty) {
-        await db.update(
-          sqliteTable,
-          row,
-          where: 'id = ?',
-          whereArgs: [doc.id],
-        );
+        await db.update(sqliteTable, row, where: 'id = ?', whereArgs: [doc.id]);
       } else {
         await db.insert(
           sqliteTable,
@@ -193,7 +188,12 @@ class InitialFirestoreMigrationService {
     try {
       final doc = await _firestore.collection('patients').doc(patientId).get();
       if (doc.exists && doc.data() != null) {
-        final patientRow = _sqliteRowFor('patients', doc.id, doc.data()!, doctorId);
+        final patientRow = _sqliteRowFor(
+          'patients',
+          doc.id,
+          doc.data()!,
+          doctorId,
+        );
         await db.insert(
           'patients',
           patientRow,
@@ -202,36 +202,34 @@ class InitialFirestoreMigrationService {
         return;
       }
     } catch (e) {
-      debugPrint('[InitialMigration] Could not fetch parent patient $patientId: $e');
+      debugPrint(
+        '[InitialMigration] Could not fetch parent patient $patientId: $e',
+      );
     }
 
     // Fallback: create an archived stub patient so FK constraint is satisfied without polluting the active patient UI.
     final now = DateTime.now().millisecondsSinceEpoch;
     try {
-      await db.insert(
-        'patients',
-        {
-          'id': patientId,
-          'doctorId': doctorId,
-          'firstName': 'Patient',
-          'lastName': '',
-          'phone': '',
-          'email': '',
-          'gender': '',
-          'dateOfBirth': now,
-          'diagnosis': '[]',
-          'notes': '',
-          'packageBalance': 0.0,
-          'isArchived': 1,
-          'isActive': 1,
-          'createdAt': now,
-          'updatedAt': 0,
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': 0,
-        },
-        conflictAlgorithm: LocalConflictAlgorithm.ignore,
-      );
+      await db.insert('patients', {
+        'id': patientId,
+        'doctorId': doctorId,
+        'firstName': 'Patient',
+        'lastName': '',
+        'phone': '',
+        'email': '',
+        'gender': '',
+        'dateOfBirth': now,
+        'diagnosis': '[]',
+        'notes': '',
+        'packageBalance': 0.0,
+        'isArchived': 1,
+        'isActive': 1,
+        'createdAt': now,
+        'updatedAt': 0,
+        'syncStatus': 'synced',
+        'pendingDelete': 0,
+        'lastSyncedAt': 0,
+      }, conflictAlgorithm: LocalConflictAlgorithm.ignore);
     } catch (_) {}
   }
 
@@ -306,7 +304,9 @@ class InitialFirestoreMigrationService {
           'id': id,
           'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+          'description': FieldCipher.decrypt(
+            data['description'] as String? ?? '',
+          ),
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'type': data['type'] as String? ?? 'miscellaneous',
           'kind': data['kind'] as String? ?? 'income',
@@ -328,7 +328,9 @@ class InitialFirestoreMigrationService {
           'id': id,
           'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+          'description': FieldCipher.decrypt(
+            data['description'] as String? ?? '',
+          ),
           'amount': (data['amount'] as num?)?.toDouble() ?? 0,
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
           'payer': data['payer'] == null

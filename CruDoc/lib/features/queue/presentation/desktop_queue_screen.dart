@@ -188,13 +188,18 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
   /// for them too (their own history); a walk-in token just the token.
   Future<void> _addToToken(QueueEntryWithPatient item) async {
     final root = Navigator.of(context, rootNavigator: true).context;
-    final patient = await showPatientPickerDialog(root, title: 'Who else is coming?');
+    final patient = await showPatientPickerDialog(
+      root,
+      title: 'Who else is coming?',
+    );
     if (patient == null || !mounted) return;
     try {
       final lead = item.linkedVisit;
       if (lead != null) {
         final now = DateTime.now();
-        final added = await ref.read(visitRepositoryProvider).addToGroup(
+        final added = await ref
+            .read(visitRepositoryProvider)
+            .addToGroup(
               lead,
               Visit(
                 id: '',
@@ -208,15 +213,17 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                 updatedAt: now,
               ),
             );
-        await ref
-            .read(queueRepositoryProvider)
-            .adoptVisitGroup([lead.id], added.groupId);
+        await ref.read(queueRepositoryProvider).adoptVisitGroup([
+          lead.id,
+        ], added.groupId);
       } else {
         await ref
             .read(queueRepositoryProvider)
             .addToToken(item.entry.id, patientId: patient.id);
       }
-      _showFeedback('${patient.firstName} added to Token #${item.entry.tokenNumber}.');
+      _showFeedback(
+        '${patient.firstName} added to Token #${item.entry.tokenNumber}.',
+      );
     } catch (e) {
       _showFeedback('Could not add ${patient.firstName}: $e');
     }
@@ -411,6 +418,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                 ? [
                     _StatCell(
                       label: 'In the clinic now',
+                      labelColor: c.accentText,
                       value: '$inClinicCount',
                       suffix: inClinicCount == 1 ? 'patient' : 'patients',
                       caption: urgentCount > 0
@@ -427,6 +435,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                     ),
                     _StatCell(
                       label: 'Avg wait right now',
+                      labelColor: c.accentText,
                       value: avgWaitNow == null
                           ? '—'
                           : _fmtDuration(avgWaitNow),
@@ -448,6 +457,33 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                     ),
                     _StatCell(
                       label: 'Waiting over ${_kWaitTarget.inMinutes} min',
+                      labelColor: c.accentText,
+                      labelWidget: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'Waiting over ',
+                              style: CruType.subhead.w500.tint(c.accentText),
+                            ),
+                            TextSpan(
+                              text: '${_kWaitTarget.inMinutes}',
+                              style: CruType.subhead.w700
+                                  .tint(c.accentText)
+                                  .copyWith(
+                                    fontSize:
+                                        (CruType.subhead.w700.fontSize ?? 15) +
+                                        2,
+                                  ),
+                            ),
+                            TextSpan(
+                              text: ' min',
+                              style: CruType.subhead.w500.tint(c.accentText),
+                            ),
+                          ],
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                       value: '$breachingCount',
                       caption: breachingCount > 0
                           ? _DotCaption(
@@ -459,6 +495,7 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
                     ),
                     _StatCell(
                       label: 'Seen today',
+                      labelColor: c.accentText,
                       value: '$completedCount',
                       suffix: 'of ${allTokens.length}',
                       progress: seenRatio,
@@ -654,8 +691,9 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
       }
     }
     // A shared token appears once.
-    final tokens =
-        {for (final s in serving) '#${s.entry.tokenNumber}'}.join(', ');
+    final tokens = {
+      for (final s in serving) '#${s.entry.tokenNumber}',
+    }.join(', ');
     final parts = [
       serving.isEmpty
           ? (concurrent ? 'Nobody in session' : 'Nobody with the doctor')
@@ -1023,10 +1061,13 @@ class _DesktopQueueScreenState extends ConsumerState<DesktopQueueScreen> {
     }
 
     // Seen together: add or take off patients on this token.
-    final open = entry.status != QueueStatus.completed &&
+    final open =
+        entry.status != QueueStatus.completed &&
         entry.status != QueueStatus.cancelled;
     if (open && members.length < kMaxGroupPatients) {
-      menu.add(_MenuAction('Add a patient to this token', () => _addToToken(item)));
+      menu.add(
+        _MenuAction('Add a patient to this token', () => _addToToken(item)),
+      );
     }
     if (open && members.length > 1) {
       for (final m in members) {
@@ -1141,9 +1182,13 @@ class _StatCell extends StatelessWidget {
     required this.caption,
     this.suffix,
     this.progress,
+    this.labelColor,
+    this.labelWidget,
   });
 
   final String label;
+  final Color? labelColor;
+  final Widget? labelWidget;
   final String value;
   final String? suffix;
   final Widget caption;
@@ -1157,7 +1202,7 @@ class _StatCell extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        GlanceLabel(label),
+        labelWidget ?? GlanceLabel(label, color: labelColor),
         GlanceMetric(value, suffix: suffix),
         if (progress != null) ...[
           const SizedBox(height: CruSpace.s4),
@@ -1292,7 +1337,7 @@ class _MenuSelect<T> extends StatelessWidget {
           c.surface.withValues(alpha: 0),
         ),
         shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.18)),
-        elevation: WidgetStatePropertyAll(c.isEvening ? 0 : 8),
+        elevation: const WidgetStatePropertyAll(0),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
         shape: WidgetStatePropertyAll(
           RoundedSuperellipseBorder(
@@ -1354,7 +1399,7 @@ class _MenuSelect<T> extends StatelessWidget {
               CruRadius.control,
               side: BorderSide(color: c.hairline),
             ),
-            shadows: c.cardShadow,
+            shadows: const [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -1393,7 +1438,7 @@ class _QueueSearchField extends StatelessWidget {
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-        shadows: c.cardShadow,
+        shadows: const [],
       ),
       child: Row(
         children: [
@@ -1651,7 +1696,7 @@ class _PatientTile extends StatelessWidget {
                   )
                 : BorderSide.none,
           ),
-          shadows: highlighted ? c.cardShadow : null,
+          shadows: const [],
         ),
         child: Opacity(
           opacity: muted ? 0.7 : 1,
@@ -1805,7 +1850,9 @@ class _TileMenu extends StatelessWidget {
           ),
       ],
       child: SizedBox.square(
-        dimension: cruIsTouchPlatform ? CruSize.squareButton : CruSize.rowCapsule,
+        dimension: cruIsTouchPlatform
+            ? CruSize.squareButton
+            : CruSize.rowCapsule,
         child: Center(child: CruIcon(CruIcons.more, size: 18, color: c.label2)),
       ),
     );

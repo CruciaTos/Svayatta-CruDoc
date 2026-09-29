@@ -56,9 +56,9 @@ class DoctorModel {
     this.notes,
     this.allowMultiDevice = false,
     this.maxDeviceLimit = 0,
-  })  : accountCreated = accountCreated ?? DateTime.now(),
-        storageLimitGB = storageLimitGB ?? subscriptionPlan.storageLimitGB,
-        enabledModules = enabledModules ?? subscriptionPlan.includedModules;
+  }) : accountCreated = accountCreated ?? DateTime.now(),
+       storageLimitGB = storageLimitGB ?? subscriptionPlan.storageLimitGB,
+       enabledModules = enabledModules ?? subscriptionPlan.includedModules;
 
   factory DoctorModel.fromJson(Map<String, dynamic> json, String id) {
     final planStr = json['subscriptionPlan'] as String? ?? 'starter';
@@ -79,7 +79,8 @@ class DoctorModel {
         (e) => e.name == json['status'],
         orElse: () => DoctorStatus.pending,
       ),
-      accountCreated: (json['accountCreated'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      accountCreated:
+          (json['accountCreated'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastLogin: (json['lastLogin'] as Timestamp?)?.toDate(),
       storageUsedGB: (json['storageUsedGB'] as num?)?.toDouble() ?? 0.0,
       storageLimitGB: (json['storageLimitGB'] as num?)?.toDouble(),
@@ -87,7 +88,8 @@ class DoctorModel {
       appointmentCount: json['appointmentCount'] as int? ?? 0,
       activeDeviceCount: json['activeDeviceCount'] as int? ?? 0,
       ocrRequestsThisMonth: json['ocrRequestsThisMonth'] as int? ?? 0,
-      enabledModules: (json['enabledModules'] as List<dynamic>?)
+      enabledModules:
+          (json['enabledModules'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],

@@ -71,11 +71,7 @@ abstract class LocalDatabaseExecutor {
   /// Deletes rows from [table] matching `where`/`whereArgs`. Omitting both
   /// deletes every row in the table (used by
   /// `LocalDatabaseService.wipeAllLocalData`).
-  Future<int> delete(
-    String table, {
-    String? where,
-    List<Object?>? whereArgs,
-  });
+  Future<int> delete(String table, {String? where, List<Object?>? whereArgs});
 
   /// Runs a raw SQL statement (schema DDL, `PRAGMA`s, `ALTER TABLE`, etc.)
   /// that doesn't return rows.

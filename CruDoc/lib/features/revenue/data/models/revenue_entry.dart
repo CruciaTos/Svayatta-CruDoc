@@ -126,10 +126,7 @@ class RevenueEntry {
   }
 
   /// Builds a [RevenueEntry] from a raw map (e.g. Firestore data payload).
-  factory RevenueEntry.fromMap(
-    Map<String, dynamic> map, {
-    required String id,
-  }) {
+  factory RevenueEntry.fromMap(Map<String, dynamic> map, {required String id}) {
     return RevenueEntry(
       id: id,
       doctorId: map['doctorId'] as String? ?? '',

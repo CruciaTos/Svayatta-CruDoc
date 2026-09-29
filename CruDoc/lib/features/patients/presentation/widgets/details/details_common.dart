@@ -39,9 +39,9 @@ class DetailsSectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        header: true,
-        child: Text(text, style: CruType.groupLabel.tint(context.cru.label2)),
-      );
+    header: true,
+    child: Text(text, style: CruType.groupLabel.tint(context.cru.label2)),
+  );
 }
 
 /// What a free-text allergy field says, if anything.

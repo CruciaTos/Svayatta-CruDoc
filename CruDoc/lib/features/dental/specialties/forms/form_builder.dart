@@ -52,20 +52,21 @@ class FormFieldSpec {
       id: json['id'] as String? ?? const Uuid().v4(),
       label: json['label'] as String? ?? 'Untitled question',
       type: FormFieldType.fromString(json['type'] as String? ?? 'text'),
-      options: (json['options'] as List?)?.map((e) => e.toString()).toList() ?? [],
+      options:
+          (json['options'] as List?)?.map((e) => e.toString()).toList() ?? [],
       required: json['required'] as bool? ?? false,
       unit: json['unit'] as String? ?? '',
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'label': label,
-        'type': type.name,
-        'options': options,
-        'required': required,
-        'unit': unit,
-      };
+    'id': id,
+    'label': label,
+    'type': type.name,
+    'options': options,
+    'required': required,
+    'unit': unit,
+  };
 
   FormFieldSpec copyWith({
     String? label,
@@ -119,10 +120,7 @@ class FormTemplate {
 
 /// Dialog for designing custom questionnaires and clinical form templates.
 class FormBuilderDialog extends ConsumerStatefulWidget {
-  const FormBuilderDialog({
-    super.key,
-    this.initialTemplate,
-  });
+  const FormBuilderDialog({super.key, this.initialTemplate});
 
   final FormTemplate? initialTemplate;
 
@@ -245,11 +243,15 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
     final c = context.cru;
 
     return CruFormDialog(
-      title: widget.initialTemplate == null ? 'Create Form Template' : 'Edit Form Template',
+      title: widget.initialTemplate == null
+          ? 'Create Form Template'
+          : 'Edit Form Template',
       subtitle: 'Design custom clinical questionnaire with live preview',
       width: 980,
       busy: _busy,
-      submitLabel: widget.initialTemplate == null ? 'Save template' : 'Save changes',
+      submitLabel: widget.initialTemplate == null
+          ? 'Save template'
+          : 'Save changes',
       onSubmit: _save,
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,7 +279,10 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Questions (${_fields.length})', style: CruType.callout.w600.tint(c.label)),
+                    Text(
+                      'Questions (${_fields.length})',
+                      style: CruType.callout.w600.tint(c.label),
+                    ),
                     CruCapsuleButton(
                       label: 'Add question',
                       icon: CruIcons.plus,
@@ -319,7 +324,10 @@ class _FormBuilderDialogState extends ConsumerState<FormBuilderDialog> {
                     children: [
                       CruIcon(CruIcons.box, size: 16, color: c.accent),
                       const SizedBox(width: CruSpace.s8),
-                      Text('LIVE PREVIEW', style: CruType.micro.w600.tint(c.accent)),
+                      Text(
+                        'LIVE PREVIEW',
+                        style: CruType.micro.w600.tint(c.accent),
+                      ),
                     ],
                   ),
                   const SizedBox(height: CruSpace.s8),
@@ -396,7 +404,10 @@ class _FieldEditorCard extends StatelessWidget {
             // Question header & reorder
             Row(
               children: [
-                Text('Q${index + 1}', style: CruType.caption.w600.tint(c.accent)),
+                Text(
+                  'Q${index + 1}',
+                  style: CruType.caption.w600.tint(c.accent),
+                ),
                 const SizedBox(width: CruSpace.s8),
                 Expanded(
                   child: TextFormField(
@@ -446,7 +457,8 @@ class _FieldEditorCard extends StatelessWidget {
                     selected: spec.type == t,
                     onTap: () {
                       spec.type = t;
-                      if ((t == FormFieldType.choice || t == FormFieldType.multiChoice) &&
+                      if ((t == FormFieldType.choice ||
+                              t == FormFieldType.multiChoice) &&
                           spec.options.isEmpty) {
                         spec.options = ['Option 1', 'Option 2'];
                       }
@@ -458,7 +470,8 @@ class _FieldEditorCard extends StatelessWidget {
             const SizedBox(height: CruSpace.s8),
 
             // Options editor if choice or multiChoice
-            if (spec.type == FormFieldType.choice || spec.type == FormFieldType.multiChoice) ...[
+            if (spec.type == FormFieldType.choice ||
+                spec.type == FormFieldType.multiChoice) ...[
               TextFormField(
                 initialValue: spec.options.join(', '),
                 style: CruType.caption.tint(c.label),
@@ -520,10 +533,7 @@ class _FieldEditorCard extends StatelessWidget {
 }
 
 class _FieldPreviewItem extends StatelessWidget {
-  const _FieldPreviewItem({
-    required this.index,
-    required this.spec,
-  });
+  const _FieldPreviewItem({required this.index, required this.spec});
 
   final int index;
   final FormFieldSpec spec;
@@ -554,90 +564,102 @@ class _FieldPreviewItem extends StatelessWidget {
           // Render sample widget
           switch (spec.type) {
             FormFieldType.text => Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: c.inset,
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                  border: Border.all(color: c.hairline),
-                ),
-                alignment: Alignment.centerLeft,
-                child: Text('Short answer text...', style: CruType.caption.tint(c.label3)),
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: c.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: c.hairline),
               ),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Short answer text...',
+                style: CruType.caption.tint(c.label3),
+              ),
+            ),
             FormFieldType.longText => Container(
-                height: 64,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: c.inset,
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                  border: Border.all(color: c.hairline),
-                ),
-                child: Text('Detailed notes...', style: CruType.caption.tint(c.label3)),
+              height: 64,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: c.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: c.hairline),
               ),
+              child: Text(
+                'Detailed notes...',
+                style: CruType.caption.tint(c.label3),
+              ),
+            ),
             FormFieldType.number => Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: c.inset,
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                  border: Border.all(color: c.hairline),
-                ),
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  spec.unit.isNotEmpty ? '0.0 ${spec.unit}' : '0.0',
-                  style: CruType.caption.tabular.tint(c.label3),
-                ),
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: c.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: c.hairline),
               ),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                spec.unit.isNotEmpty ? '0.0 ${spec.unit}' : '0.0',
+                style: CruType.caption.tabular.tint(c.label3),
+              ),
+            ),
             FormFieldType.choice || FormFieldType.multiChoice => Wrap(
-                spacing: CruSpace.s6,
-                runSpacing: CruSpace.s6,
-                children: [
-                  for (final opt in (spec.options.isNotEmpty ? spec.options : ['Option 1', 'Option 2']))
-                    CruPill(text: opt, background: c.inset, foreground: c.label2),
-                ],
-              ),
+              spacing: CruSpace.s6,
+              runSpacing: CruSpace.s6,
+              children: [
+                for (final opt
+                    in (spec.options.isNotEmpty
+                        ? spec.options
+                        : ['Option 1', 'Option 2']))
+                  CruPill(text: opt, background: c.inset, foreground: c.label2),
+              ],
+            ),
             FormFieldType.yesNo => Row(
+              children: [
+                CruPill(text: 'Yes', background: c.inset, foreground: c.label2),
+                const SizedBox(width: CruSpace.s8),
+                CruPill(text: 'No', background: c.inset, foreground: c.label2),
+              ],
+            ),
+            FormFieldType.date => Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: c.inset,
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(color: c.hairline),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  CruPill(text: 'Yes', background: c.inset, foreground: c.label2),
-                  const SizedBox(width: CruSpace.s8),
-                  CruPill(text: 'No', background: c.inset, foreground: c.label2),
+                  CruIcon(CruIcons.calendar, size: 16, color: c.label3),
+                  const SizedBox(width: CruSpace.s6),
+                  Text('Select date', style: CruType.caption.tint(c.label3)),
                 ],
               ),
-            FormFieldType.date => Container(
-                height: 36,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: c.inset,
-                  borderRadius: BorderRadius.circular(CruRadius.control),
-                  border: Border.all(color: c.hairline),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CruIcon(CruIcons.calendar, size: 16, color: c.label3),
-                    const SizedBox(width: CruSpace.s6),
-                    Text('Select date', style: CruType.caption.tint(c.label3)),
-                  ],
-                ),
-              ),
+            ),
             FormFieldType.scale10 => Row(
-                children: [
-                  for (var s = 0; s <= 10; s++)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
-                      child: Container(
-                        width: 22,
-                        height: 22,
-                        decoration: BoxDecoration(
-                          color: c.inset,
-                          shape: BoxShape.circle,
-                        ),
-                        alignment: Alignment.center,
-                        child: Text('$s', style: CruType.micro.tabular.tint(c.label2)),
+              children: [
+                for (var s = 0; s <= 10; s++)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: c.inset,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        '$s',
+                        style: CruType.micro.tabular.tint(c.label2),
                       ),
                     ),
-                ],
-              ),
+                  ),
+              ],
+            ),
           },
         ],
       ),

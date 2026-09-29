@@ -21,26 +21,15 @@ BoxDecoration _cardDecoration({BorderRadius? radius}) {
   return BoxDecoration(
     color: Colors.white,
     borderRadius: radius ?? BorderRadius.circular(16),
-    border: Border.all(
-      color: const Color(0xFFE2E8F0),
-    ),
-    boxShadow: [
-      BoxShadow(
-        color: Colors.black.withValues(alpha: 0.02),
-        offset: const Offset(0, 2),
-        blurRadius: 6,
-      ),
-    ],
+    border: Border.all(color: const Color(0xFFE2E8F0)),
+    boxShadow: const [],
   );
 }
 
 class HomeopathyPatientDetailsScreen extends ConsumerStatefulWidget {
   final Patient patient;
 
-  const HomeopathyPatientDetailsScreen({
-    super.key,
-    required this.patient,
-  });
+  const HomeopathyPatientDetailsScreen({super.key, required this.patient});
 
   @override
   ConsumerState<HomeopathyPatientDetailsScreen> createState() =>
@@ -93,7 +82,7 @@ class _HomeopathyPatientDetailsScreenState
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Colors.transparent),
                 ),
               ),
             ),
@@ -156,7 +145,9 @@ class _HomeopathyPatientDetailsScreenState
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Patient Record'),
-        content: Text('Are you sure you want to delete ${currentPatient.fullName}?'),
+        content: Text(
+          'Are you sure you want to delete ${currentPatient.fullName}?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -253,19 +244,13 @@ class _HomeopathyPatientDetailsScreenState
                     const SizedBox(height: 16),
 
                     // Doctor's Common Note
-                    _HomeoDoctorsNoteCard(
-                      note: _note,
-                      onTap: _openNoteEditor,
-                    ),
+                    _HomeoDoctorsNoteCard(note: _note, onTap: _openNoteEditor),
                     const SizedBox(height: 20),
 
                     // Contact Section
                     const _SectionHeading(title: 'CONTACT & COMMUNICATION'),
                     const SizedBox(height: 10),
-                    _ContactCard(
-                      phone: patient.phone,
-                      email: patient.email,
-                    ),
+                    _ContactCard(phone: patient.phone, email: patient.email),
                     const SizedBox(height: 20),
 
                     // Session / Appointment History
@@ -282,18 +267,25 @@ class _HomeopathyPatientDetailsScreenState
                       error: (e, st) => Container(
                         padding: const EdgeInsets.all(16),
                         decoration: _cardDecoration(),
-                        child: const Text('Could not load consultation history'),
+                        child: const Text(
+                          'Could not load consultation history',
+                        ),
                       ),
                       data: (visits) {
                         if (visits.isEmpty) {
                           return Container(
                             padding: const EdgeInsets.symmetric(
-                                vertical: 28, horizontal: 20),
+                              vertical: 28,
+                              horizontal: 20,
+                            ),
                             decoration: _cardDecoration(),
                             child: const Column(
                               children: [
-                                Icon(Icons.event_note_outlined,
-                                    size: 36, color: AppColors.slateBlue),
+                                Icon(
+                                  Icons.event_note_outlined,
+                                  size: 36,
+                                  color: AppColors.slateBlue,
+                                ),
                                 SizedBox(height: 8),
                                 Text(
                                   'No Consultations Logged',
@@ -340,16 +332,7 @@ class _HomeopathyPatientDetailsScreenState
       ),
       bottomSheet: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              offset: const Offset(0, -3),
-              blurRadius: 10,
-            ),
-          ],
-        ),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
         child: SafeArea(
           child: Row(
             children: [
@@ -357,7 +340,7 @@ class _HomeopathyPatientDetailsScreenState
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 13),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    side: const BorderSide(color: Colors.transparent),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -408,7 +391,10 @@ class _HomeopathyTopBar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+            icon: const Icon(
+              Icons.arrow_back_rounded,
+              color: AppColors.textPrimary,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 4),
@@ -447,11 +433,19 @@ class _HomeopathyTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           IconButton(
-            icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.textSecondary),
+            icon: const Icon(
+              Icons.edit_outlined,
+              size: 20,
+              color: AppColors.textSecondary,
+            ),
             onPressed: onEdit,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline, size: 20, color: Colors.redAccent),
+            icon: const Icon(
+              Icons.delete_outline,
+              size: 20,
+              color: Colors.redAccent,
+            ),
             onPressed: onDelete,
           ),
         ],
@@ -476,7 +470,9 @@ class _PatientHeaderCard extends StatelessWidget {
             radius: 28,
             backgroundColor: _accentEmeraldLight,
             child: Text(
-              patient.fullName.isNotEmpty ? patient.fullName[0].toUpperCase() : 'P',
+              patient.fullName.isNotEmpty
+                  ? patient.fullName[0].toUpperCase()
+                  : 'P',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
@@ -510,7 +506,9 @@ class _PatientHeaderCard extends StatelessWidget {
                     children: patient.diagnosis.map((d) {
                       return Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF1F5F9),
                           borderRadius: BorderRadius.circular(6),
@@ -551,13 +549,15 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isFemale = patient.gender.toLowerCase().trim() == 'female';
     final hasSheet = caseSheet != null;
-    final completedSections =
-        hasSheet ? caseSheet!.completedSectionsCount(isFemale: isFemale) : 0;
+    final completedSections = hasSheet
+        ? caseSheet!.completedSectionsCount(isFemale: isFemale)
+        : 0;
     final totalSections = hasSheet
         ? caseSheet!.totalSectionsCount(isFemale: isFemale)
         : (isFemale ? 15 : 14);
     final remedy = caseSheet?.prescriptionNotes.prescribedRemedy.trim() ?? '';
-    final thermal = caseSheet?.generalSymptoms.thermalState ??
+    final thermal =
+        caseSheet?.generalSymptoms.thermalState ??
         HomeopathyThermalState.unspecified;
 
     return Container(
@@ -570,13 +570,7 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
               ? _accentEmerald.withValues(alpha: 0.35)
               : const Color(0xFFE2E8F0),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            offset: const Offset(0, 3),
-            blurRadius: 8,
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -614,7 +608,8 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: hasSheet &&
+                  color:
+                      hasSheet &&
                           (caseSheet!.isCompleted || completedSections >= 8)
                       ? _accentEmeraldLight
                       : const Color(0xFFFEF3C7),
@@ -623,13 +618,14 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
                 child: Text(
                   hasSheet
                       ? (caseSheet!.isCompleted
-                          ? 'Complete'
-                          : '$completedSections/$totalSections Sections')
+                            ? 'Complete'
+                            : '$completedSections/$totalSections Sections')
                       : 'Not Started',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    color: hasSheet &&
+                    color:
+                        hasSheet &&
                             (caseSheet!.isCompleted || completedSections >= 8)
                         ? _accentEmerald
                         : const Color(0xFFD97706),
@@ -706,7 +702,9 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
               icon: Icon(
-                hasSheet ? Icons.edit_note_rounded : Icons.add_circle_outline_rounded,
+                hasSheet
+                    ? Icons.edit_note_rounded
+                    : Icons.add_circle_outline_rounded,
                 size: 18,
               ),
               label: Text(
@@ -744,10 +742,7 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
   final String note;
   final VoidCallback onTap;
 
-  const _HomeoDoctorsNoteCard({
-    required this.note,
-    required this.onTap,
-  });
+  const _HomeoDoctorsNoteCard({required this.note, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -784,11 +779,15 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              hasNote ? note : 'Tap to add clinical notes or general observations...',
+              hasNote
+                  ? note
+                  : 'Tap to add clinical notes or general observations...',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
-                color: hasNote ? AppColors.textPrimary : const Color(0xFF94A3B8),
+                color: hasNote
+                    ? AppColors.textPrimary
+                    : const Color(0xFF94A3B8),
                 fontStyle: hasNote ? FontStyle.normal : FontStyle.italic,
               ),
             ),
@@ -803,10 +802,7 @@ class _ContactCard extends StatelessWidget {
   final String phone;
   final String email;
 
-  const _ContactCard({
-    required this.phone,
-    required this.email,
-  });
+  const _ContactCard({required this.phone, required this.email});
 
   @override
   Widget build(BuildContext context) {
@@ -817,23 +813,37 @@ class _ContactCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.phone_outlined, size: 18, color: AppColors.slateBlue),
+              const Icon(
+                Icons.phone_outlined,
+                size: 18,
+                color: AppColors.slateBlue,
+              ),
               const SizedBox(width: 10),
               Text(
                 phone.isNotEmpty ? phone : 'No phone number',
-                style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textPrimary,
+                ),
               ),
             ],
           ),
           if (email.isNotEmpty) ...[
-            const Divider(height: 20, color: Color(0xFFF1F5F9)),
+            const Divider(height: 20),
             Row(
               children: [
-                const Icon(Icons.email_outlined, size: 18, color: AppColors.slateBlue),
+                const Icon(
+                  Icons.email_outlined,
+                  size: 18,
+                  color: AppColors.slateBlue,
+                ),
                 const SizedBox(width: 10),
                 Text(
                   email,
-                  style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
               ],
             ),
@@ -848,10 +858,7 @@ class _VisitItemCard extends StatelessWidget {
   final Visit visit;
   final VoidCallback onTap;
 
-  const _VisitItemCard({
-    required this.visit,
-    required this.onTap,
-  });
+  const _VisitItemCard({required this.visit, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -876,7 +883,11 @@ class _VisitItemCard extends StatelessWidget {
                 color: _accentEmeraldLight,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.medical_services_outlined, size: 18, color: _accentEmerald),
+              child: const Icon(
+                Icons.medical_services_outlined,
+                size: 18,
+                color: _accentEmerald,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -884,7 +895,8 @@ class _VisitItemCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    (visit.treatmentType != null && visit.treatmentType!.trim().isNotEmpty)
+                    (visit.treatmentType != null &&
+                            visit.treatmentType!.trim().isNotEmpty)
                         ? visit.treatmentType!
                         : 'Homeopathic Consultation',
                     style: const TextStyle(
@@ -896,12 +908,19 @@ class _VisitItemCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     formattedDate,
-                    style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary, size: 18),
+            const Icon(
+              Icons.chevron_right_rounded,
+              color: AppColors.textSecondary,
+              size: 18,
+            ),
           ],
         ),
       ),

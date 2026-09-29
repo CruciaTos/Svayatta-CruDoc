@@ -8,11 +8,7 @@ import 'package:intl/intl.dart';
 /// Shows a coloured avatar (red for expense, blue for income),
 /// description, date, and a prefixed amount with appropriate colour.
 class TransactionTile extends StatelessWidget {
-  const TransactionTile({
-    super.key,
-    required this.entry,
-    this.onTap,
-  });
+  const TransactionTile({super.key, required this.entry, this.onTap});
 
   final RevenueEntry entry;
   final VoidCallback? onTap;
@@ -60,13 +56,7 @@ class TransactionTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.cardSurface,
           borderRadius: BorderRadius.circular(22),
-          boxShadow: const [
-            BoxShadow(
-              color: Colors.black12,
-              blurRadius: 8,
-              offset: Offset(0, 2),
-            ),
-          ],
+          boxShadow: const [],
         ),
         child: Row(
           children: [

@@ -1260,6 +1260,7 @@ class _AppearanceSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final mode = ref.watch(appearanceModeProvider);
+    final textSize = ref.watch(textSizePreferenceProvider);
     return _Stack([
       _SettingsCard(
         title: 'Appearance',
@@ -1285,7 +1286,190 @@ class _AppearanceSection extends ConsumerWidget {
           ],
         ),
       ),
+      _SettingsCard(
+        title: 'Text size',
+        description: 'Choose a text size used throughout CruDoc.',
+        child: Row(
+          children: [
+            CruSegmentedControl<TextSizePreference>(
+              semanticLabel: 'Text size',
+              segments: [
+                for (final size in TextSizePreference.values)
+                  CruSegment(size, size.label),
+              ],
+              selected: textSize,
+              onChanged: ref.read(textSizePreferenceProvider.notifier).select,
+            ),
+          ],
+        ),
+      ),
+      _SettingsCard(
+        title: 'Day background',
+        description:
+            'Choose a preset or enter a custom hex color. Evening mode stays unchanged.',
+        child: const _DayBackgroundColorControl(),
+      ),
     ]);
+  }
+}
+
+class _DayBackgroundColorControl extends ConsumerStatefulWidget {
+  const _DayBackgroundColorControl();
+
+  @override
+  ConsumerState<_DayBackgroundColorControl> createState() =>
+      _DayBackgroundColorControlState();
+}
+
+class _DayBackgroundColorControlState
+    extends ConsumerState<_DayBackgroundColorControl> {
+  static const _presets = [
+    (label: 'Current', value: 0xFFEEF1F6),
+    (label: 'Reference', value: 0xFFF1F8FC),
+  ];
+
+  late final TextEditingController _hexController;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _hexController = TextEditingController(
+      text: _formatColor(AppearancePreferences.defaultDayBackgroundColor),
+    );
+  }
+
+  @override
+  void dispose() {
+    _hexController.dispose();
+    super.dispose();
+  }
+
+  static String _formatColor(int argb) =>
+      '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
+  void _selectColor(int argb) {
+    _hexController.text = _formatColor(argb);
+    setState(() => _error = null);
+    ref.read(dayBackgroundColorProvider.notifier).select(argb);
+  }
+
+  void _applyCustomColor() {
+    final entered = _hexController.text.trim();
+    final hex = entered.startsWith('#') ? entered.substring(1) : entered;
+    if (!RegExp(r'^[0-9A-Fa-f]{6}$').hasMatch(hex)) {
+      setState(() => _error = 'Enter a six-digit hex color, such as #EEF1F6.');
+      return;
+    }
+    _selectColor(0xFF000000 | int.parse(hex, radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final selectedColor = ref.watch(dayBackgroundColorProvider);
+    ref.listen(dayBackgroundColorProvider, (previous, next) {
+      if (previous == next) return;
+      _hexController.text = _formatColor(next);
+      if (_error != null) setState(() => _error = null);
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: CruSpace.s16,
+          runSpacing: CruSpace.s12,
+          children: [
+            for (final preset in _presets)
+              _BackgroundColorSwatch(
+                label: preset.label,
+                color: preset.value,
+                selected: selectedColor == preset.value,
+                onTap: () => _selectColor(preset.value),
+              ),
+          ],
+        ),
+        const SizedBox(height: CruSpace.s20),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: CruTextField(
+                label: 'Custom hex color',
+                controller: _hexController,
+                hint: '#EEF1F6',
+                keyboardType: TextInputType.text,
+                textCapitalization: TextCapitalization.characters,
+                onSubmitted: (_) => _applyCustomColor(),
+              ),
+            ),
+            const SizedBox(width: CruSpace.s10),
+            Padding(
+              padding: const EdgeInsets.only(top: 22),
+              child: CruButton(label: 'Apply', onPressed: _applyCustomColor),
+            ),
+          ],
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: CruSpace.s6),
+          Text(_error!, style: CruType.caption.tint(c.redText)),
+        ],
+      ],
+    );
+  }
+}
+
+class _BackgroundColorSwatch extends StatelessWidget {
+  const _BackgroundColorSwatch({
+    required this.label,
+    required this.color,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final int color;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(CruRadius.control),
+      child: Padding(
+        padding: const EdgeInsets.all(CruSpace.s2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 104,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Color(color),
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                border: Border.all(
+                  color: selected ? c.accent : c.cardBorder,
+                  width: selected ? 2 : 1,
+                ),
+              ),
+              child: selected
+                  ? CruIcon(CruIcons.check, size: 16, color: c.accent)
+                  : null,
+            ),
+            const SizedBox(height: CruSpace.s6),
+            Text(label, style: CruType.caption.w600.tint(c.label)),
+            Text(
+              _DayBackgroundColorControlState._formatColor(color),
+              style: CruType.micro.tabular.tint(c.label3),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -1303,7 +1487,6 @@ class _DentalSection extends ConsumerWidget {
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final large = ref.watch(largeModeProvider).value ?? false;
-
     return _Stack([
       _SettingsCard(
         title: 'Tooth numbering',
@@ -1337,9 +1520,8 @@ class _DentalSection extends ConsumerWidget {
       _SettingsCard(
         title: 'Larger text and icons (chairside)',
         description:
-            'Makes the text and icons in the main area 20% larger, for '
-            'reading at the chair (for example with children). The sidebar '
-            'stays as it is.',
+            'Enlarges the dentist work area for chairside viewing. The '
+            'Appearance text-size setting still applies across all specialties.',
         child: Row(
           children: [
             CruSegmentedControl<bool>(
@@ -1349,7 +1531,7 @@ class _DentalSection extends ConsumerWidget {
                 CruSegment(true, 'On'),
               ],
               selected: large,
-              onChanged: (v) => setLargeMode(ref, v),
+              onChanged: (value) => setLargeMode(ref, value),
             ),
           ],
         ),

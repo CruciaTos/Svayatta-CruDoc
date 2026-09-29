@@ -25,13 +25,18 @@ class _PatientPlan {
   final Patient patient;
   final List<TreatmentPlanLineItemModel> items;
 
-  List<TreatmentPlanLineItemModel> _with(TreatmentPlanItemStatus s) =>
-      items.where((i) => TreatmentPlanItemStatus.fromString(i.status) == s).toList();
+  List<TreatmentPlanLineItemModel> _with(TreatmentPlanItemStatus s) => items
+      .where((i) => TreatmentPlanItemStatus.fromString(i.status) == s)
+      .toList();
 
-  List<TreatmentPlanLineItemModel> get proposed => _with(TreatmentPlanItemStatus.proposed);
-  List<TreatmentPlanLineItemModel> get accepted => _with(TreatmentPlanItemStatus.accepted);
-  List<TreatmentPlanLineItemModel> get invoiced => _with(TreatmentPlanItemStatus.invoiced);
-  List<TreatmentPlanLineItemModel> get declined => _with(TreatmentPlanItemStatus.declined);
+  List<TreatmentPlanLineItemModel> get proposed =>
+      _with(TreatmentPlanItemStatus.proposed);
+  List<TreatmentPlanLineItemModel> get accepted =>
+      _with(TreatmentPlanItemStatus.accepted);
+  List<TreatmentPlanLineItemModel> get invoiced =>
+      _with(TreatmentPlanItemStatus.invoiced);
+  List<TreatmentPlanLineItemModel> get declined =>
+      _with(TreatmentPlanItemStatus.declined);
 
   static double sum(List<TreatmentPlanLineItemModel> l) =>
       l.fold(0.0, (t, i) => t + i.estimatedPrice);
@@ -40,13 +45,13 @@ class _PatientPlan {
       items.map((i) => i.updatedAt).reduce((a, b) => a.isAfter(b) ? a : b);
 
   bool matches(_PlanFilter f) => switch (f) {
-        _PlanFilter.open => proposed.isNotEmpty || accepted.isNotEmpty,
-        _PlanFilter.awaiting => proposed.isNotEmpty,
-        _PlanFilter.accepted => accepted.isNotEmpty,
-        _PlanFilter.invoiced => invoiced.isNotEmpty,
-        _PlanFilter.declined => declined.isNotEmpty,
-        _PlanFilter.all => true,
-      };
+    _PlanFilter.open => proposed.isNotEmpty || accepted.isNotEmpty,
+    _PlanFilter.awaiting => proposed.isNotEmpty,
+    _PlanFilter.accepted => accepted.isNotEmpty,
+    _PlanFilter.invoiced => invoiced.isNotEmpty,
+    _PlanFilter.declined => declined.isNotEmpty,
+    _PlanFilter.all => true,
+  };
 }
 
 /// Every patient's treatment plan: what's waiting for a yes, what's
@@ -83,7 +88,8 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final itemsAsync = ref.watch(clinicTreatmentPlansProvider);
-    final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+    final patients =
+        ref.watch(patientsStreamProvider).value ?? const <Patient>[];
     final byId = {for (final p in patients) p.id: p};
     final items = itemsAsync.value;
 
@@ -97,26 +103,57 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
       for (final e in grouped.entries) {
         final p = byId[e.key];
         if (p == null) continue;
-        plans.add(_PatientPlan(p, e.value..sort((a, b) => a.sequence.compareTo(b.sequence))));
+        plans.add(
+          _PatientPlan(
+            p,
+            e.value..sort((a, b) => a.sequence.compareTo(b.sequence)),
+          ),
+        );
       }
       plans.sort((a, b) => b.updated.compareTo(a.updated));
     }
 
     final all = plans.expand((p) => p.items).toList();
-    final proposed = all.where((i) => TreatmentPlanItemStatus.fromString(i.status) == TreatmentPlanItemStatus.proposed).toList();
-    final accepted = all.where((i) => TreatmentPlanItemStatus.fromString(i.status) == TreatmentPlanItemStatus.accepted).toList();
-    final invoiced = all.where((i) => TreatmentPlanItemStatus.fromString(i.status) == TreatmentPlanItemStatus.invoiced).toList();
-    final declined = all.where((i) => TreatmentPlanItemStatus.fromString(i.status) == TreatmentPlanItemStatus.declined).toList();
+    final proposed = all
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) ==
+              TreatmentPlanItemStatus.proposed,
+        )
+        .toList();
+    final accepted = all
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) ==
+              TreatmentPlanItemStatus.accepted,
+        )
+        .toList();
+    final invoiced = all
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) ==
+              TreatmentPlanItemStatus.invoiced,
+        )
+        .toList();
+    final declined = all
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) ==
+              TreatmentPlanItemStatus.declined,
+        )
+        .toList();
     final decided = accepted.length + invoiced.length + declined.length;
     final openPatients = plans.where((p) => p.matches(_PlanFilter.open)).length;
 
     final q = _query.trim().toLowerCase();
     final shown = plans
         .where((p) => p.matches(_filter))
-        .where((p) =>
-            q.isEmpty ||
-            p.patient.fullName.toLowerCase().contains(q) ||
-            p.items.any((i) => i.procedureName.toLowerCase().contains(q)))
+        .where(
+          (p) =>
+              q.isEmpty ||
+              p.patient.fullName.toLowerCase().contains(q) ||
+              p.items.any((i) => i.procedureName.toLowerCase().contains(q)),
+        )
         .toList();
 
     Widget cell(String label, String value, String caption, {Color? tone}) =>
@@ -126,8 +163,12 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
           children: [
             GlanceLabel(label),
             GlanceMetric(value),
-            GlanceCaption(Text(caption,
-                style: tone == null ? null : CruType.caption.tint(tone))),
+            GlanceCaption(
+              Text(
+                caption,
+                style: tone == null ? null : CruType.caption.tint(tone),
+              ),
+            ),
           ],
         );
 
@@ -141,11 +182,15 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
             subtitle: items == null
                 ? ''
                 : openPatients == 0
-                    ? 'No open plans'
-                    : '${DashFormat.plural(openPatients, 'patient')} with open plans · '
-                        '${DashFormat.rupees(_PatientPlan.sum(proposed) + _PatientPlan.sum(accepted))} to do',
+                ? 'No open plans'
+                : '${DashFormat.plural(openPatients, 'patient')} with open plans · '
+                      '${DashFormat.rupees(_PatientPlan.sum(proposed) + _PatientPlan.sum(accepted))} to do',
             actions: [
-              CruButton(label: 'New plan', icon: CruIcons.plus, onPressed: _newPlan),
+              CruButton(
+                label: 'New plan',
+                icon: CruIcons.plus,
+                onPressed: _newPlan,
+              ),
             ],
           ),
           const SizedBox(height: CruSpace.cardGap),
@@ -215,7 +260,9 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SingleChildScrollView(
-                        scrollDirection: Axis.horizontal, child: filter),
+                      scrollDirection: Axis.horizontal,
+                      child: filter,
+                    ),
                     const SizedBox(height: CruSpace.s10),
                     search,
                   ],
@@ -232,35 +279,35 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
               child: items == null
                   ? const SizedBox.shrink()
                   : shown.isEmpty
-                      ? Center(
-                          child: SingleChildScrollView(
-                            child: DentalEmptyState(
-                              icon: DentalIcons.plan,
-                              title: plans.isEmpty
-                                  ? 'No treatment plans yet'
-                                  : 'No plans here',
-                              body: plans.isEmpty
-                                  ? 'Plan work from a patient\'s tooth chart, or '
-                                      'start one here. Each procedure can be '
-                                      'accepted, done and invoiced on its own.'
-                                  : 'Try another filter or search.',
-                              actions: [
-                                if (plans.isEmpty)
-                                  CruButton(
-                                    label: 'New plan',
-                                    icon: CruIcons.plus,
-                                    onPressed: _newPlan,
-                                  ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          itemCount: shown.length,
-                          separatorBuilder: (_, _) =>
-                              const CruSeparator(indent: 12 + 40 + 12),
-                          itemBuilder: (context, i) => _PlanRow(plan: shown[i]),
+                  ? Center(
+                      child: SingleChildScrollView(
+                        child: DentalEmptyState(
+                          icon: DentalIcons.plan,
+                          title: plans.isEmpty
+                              ? 'No treatment plans yet'
+                              : 'No plans here',
+                          body: plans.isEmpty
+                              ? 'Plan work from a patient\'s tooth chart, or '
+                                    'start one here. Each procedure can be '
+                                    'accepted, done and invoiced on its own.'
+                              : 'Try another filter or search.',
+                          actions: [
+                            if (plans.isEmpty)
+                              CruButton(
+                                label: 'New plan',
+                                icon: CruIcons.plus,
+                                onPressed: _newPlan,
+                              ),
+                          ],
                         ),
+                      ),
+                    )
+                  : ListView.separated(
+                      itemCount: shown.length,
+                      separatorBuilder: (_, _) =>
+                          const CruSeparator(indent: 12 + 40 + 12),
+                      itemBuilder: (context, i) => _PlanRow(plan: shown[i]),
+                    ),
             ),
           ),
         ],
@@ -280,7 +327,11 @@ class _PlanRow extends ConsumerWidget {
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final active = plan.items
-        .where((i) => TreatmentPlanItemStatus.fromString(i.status) != TreatmentPlanItemStatus.declined)
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) !=
+              TreatmentPlanItemStatus.declined,
+        )
         .toList();
     final summary = active
         .map((i) {
@@ -290,14 +341,27 @@ class _PlanRow extends ConsumerWidget {
         })
         .join(' · ');
     final done = plan.invoiced.length;
-    final openSum = _PatientPlan.sum(plan.proposed) + _PatientPlan.sum(plan.accepted);
+    final openSum =
+        _PatientPlan.sum(plan.proposed) + _PatientPlan.sum(plan.accepted);
     final Widget pill = plan.proposed.isNotEmpty
-        ? CruPill(text: 'Awaiting yes', background: c.amberTint, foreground: c.amberText)
+        ? CruPill(
+            text: 'Awaiting yes',
+            background: c.amberTint,
+            foreground: c.amberText,
+          )
         : plan.accepted.isNotEmpty
-            ? CruPill(text: 'Accepted', background: c.accentTint, foreground: c.accentText)
-            : plan.invoiced.isNotEmpty
-                ? CruPill(text: 'Done', background: c.greenTint, foreground: c.greenText)
-                : CruPill(text: 'Declined', background: c.inset, foreground: c.label3);
+        ? CruPill(
+            text: 'Accepted',
+            background: c.accentTint,
+            foreground: c.accentText,
+          )
+        : plan.invoiced.isNotEmpty
+        ? CruPill(
+            text: 'Done',
+            background: c.greenTint,
+            foreground: c.greenText,
+          )
+        : CruPill(text: 'Declined', background: c.inset, foreground: c.label3);
     return DentalListRow(
       semanticLabel: '${plan.patient.fullName}, treatment plan',
       minHeight: 64,
@@ -342,10 +406,14 @@ class _PlanRow extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: CruSpace.s16),
-          SizedBox(width: 110, child: Align(alignment: Alignment.centerLeft, child: pill)),
+          SizedBox(
+            width: 110,
+            child: Align(alignment: Alignment.centerLeft, child: pill),
+          ),
           CruCapsuleButton(
             label: 'Open patient',
-            onPressed: () => DashboardActions.openPatient(context, plan.patient),
+            onPressed: () =>
+                DashboardActions.openPatient(context, plan.patient),
           ),
         ],
       ),

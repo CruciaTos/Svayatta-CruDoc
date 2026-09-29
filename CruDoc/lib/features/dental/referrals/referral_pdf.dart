@@ -52,14 +52,22 @@ class ReferralPdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        clinicName.isNotEmpty ? clinicName : 'CruDoc Dental Clinic',
-                        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                        clinicName.isNotEmpty
+                            ? clinicName
+                            : 'CruDoc Dental Clinic',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
                       if (doctorName.isNotEmpty) ...[
                         pw.SizedBox(height: 2),
                         pw.Text(
                           doctorName,
-                          style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+                          style: const pw.TextStyle(
+                            fontSize: 11,
+                            color: PdfColors.grey700,
+                          ),
                         ),
                       ],
                     ],
@@ -72,13 +80,18 @@ class ReferralPdfService {
                         style: pw.TextStyle(
                           fontSize: 12,
                           fontWeight: pw.FontWeight.bold,
-                          color: isReply ? PdfColors.blueGrey800 : PdfColors.blue800,
+                          color: isReply
+                              ? PdfColors.blueGrey800
+                              : PdfColors.blue800,
                         ),
                       ),
                       pw.SizedBox(height: 2),
                       pw.Text(
                         'Date: ${DentalFormat.date(referral.recordedAt)}',
-                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey600,
+                        ),
                       ),
                     ],
                   ),
@@ -93,7 +106,9 @@ class ReferralPdfService {
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(4),
+                  ),
                 ),
                 child: pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -104,19 +119,28 @@ class ReferralPdfService {
                         children: [
                           pw.Text(
                             recipientPrefix,
-                            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
                           ),
                           pw.SizedBox(height: 2),
                           pw.Text(
                             referral.contactName.isNotEmpty
                                 ? referral.contactName
                                 : 'Specialist / Colleague',
-                            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                           ),
                           if (referral.contactSpecialty.isNotEmpty)
                             pw.Text(
                               referral.contactSpecialty,
-                              style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                              style: const pw.TextStyle(
+                                fontSize: 10,
+                                color: PdfColors.grey700,
+                              ),
                             ),
                         ],
                       ),
@@ -127,16 +151,25 @@ class ReferralPdfService {
                         children: [
                           pw.Text(
                             'Patient (Re):',
-                            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
                           ),
                           pw.SizedBox(height: 2),
                           pw.Text(
                             patient.fullName,
-                            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                           ),
                           pw.Text(
                             'Age: ${patient.age} · Sex: ${patient.gender.toUpperCase()} · Phone: ${patient.phone}',
-                            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                            style: const pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey700,
+                            ),
                           ),
                         ],
                       ),
@@ -153,12 +186,18 @@ class ReferralPdfService {
                   children: [
                     pw.Expanded(
                       flex: 3,
-                      child: _itemSection('Reason for referral', referral.reason),
+                      child: _itemSection(
+                        'Reason for referral',
+                        referral.reason,
+                      ),
                     ),
                     pw.SizedBox(width: 12),
                     pw.Expanded(
                       flex: 1,
-                      child: _itemSection('Urgency', referral.urgency.label.toUpperCase()),
+                      child: _itemSection(
+                        'Urgency',
+                        referral.urgency.label.toUpperCase(),
+                      ),
                     ),
                   ],
                 ),
@@ -170,13 +209,19 @@ class ReferralPdfService {
 
                 // Findings
                 if (referral.findings.trim().isNotEmpty) ...[
-                  _itemSection('Clinical Findings & Relevant History', referral.findings),
+                  _itemSection(
+                    'Clinical Findings & Relevant History',
+                    referral.findings,
+                  ),
                   pw.SizedBox(height: 12),
                 ],
 
                 // Specific question / request
                 if (referral.question.trim().isNotEmpty) ...[
-                  _itemSection('Specific Evaluation / Treatment Requested', referral.question),
+                  _itemSection(
+                    'Specific Evaluation / Treatment Requested',
+                    referral.question,
+                  ),
                   pw.SizedBox(height: 12),
                 ],
               ] else ...[
@@ -198,7 +243,10 @@ class ReferralPdfService {
               if (referral.attachments.isNotEmpty) ...[
                 pw.Text(
                   'Attached Files (${referral.attachments.length}):',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
                 pw.SizedBox(height: 4),
                 for (final a in referral.attachments)
@@ -206,7 +254,10 @@ class ReferralPdfService {
                     padding: const pw.EdgeInsets.only(left: 8, bottom: 2),
                     child: pw.Text(
                       '• ${p.basename(a)}',
-                      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey800,
+                      ),
                     ),
                   ),
                 pw.SizedBox(height: 16),
@@ -220,7 +271,10 @@ class ReferralPdfService {
                 children: [
                   pw.Text(
                     'Generated via CruDoc',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                    style: const pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.grey500,
+                    ),
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -228,13 +282,20 @@ class ReferralPdfService {
                       pw.Container(
                         width: 140,
                         decoration: const pw.BoxDecoration(
-                          border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400)),
+                          border: pw.Border(
+                            bottom: pw.BorderSide(color: PdfColors.grey400),
+                          ),
                         ),
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        doctorName.isNotEmpty ? doctorName : 'Doctor\'s Signature',
-                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                        doctorName.isNotEmpty
+                            ? doctorName
+                            : 'Doctor\'s Signature',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -255,10 +316,7 @@ class ReferralPdfService {
       children: [
         pw.Text(
           label,
-          style: const pw.TextStyle(
-            fontSize: 9,
-            color: PdfColors.grey700,
-          ),
+          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
         ),
         pw.SizedBox(height: 2),
         pw.Text(
@@ -277,7 +335,8 @@ class ReferralPdfService {
     bool isReply = false,
   }) async {
     final identity = ref.read(doctorIdentityProvider);
-    final numbering = ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
 
     final bytes = await buildLetter(
       referral: referral,
@@ -289,7 +348,9 @@ class ReferralPdfService {
     );
 
     final appSupport = await getApplicationSupportDirectory();
-    final folder = Directory(p.join(appSupport.path, 'dental', 'referrals', referral.id));
+    final folder = Directory(
+      p.join(appSupport.path, 'dental', 'referrals', referral.id),
+    );
     if (!folder.existsSync()) {
       folder.createSync(recursive: true);
     }
@@ -311,7 +372,8 @@ class ReferralPdfService {
     bool isReply = false,
   }) async {
     final identity = ref.read(doctorIdentityProvider);
-    final numbering = ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
 
     final bytes = await buildLetter(
       referral: referral,

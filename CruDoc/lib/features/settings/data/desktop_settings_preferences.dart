@@ -10,30 +10,39 @@ class DesktopSettingsPreferences {
   static const String _kScribeLanguageKey = 'crudoc.settings.scribe_language';
   static const String _kNoteFormatKey = 'crudoc.settings.note_format';
   static const String _kAutoGenerateRxKey = 'crudoc.settings.auto_generate_rx';
-  static const String _kAutoExtractDiagnosesKey = 'crudoc.settings.auto_extract_diagnoses';
+  static const String _kAutoExtractDiagnosesKey =
+      'crudoc.settings.auto_extract_diagnoses';
   static const String _kAudioQualityKey = 'crudoc.settings.audio_quality';
 
   // Billing & Invoices
   static const String _kCurrencySymbolKey = 'crudoc.settings.currency_symbol';
-  static const String _kDefaultConsultationFeeKey = 'crudoc.settings.default_consultation_fee';
-  static const String _kDefaultFollowUpFeeKey = 'crudoc.settings.default_follow_up_fee';
+  static const String _kDefaultConsultationFeeKey =
+      'crudoc.settings.default_consultation_fee';
+  static const String _kDefaultFollowUpFeeKey =
+      'crudoc.settings.default_follow_up_fee';
   static const String _kGstEnabledKey = 'crudoc.settings.gst_enabled';
   static const String _kGstRateKey = 'crudoc.settings.gst_rate';
   static const String _kInvoicePrefixKey = 'crudoc.settings.invoice_prefix';
-  static const String _kPaymentTermsDaysKey = 'crudoc.settings.payment_terms_days';
-  static const String _kDefaultPaymentModeKey = 'crudoc.settings.default_payment_mode';
+  static const String _kPaymentTermsDaysKey =
+      'crudoc.settings.payment_terms_days';
+  static const String _kDefaultPaymentModeKey =
+      'crudoc.settings.default_payment_mode';
 
   // Notifications & Alerts
   static const String _kLowStockAlertsKey = 'crudoc.settings.low_stock_alerts';
   static const String _kExpiryAlertsKey = 'crudoc.settings.expiry_alerts';
-  static const String _kQueueSoundChimeKey = 'crudoc.settings.queue_sound_chime';
-  static const String _kAppointmentRemindersKey = 'crudoc.settings.appointment_reminders';
-  static const String _kCriticalVitalsAlertKey = 'crudoc.settings.critical_vitals_alert';
+  static const String _kQueueSoundChimeKey =
+      'crudoc.settings.queue_sound_chime';
+  static const String _kAppointmentRemindersKey =
+      'crudoc.settings.appointment_reminders';
+  static const String _kCriticalVitalsAlertKey =
+      'crudoc.settings.critical_vitals_alert';
 
   // Appearance & Desktop
   static const String _kCompactDensityKey = 'crudoc.settings.compact_density';
   static const String _kSoundEffectsKey = 'crudoc.settings.sound_effects';
-  static const String _kHardwareAccelerationKey = 'crudoc.settings.hardware_acceleration';
+  static const String _kHardwareAccelerationKey =
+      'crudoc.settings.hardware_acceleration';
 
   // ---------------- Methods ----------------
 
@@ -51,7 +60,8 @@ class DesktopSettingsPreferences {
   // Note Format
   Future<String> getNoteFormat() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_kNoteFormatKey) ?? 'SOAP (Subjective, Objective, Assessment, Plan)';
+    return prefs.getString(_kNoteFormatKey) ??
+        'SOAP (Subjective, Objective, Assessment, Plan)';
   }
 
   Future<void> setNoteFormat(String format) async {

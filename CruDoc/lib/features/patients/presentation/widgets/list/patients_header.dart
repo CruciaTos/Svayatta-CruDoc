@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_builder.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -44,10 +45,38 @@ class PatientsHeader extends ConsumerWidget {
               height: CruType.text.fontSize! * CruType.text.height!,
               child: subtitle == null
                   ? null
-                  : Text(
-                      subtitle,
-                      style: CruType.text.tabular.tint(c.label2),
-                      maxLines: 1,
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          total == null
+                              ? ''
+                              : DashFormat.plural(total!, 'patient'),
+                          style: CruType.text.tabular.tint(c.label2),
+                          maxLines: 1,
+                        ),
+                        if (newThisMonth > 0) ...[
+                          const SizedBox(width: CruSpace.s10),
+                          Text(
+                            '•',
+                            style: CruType.text.tabular
+                                .copyWith(fontSize: 18, height: 1)
+                                .tint(c.accentText),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(width: CruSpace.s6),
+                          Text(
+                            '$newThisMonth',
+                            style: CruType.text.tabular.tint(c.label2),
+                          ),
+                          const SizedBox(width: CruSpace.s4),
+                          Text(
+                            'new this month',
+                            style: CruType.text.tabular.tint(c.label2),
+                          ),
+                        ],
+                      ],
                     ),
             ),
           ],

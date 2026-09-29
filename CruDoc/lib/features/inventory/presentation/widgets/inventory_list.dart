@@ -121,10 +121,10 @@ class InventoryList extends StatelessWidget {
   }
 
   Widget _headerText(BuildContext context, String text) => Text(
-        text,
-        style: CruType.caption.w600.tint(context.cru.label2),
-        maxLines: 1,
-      );
+    text,
+    style: CruType.caption.w600.tint(context.cru.accentText),
+    maxLines: 1,
+  );
 }
 
 /// The fixed column grid shared by the header and rows.
@@ -241,14 +241,12 @@ class InventoryRow extends StatelessWidget {
             children: [
               TextSpan(
                 text: InventoryFormat.count(item.stock),
-                style: CruType.callout.tabular
-                    .tint(stockText(c, item.stockState)),
+                style: CruType.callout.tabular.tint(
+                  stockText(c, item.stockState),
+                ),
               ),
               if (unit.isNotEmpty)
-                TextSpan(
-                  text: ' $unit',
-                  style: CruType.text.tint(c.label2),
-                ),
+                TextSpan(text: ' $unit', style: CruType.text.tint(c.label2)),
             ],
           ),
           maxLines: 1,
@@ -270,9 +268,9 @@ class InventoryRow extends StatelessWidget {
       final urgent = daysLeft <= 7;
       lastsCell = Text(
         InventoryFormat.lasts(daysLeft, outOfStock: item.outOfStock),
-        style: (urgent ? CruType.text.w600 : CruType.text)
-            .tabular
-            .tint(urgent ? c.amberText : c.label),
+        style: (urgent ? CruType.text.w600 : CruType.text).tabular.tint(
+          urgent ? c.amberText : c.label,
+        ),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       );

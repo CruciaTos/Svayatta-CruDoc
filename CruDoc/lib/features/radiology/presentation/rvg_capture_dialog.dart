@@ -21,21 +21,17 @@ Future<void> showRvgCaptureDialog(
   BuildContext context, {
   Patient? initialPatient,
   int initialTooth = 36,
-}) =>
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _RvgCaptureDialog(
-        initialPatient: initialPatient,
-        initialTooth: initialTooth,
-      ),
-    );
+}) => showDialog<void>(
+  context: context,
+  barrierDismissible: false,
+  builder: (_) => _RvgCaptureDialog(
+    initialPatient: initialPatient,
+    initialTooth: initialTooth,
+  ),
+);
 
 class _RvgCaptureDialog extends ConsumerStatefulWidget {
-  const _RvgCaptureDialog({
-    this.initialPatient,
-    this.initialTooth = 36,
-  });
+  const _RvgCaptureDialog({this.initialPatient, this.initialTooth = 36});
 
   final Patient? initialPatient;
   final int initialTooth;
@@ -204,9 +200,9 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
     nav.pop();
 
     unawaited(ctrl.openedStudy(study));
-    await nav.push(radRoute<void>(
-      RadViewerScreen(studyId: study.id, initialStudy: study),
-    ));
+    await nav.push(
+      radRoute<void>(RadViewerScreen(studyId: study.id, initialStudy: study)),
+    );
   }
 
   @override
@@ -214,10 +210,7 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
     return DentalPanelDialog(
       title: 'RVG Sensor Capture',
       subtitle: 'Direct digital X-ray capture from intraoral sensor',
-      leading: const CruIconTile(
-        icon: RadIcons.xray,
-        tone: CruTileTone.accent,
-      ),
+      leading: const CruIconTile(icon: RadIcons.xray, tone: CruTileTone.accent),
       width: CruSize.dialog + 260,
       body: SingleChildScrollView(
         child: Padding(
@@ -304,13 +297,20 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Row(
                   children: [
-                    CruIcon(RadIcons.referrer, size: 20, color: context.cru.accent),
+                    CruIcon(
+                      RadIcons.referrer,
+                      size: 20,
+                      color: context.cru.accent,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Patient', style: CruType.caption.tint(context.cru.label2)),
+                          Text(
+                            'Patient',
+                            style: CruType.caption.tint(context.cru.label2),
+                          ),
                           Text(
                             _patient?.fullName ?? 'Click to select patient',
                             style: CruType.callout.w600.tint(context.cru.label),
@@ -330,7 +330,11 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
             child: _loadingDevices
                 ? const Row(
                     children: [
-                      SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                      SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                       SizedBox(width: 8),
                       Text('Scanning for sensors...'),
                     ],
@@ -347,7 +351,9 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                               CruIcon(
                                 d.isSimulator ? RadIcons.server : RadIcons.xray,
                                 size: 18,
-                                color: d.isSimulator ? context.cru.amber : context.cru.accent,
+                                color: d.isSimulator
+                                    ? context.cru.amber
+                                    : context.cru.accent,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -364,7 +370,8 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                       onChanged: _status.state.isCapturing
                           ? null
                           : (dev) {
-                              if (dev != null) setState(() => _selectedDevice = dev);
+                              if (dev != null)
+                                setState(() => _selectedDevice = dev);
                             },
                     ),
                   ),
@@ -386,7 +393,10 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Target Tooth (FDI notation)', style: CruType.caption.tint(context.cru.label2)),
+            Text(
+              'Target Tooth (FDI notation)',
+              style: CruType.caption.tint(context.cru.label2),
+            ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
@@ -417,26 +427,35 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                   children: row.map((t) {
                     final sel = t == _tooth;
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 2,
+                        vertical: 2,
+                      ),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(4),
-                        onTap: _status.state.isCapturing ? null : () => setState(() => _tooth = t),
+                        onTap: _status.state.isCapturing
+                            ? null
+                            : () => setState(() => _tooth = t),
                         child: Container(
                           width: 32,
                           height: 28,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: sel ? context.cru.accent : context.cru.surface,
+                            color: sel
+                                ? context.cru.accent
+                                : context.cru.surface,
                             borderRadius: BorderRadius.circular(4),
                             border: Border.all(
-                              color: sel ? context.cru.accent : context.cru.hairline,
+                              color: sel
+                                  ? context.cru.accent
+                                  : context.cru.hairline,
                             ),
                           ),
                           child: Text(
                             '$t',
                             style: CruType.caption.w600.tint(
-                                  sel ? context.cru.onAccent : context.cru.label,
-                                ),
+                              sel ? context.cru.onAccent : context.cru.label,
+                            ),
                           ),
                         ),
                       ),
@@ -465,15 +484,15 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.memory(
-                _result!.imageBytes,
-                fit: BoxFit.contain,
-              ),
+              Image.memory(_result!.imageBytes, fit: BoxFit.contain),
               Positioned(
                 top: 12,
                 left: 12,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.75),
                     borderRadius: BorderRadius.circular(CruRadius.full),
@@ -482,7 +501,11 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.check_circle, size: 16, color: Colors.greenAccent),
+                      const Icon(
+                        Icons.check_circle,
+                        size: 16,
+                        color: Colors.greenAccent,
+                      ),
                       const SizedBox(width: 6),
                       Text(
                         'Tooth #$_tooth IOPA · ${_result!.width}x${_result!.height} · ${_selectedDevice?.name}',
@@ -521,7 +544,9 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                       height: 90,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: context.cru.amber.withValues(alpha: 0.3 * (1 - _pulseController.value)),
+                        color: context.cru.amber.withValues(
+                          alpha: 0.3 * (1 - _pulseController.value),
+                        ),
                       ),
                     ),
                     Container(
@@ -532,7 +557,11 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
                         color: context.cru.amber,
                       ),
                       child: Center(
-                        child: CruIcon(RadIcons.dose, size: 36, color: Colors.black),
+                        child: CruIcon(
+                          RadIcons.dose,
+                          size: 36,
+                          color: Colors.black,
+                        ),
                       ),
                     ),
                   ],
@@ -559,7 +588,8 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
       );
     }
 
-    if (_status.state == RvgState.exposed || _status.state == RvgState.transferring) {
+    if (_status.state == RvgState.exposed ||
+        _status.state == RvgState.transferring) {
       return Container(
         height: 320,
         decoration: BoxDecoration(
@@ -573,7 +603,10 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
             SizedBox(
               width: 50,
               height: 50,
-              child: CircularProgressIndicator(strokeWidth: 4, color: context.cru.accent),
+              child: CircularProgressIndicator(
+                strokeWidth: 4,
+                color: context.cru.accent,
+              ),
             ),
             const SizedBox(height: 20),
             Text(
@@ -581,10 +614,7 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
               style: CruType.headline.w600.tint(context.cru.accentText),
             ),
             const SizedBox(height: 6),
-            Text(
-              _status.message,
-              style: CruType.body.tint(context.cru.label),
-            ),
+            Text(_status.message, style: CruType.body.tint(context.cru.label)),
           ],
         ),
       );
@@ -609,7 +639,11 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
               border: Border.all(color: context.cru.hairline),
             ),
             child: Center(
-              child: CruIcon(RadIcons.xray, size: 32, color: context.cru.accent),
+              child: CruIcon(
+                RadIcons.xray,
+                size: 32,
+                color: context.cru.accent,
+              ),
             ),
           ),
           const SizedBox(height: 14),

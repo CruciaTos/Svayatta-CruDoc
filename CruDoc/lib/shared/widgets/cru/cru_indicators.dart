@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/core/theme/cru_theme.dart';
@@ -53,7 +54,7 @@ class CruStatusDot extends StatelessWidget {
   }
 }
 
-/// Grey initials avatar. Never coloured, so it never competes with status.
+/// Initials avatar with deterministic person-specific color palettes.
 class CruMonogram extends StatelessWidget {
   const CruMonogram({
     super.key,
@@ -61,16 +62,26 @@ class CruMonogram extends StatelessWidget {
     this.size = CruSize.monogramRow,
     this.background,
     this.foreground,
+    this.imageUrl,
+    this.vibrant = false,
+    this.showRing = true,
   });
 
   final String name;
   final double size;
+  final String? imageUrl;
 
-  /// Defaults to track.
+  /// Defaults to a person-specific palette when no custom colors are supplied.
   final Color? background;
 
-  /// Defaults to label2.
+  /// Defaults to a matching high-contrast text color.
   final Color? foreground;
+
+  /// When true, uses a name-derived palette even if custom colors are set.
+  final bool vibrant;
+
+  /// Draws a subtle ring around the avatar without changing its dimensions.
+  final bool showRing;
 
   static const _titles = {'dr', 'mr', 'mrs', 'ms', 'prof'};
 
@@ -87,26 +98,97 @@ class CruMonogram extends StatelessWidget {
     return '${parts.first[0]}${parts.last[0]}'.toUpperCase();
   }
 
+  static (Color bg, Color fg) vibrantColorsOf(String name, bool isEvening) {
+    const dayPalettes = [
+      (Color(0xFF4039A0), Color(0xFFE0E7FF)), // Indigo
+      (Color(0xFF0A694C), Color(0xFFBBF7D0)), // Emerald
+      (Color(0xFF93410F), Color(0xFFFEF3C7)), // Amber
+      (Color(0xFF6D269C), Color(0xFFF3E8FF)), // Purple
+      (Color(0xFFA01848), Color(0xFFFFE4E6)), // Rose
+      (Color(0xFF155D86), Color(0xFFE0F2FE)), // Sky
+      (Color(0xFF17615B), Color(0xFFCCFBF1)), // Teal
+    ];
+    const eveningPalettes = [
+      (Color(0xFF4039A0), Color(0xFFE0E7FF)), // Indigo
+      (Color(0xFF0A694C), Color(0xFFBBF7D0)), // Emerald
+      (Color(0xFF93410F), Color(0xFFFEF3C7)), // Amber
+      (Color(0xFF6D269C), Color(0xFFF3E8FF)), // Purple
+      (Color(0xFFA01848), Color(0xFFFFE4E6)), // Rose
+      (Color(0xFF155D86), Color(0xFFE0F2FE)), // Sky
+      (Color(0xFF17615B), Color(0xFFCCFBF1)), // Teal
+    ];
+    final normalizedName = name.trim().toLowerCase();
+    final hash = normalizedName.codeUnits.fold(
+      0,
+      (acc, c) => (acc * 31 + c) & 0x7FFFFFFF,
+    );
+    final palettes = isEvening ? dayPalettes : eveningPalettes;
+    return palettes[hash % palettes.length];
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return ExcludeSemantics(
-      child: Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: background ?? c.track,
-        ),
-        child: Text(
-          initialsOf(name),
-          style: CruType.monogram(size * 0.37).copyWith(
-            color: foreground ?? c.label2,
-          ),
-        ),
+    final useVibrantPalette =
+      vibrant || (background == null && foreground == null);
+    final (vibrantBg, vibrantFg) = useVibrantPalette
+        ? vibrantColorsOf(name, c.isEvening)
+        : (c.track, c.label2);
+    final resolvedBg = background ?? vibrantBg;
+    final resolvedFg = foreground ?? vibrantFg;
+
+    final fallback = Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(shape: BoxShape.circle, color: resolvedBg),
+      child: Text(
+        initialsOf(name),
+        style: CruType.monogram(size * 0.37).copyWith(color: resolvedFg),
       ),
     );
+
+    final ringWidth = size >= 32 ? 1.0 : 0.75;
+    Widget withRing(Widget child) => SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ClipOval(child: child),
+          if (showRing)
+            IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: resolvedFg.withValues(alpha: 0.35),
+                    width: ringWidth,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    final image = imageUrl?.trim();
+    if (image != null && image.isNotEmpty) {
+      return ExcludeSemantics(
+        child: withRing(
+          CachedNetworkImage(
+            imageUrl: image,
+            width: size,
+            height: size,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => fallback,
+            errorWidget: (context, url, error) => fallback,
+          ),
+        ),
+      );
+    }
+
+    return ExcludeSemantics(child: withRing(fallback));
   }
 }
 

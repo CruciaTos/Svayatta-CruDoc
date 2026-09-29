@@ -107,7 +107,9 @@ class VoiceTranscriptionService {
 
       final file = File(path);
       if (!await file.exists()) {
-        throw const VoiceTranscriptionException('Audio file could not be found.');
+        throw const VoiceTranscriptionException(
+          'Audio file could not be found.',
+        );
       }
 
       final fileSizeBytes = await file.length();
@@ -179,14 +181,14 @@ class VoiceTranscriptionService {
 
     // Try Firebase AI first
     try {
-      final model = FirebaseAI.googleAI().generativeModel(
-        model: _model,
-      );
+      final model = FirebaseAI.googleAI().generativeModel(model: _model);
 
       final audioPart = InlineDataPart('audio/mp4', audioBytes);
-      final response = await model.generateContent([
-        Content.multi([TextPart(prompt), audioPart]),
-      ]).timeout(const Duration(seconds: 8));
+      final response = await model
+          .generateContent([
+            Content.multi([TextPart(prompt), audioPart]),
+          ])
+          .timeout(const Duration(seconds: 8));
 
       final text = response.text?.trim() ?? '';
       if (text.isNotEmpty) {
@@ -198,13 +200,13 @@ class VoiceTranscriptionService {
 
     // 2. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('transcribeVoiceAudio');
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'asia-south1',
+      ).httpsCallable('transcribeVoiceAudio');
       final base64Audio = base64Encode(audioBytes);
-      final result = await callable.call({
-        'audioBase64': base64Audio,
-        'mimeType': 'audio/mp4',
-      }).timeout(const Duration(seconds: 12));
+      final result = await callable
+          .call({'audioBase64': base64Audio, 'mimeType': 'audio/mp4'})
+          .timeout(const Duration(seconds: 12));
 
       final data = result.data;
       if (data is Map && data['text'] is String) {
@@ -214,7 +216,9 @@ class VoiceTranscriptionService {
         }
       }
     } catch (e) {
-      debugPrint('[VoiceTranscriptionService] Cloud Function transcription note: $e');
+      debugPrint(
+        '[VoiceTranscriptionService] Cloud Function transcription note: $e',
+      );
     }
 
     // 3. Optional Direct REST Fallback (only if explicit developer key provided via --dart-define)
@@ -224,30 +228,32 @@ class VoiceTranscriptionService {
         final url = Uri.parse('$_baseUrl/$_model:generateContent?key=$apiKey');
         final base64Audio = base64Encode(audioBytes);
 
-        final response = await http.post(
-          url,
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'contents': [
-              {
-                'role': 'user',
-                'parts': [
-                  {'text': prompt},
+        final response = await http
+            .post(
+              url,
+              headers: {'Content-Type': 'application/json'},
+              body: jsonEncode({
+                'contents': [
                   {
-                    'inline_data': {
-                      'mime_type': 'audio/mp4',
-                      'data': base64Audio,
-                    }
-                  }
-                ]
-              }
-            ],
-            'generationConfig': {
-              'temperature': 0.1,
-              'maxOutputTokens': 256,
-            },
-          }),
-        ).timeout(const Duration(seconds: 8));
+                    'role': 'user',
+                    'parts': [
+                      {'text': prompt},
+                      {
+                        'inline_data': {
+                          'mime_type': 'audio/mp4',
+                          'data': base64Audio,
+                        },
+                      },
+                    ],
+                  },
+                ],
+                'generationConfig': {
+                  'temperature': 0.1,
+                  'maxOutputTokens': 256,
+                },
+              }),
+            )
+            .timeout(const Duration(seconds: 8));
 
         if (response.statusCode == 200) {
           final body = jsonDecode(response.body) as Map<String, dynamic>;

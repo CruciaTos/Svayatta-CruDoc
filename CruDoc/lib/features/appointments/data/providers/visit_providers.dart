@@ -12,46 +12,36 @@ final visitRepositoryProvider = Provider<VisitRepository>(
 
 /// Streams patientId -> their most recent visit that has already
 /// occurred, refreshed automatically after every visit write.
-final lastVisitPerPatientProvider = StreamProvider<Map<String, Visit>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(visitRepositoryProvider).watchLastVisitPerPatient();
-  },
-);
+final lastVisitPerPatientProvider = StreamProvider<Map<String, Visit>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(visitRepositoryProvider).watchLastVisitPerPatient();
+});
 
 /// Streams upcoming scheduled visits, soonest first.
-final upcomingVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(visitRepositoryProvider).watchUpcomingVisits();
-  },
-);
+final upcomingVisitsProvider = StreamProvider<List<Visit>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(visitRepositoryProvider).watchUpcomingVisits();
+});
 
 /// Streams today's scheduled visits (clinic + home combined), soonest
 /// first.
-final todaysVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(visitRepositoryProvider).watchTodaysVisits();
-  },
-);
+final todaysVisitsProvider = StreamProvider<List<Visit>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(visitRepositoryProvider).watchTodaysVisits();
+});
 
 /// Streams the most recently created/updated visits (any status),
 /// newest first. Feeds the dashboard's "Recent Activity" card.
-final recentVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(visitRepositoryProvider).watchRecentVisits();
-  },
-);
+final recentVisitsProvider = StreamProvider<List<Visit>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(visitRepositoryProvider).watchRecentVisits();
+});
 
 /// Streams ALL non-deleted visits (past, present, future) for calendar view.
-final allVisitsProvider = StreamProvider<List<Visit>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(visitRepositoryProvider).watchAllVisits();
-  },
-);
+final allVisitsProvider = StreamProvider<List<Visit>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(visitRepositoryProvider).watchAllVisits();
+});
 
 /// Streams a single patient's visit history, most recent first. Family
 /// parameter is the patientId. Used by the patient details screen (real
@@ -77,90 +67,99 @@ class VisitWithPatient {
 /// `patientsStreamProvider`, so screens never need to do their own
 /// patient lookups. Recomputes whenever either the visits list or the
 /// patients list changes.
-final visitsWithPatientsProvider =
-    Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
-  final visitsAsync = ref.watch(upcomingVisitsProvider);
-  final patientsAsync = ref.watch(patientsStreamProvider);
+final visitsWithPatientsProvider = Provider<AsyncValue<List<VisitWithPatient>>>(
+  (ref) {
+    final visitsAsync = ref.watch(upcomingVisitsProvider);
+    final patientsAsync = ref.watch(patientsStreamProvider);
 
-  if (visitsAsync.isLoading || patientsAsync.isLoading) {
-    return const AsyncValue.loading();
-  }
-  if (visitsAsync.hasError) {
-    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
-  }
-  if (patientsAsync.hasError) {
-    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
-  }
+    if (visitsAsync.isLoading || patientsAsync.isLoading) {
+      return const AsyncValue.loading();
+    }
+    if (visitsAsync.hasError) {
+      return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
+    }
+    if (patientsAsync.hasError) {
+      return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
+    }
 
-  final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
-  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
+    final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
+    final patientsById = {for (final p in patientsAsync.value!) p.id: p};
 
-  final combined = visits
-      .where((v) => patientsById.containsKey(v.patientId))
-      .map(
-        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
-      )
-      .toList();
+    final combined = visits
+        .where((v) => patientsById.containsKey(v.patientId))
+        .map(
+          (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
+        )
+        .toList();
 
-  return AsyncValue.data(combined);
-});
+    return AsyncValue.data(combined);
+  },
+);
 
 /// Joins [todaysVisitsProvider] with patient data — the dashboard's
 /// "Today's Visits" card equivalent of [visitsWithPatientsProvider].
 final todaysVisitsWithPatientsProvider =
     Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
-  final visitsAsync = ref.watch(todaysVisitsProvider);
-  final patientsAsync = ref.watch(patientsStreamProvider);
+      final visitsAsync = ref.watch(todaysVisitsProvider);
+      final patientsAsync = ref.watch(patientsStreamProvider);
 
-  if (visitsAsync.isLoading || patientsAsync.isLoading) {
-    return const AsyncValue.loading();
-  }
-  if (visitsAsync.hasError) {
-    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
-  }
-  if (patientsAsync.hasError) {
-    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
-  }
+      if (visitsAsync.isLoading || patientsAsync.isLoading) {
+        return const AsyncValue.loading();
+      }
+      if (visitsAsync.hasError) {
+        return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
+      }
+      if (patientsAsync.hasError) {
+        return AsyncValue.error(
+          patientsAsync.error!,
+          patientsAsync.stackTrace!,
+        );
+      }
 
-  final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
-  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
+      final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
+      final patientsById = {for (final p in patientsAsync.value!) p.id: p};
 
-  final combined = visits
-      .where((v) => patientsById.containsKey(v.patientId))
-      .map(
-        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
-      )
-      .toList();
+      final combined = visits
+          .where((v) => patientsById.containsKey(v.patientId))
+          .map(
+            (v) =>
+                VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
+          )
+          .toList();
 
-  return AsyncValue.data(combined);
-});
+      return AsyncValue.data(combined);
+    });
 
 /// Joins [allVisitsProvider] with patient data for calendar views
 /// showing past, present, and future appointments.
 final allVisitsWithPatientsProvider =
     Provider<AsyncValue<List<VisitWithPatient>>>((ref) {
-  final visitsAsync = ref.watch(allVisitsProvider);
-  final patientsAsync = ref.watch(patientsStreamProvider);
+      final visitsAsync = ref.watch(allVisitsProvider);
+      final patientsAsync = ref.watch(patientsStreamProvider);
 
-  if (visitsAsync.isLoading || patientsAsync.isLoading) {
-    return const AsyncValue.loading();
-  }
-  if (visitsAsync.hasError) {
-    return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
-  }
-  if (patientsAsync.hasError) {
-    return AsyncValue.error(patientsAsync.error!, patientsAsync.stackTrace!);
-  }
+      if (visitsAsync.isLoading || patientsAsync.isLoading) {
+        return const AsyncValue.loading();
+      }
+      if (visitsAsync.hasError) {
+        return AsyncValue.error(visitsAsync.error!, visitsAsync.stackTrace!);
+      }
+      if (patientsAsync.hasError) {
+        return AsyncValue.error(
+          patientsAsync.error!,
+          patientsAsync.stackTrace!,
+        );
+      }
 
-  final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
-  final patientsById = {for (final p in patientsAsync.value!) p.id: p};
+      final visits = visitsAsync.value!.where((v) => !v.isDeleted).toList();
+      final patientsById = {for (final p in patientsAsync.value!) p.id: p};
 
-  final combined = visits
-      .where((v) => patientsById.containsKey(v.patientId))
-      .map(
-        (v) => VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
-      )
-      .toList();
+      final combined = visits
+          .where((v) => patientsById.containsKey(v.patientId))
+          .map(
+            (v) =>
+                VisitWithPatient(visit: v, patient: patientsById[v.patientId]),
+          )
+          .toList();
 
-  return AsyncValue.data(combined);
-});
+      return AsyncValue.data(combined);
+    });

@@ -17,10 +17,12 @@ class GeneratedDocument {
     required this.bytes,
     required String fileName,
     String mimeType = 'application/pdf',
-  })  : fileName = _sanitizeFileName(fileName),
-        mimeType = _validateMimeType(mimeType) {
+  }) : fileName = _sanitizeFileName(fileName),
+       mimeType = _validateMimeType(mimeType) {
     if (bytes.isEmpty) {
-      throw const GmailValidationException('Attachment cannot be empty (0 bytes).');
+      throw const GmailValidationException(
+        'Attachment cannot be empty (0 bytes).',
+      );
     }
     if (bytes.lengthInBytes > maxSizeBytes) {
       throw GmailValidationException(
@@ -50,7 +52,13 @@ class GeneratedDocument {
     // Remove control characters (including CRLF)
     clean = clean.replaceAll(RegExp(r'[\r\n\x00-\x1F\x7F]'), '');
     // Remove quotes
-    clean = clean.replaceAll(RegExp(r'["'']'), '');
+    clean = clean.replaceAll(
+      RegExp(
+        r'["'
+        ']',
+      ),
+      '',
+    );
     // Remove leading dots
     clean = clean.replaceFirst(RegExp(r'^\.+'), '');
 

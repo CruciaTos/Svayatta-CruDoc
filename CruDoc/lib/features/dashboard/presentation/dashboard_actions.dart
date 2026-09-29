@@ -103,47 +103,50 @@ abstract final class DesktopTab {
 
   /// Sidebar name, for "‹ Schedule" style back links.
   static String label(int tab) => switch (tab) {
-        dashboard => 'Dashboard',
-        patients => 'Patients',
-        inventory => 'Inventory',
-        revenue => 'Revenue',
-        appointments || queue => 'Schedule',
-        campaigns => 'Campaigns',
-        scribe => 'Scribe',
-        settings => 'Settings',
-        treatmentPlans => 'Treatment plans',
-        sterilization => 'Sterilization',
-        procedures => 'Procedures',
-        worklist => 'Worklist',
-        reports => 'Reports',
-        referrers => 'Referrers',
-        recalls => 'Recalls',
-        perioPatients => 'Perio patients',
-        rootCanals => 'Root canals',
-        dentalReferrals => 'Referrals',
-        pedoChildren => 'Children',
-        biopsies => 'Biopsies',
-        oralMedLesions => 'Lesions',
-        oralMedForms => 'Forms',
-        sedationCases => 'Sedation cases',
-        labCases => 'Lab cases',
-        orthoPatients => 'Ortho patients',
-        healthCamps => 'Camps',
-        population => 'Population',
-        surgeries => 'Surgeries',
-        implants => 'Implants',
-        emergency => 'Emergency',
-        _ => 'Back',
-      };
+    dashboard => 'Dashboard',
+    patients => 'Patients',
+    inventory => 'Inventory',
+    revenue => 'Revenue',
+    appointments || queue => 'Schedule',
+    campaigns => 'Campaigns',
+    scribe => 'Scribe',
+    settings => 'Settings',
+    treatmentPlans => 'Treatment plans',
+    sterilization => 'Sterilization',
+    procedures => 'Procedures',
+    worklist => 'Worklist',
+    reports => 'Reports',
+    referrers => 'Referrers',
+    recalls => 'Recalls',
+    perioPatients => 'Perio patients',
+    rootCanals => 'Root canals',
+    dentalReferrals => 'Referrals',
+    pedoChildren => 'Children',
+    biopsies => 'Biopsies',
+    oralMedLesions => 'Lesions',
+    oralMedForms => 'Forms',
+    sedationCases => 'Sedation cases',
+    labCases => 'Lab cases',
+    orthoPatients => 'Ortho patients',
+    healthCamps => 'Camps',
+    population => 'Population',
+    surgeries => 'Surgeries',
+    implants => 'Implants',
+    emergency => 'Emergency',
+    _ => 'Back',
+  };
 }
 
 /// The desktop shell's tab switch while it is on screen: returns false
 /// once the shell is gone. Null outside the desktop shell (the phone).
-final shellNavigatorProvider =
-    StateProvider<bool Function(int tab)?>((ref) => null);
+final shellNavigatorProvider = StateProvider<bool Function(int tab)?>(
+  (ref) => null,
+);
 
 /// The tab the desktop shell is showing.
-final shellCurrentTabProvider = StateProvider<int>((ref) => DesktopTab.dashboard);
+final shellCurrentTabProvider = StateProvider<int>(
+  (ref) => DesktopTab.dashboard,
+);
 
 /// Where patient details go back to when opened from another screen
 /// ("Open patient" in Schedule); null when opened from the Patients list.
@@ -207,8 +210,8 @@ abstract final class DashboardActions {
   }) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     void say(String m) => messenger?.showSnackBar(
-          SnackBar(content: Text(m), behavior: SnackBarBehavior.floating),
-        );
+      SnackBar(content: Text(m), behavior: SnackBarBehavior.floating),
+    );
 
     if (upNext.servingName != null) {
       say('Finish the consultation with ${upNext.servingName} first.');
@@ -216,8 +219,10 @@ abstract final class DashboardActions {
       return;
     }
     if (!upNext.isNextInCallOrder) {
-      say('Another token is ahead in the queue order. Call ${upNext.name} '
-          'from the Queue screen.');
+      say(
+        'Another token is ahead in the queue order. Call ${upNext.name} '
+        'from the Queue screen.',
+      );
       navigate(DesktopTab.queue);
       return;
     }
@@ -234,13 +239,21 @@ abstract final class DashboardActions {
   }
 
   static Future<void> skip(BuildContext context, WidgetRef ref, UpNextData u) =>
-      _run(context, () => ref.read(queueRepositoryProvider).skip(u.entryId),
-          '${u.name} moved out of the line. Requeue from the Queue screen.');
+      _run(
+        context,
+        () => ref.read(queueRepositoryProvider).skip(u.entryId),
+        '${u.name} moved out of the line. Requeue from the Queue screen.',
+      );
 
   static Future<void> cancel(
-          BuildContext context, WidgetRef ref, UpNextData u) =>
-      _run(context, () => ref.read(queueRepositoryProvider).cancel(u.entryId),
-          'Token cancelled for ${u.name}.');
+    BuildContext context,
+    WidgetRef ref,
+    UpNextData u,
+  ) => _run(
+    context,
+    () => ref.read(queueRepositoryProvider).cancel(u.entryId),
+    'Token cancelled for ${u.name}.',
+  );
 
   static Future<void> _run(
     BuildContext context,
@@ -250,15 +263,13 @@ abstract final class DashboardActions {
     final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       await action();
-      messenger?.showSnackBar(SnackBar(
-        content: Text(done),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger?.showSnackBar(
+        SnackBar(content: Text(done), behavior: SnackBarBehavior.floating),
+      );
     } catch (e) {
-      messenger?.showSnackBar(SnackBar(
-        content: Text('$e'),
-        behavior: SnackBarBehavior.floating,
-      ));
+      messenger?.showSnackBar(
+        SnackBar(content: Text('$e'), behavior: SnackBarBehavior.floating),
+      );
     }
   }
 }

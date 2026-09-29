@@ -15,8 +15,10 @@ import 'package:doctor_management_app/core/services/auth_providers.dart';
 class MapsKey {
   MapsKey._();
 
-  static const String _builtIn =
-      String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: '');
+  static const String _builtIn = String.fromEnvironment(
+    'GOOGLE_MAPS_API_KEY',
+    defaultValue: '',
+  );
 
   /// Where the doctor's app reads the saved key from.
   static const String collection = 'system_config';

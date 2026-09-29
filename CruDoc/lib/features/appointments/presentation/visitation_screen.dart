@@ -5,7 +5,8 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:doctor_management_app/features/appointments/widgets/visitation_card.dart';
 import 'package:doctor_management_app/features/appointments/widgets/appointment_card.dart';
 
-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
+    as vmodel;
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
@@ -79,8 +80,12 @@ Widget _buildSheetActions({
   );
 }
 
-Widget _buildTextField(String label, TextEditingController controller,
-    {String? hint, ValueChanged<String>? onChanged}) {
+Widget _buildTextField(
+  String label,
+  TextEditingController controller, {
+  String? hint,
+  ValueChanged<String>? onChanged,
+}) {
   return TextField(
     controller: controller,
     onChanged: onChanged,
@@ -116,7 +121,10 @@ Widget _buildTextField(String label, TextEditingController controller,
 }
 
 Widget _buildPickDateButton(
-    BuildContext context, DateTime date, ValueChanged<DateTime?> onPicked) {
+  BuildContext context,
+  DateTime date,
+  ValueChanged<DateTime?> onPicked,
+) {
   final dateStr = '${date.day} ${_monthName(date.month)} ${date.year}';
   return InkWell(
     onTap: () async {
@@ -149,15 +157,13 @@ Widget _buildPickDateButton(
       ),
       child: Row(
         children: [
-          const Icon(Icons.calendar_today_outlined,
-              color: AppColors.chartBarLight, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              dateStr,
-              style: AppColors.bodyMedium,
-            ),
+          const Icon(
+            Icons.calendar_today_outlined,
+            color: AppColors.chartBarLight,
+            size: 18,
           ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(dateStr, style: AppColors.bodyMedium)),
           const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         ],
       ),
@@ -166,7 +172,10 @@ Widget _buildPickDateButton(
 }
 
 Widget _buildPickTimeButton(
-    BuildContext context, TimeOfDay time, ValueChanged<TimeOfDay?> onPicked) {
+  BuildContext context,
+  TimeOfDay time,
+  ValueChanged<TimeOfDay?> onPicked,
+) {
   final timeStr = time.format(context);
   return InkWell(
     onTap: () async {
@@ -197,14 +206,13 @@ Widget _buildPickTimeButton(
       ),
       child: Row(
         children: [
-          const Icon(Icons.access_time, color: AppColors.chartBarLight, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              timeStr,
-              style: AppColors.bodyMedium,
-            ),
+          const Icon(
+            Icons.access_time,
+            color: AppColors.chartBarLight,
+            size: 18,
           ),
+          const SizedBox(width: 10),
+          Expanded(child: Text(timeStr, style: AppColors.bodyMedium)),
           const Icon(Icons.chevron_right, color: AppColors.textSecondary),
         ],
       ),
@@ -213,14 +221,16 @@ Widget _buildPickTimeButton(
 }
 
 Widget _buildDurationDropdown(
-    String currentValue, ValueChanged<String?> onChanged) {
+  String currentValue,
+  ValueChanged<String?> onChanged,
+) {
   const durations = [
     '15 min',
     '30 min',
     '45 min',
     '60 min',
     '90 min',
-    '120 min'
+    '120 min',
   ];
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -260,7 +270,7 @@ String _monthName(int month) {
     'September',
     'October',
     'November',
-    'December'
+    'December',
   ];
   return months[month];
 }
@@ -274,7 +284,7 @@ String _dayName(int weekday) {
     'Thursday',
     'Friday',
     'Saturday',
-    'Sunday'
+    'Sunday',
   ];
   return days[weekday];
 }
@@ -290,7 +300,7 @@ class _VisitDraft {
   final double? latitude;
   final double? longitude;
   final String? mapsLink;
-  final vmodel.VisitType visitType;   // merged: added visitType field
+  final vmodel.VisitType visitType; // merged: added visitType field
   const _VisitDraft({
     required this.patient,
     required this.typedName,
@@ -301,7 +311,7 @@ class _VisitDraft {
     this.latitude,
     this.longitude,
     this.mapsLink,
-    required this.visitType,          // merged: required
+    required this.visitType, // merged: required
   });
 }
 
@@ -369,9 +379,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
 
   void _showError(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _addOnlineSession() async {
@@ -392,12 +402,14 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
         '${draft.date.day} ${_monthName(draft.date.month)} ${draft.date.year}';
     final timeStr = draft.time.format(context);
     setState(() {
-      onlineSessions.add(OnlineSession(
-        title: draft.title,
-        date: dateStr,
-        time: timeStr,
-        link: draft.link,
-      ));
+      onlineSessions.add(
+        OnlineSession(
+          title: draft.title,
+          date: dateStr,
+          time: timeStr,
+          link: draft.link,
+        ),
+      );
     });
   }
 
@@ -410,9 +422,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      builder: (context) => _AddVisitSheet(
-        patientRepository: _patientRepository,
-      ),
+      builder: (context) =>
+          _AddVisitSheet(patientRepository: _patientRepository),
     );
     if (draft == null) return;
     if (!mounted) return;
@@ -427,7 +438,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       );
       final exactMatches = matches
           .where(
-              (p) => p.fullName.toLowerCase() == draft.typedName.toLowerCase())
+            (p) => p.fullName.toLowerCase() == draft.typedName.toLowerCase(),
+          )
           .toList();
       if (exactMatches.length == 1) {
         patient = exactMatches.first;
@@ -443,7 +455,8 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       return;
     }
 
-    final dateStr = '${draft.scheduledDate.day} '
+    final dateStr =
+        '${draft.scheduledDate.day} '
         '${_monthName(draft.scheduledDate.month)} '
         '${draft.scheduledDate.year}';
     final dayStr = _dayName(draft.scheduledDate.weekday);
@@ -468,7 +481,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       timeStr: timeStr,
       durationLabel: draft.duration,
       mapsLink: draft.mapsLink,
-      visitType: draft.visitType,   // merged: pass visit type
+      visitType: draft.visitType, // merged: pass visit type
     );
   }
 
@@ -484,7 +497,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
     required String timeStr,
     required String durationLabel,
     String? mapsLink,
-    required vmodel.VisitType visitType,   // merged: required param
+    required vmodel.VisitType visitType, // merged: required param
     bool acknowledgeOverlap = false,
   }) async {
     final now = DateTime.now();
@@ -497,7 +510,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       latitude: latitude,
       longitude: longitude,
       mapsLink: mapsLink,
-      visitType: visitType,              // merged: set visit type
+      visitType: visitType, // merged: set visit type
       status: vmodel.VisitStatus.scheduled,
       createdAt: now,
       updatedAt: now,
@@ -510,9 +523,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       );
       // The provider will auto-update the list – no manual setState needed.
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Visit added successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Visit added successfully')));
     } on VisitOverlapWarning catch (e) {
       if (!mounted) return;
       final proceed = await showDialog<bool>(
@@ -552,7 +565,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
           timeStr: timeStr,
           durationLabel: durationLabel,
           mapsLink: mapsLink,
-          visitType: visitType,       // merged: recurse with same type
+          visitType: visitType, // merged: recurse with same type
           acknowledgeOverlap: true,
         );
       }
@@ -567,7 +580,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
   Future<void> _markCompleted(String visitId) async {
     try {
       await _visitRepository.updateStatus(
-          visitId, vmodel.VisitStatus.completed);
+        visitId,
+        vmodel.VisitStatus.completed,
+      );
       ref.invalidate(visitsWithPatientsProvider);
     } catch (e) {
       _showError('Failed to mark completed: $e');
@@ -632,8 +647,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: const Color.fromARGB(255, 140, 188, 255),
-              title:
-                  const Text('Reschedule', style: AppColors.sectionHeading),
+              title: const Text('Reschedule', style: AppColors.sectionHeading),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -699,9 +713,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       );
       if (!mounted) return;
       ref.invalidate(visitsWithPatientsProvider);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Rescheduled successfully')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Rescheduled successfully')));
     } on VisitOverlapWarning catch (e) {
       if (!mounted) return;
       final proceed = await showDialog<bool>(
@@ -826,8 +840,9 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
                       indicatorWeight: 3,
                       labelPadding: const EdgeInsets.only(right: 20),
                       labelColor: AppColors.textPrimary,
-                      unselectedLabelColor:
-                          AppColors.textSecondary.withValues(alpha: 0.5),
+                      unselectedLabelColor: AppColors.textSecondary.withValues(
+                        alpha: 0.5,
+                      ),
                       labelStyle: AppColors.pageHeading.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -896,9 +911,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
   }) {
     return visitsAsync.when(
       loading: () => const Center(
-        child: CircularProgressIndicator(
-          color: AppColors.slateBlue,
-        ),
+        child: CircularProgressIndicator(color: AppColors.slateBlue),
       ),
       error: (error, stack) => Center(
         child: Column(
@@ -908,9 +921,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
             const SizedBox(height: 12),
             Text(
               'Failed to load visits',
-              style: AppColors.bodyLarge.copyWith(
-                color: Colors.red,
-              ),
+              style: AppColors.bodyLarge.copyWith(color: Colors.red),
             ),
             const SizedBox(height: 8),
             Text(
@@ -929,24 +940,32 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       data: (visits) {
         final now = DateTime.now();
         // Filter: matching category, not yet ended, and has a valid patient.
-        final upcoming = visits
-            .where((vw) =>
-                vw.patient != null &&
-                vw.visit.visitType == filterType &&
-                vw.visit.scheduledStart
-                    .add(Duration(minutes: vw.visit.durationMinutes))
-                    .isAfter(now))
-            .toList()
-          ..sort((a, b) =>
-              a.visit.scheduledStart.compareTo(b.visit.scheduledStart));
+        final upcoming =
+            visits
+                .where(
+                  (vw) =>
+                      vw.patient != null &&
+                      vw.visit.visitType == filterType &&
+                      vw.visit.scheduledStart
+                          .add(Duration(minutes: vw.visit.durationMinutes))
+                          .isAfter(now),
+                )
+                .toList()
+              ..sort(
+                (a, b) =>
+                    a.visit.scheduledStart.compareTo(b.visit.scheduledStart),
+              );
 
         if (upcoming.isEmpty) {
           return Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.event_busy,
-                    color: AppColors.textSecondary, size: 48),
+                const Icon(
+                  Icons.event_busy,
+                  color: AppColors.textSecondary,
+                  size: 48,
+                ),
                 const SizedBox(height: 12),
                 Text(
                   filterType == vmodel.VisitType.home
@@ -1148,7 +1167,8 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 7));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
   String _selectedDuration = '30 min';
-  vmodel.VisitType _selectedType = vmodel.VisitType.clinic;   // merged: new toggle state
+  vmodel.VisitType _selectedType =
+      vmodel.VisitType.clinic; // merged: new toggle state
 
   // Coordinates resolved from Places Autocomplete.
   double? _resolvedLat;
@@ -1226,7 +1246,7 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
         mapsLink: _mapsLinkController.text.trim().isEmpty
             ? null
             : _mapsLinkController.text.trim(),
-        visitType: _selectedType,     // merged: pass selected type
+        visitType: _selectedType, // merged: pass selected type
       ),
     );
   }
@@ -1249,8 +1269,9 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color:
-                      selected ? AppColors.chartBarLight : Colors.transparent,
+                  color: selected
+                      ? AppColors.chartBarLight
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 alignment: Alignment.center,
@@ -1273,8 +1294,9 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final visiblePatientMatches =
-        _patientMatches.take(5).toList(growable: false);
+    final visiblePatientMatches = _patientMatches
+        .take(5)
+        .toList(growable: false);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -1325,9 +1347,11 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      for (var i = 0;
-                          i < visiblePatientMatches.length;
-                          i++) ...[
+                      for (
+                        var i = 0;
+                        i < visiblePatientMatches.length;
+                        i++
+                      ) ...[
                         ListTile(
                           dense: true,
                           title: Text(
@@ -1340,18 +1364,17 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                             visiblePatientMatches[i].phone,
                             style: AppColors.bodySmall,
                           ),
-                          onTap: () =>
-                              _selectPatient(visiblePatientMatches[i]),
+                          onTap: () => _selectPatient(visiblePatientMatches[i]),
                         ),
                         if (i != visiblePatientMatches.length - 1)
                           Divider(
                             height: 1,
-                            color:
-                                AppColors.textSecondary.withValues(alpha: 0.12),
+                            color: AppColors.textSecondary.withValues(
+                              alpha: 0.12,
+                            ),
                           ),
                       ],
-                      if (_patientMatches.length >
-                          visiblePatientMatches.length)
+                      if (_patientMatches.length > visiblePatientMatches.length)
                         Padding(
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                           child: Text(
@@ -1377,28 +1400,17 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                 ),
               ),
             const SizedBox(height: 12),
-            _buildPickDateButton(
-              context,
-              _selectedDate,
-              (picked) {
-                if (picked != null) setState(() => _selectedDate = picked);
-              },
-            ),
+            _buildPickDateButton(context, _selectedDate, (picked) {
+              if (picked != null) setState(() => _selectedDate = picked);
+            }),
             const SizedBox(height: 12),
-            _buildPickTimeButton(
-              context,
-              _selectedTime,
-              (picked) {
-                if (picked != null) setState(() => _selectedTime = picked);
-              },
-            ),
+            _buildPickTimeButton(context, _selectedTime, (picked) {
+              if (picked != null) setState(() => _selectedTime = picked);
+            }),
             const SizedBox(height: 12),
-            _buildDurationDropdown(
-              _selectedDuration,
-              (value) {
-                if (value != null) setState(() => _selectedDuration = value);
-              },
-            ),
+            _buildDurationDropdown(_selectedDuration, (value) {
+              if (value != null) setState(() => _selectedDuration = value);
+            }),
             const SizedBox(height: 12),
             PlacesAutocompleteField(
               controller: _addressController,
@@ -1470,8 +1482,11 @@ class _OnlineSessionCard extends StatelessWidget {
           ),
           GestureDetector(
             onTap: onTap,
-            child: const Icon(Icons.open_in_new,
-                color: AppColors.beige, size: 20),
+            child: const Icon(
+              Icons.open_in_new,
+              color: AppColors.beige,
+              size: 20,
+            ),
           ),
         ],
       ),

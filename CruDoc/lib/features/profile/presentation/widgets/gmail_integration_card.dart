@@ -12,7 +12,8 @@ class GmailIntegrationCard extends ConsumerStatefulWidget {
   const GmailIntegrationCard({super.key});
 
   @override
-  ConsumerState<GmailIntegrationCard> createState() => _GmailIntegrationCardState();
+  ConsumerState<GmailIntegrationCard> createState() =>
+      _GmailIntegrationCardState();
 }
 
 class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
@@ -81,13 +82,7 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 10,
-            offset: Offset(0, 3),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,7 +203,9 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
           Icon(
             isConnected ? Icons.check_circle_rounded : Icons.circle_outlined,
             size: 13,
-            color: isConnected ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+            color: isConnected
+                ? const Color(0xFF16A34A)
+                : const Color(0xFF64748B),
           ),
           const SizedBox(width: 4),
           Text(
@@ -216,7 +213,9 @@ class _GmailIntegrationCardState extends ConsumerState<GmailIntegrationCard> {
             style: TextStyle(
               fontSize: 11.5,
               fontWeight: FontWeight.w700,
-              color: isConnected ? const Color(0xFF16A34A) : const Color(0xFF64748B),
+              color: isConnected
+                  ? const Color(0xFF16A34A)
+                  : const Color(0xFF64748B),
             ),
           ),
         ],

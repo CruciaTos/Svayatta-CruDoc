@@ -126,11 +126,12 @@ class _DesktopAddTransactionDialogState
       text: amount == null || amount <= 0
           ? ''
           : (amount == amount.roundToDouble()
-              ? amount.toStringAsFixed(0)
-              : amount.toStringAsFixed(2)),
+                ? amount.toStringAsFixed(0)
+                : amount.toStringAsFixed(2)),
     );
-    _descriptionController =
-        TextEditingController(text: widget.initialDescription ?? '');
+    _descriptionController = TextEditingController(
+      text: widget.initialDescription ?? '',
+    );
     _payerController = TextEditingController(text: widget.initialPayer ?? '');
     _notesController = TextEditingController();
   }
@@ -145,10 +146,10 @@ class _DesktopAddTransactionDialogState
   }
 
   List<String> get _currentCategories => switch (_formType) {
-        _TransactionFormType.income => _incomeCategories,
-        _TransactionFormType.expense => _expenseCategories,
-        _TransactionFormType.pending => _pendingCategories,
-      };
+    _TransactionFormType.income => _incomeCategories,
+    _TransactionFormType.expense => _expenseCategories,
+    _TransactionFormType.pending => _pendingCategories,
+  };
 
   void _edited([Object? _]) {
     setState(() {
@@ -191,11 +192,11 @@ class _DesktopAddTransactionDialogState
         return Theme(
           data: Theme.of(ctx).copyWith(
             colorScheme: Theme.of(ctx).colorScheme.copyWith(
-                  primary: c.accent,
-                  onPrimary: c.onAccent,
-                  surface: c.surface,
-                  onSurface: c.label,
-                ),
+              primary: c.accent,
+              onPrimary: c.onAccent,
+              surface: c.surface,
+              onSurface: c.label,
+            ),
           ),
           child: child!,
         );
@@ -299,26 +300,30 @@ class _DesktopAddTransactionDialogState
 
   @override
   Widget build(BuildContext context) {
-    final (CruIconData icon, CruTileTone tone, String title, String subtitle) =
-        switch (_formType) {
+    final (
+      CruIconData icon,
+      CruTileTone tone,
+      String title,
+      String subtitle,
+    ) = switch (_formType) {
       _TransactionFormType.income => (
-          CruIcons.rupee,
-          CruTileTone.green,
-          'Record payment',
-          'Patient fees, clinic earnings or other money received',
-        ),
+        CruIcons.rupee,
+        CruTileTone.green,
+        'Record payment',
+        'Patient fees, clinic earnings or other money received',
+      ),
       _TransactionFormType.expense => (
-          RevenueIcons.receipt,
-          CruTileTone.neutral,
-          'Record expense',
-          'Supplies, salaries, rent and other clinic costs',
-        ),
+        RevenueIcons.receipt,
+        CruTileTone.neutral,
+        'Record expense',
+        'Supplies, salaries, rent and other clinic costs',
+      ),
       _TransactionFormType.pending => (
-          CruIcons.clock,
-          CruTileTone.amber,
-          'Add pending payment',
-          'An unpaid balance to collect later',
-        ),
+        CruIcons.clock,
+        CruTileTone.amber,
+        'Add pending payment',
+        'An unpaid balance to collect later',
+      ),
     };
     final submitLabel = switch (_formType) {
       _TransactionFormType.income => 'Record payment',
@@ -327,17 +332,14 @@ class _DesktopAddTransactionDialogState
     };
     final (String payerLabel, String payerHint) = switch (_formType) {
       _TransactionFormType.income => (
-          'Received from',
-          'Patient, self-pay or insurer',
-        ),
-      _TransactionFormType.expense => (
-          'Paid to',
-          'Supplier, landlord or lab',
-        ),
+        'Received from',
+        'Patient, self-pay or insurer',
+      ),
+      _TransactionFormType.expense => ('Paid to', 'Supplier, landlord or lab'),
       _TransactionFormType.pending => (
-          'Owed by',
-          'Patient, insurer or company',
-        ),
+        'Owed by',
+        'Patient, insurer or company',
+      ),
     };
 
     return CruFormDialog(
@@ -388,8 +390,9 @@ class _DesktopAddTransactionDialogState
                       prefix: '₹',
                       hint: '0',
                       tabular: true,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                       ],
@@ -401,10 +404,8 @@ class _DesktopAddTransactionDialogState
                       icon: CruIcons.calendar,
                       value: DateFormat('d MMM yyyy').format(_selectedDate),
                       placeholder: 'Pick a date',
-                      trailing: RevenueBuilder.sameDay(
-                        _selectedDate,
-                        DateTime.now(),
-                      )
+                      trailing:
+                          RevenueBuilder.sameDay(_selectedDate, DateTime.now())
                           ? const CruInfoPill(text: 'Today')
                           : null,
                       onTap: _pickDate,
@@ -507,15 +508,20 @@ class _CategoryChip extends StatelessWidget {
             color: selected
                 ? c.label
                 : hovered
-                    ? cruHoverShade(c.inset, c)
-                    : c.inset,
+                ? cruHoverShade(c.inset, c)
+                : c.inset,
             shape: const StadiumBorder(),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                CruIcon(CruIcons.check, size: 14, strokeWidth: 2.2, color: c.surface),
+                CruIcon(
+                  CruIcons.check,
+                  size: 14,
+                  strokeWidth: 2.2,
+                  color: c.surface,
+                ),
                 const SizedBox(width: CruSpace.s6),
               ],
               Text(

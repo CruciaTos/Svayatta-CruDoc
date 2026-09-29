@@ -85,7 +85,7 @@ class _ToggleButton extends StatelessWidget {
                 ? c.segmentSelected
                 : (hovered ? c.hoverFill : c.inset.withValues(alpha: 0)),
             shape: cruShape(CruRadius.segmentInner),
-            shadows: selected ? c.segmentShadow : null,
+            shadows: const [],
           ),
           child: CruIcon(
             icon,

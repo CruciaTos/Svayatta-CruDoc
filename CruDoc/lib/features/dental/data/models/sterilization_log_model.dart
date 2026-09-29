@@ -107,7 +107,9 @@ class SterilizationLogModel {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'syncStatus': syncStatus,
       'pendingDelete': pendingDelete,
-      'lastSyncedAt': lastSyncedAt != null ? Timestamp.fromDate(lastSyncedAt!) : null,
+      'lastSyncedAt': lastSyncedAt != null
+          ? Timestamp.fromDate(lastSyncedAt!)
+          : null,
     };
   }
 
@@ -177,7 +179,9 @@ class SterilizationLogModel {
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       pendingDelete: pendingDelete ?? this.pendingDelete,
-      lastSyncedAt: clearLastSyncedAt ? null : (lastSyncedAt ?? this.lastSyncedAt),
+      lastSyncedAt: clearLastSyncedAt
+          ? null
+          : (lastSyncedAt ?? this.lastSyncedAt),
     );
   }
 
@@ -210,20 +214,20 @@ class SterilizationLogModel {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        doctorId,
-        cycleDate,
-        operatorName,
-        loadDescription,
-        result,
-        notes,
-        isDeleted,
-        createdAt,
-        updatedAt,
-        syncStatus,
-        pendingDelete,
-        lastSyncedAt,
-      );
+    id,
+    doctorId,
+    cycleDate,
+    operatorName,
+    loadDescription,
+    result,
+    notes,
+    isDeleted,
+    createdAt,
+    updatedAt,
+    syncStatus,
+    pendingDelete,
+    lastSyncedAt,
+  );
 
   @override
   String toString() {

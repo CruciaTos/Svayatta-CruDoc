@@ -74,7 +74,8 @@ class _ShellState extends State<Shell> {
     return StreamBuilder<List<String>>(
       stream: DoctorFeatureGuard.watchEnabledModules(),
       builder: (context, snapshot) {
-        final enabledModules = snapshot.data ?? DoctorFeatureGuard.defaultModules;
+        final enabledModules =
+            snapshot.data ?? DoctorFeatureGuard.defaultModules;
 
         return InventoryAlertListener(
           child: Scaffold(
@@ -89,8 +90,16 @@ class _ShellState extends State<Shell> {
                         setState(() => _currentIndex = index),
                     itemCount: _screens.length,
                     itemBuilder: (context, index) {
-                      final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(index);
-                      final isTabEnabled = index == 0 || index == 5 || DoctorFeatureGuard.isEnabled(enabledModules, moduleKey);
+                      final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(
+                        index,
+                      );
+                      final isTabEnabled =
+                          index == 0 ||
+                          index == 5 ||
+                          DoctorFeatureGuard.isEnabled(
+                            enabledModules,
+                            moduleKey,
+                          );
 
                       Widget content;
                       if (!isTabEnabled) {
@@ -133,4 +142,3 @@ class _ShellState extends State<Shell> {
     );
   }
 }
-

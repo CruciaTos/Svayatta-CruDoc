@@ -35,13 +35,7 @@ class HomeopathyAccordionCard extends StatelessWidget {
               : const Color(0xFFE2E8F0),
           width: isComplete ? 1.5 : 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -80,8 +74,10 @@ class HomeopathyAccordionCard extends StatelessWidget {
               ),
               if (isComplete)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.positiveGreen.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
@@ -175,8 +171,10 @@ class HomeopathyFormField extends StatelessWidget {
                   }
                 },
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
@@ -207,10 +205,7 @@ class HomeopathyFormField extends StatelessWidget {
           style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF94A3B8),
-            ),
+            hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
             suffixIcon: enableVoice
                 ? IconButton(
                     icon: const Icon(Icons.mic_none_rounded, size: 18),
@@ -233,22 +228,26 @@ class HomeopathyFormField extends StatelessWidget {
                     },
                   )
                 : null,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF2E7D32),
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -281,21 +280,18 @@ class HomeopathyCategorySelector extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(Icons.style_outlined,
-                  size: 16, color: Color(0xFF2E7D32)),
+              const Icon(
+                Icons.style_outlined,
+                size: 16,
+                color: Color(0xFF2E7D32),
+              ),
               const SizedBox(width: 6),
               const Text(
                 'Case Sheet Questionnaire Type',
@@ -310,8 +306,10 @@ class HomeopathyCategorySelector extends StatelessWidget {
               if (patientAge <= 16 &&
                   selectedCategory != HomeopathyCaseSheetCategory.children)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE0F2FE),
                     borderRadius: BorderRadius.circular(6),
@@ -319,17 +317,20 @@ class HomeopathyCategorySelector extends StatelessWidget {
                   child: const Text(
                     'Pediatric Age',
                     style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0284C7)),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF0284C7),
+                    ),
                   ),
                 )
               else if (isFemale &&
                   selectedCategory !=
                       HomeopathyCaseSheetCategory.femaleEndocrine)
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFFDF2F8),
                     borderRadius: BorderRadius.circular(6),
@@ -337,9 +338,10 @@ class HomeopathyCategorySelector extends StatelessWidget {
                   child: const Text(
                     'Female / Thyroid',
                     style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFFDB2777)),
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFFDB2777),
+                    ),
                   ),
                 ),
             ],
@@ -398,7 +400,9 @@ class HomeopathyCategorySelector extends StatelessWidget {
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? activeColor.withValues(alpha: 0.12) : const Color(0xFFF8FAFC),
+          color: isSelected
+              ? activeColor.withValues(alpha: 0.12)
+              : const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: isSelected ? activeColor : const Color(0xFFE2E8F0),

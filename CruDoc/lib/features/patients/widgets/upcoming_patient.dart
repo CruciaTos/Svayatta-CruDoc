@@ -24,9 +24,8 @@ class UpcomingPatientCard extends ConsumerWidget {
     final upcomingAsync = ref.watch(upcomingPatientProvider);
 
     return upcomingAsync.when(
-      loading: () => const _Shell(
-        child: Center(child: CircularProgressIndicator()),
-      ),
+      loading: () =>
+          const _Shell(child: Center(child: CircularProgressIndicator())),
       error: (error, stack) => const _Shell(
         child: Center(
           child: Text(
@@ -42,7 +41,11 @@ class UpcomingPatientCard extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.event_available_rounded, color: Color(0xFF94A3B8), size: 18),
+                Icon(
+                  Icons.event_available_rounded,
+                  color: Color(0xFF94A3B8),
+                  size: 18,
+                ),
                 SizedBox(width: 8),
                 Text(
                   'No upcoming visits scheduled',
@@ -66,10 +69,10 @@ class UpcomingPatientCard extends ConsumerWidget {
 
         // 12-hour time with AM/PM
         final hour24 = visit.scheduledStart.hour;
-        final hour12 =
-            hour24 > 12 ? hour24 - 12 : (hour24 == 0 ? 12 : hour24);
+        final hour12 = hour24 > 12 ? hour24 - 12 : (hour24 == 0 ? 12 : hour24);
         final amPm = hour24 >= 12 ? 'PM' : 'AM';
-        final timeStr = '${hour12.toString().padLeft(2, '0')}:'
+        final timeStr =
+            '${hour12.toString().padLeft(2, '0')}:'
             '${visit.scheduledStart.minute.toString().padLeft(2, '0')} '
             '$amPm';
 
@@ -122,10 +125,7 @@ class UpcomingPatientCard extends ConsumerWidget {
                           ),
                         ],
                         const SizedBox(height: 8),
-                        Text(
-                          '$dayStr  •  $timeStr',
-                          style: AppColors.bodyMeta,
-                        ),
+                        Text('$dayStr  •  $timeStr', style: AppColors.bodyMeta),
                         if (!isClinic) ...[
                           const SizedBox(height: 4),
                           Text(
@@ -150,7 +150,9 @@ class UpcomingPatientCard extends ConsumerWidget {
                   // Pill‑shaped countdown
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
+                      horizontal: 14,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.accentBlue,
                       borderRadius: BorderRadius.circular(20),
@@ -207,13 +209,7 @@ class _Shell extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: child,
     );
@@ -229,8 +225,9 @@ String? _mapUrlFor(vmodel.Visit visit) {
         : 'https://$link';
   }
   final hasCoords = visit.latitude != null && visit.longitude != null;
-  final query =
-      hasCoords ? '${visit.latitude},${visit.longitude}' : visit.address;
+  final query = hasCoords
+      ? '${visit.latitude},${visit.longitude}'
+      : visit.address;
   if (query.isEmpty) return null;
   return 'https://www.google.com/maps/search/?api=1'
       '&query=${Uri.encodeComponent(query)}';
@@ -246,9 +243,9 @@ Future<void> _launchUrl(BuildContext context, String url) async {
     }
   } catch (_) {}
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context).showSnackBar(
-    const SnackBar(content: Text('Could not open the link')),
-  );
+  ScaffoldMessenger.of(
+    context,
+  ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
 }
 
 // ---------- Helpers ----------

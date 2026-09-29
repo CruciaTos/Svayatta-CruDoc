@@ -42,10 +42,12 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
   String _selectedMethod = 'upi'; // 'upi', 'card', 'netbanking'
   String _selectedUpiApp = 'gpay'; // 'gpay', 'phonepe', 'paytm', 'bhim'
-  final TextEditingController _upiIdController =
-      TextEditingController(text: 'doctor@okaxis');
-  final TextEditingController _cardNumberController =
-      TextEditingController(text: '4532 •••• •••• 8821');
+  final TextEditingController _upiIdController = TextEditingController(
+    text: 'doctor@okaxis',
+  );
+  final TextEditingController _cardNumberController = TextEditingController(
+    text: '4532 •••• •••• 8821',
+  );
 
   bool _isProcessing = false;
   bool _isSuccess = false;
@@ -63,15 +65,15 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           ? 'UPI (${_selectedUpiApp.toUpperCase()})'
           : (_selectedMethod == 'card' ? 'Credit/Debit Card' : 'Net Banking');
 
-      final result =
-          await _subscriptionService.processPaymentAndActivateFeatures(
-        selectedModules: widget.selectedModules,
-        amountPaid: widget.totalAmount,
-        paymentMethod: methodLabel,
-        transactionReference: _selectedMethod == 'upi'
-            ? _upiIdController.text.trim()
-            : 'CARD_PAYMENT',
-      );
+      final result = await _subscriptionService
+          .processPaymentAndActivateFeatures(
+            selectedModules: widget.selectedModules,
+            amountPaid: widget.totalAmount,
+            paymentMethod: methodLabel,
+            transactionReference: _selectedMethod == 'upi'
+                ? _upiIdController.text.trim()
+                : 'CARD_PAYMENT',
+          );
 
       if (mounted) {
         setState(() {
@@ -112,9 +114,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final currencyFormatter = NumberFormat.currency(
@@ -184,20 +186,27 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                               'Instant 1-month clinical feature activation',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary.withValues(alpha: 0.9),
+                                color: AppColors.textSecondary.withValues(
+                                  alpha: 0.9,
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        onPressed: _isProcessing ? null : () => Navigator.pop(context),
-                        icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                        onPressed: _isProcessing
+                            ? null
+                            : () => Navigator.pop(context),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const Divider(height: 1),
 
                 // Body content
                 Expanded(
@@ -335,7 +344,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             );
           }),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const Divider(height: 1),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -402,7 +411,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                     child: Icon(
                       icon,
                       size: 20,
-                      color: isSelected ? Colors.white : const Color(0xFF64748B),
+                      color: isSelected
+                          ? Colors.white
+                          : const Color(0xFF64748B),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -470,7 +481,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
               labelText: 'UPI ID / VPA',
               hintText: 'e.g. yourname@oksbi',
               prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               filled: true,
               fillColor: Colors.white,
             ),
@@ -492,7 +505,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           color: isSelected ? const Color(0xFF1E78FF) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFF1E78FF) : const Color(0xFFCBD5E1),
+            color: isSelected
+                ? const Color(0xFF1E78FF)
+                : const Color(0xFFCBD5E1),
           ),
         ),
         child: Text(
@@ -520,7 +535,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
               isDense: true,
               labelText: 'Card Number',
               prefixIcon: const Icon(Icons.credit_card, size: 18),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               filled: true,
               fillColor: Colors.white,
             ),
@@ -590,16 +607,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   Widget _buildPayButtonBar(NumberFormat currencyFormatter) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
       child: SafeArea(
         top: false,
         child: SizedBox(
@@ -673,10 +681,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           const Text(
             'Your selected clinical modules are now unlocked and active.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 13.5,
-              color: Color(0xFF64748B),
-            ),
+            style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B)),
           ),
           const SizedBox(height: 20),
 
@@ -697,10 +702,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                   isBold: true,
                 ),
                 const SizedBox(height: 6),
-                _buildReceiptRow(
-                  'Transaction ID:',
-                  _transactionId ?? '—',
-                ),
+                _buildReceiptRow('Transaction ID:', _transactionId ?? '—'),
                 const SizedBox(height: 6),
                 _buildReceiptRow(
                   'Activated Features:',

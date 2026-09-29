@@ -111,7 +111,8 @@ class _DetailsBody extends ConsumerWidget {
     final isPhysio = ref.watch(isPhysiotherapyProvider);
     final isHomeopath = specialty == DoctorSpecialtyType.homeopathy;
     // Radiologists and dentists: the patient's scans and reports.
-    final imaging = (isDentist || specialty == DoctorSpecialtyType.oralRadiologist)
+    final imaging =
+        (isDentist || specialty == DoctorSpecialtyType.oralRadiologist)
         ? PatientImagingCard(patientId: s.id)
         : null;
 
@@ -250,7 +251,13 @@ class _DetailsBody extends ConsumerWidget {
                     const SizedBox(width: CruSpace.cardGap),
                     SizedBox(
                       width: CruSize.rightColumn,
-                      child: _Stack([?procedures, ?records, ?physioPhotos, visits, history]),
+                      child: _Stack([
+                        ?procedures,
+                        ?records,
+                        ?physioPhotos,
+                        visits,
+                        history,
+                      ]),
                     ),
                   ],
                 )

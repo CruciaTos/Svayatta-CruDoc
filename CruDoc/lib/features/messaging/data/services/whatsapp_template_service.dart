@@ -15,7 +15,10 @@ class WhatsAppTemplateService {
   /// - `9876543210`      -> `919876543210`
   /// - `09876543210`     -> `919876543210`
   /// - `+1 (555) 234-5678` -> `15552345678`
-  static String? normalizePhone(String? raw, {String defaultCountryCode = '91'}) {
+  static String? normalizePhone(
+    String? raw, {
+    String defaultCountryCode = '91',
+  }) {
     if (raw == null || raw.trim().isEmpty) return null;
 
     // Strip non-digits
@@ -67,7 +70,9 @@ class WhatsAppTemplateService {
 
   /// Formats visit consultation type.
   static String formatConsultationType(VisitType type) {
-    return type == VisitType.home ? 'Home Visit Consultation' : 'In-Clinic Consultation';
+    return type == VisitType.home
+        ? 'Home Visit Consultation'
+        : 'In-Clinic Consultation';
   }
 
   /// Builds a standard, privacy-compliant WhatsApp confirmation message.
@@ -85,8 +90,12 @@ class WhatsAppTemplateService {
         ? clinicName.trim()
         : 'CruDoc Practice';
 
-    final effectiveDoctor = doctorName.trim().isNotEmpty ? doctorName.trim() : 'Doctor';
-    final patientName = patient.fullName.trim().isNotEmpty ? patient.fullName.trim() : 'Valued Patient';
+    final effectiveDoctor = doctorName.trim().isNotEmpty
+        ? doctorName.trim()
+        : 'Doctor';
+    final patientName = patient.fullName.trim().isNotEmpty
+        ? patient.fullName.trim()
+        : 'Valued Patient';
 
     final dateStr = formatDate(visit.scheduledStart);
     final timeStr = formatTime(visit.scheduledStart);
@@ -96,7 +105,9 @@ class WhatsAppTemplateService {
     buffer.writeln('🏥 *Appointment Confirmation*');
     buffer.writeln();
     buffer.writeln('Hello *$patientName*,');
-    buffer.writeln('Your appointment with *$effectiveDoctor* at *$effectiveClinic* is confirmed.');
+    buffer.writeln(
+      'Your appointment with *$effectiveDoctor* at *$effectiveClinic* is confirmed.',
+    );
     buffer.writeln();
     buffer.writeln('📅 *Date:* $dateStr');
     buffer.writeln('⏰ *Time:* $timeStr');
@@ -107,7 +118,9 @@ class WhatsAppTemplateService {
     }
 
     buffer.writeln();
-    buffer.writeln('If you need to reschedule or have any questions, please reply to this message. Thank you!');
+    buffer.writeln(
+      'If you need to reschedule or have any questions, please reply to this message. Thank you!',
+    );
 
     return buffer.toString();
   }
@@ -123,8 +136,12 @@ class WhatsAppTemplateService {
         ? clinicName.trim()
         : 'CruDoc Practice';
 
-    final effectiveDoctor = doctorName.trim().isNotEmpty ? doctorName.trim() : 'Doctor';
-    final patientName = patient.fullName.trim().isNotEmpty ? patient.fullName.trim() : 'Valued Patient';
+    final effectiveDoctor = doctorName.trim().isNotEmpty
+        ? doctorName.trim()
+        : 'Doctor';
+    final patientName = patient.fullName.trim().isNotEmpty
+        ? patient.fullName.trim()
+        : 'Valued Patient';
 
     final timeStr = formatTime(visit.scheduledStart);
     final typeStr = formatConsultationType(visit.visitType);
@@ -133,9 +150,13 @@ class WhatsAppTemplateService {
     buffer.writeln('⏰ *Appointment Reminder — Starting in 10 Minutes*');
     buffer.writeln();
     buffer.writeln('Hello *$patientName*,');
-    buffer.writeln('This is a quick reminder that your appointment with *$effectiveDoctor* at *$effectiveClinic* is starting in *10 minutes* at *$timeStr* ($typeStr).');
+    buffer.writeln(
+      'This is a quick reminder that your appointment with *$effectiveDoctor* at *$effectiveClinic* is starting in *10 minutes* at *$timeStr* ($typeStr).',
+    );
     buffer.writeln();
-    buffer.writeln('Please be ready or arrive at the clinic on time. Thank you!');
+    buffer.writeln(
+      'Please be ready or arrive at the clinic on time. Thank you!',
+    );
 
     return buffer.toString();
   }
@@ -148,7 +169,9 @@ class WhatsAppTemplateService {
     final phone = normalizePhone(rawPhone);
     if (phone == null) return null;
 
-    return Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(message)}');
+    return Uri.parse(
+      'https://wa.me/$phone?text=${Uri.encodeComponent(message)}',
+    );
   }
 
   /// Alias for buildDirectWhatsAppUrl.

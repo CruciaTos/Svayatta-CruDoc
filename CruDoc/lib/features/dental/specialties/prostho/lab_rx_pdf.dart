@@ -47,14 +47,22 @@ class LabRxPdfService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Text(
-                        clinicName.isNotEmpty ? clinicName : 'CruDoc Dental Clinic',
-                        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+                        clinicName.isNotEmpty
+                            ? clinicName
+                            : 'CruDoc Dental Clinic',
+                        style: pw.TextStyle(
+                          fontSize: 16,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
                       if (doctorName.isNotEmpty) ...[
                         pw.SizedBox(height: 2),
                         pw.Text(
                           doctorName,
-                          style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+                          style: const pw.TextStyle(
+                            fontSize: 11,
+                            color: PdfColors.grey700,
+                          ),
                         ),
                       ],
                     ],
@@ -73,7 +81,10 @@ class LabRxPdfService {
                       pw.SizedBox(height: 2),
                       pw.Text(
                         'Order Date: ${DentalFormat.date(labCase.recordedAt)}',
-                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey600),
+                        style: const pw.TextStyle(
+                          fontSize: 10,
+                          color: PdfColors.grey600,
+                        ),
                       ),
                     ],
                   ),
@@ -88,7 +99,9 @@ class LabRxPdfService {
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   color: PdfColors.grey100,
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(4),
+                  ),
                 ),
                 child: pw.Row(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -99,12 +112,20 @@ class LabRxPdfService {
                         children: [
                           pw.Text(
                             'Laboratory / Technician:',
-                            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
                           ),
                           pw.SizedBox(height: 2),
                           pw.Text(
-                            labCase.labName.isNotEmpty ? labCase.labName : 'Dental Laboratory',
-                            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                            labCase.labName.isNotEmpty
+                                ? labCase.labName
+                                : 'Dental Laboratory',
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                           ),
                           pw.SizedBox(height: 4),
                           pw.Text(
@@ -124,16 +145,25 @@ class LabRxPdfService {
                         children: [
                           pw.Text(
                             'Patient:',
-                            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+                            style: const pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey600,
+                            ),
                           ),
                           pw.SizedBox(height: 2),
                           pw.Text(
                             patient.fullName,
-                            style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+                            style: pw.TextStyle(
+                              fontSize: 12,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
                           ),
                           pw.Text(
                             'Age: ${patient.age} · Sex: ${patient.gender.toUpperCase()}',
-                            style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                            style: const pw.TextStyle(
+                              fontSize: 10,
+                              color: PdfColors.grey700,
+                            ),
                           ),
                         ],
                       ),
@@ -148,7 +178,9 @@ class LabRxPdfService {
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(color: PdfColors.grey300),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                  borderRadius: const pw.BorderRadius.all(
+                    pw.Radius.circular(4),
+                  ),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -170,7 +202,10 @@ class LabRxPdfService {
                           child: _specItem('Teeth / Units', teethFormatted),
                         ),
                         pw.Expanded(
-                          child: _specItem('Shade', '${labCase.shade} (${labCase.shadeSystem})'),
+                          child: _specItem(
+                            'Shade',
+                            '${labCase.shade} (${labCase.shadeSystem})',
+                          ),
                         ),
                       ],
                     ),
@@ -181,7 +216,10 @@ class LabRxPdfService {
                           child: _specItem('Margin Design', labCase.margin),
                         ),
                         pw.Expanded(
-                          child: _specItem('Current Status', labCase.stage.label),
+                          child: _specItem(
+                            'Current Status',
+                            labCase.stage.label,
+                          ),
                         ),
                       ],
                     ),
@@ -194,7 +232,10 @@ class LabRxPdfService {
               if (labCase.notes.trim().isNotEmpty) ...[
                 pw.Text(
                   'Instructions & Design Notes:',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
                 pw.SizedBox(height: 4),
                 pw.Container(
@@ -202,7 +243,9 @@ class LabRxPdfService {
                   padding: const pw.EdgeInsets.all(10),
                   decoration: pw.BoxDecoration(
                     border: pw.Border.all(color: PdfColors.grey200),
-                    borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
+                    borderRadius: const pw.BorderRadius.all(
+                      pw.Radius.circular(4),
+                    ),
                   ),
                   child: pw.Text(
                     labCase.notes,
@@ -216,7 +259,10 @@ class LabRxPdfService {
               if (labCase.files.isNotEmpty) ...[
                 pw.Text(
                   'Attached Scan & Design Files (${labCase.files.length}):',
-                  style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
                 pw.SizedBox(height: 4),
                 for (final f in labCase.files)
@@ -224,7 +270,10 @@ class LabRxPdfService {
                     padding: const pw.EdgeInsets.only(left: 8, bottom: 2),
                     child: pw.Text(
                       '• ${f.name} [${f.kind.toUpperCase()}]',
-                      style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey800),
+                      style: const pw.TextStyle(
+                        fontSize: 9,
+                        color: PdfColors.grey800,
+                      ),
                     ),
                   ),
                 pw.SizedBox(height: 16),
@@ -238,7 +287,10 @@ class LabRxPdfService {
                 children: [
                   pw.Text(
                     'CruDoc Prosthodontic Lab Rx',
-                    style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey500),
+                    style: const pw.TextStyle(
+                      fontSize: 8,
+                      color: PdfColors.grey500,
+                    ),
                   ),
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
@@ -246,13 +298,20 @@ class LabRxPdfService {
                       pw.Container(
                         width: 140,
                         decoration: const pw.BoxDecoration(
-                          border: pw.Border(bottom: pw.BorderSide(color: PdfColors.grey400)),
+                          border: pw.Border(
+                            bottom: pw.BorderSide(color: PdfColors.grey400),
+                          ),
                         ),
                       ),
                       pw.SizedBox(height: 4),
                       pw.Text(
-                        doctorName.isNotEmpty ? doctorName : 'Prescribing Dentist',
-                        style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold),
+                        doctorName.isNotEmpty
+                            ? doctorName
+                            : 'Prescribing Dentist',
+                        style: pw.TextStyle(
+                          fontSize: 10,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
@@ -291,7 +350,8 @@ class LabRxPdfService {
     required WidgetRef ref,
   }) async {
     final identity = ref.read(doctorIdentityProvider);
-    final numbering = ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
 
     final bytes = await buildRx(
       labCase: labCase,
@@ -302,7 +362,9 @@ class LabRxPdfService {
     );
 
     final appSupport = await getApplicationSupportDirectory();
-    final folder = Directory(p.join(appSupport.path, 'dental', 'labcases', labCase.id));
+    final folder = Directory(
+      p.join(appSupport.path, 'dental', 'labcases', labCase.id),
+    );
     if (!folder.existsSync()) {
       folder.createSync(recursive: true);
     }
@@ -320,7 +382,8 @@ class LabRxPdfService {
     required Patient patient,
   }) async {
     final identity = ref.read(doctorIdentityProvider);
-    final numbering = ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
 
     final bytes = await buildRx(
       labCase: labCase,

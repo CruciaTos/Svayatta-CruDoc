@@ -74,7 +74,10 @@ class DayNowLine extends StatelessWidget {
               width: DayGridMetrics.nowDot,
               height: DayGridMetrics.nowDot,
               child: DecoratedBox(
-                decoration: BoxDecoration(color: c.accent, shape: BoxShape.circle),
+                decoration: BoxDecoration(
+                  color: c.accent,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
             Positioned(
@@ -104,7 +107,11 @@ class DayNowLine extends StatelessWidget {
 /// An unsorted future overlap: a 4 px amber bar in the gutter spanning
 /// the overlap, and an amber "2 at once" pill to its left.
 class DayOverlapMarker extends StatelessWidget {
-  const DayOverlapMarker({super.key, required this.group, required this.height});
+  const DayOverlapMarker({
+    super.key,
+    required this.group,
+    required this.height,
+  });
 
   final OverlapGroup group;
 
@@ -116,8 +123,9 @@ class DayOverlapMarker extends StatelessWidget {
     final c = context.cru;
     const pill = DayGridMetrics.gutterPill;
     // Centre the pill on the first block row (at most 32 px tall).
-    final pillTop = ((height.clamp(pill, DayGridMetrics.minutes(20)) - pill) / 2)
-        .toDouble();
+    final pillTop =
+        ((height.clamp(pill, DayGridMetrics.minutes(20)) - pill) / 2)
+            .toDouble();
     return IgnorePointer(
       child: SizedBox(
         height: height,
@@ -194,7 +202,8 @@ class DaySessionLabel extends StatelessWidget {
           style: CruType.groupLabel.tint(c.label2),
           children: [
             TextSpan(
-              text: '  ${ApptFormat.range(session.start, session.end)} · '
+              text:
+                  '  ${ApptFormat.range(session.start, session.end)} · '
                   '$booked booked',
               style: CruType.groupLabel
                   .copyWith(fontWeight: FontWeight.w400)

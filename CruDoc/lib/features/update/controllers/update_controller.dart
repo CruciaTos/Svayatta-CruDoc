@@ -9,7 +9,6 @@ import 'package:doctor_management_app/core/update/models/update_progress.dart';
 import 'package:doctor_management_app/core/update/update_preferences.dart';
 import 'package:doctor_management_app/features/update/providers/update_providers.dart';
 
-
 // ---------------------------------------------------------------------
 // Expected core/update/* contract (not built yet — see "CruDoc Update
 // Framework — Architecture Plan", §3/§4/§6). This file is written
@@ -242,5 +241,5 @@ class UpdateController extends Notifier<UpdateControllerState> {
 /// reads/watches through.
 final updateControllerProvider =
     NotifierProvider<UpdateController, UpdateControllerState>(
-  UpdateController.new,
-);
+      UpdateController.new,
+    );

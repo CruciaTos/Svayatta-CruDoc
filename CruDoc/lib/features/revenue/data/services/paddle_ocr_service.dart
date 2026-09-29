@@ -58,7 +58,9 @@ class PaddleOcrResult {
     return PaddleOcrResult(
       patientName: json['patientName'] as String?,
       treatments: (json['treatments'] as List? ?? [])
-          .map((t) => PaddleOcrTreatmentItem.fromJson(t as Map<String, dynamic>))
+          .map(
+            (t) => PaddleOcrTreatmentItem.fromJson(t as Map<String, dynamic>),
+          )
           .toList(),
       medicines: (json['medicines'] as List? ?? [])
           .map((m) => PaddleOcrMedicineItem.fromJson(m as Map<String, dynamic>))
@@ -87,8 +89,8 @@ class PaddleOcrService {
   }
 
   Future<PaddleOcrResult> scanInvoice(XFile imageFile) async {
-    final bool isDesktop = !kIsWeb &&
-        (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+    final bool isDesktop =
+        !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
     if (isDesktop) {
       return _scanDesktop(imageFile);
@@ -104,23 +106,27 @@ class PaddleOcrService {
         projectRoot = p.dirname(projectRoot);
       }
 
-      final String pythonPath =
-          p.join(projectRoot, '.venv', 'Scripts', 'python.exe');
+      final String pythonPath = p.join(
+        projectRoot,
+        '.venv',
+        'Scripts',
+        'python.exe',
+      );
       final String scriptPath = p.join(projectRoot, 'ocr_backend.py');
 
       if (!File(pythonPath).existsSync()) {
         throw Exception(
-            "Python virtual environment not found at $pythonPath. Please configure the environment.");
+          "Python virtual environment not found at $pythonPath. Please configure the environment.",
+        );
       }
       if (!File(scriptPath).existsSync()) {
         throw Exception("OCR backend script not found at $scriptPath.");
       }
 
-      final ProcessResult result = await Process.run(
-        pythonPath,
-        [scriptPath, imageFile.path],
-        workingDirectory: projectRoot,
-      );
+      final ProcessResult result = await Process.run(pythonPath, [
+        scriptPath,
+        imageFile.path,
+      ], workingDirectory: projectRoot);
 
       if (result.exitCode != 0) {
         throw Exception("Python OCR script failed: ${result.stderr}");
@@ -139,7 +145,7 @@ class PaddleOcrService {
   Future<PaddleOcrResult> _scanMobile(XFile imageFile) async {
     try {
       final request = http.MultipartRequest('POST', Uri.parse(serverUrl));
-      
+
       if (kIsWeb) {
         final bytes = await imageFile.readAsBytes();
         request.files.add(

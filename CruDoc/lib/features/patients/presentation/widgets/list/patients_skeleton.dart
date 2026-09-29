@@ -39,9 +39,7 @@ class PatientsSkeleton extends StatelessWidget {
               SizedBox(
                 height: CruSize.tableRow,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s16,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s16),
                   child: Row(
                     children: [
                       const SkeletonBox(
@@ -55,7 +53,10 @@ class PatientsSkeleton extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SkeletonBox(width: i.isEven ? 160 : 128, height: 14),
+                            SkeletonBox(
+                              width: i.isEven ? 160 : 128,
+                              height: 14,
+                            ),
                             const SizedBox(height: CruSpace.s6),
                             const SkeletonBox(width: 96, height: 12),
                           ],

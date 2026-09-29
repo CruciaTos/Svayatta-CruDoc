@@ -18,7 +18,9 @@ class MedicalPdfService {
   final PdfTemplateTheme baseTheme;
 
   Future<Uint8List> generate(PdfMedicalDocumentData data) async {
-    final logoBytes = await assetLoader.loadRemoteBytes(data.letterheadConfig.logoUrl);
+    final logoBytes = await assetLoader.loadRemoteBytes(
+      data.letterheadConfig.logoUrl,
+    );
     final theme = baseTheme.forDocument(data.type);
     final letterheadTemplate = LetterheadPdfTemplate(
       config: data.letterheadConfig,

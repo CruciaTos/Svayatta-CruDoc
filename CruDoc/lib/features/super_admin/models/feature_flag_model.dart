@@ -14,14 +14,19 @@ class FeatureFlagModel {
     this.modifiedBy,
   }) : lastModified = lastModified ?? DateTime.now();
 
-  factory FeatureFlagModel.fromJson(Map<String, dynamic> json, String doctorId) {
+  factory FeatureFlagModel.fromJson(
+    Map<String, dynamic> json,
+    String doctorId,
+  ) {
     return FeatureFlagModel(
       doctorId: doctorId,
-      enabledModules: (json['enabledModules'] as List<dynamic>?)
+      enabledModules:
+          (json['enabledModules'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      lastModified: (json['lastModified'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastModified:
+          (json['lastModified'] as Timestamp?)?.toDate() ?? DateTime.now(),
       modifiedBy: json['modifiedBy'] as String?,
     );
   }
@@ -69,8 +74,8 @@ class PlatformFeatureFlag {
     this.isBeta = false,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   factory PlatformFeatureFlag.fromJson(Map<String, dynamic> json, String id) {
     return PlatformFeatureFlag(

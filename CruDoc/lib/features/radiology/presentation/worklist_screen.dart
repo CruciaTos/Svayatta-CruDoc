@@ -23,15 +23,21 @@ enum _Show { all, toRead, inReport, signed }
 /// The next study to read: STAT first, then urgent, then the one due
 /// soonest.
 RadStudy? radNextUnread(List<RadStudy> studies) {
-  final open = studies
-      .where((s) => s.status == RadStudyStatus.newStudy || s.status == RadStudyStatus.reading)
-      .toList()
-    ..sort(_byUrgency);
+  final open =
+      studies
+          .where(
+            (s) =>
+                s.status == RadStudyStatus.newStudy ||
+                s.status == RadStudyStatus.reading,
+          )
+          .toList()
+        ..sort(_byUrgency);
   return open.firstOrNull;
 }
 
 int _byUrgency(RadStudy a, RadStudy b) {
-  if (a.priority != b.priority) return b.priority.index.compareTo(a.priority.index);
+  if (a.priority != b.priority)
+    return b.priority.index.compareTo(a.priority.index);
   final da = a.dueAt ?? a.receivedAt, db = b.dueAt ?? b.receivedAt;
   return da.compareTo(db);
 }
@@ -58,7 +64,8 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
     super.dispose();
   }
 
-  Future<void> _import([List<String>? paths]) => runRadImport(context, ref, paths: paths);
+  Future<void> _import([List<String>? paths]) =>
+      runRadImport(context, ref, paths: paths);
 
   void _openNext(List<RadStudy> studies) {
     final next = radNextUnread(studies);
@@ -88,53 +95,75 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
     final referrers = ref.watch(radReferrerByIdProvider);
     final now = DateTime.now();
 
-    final open = studies?.where((s) => s.status.isOpen).toList() ?? const <RadStudy>[];
+    final open =
+        studies?.where((s) => s.status.isOpen).toList() ?? const <RadStudy>[];
     final toRead = open
-        .where((s) => s.status == RadStudyStatus.newStudy || s.status == RadStudyStatus.reading)
+        .where(
+          (s) =>
+              s.status == RadStudyStatus.newStudy ||
+              s.status == RadStudyStatus.reading,
+        )
         .toList();
     final urgent = open.where((s) => s.priority != RadPriority.routine).length;
     final overdue = open.where((s) => s.isOverdue(now)).length;
-    final signedToday = studies
-            ?.where((s) => !s.status.isOpen && DentalFormat.sameDay(s.updatedAt, now))
+    final signedToday =
+        studies
+            ?.where(
+              (s) => !s.status.isOpen && DentalFormat.sameDay(s.updatedAt, now),
+            )
             .length ??
         0;
 
     final shown = (studies ?? const <RadStudy>[])
-        .where((s) => switch (_show) {
-              _Show.all => true,
-              _Show.toRead =>
-                s.status == RadStudyStatus.newStudy || s.status == RadStudyStatus.reading,
-              _Show.inReport =>
-                s.status == RadStudyStatus.draft || s.status == RadStudyStatus.preliminary,
-              _Show.signed => !s.status.isOpen,
-            })
+        .where(
+          (s) => switch (_show) {
+            _Show.all => true,
+            _Show.toRead =>
+              s.status == RadStudyStatus.newStudy ||
+                  s.status == RadStudyStatus.reading,
+            _Show.inReport =>
+              s.status == RadStudyStatus.draft ||
+                  s.status == RadStudyStatus.preliminary,
+            _Show.signed => !s.status.isOpen,
+          },
+        )
         .where((s) => _type == null || s.modality == _type)
         .where((s) => _matches(s, referrers))
         .toList();
 
     // To read (most urgent first), in report, then signed (newest first).
     final groups = <(String, List<RadStudy>)>[
-      ('To read', shown.where((s) => toRead.contains(s)).toList()..sort(_byUrgency)),
+      (
+        'To read',
+        shown.where((s) => toRead.contains(s)).toList()..sort(_byUrgency),
+      ),
       (
         'In report',
         shown
-            .where((s) =>
-                s.status == RadStudyStatus.draft || s.status == RadStudyStatus.preliminary)
+            .where(
+              (s) =>
+                  s.status == RadStudyStatus.draft ||
+                  s.status == RadStudyStatus.preliminary,
+            )
             .toList()
-          ..sort(_byUrgency)
+          ..sort(_byUrgency),
       ),
       (
         'Signed',
         shown.where((s) => !s.status.isOpen).toList()
-          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt))
+          ..sort((a, b) => b.updatedAt.compareTo(a.updatedAt)),
       ),
     ].where((g) => g.$2.isNotEmpty).toList();
 
     Widget cell(String label, String value, Widget caption) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [GlanceLabel(label), GlanceMetric(value), GlanceCaption(caption)],
-        );
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GlanceLabel(label),
+        GlanceMetric(value),
+        GlanceCaption(caption),
+      ],
+    );
 
     final page = Padding(
       padding: CruSpace.mainPadding,
@@ -146,7 +175,7 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
             subtitle: studies == null || studies.isEmpty
                 ? 'Scans sent to you for reading'
                 : '${DashFormat.plural(toRead.length, 'study', 'studies')} to read'
-                    '${overdue > 0 ? ' · $overdue overdue' : ''}',
+                      '${overdue > 0 ? ' · $overdue overdue' : ''}',
             actions: [
               CruButton(
                 label: 'Capture RVG',
@@ -183,7 +212,11 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                 cell(
                   'To read',
                   '${toRead.length}',
-                  Text(toRead.isEmpty ? 'All caught up' : 'Oldest ${RadFormat.ago(toRead.map((s) => s.receivedAt).reduce((a, b) => a.isBefore(b) ? a : b), now).toLowerCase()}'),
+                  Text(
+                    toRead.isEmpty
+                        ? 'All caught up'
+                        : 'Oldest ${RadFormat.ago(toRead.map((s) => s.receivedAt).reduce((a, b) => a.isBefore(b) ? a : b), now).toLowerCase()}',
+                  ),
                 ),
                 cell(
                   'Urgent and STAT',
@@ -195,11 +228,16 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                   '$overdue',
                   overdue == 0
                       ? const Text('Everything on time')
-                      : Text('Past their turnaround time',
-                          style: CruType.caption.tint(c.amberText)),
+                      : Text(
+                          'Past their turnaround time',
+                          style: CruType.caption.tint(c.amberText),
+                        ),
                 ),
-                cell('Signed today', '$signedToday',
-                    Text(signedToday == 0 ? 'None yet' : 'Reports finalised')),
+                cell(
+                  'Signed today',
+                  '$signedToday',
+                  Text(signedToday == 0 ? 'None yet' : 'Reports finalised'),
+                ),
               ],
             ),
           const SizedBox(height: CruSpace.cardGap),
@@ -253,43 +291,51 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
               child: studies == null
                   ? const SizedBox.shrink()
                   : shown.isEmpty
-                      ? Center(
-                          child: SingleChildScrollView(
-                            child: DentalEmptyState(
-                              icon: RadIcons.worklist,
-                              title: studies.isEmpty ? 'No scans yet' : 'No studies here',
-                              body: studies.isEmpty
-                                  ? 'Import CBCT, OPG, ceph or intraoral scans from a CD, '
-                                      'folder or ZIP, or drop them anywhere on this page. '
-                                      'Each study waits here until its report is signed.'
-                                  : 'Try another filter or search.',
-                              actions: [
-                                if (studies.isEmpty)
-                                  CruButton(
-                                    label: 'Import scans',
-                                    icon: RadIcons.import,
-                                    onPressed: () => _import(),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          children: [
-                            for (final g in groups) ...[
-                              DentalGroupLabel(g.$1,
-                                  trailing: DashFormat.plural(g.$2.length, 'study', 'studies')),
-                              for (var i = 0; i < g.$2.length; i++) ...[
-                                if (i > 0) const CruSeparator(indent: 12 + 58 + 14),
-                                _StudyRow(
-                                  study: g.$2[i],
-                                  referrer: referrers[g.$2[i].referrerId],
-                                  now: now,
-                                ),
-                              ],
-                            ],
+                  ? Center(
+                      child: SingleChildScrollView(
+                        child: DentalEmptyState(
+                          icon: RadIcons.worklist,
+                          title: studies.isEmpty
+                              ? 'No scans yet'
+                              : 'No studies here',
+                          body: studies.isEmpty
+                              ? 'Import CBCT, OPG, ceph or intraoral scans from a CD, '
+                                    'folder or ZIP, or drop them anywhere on this page. '
+                                    'Each study waits here until its report is signed.'
+                              : 'Try another filter or search.',
+                          actions: [
+                            if (studies.isEmpty)
+                              CruButton(
+                                label: 'Import scans',
+                                icon: RadIcons.import,
+                                onPressed: () => _import(),
+                              ),
                           ],
                         ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final g in groups) ...[
+                          DentalGroupLabel(
+                            g.$1,
+                            trailing: DashFormat.plural(
+                              g.$2.length,
+                              'study',
+                              'studies',
+                            ),
+                          ),
+                          for (var i = 0; i < g.$2.length; i++) ...[
+                            if (i > 0) const CruSeparator(indent: 12 + 58 + 14),
+                            _StudyRow(
+                              study: g.$2[i],
+                              referrer: referrers[g.$2[i].referrerId],
+                              now: now,
+                            ),
+                          ],
+                        ],
+                      ],
+                    ),
             ),
           ),
         ],
@@ -301,7 +347,8 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
         const SingleActivator(LogicalKeyboardKey.keyN, control: true): () {
           if (studies != null) _openNext(studies);
         },
-        const SingleActivator(LogicalKeyboardKey.keyI, control: true): () => _import(),
+        const SingleActivator(LogicalKeyboardKey.keyI, control: true): () =>
+            _import(),
       },
       child: DropTarget(
         onDragEntered: (_) => setState(() => _dragging = true),
@@ -321,18 +368,29 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                     margin: const EdgeInsets.all(CruSpace.s16),
                     decoration: ShapeDecoration(
                       color: c.surface.withValues(alpha: 0.92),
-                      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline, width: 2)),
+                      shape: cruShape(
+                        CruRadius.card,
+                        side: BorderSide(color: c.hairline, width: 2),
+                      ),
                     ),
                     alignment: Alignment.center,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const CruIconTile(icon: RadIcons.import, tone: CruTileTone.accent),
+                        const CruIconTile(
+                          icon: RadIcons.import,
+                          tone: CruTileTone.accent,
+                        ),
                         const SizedBox(height: CruSpace.s12),
-                        Text('Drop to import scans', style: CruType.headline.tint(c.label)),
+                        Text(
+                          'Drop to import scans',
+                          style: CruType.headline.tint(c.label),
+                        ),
                         const SizedBox(height: CruSpace.s4),
-                        Text('DICOM, pictures, folders, patient CDs and ZIP files',
-                            style: CruType.subhead.tint(c.label2)),
+                        Text(
+                          'DICOM, pictures, folders, patient CDs and ZIP files',
+                          style: CruType.subhead.tint(c.label2),
+                        ),
                       ],
                     ),
                   ),
@@ -348,7 +406,11 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
 enum _RowAction { report, view3d, edit, routine, urgent, stat, invoice, delete }
 
 class _StudyRow extends ConsumerWidget {
-  const _StudyRow({required this.study, required this.referrer, required this.now});
+  const _StudyRow({
+    required this.study,
+    required this.referrer,
+    required this.now,
+  });
 
   final RadStudy study;
   final RadReferrer? referrer;
@@ -375,7 +437,10 @@ class _StudyRow extends ConsumerWidget {
           _ => RadPriority.routine,
         };
         await ctrl.saveStudy(
-          study.copyWith(priority: p, dueAt: await ctrl.dueFor(p, study.receivedAt)),
+          study.copyWith(
+            priority: p,
+            dueAt: await ctrl.dueFor(p, study.receivedAt),
+          ),
           auditAction: 'Priority ${p.label}',
           detail: study.patientName,
         );
@@ -385,7 +450,8 @@ class _StudyRow extends ConsumerWidget {
         final ok = await confirmDental(
           context,
           title: 'Delete this study?',
-          body: '${study.patientName}\'s ${study.modality.label} from '
+          body:
+              '${study.patientName}\'s ${study.modality.label} from '
               '${RadFormat.date(study.studyDate)}, its ${RadFormat.images(study.imageCount)} '
               'and any report will be removed from this computer.',
           action: 'Delete',
@@ -400,13 +466,16 @@ class _StudyRow extends ConsumerWidget {
     final due = RadFormat.due(study, now);
     final line = [
       RadFormat.patientLine(study, now),
-      if (study.clinicalQuestion.isNotEmpty) study.clinicalQuestion
-      else if (study.description.isNotEmpty) study.description,
+      if (study.clinicalQuestion.isNotEmpty)
+        study.clinicalQuestion
+      else if (study.description.isNotEmpty)
+        study.description,
     ].where((s) => s.isNotEmpty).join(' · ');
     final priority = radPriorityPill(c, study.priority);
 
     return DentalListRow(
-      semanticLabel: '${study.patientName}, ${study.modality.label}, ${study.status.label}',
+      semanticLabel:
+          '${study.patientName}, ${study.modality.label}, ${study.status.label}',
       onTap: () => openRadStudy(context, ref, study),
       minHeight: 64,
       child: Row(
@@ -422,7 +491,9 @@ class _StudyRow extends ConsumerWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        study.patientName.isEmpty ? 'Unnamed patient' : study.patientName,
+                        study.patientName.isEmpty
+                            ? 'Unnamed patient'
+                            : study.patientName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: CruType.callout.tint(c.label),
@@ -432,16 +503,23 @@ class _StudyRow extends ConsumerWidget {
                       const SizedBox(width: CruSpace.s8),
                       Tooltip(
                         message: 'Critical finding',
-                        child: CruIcon(RadIcons.flag, size: 14, strokeWidth: 2, color: c.redText),
+                        child: CruIcon(
+                          RadIcons.flag,
+                          size: 14,
+                          strokeWidth: 2,
+                          color: c.redText,
+                        ),
                       ),
                     ],
                   ],
                 ),
                 if (line.isNotEmpty)
-                  Text(line,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: CruType.subhead.tint(c.label2)),
+                  Text(
+                    line,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.subhead.tint(c.label2),
+                  ),
               ],
             ),
           ),
@@ -455,7 +533,9 @@ class _StudyRow extends ConsumerWidget {
                   referrer?.name ?? 'No referrer',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: CruType.subhead.tint(referrer == null ? c.label3 : c.label),
+                  style: CruType.subhead.tint(
+                    referrer == null ? c.label3 : c.label,
+                  ),
                 ),
                 Text(
                   '${RadFormat.ago(study.receivedAt, now)} · ${RadFormat.images(study.imageCount)}',
@@ -472,26 +552,42 @@ class _StudyRow extends ConsumerWidget {
               due.text,
               maxLines: 1,
               style: CruType.subhead.tabular.tint(
-                  due.late || due.soon ? c.amberText : c.label2),
+                due.late || due.soon ? c.amberText : c.label2,
+              ),
             ),
           ),
           SizedBox(
             width: 72,
-            child: Align(alignment: Alignment.centerLeft, child: priority ?? const SizedBox.shrink()),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: priority ?? const SizedBox.shrink(),
+            ),
           ),
           SizedBox(
             width: 96,
-            child: Align(alignment: Alignment.centerLeft, child: radStatusPill(c, study.status)),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: radStatusPill(c, study.status),
+            ),
           ),
           PopupMenuButton<_RowAction>(
             tooltip: 'More',
             icon: CruIcon(CruIcons.more, size: 18, color: c.label2),
             onSelected: (a) => _act(context, ref, a),
             itemBuilder: (_) => [
-              const PopupMenuItem(value: _RowAction.report, child: Text('Open report')),
+              const PopupMenuItem(
+                value: _RowAction.report,
+                child: Text('Open report'),
+              ),
               if (radIsVolume(study))
-                const PopupMenuItem(value: _RowAction.view3d, child: Text('Open in 3D')),
-              const PopupMenuItem(value: _RowAction.edit, child: Text('Edit referral')),
+                const PopupMenuItem(
+                  value: _RowAction.view3d,
+                  child: Text('Open in 3D'),
+                ),
+              const PopupMenuItem(
+                value: _RowAction.edit,
+                child: Text('Edit referral'),
+              ),
               const PopupMenuDivider(),
               for (final (a, p) in const [
                 (_RowAction.routine, RadPriority.routine),
@@ -506,9 +602,14 @@ class _StudyRow extends ConsumerWidget {
               const PopupMenuDivider(),
               PopupMenuItem(
                 value: _RowAction.invoice,
-                child: Text(study.invoiced ? 'Invoice again' : 'Create invoice'),
+                child: Text(
+                  study.invoiced ? 'Invoice again' : 'Create invoice',
+                ),
               ),
-              const PopupMenuItem(value: _RowAction.delete, child: Text('Delete study')),
+              const PopupMenuItem(
+                value: _RowAction.delete,
+                child: Text('Delete study'),
+              ),
             ],
           ),
         ],

@@ -22,7 +22,8 @@ Future<DateTime?> showRescheduleVisitDialog(
 }) {
   return showDialog<DateTime>(
     context: context,
-    builder: (_) => RescheduleVisitDialog(item: item, initialStart: initialStart),
+    builder: (_) =>
+        RescheduleVisitDialog(item: item, initialStart: initialStart),
   );
 }
 
@@ -30,7 +31,11 @@ Future<DateTime?> showRescheduleVisitDialog(
 /// ask first; the cap of 4 and same-patient double bookings show inline
 /// under the time field.
 class RescheduleVisitDialog extends ConsumerStatefulWidget {
-  const RescheduleVisitDialog({super.key, required this.item, this.initialStart});
+  const RescheduleVisitDialog({
+    super.key,
+    required this.item,
+    this.initialStart,
+  });
 
   final ApptItem item;
 
@@ -184,7 +189,9 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
       _clearErrors();
     });
     try {
-      await ref.read(visitRepositoryProvider).rescheduleVisit(
+      await ref
+          .read(visitRepositoryProvider)
+          .rescheduleVisit(
             widget.item.id,
             newStart: start,
             acknowledgeOverlap: acknowledgeOverlap,
@@ -212,7 +219,8 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _error = '${widget.item.firstName} already has a visit at '
+        _error =
+            '${widget.item.firstName} already has a visit at '
             '${ApptFormat.time(e.conflict.scheduledStart)} that overlaps '
             'this time.';
       });
@@ -237,8 +245,8 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
     final body = first == null
         ? 'This time overlaps another visit.'
         : n == 1
-            ? 'Another visit is booked at ${ApptFormat.time(first.scheduledStart)}.'
-            : '$n other visits overlap this time.';
+        ? 'Another visit is booked at ${ApptFormat.time(first.scheduledStart)}.'
+        : '$n other visits overlap this time.';
     return showDialog<bool>(
       context: context,
       builder: (ctx) => PatientDialog(
@@ -299,7 +307,11 @@ class _RescheduleVisitDialogState extends ConsumerState<RescheduleVisitDialog>
           ),
           if (_capAt != null) ...[
             const SizedBox(height: CruSpace.s8),
-            ApptCapNotice(at: _capAt!, nextFree: _capNextFree, onPick: _useSlot),
+            ApptCapNotice(
+              at: _capAt!,
+              nextFree: _capNextFree,
+              onPick: _useSlot,
+            ),
           ] else if (_error != null) ...[
             const SizedBox(height: CruSpace.s8),
             ApptInlineError(_error!),

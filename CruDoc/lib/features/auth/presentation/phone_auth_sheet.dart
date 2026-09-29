@@ -203,7 +203,9 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                       // Country code
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 13),
+                          horizontal: 12,
+                          vertical: 13,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withOpacity(0.12),
                           borderRadius: BorderRadius.circular(12),
@@ -248,7 +250,9 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                               borderSide: BorderSide.none,
                             ),
                             contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 14, vertical: 13),
+                              horizontal: 14,
+                              vertical: 13,
+                            ),
                           ),
                         ),
                       ),
@@ -286,13 +290,17 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                         borderSide: BorderSide.none,
                       ),
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 16),
+                        horizontal: 14,
+                        vertical: 16,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   // Resend button
                   GestureDetector(
-                    onTap: _resendCountdown > 0 ? null : () => _sendOTP(resend: true),
+                    onTap: _resendCountdown > 0
+                        ? null
+                        : () => _sendOTP(resend: true),
                     child: Text(
                       _resendCountdown > 0
                           ? 'Resend in ${_resendCountdown}s'
@@ -334,8 +342,8 @@ class _PhoneAuthSheetState extends State<PhoneAuthSheet> {
                     onPressed: _isLoading
                         ? null
                         : _otpSent
-                            ? _verifyOTP
-                            : _sendOTP,
+                        ? _verifyOTP
+                        : _sendOTP,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,
                       disabledBackgroundColor: Colors.white.withOpacity(0.5),

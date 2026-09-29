@@ -2,8 +2,11 @@ import 'package:intl/intl.dart';
 
 /// Display formatting for the dashboard. Pure, so it's easy to test.
 abstract final class DashFormat {
-  static final NumberFormat _rupees =
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
+  static final NumberFormat _rupees = NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  );
 
   /// ₹21,300 (Indian grouping).
   static String rupees(double amount) => _rupees.format(amount.round());

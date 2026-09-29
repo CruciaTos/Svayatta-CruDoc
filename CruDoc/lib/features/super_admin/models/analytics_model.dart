@@ -48,12 +48,12 @@ class AnalyticsModel {
     Map<String, int>? doctorsByCountry,
     Map<String, int>? featureUsageCounts,
     DateTime? generatedAt,
-  })  : date = date ?? DateTime.now(),
-        doctorsByPlan = doctorsByPlan ?? {},
-        doctorsBySpecialization = doctorsBySpecialization ?? {},
-        doctorsByCountry = doctorsByCountry ?? {},
-        featureUsageCounts = featureUsageCounts ?? {},
-        generatedAt = generatedAt ?? DateTime.now();
+  }) : date = date ?? DateTime.now(),
+       doctorsByPlan = doctorsByPlan ?? {},
+       doctorsBySpecialization = doctorsBySpecialization ?? {},
+       doctorsByCountry = doctorsByCountry ?? {},
+       featureUsageCounts = featureUsageCounts ?? {},
+       generatedAt = generatedAt ?? DateTime.now();
 
   factory AnalyticsModel.fromJson(Map<String, dynamic> json, String id) {
     return AnalyticsModel(
@@ -67,26 +67,37 @@ class AnalyticsModel {
       totalAppointments: json['totalAppointments'] as int? ?? 0,
       activeDevices: json['activeDevices'] as int? ?? 0,
       ocrRequestsThisMonth: json['ocrRequestsThisMonth'] as int? ?? 0,
-      totalStorageUsedGB: (json['totalStorageUsedGB'] as num?)?.toDouble() ?? 0.0,
-      totalStorageLimitGB: (json['totalStorageLimitGB'] as num?)?.toDouble() ?? 0.0,
+      totalStorageUsedGB:
+          (json['totalStorageUsedGB'] as num?)?.toDouble() ?? 0.0,
+      totalStorageLimitGB:
+          (json['totalStorageLimitGB'] as num?)?.toDouble() ?? 0.0,
       monthlyRevenue: (json['monthlyRevenue'] as num?)?.toDouble() ?? 0.0,
       annualRevenue: (json['annualRevenue'] as num?)?.toDouble() ?? 0.0,
       newDoctorsToday: json['newDoctorsToday'] as int? ?? 0,
       newDoctorsThisWeek: json['newDoctorsThisWeek'] as int? ?? 0,
       newDoctorsThisMonth: json['newDoctorsThisMonth'] as int? ?? 0,
-      doctorsByPlan: (json['doctorsByPlan'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, v as int)) ??
+      doctorsByPlan:
+          (json['doctorsByPlan'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, v as int),
+          ) ??
           {},
-      doctorsBySpecialization: (json['doctorsBySpecialization'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, v as int)) ??
+      doctorsBySpecialization:
+          (json['doctorsBySpecialization'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, v as int),
+          ) ??
           {},
-      doctorsByCountry: (json['doctorsByCountry'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, v as int)) ??
+      doctorsByCountry:
+          (json['doctorsByCountry'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, v as int),
+          ) ??
           {},
-      featureUsageCounts: (json['featureUsageCounts'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, v as int)) ??
+      featureUsageCounts:
+          (json['featureUsageCounts'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, v as int),
+          ) ??
           {},
-      generatedAt: (json['generatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      generatedAt:
+          (json['generatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
@@ -151,10 +162,13 @@ class DoctorAnalyticsModel {
     this.platform = '',
     this.crashCount = 0,
     Map<String, int>? featureUsage,
-  })  : lastLogin = lastLogin ?? DateTime.now(),
-        featureUsage = featureUsage ?? {};
+  }) : lastLogin = lastLogin ?? DateTime.now(),
+       featureUsage = featureUsage ?? {};
 
-  factory DoctorAnalyticsModel.fromJson(Map<String, dynamic> json, String doctorId) {
+  factory DoctorAnalyticsModel.fromJson(
+    Map<String, dynamic> json,
+    String doctorId,
+  ) {
     return DoctorAnalyticsModel(
       doctorId: doctorId,
       doctorName: json['doctorName'] as String? ?? '',
@@ -170,8 +184,10 @@ class DoctorAnalyticsModel {
       appVersion: json['appVersion'] as String? ?? '',
       platform: json['platform'] as String? ?? '',
       crashCount: json['crashCount'] as int? ?? 0,
-      featureUsage: (json['featureUsage'] as Map<String, dynamic>?)
-              ?.map((k, v) => MapEntry(k, v as int)) ??
+      featureUsage:
+          (json['featureUsage'] as Map<String, dynamic>?)?.map(
+            (k, v) => MapEntry(k, v as int),
+          ) ??
           {},
     );
   }
@@ -183,9 +199,5 @@ class ChartDataPoint {
   final double value;
   final String? category;
 
-  ChartDataPoint({
-    required this.label,
-    required this.value,
-    this.category,
-  });
+  ChartDataPoint({required this.label, required this.value, this.category});
 }

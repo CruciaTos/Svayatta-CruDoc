@@ -21,8 +21,9 @@ class DoctorProfileHelper {
     }
 
     try {
-      final uidDocRef =
-          FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+      final uidDocRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid);
       await for (final snap in uidDocRef.snapshots()) {
         if (FirebaseAuth.instance.currentUser == null) {
           yield null;
@@ -61,16 +62,20 @@ class DoctorProfileHelper {
   /// name when the profile, Auth and email have nothing usable.
   static String? tryFormatDoctorName(User? user, Map<String, dynamic>? data) {
     if (data != null) {
-      final rawName = (data['displayName'] ??
-          data['doctorName'] ??
-          data['fullName'] ??
-          data['name']) as String?;
+      final rawName =
+          (data['displayName'] ??
+                  data['doctorName'] ??
+                  data['fullName'] ??
+                  data['name'])
+              as String?;
 
       if (rawName != null && rawName.trim().isNotEmpty) {
         String cleanName = rawName;
         if (user != null) {
-          cleanName =
-              DoctorEncryptionService.decryptForDoctor(cleanName, user.uid);
+          cleanName = DoctorEncryptionService.decryptForDoctor(
+            cleanName,
+            user.uid,
+          );
         }
         cleanName = FieldCipher.decrypt(cleanName);
 
@@ -89,10 +94,11 @@ class DoctorProfileHelper {
           (data['lastName'] ?? data['last_name'] ?? data['familyName'])
               as String?;
       if (firstName != null && firstName.trim().isNotEmpty) {
-        final combined = ((lastName != null && lastName.trim().isNotEmpty)
-                ? '${firstName.trim()} ${lastName.trim()}'
-                : firstName.trim())
-            .trim();
+        final combined =
+            ((lastName != null && lastName.trim().isNotEmpty)
+                    ? '${firstName.trim()} ${lastName.trim()}'
+                    : firstName.trim())
+                .trim();
         if (combined.toLowerCase() != 'doctor') {
           return combined.toLowerCase().startsWith('dr')
               ? combined
@@ -111,8 +117,9 @@ class DoctorProfileHelper {
     if (user?.email != null && user!.email!.trim().isNotEmpty) {
       final rawName = user.email!.split('@').first;
       final cleanHandle = rawName.replaceAll(RegExp(r'\d+$'), '');
-      final parts =
-          cleanHandle.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+      final parts = cleanHandle
+          .split(RegExp(r'[._-]'))
+          .where((p) => p.isNotEmpty);
       if (parts.isNotEmpty) {
         final formatted = parts
             .map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase())
@@ -129,15 +136,19 @@ class DoctorProfileHelper {
   /// Formats doctor's medical specialty / designation.
   static String formatSpecialty(Map<String, dynamic>? data, [User? user]) {
     if (data != null) {
-      final rawSpec = (data['specialty'] ??
-          data['specialization'] ??
-          data['degree'] ??
-          data['qualification']) as String?;
+      final rawSpec =
+          (data['specialty'] ??
+                  data['specialization'] ??
+                  data['degree'] ??
+                  data['qualification'])
+              as String?;
       if (rawSpec != null && rawSpec.trim().isNotEmpty) {
         String cleanSpec = rawSpec;
         if (user != null) {
-          cleanSpec =
-              DoctorEncryptionService.decryptForDoctor(cleanSpec, user.uid);
+          cleanSpec = DoctorEncryptionService.decryptForDoctor(
+            cleanSpec,
+            user.uid,
+          );
         }
         cleanSpec = FieldCipher.decrypt(cleanSpec);
         if (cleanSpec.trim().isNotEmpty) {
@@ -155,9 +166,9 @@ class DoctorProfileHelper {
   /// Like [formatClinicName], but null when no clinic name is set.
   static String? tryFormatClinicName(User? user, Map<String, dynamic>? data) {
     if (data != null) {
-      final rawClinic = (data['clinicName'] ??
-          data['practiceName'] ??
-          data['clinic_name']) as String?;
+      final rawClinic =
+          (data['clinicName'] ?? data['practiceName'] ?? data['clinic_name'])
+              as String?;
       if (rawClinic != null && rawClinic.trim().isNotEmpty) {
         return rawClinic.trim();
       }
@@ -178,12 +189,17 @@ class DoctorProfileHelper {
     final trimmedSpecialty = specialty.trim();
 
     final encryptedName = DoctorEncryptionService.encryptForDoctor(
-        trimmedName, currentUser.uid);
+      trimmedName,
+      currentUser.uid,
+    );
     final encryptedSpec = DoctorEncryptionService.encryptForDoctor(
-        trimmedSpecialty, currentUser.uid);
+      trimmedSpecialty,
+      currentUser.uid,
+    );
 
-    final docRef =
-        FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid);
 
     await docRef.set({
       'displayName': trimmedName,
@@ -215,8 +231,9 @@ class DoctorProfileHelper {
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
 
-    final docRef =
-        FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+    final docRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid);
 
     final payload = <String, dynamic>{
       'clinicName': clinicName.trim(),
@@ -276,14 +293,38 @@ class DoctorLetterheadConfig {
     final doctorName = DoctorProfileHelper.formatDoctorName(user, data);
     final specialty = DoctorProfileHelper.formatSpecialty(data, user);
 
-    final clinicName = (data?['clinicName'] ?? data?['practiceName'] ?? 'CruDoc Multi-Speciality Clinic') as String;
-    final qualifications = (data?['qualifications'] ?? data?['doctorQualifications'] ?? 'MBBS, MD (Medicine)') as String;
-    final regNo = (data?['registrationNumber'] ?? data?['doctorRegistrationNumber'] ?? 'MMC-2024/98765') as String;
-    final address = (data?['clinicAddress'] ?? 'Plot 42, Sunrise Healthcare Complex, Mumbai - 400001') as String;
-    final phone = (data?['clinicPhone'] ?? user?.phoneNumber ?? '+91 91520 35527') as String;
-    final email = (data?['clinicEmail'] ?? user?.email ?? 'care@crudoc.com') as String;
-    final tagline = (data?['letterheadTagline'] ?? 'Excellence in Healthcare & Patient Wellbeing') as String;
-    final footer = (data?['letterheadFooterDisclaimer'] ?? 'This digital document is generated by CruDoc Practice Management System.') as String;
+    final clinicName =
+        (data?['clinicName'] ??
+                data?['practiceName'] ??
+                'CruDoc Multi-Speciality Clinic')
+            as String;
+    final qualifications =
+        (data?['qualifications'] ??
+                data?['doctorQualifications'] ??
+                'MBBS, MD (Medicine)')
+            as String;
+    final regNo =
+        (data?['registrationNumber'] ??
+                data?['doctorRegistrationNumber'] ??
+                'MMC-2024/98765')
+            as String;
+    final address =
+        (data?['clinicAddress'] ??
+                'Plot 42, Sunrise Healthcare Complex, Mumbai - 400001')
+            as String;
+    final phone =
+        (data?['clinicPhone'] ?? user?.phoneNumber ?? '+91 91520 35527')
+            as String;
+    final email =
+        (data?['clinicEmail'] ?? user?.email ?? 'care@crudoc.com') as String;
+    final tagline =
+        (data?['letterheadTagline'] ??
+                'Excellence in Healthcare & Patient Wellbeing')
+            as String;
+    final footer =
+        (data?['letterheadFooterDisclaimer'] ??
+                'This digital document is generated by CruDoc Practice Management System.')
+            as String;
     final logoUrl = data?['clinicLogoUrl'] as String?;
 
     return DoctorLetterheadConfig(
@@ -301,4 +342,3 @@ class DoctorLetterheadConfig {
     );
   }
 }
-

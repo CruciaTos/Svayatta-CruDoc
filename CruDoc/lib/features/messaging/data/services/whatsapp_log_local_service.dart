@@ -12,7 +12,7 @@ import 'package:doctor_management_app/features/messaging/data/models/whatsapp_no
 /// - Handles status transitions (pending -> sent / delivered / read / failed / skipped)
 class WhatsAppLogLocalService {
   WhatsAppLogLocalService({LocalDatabaseService? dbService})
-      : _dbService = dbService ?? LocalDatabaseService.instance;
+    : _dbService = dbService ?? LocalDatabaseService.instance;
 
   final LocalDatabaseService _dbService;
 
@@ -94,22 +94,22 @@ class WhatsAppLogLocalService {
       'status': status.value,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
-    if (whatsappMessageId != null) values['whatsappMessageId'] = whatsappMessageId;
+    if (whatsappMessageId != null)
+      values['whatsappMessageId'] = whatsappMessageId;
     if (failureReason != null) values['failureReason'] = failureReason;
     if (sentAt != null) values['sentAt'] = sentAt.millisecondsSinceEpoch;
-    if (deliveredAt != null) values['deliveredAt'] = deliveredAt.millisecondsSinceEpoch;
+    if (deliveredAt != null)
+      values['deliveredAt'] = deliveredAt.millisecondsSinceEpoch;
     if (readAt != null) values['readAt'] = readAt.millisecondsSinceEpoch;
 
-    await db.update(
-      tableName,
-      values,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.update(tableName, values, where: 'id = ?', whereArgs: [id]);
   }
 
   /// Looks up a log entry by its associated appointment / visit ID.
-  Future<WhatsAppNotificationLog?> getLogByVisitId(String visitId, String doctorId) async {
+  Future<WhatsAppNotificationLog?> getLogByVisitId(
+    String visitId,
+    String doctorId,
+  ) async {
     if (kIsWeb) return null;
     final db = await _dbService.localDatabase;
     await ensureTableCreated(db);
@@ -126,7 +126,10 @@ class WhatsAppLogLocalService {
   }
 
   /// Retrieves recent WhatsApp logs for a specific doctor.
-  Future<List<WhatsAppNotificationLog>> getLogsForDoctor(String doctorId, {int limit = 50}) async {
+  Future<List<WhatsAppNotificationLog>> getLogsForDoctor(
+    String doctorId, {
+    int limit = 50,
+  }) async {
     if (kIsWeb) return [];
     final db = await _dbService.localDatabase;
     await ensureTableCreated(db);
@@ -158,10 +161,19 @@ class WhatsAppLogLocalService {
     for (final row in rows) {
       final log = WhatsAppNotificationLog.fromMap(row);
       if (now.difference(log.attemptedAt).inMinutes >= 5) {
-        if (log.whatsappMessageId != null && log.whatsappMessageId!.isNotEmpty) {
-          await updateLogStatus(log.id, WhatsAppNotificationStatus.sent, sentAt: log.attemptedAt);
+        if (log.whatsappMessageId != null &&
+            log.whatsappMessageId!.isNotEmpty) {
+          await updateLogStatus(
+            log.id,
+            WhatsAppNotificationStatus.sent,
+            sentAt: log.attemptedAt,
+          );
         } else {
-          await updateLogStatus(log.id, WhatsAppNotificationStatus.failed, failureReason: 'interrupted_or_timeout');
+          await updateLogStatus(
+            log.id,
+            WhatsAppNotificationStatus.failed,
+            failureReason: 'interrupted_or_timeout',
+          );
         }
       }
     }

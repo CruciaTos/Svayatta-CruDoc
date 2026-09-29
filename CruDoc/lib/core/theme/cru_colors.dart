@@ -41,6 +41,7 @@ class CruColors extends ThemeExtension<CruColors> {
     required this.label3,
     required this.separator,
     required this.hairline,
+    required this.cardBorder,
     required this.ink,
     required this.accent,
     required this.onAccent,
@@ -92,6 +93,7 @@ class CruColors extends ThemeExtension<CruColors> {
 
   /// Card borders.
   final Color hairline;
+  final Color cardBorder;
 
   /// Up next card surface.
   final Color ink;
@@ -153,60 +155,41 @@ class CruColors extends ThemeExtension<CruColors> {
 
   static const CruColors day = CruColors(
     appearance: CruAppearance.day,
-    canvas: Color(0xFFDBEAFE),
+    canvas: Color(0xFFF1F4F9),
     surface: Color(0xFFFFFFFF),
-    inset: Color(0xFFF2F4F7),
-    track: Color(0xFFE6EAF0),
-    label: Color(0xFF1D1D1F),
-    label2: Color(0xFF6E6E73),
-    label3: Color(0xFF86868B),
-    separator: Color(0x14101828),
-    hairline: Color(0xFFE2E8F0),
+    inset: Color(0xFFF1F5F9),
+    track: Color(0xFFE2E8F0),
+    label: Color(0xFF0F172A),
+    label2: Color(0xFF475569),
+    label3: Color(0xFF64748B),
+    separator: Color(0xFFE2E8F0),
+    hairline: Colors.transparent,
+    cardBorder: Color(0xFFDCE3EC),
     ink: CruBrand.ink700,
     accent: CruBrand.ink600,
     onAccent: CruBrand.white,
-    accentText: CruBrand.ink600,
+    accentText: CruBrand.ink500,
     accentTint: CruBrand.ink100,
     accentWash: CruBrand.ink50,
     amber: Color(0xFFFF9F0A),
-    amberText: Color(0xFFB25000),
-    amberTint: Color(0xFFFFF4E5),
-    green: Color(0xFF34C759),
-    greenText: Color(0xFF248A3D),
-    greenTint: Color(0xFFEAF8EE),
-    redText: Color(0xFFD70015),
-    redTint: Color(0xFFFDECEC),
-    ai: Color(0xFF8031C0),
-    aiTint: Color(0xFFF8F3FF),
-    tealText: Color(0xFF0E7490),
-    tealTint: Color(0xFFE6F4F6),
+    amberText: Color(0xFFFFB340),
+    amberTint: Color(0x24FF9F0A),
+    green: Color(0xFF30D158),
+    greenText: Color(0xFF30D158),
+    greenTint: Color(0x2430D158),
+    redText: Color(0xFFFF7A70),
+    redTint: Color(0x29FF453A),
+    ai: Color(0xFFB98CEA),
+    aiTint: Color(0x24B98CEA),
+    tealText: Color(0xFF5EC8D0),
+    tealTint: Color(0x245EC8D0),
     sidebarSelected: Color(0xFFFFFFFF),
     segmentSelected: Color(0xFFFFFFFF),
-    hoverFill: Color(0xFFF2F4F7),
-    cardShadow: [
-      BoxShadow(color: Color(0x0F000000), blurRadius: 2, offset: Offset(0, 1)),
-    ],
-    segmentShadow: [
-      BoxShadow(color: Color(0x1F101828), blurRadius: 3, offset: Offset(0, 1)),
-    ],
-    inkShadow: [
-      BoxShadow(color: Color(0x332542BD), blurRadius: 2, offset: Offset(0, 1)),
-      BoxShadow(
-        color: Color(0x992542BD),
-        blurRadius: 40,
-        spreadRadius: -24,
-        offset: Offset(0, 24),
-      ),
-    ],
-    paneShadow: [
-      BoxShadow(color: Color(0x0A101828), blurRadius: 2, offset: Offset(0, 1)),
-      BoxShadow(
-        color: Color(0x24101828),
-        blurRadius: 32,
-        spreadRadius: -16,
-        offset: Offset(0, 16),
-      ),
-    ],
+    hoverFill: Color(0xFFF1F5F9),
+    cardShadow: [],
+    segmentShadow: [],
+    inkShadow: [],
+    paneShadow: [],
     inkBorder: Color(0x00000000),
     primaryButtonFill: CruBrand.ink600,
     primaryButtonText: CruBrand.white,
@@ -224,11 +207,12 @@ class CruColors extends ThemeExtension<CruColors> {
     label2: Color(0xFFA1A1A6),
     label3: Color(0xFF8E8E93),
     separator: Color(0x14FFFFFF),
-    hairline: Color(0x0FFFFFFF),
+    hairline: Colors.transparent,
+    cardBorder: Color(0x14FFFFFF),
     ink: CruBrand.ink800,
     accent: CruBrand.ink600,
     onAccent: CruBrand.white,
-    accentText: CruBrand.ink400,
+    accentText: CruBrand.ink500,
     accentTint: Color(0x384973F8),
     accentWash: Color(0x1A4973F8),
     amber: Color(0xFFFF9F0A),
@@ -247,18 +231,9 @@ class CruColors extends ThemeExtension<CruColors> {
     segmentSelected: Color(0xFF3A3B40),
     hoverFill: Color(0xFF26272B),
     cardShadow: [],
-    segmentShadow: [
-      BoxShadow(color: Color(0x59000000), blurRadius: 2, offset: Offset(0, 1)),
-    ],
+    segmentShadow: [],
     inkShadow: [],
-    paneShadow: [
-      BoxShadow(
-        color: Color(0x66000000),
-        blurRadius: 32,
-        spreadRadius: -16,
-        offset: Offset(0, 16),
-      ),
-    ],
+    paneShadow: [],
     inkBorder: Color(0x0FFFFFFF),
     primaryButtonFill: CruBrand.ink600,
     primaryButtonText: CruBrand.white,
@@ -301,6 +276,13 @@ class CruColors extends ThemeExtension<CruColors> {
     Color? amberText,
     Color? primaryButtonFill,
     Color? primaryButtonText,
+    List<BoxShadow>? cardShadow,
+    List<BoxShadow>? segmentShadow,
+    List<BoxShadow>? inkShadow,
+    List<BoxShadow>? paneShadow,
+    Color? hairline,
+    Color? cardBorder,
+    Color? separator,
   }) {
     return CruColors(
       appearance: appearance,
@@ -311,8 +293,9 @@ class CruColors extends ThemeExtension<CruColors> {
       label: label ?? this.label,
       label2: label2 ?? this.label2,
       label3: label3 ?? this.label3,
-      separator: separator,
-      hairline: hairline,
+      separator: separator ?? this.separator,
+      hairline: hairline ?? this.hairline,
+      cardBorder: cardBorder ?? this.cardBorder,
       ink: ink,
       accent: accent,
       onAccent: onAccent,
@@ -334,10 +317,10 @@ class CruColors extends ThemeExtension<CruColors> {
       sidebarSelected: sidebarSelected,
       segmentSelected: segmentSelected,
       hoverFill: hoverFill ?? this.hoverFill,
-      cardShadow: cardShadow,
-      segmentShadow: segmentShadow,
-      inkShadow: inkShadow,
-      paneShadow: paneShadow,
+      cardShadow: cardShadow ?? this.cardShadow,
+      segmentShadow: segmentShadow ?? this.segmentShadow,
+      inkShadow: inkShadow ?? this.inkShadow,
+      paneShadow: paneShadow ?? this.paneShadow,
       inkBorder: inkBorder,
       primaryButtonFill: primaryButtonFill ?? this.primaryButtonFill,
       primaryButtonText: primaryButtonText ?? this.primaryButtonText,
@@ -361,6 +344,7 @@ class CruColors extends ThemeExtension<CruColors> {
       label3: c(label3, other.label3),
       separator: c(separator, other.separator),
       hairline: c(hairline, other.hairline),
+      cardBorder: c(cardBorder, other.cardBorder),
       ink: c(ink, other.ink),
       accent: c(accent, other.accent),
       onAccent: c(onAccent, other.onAccent),
@@ -382,14 +366,16 @@ class CruColors extends ThemeExtension<CruColors> {
       sidebarSelected: c(sidebarSelected, other.sidebarSelected),
       segmentSelected: c(segmentSelected, other.segmentSelected),
       hoverFill: c(hoverFill, other.hoverFill),
-      cardShadow: BoxShadow.lerpList(cardShadow, other.cardShadow, t) ??
+      cardShadow:
+          BoxShadow.lerpList(cardShadow, other.cardShadow, t) ??
           other.cardShadow,
       segmentShadow:
           BoxShadow.lerpList(segmentShadow, other.segmentShadow, t) ??
-              other.segmentShadow,
+          other.segmentShadow,
       inkShadow:
           BoxShadow.lerpList(inkShadow, other.inkShadow, t) ?? other.inkShadow,
-      paneShadow: BoxShadow.lerpList(paneShadow, other.paneShadow, t) ??
+      paneShadow:
+          BoxShadow.lerpList(paneShadow, other.paneShadow, t) ??
           other.paneShadow,
       inkBorder: c(inkBorder, other.inkBorder),
       primaryButtonFill: c(primaryButtonFill, other.primaryButtonFill),
@@ -468,7 +454,8 @@ extension CruDentalColors on CruColors {
       isEvening ? const Color(0xFF000000) : const Color(0xFF4A3B26);
 
   /// The pulp inside a tooth (endo view).
-  Color get pulp => isEvening ? const Color(0xFFC77883) : const Color(0xFFE59AA5);
+  Color get pulp =>
+      isEvening ? const Color(0xFFC77883) : const Color(0xFFE59AA5);
 
   /// Fillings and crowns: finished work, so a green-tinted material.
   Color get restoration =>
@@ -479,7 +466,8 @@ extension CruDentalColors on CruColors {
       isEvening ? const Color(0xFFE08A1E) : const Color(0xFF9A4A08);
 
   /// Gums.
-  Color get gum => isEvening ? const Color(0xFFB9707A) : const Color(0xFFE7A3AB);
+  Color get gum =>
+      isEvening ? const Color(0xFFB9707A) : const Color(0xFFE7A3AB);
 
   /// Gums in shade.
   Color get gumShade =>
@@ -490,7 +478,8 @@ extension CruDentalColors on CruColors {
       isEvening ? const Color(0xFF8C939C) : const Color(0xFFA7AEB7);
 
   /// Behind the 3D jaws.
-  Color get stage => isEvening ? const Color(0xFF15181D) : const Color(0xFFF2F4F8);
+  Color get stage =>
+      isEvening ? const Color(0xFF15181D) : const Color(0xFFF2F4F8);
 }
 
 extension CruColorsContext on BuildContext {

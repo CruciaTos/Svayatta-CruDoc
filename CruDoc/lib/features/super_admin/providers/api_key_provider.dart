@@ -38,7 +38,9 @@ class ApiKeyState {
       apiLogs: apiLogs ?? this.apiLogs,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
-      lastGeneratedKey: clearGeneratedKey ? null : (lastGeneratedKey ?? this.lastGeneratedKey),
+      lastGeneratedKey: clearGeneratedKey
+          ? null
+          : (lastGeneratedKey ?? this.lastGeneratedKey),
       searchQuery: searchQuery ?? this.searchQuery,
       systemKeys: systemKeys ?? this.systemKeys,
     );
@@ -52,13 +54,18 @@ class ApiKeyState {
 
   double get successRate {
     if (apiLogs.isEmpty) return 100.0;
-    final successCount = apiLogs.where((l) => l.statusCode >= 200 && l.statusCode < 300).length;
+    final successCount = apiLogs
+        .where((l) => l.statusCode >= 200 && l.statusCode < 300)
+        .length;
     return (successCount / apiLogs.length) * 100.0;
   }
 
   double get averageLatency {
     if (apiLogs.isEmpty) return 0.0;
-    final totalLatency = apiLogs.fold<int>(0, (sum, log) => sum + log.latencyMs);
+    final totalLatency = apiLogs.fold<int>(
+      0,
+      (sum, log) => sum + log.latencyMs,
+    );
     return totalLatency / apiLogs.length;
   }
 
@@ -67,12 +74,20 @@ class ApiKeyState {
     final Map<DateTime, int> data = {};
     final now = DateTime.now();
     for (var i = 6; i >= 0; i--) {
-      final date = DateTime(now.year, now.month, now.day).subtract(Duration(days: i));
+      final date = DateTime(
+        now.year,
+        now.month,
+        now.day,
+      ).subtract(Duration(days: i));
       data[date] = 0;
     }
 
     for (final log in apiLogs) {
-      final logDate = DateTime(log.timestamp.year, log.timestamp.month, log.timestamp.day);
+      final logDate = DateTime(
+        log.timestamp.year,
+        log.timestamp.month,
+        log.timestamp.day,
+      );
       if (data.containsKey(logDate)) {
         data[logDate] = (data[logDate] ?? 0) + 1;
       }
@@ -135,7 +150,11 @@ class ApiKeyNotifier extends Notifier<ApiKeyState> {
     int rateLimit = 60,
     required List<String> scopes,
   }) async {
-    state = state.copyWith(isLoading: true, clearError: true, clearGeneratedKey: true);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      clearGeneratedKey: true,
+    );
     try {
       final result = await _service.createApiKey(
         name: name,
@@ -152,7 +171,7 @@ class ApiKeyNotifier extends Notifier<ApiKeyState> {
         lastGeneratedKey: secretKey,
         isLoading: false,
       );
-      
+
       // Reload logs (it may recalculate stats)
       loadKeysAndLogs();
     } catch (e) {
@@ -180,7 +199,7 @@ class ApiKeyNotifier extends Notifier<ApiKeyState> {
         isActive: isActive,
         scopes: scopes,
       );
-      
+
       // Update state in-place to avoid full reload flickers
       final updatedKeys = state.apiKeys.map((key) {
         if (key.id == id) {
@@ -194,11 +213,8 @@ class ApiKeyNotifier extends Notifier<ApiKeyState> {
         return key;
       }).toList();
 
-      state = state.copyWith(
-        apiKeys: updatedKeys,
-        isLoading: false,
-      );
-      
+      state = state.copyWith(apiKeys: updatedKeys, isLoading: false);
+
       loadKeysAndLogs(); // Reload logs in case status change alters logs
     } catch (e) {
       state = state.copyWith(
@@ -221,10 +237,7 @@ class ApiKeyNotifier extends Notifier<ApiKeyState> {
         return key;
       }).toList();
 
-      state = state.copyWith(
-        apiKeys: updatedKeys,
-        isLoading: false,
-      );
+      state = state.copyWith(apiKeys: updatedKeys, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -248,10 +261,7 @@ class ApiKeyNotifier extends Notifier<ApiKeyState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       await _service.saveSystemIntegrationKeys(keys);
-      state = state.copyWith(
-        systemKeys: keys,
-        isLoading: false,
-      );
+      state = state.copyWith(systemKeys: keys, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,

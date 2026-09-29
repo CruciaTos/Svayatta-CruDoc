@@ -88,8 +88,9 @@ class FeatureManagementState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
-      categoryFilter:
-          clearCategory ? null : (categoryFilter ?? this.categoryFilter),
+      categoryFilter: clearCategory
+          ? null
+          : (categoryFilter ?? this.categoryFilter),
       betaFilter: clearBeta ? null : (betaFilter ?? this.betaFilter),
     );
   }
@@ -132,10 +133,14 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
     Map<SubscriptionPlan, bool> planMap(FeatureModule m) {
       final map = <SubscriptionPlan, bool>{};
       for (final plan in SubscriptionPlan.values) {
-        map[plan] = plan.includedModules.contains(m.name) ||
-            plan.includedModules
-                .contains(m.name.replaceAllMapped(
-                    RegExp(r'[A-Z]'), (m) => '_${m.group(0)!.toLowerCase()}'));
+        map[plan] =
+            plan.includedModules.contains(m.name) ||
+            plan.includedModules.contains(
+              m.name.replaceAllMapped(
+                RegExp(r'[A-Z]'),
+                (m) => '_${m.group(0)!.toLowerCase()}',
+              ),
+            );
       }
       return map;
     }
@@ -301,10 +306,7 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
       await Future.delayed(const Duration(milliseconds: 300));
-      state = state.copyWith(
-        features: _buildMockFeatures(),
-        isLoading: false,
-      );
+      state = state.copyWith(features: _buildMockFeatures(), isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -318,17 +320,11 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
   }
 
   void setCategoryFilter(IconCategory? cat) {
-    state = state.copyWith(
-      categoryFilter: cat,
-      clearCategory: cat == null,
-    );
+    state = state.copyWith(categoryFilter: cat, clearCategory: cat == null);
   }
 
   void setBetaFilter(bool? beta) {
-    state = state.copyWith(
-      betaFilter: beta,
-      clearBeta: beta == null,
-    );
+    state = state.copyWith(betaFilter: beta, clearBeta: beta == null);
   }
 
   void clearFilters() {
@@ -373,5 +369,5 @@ class FeatureManagementNotifier extends Notifier<FeatureManagementState> {
 /// Provider for Feature Management state.
 final featureManagementProvider =
     NotifierProvider<FeatureManagementNotifier, FeatureManagementState>(() {
-  return FeatureManagementNotifier();
-});
+      return FeatureManagementNotifier();
+    });

@@ -29,7 +29,9 @@ class ActionRow extends StatelessWidget {
     final c = context.cru;
     return Padding(
       padding: const EdgeInsets.symmetric(
-          horizontal: CruSpace.s12, vertical: CruSpace.s10),
+        horizontal: CruSpace.s12,
+        vertical: CruSpace.s10,
+      ),
       child: Row(
         children: [
           CruIconTile(icon: icon, tone: tone),
@@ -38,16 +40,20 @@ class ActionRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CruTimeText(title,
-                    style: CruType.callout.tabular.tint(c.label),
-                    timeColor: c.accentText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                CruTimeText(subtitle,
-                    style: CruType.subhead.tabular.tint(c.label2),
-                    timeColor: c.accentText,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                CruTimeText(
+                  title,
+                  style: CruType.callout.tabular.tint(c.label),
+                  timeColor: c.accentText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                CruTimeText(
+                  subtitle,
+                  style: CruType.subhead.tabular.tint(c.label2),
+                  timeColor: c.accentText,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
             ),
           ),
@@ -65,15 +71,15 @@ class ActionRow extends StatelessWidget {
 
 /// Rows separated by separators that start at the text column.
 List<Widget> withSeparators(List<Widget> rows) => [
-      for (var i = 0; i < rows.length; i++) ...[
-        if (i > 0)
-          const CruSeparator(
-            indent: CruSize.attentionTextInset,
-            endIndent: CruSpace.s12,
-          ),
-        rows[i],
-      ],
-    ];
+  for (var i = 0; i < rows.length; i++) ...[
+    if (i > 0)
+      const CruSeparator(
+        indent: CruSize.attentionTextInset,
+        endIndent: CruSpace.s12,
+      ),
+    rows[i],
+  ],
+];
 
 /// Needs attention (Day). Only stock is backed by data today; lab
 /// results and overdue follow-ups are GAPs. Hidden when empty.
@@ -105,12 +111,16 @@ class NeedsAttentionCard extends StatelessWidget {
                 Expanded(
                   child: Semantics(
                     header: true,
-                    child: Text('Needs attention',
-                        style: CruType.headline.tint(c.label)),
+                    child: Text(
+                      'Needs attention',
+                      style: CruType.headline.tint(c.label),
+                    ),
                   ),
                 ),
-                Text('${items.length}',
-                    style: CruType.subhead.tabular.tint(c.label2)),
+                Text(
+                  '${items.length}',
+                  style: CruType.subhead.tabular.tint(c.label2),
+                ),
               ],
             ),
           ),
@@ -144,34 +154,83 @@ class CollectionsCard extends StatelessWidget {
     final max = data.max;
     return CruCard(
       semanticLabel: 'Collections',
-      padding: const EdgeInsets.fromLTRB(24, 20, 24, 20),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
             children: [
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: ShapeDecoration(
+                  color: c.accentTint,
+                  shape: cruShape(CruRadius.control),
+                ),
+                child: CruIcon(CruIcons.rupee, size: 16, color: c.accentText),
+              ),
+              const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Semantics(
                   header: true,
-                  child: Text('Collections', style: CruType.headline.tint(c.label)),
+                  child: Text(
+                    'Collections',
+                    style: CruType.headline.tint(c.label),
+                  ),
                 ),
               ),
-              Text('Last 7 days', style: CruType.subhead.tint(c.label2)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: ShapeDecoration(
+                  color: c.isEvening ? c.inset : const Color(0xFFF1F5F9),
+                  shape: cruShape(CruRadius.full),
+                ),
+                child: Text(
+                  'Last 7 days',
+                  style: CruType.caption.tint(c.label2),
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: CruSpace.s8),
-          Text(DashFormat.rupees(data.total), style: CruType.metric.tint(c.label)),
+          const SizedBox(height: CruSpace.s10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Text(
+                DashFormat.rupees(data.total),
+                style: CruType.metric.tint(c.label),
+              ),
+              const SizedBox(width: CruSpace.s10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: ShapeDecoration(
+                  color: c.greenTint,
+                  shape: cruShape(6),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CruIcon(
+                      CruIcons.arrowUp,
+                      size: 11,
+                      strokeWidth: 2.6,
+                      color: c.greenText,
+                    ),
+                    const SizedBox(width: 2),
+                    Text('TOTAL', style: CruType.micro.w700.tint(c.greenText)),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: CruSpace.s16),
           SizedBox(
             height: CruSize.chartHeight,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (final d in data.days) _Bar(day: d, max: max),
-              ],
+              children: [for (final d in data.days) _Bar(day: d, max: max)],
             ),
           ),
         ],
@@ -189,49 +248,91 @@ class _Bar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final closed = day.amount <= 0;
-    final height = closed
+    final safeMax = (max.isNaN || max.isInfinite || max <= 0) ? 1.0 : max;
+    final safeAmount =
+        (day.amount.isNaN || day.amount.isInfinite || day.amount <= 0)
+        ? 0.0
+        : day.amount;
+    final closed = safeAmount <= 0;
+    final rawHeight = closed
         ? CruSize.barStub
-        : (day.amount / max * CruSize.barMaxHeight)
-            .clamp(CruSize.barStub, CruSize.barMaxHeight);
-    final todayColor = c.barActive;
+        : ((safeAmount / safeMax) * CruSize.barMaxHeight);
+    final height = (rawHeight.isNaN || rawHeight.isInfinite)
+        ? CruSize.barStub
+        : rawHeight.clamp(CruSize.barStub, CruSize.barMaxHeight);
+
     return Semantics(
-      label: '${DashFormat.weekday(day.date)}: ${DashFormat.rupees(day.amount)}',
+      label:
+          '${DashFormat.weekday(day.date)}: ${DashFormat.rupees(day.amount)}',
       child: SizedBox(
         width: CruSize.barSlot,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
           children: [
             if (day.isToday) ...[
               Text(
                 DashFormat.rupeesCompact(day.amount),
-                style: CruType.micro.w600.tabular.tint(c.accentText),
+                style: CruType.micro.w700.tabular.tint(c.accentText),
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.visible,
               ),
-              const SizedBox(height: CruSpace.s8),
+              const SizedBox(height: CruSpace.s6),
             ],
             TweenAnimationBuilder<double>(
-              tween: Tween(end: height),
+              tween: Tween<double>(begin: height, end: height),
               duration: CruMotion.of(context),
               curve: CruMotion.curve,
-              builder: (context, h, _) => Container(
-                width: CruSize.barWidth,
-                height: h,
-                decoration: ShapeDecoration(
-                  color: day.isToday
-                      ? todayColor
-                      : (closed ? c.track : c.barMuted),
-                  shape: cruShape(closed ? CruRadius.barStub : CruRadius.bar),
-                ),
-              ),
+              builder: (context, h, _) {
+                final barH = (h.isNaN || h.isInfinite)
+                    ? CruSize.barStub
+                    : h.clamp(CruSize.barStub, CruSize.barMaxHeight);
+                final Gradient? barGradient = closed
+                    ? null
+                    : (day.isToday
+                          ? LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [c.accent, c.accentText],
+                            )
+                          : LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: c.isEvening
+                                  ? const [Color(0xFF334155), Color(0xFF1E293B)]
+                                  : [
+                                      c.accentTint,
+                                      c.accentTint.withValues(alpha: 0.5),
+                                    ],
+                            ));
+                final Color? barColor = closed ? c.track : null;
+
+                return Container(
+                  width: CruSize.barWidth,
+                  height: barH,
+                  decoration: ShapeDecoration(
+                    gradient: barGradient,
+                    color: barColor,
+                    shape: cruShape(closed ? CruRadius.barStub : CruRadius.bar),
+                  ),
+                );
+              },
             ),
             const SizedBox(height: CruSpace.s8),
-            Text(
-              DashFormat.dayInitials(day.date),
-              style: (day.isToday ? CruType.micro.w600 : CruType.micro)
-                  .tint(day.isToday ? c.accentText : c.label3),
+            Container(
+              padding: day.isToday
+                  ? const EdgeInsets.symmetric(horizontal: 5, vertical: 1)
+                  : EdgeInsets.zero,
+              decoration: day.isToday
+                  ? ShapeDecoration(color: c.accentTint, shape: cruShape(4))
+                  : null,
+              child: Text(
+                DashFormat.dayInitials(day.date),
+                style: (day.isToday ? CruType.micro.w700 : CruType.micro).tint(
+                  day.isToday ? c.accentText : c.label3,
+                ),
+              ),
             ),
           ],
         ),

@@ -53,17 +53,17 @@ abstract interface class RadSidePanelHost {
 }
 
 CruIconData radKindIcon(RadAnnoKind k) => switch (k) {
-      RadAnnoKind.length => RadViewerIcons.length,
-      RadAnnoKind.angle => RadViewerIcons.angle,
-      RadAnnoKind.polygon => RadViewerIcons.polygon,
-      RadAnnoKind.ellipse => RadViewerIcons.ellipse,
-      RadAnnoKind.rect => RadViewerIcons.rect,
-      RadAnnoKind.polyline => RadViewerIcons.polyline,
-      RadAnnoKind.arrow => RadViewerIcons.arrow,
-      RadAnnoKind.text => RadViewerIcons.text,
-      RadAnnoKind.freehand => RadViewerIcons.pen,
-      RadAnnoKind.toothLabel => RadViewerIcons.tooth,
-    };
+  RadAnnoKind.length => RadViewerIcons.length,
+  RadAnnoKind.angle => RadViewerIcons.angle,
+  RadAnnoKind.polygon => RadViewerIcons.polygon,
+  RadAnnoKind.ellipse => RadViewerIcons.ellipse,
+  RadAnnoKind.rect => RadViewerIcons.rect,
+  RadAnnoKind.polyline => RadViewerIcons.polyline,
+  RadAnnoKind.arrow => RadViewerIcons.arrow,
+  RadAnnoKind.text => RadViewerIcons.text,
+  RadAnnoKind.freehand => RadViewerIcons.pen,
+  RadAnnoKind.toothLabel => RadViewerIcons.tooth,
+};
 
 /// The collapsible right panel: measurements, key images, image info,
 /// adjustments and the AI second read for the active pane's image.
@@ -130,7 +130,12 @@ class RadViewerSidePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(CruSpace.s12, CruSpace.s12, CruSpace.s12, CruSpace.s8),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s12,
+              CruSpace.s12,
+              CruSpace.s12,
+              CruSpace.s8,
+            ),
             child: _Tabs(selected: tab, onChanged: onTab),
           ),
           const CruSeparator(),
@@ -140,16 +145,19 @@ class RadViewerSidePanel extends StatelessWidget {
               RadPanelTab.keys => _KeysTab(panel: this),
               RadPanelTab.info => _InfoTab(panel: this),
               RadPanelTab.adjust => _AdjustTab(panel: this),
-              RadPanelTab.ai => pane.imageId.isEmpty
-                  ? const _Quiet('Open an image to run the AI second read on it.')
-                  : SingleChildScrollView(
-                      padding: const EdgeInsets.all(CruSpace.s12),
-                      child: RadAiSecondReadPanel(
-                        study: paneStudy,
-                        imageId: pane.imageId,
-                        pane: pane,
+              RadPanelTab.ai =>
+                pane.imageId.isEmpty
+                    ? const _Quiet(
+                        'Open an image to run the AI second read on it.',
+                      )
+                    : SingleChildScrollView(
+                        padding: const EdgeInsets.all(CruSpace.s12),
+                        child: RadAiSecondReadPanel(
+                          study: paneStudy,
+                          imageId: pane.imageId,
+                          pane: pane,
+                        ),
                       ),
-                    ),
             },
           ),
         ],
@@ -171,7 +179,10 @@ class _Tabs extends StatelessWidget {
     return Container(
       height: CruSize.segmentHeight,
       padding: const EdgeInsets.all(3),
-      decoration: ShapeDecoration(color: c.inset, shape: cruShape(CruRadius.segmentOuter)),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.segmentOuter),
+      ),
       child: Row(
         children: [
           for (final t in RadPanelTab.values)
@@ -187,15 +198,22 @@ class _Tabs extends StatelessWidget {
                     curve: CruMotion.curve,
                     alignment: Alignment.center,
                     decoration: ShapeDecoration(
-                      color: t == selected ? c.segmentSelected : c.segmentSelected.withValues(alpha: 0),
+                      color: t == selected
+                          ? c.segmentSelected
+                          : c.segmentSelected.withValues(alpha: 0),
                       shape: cruShape(CruRadius.segmentInner),
-                      shadows: t == selected ? c.segmentShadow : null,
+                      shadows: const [],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (t == RadPanelTab.ai) ...[
-                          CruIcon(CruIcons.sparkleSingle, size: 12, strokeWidth: 2, color: c.ai),
+                          CruIcon(
+                            CruIcons.sparkleSingle,
+                            size: 12,
+                            strokeWidth: 2,
+                            color: c.ai,
+                          ),
                           const SizedBox(width: CruSpace.s2),
                         ],
                         Flexible(
@@ -205,8 +223,12 @@ class _Tabs extends StatelessWidget {
                             overflow: TextOverflow.fade,
                             softWrap: false,
                             style: CruType.caption.copyWith(
-                              fontWeight: t == selected ? FontWeight.w600 : FontWeight.w500,
-                              color: t == selected || hovered ? c.label : c.label2,
+                              fontWeight: t == selected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: t == selected || hovered
+                                  ? c.label
+                                  : c.label2,
                             ),
                           ),
                         ),
@@ -229,9 +251,9 @@ class _Quiet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(CruSpace.s20),
-        child: Text(text, style: CruType.text.tint(context.cru.label2)),
-      );
+    padding: const EdgeInsets.all(CruSpace.s20),
+    child: Text(text, style: CruType.text.tint(context.cru.label2)),
+  );
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -244,11 +266,17 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s4, CruSpace.s16, CruSpace.s4, CruSpace.s8),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s4,
+        CruSpace.s16,
+        CruSpace.s4,
+        CruSpace.s8,
+      ),
       child: Row(
         children: [
           Expanded(child: Text(text, style: CruType.groupLabel.tint(c.label3))),
-          if (trailing != null) Text(trailing!, style: CruType.caption.tabular.tint(c.label2)),
+          if (trailing != null)
+            Text(trailing!, style: CruType.caption.tabular.tint(c.label2)),
         ],
       ),
     );
@@ -266,7 +294,8 @@ class _MeasureTab extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final pane = panel.pane;
-    if (pane.imageId.isEmpty) return const _Quiet('Open an image to measure it.');
+    if (pane.imageId.isEmpty)
+      return const _Quiet('Open an image to measure it.');
     final ruler = panel.paneStudy.calibration[pane.imageId];
     final fileSpacing = panel.paneStudy.images
         .where((i) => i.id == pane.imageId)
@@ -276,27 +305,44 @@ class _MeasureTab extends StatelessWidget {
     final signed = report?.isSigned ?? false;
 
     final (String calTitle, String calBody) = ruler != null
-        ? ('Calibrated with the ruler', '${ruler.toStringAsFixed(4)} mm per pixel')
+        ? (
+            'Calibrated with the ruler',
+            '${ruler.toStringAsFixed(4)} mm per pixel',
+          )
         : fileSpacing != null
-            ? ('Calibrated from the file', '${fileSpacing.toStringAsFixed(4)} mm per pixel')
-            : ('Not calibrated', 'Lengths and areas read in pixels');
+        ? (
+            'Calibrated from the file',
+            '${fileSpacing.toStringAsFixed(4)} mm per pixel',
+          )
+        : ('Not calibrated', 'Lengths and areas read in pixels');
 
     return ListView(
       padding: const EdgeInsets.all(CruSpace.s12),
       children: [
         Container(
           padding: const EdgeInsets.all(CruSpace.s12),
-          decoration: ShapeDecoration(color: c.inset, shape: cruShape(CruRadius.control)),
+          decoration: ShapeDecoration(
+            color: c.inset,
+            shape: cruShape(CruRadius.control),
+          ),
           child: Row(
             children: [
-              CruIcon(RadViewerIcons.calibrate, size: 18, strokeWidth: 1.8, color: c.label2),
+              CruIcon(
+                RadViewerIcons.calibrate,
+                size: 18,
+                strokeWidth: 1.8,
+                color: c.label2,
+              ),
               const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(calTitle, style: CruType.callout.tint(c.label)),
-                    Text(calBody, style: CruType.caption.tabular.tint(c.label2)),
+                    Text(
+                      calBody,
+                      style: CruType.caption.tabular.tint(c.label2),
+                    ),
                   ],
                 ),
               ),
@@ -320,7 +366,12 @@ class _MeasureTab extends StatelessWidget {
         ),
         if (panel.readOnly)
           Padding(
-            padding: const EdgeInsets.fromLTRB(CruSpace.s4, CruSpace.s12, CruSpace.s4, 0),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s4,
+              CruSpace.s12,
+              CruSpace.s4,
+              0,
+            ),
             child: Text(
               'An earlier study, shown for comparison. Its marks are read only.',
               style: CruType.caption.tint(c.label2),
@@ -328,7 +379,9 @@ class _MeasureTab extends StatelessWidget {
           ),
         _SectionLabel(
           'On this image',
-          trailing: panel.annotations.isEmpty ? null : '${panel.annotations.length}',
+          trailing: panel.annotations.isEmpty
+              ? null
+              : '${panel.annotations.length}',
         ),
         if (panel.annotations.isEmpty)
           Padding(
@@ -347,7 +400,8 @@ class _MeasureTab extends StatelessWidget {
             panel: panel,
             selected: a.id == panel.selectedId,
             included: report?.measurementIds.contains(a.id) ?? false,
-            showInclude: report != null && a.kind.isMeasurement && !panel.readOnly,
+            showInclude:
+                report != null && a.kind.isMeasurement && !panel.readOnly,
             includeLocked: signed,
           ),
       ],
@@ -410,20 +464,31 @@ class _AnnotationRow extends StatelessWidget {
                     color: selected ? c.surface : c.inset,
                     shape: cruShape(CruRadius.iconTile),
                   ),
-                  child: CruIcon(radKindIcon(a.kind), size: 16, strokeWidth: 1.8, color: c.label2),
+                  child: CruIcon(
+                    radKindIcon(a.kind),
+                    size: 16,
+                    strokeWidth: 1.8,
+                    color: c.label2,
+                  ),
                 ),
                 const SizedBox(width: CruSpace.s10),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title,
-                          maxLines: 1, overflow: TextOverflow.ellipsis, style: CruType.callout.tint(c.label)),
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: CruType.callout.tint(c.label),
+                      ),
                       if (sub.isNotEmpty)
-                        Text(sub,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: CruType.caption.tabular.tint(c.label2)),
+                        Text(
+                          sub,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: CruType.caption.tabular.tint(c.label2),
+                        ),
                     ],
                   ),
                 ),
@@ -433,9 +498,11 @@ class _AnnotationRow extends StatelessWidget {
                     tooltip: includeLocked
                         ? 'The report is signed'
                         : included
-                            ? 'In the report'
-                            : 'Add to the report',
-                    onChanged: includeLocked ? null : (v) => panel.host.includeInReport(a, v),
+                        ? 'In the report'
+                        : 'Add to the report',
+                    onChanged: includeLocked
+                        ? null
+                        : (v) => panel.host.includeInReport(a, v),
                   ),
                 if (!panel.readOnly)
                   CruIconButton(
@@ -449,7 +516,8 @@ class _AnnotationRow extends StatelessWidget {
               ],
             ),
           ),
-          if (selected && !panel.readOnly) _AnnotationEditor(annotation: a, panel: panel),
+          if (selected && !panel.readOnly)
+            _AnnotationEditor(annotation: a, panel: panel),
         ],
       ),
     );
@@ -458,7 +526,11 @@ class _AnnotationRow extends StatelessWidget {
 
 /// A small checkbox for "include in report".
 class _Check extends StatelessWidget {
-  const _Check({required this.value, required this.onChanged, required this.tooltip});
+  const _Check({
+    required this.value,
+    required this.onChanged,
+    required this.tooltip,
+  });
 
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -486,10 +558,19 @@ class _Check extends StatelessWidget {
               color: value ? (enabled ? c.label : c.label3) : c.surface,
               shape: cruShape(
                 CruRadius.keycap,
-                side: value ? BorderSide.none : BorderSide(color: hovered ? c.label2 : c.label3),
+                side: value
+                    ? BorderSide.none
+                    : BorderSide(color: hovered ? c.label2 : c.label3),
               ),
             ),
-            child: value ? CruIcon(CruIcons.check, size: 13, strokeWidth: 2.6, color: c.surface) : null,
+            child: value
+                ? CruIcon(
+                    CruIcons.check,
+                    size: 13,
+                    strokeWidth: 2.6,
+                    color: c.surface,
+                  )
+                : null,
           ),
         ),
       ),
@@ -530,7 +611,8 @@ class _AnnotationEditorState extends State<_AnnotationEditor> {
 
   void _commit() {
     final v = _text.text.trim();
-    if (v != widget.annotation.text) widget.panel.host.renameAnnotation(widget.annotation, v);
+    if (v != widget.annotation.text)
+      widget.panel.host.renameAnnotation(widget.annotation, v);
   }
 
   @override
@@ -545,7 +627,12 @@ class _AnnotationEditorState extends State<_AnnotationEditor> {
     final a = widget.annotation;
     final current = RadInk.of(a);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s12, CruSpace.s12),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        0,
+        CruSpace.s12,
+        CruSpace.s12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -553,8 +640,8 @@ class _AnnotationEditorState extends State<_AnnotationEditor> {
             label: a.kind == RadAnnoKind.toothLabel
                 ? 'Tooth'
                 : a.kind == RadAnnoKind.text
-                    ? 'Note'
-                    : 'Label',
+                ? 'Note'
+                : 'Label',
             controller: _text,
             focusNode: _focus,
             hint: RadMeasure.kindLabel(a.kind),
@@ -623,13 +710,17 @@ class _KeysTab extends StatelessWidget {
               : 'Or press ${panel.keyForKeyImage}. Saves the pane as you see it, marks included, for the report.',
           style: CruType.caption.tint(c.label2),
         ),
-        _SectionLabel('Key images', trailing: keys.isEmpty ? null : '${keys.length}'),
+        _SectionLabel(
+          'Key images',
+          trailing: keys.isEmpty ? null : '${keys.length}',
+        ),
         if (keys.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
             child: Text('None yet.', style: CruType.text.tint(c.label2)),
           ),
-        for (final k in keys) _KeyCard(key: ValueKey(k.id), keyImage: k, panel: panel),
+        for (final k in keys)
+          _KeyCard(key: ValueKey(k.id), keyImage: k, panel: panel),
       ],
     );
   }
@@ -659,7 +750,8 @@ class _KeyCardState extends State<_KeyCard> {
 
   void _commit() {
     final v = _caption.text.trim();
-    if (v != widget.keyImage.caption) widget.panel.host.captionKeyImage(widget.keyImage, v);
+    if (v != widget.keyImage.caption)
+      widget.panel.host.captionKeyImage(widget.keyImage, v);
   }
 
   @override
@@ -674,7 +766,9 @@ class _KeyCardState extends State<_KeyCard> {
     final c = context.cru;
     final k = widget.keyImage;
     final dir = widget.panel.studyDir;
-    final index = widget.panel.study.images.indexWhere((i) => i.id == k.imageId);
+    final index = widget.panel.study.images.indexWhere(
+      (i) => i.id == k.imageId,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: CruSpace.s16),
       child: Column(
@@ -683,14 +777,20 @@ class _KeyCardState extends State<_KeyCard> {
           Container(
             height: 150,
             clipBehavior: Clip.antiAlias,
-            decoration: ShapeDecoration(color: RadInk.viewport, shape: cruShape(CruRadius.control)),
+            decoration: ShapeDecoration(
+              color: RadInk.viewport,
+              shape: cruShape(CruRadius.control),
+            ),
             child: dir == null
                 ? null
                 : Image.file(
                     File(p.join(dir, k.pngPath)),
                     fit: BoxFit.contain,
                     errorBuilder: (context, _, _) => Center(
-                      child: Text('Picture missing', style: CruType.caption.tint(RadInk.overlayQuiet)),
+                      child: Text(
+                        'Picture missing',
+                        style: CruType.caption.tint(RadInk.overlayQuiet),
+                      ),
                     ),
                   ),
           ),
@@ -707,7 +807,10 @@ class _KeyCardState extends State<_KeyCard> {
               hintStyle: CruType.text.tint(c.label3),
               filled: true,
               fillColor: c.inset,
-              contentPadding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s10),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: CruSpace.s12,
+                vertical: CruSpace.s10,
+              ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(CruRadius.control),
                 borderSide: BorderSide.none,
@@ -769,21 +872,36 @@ class _InfoTab extends StatelessWidget {
     final dose = s.dose;
     final ruler = s.calibration[pane.imageId];
     return ListView(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s12, CruSpace.s16),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        0,
+        CruSpace.s12,
+        CruSpace.s16,
+      ),
       children: [
         if (image != null) ...[
           const _SectionLabel('Image'),
           _KV('Kind', image.kind == RadFileKind.dicom ? 'DICOM' : 'Picture'),
           if (px != null || image.width > 0)
-            _KV('Size', '${px?.width ?? image.width} × ${px?.height ?? image.height} px'),
+            _KV(
+              'Size',
+              '${px?.width ?? image.width} × ${px?.height ?? image.height} px',
+            ),
           if (image.frames > 1) _KV('Frames', '${image.frames}'),
           if (image.pixelSpacingMm != null)
-            _KV('Pixel spacing', '${image.pixelSpacingMm!.toStringAsFixed(4)} mm'),
-          if (ruler != null) _KV('Ruler calibration', '${ruler.toStringAsFixed(4)} mm per px'),
-          if (image.seriesDescription.isNotEmpty) _KV('Series', image.seriesDescription),
-          if (image.instanceNumber > 0) _KV('Instance', '${image.instanceNumber}'),
+            _KV(
+              'Pixel spacing',
+              '${image.pixelSpacingMm!.toStringAsFixed(4)} mm',
+            ),
+          if (ruler != null)
+            _KV('Ruler calibration', '${ruler.toStringAsFixed(4)} mm per px'),
+          if (image.seriesDescription.isNotEmpty)
+            _KV('Series', image.seriesDescription),
+          if (image.instanceNumber > 0)
+            _KV('Instance', '${image.instanceNumber}'),
           if (image.compressed) _KV('Status', 'Compressed — not supported yet'),
-          if (px != null) _KV('Values', '${_num(px.minValue)} to ${_num(px.maxValue)}'),
+          if (px != null)
+            _KV('Values', '${_num(px.minValue)} to ${_num(px.maxValue)}'),
         ],
         const _SectionLabel('Study'),
         _KV('Type', s.modality.label),
@@ -794,12 +912,14 @@ class _InfoTab extends StatelessWidget {
         if (s.institution.isNotEmpty) _KV('Institution', s.institution),
         if (s.bodyPart.isNotEmpty) _KV('Body part', s.bodyPart),
         if (s.accession.isNotEmpty) _KV('Accession', s.accession),
-        if (s.patientExternalId.isNotEmpty) _KV('Scanner patient ID', s.patientExternalId),
+        if (s.patientExternalId.isNotEmpty)
+          _KV('Scanner patient ID', s.patientExternalId),
         if (!dose.isEmpty) ...[
           const _SectionLabel('Dose'),
           if (dose.kvp != null) _KV('Tube voltage', '${_num(dose.kvp!)} kVp'),
           if (dose.ma != null) _KV('Tube current', '${_num(dose.ma!)} mA'),
-          if (dose.exposureMs != null) _KV('Exposure time', '${_num(dose.exposureMs!)} ms'),
+          if (dose.exposureMs != null)
+            _KV('Exposure time', '${_num(dose.exposureMs!)} ms'),
           if (dose.mas != null) _KV('Exposure', '${_num(dose.mas!)} mAs'),
           if (dose.dap != null) _KV('Dose-area product', _num(dose.dap!, 2)),
         ],
@@ -811,13 +931,19 @@ class _InfoTab extends StatelessWidget {
               if (snap.hasError) {
                 return const Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [_SectionLabel('DICOM header'), _KV('Header', "Couldn't be read")],
+                  children: [
+                    _SectionLabel('DICOM header'),
+                    _KV('Header', "Couldn't be read"),
+                  ],
                 );
               }
               if (rows == null) {
                 return const Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [_SectionLabel('DICOM header'), _KV('Header', 'Reading…')],
+                  children: [
+                    _SectionLabel('DICOM header'),
+                    _KV('Header', 'Reading…'),
+                  ],
                 );
               }
               return Column(
@@ -844,13 +970,22 @@ class _KV extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4, vertical: CruSpace.s4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s4,
+        vertical: CruSpace.s4,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(width: 128, child: Text(label, style: CruType.caption.tint(c.label2))),
+          SizedBox(
+            width: 128,
+            child: Text(label, style: CruType.caption.tint(c.label2)),
+          ),
           Expanded(
-            child: SelectableText(value, style: CruType.caption.tabular.tint(c.label)),
+            child: SelectableText(
+              value,
+              style: CruType.caption.tabular.tint(c.label),
+            ),
           ),
         ],
       ),
@@ -868,7 +1003,10 @@ class _AdjustTab extends StatelessWidget {
   static bool _matches(RadPane pane, double c, double w) {
     final px = pane.px;
     if (px == null) return false;
-    final tol = ((px.highPct - px.lowPct).abs() * 0.01).clamp(1e-6, double.infinity);
+    final tol = ((px.highPct - px.lowPct).abs() * 0.01).clamp(
+      1e-6,
+      double.infinity,
+    );
     return (pane.center - c).abs() <= tol && (pane.width - w).abs() <= tol;
   }
 
@@ -885,11 +1023,20 @@ class _AdjustTab extends StatelessWidget {
         final f = pane.filters;
         final (dc, dw) = px.defaultWindow;
         final range = (px.maxValue - px.minValue).abs();
-        String n(double v) => range < 20 ? v.toStringAsFixed(2) : v.toStringAsFixed(0);
+        String n(double v) =>
+            range < 20 ? v.toStringAsFixed(2) : v.toStringAsFixed(0);
         return ListView(
-          padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s12, CruSpace.s16),
+          padding: const EdgeInsets.fromLTRB(
+            CruSpace.s12,
+            0,
+            CruSpace.s12,
+            CruSpace.s16,
+          ),
           children: [
-            _SectionLabel('Window', trailing: 'W ${n(pane.width)} · L ${n(pane.center)}'),
+            _SectionLabel(
+              'Window',
+              trailing: 'W ${n(pane.width)} · L ${n(pane.center)}',
+            ),
             Wrap(
               spacing: CruSpace.s6,
               runSpacing: CruSpace.s6,
@@ -930,7 +1077,11 @@ class _AdjustTab extends StatelessWidget {
               spacing: CruSpace.s6,
               runSpacing: CruSpace.s6,
               children: [
-                DentalChoiceChip(label: 'Invert', selected: pane.userInvert, onTap: host.toggleInvert),
+                DentalChoiceChip(
+                  label: 'Invert',
+                  selected: pane.userInvert,
+                  onTap: host.toggleInvert,
+                ),
                 DentalChoiceChip(
                   label: 'Local contrast (CLAHE)',
                   selected: f.clahe,
@@ -962,7 +1113,9 @@ class _AdjustTab extends StatelessWidget {
                 children: [
                   for (final m in radColormaps)
                     DentalChoiceChip(
-                      label: m == 'gray' ? 'Grey' : '${m[0].toUpperCase()}${m.substring(1)}',
+                      label: m == 'gray'
+                          ? 'Grey'
+                          : '${m[0].toUpperCase()}${m.substring(1)}',
                       selected: f.colormap == m,
                       onTap: () => host.setFilters(f.copyWith(colormap: m)),
                     ),
@@ -1000,7 +1153,11 @@ class _PresetChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final chip = DentalChoiceChip(label: preset.name, selected: selected, onTap: onTap);
+    final chip = DentalChoiceChip(
+      label: preset.name,
+      selected: selected,
+      onTap: onTap,
+    );
     final delete = onDelete;
     if (delete == null) return chip;
     return Row(
@@ -1015,7 +1172,12 @@ class _PresetChip extends StatelessWidget {
             width: 22,
             height: CruSize.chip,
             child: Center(
-              child: CruIcon(CruIcons.close, size: 12, strokeWidth: 2.2, color: hovered ? c.label : c.label3),
+              child: CruIcon(
+                CruIcons.close,
+                size: 12,
+                strokeWidth: 2.2,
+                color: hovered ? c.label : c.label3,
+              ),
             ),
           ),
         ),
@@ -1063,8 +1225,13 @@ class _SliderRowState extends State<_SliderRow> {
             padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
             child: Row(
               children: [
-                Expanded(child: Text(widget.label, style: CruType.text.tint(c.label))),
-                Text(widget.format(v), style: CruType.caption.tabular.tint(c.label2)),
+                Expanded(
+                  child: Text(widget.label, style: CruType.text.tint(c.label)),
+                ),
+                Text(
+                  widget.format(v),
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
               ],
             ),
           ),
@@ -1075,7 +1242,10 @@ class _SliderRowState extends State<_SliderRow> {
               inactiveTrackColor: c.track,
               thumbColor: c.surface,
               overlayShape: SliderComponentShape.noOverlay,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8, elevation: 2),
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 8,
+                elevation: 0,
+              ),
             ),
             child: Slider(
               value: v,
@@ -1099,6 +1269,8 @@ class _SliderRowState extends State<_SliderRow> {
 class RadHeaderCache {
   final _cache = <String, Future<List<(String, String)>>>{};
 
-  Future<List<(String, String)>> get(String key, Future<List<(String, String)>> Function() load) =>
-      _cache.putIfAbsent(key, load);
+  Future<List<(String, String)>> get(
+    String key,
+    Future<List<(String, String)>> Function() load,
+  ) => _cache.putIfAbsent(key, load);
 }

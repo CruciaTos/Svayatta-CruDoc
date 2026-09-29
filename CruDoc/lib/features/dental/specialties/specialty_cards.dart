@@ -16,9 +16,7 @@ List<Widget> dentalSpecialtyCards(
   DoctorSpecialtyType? sub,
   ValueChanged<int> onNavigate,
 ) => switch (sub) {
-  DoctorSpecialtyType.periodontist => [
-    PerioTodayCard(onNavigate: onNavigate),
-  ],
+  DoctorSpecialtyType.periodontist => [PerioTodayCard(onNavigate: onNavigate)],
   DoctorSpecialtyType.endodontist => [
     DentalNotBuiltCard(
       icon: RecIcons.endo,

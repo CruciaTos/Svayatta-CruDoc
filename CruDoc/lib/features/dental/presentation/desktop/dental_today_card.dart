@@ -25,29 +25,36 @@ class DentalTodayCard extends ConsumerWidget {
     final plans = ref.watch(clinicTreatmentPlansProvider).value;
 
     // Sterilization.
-    final today = logs?.where((l) => DentalFormat.sameDay(l.cycleDate, now)).toList()
-      ?..sort((a, b) => b.cycleDate.compareTo(a.cycleDate));
+    final today =
+        logs?.where((l) => DentalFormat.sameDay(l.cycleDate, now)).toList()
+          ?..sort((a, b) => b.cycleDate.compareTo(a.cycleDate));
     final last = today == null || today.isEmpty ? null : today.first;
-    final lastResult = last == null ? null : SterilizationResult.fromString(last.result);
+    final lastResult = last == null
+        ? null
+        : SterilizationResult.fromString(last.result);
     final (String steriText, Color steriTone) = switch (logs) {
       null => ('', c.label2),
       _ when last == null => ('No cycle logged today', c.amberText),
       _ when lastResult == SterilizationResult.fail => (
-          'Last cycle failed at ${DentalFormat.time(last.cycleDate)} · re-run the load',
-          c.redText,
-        ),
+        'Last cycle failed at ${DentalFormat.time(last.cycleDate)} · re-run the load',
+        c.redText,
+      ),
       _ => (
-          '${DashFormat.plural(today!.length, 'cycle')} today · last '
-              '${sterilizationWord(last.result)} at ${DentalFormat.time(last.cycleDate)}',
-          c.label2,
-        ),
+        '${DashFormat.plural(today!.length, 'cycle')} today · last '
+            '${sterilizationWord(last.result)} at ${DentalFormat.time(last.cycleDate)}',
+        c.label2,
+      ),
     };
 
     // Plans waiting for a yes.
-    final proposed = plans
-            ?.where((i) =>
-                !i.isDeleted &&
-                TreatmentPlanItemStatus.fromString(i.status) == TreatmentPlanItemStatus.proposed)
+    final proposed =
+        plans
+            ?.where(
+              (i) =>
+                  !i.isDeleted &&
+                  TreatmentPlanItemStatus.fromString(i.status) ==
+                      TreatmentPlanItemStatus.proposed,
+            )
             .toList() ??
         const <TreatmentPlanLineItemModel>[];
     final patients = proposed.map((i) => i.patientId).toSet().length;
@@ -55,8 +62,8 @@ class DentalTodayCard extends ConsumerWidget {
     final planText = plans == null
         ? ''
         : proposed.isEmpty
-            ? 'Nothing waiting for a yes'
-            : '${DashFormat.rupees(sum)} awaiting a yes · ${DashFormat.plural(patients, 'patient')}';
+        ? 'Nothing waiting for a yes'
+        : '${DashFormat.rupees(sum)} awaiting a yes · ${DashFormat.plural(patients, 'patient')}';
 
     return CruCard(
       semanticLabel: 'Dental clinic',

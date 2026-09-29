@@ -10,9 +10,7 @@ final revenueRepositoryProvider = Provider<RevenueRepository>(
 
 /// Streams active, non-deleted revenue entries (income and expense).
 /// Feeds the dashboard's "Recent Activity" card.
-final recentRevenueEntriesProvider = StreamProvider<List<RevenueEntry>>(
-  (ref) {
-    ref.watch(authStateProvider);
-    return ref.watch(revenueRepositoryProvider).watchRevenueEntries();
-  },
-);
+final recentRevenueEntriesProvider = StreamProvider<List<RevenueEntry>>((ref) {
+  ref.watch(authStateProvider);
+  return ref.watch(revenueRepositoryProvider).watchRevenueEntries();
+});

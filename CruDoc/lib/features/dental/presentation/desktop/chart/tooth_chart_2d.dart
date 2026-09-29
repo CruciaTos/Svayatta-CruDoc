@@ -112,10 +112,12 @@ class _ToothChart2DState extends State<ToothChart2D> {
           (key == LogicalKeyboardKey.arrowUp && row == lower)) {
         // The tooth in the other arch nearest across.
         final x = layout.slot(sel)!.cx;
-        next = other.reduce((a, b) =>
-            (layout.slot(a)!.cx - x).abs() <= (layout.slot(b)!.cx - x).abs()
-                ? a
-                : b);
+        next = other.reduce(
+          (a, b) =>
+              (layout.slot(a)!.cx - x).abs() <= (layout.slot(b)!.cx - x).abs()
+              ? a
+              : b,
+        );
       }
     }
     if (next == null) return KeyEventResult.ignored;
@@ -159,7 +161,8 @@ class _ToothChart2DState extends State<ToothChart2D> {
           }),
           onKeyEvent: (node, e) => _onKey(node, e, l),
           child: Semantics(
-            label: 'Tooth chart. Arrow keys move between teeth, Enter '
+            label:
+                'Tooth chart. Arrow keys move between teeth, Enter '
                 'opens the selected tooth.',
             child: SizedBox(
               height: l.height,
@@ -279,7 +282,8 @@ class _Layout {
     const gapMm = 0.35;
     final (upper, lower) = ToothSpec.arches(child: child);
     double rowMm(List<String> r) =>
-        r.fold<double>(0, (s, n) => s + ToothSpec.of(n).md) + gapMm * (r.length - 1);
+        r.fold<double>(0, (s, n) => s + ToothSpec.of(n).md) +
+        gapMm * (r.length - 1);
     final widest = math.max(rowMm(upper), rowMm(lower));
     final k = math.max(
       1.0,
@@ -336,23 +340,40 @@ class _Layout {
         final s = ToothSpec.of(n);
         final w = s.md * k;
         final cx = x + w / 2;
-        slots.add(_Slot(
-          number: n,
-          spec: s,
-          cx: cx,
-          upper: isUpper,
-          buccal: full
-              ? BuccalShape.of(s, k: k, cx: cx, edgeY: isUpper ? upperEdge : lowerEdge)
-              : null,
-          occlusal: OcclusalShape.of(
-            s,
-            k: k,
-            center: Offset(cx, isUpper ? upperOcc : lowerOcc),
+        slots.add(
+          _Slot(
+            number: n,
+            spec: s,
+            cx: cx,
+            upper: isUpper,
+            buccal: full
+                ? BuccalShape.of(
+                    s,
+                    k: k,
+                    cx: cx,
+                    edgeY: isUpper ? upperEdge : lowerEdge,
+                  )
+                : null,
+            occlusal: OcclusalShape.of(
+              s,
+              k: k,
+              center: Offset(cx, isUpper ? upperOcc : lowerOcc),
+            ),
+            hit: isUpper
+                ? Rect.fromLTRB(
+                    x - gapMm * k / 2,
+                    0,
+                    x + w + gapMm * k / 2,
+                    biteY,
+                  )
+                : Rect.fromLTRB(
+                    x - gapMm * k / 2,
+                    biteY,
+                    x + w + gapMm * k / 2,
+                    height,
+                  ),
           ),
-          hit: isUpper
-              ? Rect.fromLTRB(x - gapMm * k / 2, 0, x + w + gapMm * k / 2, biteY)
-              : Rect.fromLTRB(x - gapMm * k / 2, biteY, x + w + gapMm * k / 2, height),
-        ));
+        );
         x += w + gapMm * k;
       }
     }
@@ -464,8 +485,18 @@ class _TeethPainter extends CustomPainter {
         ..strokeWidth = 1,
     );
     if (full) {
-      _text(canvas, 'R', Offset(layout.side / 2, layout.biteY), CruType.caption.w600.tint(c.label3));
-      _text(canvas, 'L', Offset(size.width - layout.side / 2, layout.biteY), CruType.caption.w600.tint(c.label3));
+      _text(
+        canvas,
+        'R',
+        Offset(layout.side / 2, layout.biteY),
+        CruType.caption.w600.tint(c.label3),
+      );
+      _text(
+        canvas,
+        'L',
+        Offset(size.width - layout.side / 2, layout.biteY),
+        CruType.caption.w600.tint(c.label3),
+      );
     }
 
     for (final s in layout.slots) {
@@ -505,11 +536,18 @@ class _TeethPainter extends CustomPainter {
       }
 
       if (a.buccal != null && b.buccal != null) {
-        final y = (a.buccal!.crownRect.center.dy + b.buccal!.crownRect.center.dy) / 2;
-        bar(Offset(a.buccal!.crownRect.right - k * 0.6, y), Offset(b.buccal!.crownRect.left + k * 0.6, y));
+        final y =
+            (a.buccal!.crownRect.center.dy + b.buccal!.crownRect.center.dy) / 2;
+        bar(
+          Offset(a.buccal!.crownRect.right - k * 0.6, y),
+          Offset(b.buccal!.crownRect.left + k * 0.6, y),
+        );
       }
       final y = a.occlusal.rect.center.dy;
-      bar(Offset(a.occlusal.rect.right - k * 0.4, y), Offset(b.occlusal.rect.left + k * 0.4, y));
+      bar(
+        Offset(a.occlusal.rect.right - k * 0.4, y),
+        Offset(b.occlusal.rect.left + k * 0.4, y),
+      );
     }
   }
 
@@ -622,9 +660,21 @@ class _OverlayPainter extends CustomPainter {
       final isHover = s.number == hover;
       if (isSel || isHover) {
         if (s.buccal != null) {
-          ToothArt.ring(canvas, s.buccal!.silhouette, c, selected: isSel, k: layout.k);
+          ToothArt.ring(
+            canvas,
+            s.buccal!.silhouette,
+            c,
+            selected: isSel,
+            k: layout.k,
+          );
         }
-        ToothArt.ring(canvas, s.occlusal.outline, c, selected: isSel, k: layout.k);
+        ToothArt.ring(
+          canvas,
+          s.occlusal.outline,
+          c,
+          selected: isSel,
+          k: layout.k,
+        );
       }
       _number(canvas, s);
     }
@@ -648,7 +698,11 @@ class _OverlayPainter extends CustomPainter {
         ToothState.healthy => c.label2,
       };
     }
-    final style = (layout.rows == ChartRows.full ? CruType.caption : CruType.micro).w600.tabular.tint(fg);
+    final style =
+        (layout.rows == ChartRows.full ? CruType.caption : CruType.micro)
+            .w600
+            .tabular
+            .tint(fg);
     final tp = TextPainter(
       text: TextSpan(text: toothLabel(s.number, numbering), style: style),
       textDirection: TextDirection.ltr,
@@ -656,11 +710,17 @@ class _OverlayPainter extends CustomPainter {
     final center = Offset(s.cx, y);
     if (isSel) {
       final r = RRect.fromRectAndRadius(
-        Rect.fromCenter(center: center, width: tp.width + 12, height: tp.height + 4),
+        Rect.fromCenter(
+          center: center,
+          width: tp.width + 12,
+          height: tp.height + 4,
+        ),
         const Radius.circular(CruRadius.full),
       );
       canvas.drawRRect(r, Paint()..color = c.accent);
-    } else if (focused && selected == null && s.number == layout.slots.first.number) {
+    } else if (focused &&
+        selected == null &&
+        s.number == layout.slots.first.number) {
       // Where the arrow keys start.
       canvas.drawCircle(
         center,
@@ -729,10 +789,12 @@ class _HoverLabel extends StatelessWidget {
     final left = (slot.cx - w / 2)
         .clamp(0.0, math.max(0.0, layout.width - w))
         .toDouble();
-    final detail = visual.detail(layer) ??
+    final detail =
+        visual.detail(layer) ??
         switch (layer) {
           ChartLayer.plan => 'Nothing planned',
-          ChartLayer.perio => hasPerio ? 'Not charted in the last exam' : 'No perio exam yet',
+          ChartLayer.perio =>
+            hasPerio ? 'Not charted in the last exam' : 'No perio exam yet',
           ChartLayer.endo => 'No endo record',
           _ => DentalChart.stateLabel(visual.state),
         };
@@ -752,8 +814,11 @@ class _HoverLabel extends StatelessWidget {
           ),
           decoration: ShapeDecoration(
             color: c.surface,
-            shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-            shadows: c.paneShadow,
+            shape: cruShape(
+              CruRadius.control,
+              side: BorderSide(color: c.hairline),
+            ),
+            shadows: const [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

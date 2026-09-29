@@ -22,9 +22,11 @@ import 'package:doctor_management_app/core/update/version/version_comparator.dar
 /// [UpdateInstallerFactory] — zero platform-specific code, per design
 /// principle #3.
 class UpdateService {
-  UpdateService({UpdateSource? source, UpdateInstallerFactory? installerFactory})
-      : _source = source ?? GithubReleaseSource(),
-        _installerFactory = installerFactory ?? const UpdateInstallerFactory();
+  UpdateService({
+    UpdateSource? source,
+    UpdateInstallerFactory? installerFactory,
+  }) : _source = source ?? GithubReleaseSource(),
+       _installerFactory = installerFactory ?? const UpdateInstallerFactory();
 
   final UpdateSource _source;
   final UpdateInstallerFactory _installerFactory;
@@ -38,7 +40,9 @@ class UpdateService {
     try {
       final release = await _source.fetchLatestRelease();
       if (release == null || release.version.isEmpty) {
-        return const CheckFailed('No published release could be found on GitHub.');
+        return const CheckFailed(
+          'No published release could be found on GitHub.',
+        );
       }
 
       final packageInfo = await PackageInfo.fromPlatform();
@@ -73,7 +77,10 @@ class UpdateService {
     return controller.stream;
   }
 
-  Future<void> _run(AppRelease release, StreamController<UpdateProgress> controller) async {
+  Future<void> _run(
+    AppRelease release,
+    StreamController<UpdateProgress> controller,
+  ) async {
     void emit(UpdateProgress progress) {
       if (!controller.isClosed) controller.add(progress);
     }
@@ -99,9 +106,19 @@ class UpdateService {
       // to the system installer and returns here. Either way, there's
       // nothing further for this stream to report — fall through to close.
     } on UpdateException catch (e) {
-      emit(UpdateProgress(state: UpdateProgressState.failed, errorMessage: e.message));
+      emit(
+        UpdateProgress(
+          state: UpdateProgressState.failed,
+          errorMessage: e.message,
+        ),
+      );
     } catch (e) {
-      emit(UpdateProgress(state: UpdateProgressState.failed, errorMessage: e.toString()));
+      emit(
+        UpdateProgress(
+          state: UpdateProgressState.failed,
+          errorMessage: e.toString(),
+        ),
+      );
     } finally {
       await controller.close();
     }

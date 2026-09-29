@@ -23,7 +23,11 @@ class TreatmentStep {
 /// an accent ring and a "Next" pill, future steps are hollow with a
 /// "Book" capsule.
 class TreatmentStepper extends StatelessWidget {
-  const TreatmentStepper({super.key, required this.steps, required this.onBook});
+  const TreatmentStepper({
+    super.key,
+    required this.steps,
+    required this.onBook,
+  });
 
   final List<TreatmentStep> steps;
   final VoidCallback onBook;
@@ -52,7 +56,8 @@ class TreatmentStepper extends StatelessWidget {
                               vertical: CruSpace.s4,
                             ),
                             decoration: BoxDecoration(
-                              color: steps[i].state == TreatmentStepState.done &&
+                              color:
+                                  steps[i].state == TreatmentStepState.done &&
                                       steps[i + 1].state ==
                                           TreatmentStepState.done
                                   ? c.green
@@ -134,27 +139,27 @@ class _StepBody extends StatelessWidget {
     final lineHeight = CruSize.stepperNode / CruType.subhead.fontSize!;
     final Widget trailing = switch (step.state) {
       TreatmentStepState.done => Text(
-          'Done',
-          style: CruType.subhead.w600
-              .tint(c.greenText)
-              .copyWith(height: lineHeight),
-        ),
+        'Done',
+        style: CruType.subhead.w600
+            .tint(c.greenText)
+            .copyWith(height: lineHeight),
+      ),
       TreatmentStepState.current => Container(
-          height: CruSize.nextPill,
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
-          alignment: Alignment.center,
-          decoration: ShapeDecoration(
-            color: c.accentTint,
-            shape: const StadiumBorder(),
-          ),
-          child: Text('Next', style: CruType.caption.w600.tint(c.accentText)),
+        height: CruSize.nextPill,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+        alignment: Alignment.center,
+        decoration: ShapeDecoration(
+          color: c.accentTint,
+          shape: const StadiumBorder(),
         ),
+        child: Text('Next', style: CruType.caption.w600.tint(c.accentText)),
+      ),
       TreatmentStepState.future => CruCapsuleButton(
-          label: 'Book',
-          height: CruSize.rowCapsule,
-          semanticLabel: 'Book ${step.title}',
-          onPressed: onBook,
-        ),
+        label: 'Book',
+        height: CruSize.rowCapsule,
+        semanticLabel: 'Book ${step.title}',
+        onPressed: onBook,
+      ),
     };
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,

@@ -209,7 +209,8 @@ class ScribeDraftFormController extends ChangeNotifier {
         _listenToRow(row);
         changed = true;
       } else {
-        if (med.dosage.isNotEmpty && existing.dosage.text.trim() != med.dosage.trim()) {
+        if (med.dosage.isNotEmpty &&
+            existing.dosage.text.trim() != med.dosage.trim()) {
           existing.dosage.text = med.dosage.trim();
           changed = true;
         }
@@ -241,19 +242,25 @@ class ScribeDraftFormController extends ChangeNotifier {
 
   void updateVitals({String? newBp, String? newTemp, String? newPulse}) {
     var changed = false;
-    if (newBp != null && newBp.trim().isNotEmpty && bp.text.trim() != newBp.trim()) {
+    if (newBp != null &&
+        newBp.trim().isNotEmpty &&
+        bp.text.trim() != newBp.trim()) {
       bp.text = newBp.trim();
       _revealKeys['bp'] = (_revealKeys['bp'] ?? 0) + 1;
       _pendingFields.remove('bp');
       changed = true;
     }
-    if (newTemp != null && newTemp.trim().isNotEmpty && temp.text.trim() != newTemp.trim()) {
+    if (newTemp != null &&
+        newTemp.trim().isNotEmpty &&
+        temp.text.trim() != newTemp.trim()) {
       temp.text = newTemp.trim();
       _revealKeys['temp'] = (_revealKeys['temp'] ?? 0) + 1;
       _pendingFields.remove('temp');
       changed = true;
     }
-    if (newPulse != null && newPulse.trim().isNotEmpty && pulse.text.trim() != newPulse.trim()) {
+    if (newPulse != null &&
+        newPulse.trim().isNotEmpty &&
+        pulse.text.trim() != newPulse.trim()) {
       pulse.text = newPulse.trim();
       _revealKeys['pulse'] = (_revealKeys['pulse'] ?? 0) + 1;
       _pendingFields.remove('pulse');
@@ -262,21 +269,32 @@ class ScribeDraftFormController extends ChangeNotifier {
     if (changed) notifyListeners();
   }
 
-  void updatePain({String? now, String? worst, String? location, String? nature}) {
+  void updatePain({
+    String? now,
+    String? worst,
+    String? location,
+    String? nature,
+  }) {
     var changed = false;
-    if (now != null && now.isNotEmpty && physioText['painNow']?.text.trim() != now.trim()) {
+    if (now != null &&
+        now.isNotEmpty &&
+        physioText['painNow']?.text.trim() != now.trim()) {
       physioText['painNow']?.text = now.trim();
       _revealKeys['painNow'] = (_revealKeys['painNow'] ?? 0) + 1;
       _pendingFields.remove('painNow');
       changed = true;
     }
-    if (worst != null && worst.isNotEmpty && physioText['painWorst']?.text.trim() != worst.trim()) {
+    if (worst != null &&
+        worst.isNotEmpty &&
+        physioText['painWorst']?.text.trim() != worst.trim()) {
       physioText['painWorst']?.text = worst.trim();
       _revealKeys['painWorst'] = (_revealKeys['painWorst'] ?? 0) + 1;
       _pendingFields.remove('painWorst');
       changed = true;
     }
-    if (nature != null && nature.isNotEmpty && physioText['painNature']?.text.trim() != nature.trim()) {
+    if (nature != null &&
+        nature.isNotEmpty &&
+        physioText['painNature']?.text.trim() != nature.trim()) {
       physioText['painNature']?.text = nature.trim();
       _revealKeys['painNature'] = (_revealKeys['painNature'] ?? 0) + 1;
       _pendingFields.remove('painNature');
@@ -284,7 +302,8 @@ class ScribeDraftFormController extends ChangeNotifier {
     }
     if (location != null && location.isNotEmpty) {
       final locs = physioLists['painLocation'];
-      if (locs != null && !locs.any((l) => l.toLowerCase() == location.trim().toLowerCase())) {
+      if (locs != null &&
+          !locs.any((l) => l.toLowerCase() == location.trim().toLowerCase())) {
         locs.add(location.trim());
         _revealKeys['painLocation'] = (_revealKeys['painLocation'] ?? 0) + 1;
         _pendingFields.remove('painLocation');

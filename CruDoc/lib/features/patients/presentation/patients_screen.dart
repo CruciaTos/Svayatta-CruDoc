@@ -119,7 +119,9 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
   void initState() {
     super.initState();
     _scroll = ScrollController(
-      initialScrollOffset: ref.read(patientsListControllerProvider).scrollOffset,
+      initialScrollOffset: ref
+          .read(patientsListControllerProvider)
+          .scrollOffset,
     )..addListener(_onScroll);
     // The shell holds focus by default; take it so our shortcuts see keys.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -166,7 +168,8 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
   /// tap opens details directly.
   void _onRowTap(PatientSummary s) {
     final now = DateTime.now();
-    final isDouble = _lastTapId == s.id &&
+    final isDouble =
+        _lastTapId == s.id &&
         _lastTapAt != null &&
         now.difference(_lastTapAt!) < kDoubleTapTimeout;
     _lastTapId = s.id;
@@ -239,44 +242,43 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
   }
 
   Map<ShortcutActivator, Intent> get _shortcuts => {
-        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
-            const _FocusSearchIntent(),
-        if (defaultTargetPlatform == TargetPlatform.macOS)
-          const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
-              const _FocusSearchIntent(),
-        const SingleActivator(LogicalKeyboardKey.arrowDown):
-            const _MoveSelectionIntent(1),
-        const SingleActivator(LogicalKeyboardKey.arrowUp):
-            const _MoveSelectionIntent(-1),
-        const SingleActivator(LogicalKeyboardKey.enter):
-            const _OpenSelectedIntent(),
-        const SingleActivator(LogicalKeyboardKey.numpadEnter):
-            const _OpenSelectedIntent(),
-        const SingleActivator(LogicalKeyboardKey.escape):
-            const _ClosePaneIntent(),
-      };
+    const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+        const _FocusSearchIntent(),
+    if (defaultTargetPlatform == TargetPlatform.macOS)
+      const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+          const _FocusSearchIntent(),
+    const SingleActivator(LogicalKeyboardKey.arrowDown):
+        const _MoveSelectionIntent(1),
+    const SingleActivator(LogicalKeyboardKey.arrowUp):
+        const _MoveSelectionIntent(-1),
+    const SingleActivator(LogicalKeyboardKey.enter):
+        const _OpenSelectedIntent(),
+    const SingleActivator(LogicalKeyboardKey.numpadEnter):
+        const _OpenSelectedIntent(),
+    const SingleActivator(LogicalKeyboardKey.escape): const _ClosePaneIntent(),
+  };
 
   Map<Type, Action<Intent>> get _actions => {
-        _FocusSearchIntent: _PatientsAction<_FocusSearchIntent>(
-          () => _searchFocus.context != null,
-          (_) => _searchFocus.requestFocus(),
-        ),
-        _MoveSelectionIntent: _PatientsAction<_MoveSelectionIntent>(
-          () => !_searchFocused && _paneVisible(),
-          (intent) => _moveSelection(intent.delta),
-        ),
-        _OpenSelectedIntent: _PatientsAction<_OpenSelectedIntent>(
-          () => !_searchFocused && _paneVisible(),
-          (_) {
-            final id = ref.read(patientsListViewProvider).value?.selected?.id;
-            if (id != null) _openDetails(id);
-          },
-        ),
-        _ClosePaneIntent: _PatientsAction<_ClosePaneIntent>(
-          _paneVisible,
-          (_) => _closePane(),
-        ),
-      };
+    _FocusSearchIntent: _PatientsAction<_FocusSearchIntent>(
+      () => _searchFocus.context != null,
+      (_) => _searchFocus.requestFocus(),
+    ),
+    _MoveSelectionIntent: _PatientsAction<_MoveSelectionIntent>(
+      () => !_searchFocused && _paneVisible(),
+      (intent) => _moveSelection(intent.delta),
+    ),
+    _OpenSelectedIntent: _PatientsAction<_OpenSelectedIntent>(
+      () => !_searchFocused && _paneVisible(),
+      (_) {
+        final id = ref.read(patientsListViewProvider).value?.selected?.id;
+        if (id != null) _openDetails(id);
+      },
+    ),
+    _ClosePaneIntent: _PatientsAction<_ClosePaneIntent>(
+      _paneVisible,
+      (_) => _closePane(),
+    ),
+  };
 
   // ---- Layout ------------------------------------------------------------
 
@@ -307,10 +309,7 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
     final empty = view != null && view.total == 0;
 
     final top = <Widget>[
-      PatientsHeader(
-        total: view?.total,
-        newThisMonth: view?.newThisMonth ?? 0,
-      ),
+      PatientsHeader(total: view?.total, newThisMonth: view?.newThisMonth ?? 0),
       if (!empty) ...[
         const SizedBox(height: CruSpace.s20),
         PatientsSearchBar(
@@ -369,7 +368,9 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
                     // In split mode both columns add s12 themselves, so the
                     // pinned pane keeps a margin at the top of the window.
                     child: SizedBox(
-                      height: split ? CruSpace.s20 - CruSpace.s12 : CruSpace.s20,
+                      height: split
+                          ? CruSpace.s20 - CruSpace.s12
+                          : CruSpace.s20,
                     ),
                   ),
                   SliverPadding(
@@ -424,11 +425,11 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
   }
 
   Widget _pane(PatientSummary summary, DateTime now) => PatientPreviewPane(
-        summary: summary,
-        now: now,
-        onOpen: () => _openDetails(summary.id),
-        onClose: _closePane,
-      );
+    summary: summary,
+    now: now,
+    onOpen: () => _openDetails(summary.id),
+    onClose: _closePane,
+  );
 
   Widget _listSliver(
     BuildContext context, {
@@ -506,7 +507,9 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
         selectedId: sheet ? view.selected?.id : null,
         selectedRowKey: _selectedRowKey,
         showFooter: !view.firstWeek,
-        hint: width >= CruBreakpoint.phone ? 'Click a patient to preview' : null,
+        hint: width >= CruBreakpoint.phone
+            ? 'Click a patient to preview'
+            : null,
         trailing: view.firstWeek ? const PatientsFirstWeekPanel() : null,
         empty: _NoMatches(
           query: query,
@@ -536,9 +539,8 @@ class _Backdrop extends StatelessWidget {
           tween: Tween(begin: 0, end: 1),
           duration: CruMotion.of(context, CruMotion.pane),
           curve: CruMotion.curve,
-          builder: (context, t, _) => ColoredBox(
-            color: c.label.withValues(alpha: 0.24 * t),
-          ),
+          builder: (context, t, _) =>
+              ColoredBox(color: c.label.withValues(alpha: 0.24 * t)),
         ),
       ),
     );

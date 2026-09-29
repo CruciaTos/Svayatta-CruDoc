@@ -5,8 +5,8 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 /// How much larger text and icons are in chairside mode when toggled on.
 const double largeModeScale = 1.2;
 
-/// Baseline text and icon scale in chairside area when toggled off (10% larger).
-const double normalModeScale = 1.10;
+/// Baseline scale when chairside mode is off, matching other specialties.
+const double normalModeScale = 1.0;
 
 /// Chairside mode (children, reading at a distance): the main area's
 /// text and icons 20% larger, the sidebar as it is. Stored as a clinic
@@ -30,7 +30,10 @@ Future<void> setLargeMode(WidgetRef ref, bool on) async {
     }
   }
   final record = current == null
-      ? DentalRecord.create('', RecKind.meta, {'what': 'largeMode', 'value': on})
+      ? DentalRecord.create('', RecKind.meta, {
+          'what': 'largeMode',
+          'value': on,
+        })
       : current.copyWith(data: {...current.data, 'value': on});
   await saveDentalRecord(ref, record);
 }

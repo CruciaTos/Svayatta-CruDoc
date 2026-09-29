@@ -13,9 +13,7 @@ class SuperAdminSubscriptionService {
   /// Get all subscription plans.
   Future<List<PlanModel>> getAllPlans() async {
     try {
-      final snapshot = await _fb.plansCollection
-          .orderBy('sortOrder')
-          .get();
+      final snapshot = await _fb.plansCollection.orderBy('sortOrder').get();
       return snapshot.docs.map((doc) {
         return PlanModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
@@ -42,7 +40,10 @@ class SuperAdminSubscriptionService {
     try {
       final doc = await _fb.subscriptionsCollection.doc(doctorId).get();
       if (!doc.exists) return null;
-      return SubscriptionModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+      return SubscriptionModel.fromJson(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
     } catch (e) {
       throw Exception('Failed to fetch subscription: ${e.toString()}');
     }
@@ -75,7 +76,7 @@ class SuperAdminSubscriptionService {
             'changedAt': now,
             'changedBy': _fb.currentUserEmail,
             'reason': reason ?? 'Plan upgrade by admin',
-          }
+          },
         ]),
       });
 
@@ -129,7 +130,7 @@ class SuperAdminSubscriptionService {
             'changedAt': now,
             'changedBy': _fb.currentUserEmail,
             'reason': reason ?? 'Plan downgrade by admin',
-          }
+          },
         ]),
       });
 
@@ -165,7 +166,8 @@ class SuperAdminSubscriptionService {
     try {
       final sub = await getDoctorSubscription(doctorId);
       final now = DateTime.now();
-      final newTrialEnd = sub?.trialEndDate != null && sub!.trialEndDate!.isAfter(now)
+      final newTrialEnd =
+          sub?.trialEndDate != null && sub!.trialEndDate!.isAfter(now)
           ? sub.trialEndDate!.add(Duration(days: additionalDays))
           : now.add(Duration(days: additionalDays));
 

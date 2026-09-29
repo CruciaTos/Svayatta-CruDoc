@@ -73,10 +73,7 @@ DateTime? _doneOn(Map<String, dynamic> q) => q['date'] is int
     return (text: 'None planned', warn: false);
   }
   if (p.done < p.planned) {
-    return (
-      text: '${p.done} of ${p.planned} quadrants done',
-      warn: false,
-    );
+    return (text: '${p.done} of ${p.planned} quadrants done', warn: false);
   }
   final due = course.date('reevaluationDue');
   if (due == null) return (text: 'All quadrants done', warn: false);
@@ -113,10 +110,8 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
   Future<void> _editQuadrant(DentalRecord? course, String q) async {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => _QuadrantDialog(
-        quadrant: q,
-        current: _quadrant(course, q),
-      ),
+      builder: (_) =>
+          _QuadrantDialog(quadrant: q, current: _quadrant(course, q)),
     );
     if (result == null) return;
 
@@ -146,8 +141,9 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
           .map((v) => _doneOn(Map<String, dynamic>.from(v as Map)))
           .whereType<DateTime>()
           .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
-      data['reevaluationDue'] =
-          (last ?? DateTime.now()).add(_reevaluateAfter).millisecondsSinceEpoch;
+      data['reevaluationDue'] = (last ?? DateTime.now())
+          .add(_reevaluateAfter)
+          .millisecondsSinceEpoch;
     } else {
       data
         ..remove('reevaluationDue')
@@ -159,18 +155,13 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
   }
 
   Future<void> _setRecall(DentalRecord course, DateTime due) async {
-    final recall = DentalRecord.create(
-      widget.patient.id,
-      RecKind.recall,
-      {
-        'patientName': widget.patient.fullName,
-        'reason': 'Perio re-evaluation',
-        'status': RecallStatus.pending.name,
-        'source': 'srp',
-        'notes': '',
-      },
-      at: due,
-    );
+    final recall = DentalRecord.create(widget.patient.id, RecKind.recall, {
+      'patientName': widget.patient.fullName,
+      'reason': 'Perio re-evaluation',
+      'status': RecallStatus.pending.name,
+      'source': 'srp',
+      'notes': '',
+    }, at: due);
     await saveDentalRecord(ref, recall);
     await saveDentalRecord(
       ref,
@@ -185,8 +176,7 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final courses =
-        ref.watch(patientRecordsProvider(_key)).value ??
-        const <DentalRecord>[];
+        ref.watch(patientRecordsProvider(_key)).value ?? const <DentalRecord>[];
     final course = _fresh ? null : courses.firstOrNull;
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
@@ -201,7 +191,10 @@ class _SrpDialogState extends ConsumerState<_SrpDialog> {
         widget.patient.fullName,
         if (p.planned > 0) '${p.done} of ${p.planned} quadrants done',
       ].join(' · '),
-      leading: const CruIconTile(icon: RecIcons.perio, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RecIcons.perio,
+        tone: CruTileTone.accent,
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -335,10 +328,7 @@ class _QuadrantTile extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    name,
-                    style: CruType.callout.w600.tint(c.label),
-                  ),
+                  child: Text(name, style: CruType.callout.w600.tint(c.label)),
                 ),
                 CruPill(text: label, background: fill, foreground: fg),
               ],
@@ -411,7 +401,10 @@ class _QuadrantDialogState extends State<_QuadrantDialog> {
     return CruFormDialog(
       title: _quadrantName[widget.quadrant]!,
       subtitle: 'Root planing · teeth $from–$to',
-      leading: const CruIconTile(icon: RecIcons.perio, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RecIcons.perio,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: 'Save quadrant',
       onSubmit: _save,
       width: CruSize.formDialog - 160,

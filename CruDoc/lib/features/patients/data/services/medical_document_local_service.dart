@@ -9,9 +9,8 @@ import '../models/medical_document.dart';
 class MedicalDocumentLocalService {
   MedicalDocumentLocalService._(this._databaseService);
 
-  static final MedicalDocumentLocalService instance = MedicalDocumentLocalService._(
-    LocalDatabaseService.instance,
-  );
+  static final MedicalDocumentLocalService instance =
+      MedicalDocumentLocalService._(LocalDatabaseService.instance);
 
   final LocalDatabaseService _databaseService;
   final StreamController<void> _documentsChangedController =
@@ -30,10 +29,7 @@ class MedicalDocumentLocalService {
   Future<void> saveDocument(MedicalDocument doc) async {
     final db = await _databaseService.localDatabase;
     final now = DateTime.now();
-    final toSave = doc.copyWith(
-      syncStatus: 'pending',
-      updatedAt: now,
-    );
+    final toSave = doc.copyWith(syncStatus: 'pending', updatedAt: now);
 
     await db.insert(
       'medical_documents',

@@ -13,8 +13,8 @@ class HomeopathyRepository {
   HomeopathyRepository({
     HomeopathyLocalService? localService,
     FirebaseFirestore? firestore,
-  })  : _localService = localService ?? HomeopathyLocalService.instance,
-        _firestore = firestore ?? FirebaseFirestore.instance;
+  }) : _localService = localService ?? HomeopathyLocalService.instance,
+       _firestore = firestore ?? FirebaseFirestore.instance;
 
   final HomeopathyLocalService _localService;
   final FirebaseFirestore _firestore;
@@ -22,7 +22,9 @@ class HomeopathyRepository {
   String get _currentDoctorId {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null || uid.isEmpty) {
-      throw StateError('No signed-in doctor — cannot access homeopathy case data.');
+      throw StateError(
+        'No signed-in doctor — cannot access homeopathy case data.',
+      );
     }
     return uid;
   }
@@ -32,44 +34,104 @@ class HomeopathyRepository {
     final map = sheet.toMap();
     // Encrypt sensitive clinical payload fields
     map['chiefProblem'] = FieldCipher.encrypt(sheet.overview.chiefProblem);
-    map['consultationReason'] = FieldCipher.encrypt(sheet.overview.consultationReason);
-    map['chiefComplaint'] = FieldCipher.encrypt(map['chiefComplaint'] as String?);
+    map['consultationReason'] = FieldCipher.encrypt(
+      sheet.overview.consultationReason,
+    );
+    map['chiefComplaint'] = FieldCipher.encrypt(
+      map['chiefComplaint'] as String?,
+    );
     map['modalities'] = FieldCipher.encrypt(map['modalities'] as String?);
-    map['generalSymptoms'] = FieldCipher.encrypt(map['generalSymptoms'] as String?);
-    map['physicalSymptoms'] = FieldCipher.encrypt(map['physicalSymptoms'] as String?);
-    map['femaleReproductive'] = FieldCipher.encrypt(map['femaleReproductive'] as String?);
-    map['mentalEmotional'] = FieldCipher.encrypt(map['mentalEmotional'] as String?);
+    map['generalSymptoms'] = FieldCipher.encrypt(
+      map['generalSymptoms'] as String?,
+    );
+    map['physicalSymptoms'] = FieldCipher.encrypt(
+      map['physicalSymptoms'] as String?,
+    );
+    map['femaleReproductive'] = FieldCipher.encrypt(
+      map['femaleReproductive'] as String?,
+    );
+    map['mentalEmotional'] = FieldCipher.encrypt(
+      map['mentalEmotional'] as String?,
+    );
     map['dreamsSleep'] = FieldCipher.encrypt(map['dreamsSleep'] as String?);
     map['sexualHistory'] = FieldCipher.encrypt(map['sexualHistory'] as String?);
-    map['medicalHistory'] = FieldCipher.encrypt(map['medicalHistory'] as String?);
-    map['physicalExamination'] = FieldCipher.encrypt(map['physicalExamination'] as String?);
-    map['investigations'] = FieldCipher.encrypt(map['investigations'] as String?);
-    map['peculiarSymptoms'] = FieldCipher.encrypt(map['peculiarSymptoms'] as String?);
-    map['repertorizationNotes'] = FieldCipher.encrypt(map['repertorizationNotes'] as String?);
-    map['suggestedRemedies'] = FieldCipher.encrypt(map['suggestedRemedies'] as String?);
-    map['additionalNotes'] = FieldCipher.encrypt(map['additionalNotes'] as String?);
+    map['medicalHistory'] = FieldCipher.encrypt(
+      map['medicalHistory'] as String?,
+    );
+    map['physicalExamination'] = FieldCipher.encrypt(
+      map['physicalExamination'] as String?,
+    );
+    map['investigations'] = FieldCipher.encrypt(
+      map['investigations'] as String?,
+    );
+    map['peculiarSymptoms'] = FieldCipher.encrypt(
+      map['peculiarSymptoms'] as String?,
+    );
+    map['repertorizationNotes'] = FieldCipher.encrypt(
+      map['repertorizationNotes'] as String?,
+    );
+    map['suggestedRemedies'] = FieldCipher.encrypt(
+      map['suggestedRemedies'] as String?,
+    );
+    map['additionalNotes'] = FieldCipher.encrypt(
+      map['additionalNotes'] as String?,
+    );
     return map;
   }
 
   Map<String, dynamic> _decryptedFromFirestore(Map<String, dynamic> raw) {
     final map = Map<String, dynamic>.from(raw);
-    map['chiefProblem'] = FieldCipher.decrypt(map['chiefProblem'] as String? ?? '');
-    map['consultationReason'] = FieldCipher.decrypt(map['consultationReason'] as String? ?? '');
-    map['chiefComplaint'] = FieldCipher.decrypt(map['chiefComplaint'] as String? ?? '{}');
-    map['modalities'] = FieldCipher.decrypt(map['modalities'] as String? ?? '{}');
-    map['generalSymptoms'] = FieldCipher.decrypt(map['generalSymptoms'] as String? ?? '{}');
-    map['physicalSymptoms'] = FieldCipher.decrypt(map['physicalSymptoms'] as String? ?? '{}');
-    map['femaleReproductive'] = FieldCipher.decrypt(map['femaleReproductive'] as String? ?? '{}');
-    map['mentalEmotional'] = FieldCipher.decrypt(map['mentalEmotional'] as String? ?? '{}');
-    map['dreamsSleep'] = FieldCipher.decrypt(map['dreamsSleep'] as String? ?? '{}');
-    map['sexualHistory'] = FieldCipher.decrypt(map['sexualHistory'] as String? ?? '{}');
-    map['medicalHistory'] = FieldCipher.decrypt(map['medicalHistory'] as String? ?? '{}');
-    map['physicalExamination'] = FieldCipher.decrypt(map['physicalExamination'] as String? ?? '{}');
-    map['investigations'] = FieldCipher.decrypt(map['investigations'] as String? ?? '{}');
-    map['peculiarSymptoms'] = FieldCipher.decrypt(map['peculiarSymptoms'] as String? ?? '');
-    map['repertorizationNotes'] = FieldCipher.decrypt(map['repertorizationNotes'] as String? ?? '');
-    map['suggestedRemedies'] = FieldCipher.decrypt(map['suggestedRemedies'] as String? ?? '');
-    map['additionalNotes'] = FieldCipher.decrypt(map['additionalNotes'] as String? ?? '');
+    map['chiefProblem'] = FieldCipher.decrypt(
+      map['chiefProblem'] as String? ?? '',
+    );
+    map['consultationReason'] = FieldCipher.decrypt(
+      map['consultationReason'] as String? ?? '',
+    );
+    map['chiefComplaint'] = FieldCipher.decrypt(
+      map['chiefComplaint'] as String? ?? '{}',
+    );
+    map['modalities'] = FieldCipher.decrypt(
+      map['modalities'] as String? ?? '{}',
+    );
+    map['generalSymptoms'] = FieldCipher.decrypt(
+      map['generalSymptoms'] as String? ?? '{}',
+    );
+    map['physicalSymptoms'] = FieldCipher.decrypt(
+      map['physicalSymptoms'] as String? ?? '{}',
+    );
+    map['femaleReproductive'] = FieldCipher.decrypt(
+      map['femaleReproductive'] as String? ?? '{}',
+    );
+    map['mentalEmotional'] = FieldCipher.decrypt(
+      map['mentalEmotional'] as String? ?? '{}',
+    );
+    map['dreamsSleep'] = FieldCipher.decrypt(
+      map['dreamsSleep'] as String? ?? '{}',
+    );
+    map['sexualHistory'] = FieldCipher.decrypt(
+      map['sexualHistory'] as String? ?? '{}',
+    );
+    map['medicalHistory'] = FieldCipher.decrypt(
+      map['medicalHistory'] as String? ?? '{}',
+    );
+    map['physicalExamination'] = FieldCipher.decrypt(
+      map['physicalExamination'] as String? ?? '{}',
+    );
+    map['investigations'] = FieldCipher.decrypt(
+      map['investigations'] as String? ?? '{}',
+    );
+    map['peculiarSymptoms'] = FieldCipher.decrypt(
+      map['peculiarSymptoms'] as String? ?? '',
+    );
+    map['repertorizationNotes'] = FieldCipher.decrypt(
+      map['repertorizationNotes'] as String? ?? '',
+    );
+    map['suggestedRemedies'] = FieldCipher.decrypt(
+      map['suggestedRemedies'] as String? ?? '',
+    );
+    map['additionalNotes'] = FieldCipher.decrypt(
+      map['additionalNotes'] as String? ?? '',
+    );
     return map;
   }
 
@@ -115,7 +177,9 @@ class HomeopathyRepository {
   }
 
   /// Stream of case sheet updates for a patient.
-  Stream<HomeopathyCaseSheet?> watchCaseSheetForPatient(String patientId) async* {
+  Stream<HomeopathyCaseSheet?> watchCaseSheetForPatient(
+    String patientId,
+  ) async* {
     yield await getCaseSheetForPatient(patientId);
 
     if (!kIsWeb) {

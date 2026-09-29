@@ -50,10 +50,7 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                'PRESETS',
-                style: CruType.micro.w600.tint(ctx.cru.label2),
-              ),
+              Text('PRESETS', style: CruType.micro.w600.tint(ctx.cru.label2)),
               const SizedBox(height: CruSpace.s6),
               Wrap(
                 spacing: CruSpace.s8,
@@ -77,10 +74,7 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                 ],
               ),
               const SizedBox(height: CruSpace.s16),
-              CruTextField(
-                label: 'Session label',
-                controller: labelCtrl,
-              ),
+              CruTextField(label: 'Session label', controller: labelCtrl),
               const SizedBox(height: CruSpace.s12),
               CruTextField(
                 label: 'Session notes / clinical focus (optional)',
@@ -95,20 +89,16 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
 
     if (chosen == true && mounted) {
       final now = DateTime.now();
-      final record = DentalRecord.create(
-        widget.patient.id,
-        RecKind.physioPhotoSet,
-        {
-          'sessionNumber': sessionNum,
-          'visitId': widget.initialVisitId,
-          'label': labelCtrl.text.trim().isNotEmpty
-              ? labelCtrl.text.trim()
-              : 'Session $sessionNum',
-          'notes': notesCtrl.text.trim(),
-          'photos': <String, String>{},
-        },
-        at: now,
-      );
+      final record =
+          DentalRecord.create(widget.patient.id, RecKind.physioPhotoSet, {
+            'sessionNumber': sessionNum,
+            'visitId': widget.initialVisitId,
+            'label': labelCtrl.text.trim().isNotEmpty
+                ? labelCtrl.text.trim()
+                : 'Session $sessionNum',
+            'notes': notesCtrl.text.trim(),
+            'photos': <String, String>{},
+          }, at: now);
       await saveDentalRecord(ref, record);
       if (mounted) {
         setState(() => _selectedSetId = record.id);
@@ -145,10 +135,7 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
       nextPhotos[slot.name] = destPath;
 
       final updated = set.record.copyWith(
-        data: {
-          ...set.record.data,
-          'photos': nextPhotos,
-        },
+        data: {...set.record.data, 'photos': nextPhotos},
       );
       await saveDentalRecord(ref, updated);
       if (mounted) {
@@ -181,10 +168,7 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
 
     final nextPhotos = Map<String, String>.from(set.photos)..remove(slot.name);
     final updated = set.record.copyWith(
-      data: {
-        ...set.record.data,
-        'photos': nextPhotos,
-      },
+      data: {...set.record.data, 'photos': nextPhotos},
     );
     await saveDentalRecord(ref, updated);
     if (mounted) {
@@ -197,7 +181,8 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
     final ok = await confirmDental(
       context,
       title: 'Delete session photos?',
-      body: 'Delete "${set.label}" and all ${set.filledCount} associated clinical photos?',
+      body:
+          'Delete "${set.label}" and all ${set.filledCount} associated clinical photos?',
       action: 'Delete session',
     );
     if (!ok || !mounted) return;
@@ -231,14 +216,8 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: CruType.title2.w600.tint(Colors.white),
-                    ),
-                    Text(
-                      subtitle,
-                      style: CruType.caption.tint(Colors.white70),
-                    ),
+                    Text(title, style: CruType.title2.w600.tint(Colors.white)),
+                    Text(subtitle, style: CruType.caption.tint(Colors.white70)),
                   ],
                 ),
                 IconButton(
@@ -253,10 +232,7 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                 borderRadius: BorderRadius.circular(CruRadius.control),
                 child: InteractiveViewer(
                   maxScale: 4.0,
-                  child: Image.file(
-                    File(imagePath),
-                    fit: BoxFit.contain,
-                  ),
+                  child: Image.file(File(imagePath), fit: BoxFit.contain),
                 ),
               ),
             ),
@@ -270,9 +246,10 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final recordsAsync = ref.watch(
-      patientRecordsProvider(
-        (patientId: widget.patient.id, kind: RecKind.physioPhotoSet),
-      ),
+      patientRecordsProvider((
+        patientId: widget.patient.id,
+        kind: RecKind.physioPhotoSet,
+      )),
     );
 
     return recordsAsync.when(
@@ -302,7 +279,10 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
 
         final nextNum = sets.isEmpty
             ? 1
-            : sets.map((s) => s.sessionNumber).fold<int>(0, (m, v) => v > m ? v : m) + 1;
+            : sets
+                      .map((s) => s.sessionNumber)
+                      .fold<int>(0, (m, v) => v > m ? v : m) +
+                  1;
 
         return DentalPanelDialog(
           title: 'Physiotherapy Session Photos',
@@ -362,37 +342,51 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                 final s = sets[i];
                                 final isSelected = s.id == _selectedSetId;
                                 return GestureDetector(
-                                  onTap: () => setState(() => _selectedSetId = s.id),
+                                  onTap: () =>
+                                      setState(() => _selectedSetId = s.id),
                                   child: Container(
                                     padding: const EdgeInsets.all(CruSpace.s10),
                                     decoration: BoxDecoration(
                                       color: isSelected ? c.canvas : c.surface,
-                                      borderRadius: BorderRadius.circular(CruRadius.control),
+                                      borderRadius: BorderRadius.circular(
+                                        CruRadius.control,
+                                      ),
                                       border: Border.all(
-                                        color: isSelected ? c.accent : c.hairline,
+                                        color: isSelected
+                                            ? c.accent
+                                            : c.hairline,
                                         width: isSelected ? 1.5 : 1.0,
                                       ),
                                     ),
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: CruSpace.s6,
-                                                vertical: CruSpace.s2,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: CruSpace.s6,
+                                                    vertical: CruSpace.s2,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 color: isSelected
-                                                    ? c.accent.withValues(alpha: 0.15)
+                                                    ? c.accent.withValues(
+                                                        alpha: 0.15,
+                                                      )
                                                     : c.hairline,
-                                                borderRadius: BorderRadius.circular(CruRadius.full),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      CruRadius.full,
+                                                    ),
                                               ),
                                               child: Text(
                                                 'S${s.sessionNumber}',
                                                 style: CruType.micro.w600.tint(
-                                                  isSelected ? c.accent : c.label2,
+                                                  isSelected
+                                                      ? c.accent
+                                                      : c.label2,
                                                 ),
                                               ),
                                             ),
@@ -400,7 +394,9 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                             Expanded(
                                               child: Text(
                                                 s.label,
-                                                style: CruType.body.w600.tint(c.label),
+                                                style: CruType.body.w600.tint(
+                                                  c.label,
+                                                ),
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
@@ -408,16 +404,21 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                         ),
                                         const SizedBox(height: CruSpace.s4),
                                         Row(
-                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
                                           children: [
                                             Text(
                                               DentalFormat.date(s.date),
-                                              style: CruType.caption.tint(c.label2),
+                                              style: CruType.caption.tint(
+                                                c.label2,
+                                              ),
                                             ),
                                             Text(
                                               '${s.filledCount}/8 photos',
                                               style: CruType.micro.w600.tint(
-                                                s.filledCount > 0 ? c.accent : c.label3,
+                                                s.filledCount > 0
+                                                    ? c.accent
+                                                    : c.label3,
                                               ),
                                             ),
                                           ],
@@ -441,7 +442,8 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                       ? DentalEmptyState(
                           icon: CruIcons.box,
                           title: 'No session selected',
-                          body: 'Create a session or select one on the left to add posture and movement photos.',
+                          body:
+                              'Create a session or select one on the left to add posture and movement photos.',
                           actions: [
                             CruButton(
                               label: 'Create first session',
@@ -461,34 +463,46 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                               ),
                               decoration: BoxDecoration(
                                 color: c.surface,
-                                borderRadius: BorderRadius.circular(CruRadius.control),
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
                                 border: Border.all(color: c.hairline),
                               ),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Row(
                                           children: [
                                             Text(
                                               selectedSet.label,
-                                              style: CruType.title2.w600.tint(c.label),
+                                              style: CruType.title2.w600.tint(
+                                                c.label,
+                                              ),
                                             ),
                                             const SizedBox(width: CruSpace.s10),
                                             Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: CruSpace.s8,
-                                                vertical: CruSpace.s2,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: CruSpace.s8,
+                                                    vertical: CruSpace.s2,
+                                                  ),
                                               decoration: BoxDecoration(
-                                                color: c.accent.withValues(alpha: 0.12),
-                                                borderRadius: BorderRadius.circular(CruRadius.full),
+                                                color: c.accent.withValues(
+                                                  alpha: 0.12,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      CruRadius.full,
+                                                    ),
                                               ),
                                               child: Text(
                                                 '${selectedSet.filledCount}/8 photos',
-                                                style: CruType.caption.w600.tint(c.accent),
+                                                style: CruType.caption.w600
+                                                    .tint(c.accent),
                                               ),
                                             ),
                                           ],
@@ -510,11 +524,13 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                         ? () {
                                             showDialog<void>(
                                               context: context,
-                                              builder: (_) => PhysioBeforeAfterDialog(
-                                                patient: widget.patient,
-                                                initialBeforeSet: sets.last,
-                                                initialAfterSet: selectedSet,
-                                              ),
+                                              builder: (_) =>
+                                                  PhysioBeforeAfterDialog(
+                                                    patient: widget.patient,
+                                                    initialBeforeSet: sets.last,
+                                                    initialAfterSet:
+                                                        selectedSet,
+                                                  ),
                                             );
                                           }
                                         : null,
@@ -522,8 +538,13 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                   const SizedBox(width: CruSpace.s8),
                                   IconButton(
                                     tooltip: 'Delete session',
-                                    icon: Icon(Icons.delete_outline, color: c.label2, size: 20),
-                                    onPressed: () => _deleteSession(selectedSet),
+                                    icon: Icon(
+                                      Icons.delete_outline,
+                                      color: c.label2,
+                                      size: 20,
+                                    ),
+                                    onPressed: () =>
+                                        _deleteSession(selectedSet),
                                   ),
                                 ],
                               ),
@@ -533,12 +554,13 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                             // 8 Photo Slots Grid (4 x 2)
                             Expanded(
                               child: GridView.builder(
-                                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 4,
-                                  childAspectRatio: 0.85,
-                                  crossAxisSpacing: CruSpace.s10,
-                                  mainAxisSpacing: CruSpace.s10,
-                                ),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 4,
+                                      childAspectRatio: 0.85,
+                                      crossAxisSpacing: CruSpace.s10,
+                                      mainAxisSpacing: CruSpace.s10,
+                                    ),
                                 itemCount: PhysioPhotoSlot.values.length,
                                 itemBuilder: (ctx, idx) {
                                   final slot = PhysioPhotoSlot.values[idx];
@@ -548,9 +570,13 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                   return Container(
                                     decoration: BoxDecoration(
                                       color: c.surface,
-                                      borderRadius: BorderRadius.circular(CruRadius.control),
+                                      borderRadius: BorderRadius.circular(
+                                        CruRadius.control,
+                                      ),
                                       border: Border.all(
-                                        color: hasPhoto ? c.accent.withValues(alpha: 0.5) : c.hairline,
+                                        color: hasPhoto
+                                            ? c.accent.withValues(alpha: 0.5)
+                                            : c.hairline,
                                       ),
                                     ),
                                     clipBehavior: Clip.antiAlias,
@@ -576,23 +602,27 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                             right: 0,
                                             bottom: 0,
                                             child: Container(
-                                              padding: const EdgeInsets.symmetric(
-                                                horizontal: CruSpace.s8,
-                                                vertical: CruSpace.s6,
-                                              ),
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                    horizontal: CruSpace.s8,
+                                                    vertical: CruSpace.s6,
+                                                  ),
                                               decoration: BoxDecoration(
                                                 gradient: LinearGradient(
                                                   begin: Alignment.bottomCenter,
                                                   end: Alignment.topCenter,
                                                   colors: [
                                                     Colors.black87,
-                                                    Colors.black.withValues(alpha: 0.0),
+                                                    Colors.black.withValues(
+                                                      alpha: 0.0,
+                                                    ),
                                                   ],
                                                 ),
                                               ),
                                               child: Text(
                                                 slot.title,
-                                                style: CruType.caption.w600.tint(Colors.white),
+                                                style: CruType.caption.w600
+                                                    .tint(Colors.white),
                                                 overflow: TextOverflow.ellipsis,
                                               ),
                                             ),
@@ -602,10 +632,17 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                             top: CruSpace.s4,
                                             right: CruSpace.s4,
                                             child: Container(
-                                              padding: const EdgeInsets.all(CruSpace.s2),
+                                              padding: const EdgeInsets.all(
+                                                CruSpace.s2,
+                                              ),
                                               decoration: BoxDecoration(
-                                                color: Colors.black.withValues(alpha: 0.6),
-                                                borderRadius: BorderRadius.circular(CruRadius.control),
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.6,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(
+                                                      CruRadius.control,
+                                                    ),
                                               ),
                                               child: Row(
                                                 mainAxisSize: MainAxisSize.min,
@@ -613,30 +650,39 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                                   IconButton(
                                                     tooltip: 'Retake / replace',
                                                     padding: EdgeInsets.zero,
-                                                    constraints: const BoxConstraints(
-                                                      minWidth: 26,
-                                                      minHeight: 26,
-                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 26,
+                                                          minHeight: 26,
+                                                        ),
                                                     icon: const Icon(
                                                       Icons.refresh,
                                                       size: 16,
                                                       color: Colors.white,
                                                     ),
-                                                    onPressed: () => _pickPhoto(selectedSet, slot),
+                                                    onPressed: () => _pickPhoto(
+                                                      selectedSet,
+                                                      slot,
+                                                    ),
                                                   ),
                                                   IconButton(
                                                     tooltip: 'Delete',
                                                     padding: EdgeInsets.zero,
-                                                    constraints: const BoxConstraints(
-                                                      minWidth: 26,
-                                                      minHeight: 26,
-                                                    ),
+                                                    constraints:
+                                                        const BoxConstraints(
+                                                          minWidth: 26,
+                                                          minHeight: 26,
+                                                        ),
                                                     icon: const Icon(
                                                       Icons.delete_outline,
                                                       size: 16,
                                                       color: Colors.white,
                                                     ),
-                                                    onPressed: () => _deletePhoto(selectedSet, slot),
+                                                    onPressed: () =>
+                                                        _deletePhoto(
+                                                          selectedSet,
+                                                          slot,
+                                                        ),
                                                   ),
                                                 ],
                                               ),
@@ -645,38 +691,56 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
                                         ] else ...[
                                           // Empty slot placeholder
                                           InkWell(
-                                            onTap: () => _pickPhoto(selectedSet, slot),
+                                            onTap: () =>
+                                                _pickPhoto(selectedSet, slot),
                                             child: Padding(
-                                              padding: const EdgeInsets.all(CruSpace.s10),
+                                              padding: const EdgeInsets.all(
+                                                CruSpace.s10,
+                                              ),
                                               child: Column(
-                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                mainAxisAlignment:
+                                                    MainAxisAlignment.center,
                                                 children: [
                                                   Icon(
                                                     Icons.camera_alt_outlined,
                                                     size: 28,
                                                     color: c.label3,
                                                   ),
-                                                  const SizedBox(height: CruSpace.s8),
+                                                  const SizedBox(
+                                                    height: CruSpace.s8,
+                                                  ),
                                                   Text(
                                                     slot.title,
                                                     textAlign: TextAlign.center,
-                                                    style: CruType.body.w600.tint(c.label),
+                                                    style: CruType.body.w600
+                                                        .tint(c.label),
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                                  const SizedBox(height: CruSpace.s4),
+                                                  const SizedBox(
+                                                    height: CruSpace.s4,
+                                                  ),
                                                   Text(
                                                     slot.subtitle,
                                                     textAlign: TextAlign.center,
-                                                    style: CruType.micro.tint(c.label3),
+                                                    style: CruType.micro.tint(
+                                                      c.label3,
+                                                    ),
                                                     maxLines: 2,
-                                                    overflow: TextOverflow.ellipsis,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
                                                   ),
-                                                  const SizedBox(height: CruSpace.s8),
+                                                  const SizedBox(
+                                                    height: CruSpace.s8,
+                                                  ),
                                                   CruCapsuleButton(
                                                     label: 'Upload',
                                                     icon: CruIcons.plus,
-                                                    onPressed: () => _pickPhoto(selectedSet, slot),
+                                                    onPressed: () => _pickPhoto(
+                                                      selectedSet,
+                                                      slot,
+                                                    ),
                                                   ),
                                                 ],
                                               ),

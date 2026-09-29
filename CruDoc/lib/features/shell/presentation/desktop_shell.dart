@@ -25,6 +25,7 @@ import 'package:doctor_management_app/features/inventory/presentation/inventory_
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
 import 'package:doctor_management_app/features/appointments/presentation/appointments_screen.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/desktop_campaigns_screen.dart';
+import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/scribe/presentation/desktop_scribe_screen.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/domain/appointments_models.dart';
@@ -43,7 +44,6 @@ import 'package:doctor_management_app/features/dental/specialties/dental_not_bui
 import 'package:doctor_management_app/features/dental/specialties/perio/perio_patients_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/prostho/lab_cases_screen.dart';
 import 'package:doctor_management_app/features/dental/specialties/forms/forms_screen.dart';
-import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
@@ -293,7 +293,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const DentalNotBuiltScreen(
           icon: RecIcons.endo,
           title: 'Root canals',
-          body: 'Not built yet. This will list root canal cases with '
+          body:
+              'Not built yet. This will list root canal cases with '
               'canal counts, working lengths and obturation status.',
         );
       case DesktopTab.dentalReferrals:
@@ -302,21 +303,24 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const DentalNotBuiltScreen(
           icon: CruIcons.patients,
           title: 'Children',
-          body: 'Not built yet. This will list your young patients with '
+          body:
+              'Not built yet. This will list your young patients with '
               'growth, behaviour and eruption tracking.',
         );
       case DesktopTab.biopsies:
         return const DentalNotBuiltScreen(
           icon: CruIcons.flask,
           title: 'Biopsies',
-          body: 'Not built yet. This will track biopsy specimens from '
+          body:
+              'Not built yet. This will track biopsy specimens from '
               'collection through to histopathology report.',
         );
       case DesktopTab.oralMedLesions:
         return const DentalNotBuiltScreen(
           icon: RecIcons.pain,
           title: 'Lesions',
-          body: 'Not built yet. This will chart oral mucosal lesions with '
+          body:
+              'Not built yet. This will chart oral mucosal lesions with '
               'photos and follow-up.',
         );
       case DesktopTab.oralMedForms:
@@ -325,7 +329,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const DentalNotBuiltScreen(
           icon: CruIcons.flask,
           title: 'Sedation cases',
-          body: 'Not built yet. This will log sedation plans, vitals and '
+          body:
+              'Not built yet. This will log sedation plans, vitals and '
               'recovery for each case.',
         );
       case DesktopTab.labCases:
@@ -334,28 +339,32 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const DentalNotBuiltScreen(
           icon: CruIcons.patients,
           title: 'Ortho patients',
-          body: 'Not built yet. This will list patients in active '
+          body:
+              'Not built yet. This will list patients in active '
               'treatment with bracket and wire history.',
         );
       case DesktopTab.healthCamps:
         return const DentalNotBuiltScreen(
           icon: CruIcons.megaphone,
           title: 'Camps',
-          body: 'Not built yet. This will log community dental camps and '
+          body:
+              'Not built yet. This will log community dental camps and '
               'screenings.',
         );
       case DesktopTab.population:
         return const DentalNotBuiltScreen(
           icon: CruIcons.patients,
           title: 'Population',
-          body: 'Not built yet. This will summarise population-level '
+          body:
+              'Not built yet. This will summarise population-level '
               'oral health survey data.',
         );
       case DesktopTab.surgeries:
         return const DentalNotBuiltScreen(
           icon: DentalIcons.procedures,
           title: 'Surgeries',
-          body: 'Not built yet. This will list scheduled and completed '
+          body:
+              'Not built yet. This will list scheduled and completed '
               'surgeries with consent and post-op notes.',
         );
       case DesktopTab.emergency:
@@ -364,7 +373,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         return const DentalNotBuiltScreen(
           icon: DentalIcons.tooth,
           title: 'Implants',
-          body: 'Not built yet. This will track implant cases from '
+          body:
+              'Not built yet. This will track implant cases from '
               'placement through to restoration.',
         );
       default:
@@ -484,13 +494,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         // on the dashboard (a tab saved under another specialty).
         final dentist = ref.watch(isDentistProvider);
         final radiologist = ref.watch(isOralRadiologistProvider);
-        final shown = (!dentist && DesktopTab.isDental(_currentIndex)) ||
-                (!radiologist && !dentist && DesktopTab.isRadiology(_currentIndex))
+        final shown =
+            (!dentist && DesktopTab.isDental(_currentIndex)) ||
+                (!radiologist &&
+                    !dentist &&
+                    DesktopTab.isRadiology(_currentIndex))
             ? DesktopTab.dashboard
             : _currentIndex;
-        final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(
-          shown,
-        );
+        final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(shown);
         final isTabEnabled =
             shown == 0 ||
             shown == 5 ||
@@ -505,7 +516,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         final isPatients = shown == DesktopTab.patients;
         // Screens built on the Calm Clinical tokens pad their own page and
         // have no floating chatbot button.
-        final isRedesigned = isPatients ||
+        final isRedesigned =
+            isPatients ||
             shown == DesktopTab.inventory ||
             shown == DesktopTab.revenue ||
             shown == DesktopTab.appointments ||
@@ -520,9 +532,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         Widget content = isTabEnabled
             ? _buildScreen(shown)
             : MobileFeatureDisabledView(
-                featureTitle: DoctorFeatureGuard.getDesktopTabTitle(
-                  shown,
-                ),
+                featureTitle: DoctorFeatureGuard.getDesktopTabTitle(shown),
                 icon: _icons[shown],
                 onBackToDashboard: () => _onNavTap(0),
               );
@@ -544,16 +554,14 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
           );
         }
 
-        // Dental chairside mode: the main area's text and icons larger,
-        // the sidebar as it is. 20% larger when on, 10% larger when off (normal).
         if (dentist) {
           final isLarge = ref.watch(largeModeProvider).value ?? false;
           final scale = isLarge ? largeModeScale : normalModeScale;
-          final mq = MediaQuery.of(context);
+          final mediaQuery = MediaQuery.of(context);
           content = MediaQuery(
-            data: mq.copyWith(
+            data: mediaQuery.copyWith(
               textScaler: TextScaler.linear(
-                mq.textScaler.scale(1) * scale,
+                mediaQuery.textScaler.scale(1) * scale,
               ),
             ),
             child: CruIconScale(scale: scale, child: content),
@@ -585,6 +593,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         // redesigned screens (Auto by default). Older screens are wrapped
         // in Day above.
         final appearance = ref.watch(resolvedAppearanceProvider);
+        final dayBackgroundColor = ref.watch(dayBackgroundColorProvider);
 
         return InventoryAlertListener(
           child: AnimatedTheme(
@@ -595,6 +604,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
               builder: (context) => Scaffold(
                 backgroundColor: context.cru.canvas,
                 body: DesktopShellLayout(
+                  dayBackgroundColor: Color(dayBackgroundColor),
                   sidebar: CruSidebar(
                     currentTab: shown,
                     collapsed: collapsed,
@@ -624,10 +634,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
   List<PopupMenuEntry<VoidCallback>> _appearanceMenu(CruColors c) {
     final current = ref.read(appearanceModeProvider);
     CruIconData iconFor(AppearanceMode m) => switch (m) {
-          AppearanceMode.auto => CruIcons.autoMode,
-          AppearanceMode.day => CruIcons.sun,
-          AppearanceMode.evening => CruIcons.moon,
-        };
+      AppearanceMode.auto => CruIcons.autoMode,
+      AppearanceMode.day => CruIcons.sun,
+      AppearanceMode.evening => CruIcons.moon,
+    };
     return [
       PopupMenuItem<VoidCallback>(
         enabled: false,
@@ -651,8 +661,12 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                 ),
               ),
               if (m == current)
-                CruIcon(CruIcons.check, size: 16, strokeWidth: 2.2,
-                    color: c.accentText),
+                CruIcon(
+                  CruIcons.check,
+                  size: 16,
+                  strokeWidth: 2.2,
+                  color: c.accentText,
+                ),
             ],
           ),
         ),
@@ -756,4 +770,3 @@ class _ShortcutRow extends StatelessWidget {
     );
   }
 }
-

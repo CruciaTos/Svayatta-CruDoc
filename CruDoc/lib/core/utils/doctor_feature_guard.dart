@@ -44,42 +44,46 @@ class DoctorFeatureGuard {
         .doc(currentUser.uid)
         .snapshots()
         .map((doc) {
-      if (!doc.exists || doc.data() == null) {
-        return defaultModules;
-      }
-      final data = doc.data()!;
-      final status = (data['status'] as String? ?? 'active').toLowerCase();
+          if (!doc.exists || doc.data() == null) {
+            return defaultModules;
+          }
+          final data = doc.data()!;
+          final status = (data['status'] as String? ?? 'active').toLowerCase();
 
-      DateTime? expiresDate;
-      final rawExpires = data['expiresDate'];
-      if (rawExpires is Timestamp) {
-        expiresDate = rawExpires.toDate();
-      } else if (rawExpires is String) {
-        expiresDate = DateTime.tryParse(rawExpires);
-      }
+          DateTime? expiresDate;
+          final rawExpires = data['expiresDate'];
+          if (rawExpires is Timestamp) {
+            expiresDate = rawExpires.toDate();
+          } else if (rawExpires is String) {
+            expiresDate = DateTime.tryParse(rawExpires);
+          }
 
-      final now = DateTime.now();
-      final isExpired = (expiresDate != null && expiresDate.isBefore(now)) ||
-          status == 'expired';
+          final now = DateTime.now();
+          final isExpired =
+              (expiresDate != null && expiresDate.isBefore(now)) ||
+              status == 'expired';
 
-      // Read enabledModules list explicitly configured by Super Admin
-      final rawList = data['enabledModules'] as List<dynamic>?;
-      List<String> modulesList;
-      if (rawList != null) {
-        modulesList = rawList.map((e) => e.toString().toLowerCase()).toList();
-      } else {
-        modulesList = List<String>.from(defaultModules);
-      }
+          // Read enabledModules list explicitly configured by Super Admin
+          final rawList = data['enabledModules'] as List<dynamic>?;
+          List<String> modulesList;
+          if (rawList != null) {
+            modulesList = rawList
+                .map((e) => e.toString().toLowerCase())
+                .toList();
+          } else {
+            modulesList = List<String>.from(defaultModules);
+          }
 
-      if (isExpired) {
-        // If expired, only allow base modules that are configured in modulesList
-        return modulesList.where((m) => baseModules.contains(m)).toList();
-      }
+          if (isExpired) {
+            // If expired, only allow base modules that are configured in modulesList
+            return modulesList.where((m) => baseModules.contains(m)).toList();
+          }
 
-      return modulesList;
-    }).handleError((error) {
-      return defaultModules;
-    });
+          return modulesList;
+        })
+        .handleError((error) {
+          return defaultModules;
+        });
   }
 
   /// Maps mobile shell tab index to feature module key.

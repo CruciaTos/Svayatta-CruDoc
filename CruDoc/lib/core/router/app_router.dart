@@ -77,16 +77,18 @@ GoRouter _createAppRouter() {
     routes: [
       GoRoute(path: '/', builder: (context, state) => const AuthScreen()),
       GoRoute(path: '/auth', builder: (context, state) => const AuthScreen()),
-      GoRoute(path: '/dashboard', builder: (context, state) => const ResponsiveShell()),
+      GoRoute(
+        path: '/dashboard',
+        builder: (context, state) => const ResponsiveShell(),
+      ),
       GoRoute(
         path: '/admin/login',
         builder: (context, state) => const SuperAdminLoginScreen(),
       ),
       GoRoute(
         path: '/admin',
-        builder: (context, state) => const SuperAdminAuthGuard(
-          child: SuperAdminShell(),
-        ),
+        builder: (context, state) =>
+            const SuperAdminAuthGuard(child: SuperAdminShell()),
       ),
     ],
   );

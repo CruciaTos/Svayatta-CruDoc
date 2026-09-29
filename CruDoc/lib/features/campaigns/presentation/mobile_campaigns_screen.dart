@@ -26,7 +26,8 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
   CampaignCategory? _selectedCategory;
   final TextEditingController _searchController = TextEditingController();
 
-  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
+  String get _currentDoctorId =>
+      FirebaseAuth.instance.currentUser?.uid ?? 'anonymous';
 
   @override
   void dispose() {
@@ -42,7 +43,7 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
         onPressed: () => MobilePostCampaignSheet.show(context),
         backgroundColor: AppColors.chartBarLight,
         foregroundColor: Colors.white,
-        elevation: 4,
+        elevation: 0,
         icon: const Icon(Icons.campaign_rounded, size: 20),
         label: const Text(
           'Post Campaign',
@@ -63,10 +64,7 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: const [
-                  Text(
-                    'Patient Campaigns',
-                    style: AppColors.pageHeading,
-                  ),
+                  Text('Patient Campaigns', style: AppColors.pageHeading),
                   SizedBox(height: 2),
                   Text(
                     'Health alerts & updates across Email & WhatsApp',
@@ -89,14 +87,18 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
               // ------ Campaigns Stream List with Overview KPI ------
               Expanded(
                 child: StreamBuilder<List<CampaignModel>>(
-                  stream: _campaignRepository.watchDoctorCampaigns(_currentDoctorId),
+                  stream: _campaignRepository.watchDoctorCampaigns(
+                    _currentDoctorId,
+                  ),
                   builder: (context, snapshot) {
                     final allCampaigns = snapshot.data ?? [];
                     final filtered = allCampaigns.where((c) {
-                      if (_searchQuery.isNotEmpty && !c.title.toLowerCase().contains(_searchQuery)) {
+                      if (_searchQuery.isNotEmpty &&
+                          !c.title.toLowerCase().contains(_searchQuery)) {
                         return false;
                       }
-                      if (_selectedCategory != null && c.category != _selectedCategory) {
+                      if (_selectedCategory != null &&
+                          c.category != _selectedCategory) {
                         return false;
                       }
                       return true;
@@ -104,7 +106,9 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
 
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Center(
-                        child: CircularProgressIndicator(color: AppColors.chartBarLight),
+                        child: CircularProgressIndicator(
+                          color: AppColors.chartBarLight,
+                        ),
                       );
                     }
 
@@ -129,9 +133,14 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                                 ),
                                 if (allCampaigns.isNotEmpty)
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 3,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.positiveGreen.withValues(alpha: 0.12),
+                                      color: AppColors.positiveGreen.withValues(
+                                        alpha: 0.12,
+                                      ),
                                       borderRadius: BorderRadius.circular(12),
                                     ),
                                     child: Text(
@@ -159,13 +168,13 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                           SliverPadding(
                             padding: const EdgeInsets.only(bottom: 80),
                             sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, index) {
-                                  final campaign = filtered[index];
-                                  return _buildCampaignCard(campaign);
-                                },
-                                childCount: filtered.length,
-                              ),
+                              delegate: SliverChildBuilderDelegate((
+                                context,
+                                index,
+                              ) {
+                                final campaign = filtered[index];
+                                return _buildCampaignCard(campaign);
+                              }, childCount: filtered.length),
                             ),
                           ),
                       ],
@@ -190,13 +199,7 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: TextField(
         controller: _searchController,
@@ -204,11 +207,21 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
         style: AppColors.bodyMedium,
         decoration: InputDecoration(
           hintText: 'Search campaigns by title...',
-          hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
-          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: AppColors.slateBlue),
+          hintStyle: AppColors.bodyMedium.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          prefixIcon: const Icon(
+            Icons.search_rounded,
+            size: 20,
+            color: AppColors.slateBlue,
+          ),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
-                  icon: const Icon(Icons.clear_rounded, size: 16, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.clear_rounded,
+                    size: 16,
+                    color: AppColors.textSecondary,
+                  ),
                   onPressed: () {
                     _searchController.clear();
                     setState(() => _searchQuery = '');
@@ -216,7 +229,10 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                 )
               : null,
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 11,
+          ),
         ),
       ),
     );
@@ -270,34 +286,18 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected
-                ? color
-                : Colors.white,
+            color: isSelected ? color : Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isSelected
-                  ? color
-                  : color.withValues(alpha: 0.3),
+              color: isSelected ? color : color.withValues(alpha: 0.3),
               width: 1.2,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: isSelected
-                    ? color.withValues(alpha: 0.28)
-                    : Colors.black.withValues(alpha: 0.03),
-                blurRadius: isSelected ? 8 : 4,
-                offset: const Offset(0, 2),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                icon,
-                size: 15,
-                color: isSelected ? Colors.white : color,
-              ),
+              Icon(icon, size: 15, color: isSelected ? Colors.white : color),
               const SizedBox(width: 6),
               Text(
                 label,
@@ -322,7 +322,9 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
     final cat = campaign.category;
     final successRate = campaign.successRate;
     final hasFailures = campaign.totalFailed > 0;
-    final formattedDate = DateFormat('d MMM yyyy • h:mm a').format(campaign.createdAt);
+    final formattedDate = DateFormat(
+      'd MMM yyyy • h:mm a',
+    ).format(campaign.createdAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -330,13 +332,7 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Material(
         color: Colors.transparent,
@@ -352,11 +348,17 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                 Row(
                   children: [
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4.5,
+                      ),
                       decoration: BoxDecoration(
                         color: cat.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: cat.color.withValues(alpha: 0.25), width: 1),
+                        border: Border.all(
+                          color: cat.color.withValues(alpha: 0.25),
+                          width: 1,
+                        ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -377,7 +379,10 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                     ),
                     const Spacer(),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3.5,
+                      ),
                       decoration: BoxDecoration(
                         color: campaign.status.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
@@ -444,7 +449,9 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                     minHeight: 5,
                     backgroundColor: AppColors.inputBackground,
                     valueColor: AlwaysStoppedAnimation(
-                      hasFailures ? const Color(0xFFF59E0B) : AppColors.chartBarLight,
+                      hasFailures
+                          ? const Color(0xFFF59E0B)
+                          : AppColors.chartBarLight,
                     ),
                   ),
                 ),
@@ -459,7 +466,8 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                         Icons.email_outlined,
                         const Color(0xFF2563EB),
                       ),
-                    if (campaign.channels.includesEmail && campaign.channels.includesWhatsApp)
+                    if (campaign.channels.includesEmail &&
+                        campaign.channels.includesWhatsApp)
                       const SizedBox(width: 6),
                     if (campaign.channels.includesWhatsApp)
                       _buildChannelPill(
@@ -470,7 +478,10 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                     if (hasFailures) ...[
                       const SizedBox(width: 6),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
@@ -500,7 +511,11 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                           ),
                         ),
                         SizedBox(width: 2),
-                        Icon(Icons.chevron_right_rounded, size: 16, color: AppColors.chartBarLight),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: AppColors.chartBarLight,
+                        ),
                       ],
                     ),
                   ],
@@ -510,7 +525,11 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                 // Timestamp Subtext
                 Row(
                   children: [
-                    const Icon(Icons.schedule_rounded, size: 12, color: AppColors.textSecondary),
+                    const Icon(
+                      Icons.schedule_rounded,
+                      size: 12,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       formattedDate,
@@ -588,7 +607,11 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                 color: AppColors.chartBarLight.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.campaign_outlined, size: 48, color: AppColors.chartBarLight),
+              child: const Icon(
+                Icons.campaign_outlined,
+                size: 48,
+                color: AppColors.chartBarLight,
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -622,8 +645,13 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.chartBarLight,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
                 ),
               ),
             ],
@@ -649,10 +677,12 @@ class _RecipientLogsModalContent extends StatefulWidget {
   final CampaignDispatchService dispatchService;
 
   @override
-  State<_RecipientLogsModalContent> createState() => _RecipientLogsModalContentState();
+  State<_RecipientLogsModalContent> createState() =>
+      _RecipientLogsModalContentState();
 }
 
-class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> {
+class _RecipientLogsModalContentState
+    extends State<_RecipientLogsModalContent> {
   String _filter = 'all'; // 'all', 'failed', 'delivered'
   bool _isRetrying = false;
 
@@ -715,7 +745,11 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 22),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                    size: 22,
+                  ),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
@@ -733,22 +767,30 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                 const SizedBox(width: 8),
                 _buildFilterTab('Failed (${campaign.totalFailed})', 'failed'),
                 const SizedBox(width: 8),
-                _buildFilterTab('Delivered (${campaign.totalSent})', 'delivered'),
+                _buildFilterTab(
+                  'Delivered (${campaign.totalSent})',
+                  'delivered',
+                ),
               ],
             ),
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1, color: AppColors.divider),
+          const Divider(height: 1),
 
           // Stream of Recipient Delivery Logs
           Expanded(
             child: StreamBuilder<List<CampaignRecipientLog>>(
-              stream: widget.campaignRepository.watchRecipientLogs(campaign.doctorId, campaign.id),
+              stream: widget.campaignRepository.watchRecipientLogs(
+                campaign.doctorId,
+                campaign.id,
+              ),
               builder: (context, snap) {
                 final logs = snap.data ?? [];
                 if (snap.connectionState == ConnectionState.waiting) {
                   return const Center(
-                    child: CircularProgressIndicator(color: AppColors.chartBarLight),
+                    child: CircularProgressIndicator(
+                      color: AppColors.chartBarLight,
+                    ),
                   );
                 }
 
@@ -764,7 +806,9 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                 if (filteredLogs.isEmpty) {
                   return Center(
                     child: Text(
-                      _filter == 'failed' ? 'No failed recipients!' : 'No recipients found.',
+                      _filter == 'failed'
+                          ? 'No failed recipients!'
+                          : 'No recipients found.',
                       style: const TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         fontSize: 13,
@@ -778,7 +822,8 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                   padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
                   physics: const BouncingScrollPhysics(),
                   itemCount: filteredLogs.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1, color: AppColors.divider),
+                  separatorBuilder: (_, __) =>
+                      const Divider(height: 1),
                   itemBuilder: (context, i) {
                     final log = filteredLogs[i];
                     return Padding(
@@ -787,9 +832,13 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                         children: [
                           CircleAvatar(
                             radius: 16,
-                            backgroundColor: AppColors.chartBarLight.withValues(alpha: 0.1),
+                            backgroundColor: AppColors.chartBarLight.withValues(
+                              alpha: 0.1,
+                            ),
                             child: Text(
-                              log.patientName.isNotEmpty ? log.patientName[0].toUpperCase() : '?',
+                              log.patientName.isNotEmpty
+                                  ? log.patientName[0].toUpperCase()
+                                  : '?',
                               style: const TextStyle(
                                 fontFamily: AppColors.headingFontFamily,
                                 fontSize: 12,
@@ -825,7 +874,9 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                                 if (log.hasFailed) ...[
                                   const SizedBox(height: 2),
                                   Text(
-                                    log.emailError ?? log.whatsAppError ?? 'Delivery failed',
+                                    log.emailError ??
+                                        log.whatsAppError ??
+                                        'Delivery failed',
                                     style: const TextStyle(
                                       fontFamily: AppColors.bodyFontFamily,
                                       fontSize: 10,
@@ -840,10 +891,16 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                             ),
                           ),
                           if (campaign.channels.includesEmail)
-                            _buildDeliveryBadge(log.emailStatus.label, log.emailStatus.color),
+                            _buildDeliveryBadge(
+                              log.emailStatus.label,
+                              log.emailStatus.color,
+                            ),
                           const SizedBox(width: 4),
                           if (campaign.channels.includesWhatsApp)
-                            _buildDeliveryBadge(log.whatsAppStatus.label, log.whatsAppStatus.color),
+                            _buildDeliveryBadge(
+                              log.whatsAppStatus.label,
+                              log.whatsAppStatus.color,
+                            ),
                         ],
                       ),
                     );
@@ -855,7 +912,7 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
 
           // Bottom Retry Action (if any failures exist)
           if (campaign.totalFailed > 0) ...[
-            const Divider(height: 1, color: AppColors.divider),
+            const Divider(height: 1),
             Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
@@ -878,17 +935,24 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.replay_rounded, size: 18),
-                  label: Text(_isRetrying
-                      ? 'Retrying Dispatches...'
-                      : 'Retry Failed Recipients (${campaign.totalFailed})'),
+                  label: Text(
+                    _isRetrying
+                        ? 'Retrying Dispatches...'
+                        : 'Retry Failed Recipients (${campaign.totalFailed})',
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFFEF4444),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
                 ),
               ),
@@ -906,7 +970,9 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.chartBarLight.withValues(alpha: 0.12) : AppColors.inputBackground,
+          color: isSelected
+              ? AppColors.chartBarLight.withValues(alpha: 0.12)
+              : AppColors.inputBackground,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: isSelected ? AppColors.chartBarLight : Colors.transparent,
@@ -918,7 +984,9 @@ class _RecipientLogsModalContentState extends State<_RecipientLogsModalContent> 
             fontFamily: AppColors.bodyFontFamily,
             fontSize: 11.5,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected ? AppColors.chartBarLight : AppColors.textSecondary,
+            color: isSelected
+                ? AppColors.chartBarLight
+                : AppColors.textSecondary,
           ),
         ),
       ),

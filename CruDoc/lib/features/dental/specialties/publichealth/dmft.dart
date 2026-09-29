@@ -50,18 +50,18 @@ class DmftResult {
   static const empty = DmftResult(d: 0, m: 0, f: 0);
 
   Map<String, dynamic> toJson() => {
-        'd': d,
-        'm': m,
-        'f': f,
-        'dmft': total,
-        'primaryD': primaryD,
-        'primaryM': primaryM,
-        'primaryF': primaryF,
-        'primaryDmft': primaryTotal,
-        'decayedTeeth': decayedTeeth.toList(),
-        'missingTeeth': missingTeeth.toList(),
-        'filledTeeth': filledTeeth.toList(),
-      };
+    'd': d,
+    'm': m,
+    'f': f,
+    'dmft': total,
+    'primaryD': primaryD,
+    'primaryM': primaryM,
+    'primaryF': primaryF,
+    'primaryDmft': primaryTotal,
+    'decayedTeeth': decayedTeeth.toList(),
+    'missingTeeth': missingTeeth.toList(),
+    'filledTeeth': filledTeeth.toList(),
+  };
 }
 
 /// Computes DMFT (permanent) and dmft (primary) indices from a patient's tooth chart entries.
@@ -93,7 +93,8 @@ DmftResult computeDmft(List<ToothChartEntryModel> entries) {
     final treat = DentalChart.treatment(entry.treatment);
 
     // Primary teeth in FDI have quadrant prefix 5, 6, 7, 8
-    final isPrimary = tooth.startsWith('5') ||
+    final isPrimary =
+        tooth.startsWith('5') ||
         tooth.startsWith('6') ||
         tooth.startsWith('7') ||
         tooth.startsWith('8');
@@ -102,12 +103,13 @@ DmftResult computeDmft(List<ToothChartEntryModel> entries) {
     final isDecayed = cond == ToothCondition.caries;
 
     // 2. Missing check (Missing due to caries/extraction, never unerupted)
-    final isMissing = cond == ToothCondition.missing ||
-        treat == ToothTreatment.extraction;
+    final isMissing =
+        cond == ToothCondition.missing || treat == ToothTreatment.extraction;
     final isUnerupted = cond == ToothCondition.unerupted;
 
     // 3. Filled check (Restored or filled, without active caries)
-    final isFilled = !isDecayed &&
+    final isFilled =
+        !isDecayed &&
         (cond == ToothCondition.restored ||
             treat == ToothTreatment.filling ||
             treat == ToothTreatment.crown ||
@@ -150,8 +152,10 @@ DmftResult computeDmft(List<ToothChartEntryModel> entries) {
 }
 
 /// Provider that computes DMFT indices for a patient from their tooth chart.
-final patientDmftProvider =
-    FutureProvider.family<DmftResult, String>((ref, patientId) async {
+final patientDmftProvider = FutureProvider.family<DmftResult, String>((
+  ref,
+  patientId,
+) async {
   final entries = await ref.watch(patientToothChartProvider(patientId).future);
   return computeDmft(entries);
 });

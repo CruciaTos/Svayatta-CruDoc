@@ -83,17 +83,20 @@ class PatientsFirstWeekPanel extends StatelessWidget {
                 final hints = [
                   const _HintCard(
                     title: 'Add at the front desk',
-                    body: 'New walk-ins added from the Queue appear here '
+                    body:
+                        'New walk-ins added from the Queue appear here '
                         'automatically.',
                   ),
                   const _HintCard(
                     title: 'Filters fill in as you go',
-                    body: 'Overdue follow-ups and balances due show up once '
+                    body:
+                        'Overdue follow-ups and balances due show up once '
                         "there's data.",
                   ),
                   _HintCard(
                     title: 'Find anyone fast',
-                    body: 'Press ${patientsSearchShortcut()} and type a name, '
+                    body:
+                        'Press ${patientsSearchShortcut()} and type a name, '
                         'phone or patient ID.',
                   ),
                 ];
@@ -153,12 +156,9 @@ class _ImportButton extends StatelessWidget {
             CruRadius.control,
             side: BorderSide(color: c.hairline),
           ),
-          shadows: c.cardShadow,
+          shadows: const [],
         ),
-        child: Text(
-          'Import from Excel',
-          style: CruType.row.tint(c.accentText),
-        ),
+        child: Text('Import from Excel', style: CruType.row.tint(c.accentText)),
       ),
     );
   }

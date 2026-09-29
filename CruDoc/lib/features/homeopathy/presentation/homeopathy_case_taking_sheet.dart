@@ -194,7 +194,8 @@ class _HomeopathyCaseTakingSheetState
   @override
   void initState() {
     super.initState();
-    final initial = widget.initialCaseSheet ??
+    final initial =
+        widget.initialCaseSheet ??
         HomeopathyCaseSheet.empty(
           id: '',
           patientId: widget.patient.id,
@@ -205,232 +206,329 @@ class _HomeopathyCaseTakingSheetState
     _extCtrl = ExtendedCaseSheetControllers.fromSheet(initial);
 
     // Initialize controllers
-    _chiefProblemCtrl =
-        TextEditingController(text: initial.overview.chiefProblem);
-    _consultationReasonCtrl =
-        TextEditingController(text: initial.overview.consultationReason);
-    _referralSourceCtrl =
-        TextEditingController(text: initial.overview.referralSource);
-    _priorHomeoExpCtrl =
-        TextEditingController(text: initial.overview.priorHomeopathyExperience);
-    _perceivedCauseCtrl =
-        TextEditingController(text: initial.overview.patientPerceivedCause);
+    _chiefProblemCtrl = TextEditingController(
+      text: initial.overview.chiefProblem,
+    );
+    _consultationReasonCtrl = TextEditingController(
+      text: initial.overview.consultationReason,
+    );
+    _referralSourceCtrl = TextEditingController(
+      text: initial.overview.referralSource,
+    );
+    _priorHomeoExpCtrl = TextEditingController(
+      text: initial.overview.priorHomeopathyExperience,
+    );
+    _perceivedCauseCtrl = TextEditingController(
+      text: initial.overview.patientPerceivedCause,
+    );
 
-    _complaintCtrl =
-        TextEditingController(text: initial.chiefComplaint.complaint);
-    _locationCtrl =
-        TextEditingController(text: initial.chiefComplaint.location);
+    _complaintCtrl = TextEditingController(
+      text: initial.chiefComplaint.complaint,
+    );
+    _locationCtrl = TextEditingController(
+      text: initial.chiefComplaint.location,
+    );
     _sensationCtrl = TextEditingController(
-        text: initial.chiefComplaint.sensationDescription);
+      text: initial.chiefComplaint.sensationDescription,
+    );
     _onsetCtrl = TextEditingController(text: initial.chiefComplaint.onset);
-    _durationCtrl =
-        TextEditingController(text: initial.chiefComplaint.duration);
-    _frequencyCtrl =
-        TextEditingController(text: initial.chiefComplaint.frequency);
-    _progressionCtrl =
-        TextEditingController(text: initial.chiefComplaint.progression);
-    _triggeringCausesCtrl =
-        TextEditingController(text: initial.chiefComplaint.triggeringCauses);
-    _associatedSymptomsCtrl =
-        TextEditingController(text: initial.chiefComplaint.associatedSymptoms);
+    _durationCtrl = TextEditingController(
+      text: initial.chiefComplaint.duration,
+    );
+    _frequencyCtrl = TextEditingController(
+      text: initial.chiefComplaint.frequency,
+    );
+    _progressionCtrl = TextEditingController(
+      text: initial.chiefComplaint.progression,
+    );
+    _triggeringCausesCtrl = TextEditingController(
+      text: initial.chiefComplaint.triggeringCauses,
+    );
+    _associatedSymptomsCtrl = TextEditingController(
+      text: initial.chiefComplaint.associatedSymptoms,
+    );
 
-    _aggravatingCtrl =
-        TextEditingController(text: initial.modalities.aggravatingFactors);
-    _amelioratingCtrl =
-        TextEditingController(text: initial.modalities.amelioratingFactors);
-    _timePatternsCtrl =
-        TextEditingController(text: initial.modalities.timePatterns);
-    _positionCtrl =
-        TextEditingController(text: initial.modalities.positionModalities);
-    _motionCtrl =
-        TextEditingController(text: initial.modalities.motionModalities);
-    _temperatureWeatherCtrl =
-        TextEditingController(text: initial.modalities.temperatureWeather);
-    _foodDrinkModalitiesCtrl =
-        TextEditingController(text: initial.modalities.foodDrinkModalities);
-    _otherTriggersCtrl =
-        TextEditingController(text: initial.modalities.otherTriggers);
+    _aggravatingCtrl = TextEditingController(
+      text: initial.modalities.aggravatingFactors,
+    );
+    _amelioratingCtrl = TextEditingController(
+      text: initial.modalities.amelioratingFactors,
+    );
+    _timePatternsCtrl = TextEditingController(
+      text: initial.modalities.timePatterns,
+    );
+    _positionCtrl = TextEditingController(
+      text: initial.modalities.positionModalities,
+    );
+    _motionCtrl = TextEditingController(
+      text: initial.modalities.motionModalities,
+    );
+    _temperatureWeatherCtrl = TextEditingController(
+      text: initial.modalities.temperatureWeather,
+    );
+    _foodDrinkModalitiesCtrl = TextEditingController(
+      text: initial.modalities.foodDrinkModalities,
+    );
+    _otherTriggersCtrl = TextEditingController(
+      text: initial.modalities.otherTriggers,
+    );
 
-    _appetiteCtrl =
-        TextEditingController(text: initial.generalSymptoms.appetite);
+    _appetiteCtrl = TextEditingController(
+      text: initial.generalSymptoms.appetite,
+    );
     _thirstCtrl = TextEditingController(text: initial.generalSymptoms.thirst);
-    _thirstStyleCtrl =
-        TextEditingController(text: initial.generalSymptoms.thirstStyle);
+    _thirstStyleCtrl = TextEditingController(
+      text: initial.generalSymptoms.thirstStyle,
+    );
     _stoolsCtrl = TextEditingController(text: initial.generalSymptoms.stools);
     _urineCtrl = TextEditingController(text: initial.generalSymptoms.urine);
     _skinCtrl = TextEditingController(text: initial.generalSymptoms.skinState);
-    _perspirationCtrl =
-        TextEditingController(text: initial.generalSymptoms.perspiration);
-    _perspLocationCtrl =
-        TextEditingController(text: initial.generalSymptoms.perspirationLocation);
-    _perspOdourCtrl =
-        TextEditingController(text: initial.generalSymptoms.perspirationOdour);
-    _energyCtrl =
-        TextEditingController(text: initial.generalSymptoms.energyWeakness);
+    _perspirationCtrl = TextEditingController(
+      text: initial.generalSymptoms.perspiration,
+    );
+    _perspLocationCtrl = TextEditingController(
+      text: initial.generalSymptoms.perspirationLocation,
+    );
+    _perspOdourCtrl = TextEditingController(
+      text: initial.generalSymptoms.perspirationOdour,
+    );
+    _energyCtrl = TextEditingController(
+      text: initial.generalSymptoms.energyWeakness,
+    );
 
-    _rheumatologyCtrl =
-        TextEditingController(text: initial.physicalSymptoms.rheumatologyJoints);
+    _rheumatologyCtrl = TextEditingController(
+      text: initial.physicalSymptoms.rheumatologyJoints,
+    );
     _cnsCtrl = TextEditingController(text: initial.physicalSymptoms.cnsNervous);
-    _faceEntCtrl =
-        TextEditingController(text: initial.physicalSymptoms.faceEnt);
-    _headVertigoCtrl =
-        TextEditingController(text: initial.physicalSymptoms.headVertigoSymptoms);
-    _respiratoryCtrl =
-        TextEditingController(text: initial.physicalSymptoms.respiratory);
+    _faceEntCtrl = TextEditingController(
+      text: initial.physicalSymptoms.faceEnt,
+    );
+    _headVertigoCtrl = TextEditingController(
+      text: initial.physicalSymptoms.headVertigoSymptoms,
+    );
+    _respiratoryCtrl = TextEditingController(
+      text: initial.physicalSymptoms.respiratory,
+    );
     _feverChillCtrl = TextEditingController(
-        text: initial.physicalSymptoms.thermoregulationFever.isNotEmpty
-            ? initial.physicalSymptoms.thermoregulationFever
-            : initial.physicalSymptoms.feverChillStage);
-    _feverHeatCtrl =
-        TextEditingController(text: initial.physicalSymptoms.feverHeatStage);
-    _feverSweatCtrl =
-        TextEditingController(text: initial.physicalSymptoms.feverSweatStage);
-    _feverPeriodicityCtrl =
-        TextEditingController(text: initial.physicalSymptoms.feverPeriodicity);
-    _coughTypeCtrl =
-        TextEditingController(text: initial.physicalSymptoms.coughType);
-    _sputumDetailsCtrl =
-        TextEditingController(text: initial.physicalSymptoms.sputumDetails);
-    _coughTasteCtrl =
-        TextEditingController(text: initial.physicalSymptoms.coughTasteInMouth);
-    _digestiveStoolCtrl =
-        TextEditingController(text: initial.physicalSymptoms.digestiveStoolDetails);
+      text: initial.physicalSymptoms.thermoregulationFever.isNotEmpty
+          ? initial.physicalSymptoms.thermoregulationFever
+          : initial.physicalSymptoms.feverChillStage,
+    );
+    _feverHeatCtrl = TextEditingController(
+      text: initial.physicalSymptoms.feverHeatStage,
+    );
+    _feverSweatCtrl = TextEditingController(
+      text: initial.physicalSymptoms.feverSweatStage,
+    );
+    _feverPeriodicityCtrl = TextEditingController(
+      text: initial.physicalSymptoms.feverPeriodicity,
+    );
+    _coughTypeCtrl = TextEditingController(
+      text: initial.physicalSymptoms.coughType,
+    );
+    _sputumDetailsCtrl = TextEditingController(
+      text: initial.physicalSymptoms.sputumDetails,
+    );
+    _coughTasteCtrl = TextEditingController(
+      text: initial.physicalSymptoms.coughTasteInMouth,
+    );
+    _digestiveStoolCtrl = TextEditingController(
+      text: initial.physicalSymptoms.digestiveStoolDetails,
+    );
     _painCharCtrl = TextEditingController(
-        text: initial.physicalSymptoms.painCharacteristics);
-    _painLocCtrl =
-        TextEditingController(text: initial.physicalSymptoms.painLocation);
-    _painModCtrl =
-        TextEditingController(text: initial.physicalSymptoms.painModalities);
+      text: initial.physicalSymptoms.painCharacteristics,
+    );
+    _painLocCtrl = TextEditingController(
+      text: initial.physicalSymptoms.painLocation,
+    );
+    _painModCtrl = TextEditingController(
+      text: initial.physicalSymptoms.painModalities,
+    );
 
-    _mensesCycleCtrl =
-        TextEditingController(text: initial.femaleReproductive.mensesCycle);
-    _mensesDurationCtrl =
-        TextEditingController(text: initial.femaleReproductive.mensesDuration);
-    _flowCharCtrl =
-        TextEditingController(text: initial.femaleReproductive.flowCharacter);
-    _menopauseCtrl =
-        TextEditingController(text: initial.femaleReproductive.menopauseDetails);
+    _mensesCycleCtrl = TextEditingController(
+      text: initial.femaleReproductive.mensesCycle,
+    );
+    _mensesDurationCtrl = TextEditingController(
+      text: initial.femaleReproductive.mensesDuration,
+    );
+    _flowCharCtrl = TextEditingController(
+      text: initial.femaleReproductive.flowCharacter,
+    );
+    _menopauseCtrl = TextEditingController(
+      text: initial.femaleReproductive.menopauseDetails,
+    );
     _suppressionCtrl = TextEditingController(
-        text: initial.femaleReproductive.menstrualSuppressionEffects);
+      text: initial.femaleReproductive.menstrualSuppressionEffects,
+    );
     _leucorrhoeaCtrl = TextEditingController(
-        text: initial.femaleReproductive.leucorrhoeaDetails);
+      text: initial.femaleReproductive.leucorrhoeaDetails,
+    );
     _obstetricCtrl = TextEditingController(
-        text: initial.femaleReproductive.obstetricHistory);
+      text: initial.femaleReproductive.obstetricHistory,
+    );
 
-    _dispositionCtrl =
-        TextEditingController(text: initial.mentalEmotional.disposition);
-    _anxietyCtrl =
-        TextEditingController(text: initial.mentalEmotional.anxietyTriggers);
-    _companySolitudeCtrl =
-        TextEditingController(text: initial.mentalEmotional.companyVsSolitude);
+    _dispositionCtrl = TextEditingController(
+      text: initial.mentalEmotional.disposition,
+    );
+    _anxietyCtrl = TextEditingController(
+      text: initial.mentalEmotional.anxietyTriggers,
+    );
+    _companySolitudeCtrl = TextEditingController(
+      text: initial.mentalEmotional.companyVsSolitude,
+    );
     _consolationCtrl = TextEditingController(
-        text: initial.mentalEmotional.reactionToConsolation);
-    _emotionalTriggersCtrl =
-        TextEditingController(text: initial.mentalEmotional.emotionalAetiology);
-    _timeMoodCtrl =
-        TextEditingController(text: initial.mentalEmotional.timeOfDayMood);
-    _behavioralCtrl =
-        TextEditingController(text: initial.mentalEmotional.behavioralChanges);
-    _reactionToDiseaseCtrl =
-        TextEditingController(text: initial.mentalEmotional.reactionToDisease);
-    _dullnessRestlessCtrl =
-        TextEditingController(text: initial.mentalEmotional.dullnessVsRestlessness);
-    _facialExpressionCtrl =
-        TextEditingController(text: initial.mentalEmotional.facialExpression);
-    _mentalShiftCtrl =
-        TextEditingController(text: initial.mentalEmotional.mentalShiftSinceIllness);
-    _familyDynamicsCtrl =
-        TextEditingController(text: initial.mentalEmotional.familyDynamics);
-    _spouseRelCtrl =
-        TextEditingController(text: initial.mentalEmotional.spouseRelationship);
-    _childrenRelCtrl =
-        TextEditingController(text: initial.mentalEmotional.childrenRelationship);
-    _inlawsRelCtrl =
-        TextEditingController(text: initial.mentalEmotional.inlawsRelationship);
-    _colleaguesCtrl =
-        TextEditingController(text: initial.mentalEmotional.colleaguesWorkStress);
-    _majorTensionsCtrl =
-        TextEditingController(text: initial.mentalEmotional.majorTensions);
+      text: initial.mentalEmotional.reactionToConsolation,
+    );
+    _emotionalTriggersCtrl = TextEditingController(
+      text: initial.mentalEmotional.emotionalAetiology,
+    );
+    _timeMoodCtrl = TextEditingController(
+      text: initial.mentalEmotional.timeOfDayMood,
+    );
+    _behavioralCtrl = TextEditingController(
+      text: initial.mentalEmotional.behavioralChanges,
+    );
+    _reactionToDiseaseCtrl = TextEditingController(
+      text: initial.mentalEmotional.reactionToDisease,
+    );
+    _dullnessRestlessCtrl = TextEditingController(
+      text: initial.mentalEmotional.dullnessVsRestlessness,
+    );
+    _facialExpressionCtrl = TextEditingController(
+      text: initial.mentalEmotional.facialExpression,
+    );
+    _mentalShiftCtrl = TextEditingController(
+      text: initial.mentalEmotional.mentalShiftSinceIllness,
+    );
+    _familyDynamicsCtrl = TextEditingController(
+      text: initial.mentalEmotional.familyDynamics,
+    );
+    _spouseRelCtrl = TextEditingController(
+      text: initial.mentalEmotional.spouseRelationship,
+    );
+    _childrenRelCtrl = TextEditingController(
+      text: initial.mentalEmotional.childrenRelationship,
+    );
+    _inlawsRelCtrl = TextEditingController(
+      text: initial.mentalEmotional.inlawsRelationship,
+    );
+    _colleaguesCtrl = TextEditingController(
+      text: initial.mentalEmotional.colleaguesWorkStress,
+    );
+    _majorTensionsCtrl = TextEditingController(
+      text: initial.mentalEmotional.majorTensions,
+    );
 
-    _sleepQualityCtrl =
-        TextEditingController(text: initial.dreamsSleep.sleepQuality);
-    _sleepDisturbancesCtrl =
-        TextEditingController(text: initial.dreamsSleep.sleepDisturbances);
-    _dreamCharCtrl =
-        TextEditingController(text: initial.dreamsSleep.dreamCharacteristics);
+    _sleepQualityCtrl = TextEditingController(
+      text: initial.dreamsSleep.sleepQuality,
+    );
+    _sleepDisturbancesCtrl = TextEditingController(
+      text: initial.dreamsSleep.sleepDisturbances,
+    );
+    _dreamCharCtrl = TextEditingController(
+      text: initial.dreamsSleep.dreamCharacteristics,
+    );
 
-    _desireLevelCtrl =
-        TextEditingController(text: initial.sexualHistory.desireLevel);
-    _sexualConcernsCtrl =
-        TextEditingController(text: initial.sexualHistory.complaintsConcerns);
-    _sexualNotesCtrl =
-        TextEditingController(text: initial.sexualHistory.notes);
+    _desireLevelCtrl = TextEditingController(
+      text: initial.sexualHistory.desireLevel,
+    );
+    _sexualConcernsCtrl = TextEditingController(
+      text: initial.sexualHistory.complaintsConcerns,
+    );
+    _sexualNotesCtrl = TextEditingController(text: initial.sexualHistory.notes);
 
-    _pastIllnessesCtrl =
-        TextEditingController(text: initial.medicalHistory.pastIllnesses);
-    _surgeriesCtrl =
-        TextEditingController(text: initial.medicalHistory.surgicalHistory);
-    _medicationsCtrl =
-        TextEditingController(text: initial.medicalHistory.pastMedications);
-    _allergiesCtrl =
-        TextEditingController(text: initial.medicalHistory.allergies);
-    _vaccinationCtrl =
-        TextEditingController(text: initial.medicalHistory.vaccinationReactions);
-    _familyHistoryCtrl =
-        TextEditingController(text: initial.medicalHistory.familyHistory);
+    _pastIllnessesCtrl = TextEditingController(
+      text: initial.medicalHistory.pastIllnesses,
+    );
+    _surgeriesCtrl = TextEditingController(
+      text: initial.medicalHistory.surgicalHistory,
+    );
+    _medicationsCtrl = TextEditingController(
+      text: initial.medicalHistory.pastMedications,
+    );
+    _allergiesCtrl = TextEditingController(
+      text: initial.medicalHistory.allergies,
+    );
+    _vaccinationCtrl = TextEditingController(
+      text: initial.medicalHistory.vaccinationReactions,
+    );
+    _familyHistoryCtrl = TextEditingController(
+      text: initial.medicalHistory.familyHistory,
+    );
 
-    _constitutionCtrl =
-        TextEditingController(text: initial.physicalExamination.constitutionBuild);
-    _tongueExamCtrl =
-        TextEditingController(text: initial.physicalExamination.tongueExamination);
-    _pulseBpCtrl =
-        TextEditingController(text: initial.physicalExamination.nailsPulseBP);
-    _sensitiveAreasCtrl =
-        TextEditingController(text: initial.physicalExamination.sensitiveAreas);
+    _constitutionCtrl = TextEditingController(
+      text: initial.physicalExamination.constitutionBuild,
+    );
+    _tongueExamCtrl = TextEditingController(
+      text: initial.physicalExamination.tongueExamination,
+    );
+    _pulseBpCtrl = TextEditingController(
+      text: initial.physicalExamination.nailsPulseBP,
+    );
+    _sensitiveAreasCtrl = TextEditingController(
+      text: initial.physicalExamination.sensitiveAreas,
+    );
     _clinicalObservationsCtrl = TextEditingController(
-        text: initial.physicalExamination.clinicalObservations);
+      text: initial.physicalExamination.clinicalObservations,
+    );
 
-    _labReportsCtrl =
-        TextEditingController(text: initial.investigations.labReports);
+    _labReportsCtrl = TextEditingController(
+      text: initial.investigations.labReports,
+    );
     _imagingNotesCtrl = TextEditingController(
-        text: initial.investigations.imagingDiagnosticNotes);
+      text: initial.investigations.imagingDiagnosticNotes,
+    );
 
-    _peculiarSrpCtrl =
-        TextEditingController(text: initial.peculiarSymptoms.peculiarSRP);
+    _peculiarSrpCtrl = TextEditingController(
+      text: initial.peculiarSymptoms.peculiarSRP,
+    );
     _keynoteObsCtrl = TextEditingController(
-        text: initial.peculiarSymptoms.keynoteObservations);
+      text: initial.peculiarSymptoms.keynoteObservations,
+    );
 
     _repertoryNotesCtrl = TextEditingController(
-        text: initial.prescriptionNotes.repertorizationNotes);
+      text: initial.prescriptionNotes.repertorizationNotes,
+    );
     _totalityRubricsCtrl = TextEditingController(
-        text: initial.prescriptionNotes.totalityOfSymptoms);
+      text: initial.prescriptionNotes.totalityOfSymptoms,
+    );
     _miasmCtrl = TextEditingController(
-        text: initial.prescriptionNotes.miasmaticTendency);
+      text: initial.prescriptionNotes.miasmaticTendency,
+    );
     _remedyCtrl = TextEditingController(
-        text: initial.prescriptionNotes.prescribedRemedy);
+      text: initial.prescriptionNotes.prescribedRemedy,
+    );
     _differentialRemediesCtrl = TextEditingController(
-        text: initial.prescriptionNotes.differentialRemedies);
-    _potencyCtrl =
-        TextEditingController(text: initial.prescriptionNotes.potency);
-    _repetitionCtrl =
-        TextEditingController(text: initial.prescriptionNotes.repetitionScale);
-    _adviceDietCtrl =
-        TextEditingController(text: initial.prescriptionNotes.adviceDiet);
+      text: initial.prescriptionNotes.differentialRemedies,
+    );
+    _potencyCtrl = TextEditingController(
+      text: initial.prescriptionNotes.potency,
+    );
+    _repetitionCtrl = TextEditingController(
+      text: initial.prescriptionNotes.repetitionScale,
+    );
+    _adviceDietCtrl = TextEditingController(
+      text: initial.prescriptionNotes.adviceDiet,
+    );
 
-    _followUpResponseCtrl =
-        TextEditingController(text: initial.followUp.responseRating);
-    _heringsLawCtrl =
-        TextEditingController(text: initial.followUp.heringsLawDirection);
-    _clinicalChangesCtrl =
-        TextEditingController(text: initial.followUp.clinicalChangesObserved);
-    _nextPrescriptionPlanCtrl =
-        TextEditingController(text: initial.followUp.nextPrescriptionPlan);
-    _followUpNotesCtrl =
-        TextEditingController(text: initial.followUp.followUpNotes);
+    _followUpResponseCtrl = TextEditingController(
+      text: initial.followUp.responseRating,
+    );
+    _heringsLawCtrl = TextEditingController(
+      text: initial.followUp.heringsLawDirection,
+    );
+    _clinicalChangesCtrl = TextEditingController(
+      text: initial.followUp.clinicalChangesObserved,
+    );
+    _nextPrescriptionPlanCtrl = TextEditingController(
+      text: initial.followUp.nextPrescriptionPlan,
+    );
+    _followUpNotesCtrl = TextEditingController(
+      text: initial.followUp.followUpNotes,
+    );
     _nextFollowUpDate = initial.followUp.nextFollowUpDate;
 
-    _additionalNotesCtrl =
-        TextEditingController(text: initial.additionalNotes);
+    _additionalNotesCtrl = TextEditingController(text: initial.additionalNotes);
   }
 
   @override
@@ -593,7 +691,9 @@ class _HomeopathyCaseTakingSheetState
     );
 
     final childHist = _extCtrl.buildChildhoodHistory(_sheet.childhoodHistory);
-    final pediaSheet = _extCtrl.buildChildrenCaseSheet(_sheet.childrenCaseSheet);
+    final pediaSheet = _extCtrl.buildChildrenCaseSheet(
+      _sheet.childrenCaseSheet,
+    );
     final femEndo = _extCtrl.buildFemaleEndocrine(_sheet.femaleEndocrine);
     final acute = _extCtrl.buildAcuteSheet(_sheet.acuteSheet);
 
@@ -728,7 +828,10 @@ class _HomeopathyCaseTakingSheetState
             markComplete
                 ? 'Case Sheet completed & saved successfully'
                 : 'Case Sheet draft saved',
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       );
@@ -763,7 +866,9 @@ class _HomeopathyCaseTakingSheetState
           backgroundColor: const Color(0xFF2E7D32),
           duration: const Duration(seconds: 4),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           content: Row(
             children: const [
               Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 20),
@@ -771,7 +876,11 @@ class _HomeopathyCaseTakingSheetState
               Expanded(
                 child: Text(
                   'Case sheet populated from consultation voice recording! Review sections below.',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
@@ -893,13 +1002,14 @@ class _HomeopathyCaseTakingSheetState
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
-    final completedCount =
-        _sheet.completedSectionsCount(isFemale: _isPatientFemale);
+    final completedCount = _sheet.completedSectionsCount(
+      isFemale: _isPatientFemale,
+    );
     final totalCount = _sheet.totalSectionsCount(isFemale: _isPatientFemale);
 
     return Scaffold(
@@ -908,7 +1018,10 @@ class _HomeopathyCaseTakingSheetState
         elevation: 0,
         backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: AppColors.textPrimary),
+          icon: const Icon(
+            Icons.arrow_back_rounded,
+            color: AppColors.textPrimary,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -934,9 +1047,14 @@ class _HomeopathyCaseTakingSheetState
             padding: const EdgeInsets.only(right: 8),
             child: TextButton.icon(
               style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32).withValues(alpha: 0.12),
+                backgroundColor: const Color(
+                  0xFF2E7D32,
+                ).withValues(alpha: 0.12),
                 foregroundColor: const Color(0xFF2E7D32),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: const BorderSide(color: Color(0xFF81C784), width: 0.8),
@@ -945,10 +1063,7 @@ class _HomeopathyCaseTakingSheetState
               icon: const Icon(Icons.auto_awesome_rounded, size: 16),
               label: const Text(
                 'Voice Scribe',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
               ),
               onPressed: _launchVoiceScribe,
             ),
@@ -1024,7 +1139,9 @@ class _HomeopathyCaseTakingSheetState
                   Expanded(
                     child: ChoiceChip(
                       label: const Center(child: Text('Chronic Case')),
-                      selected: _sheet.overview.caseType == HomeopathyCaseType.chronic,
+                      selected:
+                          _sheet.overview.caseType ==
+                          HomeopathyCaseType.chronic,
                       onSelected: (selected) {
                         if (selected) {
                           setState(() {
@@ -1042,7 +1159,8 @@ class _HomeopathyCaseTakingSheetState
                   Expanded(
                     child: ChoiceChip(
                       label: const Center(child: Text('Acute Case')),
-                      selected: _sheet.overview.caseType == HomeopathyCaseType.acute,
+                      selected:
+                          _sheet.overview.caseType == HomeopathyCaseType.acute,
                       onSelected: (selected) {
                         if (selected) {
                           setState(() {
@@ -1069,14 +1187,16 @@ class _HomeopathyCaseTakingSheetState
               _buildTextField(
                 controller: _consultationReasonCtrl,
                 label: 'Reason for Consultation / Expectations',
-                hint: 'Why patient is seeking homeopathic constitutional treatment',
+                hint:
+                    'Why patient is seeking homeopathic constitutional treatment',
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
               _buildTextField(
                 controller: _perceivedCauseCtrl,
                 label: 'Patient\'s Perceived Cause (Physical or Emotional)',
-                hint: 'What caused the complaint according to the patient? (e.g. Grief, cold wind, injury, work stress)',
+                hint:
+                    'What caused the complaint according to the patient? (e.g. Grief, cold wind, injury, work stress)',
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
@@ -1115,603 +1235,624 @@ class _HomeopathyCaseTakingSheetState
           // Section B: Chief Complaint
           if (_category == HomeopathyCaseSheetCategory.general ||
               _category == HomeopathyCaseSheetCategory.femaleEndocrine)
-          _buildAccordionCard(
-            title: 'B. Chief Complaint & Description',
-            subtitle: 'Location, Sensation, Onset, Progression',
-            isComplete: _sheet.chiefComplaint.isCompleted,
-            icon: Icons.healing_outlined,
-            children: [
-              _buildTextField(
-                controller: _complaintCtrl,
-                label: 'Detailed Complaint',
-                hint: 'Describe patient\'s chief complaint in their own words',
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _locationCtrl,
-                      label: 'Location / Side',
-                      hint: 'e.g. Right hypochondrium, forehead',
+            _buildAccordionCard(
+              title: 'B. Chief Complaint & Description',
+              subtitle: 'Location, Sensation, Onset, Progression',
+              isComplete: _sheet.chiefComplaint.isCompleted,
+              icon: Icons.healing_outlined,
+              children: [
+                _buildTextField(
+                  controller: _complaintCtrl,
+                  label: 'Detailed Complaint',
+                  hint:
+                      'Describe patient\'s chief complaint in their own words',
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _locationCtrl,
+                        label: 'Location / Side',
+                        hint: 'e.g. Right hypochondrium, forehead',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _sensationCtrl,
-                      label: 'Sensation',
-                      hint: 'e.g. Burning, stitching, throbbing',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _sensationCtrl,
+                        label: 'Sensation',
+                        hint: 'e.g. Burning, stitching, throbbing',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _onsetCtrl,
-                      label: 'Onset',
-                      hint: 'Sudden or gradual',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _onsetCtrl,
+                        label: 'Onset',
+                        hint: 'Sudden or gradual',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _durationCtrl,
-                      label: 'Duration',
-                      hint: 'e.g. 6 months, 3 weeks',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _durationCtrl,
+                        label: 'Duration',
+                        hint: 'e.g. 6 months, 3 weeks',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _frequencyCtrl,
-                      label: 'Frequency',
-                      hint: 'e.g. Daily, periodic, seasonal',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _frequencyCtrl,
+                        label: 'Frequency',
+                        hint: 'e.g. Daily, periodic, seasonal',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _progressionCtrl,
-                      label: 'Progression',
-                      hint: 'Improving, worsening, constant',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _progressionCtrl,
+                        label: 'Progression',
+                        hint: 'Improving, worsening, constant',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _triggeringCausesCtrl,
-                label: 'Triggering Causes / Aetiology',
-                hint: 'After grief, exposure to cold wind, wet weather, anger, bad food',
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _associatedSymptomsCtrl,
-                label: 'Associated Symptoms',
-                hint: 'Accompanying complaints occurring with main problem',
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _triggeringCausesCtrl,
+                  label: 'Triggering Causes / Aetiology',
+                  hint:
+                      'After grief, exposure to cold wind, wet weather, anger, bad food',
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _associatedSymptomsCtrl,
+                  label: 'Associated Symptoms',
+                  hint: 'Accompanying complaints occurring with main problem',
+                ),
+              ],
+            ),
 
           // Section C: Modalities (< Aggravations & > Ameliorations)
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'C. Modalities (< Aggravations & > Ameliorations)',
-            subtitle: 'Time, Position, Weather, Temperature, Motion',
-            isComplete: _sheet.modalities.isCompleted,
-            icon: Icons.tune_rounded,
-            children: [
-              _buildTextField(
-                controller: _aggravatingCtrl,
-                label: '< Aggravating Factors (Worse from)',
-                hint: 'e.g. Cold air, motion, night (3 AM), fatty foods, dampness',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _amelioratingCtrl,
-                label: '> Ameliorating Factors (Better from)',
-                hint: 'e.g. Warm applications, resting, open air, hard pressure, eating',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _timePatternsCtrl,
-                      label: 'Time Modality',
-                      hint: 'Morning, evening, midnight, periodically',
+            _buildAccordionCard(
+              title: 'C. Modalities (< Aggravations & > Ameliorations)',
+              subtitle: 'Time, Position, Weather, Temperature, Motion',
+              isComplete: _sheet.modalities.isCompleted,
+              icon: Icons.tune_rounded,
+              children: [
+                _buildTextField(
+                  controller: _aggravatingCtrl,
+                  label: '< Aggravating Factors (Worse from)',
+                  hint:
+                      'e.g. Cold air, motion, night (3 AM), fatty foods, dampness',
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _amelioratingCtrl,
+                  label: '> Ameliorating Factors (Better from)',
+                  hint:
+                      'e.g. Warm applications, resting, open air, hard pressure, eating',
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _timePatternsCtrl,
+                        label: 'Time Modality',
+                        hint: 'Morning, evening, midnight, periodically',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _positionCtrl,
-                      label: 'Position Modality',
-                      hint: 'Lying, sitting, bending double',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _positionCtrl,
+                        label: 'Position Modality',
+                        hint: 'Lying, sitting, bending double',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _motionCtrl,
-                      label: 'Motion / Rest',
-                      hint: 'Continued motion, initial motion, rest',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _motionCtrl,
+                        label: 'Motion / Rest',
+                        hint: 'Continued motion, initial motion, rest',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _temperatureWeatherCtrl,
-                      label: 'Weather & Temperature',
-                      hint: 'Rainy, stormy, heat of sun, draft of air',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _temperatureWeatherCtrl,
+                        label: 'Weather & Temperature',
+                        hint: 'Rainy, stormy, heat of sun, draft of air',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _foodDrinkModalitiesCtrl,
-                label: 'Food & Drink Modalities',
-                hint: 'Aggravation from milk, tea, coffee, sweets, spicy food',
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _foodDrinkModalitiesCtrl,
+                  label: 'Food & Drink Modalities',
+                  hint:
+                      'Aggravation from milk, tea, coffee, sweets, spicy food',
+                ),
+              ],
+            ),
 
           // Section D: General Symptoms & Thermal State
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'D. General Symptoms & Thermal State',
-            subtitle: 'Thermal reaction, Cravings, Aversions, Thirst, Sleep',
-            isComplete: _sheet.generalSymptoms.isCompleted,
-            icon: Icons.thermostat_rounded,
-            children: [
-              const Text(
-                'Thermal State (Crucial Keynote) *',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+            _buildAccordionCard(
+              title: 'D. General Symptoms & Thermal State',
+              subtitle: 'Thermal reaction, Cravings, Aversions, Thirst, Sleep',
+              isComplete: _sheet.generalSymptoms.isCompleted,
+              icon: Icons.thermostat_rounded,
+              children: [
+                const Text(
+                  'Thermal State (Crucial Keynote) *',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                children: [
-                  ChoiceChip(
-                    label: const Text('❄️ Chilly'),
-                    selected: _sheet.generalSymptoms.thermalState ==
-                        HomeopathyThermalState.chilly,
-                    onSelected: (val) {
-                      setState(() {
-                        _sheet = _sheet.copyWith(
-                          generalSymptoms: _sheet.generalSymptoms.copyWith(
-                            thermalState: val
-                                ? HomeopathyThermalState.chilly
-                                : HomeopathyThermalState.unspecified,
-                          ),
-                        );
-                      });
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('🔥 Hot'),
-                    selected: _sheet.generalSymptoms.thermalState ==
-                        HomeopathyThermalState.hot,
-                    onSelected: (val) {
-                      setState(() {
-                        _sheet = _sheet.copyWith(
-                          generalSymptoms: _sheet.generalSymptoms.copyWith(
-                            thermalState: val
-                                ? HomeopathyThermalState.hot
-                                : HomeopathyThermalState.unspecified,
-                          ),
-                        );
-                      });
-                    },
-                  ),
-                  ChoiceChip(
-                    label: const Text('⚖️ Ambithermal'),
-                    selected: _sheet.generalSymptoms.thermalState ==
-                        HomeopathyThermalState.ambithermal,
-                    onSelected: (val) {
-                      setState(() {
-                        _sheet = _sheet.copyWith(
-                          generalSymptoms: _sheet.generalSymptoms.copyWith(
-                            thermalState: val
-                                ? HomeopathyThermalState.ambithermal
-                                : HomeopathyThermalState.unspecified,
-                          ),
-                        );
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Thirst Quick-chips
-              const Text(
-                'Thirst Pattern',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    ChoiceChip(
+                      label: const Text('❄️ Chilly'),
+                      selected:
+                          _sheet.generalSymptoms.thermalState ==
+                          HomeopathyThermalState.chilly,
+                      onSelected: (val) {
+                        setState(() {
+                          _sheet = _sheet.copyWith(
+                            generalSymptoms: _sheet.generalSymptoms.copyWith(
+                              thermalState: val
+                                  ? HomeopathyThermalState.chilly
+                                  : HomeopathyThermalState.unspecified,
+                            ),
+                          );
+                        });
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('🔥 Hot'),
+                      selected:
+                          _sheet.generalSymptoms.thermalState ==
+                          HomeopathyThermalState.hot,
+                      onSelected: (val) {
+                        setState(() {
+                          _sheet = _sheet.copyWith(
+                            generalSymptoms: _sheet.generalSymptoms.copyWith(
+                              thermalState: val
+                                  ? HomeopathyThermalState.hot
+                                  : HomeopathyThermalState.unspecified,
+                            ),
+                          );
+                        });
+                      },
+                    ),
+                    ChoiceChip(
+                      label: const Text('⚖️ Ambithermal'),
+                      selected:
+                          _sheet.generalSymptoms.thermalState ==
+                          HomeopathyThermalState.ambithermal,
+                      onSelected: (val) {
+                        setState(() {
+                          _sheet = _sheet.copyWith(
+                            generalSymptoms: _sheet.generalSymptoms.copyWith(
+                              thermalState: val
+                                  ? HomeopathyThermalState.ambithermal
+                                  : HomeopathyThermalState.unspecified,
+                            ),
+                          );
+                        });
+                      },
+                    ),
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Thirsty - large quantities',
-                  'Thirsty - small sips frequently',
-                  'Thirstless even with fever',
-                  'Craves cold ice water',
-                  'Craves warm drinks',
-                ].map((thirstPreset) {
-                  final isSelected = _thirstCtrl.text == thirstPreset;
-                  return FilterChip(
-                    label: Text(thirstPreset, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _thirstCtrl.text = sel ? thirstPreset : '';
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _thirstCtrl,
-                label: 'Thirst Details',
-                hint: 'Quantity, frequency, temperature preference',
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _thirstStyleCtrl,
-                label: 'Manner of Drinking Water',
-                hint: 'e.g. Sips frequently (Ars), large gulps at long intervals (Bry), gulps rapidly',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _extCtrl.thirstTimeCtrl,
-                      label: 'Thirst Time / Modal Hour',
-                      hint: 'Night, morning, during chill/heat',
-                    ),
+                const SizedBox(height: 16),
+                // Thirst Quick-chips
+                const Text(
+                  'Thirst Pattern',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _extCtrl.tasteChangesCtrl,
-                      label: 'Taste in Mouth / Changes',
-                      hint: 'Bitter, metallic, salty, sour, sweet, lost',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              // Food Cravings & Aversions
-              const Text(
-                'Common Food Desires / Cravings',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Sweets / Sugar',
-                  'Salty items',
-                  'Sour / Pickles',
-                  'Spicy / Pungent',
-                  'Fried / Fatty food',
-                  'Ice / Cold food',
-                  'Eggs',
-                  'Warm milk',
-                ].map((item) {
-                  final list = _sheet.generalSymptoms.cravingsDesires;
-                  final isPresent = list.contains(item);
-                  return FilterChip(
-                    label: Text(item, style: const TextStyle(fontSize: 12)),
-                    selected: isPresent,
-                    onSelected: (sel) {
-                      final updated = List<String>.from(list);
-                      if (sel) {
-                        updated.add(item);
-                      } else {
-                        updated.remove(item);
-                      }
-                      setState(() {
-                        _sheet = _sheet.copyWith(
-                          generalSymptoms: _sheet.generalSymptoms.copyWith(
-                            cravingsDesires: updated,
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Thirsty - large quantities',
+                        'Thirsty - small sips frequently',
+                        'Thirstless even with fever',
+                        'Craves cold ice water',
+                        'Craves warm drinks',
+                      ].map((thirstPreset) {
+                        final isSelected = _thirstCtrl.text == thirstPreset;
+                        return FilterChip(
+                          label: Text(
+                            thirstPreset,
+                            style: const TextStyle(fontSize: 12),
                           ),
+                          selected: isSelected,
+                          onSelected: (sel) {
+                            setState(() {
+                              _thirstCtrl.text = sel ? thirstPreset : '';
+                            });
+                          },
                         );
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _appetiteCtrl,
-                      label: 'Appetite',
-                      hint: 'Ravenous, decreased, easily satisfied',
+                      }).toList(),
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _thirstCtrl,
+                  label: 'Thirst Details',
+                  hint: 'Quantity, frequency, temperature preference',
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _thirstStyleCtrl,
+                  label: 'Manner of Drinking Water',
+                  hint:
+                      'e.g. Sips frequently (Ars), large gulps at long intervals (Bry), gulps rapidly',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _extCtrl.thirstTimeCtrl,
+                        label: 'Thirst Time / Modal Hour',
+                        hint: 'Night, morning, during chill/heat',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _perspirationCtrl,
-                      label: 'Perspiration / Sweat',
-                      hint: 'Profuse, offensive, stains yellow, head only',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _extCtrl.tasteChangesCtrl,
+                        label: 'Taste in Mouth / Changes',
+                        hint: 'Bitter, metallic, salty, sour, sweet, lost',
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Food Cravings & Aversions
+                const Text(
+                  'Common Food Desires / Cravings',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _extCtrl.hungerTimeCtrl,
-                      label: 'Hunger Time & Fasting Effect',
-                      hint: 'Aggravation from fasting, 11 AM hunger (Sulph)',
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Sweets / Sugar',
+                        'Salty items',
+                        'Sour / Pickles',
+                        'Spicy / Pungent',
+                        'Fried / Fatty food',
+                        'Ice / Cold food',
+                        'Eggs',
+                        'Warm milk',
+                      ].map((item) {
+                        final list = _sheet.generalSymptoms.cravingsDesires;
+                        final isPresent = list.contains(item);
+                        return FilterChip(
+                          label: Text(
+                            item,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: isPresent,
+                          onSelected: (sel) {
+                            final updated = List<String>.from(list);
+                            if (sel) {
+                              updated.add(item);
+                            } else {
+                              updated.remove(item);
+                            }
+                            setState(() {
+                              _sheet = _sheet.copyWith(
+                                generalSymptoms: _sheet.generalSymptoms
+                                    .copyWith(cravingsDesires: updated),
+                              );
+                            });
+                          },
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _appetiteCtrl,
+                        label: 'Appetite',
+                        hint: 'Ravenous, decreased, easily satisfied',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _extCtrl.eatingSpeedCtrl,
-                      label: 'Eating Speed',
-                      hint: 'Eats hastily/in hurry, slow eater',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _perspirationCtrl,
+                        label: 'Perspiration / Sweat',
+                        hint: 'Profuse, offensive, stains yellow, head only',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _extCtrl.hungerReactionCtrl,
-                label: 'Reaction if Meal Delayed',
-                hint: 'Headache, trembling, irritability, faintness (Lyc, Sulph)',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _perspLocationCtrl,
-                      label: 'Perspiration Location',
-                      hint: 'Head/occiput, palms, soles, chest, axillae',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _extCtrl.hungerTimeCtrl,
+                        label: 'Hunger Time & Fasting Effect',
+                        hint: 'Aggravation from fasting, 11 AM hunger (Sulph)',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _perspOdourCtrl,
-                      label: 'Perspiration Odour / Staining',
-                      hint: 'Sour, offensive, sweet, stains yellow, oily',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _extCtrl.eatingSpeedCtrl,
+                        label: 'Eating Speed',
+                        hint: 'Eats hastily/in hurry, slow eater',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _stoolsCtrl,
-                      label: 'Stool & Bowels',
-                      hint: 'Constipation, ineffectual urging, diarrhea',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _extCtrl.hungerReactionCtrl,
+                  label: 'Reaction if Meal Delayed',
+                  hint:
+                      'Headache, trembling, irritability, faintness (Lyc, Sulph)',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _perspLocationCtrl,
+                        label: 'Perspiration Location',
+                        hint: 'Head/occiput, palms, soles, chest, axillae',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _urineCtrl,
-                      label: 'Urine',
-                      hint: 'Frequency, burning, strong odor',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _perspOdourCtrl,
+                        label: 'Perspiration Odour / Staining',
+                        hint: 'Sour, offensive, sweet, stains yellow, oily',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _skinCtrl,
-                      label: 'Skin Conditions',
-                      hint: 'Dry, unhealthy, eruptions, itching',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _stoolsCtrl,
+                        label: 'Stool & Bowels',
+                        hint: 'Constipation, ineffectual urging, diarrhea',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _energyCtrl,
-                      label: 'Energy & Weakness',
-                      hint: 'Fatigue time, prostration',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _urineCtrl,
+                        label: 'Urine',
+                        hint: 'Frequency, burning, strong odor',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _skinCtrl,
+                        label: 'Skin Conditions',
+                        hint: 'Dry, unhealthy, eruptions, itching',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _energyCtrl,
+                        label: 'Energy & Weakness',
+                        hint: 'Fatigue time, prostration',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
           // Section E: Physical Symptoms
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'E. Physical Symptoms by Systems',
-            subtitle: 'Joints, Respiratory, ENT, Headaches, Fever, Pain',
-            isComplete: _sheet.physicalSymptoms.isCompleted,
-            icon: Icons.accessibility_new_rounded,
-            children: [
-              _buildTextField(
-                controller: _rheumatologyCtrl,
-                label: 'Musculoskeletal & Joints',
-                hint: 'Stiffness on waking, gouty swellings, cracking joints',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _faceEntCtrl,
-                      label: 'Face & ENT',
-                      hint: 'Sinus congestion, epistaxis, polyps, tinnitus',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _headVertigoCtrl,
-                      label: 'Head & Vertigo Symptoms',
-                      hint: 'Headache location, sidedness, dizziness',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _respiratoryCtrl,
-                label: 'Respiratory (Chest, Dyspnea, Asthma)',
-                hint: 'Breathing difficulty, chest oppression, asthmatic wheeze',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _coughTypeCtrl,
-                      label: 'Cough Type',
-                      hint: 'Dry, loose, paroxysmal, barking, rattling',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _sputumDetailsCtrl,
-                      label: 'Sputum / Expectoration',
-                      hint: 'Yellow/green/rusty, thick, frothy, blood-streaked',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _coughTasteCtrl,
-                label: 'Taste in Mouth during Cough / Illness',
-                hint: 'Metallic, bitter, salty, sour, sweet, putrid',
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Acute Fever Stages',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+            _buildAccordionCard(
+              title: 'E. Physical Symptoms by Systems',
+              subtitle: 'Joints, Respiratory, ENT, Headaches, Fever, Pain',
+              isComplete: _sheet.physicalSymptoms.isCompleted,
+              icon: Icons.accessibility_new_rounded,
+              children: [
+                _buildTextField(
+                  controller: _rheumatologyCtrl,
+                  label: 'Musculoskeletal & Joints',
+                  hint: 'Stiffness on waking, gouty swellings, cracking joints',
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _feverChillCtrl,
-                      label: 'Chill Stage',
-                      hint: 'Onset direction, shivering, thirst',
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _faceEntCtrl,
+                        label: 'Face & ENT',
+                        hint: 'Sinus congestion, epistaxis, polyps, tinnitus',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _feverHeatCtrl,
-                      label: 'Heat / Flush Stage',
-                      hint: 'Burning dry heat, thirst during heat',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _headVertigoCtrl,
+                        label: 'Head & Vertigo Symptoms',
+                        hint: 'Headache location, sidedness, dizziness',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _feverSweatCtrl,
-                      label: 'Sweat Stage',
-                      hint: 'Profuse/scanty, relief after sweat',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _respiratoryCtrl,
+                  label: 'Respiratory (Chest, Dyspnea, Asthma)',
+                  hint:
+                      'Breathing difficulty, chest oppression, asthmatic wheeze',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _coughTypeCtrl,
+                        label: 'Cough Type',
+                        hint: 'Dry, loose, paroxysmal, barking, rattling',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _feverPeriodicityCtrl,
-                      label: 'Fever Periodicity / Spike Time',
-                      hint: 'Alternate days, 3 PM-8 PM, night rise',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _sputumDetailsCtrl,
+                        label: 'Sputum / Expectoration',
+                        hint:
+                            'Yellow/green/rusty, thick, frothy, blood-streaked',
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _coughTasteCtrl,
+                  label: 'Taste in Mouth during Cough / Illness',
+                  hint: 'Metallic, bitter, salty, sour, sweet, putrid',
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Acute Fever Stages',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _digestiveStoolCtrl,
-                label: 'Gastrointestinal & Bowels (Diarrhea / Dysentery / Tenesmus)',
-                hint: 'Stool consistency, color, ineffectual urging, relief or aggravation after stool',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _cnsCtrl,
-                label: 'Central Nervous System',
-                hint: 'Trembling, numbness, twitching, sensory changes',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _painCharCtrl,
-                      label: 'Pain Characteristics',
-                      hint: 'Stitching, burning, throbbing, shooting',
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _feverChillCtrl,
+                        label: 'Chill Stage',
+                        hint: 'Onset direction, shivering, thirst',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _painLocCtrl,
-                      label: 'Pain Location',
-                      hint: 'Exact site & radiation',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _feverHeatCtrl,
+                        label: 'Heat / Flush Stage',
+                        hint: 'Burning dry heat, thirst during heat',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _feverSweatCtrl,
+                        label: 'Sweat Stage',
+                        hint: 'Profuse/scanty, relief after sweat',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _feverPeriodicityCtrl,
+                        label: 'Fever Periodicity / Spike Time',
+                        hint: 'Alternate days, 3 PM-8 PM, night rise',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _digestiveStoolCtrl,
+                  label:
+                      'Gastrointestinal & Bowels (Diarrhea / Dysentery / Tenesmus)',
+                  hint:
+                      'Stool consistency, color, ineffectual urging, relief or aggravation after stool',
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _cnsCtrl,
+                  label: 'Central Nervous System',
+                  hint: 'Trembling, numbness, twitching, sensory changes',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _painCharCtrl,
+                        label: 'Pain Characteristics',
+                        hint: 'Stitching, burning, throbbing, shooting',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _painLocCtrl,
+                        label: 'Pain Location',
+                        hint: 'Exact site & radiation',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
           // Section F: Female / Reproductive History (Conditional / Adaptive)
           if (_isPatientFemale &&
@@ -1766,7 +1907,8 @@ class _HomeopathyCaseTakingSheetState
                 _buildTextField(
                   controller: _suppressionCtrl,
                   label: 'Menstrual Suppression & Consequences',
-                  hint: 'Suppression from getting feet wet, grief, anger; resulting ailments',
+                  hint:
+                      'Suppression from getting feet wet, grief, anger; resulting ailments',
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -1793,290 +1935,307 @@ class _HomeopathyCaseTakingSheetState
 
           // Section G: Mental & Emotional State
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'G. Mental & Emotional State',
-            subtitle: 'Disposition, Fears, Anxiety, Consolation, Aetiology',
-            isComplete: _sheet.mentalEmotional.isCompleted,
-            icon: Icons.psychology_rounded,
-            children: [
-              _buildTextField(
-                controller: _dispositionCtrl,
-                label: 'General Disposition',
-                hint: 'Mild, irritable, hurried, weeping, fastidious, reserved, stubborn',
-              ),
-              const SizedBox(height: 14),
-              // Common Fears Quick-chips
-              const Text(
-                'Fears & Phobias',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+            _buildAccordionCard(
+              title: 'G. Mental & Emotional State',
+              subtitle: 'Disposition, Fears, Anxiety, Consolation, Aetiology',
+              isComplete: _sheet.mentalEmotional.isCompleted,
+              icon: Icons.psychology_rounded,
+              children: [
+                _buildTextField(
+                  controller: _dispositionCtrl,
+                  label: 'General Disposition',
+                  hint:
+                      'Mild, irritable, hurried, weeping, fastidious, reserved, stubborn',
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Fear of Dark',
-                  'Fear of Being Alone',
-                  'Fear of Death',
-                  'Fear of Disease / Illness',
-                  'Fear of Heights',
-                  'Fear of Dogs / Animals',
-                  'Fear of Thunderstorm',
-                  'Fear of Crowd',
-                  'Fear of Narrow spaces',
-                  'Fear of Failure',
-                ].map((fear) {
-                  final list = _sheet.mentalEmotional.fears;
-                  final isPresent = list.contains(fear);
-                  return FilterChip(
-                    label: Text(fear, style: const TextStyle(fontSize: 12)),
-                    selected: isPresent,
-                    onSelected: (sel) {
-                      final updated = List<String>.from(list);
-                      if (sel) {
-                        updated.add(fear);
-                      } else {
-                        updated.remove(fear);
-                      }
-                      setState(() {
-                        _sheet = _sheet.copyWith(
-                          mentalEmotional: _sheet.mentalEmotional.copyWith(
-                            fears: updated,
+                const SizedBox(height: 14),
+                // Common Fears Quick-chips
+                const Text(
+                  'Fears & Phobias',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Fear of Dark',
+                        'Fear of Being Alone',
+                        'Fear of Death',
+                        'Fear of Disease / Illness',
+                        'Fear of Heights',
+                        'Fear of Dogs / Animals',
+                        'Fear of Thunderstorm',
+                        'Fear of Crowd',
+                        'Fear of Narrow spaces',
+                        'Fear of Failure',
+                      ].map((fear) {
+                        final list = _sheet.mentalEmotional.fears;
+                        final isPresent = list.contains(fear);
+                        return FilterChip(
+                          label: Text(
+                            fear,
+                            style: const TextStyle(fontSize: 12),
                           ),
+                          selected: isPresent,
+                          onSelected: (sel) {
+                            final updated = List<String>.from(list);
+                            if (sel) {
+                              updated.add(fear);
+                            } else {
+                              updated.remove(fear);
+                            }
+                            setState(() {
+                              _sheet = _sheet.copyWith(
+                                mentalEmotional: _sheet.mentalEmotional
+                                    .copyWith(fears: updated),
+                              );
+                            });
+                          },
                         );
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Reaction to Disease & Illness',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+                      }).toList(),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Fears death / Fatalistic',
-                  'Despair of recovery',
-                  'Indifferent / Apathetic to illness',
-                  'Hypochondriac / High anxiety',
-                  'Demanding, complaining & irritable',
-                  'Calm & resigned',
-                ].map((item) {
-                  final isSelected = _reactionToDiseaseCtrl.text == item;
-                  return FilterChip(
-                    label: Text(item, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _reactionToDiseaseCtrl.text = sel ? item : '';
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _reactionToDiseaseCtrl,
-                label: 'Reaction to Disease Details',
-                hint: 'Patient\'s attitude towards illness and suffering',
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Demeanor / Sensorium during Illness',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 14),
+                const Text(
+                  'Reaction to Disease & Illness',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Dullness, drowsiness & apathy',
-                  'Restless tossing in bed',
-                  'Quiet stupor / Desires silence',
-                  'Hurried, agitated & impatient',
-                ].map((item) {
-                  final isSelected = _dullnessRestlessCtrl.text == item;
-                  return FilterChip(
-                    label: Text(item, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _dullnessRestlessCtrl.text = sel ? item : '';
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 8),
-              _buildTextField(
-                controller: _dullnessRestlessCtrl,
-                label: 'Demeanor Details',
-                hint: 'Restlessness vs dullness behavior in illness',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _facialExpressionCtrl,
-                      label: 'Facial Expression & Demeanor',
-                      hint: 'Anxious, pale, flushed, sunken, glassy',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _mentalShiftCtrl,
-                      label: 'Mental Shift Since Illness',
-                      hint: 'How mood changed since disease began',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              // Consolation Reaction Quick-chips
-              const Text(
-                'Reaction to Consolation',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Fears death / Fatalistic',
+                        'Despair of recovery',
+                        'Indifferent / Apathetic to illness',
+                        'Hypochondriac / High anxiety',
+                        'Demanding, complaining & irritable',
+                        'Calm & resigned',
+                      ].map((item) {
+                        final isSelected = _reactionToDiseaseCtrl.text == item;
+                        return FilterChip(
+                          label: Text(
+                            item,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: isSelected,
+                          onSelected: (sel) {
+                            setState(() {
+                              _reactionToDiseaseCtrl.text = sel ? item : '';
+                            });
+                          },
+                        );
+                      }).toList(),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Aggravates from consolation (Angered)',
-                  'Ameliorates from consolation (Soothed)',
-                  'Indifferent to consolation',
-                ].map((cons) {
-                  final isSelected = _consolationCtrl.text == cons;
-                  return FilterChip(
-                    label: Text(cons, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _consolationCtrl.text = sel ? cons : '';
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _anxietyCtrl,
-                      label: 'Anxiety & Worries',
-                      hint: 'Health, family, financial',
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _companySolitudeCtrl,
-                      label: 'Company vs Alone',
-                      hint: 'Craves company or desires solitude',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _emotionalTriggersCtrl,
-                label: 'Emotional Aetiology (Causes)',
-                hint: 'Ailments from grief, mortification, suppressed anger, fright, shock',
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Family & Interpersonal Dynamics (Relationships & Stressors)',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _reactionToDiseaseCtrl,
+                  label: 'Reaction to Disease Details',
+                  hint: 'Patient\'s attitude towards illness and suffering',
                 ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _familyDynamicsCtrl,
-                      label: 'Family Atmosphere',
-                      hint: 'Domestic environment, harmony',
-                    ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Demeanor / Sensorium during Illness',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _spouseRelCtrl,
-                      label: 'Spouse / Marriage',
-                      hint: 'Relationship with spouse, conflicts',
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Dullness, drowsiness & apathy',
+                        'Restless tossing in bed',
+                        'Quiet stupor / Desires silence',
+                        'Hurried, agitated & impatient',
+                      ].map((item) {
+                        final isSelected = _dullnessRestlessCtrl.text == item;
+                        return FilterChip(
+                          label: Text(
+                            item,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: isSelected,
+                          onSelected: (sel) {
+                            setState(() {
+                              _dullnessRestlessCtrl.text = sel ? item : '';
+                            });
+                          },
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 8),
+                _buildTextField(
+                  controller: _dullnessRestlessCtrl,
+                  label: 'Demeanor Details',
+                  hint: 'Restlessness vs dullness behavior in illness',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _facialExpressionCtrl,
+                        label: 'Facial Expression & Demeanor',
+                        hint: 'Anxious, pale, flushed, sunken, glassy',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _childrenRelCtrl,
-                      label: 'Children',
-                      hint: 'Parenting stress, relations with kids',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _mentalShiftCtrl,
+                        label: 'Mental Shift Since Illness',
+                        hint: 'How mood changed since disease began',
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Consolation Reaction Quick-chips
+                const Text(
+                  'Reaction to Consolation',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _inlawsRelCtrl,
-                      label: 'In-Laws',
-                      hint: 'Domestic friction with in-laws',
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Aggravates from consolation (Angered)',
+                        'Ameliorates from consolation (Soothed)',
+                        'Indifferent to consolation',
+                      ].map((cons) {
+                        final isSelected = _consolationCtrl.text == cons;
+                        return FilterChip(
+                          label: Text(
+                            cons,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                          selected: isSelected,
+                          onSelected: (sel) {
+                            setState(() {
+                              _consolationCtrl.text = sel ? cons : '';
+                            });
+                          },
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _anxietyCtrl,
+                        label: 'Anxiety & Worries',
+                        hint: 'Health, family, financial',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _colleaguesCtrl,
-                      label: 'Colleagues & Workplace',
-                      hint: 'Job stress, interpersonal frictions',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _companySolitudeCtrl,
+                        label: 'Company vs Alone',
+                        hint: 'Craves company or desires solitude',
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _emotionalTriggersCtrl,
+                  label: 'Emotional Aetiology (Causes)',
+                  hint:
+                      'Ailments from grief, mortification, suppressed anger, fright, shock',
+                ),
+                const SizedBox(height: 14),
+                const Text(
+                  'Family & Interpersonal Dynamics (Relationships & Stressors)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _majorTensionsCtrl,
-                      label: 'Major Life Tensions',
-                      hint: 'Financial strain, legal, chronic tensions',
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _familyDynamicsCtrl,
+                        label: 'Family Atmosphere',
+                        hint: 'Domestic environment, harmony',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _spouseRelCtrl,
+                        label: 'Spouse / Marriage',
+                        hint: 'Relationship with spouse, conflicts',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _childrenRelCtrl,
+                        label: 'Children',
+                        hint: 'Parenting stress, relations with kids',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _inlawsRelCtrl,
+                        label: 'In-Laws',
+                        hint: 'Domestic friction with in-laws',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _colleaguesCtrl,
+                        label: 'Colleagues & Workplace',
+                        hint: 'Job stress, interpersonal frictions',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _majorTensionsCtrl,
+                        label: 'Major Life Tensions',
+                        hint: 'Financial strain, legal, chronic tensions',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
           // Detailed Mind & Personality Questionnaire (Q1–Q18)
           if (_category == HomeopathyCaseSheetCategory.general)
@@ -2084,118 +2243,123 @@ class _HomeopathyCaseTakingSheetState
 
           // Section H: Dreams & Sleep
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'H. Dreams & Sleep Profile',
-            subtitle: 'Sleep quality, disturbances, recurring dreams',
-            isComplete: _sheet.dreamsSleep.isCompleted,
-            icon: Icons.bedtime_outlined,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _sleepQualityCtrl,
-                      label: 'Sleep Quality',
-                      hint: 'Refreshing, unrefreshing, restless',
+            _buildAccordionCard(
+              title: 'H. Dreams & Sleep Profile',
+              subtitle: 'Sleep quality, disturbances, recurring dreams',
+              isComplete: _sheet.dreamsSleep.isCompleted,
+              icon: Icons.bedtime_outlined,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _sleepQualityCtrl,
+                        label: 'Sleep Quality',
+                        hint: 'Refreshing, unrefreshing, restless',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _sleepDisturbancesCtrl,
-                      label: 'Sleep Disturbances',
-                      hint: 'Waking at 3 AM, insomnia, night terrors',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _sleepDisturbancesCtrl,
+                        label: 'Sleep Disturbances',
+                        hint: 'Waking at 3 AM, insomnia, night terrors',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              const Text(
-                'Common / Recurring Dreams',
-                style: TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 13,
-                  color: AppColors.textPrimary,
+                  ],
                 ),
-              ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  'Falling from heights',
-                  'Flying',
-                  'Water / Drowning',
-                  'Dead relatives',
-                  'Animals / Snakes',
-                  'Robbers / Thieves',
-                  'Being chased / Danger',
-                  'Daily business',
-                  'Examinations / Unprepared',
-                ].map((dream) {
-                  final list = _sheet.dreamsSleep.recurringDreams;
-                  final isPresent = list.contains(dream);
-                  return FilterChip(
-                    label: Text(dream, style: const TextStyle(fontSize: 12)),
-                    selected: isPresent,
-                    onSelected: (sel) {
-                      final updated = List<String>.from(list);
-                      if (sel) {
-                        updated.add(dream);
-                      } else {
-                        updated.remove(dream);
-                      }
-                      setState(() {
-                        _sheet = _sheet.copyWith(
-                          dreamsSleep: _sheet.dreamsSleep.copyWith(
-                            recurringDreams: updated,
+                const SizedBox(height: 14),
+                const Text(
+                  'Common / Recurring Dreams',
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children:
+                      [
+                        'Falling from heights',
+                        'Flying',
+                        'Water / Drowning',
+                        'Dead relatives',
+                        'Animals / Snakes',
+                        'Robbers / Thieves',
+                        'Being chased / Danger',
+                        'Daily business',
+                        'Examinations / Unprepared',
+                      ].map((dream) {
+                        final list = _sheet.dreamsSleep.recurringDreams;
+                        final isPresent = list.contains(dream);
+                        return FilterChip(
+                          label: Text(
+                            dream,
+                            style: const TextStyle(fontSize: 12),
                           ),
+                          selected: isPresent,
+                          onSelected: (sel) {
+                            final updated = List<String>.from(list);
+                            if (sel) {
+                              updated.add(dream);
+                            } else {
+                              updated.remove(dream);
+                            }
+                            setState(() {
+                              _sheet = _sheet.copyWith(
+                                dreamsSleep: _sheet.dreamsSleep.copyWith(
+                                  recurringDreams: updated,
+                                ),
+                              );
+                            });
+                          },
                         );
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _dreamCharCtrl,
-                label: 'Dream Characteristics & Feelings upon waking',
-                hint: 'Anxious, vivid, frightful, pleasant',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _extCtrl.sleepPostureCtrl,
-                      label: 'Sleep Posture',
-                      hint: 'On back, abdomen, right side, left side',
+                      }).toList(),
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _dreamCharCtrl,
+                  label: 'Dream Characteristics & Feelings upon waking',
+                  hint: 'Anxious, vivid, frightful, pleasant',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _extCtrl.sleepPostureCtrl,
+                        label: 'Sleep Posture',
+                        hint: 'On back, abdomen, right side, left side',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _extCtrl.sleepRestrictionsCtrl,
-                      label: 'Position Restrictions',
-                      hint: 'Cannot lie on left side (heart), flat',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _extCtrl.sleepRestrictionsCtrl,
+                        label: 'Position Restrictions',
+                        hint: 'Cannot lie on left side (heart), flat',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _extCtrl.sleepBehaviorsCtrl,
-                label: 'Sleep Behaviors',
-                hint: 'Grinding teeth, talking, laughing, snoring, twitching, starts in sleep',
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _extCtrl.childhoodDreamsCtrl,
-                label: 'Childhood Dreams (if recurring)',
-                hint: 'Monsters, falling, ghosts, animals, exams',
-              ),
-            ],
-          ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _extCtrl.sleepBehaviorsCtrl,
+                  label: 'Sleep Behaviors',
+                  hint:
+                      'Grinding teeth, talking, laughing, snoring, twitching, starts in sleep',
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _extCtrl.childhoodDreamsCtrl,
+                  label: 'Childhood Dreams (if recurring)',
+                  hint: 'Monsters, falling, ghosts, animals, exams',
+                ),
+              ],
+            ),
 
           // Childhood History (General Case Sheet Q25)
           if (_category == HomeopathyCaseSheetCategory.general)
@@ -2203,110 +2367,111 @@ class _HomeopathyCaseTakingSheetState
 
           // Section I: Sexual History (Discreet & Collapsible with privacy lock)
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'I. Sexual History (Privacy Protected)',
-            subtitle: 'Desire level, complaints, sensitive concerns',
-            isComplete: _sheet.sexualHistory.isCompleted,
-            icon: Icons.lock_outline_rounded,
-            children: [
-              if (!_sexualHistoryUnlocked)
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.textPrimary,
-                        side: const BorderSide(color: AppColors.divider),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+            _buildAccordionCard(
+              title: 'I. Sexual History (Privacy Protected)',
+              subtitle: 'Desire level, complaints, sensitive concerns',
+              isComplete: _sheet.sexualHistory.isCompleted,
+              icon: Icons.lock_outline_rounded,
+              children: [
+                if (!_sexualHistoryUnlocked)
+                  Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.textPrimary,
+                          side: const BorderSide(color: Colors.transparent),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
+                        icon: const Icon(Icons.visibility_outlined, size: 18),
+                        label: const Text('Unlock & View Sensitive Section'),
+                        onPressed: () {
+                          setState(() => _sexualHistoryUnlocked = true);
+                        },
                       ),
-                      icon: const Icon(Icons.visibility_outlined, size: 18),
-                      label: const Text('Unlock & View Sensitive Section'),
-                      onPressed: () {
-                        setState(() => _sexualHistoryUnlocked = true);
-                      },
                     ),
+                  )
+                else ...[
+                  _buildTextField(
+                    controller: _desireLevelCtrl,
+                    label: 'Sexual Desires',
+                    hint: 'Normal, increased, diminished, absent, aversions',
                   ),
-                )
-              else ...[
-                _buildTextField(
-                  controller: _desireLevelCtrl,
-                  label: 'Sexual Desires',
-                  hint: 'Normal, increased, diminished, absent, aversions',
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  controller: _sexualConcernsCtrl,
-                  label: 'Complaints / Physical Concerns',
-                  hint: 'Specific clinical symptoms or dysfunction',
-                ),
-                const SizedBox(height: 12),
-                _buildTextField(
-                  controller: _sexualNotesCtrl,
-                  label: 'Confidential Clinical Notes',
-                  hint: 'Additional notes for practitioner reference',
-                  maxLines: 2,
-                ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    controller: _sexualConcernsCtrl,
+                    label: 'Complaints / Physical Concerns',
+                    hint: 'Specific clinical symptoms or dysfunction',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildTextField(
+                    controller: _sexualNotesCtrl,
+                    label: 'Confidential Clinical Notes',
+                    hint: 'Additional notes for practitioner reference',
+                    maxLines: 2,
+                  ),
+                ],
               ],
-            ],
-          ),
+            ),
 
           // Section J: Medical / Health History
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'J. Past Medical & Family History',
-            subtitle: 'Illnesses, Surgeries, Medications, Allergies, Family',
-            isComplete: _sheet.medicalHistory.isCompleted,
-            icon: Icons.history_edu_rounded,
-            children: [
-              _buildTextField(
-                controller: _pastIllnessesCtrl,
-                label: 'Past Illnesses',
-                hint: 'Typhoid, jaundice, recurrent pneumonia, measles, malaria',
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _surgeriesCtrl,
-                      label: 'Surgical & Injury History',
-                      hint: 'Appendectomy, fractures, head injury',
+            _buildAccordionCard(
+              title: 'J. Past Medical & Family History',
+              subtitle: 'Illnesses, Surgeries, Medications, Allergies, Family',
+              isComplete: _sheet.medicalHistory.isCompleted,
+              icon: Icons.history_edu_rounded,
+              children: [
+                _buildTextField(
+                  controller: _pastIllnessesCtrl,
+                  label: 'Past Illnesses',
+                  hint:
+                      'Typhoid, jaundice, recurrent pneumonia, measles, malaria',
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _surgeriesCtrl,
+                        label: 'Surgical & Injury History',
+                        hint: 'Appendectomy, fractures, head injury',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _medicationsCtrl,
-                      label: 'Past / Current Allopathic Meds',
-                      hint: 'Steroids, antibiotics, painkillers',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _medicationsCtrl,
+                        label: 'Past / Current Allopathic Meds',
+                        hint: 'Steroids, antibiotics, painkillers',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _allergiesCtrl,
-                      label: 'Allergies & Sensitivities',
-                      hint: 'Dust, pollen, penicillin, sulfur',
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _allergiesCtrl,
+                        label: 'Allergies & Sensitivities',
+                        hint: 'Dust, pollen, penicillin, sulfur',
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: _buildTextField(
-                      controller: _familyHistoryCtrl,
-                      label: 'Family Medical History',
-                      hint: 'T.B., Cancer, Diabetes, Asthma, Autoimmune',
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildTextField(
+                        controller: _familyHistoryCtrl,
+                        label: 'Family Medical History',
+                        hint: 'T.B., Cancer, Diabetes, Asthma, Autoimmune',
+                      ),
                     ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+                  ],
+                ),
+              ],
+            ),
 
           // Section K: Physical Examination
           _buildAccordionCard(
@@ -2324,7 +2489,8 @@ class _HomeopathyCaseTakingSheetState
               _buildTextField(
                 controller: _tongueExamCtrl,
                 label: 'Tongue Examination (Homeopathic Keynote)',
-                hint: 'White coated, yellow at base, mapped, red edges, teeth indentations',
+                hint:
+                    'White coated, yellow at base, mapped, red edges, teeth indentations',
               ),
               const SizedBox(height: 12),
               Row(
@@ -2351,51 +2517,53 @@ class _HomeopathyCaseTakingSheetState
 
           // Section L: Investigations & Diagnostics
           if (_category != HomeopathyCaseSheetCategory.acute)
-          _buildAccordionCard(
-            title: 'L. Investigations & Lab Reports',
-            subtitle: 'Blood tests, imaging, scan findings',
-            isComplete: _sheet.investigations.isCompleted,
-            icon: Icons.science_outlined,
-            children: [
-              _buildTextField(
-                controller: _labReportsCtrl,
-                label: 'Laboratory Test Results',
-                hint: 'CBC, ESR, Blood Sugar, Thyroid panel, Urine R/M',
-                maxLines: 2,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _imagingNotesCtrl,
-                label: 'Imaging & Diagnostics',
-                hint: 'X-Ray, Ultrasound, MRI reports summary',
-                maxLines: 2,
-              ),
-            ],
-          ),
+            _buildAccordionCard(
+              title: 'L. Investigations & Lab Reports',
+              subtitle: 'Blood tests, imaging, scan findings',
+              isComplete: _sheet.investigations.isCompleted,
+              icon: Icons.science_outlined,
+              children: [
+                _buildTextField(
+                  controller: _labReportsCtrl,
+                  label: 'Laboratory Test Results',
+                  hint: 'CBC, ESR, Blood Sugar, Thyroid panel, Urine R/M',
+                  maxLines: 2,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _imagingNotesCtrl,
+                  label: 'Imaging & Diagnostics',
+                  hint: 'X-Ray, Ultrasound, MRI reports summary',
+                  maxLines: 2,
+                ),
+              ],
+            ),
 
           // Section M: Peculiar Symptoms (SRP Keynotes)
           if (_category == HomeopathyCaseSheetCategory.general)
-          _buildAccordionCard(
-            title: 'M. Strange, Rare & Peculiar (SRP) Symptoms',
-            subtitle: 'Unusual symptom patterns, Keynotes, Idiosyncrasies',
-            isComplete: _sheet.peculiarSymptoms.isCompleted,
-            icon: Icons.star_border_rounded,
-            children: [
-              _buildTextField(
-                controller: _peculiarSrpCtrl,
-                label: 'SRP Symptoms ("As if..." sensations & keynotes)',
-                hint: 'e.g. Sensation of a lump of ice in stomach, sleeps with head low',
-                maxLines: 3,
-              ),
-              const SizedBox(height: 12),
-              _buildTextField(
-                controller: _keynoteObsCtrl,
-                label: 'Keynote Clinical Observations',
-                hint: 'Distinctive characteristic indications pointing to specific remedy',
-                maxLines: 2,
-              ),
-            ],
-          ),
+            _buildAccordionCard(
+              title: 'M. Strange, Rare & Peculiar (SRP) Symptoms',
+              subtitle: 'Unusual symptom patterns, Keynotes, Idiosyncrasies',
+              isComplete: _sheet.peculiarSymptoms.isCompleted,
+              icon: Icons.star_border_rounded,
+              children: [
+                _buildTextField(
+                  controller: _peculiarSrpCtrl,
+                  label: 'SRP Symptoms ("As if..." sensations & keynotes)',
+                  hint:
+                      'e.g. Sensation of a lump of ice in stomach, sleeps with head low',
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 12),
+                _buildTextField(
+                  controller: _keynoteObsCtrl,
+                  label: 'Keynote Clinical Observations',
+                  hint:
+                      'Distinctive characteristic indications pointing to specific remedy',
+                  maxLines: 2,
+                ),
+              ],
+            ),
 
           // Section N: Prescription, Repertorization & Advice
           _buildAccordionCard(
@@ -2418,24 +2586,28 @@ class _HomeopathyCaseTakingSheetState
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: [
-                  'Psora',
-                  'Sycosis',
-                  'Syphilis',
-                  'Tubercular',
-                  'Mixed Miasm',
-                ].map((miasm) {
-                  final isSelected = _miasmCtrl.text == miasm;
-                  return FilterChip(
-                    label: Text(miasm, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _miasmCtrl.text = sel ? miasm : '';
-                      });
-                    },
-                  );
-                }).toList(),
+                children:
+                    [
+                      'Psora',
+                      'Sycosis',
+                      'Syphilis',
+                      'Tubercular',
+                      'Mixed Miasm',
+                    ].map((miasm) {
+                      final isSelected = _miasmCtrl.text == miasm;
+                      return FilterChip(
+                        label: Text(
+                          miasm,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: isSelected,
+                        onSelected: (sel) {
+                          setState(() {
+                            _miasmCtrl.text = sel ? miasm : '';
+                          });
+                        },
+                      );
+                    }).toList(),
               ),
               const SizedBox(height: 14),
               Row(
@@ -2463,14 +2635,16 @@ class _HomeopathyCaseTakingSheetState
               _buildTextField(
                 controller: _totalityRubricsCtrl,
                 label: 'Totality of Symptoms (Core Synthesis)',
-                hint: 'Synthesis of key mental, general, and peculiar SRP symptoms',
+                hint:
+                    'Synthesis of key mental, general, and peculiar SRP symptoms',
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
               _buildTextField(
                 controller: _differentialRemediesCtrl,
                 label: 'Differential Remedies Considered',
-                hint: 'Close running remedies and reasons for choosing simillimum',
+                hint:
+                    'Close running remedies and reasons for choosing simillimum',
                 maxLines: 2,
               ),
               const SizedBox(height: 12),
@@ -2505,7 +2679,8 @@ class _HomeopathyCaseTakingSheetState
           // Section O: Follow-Up & Second Prescription
           _buildAccordionCard(
             title: 'O. Follow-Up & Second Prescription',
-            subtitle: 'Clinical response, Direction of cure, Next prescription plan',
+            subtitle:
+                'Clinical response, Direction of cure, Next prescription plan',
             isComplete: _sheet.followUp.isCompleted,
             icon: Icons.update_rounded,
             children: [
@@ -2521,25 +2696,26 @@ class _HomeopathyCaseTakingSheetState
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: [
-                  'Marked Improvement (Amelioration)',
-                  'Moderate Improvement',
-                  'Status Quo (No Change)',
-                  'Homeopathic Aggravation',
-                  'Disease Aggravation',
-                  'New Symptoms Appeared',
-                ].map((resp) {
-                  final isSelected = _followUpResponseCtrl.text == resp;
-                  return FilterChip(
-                    label: Text(resp, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _followUpResponseCtrl.text = sel ? resp : '';
-                      });
-                    },
-                  );
-                }).toList(),
+                children:
+                    [
+                      'Marked Improvement (Amelioration)',
+                      'Moderate Improvement',
+                      'Status Quo (No Change)',
+                      'Homeopathic Aggravation',
+                      'Disease Aggravation',
+                      'New Symptoms Appeared',
+                    ].map((resp) {
+                      final isSelected = _followUpResponseCtrl.text == resp;
+                      return FilterChip(
+                        label: Text(resp, style: const TextStyle(fontSize: 12)),
+                        selected: isSelected,
+                        onSelected: (sel) {
+                          setState(() {
+                            _followUpResponseCtrl.text = sel ? resp : '';
+                          });
+                        },
+                      );
+                    }).toList(),
               ),
               const SizedBox(height: 14),
               const Text(
@@ -2554,23 +2730,27 @@ class _HomeopathyCaseTakingSheetState
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: [
-                  'Inside-outward (Center to periphery)',
-                  'Above-downward (Head to limbs)',
-                  'Reverse order of symptoms',
-                  'Disorderly / Outward to inward (Suppression warning)',
-                ].map((hering) {
-                  final isSelected = _heringsLawCtrl.text == hering;
-                  return FilterChip(
-                    label: Text(hering, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _heringsLawCtrl.text = sel ? hering : '';
-                      });
-                    },
-                  );
-                }).toList(),
+                children:
+                    [
+                      'Inside-outward (Center to periphery)',
+                      'Above-downward (Head to limbs)',
+                      'Reverse order of symptoms',
+                      'Disorderly / Outward to inward (Suppression warning)',
+                    ].map((hering) {
+                      final isSelected = _heringsLawCtrl.text == hering;
+                      return FilterChip(
+                        label: Text(
+                          hering,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: isSelected,
+                        onSelected: (sel) {
+                          setState(() {
+                            _heringsLawCtrl.text = sel ? hering : '';
+                          });
+                        },
+                      );
+                    }).toList(),
               ),
               const SizedBox(height: 14),
               const Text(
@@ -2585,24 +2765,29 @@ class _HomeopathyCaseTakingSheetState
               Wrap(
                 spacing: 6,
                 runSpacing: 6,
-                children: [
-                  'Continue Same (Sac Lac / Placebo)',
-                  'Increase Potency (Progress ceased)',
-                  'Repeat Dose (Action active)',
-                  'Change Remedy (New totality)',
-                  'Wait & Watch (Remedy unfolding)',
-                ].map((action) {
-                  final isSelected = _nextPrescriptionPlanCtrl.text == action;
-                  return FilterChip(
-                    label: Text(action, style: const TextStyle(fontSize: 12)),
-                    selected: isSelected,
-                    onSelected: (sel) {
-                      setState(() {
-                        _nextPrescriptionPlanCtrl.text = sel ? action : '';
-                      });
-                    },
-                  );
-                }).toList(),
+                children:
+                    [
+                      'Continue Same (Sac Lac / Placebo)',
+                      'Increase Potency (Progress ceased)',
+                      'Repeat Dose (Action active)',
+                      'Change Remedy (New totality)',
+                      'Wait & Watch (Remedy unfolding)',
+                    ].map((action) {
+                      final isSelected =
+                          _nextPrescriptionPlanCtrl.text == action;
+                      return FilterChip(
+                        label: Text(
+                          action,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        selected: isSelected,
+                        onSelected: (sel) {
+                          setState(() {
+                            _nextPrescriptionPlanCtrl.text = sel ? action : '';
+                          });
+                        },
+                      );
+                    }).toList(),
               ),
               const SizedBox(height: 14),
               _buildTextField(
@@ -2615,7 +2800,8 @@ class _HomeopathyCaseTakingSheetState
               _buildTextField(
                 controller: _followUpNotesCtrl,
                 label: 'Follow-Up Notes & Instructions',
-                hint: 'Specific observation goals, date to review, SOS instructions',
+                hint:
+                    'Specific observation goals, date to review, SOS instructions',
                 maxLines: 2,
               ),
             ],
@@ -2624,16 +2810,7 @@ class _HomeopathyCaseTakingSheetState
       ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              offset: const Offset(0, -3),
-              blurRadius: 10,
-            ),
-          ],
-        ),
+        decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
         child: SafeArea(
           child: Row(
             children: [
@@ -2641,7 +2818,7 @@ class _HomeopathyCaseTakingSheetState
                 child: OutlinedButton(
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: AppColors.divider),
+                    side: const BorderSide(color: Colors.transparent),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -2678,8 +2855,9 @@ class _HomeopathyCaseTakingSheetState
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor:
-                                AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
                           ),
                         )
                       : const Text(
@@ -2717,13 +2895,7 @@ class _HomeopathyCaseTakingSheetState
               ? AppColors.positiveGreen.withValues(alpha: 0.35)
               : const Color(0xFFE2E8F0),
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            offset: const Offset(0, 2),
-            blurRadius: 6,
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
@@ -2742,9 +2914,7 @@ class _HomeopathyCaseTakingSheetState
             child: Icon(
               icon,
               size: 20,
-              color: isComplete
-                  ? AppColors.positiveGreen
-                  : AppColors.slateBlue,
+              color: isComplete ? AppColors.positiveGreen : AppColors.slateBlue,
             ),
           ),
           title: Text(
@@ -2836,8 +3006,10 @@ class _HomeopathyCaseTakingSheetState
                   }
                 },
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: const [
@@ -2868,10 +3040,7 @@ class _HomeopathyCaseTakingSheetState
           style: const TextStyle(fontSize: 13, color: AppColors.textPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(
-              fontSize: 12,
-              color: Color(0xFF94A3B8),
-            ),
+            hintStyle: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
             suffixIcon: enableVoice
                 ? IconButton(
                     icon: const Icon(Icons.mic_none_rounded, size: 18),
@@ -2896,22 +3065,26 @@ class _HomeopathyCaseTakingSheetState
                     },
                   )
                 : null,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide:
-                  const BorderSide(color: Color(0xFF2E7D32), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF2E7D32),
+                width: 1.5,
+              ),
             ),
           ),
         ),
@@ -3014,7 +3187,8 @@ class _HomeopathyCaseTakingSheetState
       deeplyDislikedCtrl: _extCtrl.deeplyDislikedCtrl,
       disagreeableMindCtrl: _extCtrl.disagreeableMindCtrl,
       lifeSituationCtrl: _extCtrl.lifeSituationCtrl,
-      isComplete: _extCtrl.upsetWorryCtrl.text.trim().isNotEmpty ||
+      isComplete:
+          _extCtrl.upsetWorryCtrl.text.trim().isNotEmpty ||
           _extCtrl.stressHistoryCtrl.text.trim().isNotEmpty ||
           _extCtrl.greatestGriefCtrl.text.trim().isNotEmpty,
     );
@@ -3032,4 +3206,3 @@ class _HomeopathyCaseTakingSheetState
     );
   }
 }
-

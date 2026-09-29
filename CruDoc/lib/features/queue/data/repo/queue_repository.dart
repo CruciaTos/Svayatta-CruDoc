@@ -143,16 +143,20 @@ class QueueRepository {
     // Pre-booked tokens join the queue at their slot time; until then (or
     // until marked arrived) the patient isn't here and can't be called.
     final now = DateTime.now();
-    final waiting = today
-        .where((e) =>
-            e.status == QueueStatus.waiting && !e.checkedInAt.isAfter(now))
-        .toList()
-      ..sort((a, b) {
-        final rankA = a.priority == QueuePriority.urgent ? 0 : 1;
-        final rankB = b.priority == QueuePriority.urgent ? 0 : 1;
-        if (rankA != rankB) return rankA.compareTo(rankB);
-        return a.tokenNumber.compareTo(b.tokenNumber);
-      });
+    final waiting =
+        today
+            .where(
+              (e) =>
+                  e.status == QueueStatus.waiting &&
+                  !e.checkedInAt.isAfter(now),
+            )
+            .toList()
+          ..sort((a, b) {
+            final rankA = a.priority == QueuePriority.urgent ? 0 : 1;
+            final rankB = b.priority == QueuePriority.urgent ? 0 : 1;
+            if (rankA != rankB) return rankA.compareTo(rankB);
+            return a.tokenNumber.compareTo(b.tokenNumber);
+          });
 
     if (waiting.isEmpty) {
       throw const QueueEmptyException();
@@ -160,9 +164,11 @@ class QueueRepository {
 
     final next = waiting.first;
     final calledAt = DateTime.now();
-    await _updateStatus(next, QueueStatus.called, extra: {
-      'calledAt': calledAt,
-    });
+    await _updateStatus(
+      next,
+      QueueStatus.called,
+      extra: {'calledAt': calledAt},
+    );
     unawaited(_syncService.triggerPostWriteSync());
     return next.copyWith(status: QueueStatus.called, calledAt: calledAt);
   }
@@ -195,9 +201,11 @@ class QueueRepository {
       throw QueueInvalidTransitionException(entry, QueueStatus.inConsultation);
     }
     final startedAt = DateTime.now();
-    await _updateStatus(entry, QueueStatus.inConsultation, extra: {
-      'consultationStartedAt': startedAt,
-    });
+    await _updateStatus(
+      entry,
+      QueueStatus.inConsultation,
+      extra: {'consultationStartedAt': startedAt},
+    );
     unawaited(_syncService.triggerPostWriteSync());
     return entry.copyWith(
       status: QueueStatus.inConsultation,
@@ -218,9 +226,11 @@ class QueueRepository {
       throw QueueInvalidTransitionException(entry, QueueStatus.completed);
     }
     final completedAt = DateTime.now();
-    await _updateStatus(entry, QueueStatus.completed, extra: {
-      'completedAt': completedAt,
-    });
+    await _updateStatus(
+      entry,
+      QueueStatus.completed,
+      extra: {'completedAt': completedAt},
+    );
 
     // Pre-booked appointments (everyone on a shared token): mark each
     // patient's own visit completed.
@@ -238,7 +248,10 @@ class QueueRepository {
     }
 
     unawaited(_syncService.triggerPostWriteSync());
-    return entry.copyWith(status: QueueStatus.completed, completedAt: completedAt);
+    return entry.copyWith(
+      status: QueueStatus.completed,
+      completedAt: completedAt,
+    );
   }
 
   /// Marks a called-but-absent token [QueueStatus.skipped] — called,
@@ -311,8 +324,8 @@ class QueueRepository {
       status: visit.status == VisitStatus.completed
           ? QueueStatus.completed
           : (visit.status == VisitStatus.cancelled
-              ? QueueStatus.cancelled
-              : QueueStatus.waiting),
+                ? QueueStatus.cancelled
+                : QueueStatus.waiting),
       groupId: visit.groupId,
     );
     unawaited(_syncService.triggerPostWriteSync());
@@ -332,7 +345,8 @@ class QueueRepository {
 
   /// Streams today's queue — every non-deleted token whose
   /// [QueueEntry.queueDate] is today, in every status.
-  Stream<List<QueueEntry>> watchTodaysQueue() => _localService.watchTodaysQueue();
+  Stream<List<QueueEntry>> watchTodaysQueue() =>
+      _localService.watchTodaysQueue();
 
   /// Streams all non-deleted queue tokens across all dates in real-time.
   Stream<List<QueueEntry>> watchAllQueue() => _localService.watchAllQueue();
@@ -341,7 +355,8 @@ class QueueRepository {
   Future<List<QueueEntry>> getQueueForDateRange(DateTime start, DateTime end) =>
       _localService.getQueueForDateRange(start, end);
 
-  Future<QueueEntry?> getEntry(String entryId) => _localService.getEntry(entryId);
+  Future<QueueEntry?> getEntry(String entryId) =>
+      _localService.getEntry(entryId);
 
   Future<QueueEntry> _requireEntry(String entryId) async {
     final entry = await _localService.getEntry(entryId);
@@ -377,7 +392,10 @@ class QueueRepository {
     final groupId = entry.groupId;
     if (groupId == null || groupId.isEmpty) return const [];
     final all = await _localService.getGroupEntries(groupId, entry.queueDate);
-    return [for (final e in all) if (e.id != entry.id) e];
+    return [
+      for (final e in all)
+        if (e.id != entry.id) e,
+    ];
   }
 
   /// Adds [patient] to [entryId]'s token (patients seen together): same
@@ -430,7 +448,8 @@ class QueueRepository {
   /// tokens join the group and share the lowest number among them.
   Future<void> adoptVisitGroup(List<String> visitIds, String groupId) async {
     final entries = <QueueEntry>[
-      for (final id in visitIds) ?await _localService.getEntryByLinkedVisitId(id),
+      for (final id in visitIds)
+        ?await _localService.getEntryByLinkedVisitId(id),
     ];
     if (entries.isEmpty) return;
     entries.sort((a, b) => a.tokenNumber.compareTo(b.tokenNumber));

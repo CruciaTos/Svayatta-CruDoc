@@ -29,18 +29,27 @@ class RadFilterSettings {
   bool get changesValues => sharpen > 0 || clahe;
   bool get isIdentity => gamma == 1.0 && !changesValues && colormap == 'gray';
 
-  RadFilterSettings copyWith({double? gamma, double? sharpen, bool? clahe, String? colormap}) =>
+  RadFilterSettings copyWith({
+    double? gamma,
+    double? sharpen,
+    bool? clahe,
+    String? colormap,
+  }) => RadFilterSettings(
+    gamma: gamma ?? this.gamma,
+    sharpen: sharpen ?? this.sharpen,
+    clahe: clahe ?? this.clahe,
+    colormap: colormap ?? this.colormap,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'gamma': gamma,
+    'sharpen': sharpen,
+    'clahe': clahe,
+    'colormap': colormap,
+  };
+
+  factory RadFilterSettings.fromJson(Map<String, dynamic> j) =>
       RadFilterSettings(
-        gamma: gamma ?? this.gamma,
-        sharpen: sharpen ?? this.sharpen,
-        clahe: clahe ?? this.clahe,
-        colormap: colormap ?? this.colormap,
-      );
-
-  Map<String, dynamic> toJson() =>
-      {'gamma': gamma, 'sharpen': sharpen, 'clahe': clahe, 'colormap': colormap};
-
-  factory RadFilterSettings.fromJson(Map<String, dynamic> j) => RadFilterSettings(
         gamma: (j['gamma'] as num?)?.toDouble() ?? 1.0,
         sharpen: (j['sharpen'] as num?)?.toDouble() ?? 0.0,
         clahe: j['clahe'] == true,
@@ -61,7 +70,15 @@ Future<Float32List> applyValueFilters(RadPixels px, RadFilterSettings f) async {
   final sharpen = f.sharpen.clamp(0.0, 1.0);
   final clahe = f.clahe;
   return Isolate.run(
-    () => _filterValues(values, w, h, lo: lo, hi: hi, sharpen: sharpen, clahe: clahe),
+    () => _filterValues(
+      values,
+      w,
+      h,
+      lo: lo,
+      hi: hi,
+      sharpen: sharpen,
+      clahe: clahe,
+    ),
   );
 }
 
@@ -95,11 +112,11 @@ const radColormaps = ['gray', 'bone', 'hot', 'rainbow'];
 
 /// "Grey", "Bone", "Hot", "Rainbow".
 String radColormapLabel(String name) => switch (name) {
-      'bone' => 'Bone',
-      'hot' => 'Hot',
-      'rainbow' => 'Rainbow',
-      _ => 'Grey',
-    };
+  'bone' => 'Bone',
+  'hot' => 'Hot',
+  'rainbow' => 'Rainbow',
+  _ => 'Grey',
+};
 
 // ───────────────────────────── Colour maps ─────────────────────────────
 
@@ -237,9 +254,11 @@ Float32List _clahe(Float32List v, int w, int h, double lo, double hi) {
     for (var x = 0; x < w; x++) {
       final b = idx[row + x];
       final fx = ax[x];
-      final top = maps[(ty0 * tiles + tx0[x]) * bins + b] * (1 - fx) +
+      final top =
+          maps[(ty0 * tiles + tx0[x]) * bins + b] * (1 - fx) +
           maps[(ty0 * tiles + tx1[x]) * bins + b] * fx;
-      final bottom = maps[(ty1 * tiles + tx0[x]) * bins + b] * (1 - fx) +
+      final bottom =
+          maps[(ty1 * tiles + tx0[x]) * bins + b] * (1 - fx) +
           maps[(ty1 * tiles + tx1[x]) * bins + b] * fx;
       out[row + x] = lo + (top * (1 - ay) + bottom * ay) * range;
     }
@@ -280,7 +299,9 @@ Float32List _boxBlur(Float32List src, int w, int h, int r) {
     }
     for (var x = 0; x < w; x++) {
       tmp[row + x] = sum / n;
-      sum += src[row + (x + r + 1).clamp(0, w - 1)] - src[row + (x - r).clamp(0, w - 1)];
+      sum +=
+          src[row + (x + r + 1).clamp(0, w - 1)] -
+          src[row + (x - r).clamp(0, w - 1)];
     }
   }
   final out = Float32List(src.length);
@@ -291,7 +312,9 @@ Float32List _boxBlur(Float32List src, int w, int h, int r) {
     }
     for (var y = 0; y < h; y++) {
       out[y * w + x] = sum / n;
-      sum += tmp[(y + r + 1).clamp(0, h - 1) * w + x] - tmp[(y - r).clamp(0, h - 1) * w + x];
+      sum +=
+          tmp[(y + r + 1).clamp(0, h - 1) * w + x] -
+          tmp[(y - r).clamp(0, h - 1) * w + x];
     }
   }
   return out;

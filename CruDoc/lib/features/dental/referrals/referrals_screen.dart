@@ -36,23 +36,41 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final referrals = ref.watch(allReferralsProvider);
-    final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+    final patients =
+        ref.watch(patientsStreamProvider).value ?? const <Patient>[];
 
     // Compute glance metrics
-    final openSent = referrals.where((r) => r.direction == ReferralDirection.out && r.status.isOpen).length;
-    final waitingReply = referrals.where((r) =>
-        r.direction == ReferralDirection.out &&
-        (r.status == ReferralStatus.sent || r.status == ReferralStatus.acknowledged)).length;
-    final receivedToSee = referrals.where((r) => r.direction == ReferralDirection.inbound && r.status.isOpen).length;
+    final openSent = referrals
+        .where((r) => r.direction == ReferralDirection.out && r.status.isOpen)
+        .length;
+    final waitingReply = referrals
+        .where(
+          (r) =>
+              r.direction == ReferralDirection.out &&
+              (r.status == ReferralStatus.sent ||
+                  r.status == ReferralStatus.acknowledged),
+        )
+        .length;
+    final receivedToSee = referrals
+        .where(
+          (r) => r.direction == ReferralDirection.inbound && r.status.isOpen,
+        )
+        .length;
 
     final now = DateTime.now();
-    final completedThisMonth = referrals.where((r) =>
-        r.status == ReferralStatus.completed &&
-        r.recordedAt.year == now.year &&
-        r.recordedAt.month == now.month).length;
+    final completedThisMonth = referrals
+        .where(
+          (r) =>
+              r.status == ReferralStatus.completed &&
+              r.recordedAt.year == now.year &&
+              r.recordedAt.month == now.month,
+        )
+        .length;
 
     final totalOpen = referrals.where((r) => r.status.isOpen).length;
-    final urgentOpen = referrals.where((r) => r.status.isOpen && r.urgency == ReferralUrgency.urgent).length;
+    final urgentOpen = referrals
+        .where((r) => r.status.isOpen && r.urgency == ReferralUrgency.urgent)
+        .length;
     final subtitle = [
       '$totalOpen open',
       if (urgentOpen > 0) '$urgentOpen urgent',
@@ -61,8 +79,12 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
     // Filter referrals by tab and search
     final query = _search.text.trim().toLowerCase();
     final filtered = referrals.where((r) {
-      if (_tab == _ReferralTab.sent && (r.direction != ReferralDirection.out || !r.status.isOpen)) return false;
-      if (_tab == _ReferralTab.received && (r.direction != ReferralDirection.inbound || !r.status.isOpen)) return false;
+      if (_tab == _ReferralTab.sent &&
+          (r.direction != ReferralDirection.out || !r.status.isOpen))
+        return false;
+      if (_tab == _ReferralTab.received &&
+          (r.direction != ReferralDirection.inbound || !r.status.isOpen))
+        return false;
       if (_tab == _ReferralTab.completed && r.status.isOpen) return false;
 
       if (query.isNotEmpty) {
@@ -70,7 +92,9 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
         final patientName = p?.fullName.toLowerCase() ?? '';
         final reason = r.reason.toLowerCase();
         final contact = r.contactName.toLowerCase();
-        if (!patientName.contains(query) && !reason.contains(query) && !contact.contains(query)) {
+        if (!patientName.contains(query) &&
+            !reason.contains(query) &&
+            !contact.contains(query)) {
           return false;
         }
       }
@@ -95,7 +119,9 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
           // Header
           DentalPageHeader(
             title: 'Referrals',
-            subtitle: subtitle.isNotEmpty ? subtitle : 'Track referrals sent to and received from other doctors',
+            subtitle: subtitle.isNotEmpty
+                ? subtitle
+                : 'Track referrals sent to and received from other doctors',
             actions: [
               CruButton(
                 label: 'Contacts',
@@ -181,7 +207,9 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                 if (filtered.isEmpty)
                   DentalEmptyState(
                     icon: CruIcons.arrowUpRight,
-                    title: query.isNotEmpty ? 'No matching referrals' : 'No referrals here',
+                    title: query.isNotEmpty
+                        ? 'No matching referrals'
+                        : 'No referrals here',
                     body: query.isNotEmpty
                         ? 'Try changing your search terms or filters.'
                         : 'Refer a patient to a specialist or record an incoming referral.',
@@ -208,7 +236,9 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                           if (i > 0) const CruSeparator(),
                           _ReferralListRow(
                             referral: filtered[i],
-                            patient: patients.where((p) => p.id == filtered[i].patientId).firstOrNull,
+                            patient: patients
+                                .where((p) => p.id == filtered[i].patientId)
+                                .firstOrNull,
                           ),
                         ],
                       ],
@@ -224,10 +254,7 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
 }
 
 class _ReferralListRow extends ConsumerWidget {
-  const _ReferralListRow({
-    required this.referral,
-    required this.patient,
-  });
+  const _ReferralListRow({required this.referral, required this.patient});
 
   final DentalReferral referral;
   final Patient? patient;
@@ -246,10 +273,8 @@ class _ReferralListRow extends ConsumerWidget {
       semanticLabel: '${r.reason} - ${patient?.fullName ?? 'Patient'}',
       onTap: () => showDialog<void>(
         context: context,
-        builder: (_) => ReferralEditDialog(
-          initialReferral: r,
-          initialPatient: patient,
-        ),
+        builder: (_) =>
+            ReferralEditDialog(initialReferral: r, initialPatient: patient),
       ),
       minHeight: 56,
       child: Row(
@@ -313,11 +338,7 @@ class _ReferralListRow extends ConsumerWidget {
               foreground: c.amberText,
             )
           else if (r.urgency == ReferralUrgency.soon)
-            CruPill(
-              text: 'Soon',
-              background: c.inset,
-              foreground: c.label2,
-            ),
+            CruPill(text: 'Soon', background: c.inset, foreground: c.label2),
           const SizedBox(width: CruSpace.s8),
 
           // Status pill
@@ -325,14 +346,16 @@ class _ReferralListRow extends ConsumerWidget {
             text: r.status.label,
             background: r.status == ReferralStatus.completed
                 ? c.greenTint
-                : (r.status == ReferralStatus.sent || r.status == ReferralStatus.seen
-                    ? c.accentTint
-                    : c.inset),
+                : (r.status == ReferralStatus.sent ||
+                          r.status == ReferralStatus.seen
+                      ? c.accentTint
+                      : c.inset),
             foreground: r.status == ReferralStatus.completed
                 ? c.greenText
-                : (r.status == ReferralStatus.sent || r.status == ReferralStatus.seen
-                    ? c.accent
-                    : c.label2),
+                : (r.status == ReferralStatus.sent ||
+                          r.status == ReferralStatus.seen
+                      ? c.accent
+                      : c.label2),
           ),
           const SizedBox(width: CruSpace.s8),
 
@@ -357,10 +380,7 @@ class _ReferralListRow extends ConsumerWidget {
                     child: Text('Mark acknowledged'),
                   ),
                 if (r.status != ReferralStatus.seen)
-                  const PopupMenuItem(
-                    value: 'seen',
-                    child: Text('Mark seen'),
-                  ),
+                  const PopupMenuItem(value: 'seen', child: Text('Mark seen')),
                 if (r.status != ReferralStatus.completed)
                   const PopupMenuItem(
                     value: 'completed',
@@ -371,29 +391,20 @@ class _ReferralListRow extends ConsumerWidget {
                     value: 'declined',
                     child: Text('Declined'),
                   ),
-                const PopupMenuItem(
-                  value: 'pdf',
-                  child: Text('Letter (PDF)'),
-                ),
+                const PopupMenuItem(value: 'pdf', child: Text('Letter (PDF)')),
               ] else ...[
                 if (patient != null)
                   const PopupMenuItem(
                     value: 'bookVisit',
                     child: Text('Book visit'),
                   ),
-                const PopupMenuItem(
-                  value: 'reply',
-                  child: Text('Write reply'),
-                ),
+                const PopupMenuItem(value: 'reply', child: Text('Write reply')),
                 if (r.status != ReferralStatus.completed)
                   const PopupMenuItem(
                     value: 'completed',
                     child: Text('Mark completed'),
                   ),
-                const PopupMenuItem(
-                  value: 'pdf',
-                  child: Text('Summary (PDF)'),
-                ),
+                const PopupMenuItem(value: 'pdf', child: Text('Summary (PDF)')),
               ],
               const PopupMenuItem(
                 value: 'delete',
@@ -403,7 +414,11 @@ class _ReferralListRow extends ConsumerWidget {
             onSelected: (action) async {
               switch (action) {
                 case 'acknowledged':
-                  await updateReferralStatus(ref, r, ReferralStatus.acknowledged);
+                  await updateReferralStatus(
+                    ref,
+                    r,
+                    ReferralStatus.acknowledged,
+                  );
                   break;
                 case 'seen':
                   await updateReferralStatus(ref, r, ReferralStatus.seen);
@@ -440,7 +455,8 @@ class _ReferralListRow extends ConsumerWidget {
                   final ok = await confirmDental(
                     context,
                     title: 'Delete referral?',
-                    body: 'This will remove the referral for ${patient?.fullName ?? 'this patient'}.',
+                    body:
+                        'This will remove the referral for ${patient?.fullName ?? 'this patient'}.',
                     action: 'Delete',
                   );
                   if (ok) {

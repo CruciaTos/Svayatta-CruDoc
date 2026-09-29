@@ -349,12 +349,7 @@ class SpeechEngine {
       );
       if (_listening && utterance == _utterance && text.isNotEmpty) {
         _transcripts.add(
-          VoiceTranscript(
-            text,
-            isFinal: false,
-            latencyMs: ms,
-            source: 'fast',
-          ),
+          VoiceTranscript(text, isFinal: false, latencyMs: ms, source: 'fast'),
         );
       }
     }
@@ -389,7 +384,9 @@ class SpeechEngine {
   }
 
   Float32List _snapshot({int? maxSamples}) {
-    final count = maxSamples != null ? math.min(_samples, maxSamples) : _samples;
+    final count = maxSamples != null
+        ? math.min(_samples, maxSamples)
+        : _samples;
     if (count <= 0) return Float32List(0);
     final out = Float32List(count);
     final skip = _samples - count;

@@ -36,7 +36,10 @@ class SuperAdminSupportService {
 
       final snapshot = await query.get();
       var tickets = snapshot.docs.map((doc) {
-        return SupportTicketModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+        return SupportTicketModel.fromJson(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }).toList();
 
       // Client-side doctor search
@@ -60,7 +63,10 @@ class SuperAdminSupportService {
     try {
       final doc = await _fb.supportTicketsCollection.doc(ticketId).get();
       if (!doc.exists) return null;
-      return SupportTicketModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+      return SupportTicketModel.fromJson(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
     } catch (e) {
       return null;
     }

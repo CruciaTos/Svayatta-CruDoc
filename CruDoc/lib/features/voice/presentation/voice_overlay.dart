@@ -135,13 +135,15 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
 
     // Enter confirms an active form or answers an open question on the pill.
     if (e is KeyDownEvent) {
-      final isEnter = e.logicalKey == LogicalKeyboardKey.enter ||
+      final isEnter =
+          e.logicalKey == LogicalKeyboardKey.enter ||
           e.logicalKey == LogicalKeyboardKey.numpadEnter;
       if (isEnter) {
         final field = _typingField();
         final isMultiline =
             field != null && (field.maxLines == null || field.maxLines! > 1);
-        final isControl = HardwareKeyboard.instance.isControlPressed ||
+        final isControl =
+            HardwareKeyboard.instance.isControlPressed ||
             HardwareKeyboard.instance.isMetaPressed;
 
         // In a multiline text area, allow normal Enter for newline unless Ctrl is held.

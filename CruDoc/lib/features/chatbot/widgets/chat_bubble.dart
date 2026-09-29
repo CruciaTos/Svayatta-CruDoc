@@ -64,8 +64,9 @@ class ChatBubble extends StatelessWidget {
         bottom: 12,
       ),
       child: Row(
-        mainAxisAlignment:
-            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isUser
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isUser) ...[
@@ -81,13 +82,7 @@ class ChatBubble extends StatelessWidget {
                 ),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF1E78FF).withValues(alpha: 0.28),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                boxShadow: const [],
               ),
               child: const Icon(
                 Icons.smart_toy_rounded,
@@ -103,7 +98,9 @@ class ChatBubble extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 decoration: BoxDecoration(
-                  color: isUser ? null : (isError ? Colors.red.shade50 : Colors.white),
+                  color: isUser
+                      ? null
+                      : (isError ? Colors.red.shade50 : Colors.white),
                   gradient: isUser
                       ? const LinearGradient(
                           colors: [Color(0xFF1E78FF), Color(0xFF0284C7)],
@@ -125,15 +122,7 @@ class ChatBubble extends StatelessWidget {
                     bottomLeft: Radius.circular(isUser ? 20 : 4),
                     bottomRight: Radius.circular(isUser ? 4 : 20),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: isUser
-                          ? const Color(0xFF1E78FF).withValues(alpha: 0.25)
-                          : Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: const [],
                 ),
                 child: Column(
                   crossAxisAlignment: isUser
@@ -184,7 +173,11 @@ class ChatBubble extends StatelessWidget {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.refresh_rounded, size: 14, color: Colors.red.shade700),
+                            Icon(
+                              Icons.refresh_rounded,
+                              size: 14,
+                              color: Colors.red.shade700,
+                            ),
                             const SizedBox(width: 4),
                             Text(
                               'Tap to retry query',
@@ -225,90 +218,96 @@ class ChatBubble extends StatelessWidget {
 
       // 1. Headers: ### Header or ## Header or # Header
       if (trimmed.startsWith('### ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 6, bottom: 3),
-          child: Text(
-            trimmed.substring(4),
-            style: TextStyle(
-              fontFamily: AppColors.headingFontFamily,
-              fontSize: 15,
-              fontWeight: FontWeight.w700,
-              color: isUser ? Colors.white : const Color(0xFF0F172A),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 6, bottom: 3),
+            child: Text(
+              trimmed.substring(4),
+              style: TextStyle(
+                fontFamily: AppColors.headingFontFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isUser ? Colors.white : const Color(0xFF0F172A),
+              ),
             ),
           ),
-        ));
+        );
       } else if (trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
         final title = trimmed.replaceFirst(RegExp(r'^#+\s*'), '');
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: Text(
-            title,
-            style: TextStyle(
-              fontFamily: AppColors.headingFontFamily,
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: isUser ? Colors.white : const Color(0xFF0F172A),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(
+              title,
+              style: TextStyle(
+                fontFamily: AppColors.headingFontFamily,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: isUser ? Colors.white : const Color(0xFF0F172A),
+              ),
             ),
           ),
-        ));
+        );
       }
       // 2. Bullet list items: • item or - item or * item
       else if (trimmed.startsWith('• ') ||
           trimmed.startsWith('- ') ||
           trimmed.startsWith('* ')) {
         final bulletText = trimmed.substring(2);
-        widgets.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '• ',
-                style: TextStyle(
-                  color: isUser ? Colors.white : const Color(0xFF1E78FF),
-                  fontWeight: FontWeight.w900,
-                  fontSize: 14,
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '• ',
+                  style: TextStyle(
+                    color: isUser ? Colors.white : const Color(0xFF1E78FF),
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _buildInlineRichText(bulletText),
-              ),
-            ],
+                Expanded(child: _buildInlineRichText(bulletText)),
+              ],
+            ),
           ),
-        ));
+        );
       }
       // 3. Numbered list items: 1. item
       else if (RegExp(r'^\d+\.\s').hasMatch(trimmed)) {
         final match = RegExp(r'^(\d+\.)\s*(.*)').firstMatch(trimmed);
         final numPrefix = match?.group(1) ?? '1.';
         final content = match?.group(2) ?? trimmed;
-        widgets.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 2),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$numPrefix ',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: isUser ? Colors.white : const Color(0xFF1E78FF),
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13.5,
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '$numPrefix ',
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: isUser ? Colors.white : const Color(0xFF1E78FF),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13.5,
+                  ),
                 ),
-              ),
-              Expanded(
-                child: _buildInlineRichText(content),
-              ),
-            ],
+                Expanded(child: _buildInlineRichText(content)),
+              ],
+            ),
           ),
-        ));
+        );
       }
       // 4. Standard paragraph line
       else {
-        widgets.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 1.5),
-          child: _buildInlineRichText(trimmed),
-        ));
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 1.5),
+            child: _buildInlineRichText(trimmed),
+          ),
+        );
       }
     }
 
@@ -338,27 +337,31 @@ class ChatBubble extends StatelessWidget {
 
       if (match.group(1) != null) {
         // Bold
-        spans.add(TextSpan(
-          text: match.group(1),
-          style: baseStyle.copyWith(
-            fontWeight: FontWeight.w700,
-            color: isUser ? Colors.white : const Color(0xFF0F172A),
+        spans.add(
+          TextSpan(
+            text: match.group(1),
+            style: baseStyle.copyWith(
+              fontWeight: FontWeight.w700,
+              color: isUser ? Colors.white : const Color(0xFF0F172A),
+            ),
           ),
-        ));
+        );
       } else if (match.group(2) != null) {
         // Inline code
-        spans.add(TextSpan(
-          text: ' ${match.group(2)} ',
-          style: TextStyle(
-            fontFamily: 'monospace',
-            backgroundColor: isUser
-                ? Colors.white.withValues(alpha: 0.2)
-                : const Color(0xFFF1F5F9),
-            color: isUser ? Colors.white : const Color(0xFF0284C7),
-            fontWeight: FontWeight.w600,
-            fontSize: 13,
+        spans.add(
+          TextSpan(
+            text: ' ${match.group(2)} ',
+            style: TextStyle(
+              fontFamily: 'monospace',
+              backgroundColor: isUser
+                  ? Colors.white.withValues(alpha: 0.2)
+                  : const Color(0xFFF1F5F9),
+              color: isUser ? Colors.white : const Color(0xFF0284C7),
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+            ),
           ),
-        ));
+        );
       }
 
       lastEnd = match.end;
@@ -373,10 +376,7 @@ class ChatBubble extends StatelessWidget {
     }
 
     return RichText(
-      text: TextSpan(
-        style: baseStyle,
-        children: spans,
-      ),
+      text: TextSpan(style: baseStyle, children: spans),
     );
   }
 }
@@ -444,13 +444,7 @@ class _TypingIndicatorState extends State<TypingIndicator>
                 bottomLeft: Radius.circular(4),
                 bottomRight: Radius.circular(20),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -472,8 +466,9 @@ class _TypingIndicatorState extends State<TypingIndicator>
                               width: 7,
                               height: 7,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E78FF)
-                                    .withValues(alpha: 0.4 + t * 0.6),
+                                color: const Color(
+                                  0xFF1E78FF,
+                                ).withValues(alpha: 0.4 + t * 0.6),
                                 shape: BoxShape.circle,
                               ),
                             ),

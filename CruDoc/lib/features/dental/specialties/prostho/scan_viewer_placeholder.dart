@@ -32,7 +32,9 @@ class ScanViewerPlaceholderScreen extends StatelessWidget {
       final headerAndCount = raf.readSync(84);
       raf.closeSync();
 
-      final count = ByteData.sublistView(headerAndCount).getUint32(80, Endian.little);
+      final count = ByteData.sublistView(
+        headerAndCount,
+      ).getUint32(80, Endian.little);
       if (length == 84 + count * 50) {
         return count;
       }
@@ -142,7 +144,9 @@ class ScanViewerPlaceholderScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(CruSpace.s16),
                           decoration: BoxDecoration(
                             color: c.surface,
-                            borderRadius: BorderRadius.circular(CruRadius.control),
+                            borderRadius: BorderRadius.circular(
+                              CruRadius.control,
+                            ),
                             border: Border.all(color: c.hairline),
                           ),
                           child: Column(
@@ -159,7 +163,13 @@ class ScanViewerPlaceholderScreen extends StatelessWidget {
                                 ),
                               ],
                               const CruSeparator(),
-                              _metaRow('Status', exists ? 'Ready to open' : 'File not found on disk', c),
+                              _metaRow(
+                                'Status',
+                                exists
+                                    ? 'Ready to open'
+                                    : 'File not found on disk',
+                                c,
+                              ),
                             ],
                           ),
                         ),
@@ -170,7 +180,9 @@ class ScanViewerPlaceholderScreen extends StatelessWidget {
                           padding: const EdgeInsets.all(CruSpace.s12),
                           decoration: BoxDecoration(
                             color: c.inset,
-                            borderRadius: BorderRadius.circular(CruRadius.control),
+                            borderRadius: BorderRadius.circular(
+                              CruRadius.control,
+                            ),
                           ),
                           child: Row(
                             children: [

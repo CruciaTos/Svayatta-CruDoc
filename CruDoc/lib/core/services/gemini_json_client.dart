@@ -22,7 +22,8 @@ import 'package:http/http.dart' as http;
 class GeminiJsonClient {
   GeminiJsonClient({String? apiKey, String? model, http.Client? httpClient})
     : _apiKey = apiKey ?? _resolveApiKey(),
-      _modelOverride = model ?? (_resolveModel().isEmpty ? null : _resolveModel()),
+      _modelOverride =
+          model ?? (_resolveModel().isEmpty ? null : _resolveModel()),
       _http = httpClient ?? http.Client();
 
   static const _envApiKey = String.fromEnvironment('GEMINI_API_KEY');
@@ -53,8 +54,10 @@ class GeminiJsonClient {
     // Check .env.local in current directory or CruDoc subdirectory
     final localKey = _readKeyFromEnvFile(File('.env.local'), 'GEMINI_API_KEY');
     if (localKey.isNotEmpty) return localKey;
-    final subLocalKey =
-        _readKeyFromEnvFile(File('CruDoc/.env.local'), 'GEMINI_API_KEY');
+    final subLocalKey = _readKeyFromEnvFile(
+      File('CruDoc/.env.local'),
+      'GEMINI_API_KEY',
+    );
     if (subLocalKey.isNotEmpty) return subLocalKey;
 
     // Check .env.local next to executable for standalone / release builds
@@ -78,8 +81,10 @@ class GeminiJsonClient {
     } catch (_) {}
     final localModel = _readKeyFromEnvFile(File('.env.local'), 'GEMINI_MODEL');
     if (localModel.isNotEmpty) return localModel;
-    final subLocalModel =
-        _readKeyFromEnvFile(File('CruDoc/.env.local'), 'GEMINI_MODEL');
+    final subLocalModel = _readKeyFromEnvFile(
+      File('CruDoc/.env.local'),
+      'GEMINI_MODEL',
+    );
     if (subLocalModel.isNotEmpty) return subLocalModel;
     return '';
   }
@@ -252,7 +257,9 @@ class GeminiJsonClient {
 
       final raw = utf8.decode(response.bodyBytes, allowMalformed: true);
       if (response.statusCode == 404 && candidate != candidateModels.last) {
-        debugPrint('[GeminiJsonClient] Model $candidate returned 404, trying fallback...');
+        debugPrint(
+          '[GeminiJsonClient] Model $candidate returned 404, trying fallback...',
+        );
         lastHttpException = GeminiHttpException(response.statusCode, raw);
         continue;
       }

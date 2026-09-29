@@ -32,13 +32,7 @@ class MobileFeatureDisabledView extends StatelessWidget {
             border: Border.all(
               color: AppColors.slateBlue.withValues(alpha: 0.3),
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 24,
-                offset: const Offset(0, 12),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: StreamBuilder<DoctorSubscriptionInfo>(
             stream: subscriptionService.watchSubscriptionInfo(),
@@ -79,7 +73,9 @@ class MobileFeatureDisabledView extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
-                            color: isExp ? Colors.redAccent : const Color(0xFF1E78FF),
+                            color: isExp
+                                ? Colors.redAccent
+                                : const Color(0xFF1E78FF),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(
@@ -135,7 +131,10 @@ class MobileFeatureDisabledView extends StatelessWidget {
                             borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                        icon: const Icon(Icons.workspace_premium_rounded, size: 19),
+                        icon: const Icon(
+                          Icons.workspace_premium_rounded,
+                          size: 19,
+                        ),
                         label: const Text(
                           'Upgrade & Unlock Feature',
                           style: TextStyle(

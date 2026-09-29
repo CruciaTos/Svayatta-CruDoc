@@ -22,7 +22,8 @@ import 'package:doctor_management_app/core/update/update_exceptions.dart';
 /// folder — architecture doc §7's packaging gap must be closed
 /// separately for this to have something sensible to launch.
 class WindowsUpdateInstaller implements UpdateInstaller {
-  WindowsUpdateInstaller({http.Client? client}) : _client = client ?? http.Client();
+  WindowsUpdateInstaller({http.Client? client})
+    : _client = client ?? http.Client();
 
   static const String _platformKey = 'windows';
 
@@ -35,7 +36,10 @@ class WindowsUpdateInstaller implements UpdateInstaller {
   bool get supportsInAppInstall => true;
 
   @override
-  Future<void> download(AppRelease release, void Function(UpdateProgress progress) onProgress) async {
+  Future<void> download(
+    AppRelease release,
+    void Function(UpdateProgress progress) onProgress,
+  ) async {
     final platformInfo = release.manifest?.platformFor(_platformKey);
     final assetName = platformInfo?.asset;
     if (assetName == null || assetName.isEmpty) {
@@ -46,7 +50,9 @@ class WindowsUpdateInstaller implements UpdateInstaller {
 
     final asset = release.assetNamed(assetName);
     if (asset == null || asset.downloadUrl.isEmpty) {
-      throw UpdateDownloadException('Could not find the "$assetName" asset on the GitHub release.');
+      throw UpdateDownloadException(
+        'Could not find the "$assetName" asset on the GitHub release.',
+      );
     }
 
     _expectedSha256 = platformInfo?.sha256;
@@ -90,7 +96,9 @@ class WindowsUpdateInstaller implements UpdateInstaller {
     try {
       await Process.start(file.path, const [], mode: ProcessStartMode.detached);
     } catch (e) {
-      throw UpdateInstallException('Could not launch the downloaded installer: $e');
+      throw UpdateInstallException(
+        'Could not launch the downloaded installer: $e',
+      );
     }
 
     // The installer now owns replacing this app's files — it can't do

@@ -76,7 +76,11 @@ abstract final class ApptActions {
     for (final m in item.members) {
       if (m.id == item.id) continue;
       try {
-        await repo.rescheduleVisit(m.id, newStart: moved, acknowledgeOverlap: true);
+        await repo.rescheduleVisit(
+          m.id,
+          newStart: moved,
+          acknowledgeOverlap: true,
+        );
       } catch (_) {}
     }
     final when = ApptsBuilder.sameDay(moved, item.start)
@@ -157,7 +161,10 @@ abstract final class ApptActions {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final repo = ref.read(visitRepositoryProvider);
     final queue = ref.read(queueRepositoryProvider);
-    final patient = await showPatientPickerDialog(root, title: 'Who else is coming?');
+    final patient = await showPatientPickerDialog(
+      root,
+      title: 'Who else is coming?',
+    );
     if (patient == null || !root.mounted) return;
     if (item.visits.any((v) => v.patientId == patient.id)) {
       messenger?.showSnackBar(
@@ -188,13 +195,14 @@ abstract final class ApptActions {
         ),
       );
       // Already in today's queue: the new patient shares that token.
-      await queue.adoptVisitGroup(
-        [for (final v in item.visits) v.id],
-        added.groupId,
-      );
+      await queue.adoptVisitGroup([
+        for (final v in item.visits) v.id,
+      ], added.groupId);
       messenger?.showSnackBar(
         SnackBar(
-          content: Text('Added ${patient.firstName} to ${item.firstName}\'s appointment'),
+          content: Text(
+            'Added ${patient.firstName} to ${item.firstName}\'s appointment',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -219,7 +227,10 @@ abstract final class ApptActions {
     final messenger = ScaffoldMessenger.maybeOf(context);
     final repo = ref.read(visitRepositoryProvider);
     final queue = ref.read(queueRepositoryProvider);
-    final others = [for (final v in group.visits) if (v.id != member.id) v];
+    final others = [
+      for (final v in group.visits)
+        if (v.id != member.id) v,
+    ];
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => PatientDialog(
@@ -262,7 +273,9 @@ abstract final class ApptActions {
     if (visits.length > kMaxGroupPatients) {
       messenger?.showSnackBar(
         const SnackBar(
-          content: Text('One appointment can hold at most $kMaxGroupPatients patients.'),
+          content: Text(
+            'One appointment can hold at most $kMaxGroupPatients patients.',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -295,7 +308,8 @@ abstract final class ApptActions {
       _root(context),
       initialPatient: item.patient,
       initialTreatmentName: 'Consultation · ${names.join(', ')}',
-      initialNotes: 'Seen together on ${ApptFormat.dateLine(item.start)}: '
+      initialNotes:
+          'Seen together on ${ApptFormat.dateLine(item.start)}: '
           '${names.join(', ')}.',
     );
   }
@@ -369,42 +383,65 @@ abstract final class ApptActions {
     final overlay =
         Overlay.of(context).context.findRenderObject()! as RenderBox;
     final at = overlay.globalToLocal(globalPosition);
-    final directions =
-        item.isHomeVisit ? homeVisitDirections(item.visit) : null;
+    final directions = item.isHomeVisit
+        ? homeVisitDirections(item.visit)
+        : null;
     final patient = item.patient;
 
     PopupMenuItem<VoidCallback> entry(
       CruIconData icon,
       String label,
       VoidCallback action,
-    ) =>
-        PopupMenuItem<VoidCallback>(
-          value: action,
-          // Touch-sized rows: this menu is how tablets reach these actions.
-          height: CruSize.actionButton,
-          child: Row(
-            children: [
-              CruIcon(icon, size: 18, color: c.label2),
-              const SizedBox(width: CruSpace.s10),
-              Text(label, style: CruType.text.tint(c.label)),
-            ],
-          ),
-        );
+    ) => PopupMenuItem<VoidCallback>(
+      value: action,
+      // Touch-sized rows: this menu is how tablets reach these actions.
+      height: CruSize.actionButton,
+      child: Row(
+        children: [
+          CruIcon(icon, size: 18, color: c.label2),
+          const SizedBox(width: CruSpace.s10),
+          Text(label, style: CruType.text.tint(c.label)),
+        ],
+      ),
+    );
 
     final chosen = await showMenu<VoidCallback>(
       context: context,
-      position: RelativeRect.fromRect(at & Size.zero, Offset.zero & overlay.size),
+      position: RelativeRect.fromRect(
+        at & Size.zero,
+        Offset.zero & overlay.size,
+      ),
       constraints: const BoxConstraints(minWidth: 220),
       items: [
-        entry(CruIcons.arrowUpRight, 'Open details', () => openVisit(context, item)),
+        entry(
+          CruIcons.arrowUpRight,
+          'Open details',
+          () => openVisit(context, item),
+        ),
         if (canReschedule(item))
-          entry(CruIcons.calendar, 'Reschedule', () => reschedule(context, ref, item)),
+          entry(
+            CruIcons.calendar,
+            'Reschedule',
+            () => reschedule(context, ref, item),
+          ),
         if (canReschedule(item) && item.patientCount < kMaxGroupPatients)
-          entry(CruIcons.userPlus, 'Add a patient', () => addPatient(context, ref, item)),
+          entry(
+            CruIcons.userPlus,
+            'Add a patient',
+            () => addPatient(context, ref, item),
+          ),
         if (item.isGroup)
-          entry(CruIcons.rupee, 'Bill together', () => billTogether(context, item)),
+          entry(
+            CruIcons.rupee,
+            'Bill together',
+            () => billTogether(context, item),
+          ),
         if (directions != null)
-          entry(CruIcons.home, 'Directions', () => openHomeVisitLink(directions)),
+          entry(
+            CruIcons.home,
+            'Directions',
+            () => openHomeVisitLink(directions),
+          ),
         if (item.isGroup)
           for (final m in item.members)
             if (m.patient != null)

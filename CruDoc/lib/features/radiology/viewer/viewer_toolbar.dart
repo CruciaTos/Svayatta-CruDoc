@@ -54,17 +54,20 @@ class RadBarButton extends StatelessWidget {
           final fill = toolOn
               ? c.label
               : toggleOn
-                  ? c.inset
-                  : hovered
-                      ? c.hoverFill
-                      : c.hoverFill.withValues(alpha: 0);
+              ? c.inset
+              : hovered
+              ? c.hoverFill
+              : c.hoverFill.withValues(alpha: 0);
           return AnimatedContainer(
             duration: CruMotion.of(context, CruMotion.fast),
             curve: CruMotion.curve,
             width: CruSize.squareButton,
             height: CruSize.squareButton,
             alignment: Alignment.center,
-            decoration: ShapeDecoration(color: fill, shape: cruShape(CruRadius.iconTile)),
+            decoration: ShapeDecoration(
+              color: fill,
+              shape: cruShape(CruRadius.iconTile),
+            ),
             child: CruIcon(
               icon,
               size: 18,
@@ -72,10 +75,10 @@ class RadBarButton extends StatelessWidget {
               color: !enabled
                   ? c.label3
                   : toolOn
-                      ? c.surface
-                      : toggleOn || hovered
-                          ? c.label
-                          : c.label2,
+                  ? c.surface
+                  : toggleOn || hovered
+                  ? c.label
+                  : c.label2,
             ),
           );
         },
@@ -105,9 +108,13 @@ class RadMenuButton<T> extends StatelessWidget {
 
   Future<void> _open(BuildContext context) async {
     final box = context.findRenderObject() as RenderBox?;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
     if (box == null || overlay == null) return;
-    final topLeft = box.localToGlobal(Offset(0, box.size.height + CruSpace.s4), ancestor: overlay);
+    final topLeft = box.localToGlobal(
+      Offset(0, box.size.height + CruSpace.s4),
+      ancestor: overlay,
+    );
     final v = await showMenu<T>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -123,14 +130,14 @@ class RadMenuButton<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Builder(
-        builder: (context) => RadBarButton(
-          icon: icon,
-          tooltip: tooltip,
-          selected: selected,
-          style: RadBarButtonStyle.toggle,
-          onPressed: enabled ? () => _open(context) : null,
-        ),
-      );
+    builder: (context) => RadBarButton(
+      icon: icon,
+      tooltip: tooltip,
+      selected: selected,
+      style: RadBarButtonStyle.toggle,
+      onPressed: enabled ? () => _open(context) : null,
+    ),
+  );
 }
 
 /// One row of a toolbar menu: icon, label and an optional key hint.
@@ -151,11 +158,19 @@ PopupMenuItem<T> radMenuItem<T>(
     child: Row(
       children: [
         if (icon != null) ...[
-          CruIcon(icon, size: 17, strokeWidth: 1.8, color: enabled ? c.label2 : c.label3),
+          CruIcon(
+            icon,
+            size: 17,
+            strokeWidth: 1.8,
+            color: enabled ? c.label2 : c.label3,
+          ),
           const SizedBox(width: CruSpace.s10),
         ],
         Expanded(
-          child: Text(label, style: CruType.text.tint(enabled ? c.label : c.label3)),
+          child: Text(
+            label,
+            style: CruType.text.tint(enabled ? c.label : c.label3),
+          ),
         ),
         if (hint != null) ...[
           const SizedBox(width: CruSpace.s12),
@@ -176,13 +191,13 @@ class RadBarDivider extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
-        child: SizedBox(
-          width: 1,
-          height: 22,
-          child: ColoredBox(color: context.cru.separator),
-        ),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+    child: SizedBox(
+      width: 1,
+      height: 22,
+      child: ColoredBox(color: context.cru.separator),
+    ),
+  );
 }
 
 /// The slim top bar: back, who and what the study is, and the Report
@@ -244,10 +259,18 @@ class RadViewerTopBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(s.patientName,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: CruType.headline.tint(c.label)),
+                Text(
+                  s.patientName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.headline.tint(c.label),
+                ),
                 if (who.isNotEmpty)
-                  Text(who, maxLines: 1, style: CruType.caption.tabular.tint(c.label2)),
+                  Text(
+                    who,
+                    maxLines: 1,
+                    style: CruType.caption.tabular.tint(c.label2),
+                  ),
               ],
             ),
           ),
@@ -259,8 +282,12 @@ class RadViewerTopBar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(meta,
-                    maxLines: 1, overflow: TextOverflow.ellipsis, style: CruType.caption.tabular.tint(c.label2)),
+                Text(
+                  meta,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.caption.tabular.tint(c.label2),
+                ),
                 if (s.clinicalQuestion.isNotEmpty)
                   Text(
                     s.clinicalQuestion,
@@ -272,7 +299,11 @@ class RadViewerTopBar extends StatelessWidget {
             ),
           ),
           if (s.critical) ...[
-            CruPill(text: 'Critical finding', background: c.redTint, foreground: c.redText),
+            CruPill(
+              text: 'Critical finding',
+              background: c.redTint,
+              foreground: c.redText,
+            ),
             const SizedBox(width: CruSpace.s8),
           ],
           if (r != null) ...[
@@ -293,11 +324,17 @@ class RadViewerTopBar extends StatelessWidget {
             size: CruSize.control,
             iconSize: 19,
             semanticLabel: 'Shortcuts',
-            tooltip: shortcutsKey.isEmpty ? 'Shortcuts' : 'Shortcuts ($shortcutsKey)',
+            tooltip: shortcutsKey.isEmpty
+                ? 'Shortcuts'
+                : 'Shortcuts ($shortcutsKey)',
             onPressed: onShortcuts,
           ),
           const SizedBox(width: CruSpace.s8),
-          CruButton(label: 'Report', icon: RadIcons.report, onPressed: onReport),
+          CruButton(
+            label: 'Report',
+            icon: RadIcons.report,
+            onPressed: onReport,
+          ),
         ],
       ),
     );

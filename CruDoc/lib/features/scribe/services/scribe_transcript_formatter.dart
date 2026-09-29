@@ -207,8 +207,10 @@ class ScribeTranscriptFormatter {
           '5 out of 10',
       RegExp(r'\b(?:intensity of the pace)\b', caseSensitive: false):
           'intensity of the pain',
-      RegExp(r'\bpatients are very severely on my right side\b', caseSensitive: false):
-          'pain is very severe on my right side',
+      RegExp(
+        r'\bpatients are very severely on my right side\b',
+        caseSensitive: false,
+      ): 'pain is very severe on my right side',
       RegExp(r'\bpatients are severely my right side\b', caseSensitive: false):
           'pain is severe on my right side',
       RegExp(r'\bin the room pain\b', caseSensitive: false): 'severe pain',
@@ -218,8 +220,10 @@ class ScribeTranscriptFormatter {
           'haven’t been able to walk properly for a long time',
       RegExp(r'\bhave a limit for now\b', caseSensitive: false):
           'haven’t been able to walk properly for now',
-      RegExp(r'\bpatients have been a little bit for a long time\b', caseSensitive: false):
-          'haven’t been able to walk properly for a long time',
+      RegExp(
+        r'\bpatients have been a little bit for a long time\b',
+        caseSensitive: false,
+      ): 'haven’t been able to walk properly for a long time',
       RegExp(r'\bhello sue\b', caseSensitive: false): 'Hello',
       // Multi-comma and space cleanup
       RegExp(r',\s*,+'): ',',
@@ -254,17 +258,22 @@ class ScribeTranscriptFormatter {
     if (rawSentences.isEmpty) return cleaned;
 
     final turns = <_SpeakerTurn>[];
-    _Speaker currentSpeaker = _classifySpeaker(rawSentences.first, _Speaker.patient);
+    _Speaker currentSpeaker = _classifySpeaker(
+      rawSentences.first,
+      _Speaker.patient,
+    );
     var currentBuffer = <String>[];
 
     for (final s in rawSentences) {
       final detected = _classifySpeaker(s, currentSpeaker);
 
       if (detected != currentSpeaker && currentBuffer.isNotEmpty) {
-        turns.add(_SpeakerTurn(
-          speaker: currentSpeaker,
-          content: _formatSentenceBlock(currentBuffer.join(' ')),
-        ));
+        turns.add(
+          _SpeakerTurn(
+            speaker: currentSpeaker,
+            content: _formatSentenceBlock(currentBuffer.join(' ')),
+          ),
+        );
         currentSpeaker = detected;
         currentBuffer = [s];
       } else {
@@ -273,10 +282,12 @@ class ScribeTranscriptFormatter {
     }
 
     if (currentBuffer.isNotEmpty) {
-      turns.add(_SpeakerTurn(
-        speaker: currentSpeaker,
-        content: _formatSentenceBlock(currentBuffer.join(' ')),
-      ));
+      turns.add(
+        _SpeakerTurn(
+          speaker: currentSpeaker,
+          content: _formatSentenceBlock(currentBuffer.join(' ')),
+        ),
+      );
     }
 
     // Combine into formatted markdown dialogue with paragraph spacing

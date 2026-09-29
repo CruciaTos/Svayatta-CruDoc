@@ -134,7 +134,11 @@ class _SuperAdminFeaturesScreenState
     return _doctorFeatures[doctor.id]!;
   }
 
-  Future<void> _toggleModule(DoctorModel doctor, FeatureModule module, bool value) async {
+  Future<void> _toggleModule(
+    DoctorModel doctor,
+    FeatureModule module,
+    bool value,
+  ) async {
     final set = _getEnabledModules(doctor);
     setState(() {
       if (value) {
@@ -145,7 +149,9 @@ class _SuperAdminFeaturesScreenState
     });
 
     final updatedModuleStrings = set.map(_moduleToString).toList();
-    final allowMultiDevice = updatedModuleStrings.contains('multi_device_access');
+    final allowMultiDevice = updatedModuleStrings.contains(
+      'multi_device_access',
+    );
 
     try {
       setState(() => _isSaving = true);
@@ -184,7 +190,12 @@ class _SuperAdminFeaturesScreenState
     final isMobile = MediaQuery.of(context).size.width < 768;
 
     if (doctorState.isLoading && doctorState.doctors.isEmpty) {
-      return const Center(child: Padding(padding: EdgeInsets.all(48.0), child: CircularProgressIndicator()));
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(48.0),
+          child: CircularProgressIndicator(),
+        ),
+      );
     }
 
     final doctors = doctorState.doctors;
@@ -214,7 +225,8 @@ class _SuperAdminFeaturesScreenState
       );
     }
 
-    if (_selectedDoctorId == null || !doctors.any((d) => d.id == _selectedDoctorId)) {
+    if (_selectedDoctorId == null ||
+        !doctors.any((d) => d.id == _selectedDoctorId)) {
       _selectedDoctorId = doctors.first.id;
     }
 
@@ -237,7 +249,12 @@ class _SuperAdminFeaturesScreenState
           const SizedBox(height: CruSpace.s20),
 
           // 2. Doctor Selector Card
-          _buildDoctorSelectorCard(context, doctors, selectedDoctor, enabledModules),
+          _buildDoctorSelectorCard(
+            context,
+            doctors,
+            selectedDoctor,
+            enabledModules,
+          ),
 
           const SizedBox(height: CruSpace.s24),
 
@@ -284,7 +301,9 @@ class _SuperAdminFeaturesScreenState
           onPressed: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const SuperAdminUpgradeRequestsScreen()),
+              MaterialPageRoute(
+                builder: (_) => const SuperAdminUpgradeRequestsScreen(),
+              ),
             );
           },
         ),
@@ -304,7 +323,7 @@ class _SuperAdminFeaturesScreenState
       padding: const EdgeInsets.all(CruSpace.s20),
       child: Row(
         children: [
-          CruMonogram(name: selectedDoctor.name, size: 44, background: c.track),
+          CruMonogram(name: selectedDoctor.name, size: 44),
           const SizedBox(width: CruSpace.s14),
           Expanded(
             child: Column(
@@ -312,9 +331,15 @@ class _SuperAdminFeaturesScreenState
               children: [
                 Row(
                   children: [
-                    Text('Active Doctor Target: ', style: CruType.caption.tint(c.label3)),
+                    Text(
+                      'Active Doctor Target: ',
+                      style: CruType.caption.tint(c.label3),
+                    ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
                       decoration: ShapeDecoration(
                         color: c.accentTint,
                         shape: cruShape(CruRadius.full),
@@ -335,7 +360,9 @@ class _SuperAdminFeaturesScreenState
                     items: doctors.map((doc) {
                       return DropdownMenuItem(
                         value: doc.id,
-                        child: Text('${doc.name} (${doc.clinicName.isNotEmpty ? doc.clinicName : doc.specialization})'),
+                        child: Text(
+                          '${doc.name} (${doc.clinicName.isNotEmpty ? doc.clinicName : doc.specialization})',
+                        ),
                       );
                     }).toList(),
                     onChanged: (id) {
@@ -350,7 +377,10 @@ class _SuperAdminFeaturesScreenState
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             decoration: ShapeDecoration(
               color: c.inset,
-              shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
+              shape: cruShape(
+                CruRadius.full,
+                side: BorderSide(color: c.hairline),
+              ),
             ),
             child: Text(
               selectedDoctor.subscriptionPlan.label,
@@ -373,7 +403,8 @@ class _SuperAdminFeaturesScreenState
         _buildSuiteSection(
           context,
           title: 'Core Clinical Suite',
-          subtitle: 'Essential operational workflows and communication pipelines',
+          subtitle:
+              'Essential operational workflows and communication pipelines',
           icon: CruIcons.home,
           modules: [
             FeatureModule.dashboard,
@@ -392,12 +423,10 @@ class _SuperAdminFeaturesScreenState
         _buildSuiteSection(
           context,
           title: 'Dental Specialization Suite',
-          subtitle: 'Chairside charting, FDI/Universal odontogram, and perio records',
+          subtitle:
+              'Chairside charting, FDI/Universal odontogram, and perio records',
           icon: CruIcons.flask,
-          modules: [
-            FeatureModule.dentalSuite,
-            FeatureModule.homeVisits,
-          ],
+          modules: [FeatureModule.dentalSuite, FeatureModule.homeVisits],
           doctor: doctor,
           enabled: enabled,
         ),
@@ -405,12 +434,10 @@ class _SuperAdminFeaturesScreenState
         _buildSuiteSection(
           context,
           title: 'Radiology & Imaging Suite',
-          subtitle: 'Direct hardware USB sensor bridge and DICOM PACS server links',
+          subtitle:
+              'Direct hardware USB sensor bridge and DICOM PACS server links',
           icon: CruIcons.box,
-          modules: [
-            FeatureModule.radiology,
-            FeatureModule.rvgSensor,
-          ],
+          modules: [FeatureModule.radiology, FeatureModule.rvgSensor],
           doctor: doctor,
           enabled: enabled,
         ),
@@ -418,7 +445,8 @@ class _SuperAdminFeaturesScreenState
         _buildSuiteSection(
           context,
           title: 'Clinical AI Intelligence Suite',
-          subtitle: 'Gemini multimodal consultation scribe and 2nd read diagnostic guard',
+          subtitle:
+              'Gemini multimodal consultation scribe and 2nd read diagnostic guard',
           icon: CruIcons.sparkle,
           modules: [
             FeatureModule.aiScribeSecondRead,
@@ -502,23 +530,25 @@ class _SuperAdminFeaturesScreenState
                     Text(module.label, style: CruType.row.tint(c.label)),
                     const SizedBox(width: CruSpace.s8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: ShapeDecoration(
                         color: isEnabled ? c.greenTint : c.inset,
                         shape: cruShape(CruRadius.full),
                       ),
                       child: Text(
                         isEnabled ? 'ENABLED' : 'INACTIVE',
-                        style: CruType.caption.w600.tint(isEnabled ? c.greenText : c.label3),
+                        style: CruType.caption.w600.tint(
+                          isEnabled ? c.greenText : c.label3,
+                        ),
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: CruSpace.s2),
-                Text(
-                  module.description,
-                  style: CruType.caption.tint(c.label2),
-                ),
+                Text(module.description, style: CruType.caption.tint(c.label2)),
               ],
             ),
           ),

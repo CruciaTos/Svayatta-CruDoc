@@ -34,10 +34,8 @@ Future<bool> showScheduleVisitSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    builder: (_) => ScheduleVisitSheet(
-      patient: patient,
-      visitRepository: visitRepository,
-    ),
+    builder: (_) =>
+        ScheduleVisitSheet(patient: patient, visitRepository: visitRepository),
   ).then((value) => value ?? false);
 }
 
@@ -227,14 +225,14 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
   }
 
   Widget _label(String text) => Text(
-        text,
-        style: const TextStyle(
-          fontFamily: AppColors.bodyFontFamily,
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: AppColors.textPrimary,
-        ),
-      );
+    text,
+    style: const TextStyle(
+      fontFamily: AppColors.bodyFontFamily,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+      color: AppColors.textPrimary,
+    ),
+  );
 
   Widget _pickerTile({
     required IconData icon,
@@ -253,9 +251,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
             children: [
               Icon(icon, size: 18, color: AppColors.chartBarLight),
               const SizedBox(width: 10),
-              Expanded(
-                child: Text(label, style: AppColors.bodyMedium),
-              ),
+              Expanded(child: Text(label, style: AppColors.bodyMedium)),
               const Icon(Icons.chevron_right, color: AppColors.textSecondary),
             ],
           ),
@@ -276,12 +272,16 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
           final selected = type == _selectedType;
           return Expanded(
             child: GestureDetector(
-              onTap: _isSaving ? null : () => setState(() => _selectedType = type),
+              onTap: _isSaving
+                  ? null
+                  : () => setState(() => _selectedType = type),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
-                  color: selected ? AppColors.chartBarLight : Colors.transparent,
+                  color: selected
+                      ? AppColors.chartBarLight
+                      : Colors.transparent,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 alignment: Alignment.center,
@@ -304,9 +304,9 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final dateLabel = DateFormat('d MMM yyyy').format(_selectedDate);
@@ -348,8 +348,14 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                     ),
                   ),
                 ),
-                if (WhatsAppTemplateService.isValidWhatsAppPhone(widget.patient.phone)) ...[
-                  const Icon(Icons.chat_outlined, size: 13, color: Color(0xFF25D366)),
+                if (WhatsAppTemplateService.isValidWhatsAppPhone(
+                  widget.patient.phone,
+                )) ...[
+                  const Icon(
+                    Icons.chat_outlined,
+                    size: 13,
+                    color: Color(0xFF25D366),
+                  ),
                   const SizedBox(width: 4),
                   Text(
                     'WhatsApp Auto-Notify',

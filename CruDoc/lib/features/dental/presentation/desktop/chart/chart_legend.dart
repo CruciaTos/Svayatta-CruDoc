@@ -29,12 +29,28 @@ enum ChartMark {
 
   /// What the legend lists for [layer].
   static List<ChartMark> of(ChartLayer layer) => switch (layer) {
-        ChartLayer.dental => const [decay, filling, crown, canal, implant, missing, planned],
-        ChartLayer.plan => const [planned, extraction],
-        ChartLayer.perio => const [gum, pocket, bleeding],
-        ChartLayer.endo => const [pulp, obturated, inProgress, lesion],
-        ChartLayer.all => const [decay, filling, crown, planned, gum, pocket, obturated],
-      };
+    ChartLayer.dental => const [
+      decay,
+      filling,
+      crown,
+      canal,
+      implant,
+      missing,
+      planned,
+    ],
+    ChartLayer.plan => const [planned, extraction],
+    ChartLayer.perio => const [gum, pocket, bleeding],
+    ChartLayer.endo => const [pulp, obturated, inProgress, lesion],
+    ChartLayer.all => const [
+      decay,
+      filling,
+      crown,
+      planned,
+      gum,
+      pocket,
+      obturated,
+    ],
+  };
 }
 
 /// The marks used in [layer], each with a small swatch drawn like the
@@ -87,18 +103,26 @@ class _Swatch extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round
       ..color = color;
-    final tile = RRect.fromRectAndRadius(r.deflate(2), const Radius.circular(4));
+    final tile = RRect.fromRectAndRadius(
+      r.deflate(2),
+      const Radius.circular(4),
+    );
     switch (mark) {
       case ChartMark.decay:
         canvas.drawCircle(
           center,
           6,
           Paint()
-            ..shader = ui.Gradient.radial(center, 6, [
-              c.caries,
-              c.amber.withValues(alpha: 0.4),
-              c.amber.withValues(alpha: 0),
-            ], const [0, 0.6, 1]),
+            ..shader = ui.Gradient.radial(
+              center,
+              6,
+              [
+                c.caries,
+                c.amber.withValues(alpha: 0.4),
+                c.amber.withValues(alpha: 0),
+              ],
+              const [0, 0.6, 1],
+            ),
         );
       case ChartMark.filling:
         canvas.drawRRect(tile, Paint()..color = c.restoration);
@@ -116,21 +140,49 @@ class _Swatch extends CustomPainter {
         canvas.drawPath(p, Paint()..color = c.restoration);
         canvas.drawPath(p, stroke(c.greenText, 1));
       case ChartMark.canal || ChartMark.obturated:
-        canvas.drawLine(const Offset(8, 2), const Offset(8, 14), stroke(c.greenText, 2.4));
+        canvas.drawLine(
+          const Offset(8, 2),
+          const Offset(8, 14),
+          stroke(c.greenText, 2.4),
+        );
       case ChartMark.implant:
         final body = RRect.fromLTRBR(5, 2, 11, 14, const Radius.circular(2.5));
         canvas.drawRRect(body, Paint()..color = c.implantMetal);
         for (var y = 4.5; y < 13; y += 2.5) {
-          canvas.drawLine(Offset(5, y), Offset(11, y + 1), stroke(Color.lerp(c.implantMetal, c.toothShadow, 0.45)!, 0.9));
+          canvas.drawLine(
+            Offset(5, y),
+            Offset(11, y + 1),
+            stroke(Color.lerp(c.implantMetal, c.toothShadow, 0.45)!, 0.9),
+          );
         }
       case ChartMark.missing:
-        dashPath(canvas, Path()..addRRect(tile), stroke(c.label3, 1), dash: 2.5, gap: 2);
+        dashPath(
+          canvas,
+          Path()..addRRect(tile),
+          stroke(c.label3, 1),
+          dash: 2.5,
+          gap: 2,
+        );
       case ChartMark.planned:
         canvas.drawRRect(tile, Paint()..color = c.accentTint);
-        dashPath(canvas, Path()..addRRect(tile), stroke(c.accent, 1.3), dash: 2.5, gap: 2);
+        dashPath(
+          canvas,
+          Path()..addRRect(tile),
+          stroke(c.accent, 1.3),
+          dash: 2.5,
+          gap: 2,
+        );
       case ChartMark.extraction:
-        canvas.drawLine(const Offset(3, 3), const Offset(13, 13), stroke(c.accent, 1.8));
-        canvas.drawLine(const Offset(13, 3), const Offset(3, 13), stroke(c.accent, 1.8));
+        canvas.drawLine(
+          const Offset(3, 3),
+          const Offset(13, 13),
+          stroke(c.accent, 1.8),
+        );
+        canvas.drawLine(
+          const Offset(13, 3),
+          const Offset(3, 13),
+          stroke(c.accent, 1.8),
+        );
       case ChartMark.gum:
         final p = Path()..moveTo(1, 7);
         for (var x = 1.0; x < 15; x += 7) {
@@ -142,12 +194,22 @@ class _Swatch extends CustomPainter {
           RRect.fromLTRBR(1, 4, 15, 12, const Radius.circular(3)),
           Paint()..color = c.amber.withValues(alpha: 0.42),
         );
-        canvas.drawLine(const Offset(1, 4), const Offset(15, 4), stroke(c.gumShade, 1.4));
+        canvas.drawLine(
+          const Offset(1, 4),
+          const Offset(15, 4),
+          stroke(c.gumShade, 1.4),
+        );
       case ChartMark.bleeding:
         canvas.drawCircle(center, 4, Paint()..color = c.amber);
       case ChartMark.pulp:
         canvas.drawPath(
-          smoothClosed([const Offset(8, 2), const Offset(11, 6), const Offset(9, 14), const Offset(7, 14), const Offset(5, 6)]),
+          smoothClosed([
+            const Offset(8, 2),
+            const Offset(11, 6),
+            const Offset(9, 14),
+            const Offset(7, 14),
+            const Offset(5, 6),
+          ]),
           Paint()..color = c.pulp,
         );
       case ChartMark.inProgress:

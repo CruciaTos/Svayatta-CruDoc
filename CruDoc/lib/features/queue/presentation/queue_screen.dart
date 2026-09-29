@@ -38,7 +38,9 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: isError ? AppColors.negativeRed : const Color(0xFF1E293B),
+        backgroundColor: isError
+            ? AppColors.negativeRed
+            : const Color(0xFF1E293B),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
@@ -119,7 +121,9 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
       final repo = ref.read(queueRepositoryProvider);
       if (item.linkedVisit != null) {
         final created = await repo.checkInVisit(item.linkedVisit!);
-        _showFeedback('Appointment for ${item.displayName} checked into queue as Token #${created.tokenNumber}!');
+        _showFeedback(
+          'Appointment for ${item.displayName} checked into queue as Token #${created.tokenNumber}!',
+        );
       }
     } catch (e) {
       _showFeedback('Could not check in appointment: $e', isError: true);
@@ -132,7 +136,8 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
       context: context,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 2),
-      initialDateRange: ref.read(queueCustomDateRangeProvider) ??
+      initialDateRange:
+          ref.read(queueCustomDateRangeProvider) ??
           DateTimeRange(
             start: DateTime(now.year, now.month, now.day),
             end: DateTime(now.year, now.month, now.day),
@@ -153,7 +158,9 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
     final selectedPeriod = ref.watch(queuePeriodProvider);
     final selectedSession = ref.watch(queueSessionFilterProvider);
     final bounds = ref.watch(activeQueueDateBoundsProvider);
-    final isAppointmentsEnabled = ref.watch(isAppointmentsFeatureEnabledProvider);
+    final isAppointmentsEnabled = ref.watch(
+      isAppointmentsFeatureEnabledProvider,
+    );
 
     final allTokens = queueAsync.value ?? const <QueueEntryWithPatient>[];
     final waitingCount = waitingTokens.length;
@@ -188,8 +195,12 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                         bounds.label == 'Today'
                             ? DateFormat('EEEE, MMM d').format(DateTime.now())
                             : (bounds.label == 'Tomorrow'
-                                ? DateFormat('EEEE, MMM d').format(DateTime.now().add(const Duration(days: 1)))
-                                : '${DateFormat('MMM d').format(bounds.start)} – ${DateFormat('MMM d').format(bounds.end)}'),
+                                  ? DateFormat('EEEE, MMM d').format(
+                                      DateTime.now().add(
+                                        const Duration(days: 1),
+                                      ),
+                                    )
+                                  : '${DateFormat('MMM d').format(bounds.start)} – ${DateFormat('MMM d').format(bounds.end)}'),
                         style: const TextStyle(
                           fontSize: 12,
                           color: AppColors.slateBlue,
@@ -216,9 +227,14 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                               ? const SizedBox(
                                   width: 18,
                                   height: 18,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 )
-                              : const Icon(Icons.campaign_rounded, color: AppColors.accentBlue),
+                              : const Icon(
+                                  Icons.campaign_rounded,
+                                  color: AppColors.accentBlue,
+                                ),
                           tooltip: 'Call Next',
                           onPressed: _isCallingNext ? null : _callNextToken,
                         ),
@@ -226,17 +242,30 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                         onPressed: () async {
                           final created = await CheckInDialog.show(context);
                           if (created != null) {
-                            _showFeedback('Token #${created.tokenNumber} issued successfully!');
+                            _showFeedback(
+                              'Token #${created.tokenNumber} issued successfully!',
+                            );
                           }
                         },
                         icon: const Icon(Icons.add_rounded, size: 16),
-                        label: const Text('Check In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                        label: const Text(
+                          'Check In',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accentBlue,
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ],
@@ -252,11 +281,24 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                   children: [
                     _periodChip('Today', QueuePeriod.today, selectedPeriod),
                     const SizedBox(width: 6),
-                    _periodChip('Tomorrow', QueuePeriod.tomorrow, selectedPeriod),
+                    _periodChip(
+                      'Tomorrow',
+                      QueuePeriod.tomorrow,
+                      selectedPeriod,
+                    ),
                     const SizedBox(width: 6),
-                    _periodChip('This Week', QueuePeriod.thisWeek, selectedPeriod),
+                    _periodChip(
+                      'This Week',
+                      QueuePeriod.thisWeek,
+                      selectedPeriod,
+                    ),
                     const SizedBox(width: 6),
-                    _periodChip('Custom Range', QueuePeriod.custom, selectedPeriod, onTap: _pickCustomDateRange),
+                    _periodChip(
+                      'Custom Range',
+                      QueuePeriod.custom,
+                      selectedPeriod,
+                      onTap: _pickCustomDateRange,
+                    ),
                   ],
                 ),
               ),
@@ -267,13 +309,29 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _sessionChip('All Day', QueueSessionFilter.all, selectedSession),
+                    _sessionChip(
+                      'All Day',
+                      QueueSessionFilter.all,
+                      selectedSession,
+                    ),
                     const SizedBox(width: 6),
-                    _sessionChip('Morning', QueueSessionFilter.morning, selectedSession),
+                    _sessionChip(
+                      'Morning',
+                      QueueSessionFilter.morning,
+                      selectedSession,
+                    ),
                     const SizedBox(width: 6),
-                    _sessionChip('Afternoon', QueueSessionFilter.afternoon, selectedSession),
+                    _sessionChip(
+                      'Afternoon',
+                      QueueSessionFilter.afternoon,
+                      selectedSession,
+                    ),
                     const SizedBox(width: 6),
-                    _sessionChip('Evening', QueueSessionFilter.evening, selectedSession),
+                    _sessionChip(
+                      'Evening',
+                      QueueSessionFilter.evening,
+                      selectedSession,
+                    ),
                   ],
                 ),
               ),
@@ -301,8 +359,14 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                   ),
                   labelColor: Colors.white,
                   unselectedLabelColor: AppColors.slateBlue,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+                  labelStyle: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                  unselectedLabelStyle: const TextStyle(
+                    fontWeight: FontWeight.w500,
+                    fontSize: 12,
+                  ),
                   tabs: [
                     Tab(text: 'Waiting ($waitingCount)'),
                     Tab(text: 'All (${allTokens.length})'),
@@ -315,7 +379,8 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
               // Tab Bar Content
               Expanded(
                 child: queueAsync.when(
-                  loading: () => const Center(child: CircularProgressIndicator()),
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
                   error: (err, _) => Center(child: Text('Error: $err')),
                   data: (_) => TabBarView(
                     controller: _tabController,
@@ -344,13 +409,7 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: color.withValues(alpha: 0.4), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: color.withValues(alpha: 0.12),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,7 +434,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
               const Spacer(),
               if (active.isPrebooked) ...[
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 2.5,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF6366F1).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
@@ -383,11 +445,17 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.event_available_rounded, size: 11, color: Color(0xFF6366F1)),
+                      const Icon(
+                        Icons.event_available_rounded,
+                        size: 11,
+                        color: Color(0xFF6366F1),
+                      ),
                       const SizedBox(width: 3),
                       Text(
                         active.appointmentTime != null
-                            ? DateFormat('hh:mm a').format(active.appointmentTime!)
+                            ? DateFormat(
+                                'hh:mm a',
+                              ).format(active.appointmentTime!)
                             : 'Appt',
                         style: const TextStyle(
                           fontSize: 10,
@@ -422,7 +490,8 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
               color: AppColors.charcoalGray,
             ),
           ),
-          if (active.entry.reason != null && active.entry.reason!.isNotEmpty) ...[
+          if (active.entry.reason != null &&
+              active.entry.reason!.isNotEmpty) ...[
             const SizedBox(height: 2),
             Text(
               active.entry.reason!,
@@ -435,7 +504,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
               if (isCalled) ...[
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _startConsultation(active.entry.id, active.entry.tokenNumber),
+                    onPressed: () => _startConsultation(
+                      active.entry.id,
+                      active.entry.tokenNumber,
+                    ),
                     icon: const Icon(Icons.play_arrow_rounded, size: 16),
                     label: const Text('Start', style: TextStyle(fontSize: 12)),
                     style: ElevatedButton.styleFrom(
@@ -443,21 +515,26 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _skipToken(active.entry.id, active.entry.tokenNumber),
+                    onPressed: () =>
+                        _skipToken(active.entry.id, active.entry.tokenNumber),
                     icon: const Icon(Icons.skip_next_rounded, size: 16),
                     label: const Text('Skip', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.slateBlue,
-                      side: const BorderSide(color: AppColors.divider),
+                      side: const BorderSide(color: Colors.transparent),
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                   ),
                 ),
@@ -465,7 +542,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
               ],
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => _completeConsultation(active.entry.id, active.entry.tokenNumber),
+                  onPressed: () => _completeConsultation(
+                    active.entry.id,
+                    active.entry.tokenNumber,
+                  ),
                   icon: const Icon(Icons.check_rounded, size: 16),
                   label: const Text('Complete', style: TextStyle(fontSize: 12)),
                   style: ElevatedButton.styleFrom(
@@ -473,7 +553,9 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
                     foregroundColor: Colors.white,
                     elevation: 0,
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                 ),
               ),
@@ -492,7 +574,10 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
           children: const [
             Icon(Icons.inbox_outlined, size: 40, color: AppColors.slateBlue),
             SizedBox(height: 8),
-            Text('No tokens in this section', style: TextStyle(color: AppColors.slateBlue, fontSize: 13)),
+            Text(
+              'No tokens in this section',
+              style: TextStyle(color: AppColors.slateBlue, fontSize: 13),
+            ),
           ],
         ),
       );
@@ -550,10 +635,16 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
     );
   }
 
-  Widget _periodChip(String label, QueuePeriod period, QueuePeriod selected, {VoidCallback? onTap}) {
+  Widget _periodChip(
+    String label,
+    QueuePeriod period,
+    QueuePeriod selected, {
+    VoidCallback? onTap,
+  }) {
     final isSelected = selected == period;
     return InkWell(
-      onTap: onTap ?? () => ref.read(queuePeriodProvider.notifier).state = period,
+      onTap:
+          onTap ?? () => ref.read(queuePeriodProvider.notifier).state = period,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -576,18 +667,27 @@ class _QueueScreenState extends ConsumerState<QueueScreen>
     );
   }
 
-  Widget _sessionChip(String label, QueueSessionFilter session, QueueSessionFilter selected) {
+  Widget _sessionChip(
+    String label,
+    QueueSessionFilter session,
+    QueueSessionFilter selected,
+  ) {
     final isSelected = selected == session;
     return InkWell(
-      onTap: () => ref.read(queueSessionFilterProvider.notifier).state = session,
+      onTap: () =>
+          ref.read(queueSessionFilterProvider.notifier).state = session,
       borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.accentBlue.withValues(alpha: 0.12) : Colors.transparent,
+          color: isSelected
+              ? AppColors.accentBlue.withValues(alpha: 0.12)
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppColors.accentBlue : AppColors.divider.withValues(alpha: 0.6),
+            color: isSelected
+                ? AppColors.accentBlue
+                : AppColors.divider.withValues(alpha: 0.6),
           ),
         ),
         child: Text(

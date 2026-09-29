@@ -55,9 +55,12 @@ class DashboardStatsModel {
         (e) => e.name == json['platformHealth'],
         orElse: () => PlatformHealth.healthy,
       ),
-      totalDoctorsChange: (json['totalDoctorsChange'] as num?)?.toDouble() ?? 0.0,
-      activeDoctorsChange: (json['activeDoctorsChange'] as num?)?.toDouble() ?? 0.0,
-      monthlyRevenueChange: (json['monthlyRevenueChange'] as num?)?.toDouble() ?? 0.0,
+      totalDoctorsChange:
+          (json['totalDoctorsChange'] as num?)?.toDouble() ?? 0.0,
+      activeDoctorsChange:
+          (json['activeDoctorsChange'] as num?)?.toDouble() ?? 0.0,
+      monthlyRevenueChange:
+          (json['monthlyRevenueChange'] as num?)?.toDouble() ?? 0.0,
       storageUsedChange: (json['storageUsedChange'] as num?)?.toDouble() ?? 0.0,
     );
   }
@@ -122,7 +125,8 @@ class SystemConfigModel {
       privacyPolicyUrl: json['privacyPolicyUrl'] as String? ?? '',
       termsOfServiceUrl: json['termsOfServiceUrl'] as String? ?? '',
       contactPhone: json['contactPhone'] as String? ?? '',
-      allowNewDoctorRegistrations: json['allowNewDoctorRegistrations'] as bool? ?? true,
+      allowNewDoctorRegistrations:
+          json['allowNewDoctorRegistrations'] as bool? ?? true,
       maintenanceMessage: json['maintenanceMessage'] as String? ?? '',
       isUnderMaintenance: json['isUnderMaintenance'] as bool? ?? false,
       apiRateLimitPerMinute: json['apiRateLimitPerMinute'] as int? ?? 60,

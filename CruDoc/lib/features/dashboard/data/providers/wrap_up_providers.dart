@@ -20,7 +20,7 @@ final todaysScribeNotesProvider = Provider<List<ConsultationNote>>((ref) {
   ];
 });
 
-/// Evening "Wrap up the day". Null until the schedule has loaded.
+/// "Wrap up the day" data. Null until the schedule has loaded.
 final wrapUpProvider = Provider<WrapUpData?>((ref) {
   final data = ref.watch(dashboardDataProvider);
   final visits = ref.watch(allVisitsProvider).value;

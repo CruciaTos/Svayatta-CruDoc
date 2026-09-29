@@ -28,13 +28,17 @@ class IdentityHeader extends StatelessWidget {
     final c = context.cru;
     final p = summary.patient;
     final hasPhone = p.phone.trim().isNotEmpty;
-    final meta = '${PatientFormat.ageSexLong(p)} · '
+    final meta =
+        '${PatientFormat.ageSexLong(p)} · '
         'Patient since ${PatientFormat.longDate(p.createdAt)}';
     final a = allergies;
 
     final identity = Row(
       children: [
-        CruMonogram(name: p.fullName, size: CruSize.monogramProfile),
+        CruMonogram(
+          name: p.fullName,
+          size: CruSize.monogramProfile,
+        ),
         const SizedBox(width: CruSpace.s20),
         Flexible(
           child: Column(

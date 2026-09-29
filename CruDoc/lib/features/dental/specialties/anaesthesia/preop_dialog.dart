@@ -73,19 +73,19 @@ class PreopAssessment {
   }
 
   Map<String, dynamic> toJson() => {
-        'asa': asa,
-        'weightKg': weightKg,
-        'heightCm': heightCm,
-        'fastingSolidsHours': fastingSolidsHours,
-        'fastingClearHours': fastingClearHours,
-        'mallampati': mallampati,
-        'airwayNotes': airwayNotes,
-        'allergies': allergies,
-        'medications': medications,
-        'lastMeal': lastMeal,
-        'escort': escort,
-        'consentId': consentId,
-      };
+    'asa': asa,
+    'weightKg': weightKg,
+    'heightCm': heightCm,
+    'fastingSolidsHours': fastingSolidsHours,
+    'fastingClearHours': fastingClearHours,
+    'mallampati': mallampati,
+    'airwayNotes': airwayNotes,
+    'allergies': allergies,
+    'medications': medications,
+    'lastMeal': lastMeal,
+    'escort': escort,
+    'consentId': consentId,
+  };
 }
 
 /// Full record model for a sedation / anaesthesia case episode.
@@ -126,11 +126,23 @@ class SedationCase {
       preop: d['preop'] is Map<String, dynamic>
           ? PreopAssessment.fromJson(d['preop'] as Map<String, dynamic>)
           : (d['preop'] is Map
-              ? PreopAssessment.fromJson(Map<String, dynamic>.from(d['preop'] as Map))
-              : const PreopAssessment()),
-      vitals: (d['vitals'] as List?)?.map((v) => Map<String, dynamic>.from(v as Map)).toList() ?? [],
-      drugs: (d['drugs'] as List?)?.map((v) => Map<String, dynamic>.from(v as Map)).toList() ?? [],
-      recovery: d['recovery'] is Map ? Map<String, dynamic>.from(d['recovery'] as Map) : null,
+                ? PreopAssessment.fromJson(
+                    Map<String, dynamic>.from(d['preop'] as Map),
+                  )
+                : const PreopAssessment()),
+      vitals:
+          (d['vitals'] as List?)
+              ?.map((v) => Map<String, dynamic>.from(v as Map))
+              .toList() ??
+          [],
+      drugs:
+          (d['drugs'] as List?)
+              ?.map((v) => Map<String, dynamic>.from(v as Map))
+              .toList() ??
+          [],
+      recovery: d['recovery'] is Map
+          ? Map<String, dynamic>.from(d['recovery'] as Map)
+          : null,
       status: d['status'] as String? ?? 'planned',
       recordedAt: r.recordedAt,
       record: r,
@@ -197,9 +209,14 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
     } else {
       _procedure.text = 'Surgical extractions / Dental procedure';
       // Prefill patient known allergies if available
-      final omRecords = ref.read(
-        patientRecordsProvider((patientId: widget.patient.id, kind: RecKind.omHistory)),
-      ).value;
+      final omRecords = ref
+          .read(
+            patientRecordsProvider((
+              patientId: widget.patient.id,
+              kind: RecKind.omHistory,
+            )),
+          )
+          .value;
       if (omRecords != null && omRecords.isNotEmpty) {
         final omAllergies = omAllergyText(omRecords.firstOrNull);
         if (omAllergies != null && omAllergies.isNotEmpty) {
@@ -256,20 +273,16 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
     final c = widget.initialCase;
 
     if (c == null) {
-      final record = DentalRecord.create(
-        widget.patient.id,
-        RecKind.sedationCase,
-        {
-          'procedure': _procedure.text.trim(),
-          'planned': _modality.label,
-          'preop': preopData.toJson(),
-          'vitals': <Map<String, dynamic>>[],
-          'drugs': <Map<String, dynamic>>[],
-          'recovery': null,
-          'status': targetStatus,
-        },
-        at: now,
-      );
+      final record =
+          DentalRecord.create(widget.patient.id, RecKind.sedationCase, {
+            'procedure': _procedure.text.trim(),
+            'planned': _modality.label,
+            'preop': preopData.toJson(),
+            'vitals': <Map<String, dynamic>>[],
+            'drugs': <Map<String, dynamic>>[],
+            'recovery': null,
+            'status': targetStatus,
+          }, at: now);
       await saveDentalRecord(ref, record);
       return SedationCase.fromRecord(record);
     } else {
@@ -328,13 +341,17 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
     final fSolids = int.tryParse(_fastingSolids.text.trim()) ?? 6;
     final fClear = int.tryParse(_fastingClear.text.trim()) ?? 2;
     final fastingInadequate = fSolids < 6 || fClear < 2;
-    final needsEscort = (_modality == SedationModality.iv || _modality == SedationModality.ga) && !_escort;
+    final needsEscort =
+        (_modality == SedationModality.iv ||
+            _modality == SedationModality.ga) &&
+        !_escort;
     final isHighAsa = _asa >= 3;
     final hasAllergies = _allergies.text.trim().isNotEmpty;
 
     return CruFormDialog(
       title: 'Pre-operative Assessment',
-      subtitle: '${widget.patient.fullName} (${widget.patient.age}y, ${widget.patient.gender.toUpperCase()})',
+      subtitle:
+          '${widget.patient.fullName} (${widget.patient.age}y, ${widget.patient.gender.toUpperCase()})',
       width: 680,
       busy: _busy,
       submitLabel: 'Save assessment',
@@ -421,10 +438,7 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
           ],
 
           // Procedure & Planned Modality
-          CruTextField(
-            label: 'Planned Procedure',
-            controller: _procedure,
-          ),
+          CruTextField(label: 'Planned Procedure', controller: _procedure),
           const SizedBox(height: CruSpace.s12),
 
           CruFieldFrame(
@@ -574,7 +588,10 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
 
           // Escort Present toggle
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s12,
+              vertical: CruSpace.s8,
+            ),
             decoration: BoxDecoration(
               color: c.surface,
               borderRadius: BorderRadius.circular(CruRadius.control),
@@ -586,7 +603,10 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Responsible Adult Escort Present', style: CruType.callout.w600.tint(c.label)),
+                      Text(
+                        'Responsible Adult Escort Present',
+                        style: CruType.callout.w600.tint(c.label),
+                      ),
                       Text(
                         'Adult must remain in clinic during procedure and escort patient home.',
                         style: CruType.caption.tint(c.label2),
@@ -609,16 +629,26 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
             label: 'Surgical & Sedation Informed Consent',
             child: Row(
               children: [
-                CruIcon(CruIcons.box, size: 16, color: _consentId.isNotEmpty ? c.accent : c.label3),
+                CruIcon(
+                  CruIcons.box,
+                  size: 16,
+                  color: _consentId.isNotEmpty ? c.accent : c.label3,
+                ),
                 const SizedBox(width: CruSpace.s8),
                 Expanded(
                   child: Text(
-                    _consentId.isNotEmpty ? 'Informed Consent Linked (#${_consentId.substring(0, 6)})' : 'No surgical consent attached',
-                    style: CruType.caption.tint(_consentId.isNotEmpty ? c.label : c.label3),
+                    _consentId.isNotEmpty
+                        ? 'Informed Consent Linked (#${_consentId.substring(0, 6)})'
+                        : 'No surgical consent attached',
+                    style: CruType.caption.tint(
+                      _consentId.isNotEmpty ? c.label : c.label3,
+                    ),
                   ),
                 ),
                 CruCapsuleButton(
-                  label: _consentId.isNotEmpty ? 'View / Change' : 'Take consent',
+                  label: _consentId.isNotEmpty
+                      ? 'View / Change'
+                      : 'Take consent',
                   icon: CruIcons.pen,
                   onPressed: () => showConsentDialog(
                     context,
@@ -655,21 +685,21 @@ class _PreopDialogState extends ConsumerState<PreopDialog> {
   }
 
   static String _asaMeaning(int asa) => switch (asa) {
-        1 => 'Normal healthy patient',
-        2 => 'Mild systemic disease',
-        3 => 'Severe systemic disease',
-        4 => 'Constant threat to life',
-        5 => 'Moribund patient',
-        _ => '',
-      };
+    1 => 'Normal healthy patient',
+    2 => 'Mild systemic disease',
+    3 => 'Severe systemic disease',
+    4 => 'Constant threat to life',
+    5 => 'Moribund patient',
+    _ => '',
+  };
 
   static String _mallampatiMeaning(int m) => switch (m) {
-        1 => 'Pillars, uvula visible',
-        2 => 'Uvula partially visible',
-        3 => 'Soft palate only',
-        4 => 'Hard palate only',
-        _ => '',
-      };
+    1 => 'Pillars, uvula visible',
+    2 => 'Uvula partially visible',
+    3 => 'Soft palate only',
+    4 => 'Hard palate only',
+    _ => '',
+  };
 
   static String _bmiCategory(double bmi) {
     if (bmi < 18.5) return 'Underweight';

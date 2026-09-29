@@ -44,11 +44,13 @@ abstract final class InventoryBuilder {
     final daysLeft = dailyUse == null ? null : stock / dailyUse;
 
     final expiry = m.expiryDate;
-    final daysToExpiry =
-        expiry == null ? null : _day(expiry.toLocal()).difference(today).inDays;
+    final daysToExpiry = expiry == null
+        ? null
+        : _day(expiry.toLocal()).difference(today).inDays;
     final expiringSoon =
         daysToExpiry != null && daysToExpiry <= expiringWithinDays;
-    final expiresFirst = daysToExpiry != null &&
+    final expiresFirst =
+        daysToExpiry != null &&
         (daysLeft == null ? expiringSoon : daysToExpiry < daysLeft);
 
     return InventoryItem(
@@ -78,12 +80,12 @@ abstract final class InventoryBuilder {
   }
 
   static bool matches(InventoryItem i, InventoryFilter f) => switch (f.kind) {
-        InventoryFilterKind.all => true,
-        InventoryFilterKind.low => i.low,
-        InventoryFilterKind.expiring => i.expiringSoon,
-        InventoryFilterKind.category =>
-          (i.category ?? '').toLowerCase() == (f.category ?? '').toLowerCase(),
-      };
+    InventoryFilterKind.all => true,
+    InventoryFilterKind.low => i.low,
+    InventoryFilterKind.expiring => i.expiringSoon,
+    InventoryFilterKind.category =>
+      (i.category ?? '').toLowerCase() == (f.category ?? '').toLowerCase(),
+  };
 
   /// Search over name, batch and supplier.
   static bool matchesQuery(InventoryItem i, String query) {
@@ -201,13 +203,12 @@ abstract final class InventoryBuilder {
           .fold<int>(0, (a, c) => a + c.count);
       if (count == 0) applied = InventoryFilter.all;
     }
-    final appliedSort =
-        !hasUsage && sort == InventorySort.runsOut ? InventorySort.stock : sort;
+    final appliedSort = !hasUsage && sort == InventorySort.runsOut
+        ? InventorySort.stock
+        : sort;
 
     final rows = sorted(
-      all
-          .where((i) => matches(i, applied) && matchesQuery(i, query))
-          .toList(),
+      all.where((i) => matches(i, applied) && matchesQuery(i, query)).toList(),
       appliedSort,
     );
     final visible = rows.take(limit < pageSize ? pageSize : limit).toList();

@@ -45,6 +45,7 @@ class InventoryLocalService {
     if (uid == null || uid.isEmpty) return '';
     return uid;
   }
+
   // Backs [watchRecentTransactions] — unlike [getTransactionsForMedicine],
   // this spans every medicine, most recent first, for the dashboard's
   // "Recent Activity" feed.
@@ -366,8 +367,9 @@ class InventoryLocalService {
           row[entry.key] = (entry.value as num).toInt();
           break;
         case 'goodStockLevel':
-          row[entry.key] =
-              entry.value == null ? null : (entry.value as num).toInt();
+          row[entry.key] = entry.value == null
+              ? null
+              : (entry.value as num).toInt();
           break;
         case 'unitPrice':
           row[entry.key] = entry.value == null

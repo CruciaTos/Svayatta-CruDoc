@@ -23,10 +23,7 @@ Future<void> showDesktopSessionDetailsDialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 840,
-          maxHeight: 740,
-        ),
+        constraints: const BoxConstraints(maxWidth: 840, maxHeight: 740),
         child: DesktopSessionDetailsDialog(initial: item),
       ),
     ),
@@ -58,9 +55,7 @@ class _DesktopSessionDetailsDialogState
   void initState() {
     super.initState();
     _visit = widget.initial.visit;
-    _notesController = TextEditingController(
-      text: _visit.therapistNotes ?? '',
-    );
+    _notesController = TextEditingController(text: _visit.therapistNotes ?? '');
   }
 
   @override
@@ -92,9 +87,9 @@ class _DesktopSessionDetailsDialogState
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save note: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
     } finally {
       if (mounted) setState(() => _savingNote = false);
     }
@@ -113,13 +108,15 @@ class _DesktopSessionDetailsDialogState
       ref.invalidate(visitsWithPatientsProvider);
       ref.invalidate(allVisitsWithPatientsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Status updated to ${newStatus.name.toUpperCase()}')),
+        SnackBar(
+          content: Text('Status updated to ${newStatus.name.toUpperCase()}'),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update status: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update status: $e')));
     } finally {
       if (mounted) setState(() => _updatingStatus = false);
     }
@@ -133,13 +130,17 @@ class _DesktopSessionDetailsDialogState
       if (!mounted) return;
       ref.invalidate(todaysQueueWithPatientsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Appointment checked into queue as Token #${created.tokenNumber}!')),
+        SnackBar(
+          content: Text(
+            'Appointment checked into queue as Token #${created.tokenNumber}!',
+          ),
+        ),
       );
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Could not check into queue: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not check into queue: $e')));
     } finally {
       if (mounted) setState(() => _checkingIntoQueue = false);
     }
@@ -152,9 +153,16 @@ class _DesktopSessionDetailsDialogState
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Row(
           children: [
-            Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626), size: 22),
+            Icon(
+              Icons.delete_outline_rounded,
+              color: Color(0xFFDC2626),
+              size: 22,
+            ),
             SizedBox(width: 8),
-            Text('Cancel / Delete Appointment', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+            Text(
+              'Cancel / Delete Appointment',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
           ],
         ),
         content: const Text(
@@ -168,7 +176,9 @@ class _DesktopSessionDetailsDialogState
           ),
           FilledButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFFDC2626),
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -184,14 +194,14 @@ class _DesktopSessionDetailsDialogState
       ref.invalidate(visitsWithPatientsProvider);
       ref.invalidate(allVisitsWithPatientsProvider);
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Appointment removed.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Appointment removed.')));
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
     }
   }
 
@@ -200,7 +210,9 @@ class _DesktopSessionDetailsDialogState
     if (patient == null) return;
     if (!WhatsAppTemplateService.isValidWhatsAppPhone(patient.phone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No valid WhatsApp mobile number for this patient.')),
+        const SnackBar(
+          content: Text('No valid WhatsApp mobile number for this patient.'),
+        ),
       );
       return;
     }
@@ -217,14 +229,15 @@ class _DesktopSessionDetailsDialogState
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open WhatsApp.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not open WhatsApp.')));
     }
   }
 
   Future<void> _openMaps() async {
-    final urlStr = _visit.mapsLink ??
+    final urlStr =
+        _visit.mapsLink ??
         (_visit.latitude != null && _visit.longitude != null
             ? 'https://www.google.com/maps/search/?api=1&query=${_visit.latitude},${_visit.longitude}'
             : null);
@@ -239,9 +252,9 @@ class _DesktopSessionDetailsDialogState
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final patient = _patient;
@@ -250,31 +263,28 @@ class _DesktopSessionDetailsDialogState
     final queueEntries = isQueueEnabled
         ? (ref.watch(todaysQueueWithPatientsProvider).value ?? const [])
         : const <QueueEntryWithPatient>[];
-    final queueEntry = queueEntries.where((e) => e.entry.linkedVisitId == _visit.id).firstOrNull;
+    final queueEntry = queueEntries
+        .where((e) => e.entry.linkedVisitId == _visit.id)
+        .firstOrNull;
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: const Color(0xFFE2E8F0),
-          width: 1.0,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x1A000000),
-            blurRadius: 32,
-            offset: Offset(0, 16),
-          ),
-        ],
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1.0),
+        boxShadow: const [],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildHeader(patientName, queueEntry: queueEntry, isQueueEnabled: isQueueEnabled),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            _buildHeader(
+              patientName,
+              queueEntry: queueEntry,
+              isQueueEnabled: isQueueEnabled,
+            ),
+            const Divider(height: 1),
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(24),
@@ -282,10 +292,7 @@ class _DesktopSessionDetailsDialogState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Left Column: Patient Overview & Visit Schedule
-                    Expanded(
-                      flex: 10,
-                      child: _buildLeftColumn(patient),
-                    ),
+                    Expanded(flex: 10, child: _buildLeftColumn(patient)),
                     const SizedBox(width: 24),
                     // Vertical separator
                     Container(
@@ -297,13 +304,16 @@ class _DesktopSessionDetailsDialogState
                     // Right Column: Treatment Details, Clinical Notes & Actions
                     Expanded(
                       flex: 11,
-                      child: _buildRightColumn(queueEntry: queueEntry, isQueueEnabled: isQueueEnabled),
+                      child: _buildRightColumn(
+                        queueEntry: queueEntry,
+                        isQueueEnabled: isQueueEnabled,
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1),
             _buildFooter(),
           ],
         ),
@@ -356,20 +366,34 @@ class _DesktopSessionDetailsDialogState
                     _buildStatusBadge(_visit.status),
                     const SizedBox(width: 6),
                     _buildTypeBadge(_visit.visitType),
-                    if (isQueueEnabled && _visit.visitType == VisitType.clinic) ...[
+                    if (isQueueEnabled &&
+                        _visit.visitType == VisitType.clinic) ...[
                       const SizedBox(width: 6),
                       if (queueEntry != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                            color: const Color(
+                              0xFF6366F1,
+                            ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: const Color(0xFF6366F1).withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: const Color(
+                                0xFF6366F1,
+                              ).withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.groups_rounded, size: 12, color: Color(0xFF6366F1)),
+                              const Icon(
+                                Icons.groups_rounded,
+                                size: 12,
+                                color: Color(0xFF6366F1),
+                              ),
                               const SizedBox(width: 4),
                               Text(
                                 queueEntry.entry.tokenNumber > 0
@@ -500,7 +524,10 @@ class _DesktopSessionDetailsDialogState
                       patient?.firstName.isNotEmpty == true
                           ? patient!.firstName[0].toUpperCase()
                           : 'P',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -519,7 +546,10 @@ class _DesktopSessionDetailsDialogState
                         const SizedBox(height: 2),
                         Text(
                           '${patient?.gender ?? 'Unknown'} • DOB: ${patient?.dateOfBirth != null ? DateFormat('dd MMM yyyy').format(patient!.dateOfBirth) : 'N/A'}',
-                          style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF64748B),
+                          ),
                         ),
                       ],
                     ),
@@ -527,25 +557,39 @@ class _DesktopSessionDetailsDialogState
                 ],
               ),
               const SizedBox(height: 12),
-              const Divider(height: 1, color: Color(0xFFE2E8F0)),
+              const Divider(height: 1),
               const SizedBox(height: 10),
 
               // Phone & WhatsApp Action
               Row(
                 children: [
-                  const Icon(Icons.phone_outlined, size: 16, color: Color(0xFF64748B)),
+                  const Icon(
+                    Icons.phone_outlined,
+                    size: 16,
+                    color: Color(0xFF64748B),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     patient?.phone ?? 'No phone',
-                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
                   ),
                   const Spacer(),
-                  if (patient != null && WhatsAppTemplateService.isValidWhatsAppPhone(patient.phone))
+                  if (patient != null &&
+                      WhatsAppTemplateService.isValidWhatsAppPhone(
+                        patient.phone,
+                      ))
                     InkWell(
                       onTap: _openWhatsApp,
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFDCFCE7),
                           borderRadius: BorderRadius.circular(8),
@@ -553,7 +597,11 @@ class _DesktopSessionDetailsDialogState
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.chat_bubble_outline, size: 14, color: Color(0xFF15803D)),
+                            Icon(
+                              Icons.chat_bubble_outline,
+                              size: 14,
+                              color: Color(0xFF15803D),
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'WhatsApp',
@@ -593,27 +641,40 @@ class _DesktopSessionDetailsDialogState
               _buildInfoRow(
                 icon: Icons.calendar_today_rounded,
                 label: 'Date',
-                value: DateFormat('EEEE, dd MMMM yyyy').format(_visit.scheduledStart),
+                value: DateFormat(
+                  'EEEE, dd MMMM yyyy',
+                ).format(_visit.scheduledStart),
               ),
               const SizedBox(height: 10),
               _buildInfoRow(
                 icon: Icons.schedule_rounded,
                 label: 'Time Slot',
-                value: '${DateFormat('hh:mm a').format(_visit.scheduledStart)} - ${DateFormat('hh:mm a').format(_visit.scheduledEnd)} (${_visit.durationMinutes} min)',
+                value:
+                    '${DateFormat('hh:mm a').format(_visit.scheduledStart)} - ${DateFormat('hh:mm a').format(_visit.scheduledEnd)} (${_visit.durationMinutes} min)',
               ),
               const SizedBox(height: 10),
               _buildInfoRow(
-                icon: _isHomeVisit ? Icons.home_rounded : Icons.apartment_rounded,
+                icon: _isHomeVisit
+                    ? Icons.home_rounded
+                    : Icons.apartment_rounded,
                 label: 'Location',
-                value: _isHomeVisit ? (_visit.address.isNotEmpty ? _visit.address : "Patient's Home") : 'Clinic Consultation Center',
+                value: _isHomeVisit
+                    ? (_visit.address.isNotEmpty
+                          ? _visit.address
+                          : "Patient's Home")
+                    : 'Clinic Consultation Center',
               ),
-              if (_isHomeVisit && (_visit.mapsLink != null || _visit.latitude != null)) ...[
+              if (_isHomeVisit &&
+                  (_visit.mapsLink != null || _visit.latitude != null)) ...[
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: _openMaps,
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFEFF6FF),
                       borderRadius: BorderRadius.circular(8),
@@ -622,7 +683,11 @@ class _DesktopSessionDetailsDialogState
                     child: const Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.directions_rounded, size: 16, color: Color(0xFF2563EB)),
+                        Icon(
+                          Icons.directions_rounded,
+                          size: 16,
+                          color: Color(0xFF2563EB),
+                        ),
                         SizedBox(width: 6),
                         Text(
                           'Open Directions in Google Maps',
@@ -676,7 +741,11 @@ class _DesktopSessionDetailsDialogState
                     color: const Color(0xFF2563EB).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.confirmation_number_outlined, color: Color(0xFF2563EB), size: 18),
+                  child: const Icon(
+                    Icons.confirmation_number_outlined,
+                    color: Color(0xFF2563EB),
+                    size: 18,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -686,8 +755,8 @@ class _DesktopSessionDetailsDialogState
                       Text(
                         queueEntry != null
                             ? (queueEntry.entry.tokenNumber > 0
-                                ? 'Token #${queueEntry.entry.tokenNumber} (${queueEntry.entry.status.name.toUpperCase()})'
-                                : 'Checked In — Pending Token')
+                                  ? 'Token #${queueEntry.entry.tokenNumber} (${queueEntry.entry.status.name.toUpperCase()})'
+                                  : 'Checked In — Pending Token')
                             : 'Not Checked into Queue',
                         style: const TextStyle(
                           fontSize: 12.5,
@@ -700,24 +769,46 @@ class _DesktopSessionDetailsDialogState
                         queueEntry != null
                             ? 'Patient is registered in the clinic walk-in triage flow'
                             : 'Generate a token and send patient to live waiting queue',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF3B82F6)),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF3B82F6),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                if (queueEntry == null && _visit.status != VisitStatus.cancelled)
+                if (queueEntry == null &&
+                    _visit.status != VisitStatus.cancelled)
                   ElevatedButton.icon(
                     onPressed: _checkingIntoQueue ? null : _checkIntoQueue,
                     icon: _checkingIntoQueue
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
                         : const Icon(Icons.add_rounded, size: 16),
-                    label: const Text('Check In', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                    label: const Text(
+                      'Check In',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
               ],
@@ -747,7 +838,11 @@ class _DesktopSessionDetailsDialogState
             children: [
               const Text(
                 'Treatment / Purpose',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B)),
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF64748B),
+                ),
               ),
               const SizedBox(height: 4),
               Text(
@@ -777,7 +872,10 @@ class _DesktopSessionDetailsDialogState
               TextButton(
                 onPressed: _savingNote ? null : _saveNote,
                 style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   minimumSize: Size.zero,
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -804,22 +902,26 @@ class _DesktopSessionDetailsDialogState
           maxLines: 4,
           style: const TextStyle(fontSize: 13, color: Color(0xFF1F2937)),
           decoration: InputDecoration(
-            hintText: 'Enter clinical observations, prescription advice, or visit notes...',
+            hintText:
+                'Enter clinical observations, prescription advice, or visit notes...',
             hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),
             contentPadding: const EdgeInsets.all(12),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              borderSide: const BorderSide(color: Colors.transparent),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(10),
-              borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+              borderSide: const BorderSide(
+                color: Color(0xFF2563EB),
+                width: 1.5,
+              ),
             ),
           ),
           onChanged: (_) => setState(() {}),
@@ -836,7 +938,8 @@ class _DesktopSessionDetailsDialogState
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _updatingStatus || _visit.status == VisitStatus.completed
+                onPressed:
+                    _updatingStatus || _visit.status == VisitStatus.completed
                     ? null
                     : () => _changeStatus(VisitStatus.completed),
                 style: OutlinedButton.styleFrom(
@@ -846,19 +949,30 @@ class _DesktopSessionDetailsDialogState
                         ? const Color(0xFF16A34A)
                         : const Color(0xFFCBD5E1),
                   ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                icon: const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF16A34A)),
+                icon: const Icon(
+                  Icons.check_circle_outline,
+                  size: 16,
+                  color: Color(0xFF16A34A),
+                ),
                 label: const Text(
                   'Completed',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF16A34A)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF16A34A),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _updatingStatus || _visit.status == VisitStatus.cancelled
+                onPressed:
+                    _updatingStatus || _visit.status == VisitStatus.cancelled
                     ? null
                     : () => _changeStatus(VisitStatus.cancelled),
                 style: OutlinedButton.styleFrom(
@@ -868,30 +982,51 @@ class _DesktopSessionDetailsDialogState
                         ? const Color(0xFFDC2626)
                         : const Color(0xFFCBD5E1),
                   ),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                icon: const Icon(Icons.cancel_outlined, size: 16, color: Color(0xFFDC2626)),
+                icon: const Icon(
+                  Icons.cancel_outlined,
+                  size: 16,
+                  color: Color(0xFFDC2626),
+                ),
                 label: const Text(
                   'Cancelled',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFFDC2626)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFFDC2626),
+                  ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _updatingStatus || _visit.status == VisitStatus.scheduled
+                onPressed:
+                    _updatingStatus || _visit.status == VisitStatus.scheduled
                     ? null
                     : () => _changeStatus(VisitStatus.scheduled),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 10),
-                  side: const BorderSide(color: Color(0xFFCBD5E1)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  side: const BorderSide(color: Colors.transparent),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
-                icon: const Icon(Icons.schedule, size: 16, color: Color(0xFF6B7280)),
+                icon: const Icon(
+                  Icons.schedule,
+                  size: 16,
+                  color: Color(0xFF6B7280),
+                ),
                 label: const Text(
                   'Scheduled',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF4B5563)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF4B5563),
+                  ),
                 ),
               ),
             ),
@@ -901,7 +1036,11 @@ class _DesktopSessionDetailsDialogState
     );
   }
 
-  Widget _buildInfoRow({required IconData icon, required String label, required String value}) {
+  Widget _buildInfoRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -910,11 +1049,18 @@ class _DesktopSessionDetailsDialogState
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+            Text(
+              label,
+              style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+            ),
             const SizedBox(height: 1),
             Text(
               value,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF1F2937)),
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1F2937),
+              ),
             ),
           ],
         ),
@@ -951,9 +1097,14 @@ class _DesktopSessionDetailsDialogState
         children: [
           TextButton.icon(
             onPressed: _deleteVisit,
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFDC2626),
+            ),
             icon: const Icon(Icons.delete_outline_rounded, size: 16),
-            label: const Text('Cancel & Remove', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            label: const Text(
+              'Cancel & Remove',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
           ),
           const Spacer(),
           if (_patient != null) ...[
@@ -974,9 +1125,14 @@ class _DesktopSessionDetailsDialogState
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF1F2937),
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                side: const BorderSide(color: Colors.transparent),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -988,9 +1144,14 @@ class _DesktopSessionDetailsDialogState
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
             ),
-            child: const Text('Close', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+            child: const Text(
+              'Close',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+            ),
           ),
         ],
       ),

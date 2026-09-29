@@ -40,8 +40,9 @@ class DashboardSearchField extends ConsumerStatefulWidget {
 
 class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
   final _controller = TextEditingController();
-  late final FocusNode _internalFocus =
-      FocusNode(debugLabel: 'dashboard search field');
+  late final FocusNode _internalFocus = FocusNode(
+    debugLabel: 'dashboard search field',
+  );
 
   @override
   void initState() {
@@ -79,10 +80,12 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
     final patients = ref.read(patientsStreamProvider).value ?? const [];
     final matches = patients
         .where((p) => !p.isArchived)
-        .where((p) =>
-            normalizeForSearch(p.fullName).contains(q) ||
-            (digits.length >= 3 &&
-                normalizePhoneDigits(p.phone).contains(digits)))
+        .where(
+          (p) =>
+              normalizeForSearch(p.fullName).contains(q) ||
+              (digits.length >= 3 &&
+                  normalizePhoneDigits(p.phone).contains(digits)),
+        )
         .take(5)
         .map<_Option>(_PatientOption.new);
     return [...matches, _AskOption(value.text.trim())];
@@ -122,14 +125,18 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                 CruRadius.control,
                 side: BorderSide(color: c.hairline),
               ),
-              shadows: c.cardShadow,
+              shadows: const [],
             ),
             child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 8, 0),
               child: Row(
                 children: [
-                  CruIcon(CruIcons.search, size: 16, strokeWidth: 2,
-                      color: c.label3),
+                  CruIcon(
+                    CruIcons.search,
+                    size: 16,
+                    strokeWidth: 2,
+                    color: c.label3,
+                  ),
                   const SizedBox(width: CruSpace.s8),
                   Expanded(
                     child: TextField(
@@ -192,9 +199,12 @@ class _OptionsView extends StatelessWidget {
         padding: const EdgeInsets.only(top: CruSpace.s6),
         child: Material(
           color: c.surface,
-          elevation: c.isEvening ? 0 : 8,
-          shadowColor: c.label.withValues(alpha: 0.2),
-          shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+          elevation: 0,
+          shadowColor: Colors.transparent,
+          shape: cruShape(
+            CruRadius.control,
+            side: BorderSide(color: c.hairline),
+          ),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 360, maxHeight: 320),
@@ -244,39 +254,41 @@ class _OptionRow extends StatelessWidget {
         child: Row(
           children: switch (option) {
             _PatientOption(:final patient) => [
-                CruMonogram(name: patient.fullName, size: 26),
-                const SizedBox(width: CruSpace.s10),
-                Expanded(
-                  child: Text(
-                    patient.fullName,
-                    style: CruType.callout.tint(c.label),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+              CruMonogram(name: patient.fullName, size: 26),
+              const SizedBox(width: CruSpace.s10),
+              Expanded(
+                child: Text(
+                  patient.fullName,
+                  style: CruType.callout.tint(c.label),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                Text(patient.phone, style: CruType.caption.tabular.tint(c.label3)),
-              ],
+              ),
+              Text(
+                patient.phone,
+                style: CruType.caption.tabular.tint(c.label3),
+              ),
+            ],
             _AskOption(:final query) => [
-                SizedBox(
-                  width: 26,
-                  child: CruIcon(CruIcons.sparkle, size: 18, color: c.ai),
-                ),
-                const SizedBox(width: CruSpace.s10),
-                Expanded(
-                  child: Text.rich(
-                    TextSpan(children: [
+              SizedBox(
+                width: 26,
+                child: CruIcon(CruIcons.sparkle, size: 18, color: c.ai),
+              ),
+              const SizedBox(width: CruSpace.s10),
+              Expanded(
+                child: Text.rich(
+                  TextSpan(
+                    children: [
                       TextSpan(
                         text: 'Ask CruDoc  ',
                         style: CruType.callout.tint(c.ai),
                       ),
-                      TextSpan(
-                        text: query,
-                        style: CruType.text.tint(c.label2),
-                      ),
-                    ]),
-                    overflow: TextOverflow.ellipsis,
+                      TextSpan(text: query, style: CruType.text.tint(c.label2)),
+                    ],
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ],
+              ),
+            ],
           },
         ),
       ),

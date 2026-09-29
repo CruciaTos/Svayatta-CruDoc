@@ -59,17 +59,21 @@ String _timeAndTreatment(Visit v) {
 }
 
 class _Cell extends StatelessWidget {
-  const _Cell({required this.label, required this.value, required this.caption});
+  const _Cell({
+    required this.label,
+    required this.value,
+    required this.caption,
+  });
   final String label;
   final Widget value;
   final Widget caption;
 
   @override
   Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [GlanceLabel(label), value, GlanceCaption(caption)],
-      );
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [GlanceLabel(label), value, GlanceCaption(caption)],
+  );
 }
 
 class _PlanCell extends StatelessWidget {
@@ -184,17 +188,19 @@ class _BalanceCell extends StatelessWidget {
       label: 'Balance due',
       value: GlanceMetric(PatientFormat.rupees(s.balance)),
       caption: s.hasBalance
-          ? Row(children: [
-              const CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
-              const SizedBox(width: CruSpace.s6),
-              Flexible(
-                child: Text(
-                  'Package balance',
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.caption.tabular.tint(c.label2),
+          ? Row(
+              children: [
+                const CruStatusDot(CruDotKind.waiting, size: CruSize.smallDot),
+                const SizedBox(width: CruSpace.s6),
+                Flexible(
+                  child: Text(
+                    'Package balance',
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.caption.tabular.tint(c.label2),
+                  ),
                 ),
-              ),
-            ])
+              ],
+            )
           : const Text('No balance due'),
     );
   }

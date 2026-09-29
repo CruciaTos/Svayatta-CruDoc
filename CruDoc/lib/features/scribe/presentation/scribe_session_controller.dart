@@ -175,7 +175,8 @@ class ScribeSessionController extends ChangeNotifier {
     _error = null;
 
     final doctorId = FirebaseAuth.instance.currentUser?.uid ?? 'local_doctor';
-    final initialNote = _pendingDraft ??
+    final initialNote =
+        _pendingDraft ??
         ConsultationNote(
           id: const Uuid().v4(),
           doctorId: doctorId,
@@ -197,10 +198,13 @@ class ScribeSessionController extends ChangeNotifier {
       await SpeechEngine.instance.init();
       await SpeechEngine.instance.start();
       _transcriptSub?.cancel();
-      _transcriptSub =
-          SpeechEngine.instance.transcripts.listen(_onLiveTranscript);
+      _transcriptSub = SpeechEngine.instance.transcripts.listen(
+        _onLiveTranscript,
+      );
     } catch (e) {
-      debugPrint('[ScribeSession] Live speech engine transcription warning: $e');
+      debugPrint(
+        '[ScribeSession] Live speech engine transcription warning: $e',
+      );
     }
 
     if (!kIsWeb) {

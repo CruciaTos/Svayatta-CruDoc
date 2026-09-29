@@ -30,7 +30,7 @@ abstract final class RadKind {
 /// folder under `radiology/<doctor>/<study>/`.
 class RadiologyRepository {
   RadiologyRepository({LocalDatabaseService? db})
-      : _db = db ?? LocalDatabaseService.instance;
+    : _db = db ?? LocalDatabaseService.instance;
 
   final LocalDatabaseService _db;
   static const _table = 'radiology_docs';
@@ -68,8 +68,12 @@ class RadiologyRepository {
 
   Future<Map<String, dynamic>?> _one(String id) async {
     final db = await _db.localDatabase;
-    final rows = await db.query(_table,
-        where: 'id = ? AND isDeleted = 0', whereArgs: [id], limit: 1);
+    final rows = await db.query(
+      _table,
+      where: 'id = ? AND isDeleted = 0',
+      whereArgs: [id],
+      limit: 1,
+    );
     if (rows.isEmpty) return null;
     final d = jsonDecode(rows.first['data'] as String? ?? '{}');
     return d is Map ? Map<String, dynamic>.from(d) : null;
@@ -84,22 +88,18 @@ class RadiologyRepository {
   }) async {
     final db = await _db.localDatabase;
     final now = DateTime.now().millisecondsSinceEpoch;
-    await db.insert(
-      _table,
-      {
-        'id': id,
-        'doctorId': doctorId,
-        'kind': kind,
-        'patientId': patientId,
-        'data': jsonEncode(data),
-        'isDeleted': 0,
-        'createdAt': (data['createdAt'] as int?) ?? now,
-        'updatedAt': now,
-        'syncStatus': 'pending',
-        'pendingDelete': 0,
-      },
-      conflictAlgorithm: LocalConflictAlgorithm.replace,
-    );
+    await db.insert(_table, {
+      'id': id,
+      'doctorId': doctorId,
+      'kind': kind,
+      'patientId': patientId,
+      'data': jsonEncode(data),
+      'isDeleted': 0,
+      'createdAt': (data['createdAt'] as int?) ?? now,
+      'updatedAt': now,
+      'syncStatus': 'pending',
+      'pendingDelete': 0,
+    }, conflictAlgorithm: LocalConflictAlgorithm.replace);
     notifyDocsChanged();
     unawaited(FirestoreSyncService.instance.triggerPostWriteSync());
   }
@@ -132,7 +132,9 @@ class RadiologyRepository {
     for (final f in RadSeed.fees()) {
       await _put(doctorId, RadKind.fee, f.id, f.toJson());
     }
-    await _put(doctorId, RadKind.meta, id, {'seededAt': DateTime.now().millisecondsSinceEpoch});
+    await _put(doctorId, RadKind.meta, id, {
+      'seededAt': DateTime.now().millisecondsSinceEpoch,
+    });
   }
 
   // ───────────────────────────── Studies ─────────────────────────────
@@ -170,7 +172,11 @@ class RadiologyRepository {
   Future<Directory> studyDir(String doctorId, String studyId) async =>
       Directory(p.join((await root(doctorId)).path, studyId));
 
-  Future<File> fileOf(String doctorId, String studyId, String relativePath) async =>
+  Future<File> fileOf(
+    String doctorId,
+    String studyId,
+    String relativePath,
+  ) async =>
       File(p.join((await studyDir(doctorId, studyId)).path, relativePath));
 
   /// Bytes on disk for all studies (Storage in Settings).
@@ -187,7 +193,10 @@ class RadiologyRepository {
   // ───────────────────────────── Referrers ─────────────────────────────
 
   Future<List<RadReferrer>> referrers(String doctorId) async =>
-      (await _all(doctorId, RadKind.referrer)).map(RadReferrer.fromJson).toList()
+      (await _all(
+          doctorId,
+          RadKind.referrer,
+        )).map(RadReferrer.fromJson).toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
   Future<void> saveReferrer(String doctorId, RadReferrer r) =>
@@ -211,7 +220,10 @@ class RadiologyRepository {
   /// Built-in templates first (or the doctor's edited copy of one), then
   /// the doctor's own.
   Future<List<RadTemplate>> templates(String doctorId) async {
-    final own = (await _all(doctorId, RadKind.template)).map(RadTemplate.fromJson).toList();
+    final own = (await _all(
+      doctorId,
+      RadKind.template,
+    )).map(RadTemplate.fromJson).toList();
     final byId = {for (final t in own) t.id: t};
     return [
       for (final t in RadSeed.templates()) byId.remove(t.id) ?? t,
@@ -226,7 +238,10 @@ class RadiologyRepository {
 
   Future<List<RadPhrase>> phrases(String doctorId) async {
     await _seedOnce(doctorId);
-    return (await _all(doctorId, RadKind.phrase)).map(RadPhrase.fromJson).toList()
+    return (await _all(
+        doctorId,
+        RadKind.phrase,
+      )).map(RadPhrase.fromJson).toList()
       ..sort((a, b) => a.trigger.compareTo(b.trigger));
   }
 
@@ -239,10 +254,15 @@ class RadiologyRepository {
 
   Future<List<RadFee>> fees(String doctorId) async {
     await _seedOnce(doctorId);
-    final list = (await _all(doctorId, RadKind.fee)).map(RadFee.fromJson).toList();
-    list.sort((a, b) => a.modality.index != b.modality.index
-        ? a.modality.index.compareTo(b.modality.index)
-        : a.label.compareTo(b.label));
+    final list = (await _all(
+      doctorId,
+      RadKind.fee,
+    )).map(RadFee.fromJson).toList();
+    list.sort(
+      (a, b) => a.modality.index != b.modality.index
+          ? a.modality.index.compareTo(b.modality.index)
+          : a.label.compareTo(b.label),
+    );
     return list;
   }
 

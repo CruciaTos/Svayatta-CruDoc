@@ -16,7 +16,10 @@ class OverlapVisitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final (bookedLine1, bookedLine2) = ApptFormat.booked(item.visit.createdAt, now);
+    final (bookedLine1, bookedLine2) = ApptFormat.booked(
+      item.visit.createdAt,
+      now,
+    );
     final detail = [
       if (item.reason != null) item.reason!,
       if (!item.isNewPatient) 'Returning',
@@ -28,7 +31,6 @@ class OverlapVisitRow extends StatelessWidget {
           CruMonogram(
             name: item.name,
             size: CruSize.monogramList,
-            background: c.inset,
           ),
           const SizedBox(width: CruSpace.s12),
           Expanded(

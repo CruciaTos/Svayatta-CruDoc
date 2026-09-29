@@ -144,7 +144,10 @@ class _SuperAdminApiUsageScreenState
                 indicatorColor: Theme.of(context).primaryColor,
                 labelColor: Theme.of(context).primaryColor,
                 unselectedLabelColor: AppColors.textSecondary,
-                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                labelStyle: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13,
+                ),
                 unselectedLabelStyle: const TextStyle(fontSize: 13),
                 tabs: const [
                   Tab(text: 'Overview'),
@@ -173,7 +176,11 @@ class _SuperAdminApiUsageScreenState
   // OVERVIEW TAB
   // ============================================================
 
-  Widget _buildOverviewTab(BuildContext context, ApiKeyState state, bool isMobile) {
+  Widget _buildOverviewTab(
+    BuildContext context,
+    ApiKeyState state,
+    bool isMobile,
+  ) {
     if (state.isLoading && state.apiKeys.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -218,7 +225,11 @@ class _SuperAdminApiUsageScreenState
     );
   }
 
-  Widget _buildMetricsGrid(BuildContext context, ApiKeyState state, bool isMobile) {
+  Widget _buildMetricsGrid(
+    BuildContext context,
+    ApiKeyState state,
+    bool isMobile,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final cardWidth = isMobile
@@ -352,7 +363,11 @@ class _SuperAdminApiUsageScreenState
             children: [
               const Row(
                 children: [
-                  Icon(Icons.show_chart_rounded, color: AppColors.slateBlue, size: 20),
+                  Icon(
+                    Icons.show_chart_rounded,
+                    color: AppColors.slateBlue,
+                    size: 20,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'API REQUEST VOLUME',
@@ -366,7 +381,10 @@ class _SuperAdminApiUsageScreenState
                 ],
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.positiveGreen.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -416,7 +434,11 @@ class _SuperAdminApiUsageScreenState
         children: [
           const Row(
             children: [
-              Icon(Icons.pie_chart_outline_rounded, color: AppColors.slateBlue, size: 20),
+              Icon(
+                Icons.pie_chart_outline_rounded,
+                color: AppColors.slateBlue,
+                size: 20,
+              ),
               SizedBox(width: 8),
               Text(
                 'ENDPOINT DISTRIBUTION',
@@ -434,8 +456,10 @@ class _SuperAdminApiUsageScreenState
             const SizedBox(
               height: 160,
               child: Center(
-                child: Text('No request data logged yet',
-                    style: TextStyle(color: AppColors.textSecondary)),
+                child: Text(
+                  'No request data logged yet',
+                  style: TextStyle(color: AppColors.textSecondary),
+                ),
               ),
             )
           else
@@ -533,14 +557,17 @@ class _SuperAdminApiUsageScreenState
                     hintStyle: const TextStyle(fontSize: 13),
                     prefixIcon: const Icon(Icons.search, size: 20),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.divider),
+                      borderSide: const BorderSide(color: Colors.transparent),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.divider),
+                      borderSide: const BorderSide(color: Colors.transparent),
                     ),
                   ),
                   onChanged: (val) => notifier.setSearchQuery(val),
@@ -557,22 +584,31 @@ class _SuperAdminApiUsageScreenState
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.divider),
+                side: const BorderSide(color: Colors.transparent),
               ),
               clipBehavior: Clip.antiAlias,
               child: filteredKeys.isEmpty
                   ? const Center(
                       child: Text(
                         'No API keys found. Click "Generate Key" to create one.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   : ListView.separated(
                       itemCount: filteredKeys.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final key = filteredKeys[index];
-                        return _buildKeyListRow(context, key, notifier, isMobile);
+                        return _buildKeyListRow(
+                          context,
+                          key,
+                          notifier,
+                          isMobile,
+                        );
                       },
                     ),
             ),
@@ -611,7 +647,11 @@ class _SuperAdminApiUsageScreenState
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.vpn_key_outlined, size: 13, color: Colors.grey),
+                const Icon(
+                  Icons.vpn_key_outlined,
+                  size: 13,
+                  color: Colors.grey,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   key.maskedKey,
@@ -626,7 +666,11 @@ class _SuperAdminApiUsageScreenState
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.grey),
+                const Icon(
+                  Icons.calendar_today_outlined,
+                  size: 13,
+                  color: Colors.grey,
+                ),
                 const SizedBox(width: 4),
                 Text('Created: ${dateFormat.format(key.createdAt)}'),
               ],
@@ -635,7 +679,11 @@ class _SuperAdminApiUsageScreenState
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.timer_outlined, size: 13, color: Colors.grey),
+                  const Icon(
+                    Icons.timer_outlined,
+                    size: 13,
+                    color: Colors.grey,
+                  ),
                   const SizedBox(width: 4),
                   Text('Expires: ${dateFormat.format(key.expiresAt!)}'),
                 ],
@@ -651,7 +699,11 @@ class _SuperAdminApiUsageScreenState
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.sync_alt_outlined, size: 13, color: Colors.grey),
+                const Icon(
+                  Icons.sync_alt_outlined,
+                  size: 13,
+                  color: Colors.grey,
+                ),
                 const SizedBox(width: 4),
                 Text('Calls: ${key.totalRequests}'),
               ],
@@ -669,7 +721,11 @@ class _SuperAdminApiUsageScreenState
           ),
           if (key.isActive)
             IconButton(
-              icon: const Icon(Icons.block_outlined, size: 20, color: Colors.redAccent),
+              icon: const Icon(
+                Icons.block_outlined,
+                size: 20,
+                color: Colors.redAccent,
+              ),
               tooltip: 'Revoke API Key',
               onPressed: () => _showRevokeConfirmation(context, key, notifier),
             ),
@@ -710,7 +766,9 @@ class _SuperAdminApiUsageScreenState
   ) {
     final filteredLogs = state.apiLogs.where((log) {
       if (state.searchQuery.isEmpty) return true;
-      return log.apiKeyName.toLowerCase().contains(state.searchQuery.toLowerCase()) ||
+      return log.apiKeyName.toLowerCase().contains(
+            state.searchQuery.toLowerCase(),
+          ) ||
           log.endpoint.toLowerCase().contains(state.searchQuery.toLowerCase());
     }).toList();
 
@@ -728,14 +786,17 @@ class _SuperAdminApiUsageScreenState
                     hintStyle: const TextStyle(fontSize: 13),
                     prefixIcon: const Icon(Icons.search, size: 20),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.divider),
+                      borderSide: const BorderSide(color: Colors.transparent),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppColors.divider),
+                      borderSide: const BorderSide(color: Colors.transparent),
                     ),
                   ),
                   onChanged: (val) => notifier.setSearchQuery(val),
@@ -750,19 +811,23 @@ class _SuperAdminApiUsageScreenState
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
-                side: const BorderSide(color: AppColors.divider),
+                side: const BorderSide(color: Colors.transparent),
               ),
               clipBehavior: Clip.antiAlias,
               child: filteredLogs.isEmpty
                   ? const Center(
                       child: Text(
                         'No request logs found.',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                     )
                   : ListView.separated(
                       itemCount: filteredLogs.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final log = filteredLogs[index];
                         return _buildLogListRow(context, log, isMobile);
@@ -775,15 +840,23 @@ class _SuperAdminApiUsageScreenState
     );
   }
 
-  Widget _buildLogListRow(BuildContext context, ApiLogModel log, bool isMobile) {
+  Widget _buildLogListRow(
+    BuildContext context,
+    ApiLogModel log,
+    bool isMobile,
+  ) {
     final timeStr = DateFormat('MMM dd, yyyy HH:mm:ss').format(log.timestamp);
-    
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       leading: _buildMethodBadge(log.method),
       title: Text(
         log.endpoint,
-        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13, fontFamily: 'monospace'),
+        style: const TextStyle(
+          fontWeight: FontWeight.w600,
+          fontSize: 13,
+          fontFamily: 'monospace',
+        ),
       ),
       subtitle: Padding(
         padding: const EdgeInsets.only(top: 4.0),
@@ -806,7 +879,11 @@ class _SuperAdminApiUsageScreenState
         children: [
           Text(
             '${log.latencyMs} ms',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(width: 16),
           _buildStatusCodeBadge(log.statusCode),
@@ -908,7 +985,11 @@ class _SuperAdminApiUsageScreenState
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            const Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.redAccent,
+              size: 24,
+            ),
             const SizedBox(width: 8),
             const Text('Revoke API Key'),
           ],
@@ -973,7 +1054,11 @@ class _SuperAdminApiUsageScreenState
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.info_outline_rounded, color: Colors.blue[800], size: 22),
+                Icon(
+                  Icons.info_outline_rounded,
+                  color: Colors.blue[800],
+                  size: 22,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -990,10 +1075,7 @@ class _SuperAdminApiUsageScreenState
                       const SizedBox(height: 4),
                       Text(
                         'Centralized management of third-party API configurations (Google Maps, Twilio telephony, Gemini chatbot, voice receptionist, and WhatsApp notifications). Modify these values to update credentials platform-wide.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.blue[900],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.blue[900]),
                       ),
                     ],
                   ),
@@ -1009,10 +1091,26 @@ class _SuperAdminApiUsageScreenState
               icon: Icons.language_rounded,
               iconColor: Colors.deepPurple,
               fields: [
-                _buildSystemField('googleMapsApiKey', 'Google Maps API Key', 'Used for address geocoding and Static Map previews.'),
-                _buildSystemField('chatbotGeminiApiKey', 'Gemini Chatbot API Key', 'LLM key used to power the CruDoc practice AI Assistant.'),
-                _buildSystemField('voiceGeminiApiKey', 'Voice Gemini API Key', 'LLM key used by the telephony voice receptionist.'),
-                _buildSystemField('sarvamApiKey', 'Sarvam AI Speech API Key', 'TTS/STT key used for speech translation in voice receptionist.'),
+                _buildSystemField(
+                  'googleMapsApiKey',
+                  'Google Maps API Key',
+                  'Used for address geocoding and Static Map previews.',
+                ),
+                _buildSystemField(
+                  'chatbotGeminiApiKey',
+                  'Gemini Chatbot API Key',
+                  'LLM key used to power the CruDoc practice AI Assistant.',
+                ),
+                _buildSystemField(
+                  'voiceGeminiApiKey',
+                  'Voice Gemini API Key',
+                  'LLM key used by the telephony voice receptionist.',
+                ),
+                _buildSystemField(
+                  'sarvamApiKey',
+                  'Sarvam AI Speech API Key',
+                  'TTS/STT key used for speech translation in voice receptionist.',
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1021,10 +1119,26 @@ class _SuperAdminApiUsageScreenState
               icon: Icons.phone_callback_rounded,
               iconColor: Colors.redAccent,
               fields: [
-                _buildSystemField('twilioAccountSid', 'Twilio Account SID', 'Your Twilio Account identifier.'),
-                _buildSystemField('twilioAuthToken', 'Twilio Auth Token', 'Twilio Auth Token used to sign websocket connections.'),
-                _buildSystemField('twilioPhoneNumber', 'Twilio Phone Number', 'Dial-in number callers use to contact the bot.'),
-                _buildSystemField('receptionistNumber', 'Receptionist Transfer Number', 'Number callers are forwarded to for human support.'),
+                _buildSystemField(
+                  'twilioAccountSid',
+                  'Twilio Account SID',
+                  'Your Twilio Account identifier.',
+                ),
+                _buildSystemField(
+                  'twilioAuthToken',
+                  'Twilio Auth Token',
+                  'Twilio Auth Token used to sign websocket connections.',
+                ),
+                _buildSystemField(
+                  'twilioPhoneNumber',
+                  'Twilio Phone Number',
+                  'Dial-in number callers use to contact the bot.',
+                ),
+                _buildSystemField(
+                  'receptionistNumber',
+                  'Receptionist Transfer Number',
+                  'Number callers are forwarded to for human support.',
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1033,8 +1147,16 @@ class _SuperAdminApiUsageScreenState
               icon: Icons.chat_bubble_outline_rounded,
               iconColor: AppColors.positiveGreen,
               fields: [
-                _buildSystemField('whatsappAccessToken', 'WhatsApp Access Token', 'Meta System User token for sending template notifications.'),
-                _buildSystemField('whatsappVerifyToken', 'WhatsApp Webhook Verify Token', 'Verification token matched against Meta webhook requests.'),
+                _buildSystemField(
+                  'whatsappAccessToken',
+                  'WhatsApp Access Token',
+                  'Meta System User token for sending template notifications.',
+                ),
+                _buildSystemField(
+                  'whatsappVerifyToken',
+                  'WhatsApp Webhook Verify Token',
+                  'Verification token matched against Meta webhook requests.',
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -1043,7 +1165,11 @@ class _SuperAdminApiUsageScreenState
               icon: Icons.security_rounded,
               iconColor: Colors.amber,
               fields: [
-                _buildSystemField('voiceBotApiKey', 'Voice Bot API Secret', 'Shared secret checked by Appointments API Cloud Function.'),
+                _buildSystemField(
+                  'voiceBotApiKey',
+                  'Voice Bot API Secret',
+                  'Shared secret checked by Appointments API Cloud Function.',
+                ),
               ],
             ),
           ] else ...[
@@ -1058,10 +1184,26 @@ class _SuperAdminApiUsageScreenState
                         icon: Icons.language_rounded,
                         iconColor: Colors.deepPurple,
                         fields: [
-                          _buildSystemField('googleMapsApiKey', 'Google Maps API Key', 'Used for address geocoding and Static Map previews.'),
-                          _buildSystemField('chatbotGeminiApiKey', 'Gemini Chatbot API Key', 'LLM key used to power the CruDoc practice AI Assistant.'),
-                          _buildSystemField('voiceGeminiApiKey', 'Voice Gemini API Key', 'LLM key used by the telephony voice receptionist.'),
-                          _buildSystemField('sarvamApiKey', 'Sarvam AI Speech API Key', 'TTS/STT key used for speech translation in voice receptionist.'),
+                          _buildSystemField(
+                            'googleMapsApiKey',
+                            'Google Maps API Key',
+                            'Used for address geocoding and Static Map previews.',
+                          ),
+                          _buildSystemField(
+                            'chatbotGeminiApiKey',
+                            'Gemini Chatbot API Key',
+                            'LLM key used to power the CruDoc practice AI Assistant.',
+                          ),
+                          _buildSystemField(
+                            'voiceGeminiApiKey',
+                            'Voice Gemini API Key',
+                            'LLM key used by the telephony voice receptionist.',
+                          ),
+                          _buildSystemField(
+                            'sarvamApiKey',
+                            'Sarvam AI Speech API Key',
+                            'TTS/STT key used for speech translation in voice receptionist.',
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -1070,7 +1212,11 @@ class _SuperAdminApiUsageScreenState
                         icon: Icons.security_rounded,
                         iconColor: Colors.amber,
                         fields: [
-                          _buildSystemField('voiceBotApiKey', 'Voice Bot API Secret', 'Shared secret checked by Appointments API Cloud Function.'),
+                          _buildSystemField(
+                            'voiceBotApiKey',
+                            'Voice Bot API Secret',
+                            'Shared secret checked by Appointments API Cloud Function.',
+                          ),
                         ],
                       ),
                     ],
@@ -1085,10 +1231,26 @@ class _SuperAdminApiUsageScreenState
                         icon: Icons.phone_callback_rounded,
                         iconColor: Colors.redAccent,
                         fields: [
-                          _buildSystemField('twilioAccountSid', 'Twilio Account SID', 'Your Twilio Account identifier.'),
-                          _buildSystemField('twilioAuthToken', 'Twilio Auth Token', 'Twilio Auth Token used to sign websocket connections.'),
-                          _buildSystemField('twilioPhoneNumber', 'Twilio Phone Number', 'Dial-in number callers use to contact the bot.'),
-                          _buildSystemField('receptionistNumber', 'Receptionist Transfer Number', 'Number callers are forwarded to for human support.'),
+                          _buildSystemField(
+                            'twilioAccountSid',
+                            'Twilio Account SID',
+                            'Your Twilio Account identifier.',
+                          ),
+                          _buildSystemField(
+                            'twilioAuthToken',
+                            'Twilio Auth Token',
+                            'Twilio Auth Token used to sign websocket connections.',
+                          ),
+                          _buildSystemField(
+                            'twilioPhoneNumber',
+                            'Twilio Phone Number',
+                            'Dial-in number callers use to contact the bot.',
+                          ),
+                          _buildSystemField(
+                            'receptionistNumber',
+                            'Receptionist Transfer Number',
+                            'Number callers are forwarded to for human support.',
+                          ),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -1097,8 +1259,16 @@ class _SuperAdminApiUsageScreenState
                         icon: Icons.chat_bubble_outline_rounded,
                         iconColor: AppColors.positiveGreen,
                         fields: [
-                          _buildSystemField('whatsappAccessToken', 'WhatsApp Access Token', 'Meta System User token for sending template notifications.'),
-                          _buildSystemField('whatsappVerifyToken', 'WhatsApp Webhook Verify Token', 'Verification token matched against Meta webhook requests.'),
+                          _buildSystemField(
+                            'whatsappAccessToken',
+                            'WhatsApp Access Token',
+                            'Meta System User token for sending template notifications.',
+                          ),
+                          _buildSystemField(
+                            'whatsappVerifyToken',
+                            'WhatsApp Webhook Verify Token',
+                            'Verification token matched against Meta webhook requests.',
+                          ),
                         ],
                       ),
                     ],
@@ -1121,7 +1291,9 @@ class _SuperAdminApiUsageScreenState
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('System integration keys saved successfully'),
+                            content: Text(
+                              'System integration keys saved successfully',
+                            ),
                             behavior: SnackBarBehavior.floating,
                           ),
                         );
@@ -1141,11 +1313,14 @@ class _SuperAdminApiUsageScreenState
               style: ElevatedButton.styleFrom(
                 backgroundColor: Theme.of(context).primaryColor,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                elevation: 2,
+                elevation: 0,
               ),
             ),
           ),
@@ -1212,12 +1387,19 @@ class _SuperAdminApiUsageScreenState
         children: [
           Text(
             label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.textPrimary),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: AppColors.textPrimary,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             description,
-            style: const TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            style: const TextStyle(
+              fontSize: 11,
+              color: AppColors.textSecondary,
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -1226,11 +1408,18 @@ class _SuperAdminApiUsageScreenState
             style: const TextStyle(fontSize: 13, fontFamily: 'monospace'),
             decoration: InputDecoration(
               isDense: true,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  isObscured ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                  isObscured
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
                   size: 18,
                   color: Colors.grey,
                 ),
@@ -1300,7 +1489,11 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.check_circle_rounded, color: AppColors.positiveGreen, size: 28),
+                  const Icon(
+                    Icons.check_circle_rounded,
+                    color: AppColors.positiveGreen,
+                    size: 28,
+                  ),
                   const SizedBox(width: 10),
                   Text(
                     'API Key Generated',
@@ -1323,7 +1516,10 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
               // Plain key box
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: Colors.grey[900],
                   borderRadius: BorderRadius.circular(10),
@@ -1342,9 +1538,15 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.copy_rounded, color: Colors.white, size: 20),
+                      icon: const Icon(
+                        Icons.copy_rounded,
+                        color: Colors.white,
+                        size: 20,
+                      ),
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: state.lastGeneratedKey!));
+                        Clipboard.setData(
+                          ClipboardData(text: state.lastGeneratedKey!),
+                        );
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
                             content: Text('API Key copied to clipboard'),
@@ -1370,13 +1572,20 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.warning_rounded, color: Colors.amber[800], size: 20),
+                    Icon(
+                      Icons.warning_rounded,
+                      color: Colors.amber[800],
+                      size: 20,
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Keep this key secret. Anyone with access to this key can perform '
                         'actions on behalf of this workspace corresponding to the scopes granted.',
-                        style: TextStyle(fontSize: 11, color: Colors.amber[900]),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.amber[900],
+                        ),
                       ),
                     ),
                   ],
@@ -1394,7 +1603,9 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                     ),
                     child: const Text('Close'),
                   ),
@@ -1439,7 +1650,10 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                 const SizedBox(height: 16),
 
                 // Name field
-                const Text('Key Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const Text(
+                  'Key Name',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _nameController,
@@ -1447,8 +1661,13 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                     hintText: 'e.g. Voice Agent Client, Stripe Webhook',
                     hintStyle: const TextStyle(fontSize: 13),
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
@@ -1466,20 +1685,55 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Expiration', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          const Text(
+                            'Expiration',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           DropdownButtonFormField<String>(
                             initialValue: _expiryOption,
                             isDense: true,
                             decoration: InputDecoration(
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 16,
+                                vertical: 10,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             items: const [
-                              DropdownMenuItem(value: '7', child: Text('7 Days', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: '30', child: Text('30 Days', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: '90', child: Text('90 Days', style: TextStyle(fontSize: 13))),
-                              DropdownMenuItem(value: 'never', child: Text('Never Expires', style: TextStyle(fontSize: 13))),
+                              DropdownMenuItem(
+                                value: '7',
+                                child: Text(
+                                  '7 Days',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: '30',
+                                child: Text(
+                                  '30 Days',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: '90',
+                                child: Text(
+                                  '90 Days',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
+                              DropdownMenuItem(
+                                value: 'never',
+                                child: Text(
+                                  'Never Expires',
+                                  style: TextStyle(fontSize: 13),
+                                ),
+                              ),
                             ],
                             onChanged: (val) {
                               if (val != null) {
@@ -1497,8 +1751,13 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Rate Limit: $_rateLimit req/min',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text(
+                            'Rate Limit: $_rateLimit req/min',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Slider(
                             value: _rateLimit.toDouble(),
@@ -1521,7 +1780,10 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                 const SizedBox(height: 16),
 
                 // Scopes Select
-                const Text('Permissions / Scopes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const Text(
+                  'Permissions / Scopes',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   constraints: const BoxConstraints(maxHeight: 180),
@@ -1532,11 +1794,23 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                   child: ListView(
                     shrinkWrap: true,
                     children: _availableScopes.map((scope) {
-                      final isSelected = _selectedScopes.contains(scope['value']);
+                      final isSelected = _selectedScopes.contains(
+                        scope['value'],
+                      );
                       return CheckboxListTile(
                         value: isSelected,
-                        title: Text(scope['label']!, style: const TextStyle(fontSize: 12)),
-                        subtitle: Text(scope['value']!, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontFamily: 'monospace')),
+                        title: Text(
+                          scope['label']!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        subtitle: Text(
+                          scope['value']!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                            fontFamily: 'monospace',
+                          ),
+                        ),
                         dense: true,
                         activeColor: Theme.of(context).primaryColor,
                         onChanged: (bool? checked) {
@@ -1571,7 +1845,9 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                                 DateTime? exp;
                                 if (_expiryOption != 'never') {
                                   final days = int.parse(_expiryOption);
-                                  exp = DateTime.now().add(Duration(days: days));
+                                  exp = DateTime.now().add(
+                                    Duration(days: days),
+                                  );
                                 }
                                 notifier.createApiKey(
                                   name: _nameController.text.trim(),
@@ -1584,13 +1860,18 @@ class _GenerateKeyDialogState extends ConsumerState<_GenerateKeyDialog> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       child: state.isLoading
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Generate'),
                     ),
@@ -1686,14 +1967,22 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                 const SizedBox(height: 16),
 
                 // Name field
-                const Text('Key Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const Text(
+                  'Key Name',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _nameController,
                   decoration: InputDecoration(
                     isDense: true,
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   validator: (val) {
                     if (val == null || val.trim().isEmpty) {
@@ -1711,10 +2000,21 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Key Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          const Text(
+                            'Key Status',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           SwitchListTile(
-                            title: Text(_isActive ? 'Active (Traffic allowed)' : 'Inactive (Traffic blocked)', style: const TextStyle(fontSize: 13)),
+                            title: Text(
+                              _isActive
+                                  ? 'Active (Traffic allowed)'
+                                  : 'Inactive (Traffic blocked)',
+                              style: const TextStyle(fontSize: 13),
+                            ),
                             value: _isActive,
                             dense: true,
                             contentPadding: EdgeInsets.zero,
@@ -1733,8 +2033,13 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Rate Limit: $_rateLimit req/min',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text(
+                            'Rate Limit: $_rateLimit req/min',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
                           const SizedBox(height: 6),
                           Slider(
                             value: _rateLimit.toDouble(),
@@ -1757,7 +2062,10 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                 const SizedBox(height: 16),
 
                 // Scopes Select
-                const Text('Permissions / Scopes', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                const Text(
+                  'Permissions / Scopes',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
                 const SizedBox(height: 8),
                 Container(
                   constraints: const BoxConstraints(maxHeight: 180),
@@ -1768,11 +2076,23 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                   child: ListView(
                     shrinkWrap: true,
                     children: _availableScopes.map((scope) {
-                      final isSelected = _selectedScopes.contains(scope['value']);
+                      final isSelected = _selectedScopes.contains(
+                        scope['value'],
+                      );
                       return CheckboxListTile(
                         value: isSelected,
-                        title: Text(scope['label']!, style: const TextStyle(fontSize: 12)),
-                        subtitle: Text(scope['value']!, style: TextStyle(fontSize: 10, color: Colors.grey[500], fontFamily: 'monospace')),
+                        title: Text(
+                          scope['label']!,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                        subtitle: Text(
+                          scope['value']!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Colors.grey[500],
+                            fontFamily: 'monospace',
+                          ),
+                        ),
                         dense: true,
                         activeColor: Theme.of(context).primaryColor,
                         onChanged: (bool? checked) {
@@ -1817,7 +2137,9 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                                   navigator.pop();
                                   messenger.showSnackBar(
                                     const SnackBar(
-                                      content: Text('API Key updated successfully'),
+                                      content: Text(
+                                        'API Key updated successfully',
+                                      ),
                                       behavior: SnackBarBehavior.floating,
                                     ),
                                   );
@@ -1827,13 +2149,18 @@ class _EditKeyDialogState extends ConsumerState<_EditKeyDialog> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
                         foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
                       ),
                       child: state.isLoading
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Text('Save Changes'),
                     ),
@@ -1880,7 +2207,8 @@ class ApiUsageTrendPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     // Determine max value for Y scaling
-    final double maxVal = (dataPoints.reduce((a, b) => a > b ? a : b) * 1.25).clamp(10.0, 100000.0);
+    final double maxVal = (dataPoints.reduce((a, b) => a > b ? a : b) * 1.25)
+        .clamp(10.0, 100000.0);
     const double paddingLeft = 40.0;
     const double paddingBottom = 30.0;
     final double width = size.width - paddingLeft - 10.0;
@@ -1904,10 +2232,14 @@ class ApiUsageTrendPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset(paddingLeft - textPainter.width - 6, y - 6));
+      textPainter.paint(
+        canvas,
+        Offset(paddingLeft - textPainter.width - 6, y - 6),
+      );
     }
 
-    final double stepX = width / (dataPoints.length > 1 ? dataPoints.length - 1 : 1);
+    final double stepX =
+        width / (dataPoints.length > 1 ? dataPoints.length - 1 : 1);
     final List<Offset> points = [];
 
     for (int i = 0; i < dataPoints.length; i++) {
@@ -1929,7 +2261,10 @@ class ApiUsageTrendPainter extends CustomPainter {
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        textPainter.paint(canvas, Offset(x - (textPainter.width / 2), size.height - 18));
+        textPainter.paint(
+          canvas,
+          Offset(x - (textPainter.width / 2), size.height - 18),
+        );
       }
     }
 
@@ -1980,7 +2315,9 @@ class ApiUsageTrendPainter extends CustomPainter {
       );
 
       final fillPaint = Paint()
-        ..shader = fillGradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+        ..shader = fillGradient.createShader(
+          Rect.fromLTWH(0, 0, size.width, size.height),
+        );
 
       canvas.drawPath(fillPath, fillPaint);
       canvas.drawPath(path, linePaint);

@@ -86,7 +86,8 @@ class _DayGridState extends ConsumerState<DayGrid> {
         final m = math.max(0, t.difference(s.start).inMinutes);
         return y + DayGridMetrics.minutes(m);
       }
-      y += DayGridMetrics.minutes(s.end.difference(s.start).inMinutes) +
+      y +=
+          DayGridMetrics.minutes(s.end.difference(s.start).inMinutes) +
           DayGridMetrics.topInset +
           _band;
     }
@@ -97,8 +98,9 @@ class _DayGridState extends ConsumerState<DayGrid> {
   Widget build(BuildContext context) {
     final range = ApptsBuilder.range(widget.items, widget.day);
     final sessions = range.sessions;
-    final showLegend = widget.groups
-        .any((g) => g.isOverlap && g.kind == OverlapKind.unsorted);
+    final showLegend = widget.groups.any(
+      (g) => g.isOverlap && g.kind == OverlapKind.unsorted,
+    );
     _scrollIntoView(range);
 
     return CruCard(
@@ -149,9 +151,9 @@ class _DayGridState extends ConsumerState<DayGrid> {
   }
 
   List<ApptItem> _inSession(ClinicSession s) => [
-        for (final i in widget.items)
-          if (!i.start.isBefore(s.start) && i.start.isBefore(s.end)) i,
-      ];
+    for (final i in widget.items)
+      if (!i.start.isBefore(s.start) && i.start.isBefore(s.end)) i,
+  ];
 }
 
 /// One session drawn to scale.
@@ -183,19 +185,24 @@ class _SessionCanvas extends ConsumerWidget {
       for (final g in groups)
         if (g.items.any((i) => ids.contains(i.id))) g,
     ];
-    final showNow = isToday &&
-        !now.isBefore(session.start) &&
-        !now.isAfter(session.end);
+    final showNow =
+        isToday && !now.isBefore(session.start) && !now.isAfter(session.end);
 
     // Whole hours inside the session.
     final firstHour = session.start.minute == 0
         ? session.start
-        : DateTime(session.start.year, session.start.month, session.start.day,
-            session.start.hour + 1);
+        : DateTime(
+            session.start.year,
+            session.start.month,
+            session.start.day,
+            session.start.hour + 1,
+          );
     final hours = <DateTime>[
-      for (var h = firstHour;
-          !h.isAfter(session.end);
-          h = h.add(const Duration(hours: 1)))
+      for (
+        var h = firstHour;
+        !h.isAfter(session.end);
+        h = h.add(const Duration(hours: 1))
+      )
         h,
     ];
     final labelHalf =
@@ -285,13 +292,13 @@ class _SessionCanvas extends ConsumerWidget {
   ) {
     final cols = math.max(1, g.columns);
     final col = g.columnOf[item.id] ?? 0;
-    final colWidth =
-        (lane - DayGridMetrics.blockGap * (cols - 1)) / cols;
+    final colWidth = (lane - DayGridMetrics.blockGap * (cols - 1)) / cols;
     final controller = ref.read(apptsControllerProvider.notifier);
     final unsorted = g.isOverlap && g.kind == OverlapKind.unsorted;
     return Positioned(
       key: ValueKey(item.id),
-      left: DayGridMetrics.blockLeft + col * (colWidth + DayGridMetrics.blockGap),
+      left:
+          DayGridMetrics.blockLeft + col * (colWidth + DayGridMetrics.blockGap),
       width: math.max(0, colWidth),
       top: _y(item.start) + 1,
       height: math.max(

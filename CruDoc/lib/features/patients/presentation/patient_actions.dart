@@ -55,7 +55,10 @@ abstract final class PatientActions {
       message: message ?? '',
     );
     if (uri == null) {
-      _say(messenger, "${p.fullName}'s phone number can't be used for WhatsApp.");
+      _say(
+        messenger,
+        "${p.fullName}'s phone number can't be used for WhatsApp.",
+      );
       return;
     }
     var ok = false;
@@ -97,24 +100,28 @@ abstract final class PatientActions {
     if (result == null) return;
     final now = DateTime.now();
     try {
-      await revenue.createRevenueEntry(RevenueEntry(
-        id: '',
-        date: now,
-        description: result.note.isEmpty
-            ? 'Package payment'
-            : 'Package payment · ${result.note}',
-        amount: result.amount,
-        type: RevenueType.miscellaneous,
-        payer: s.name,
-        patientId: s.id,
-        createdAt: now,
-        updatedAt: now,
-      ));
+      await revenue.createRevenueEntry(
+        RevenueEntry(
+          id: '',
+          date: now,
+          description: result.note.isEmpty
+              ? 'Package payment'
+              : 'Package payment · ${result.note}',
+          amount: result.amount,
+          type: RevenueType.miscellaneous,
+          payer: s.name,
+          patientId: s.id,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
       await patients.updatePatient(s.id, {
         'packageBalance': math.max(0, s.balance - result.amount).toDouble(),
       });
-      _say(messenger,
-          'Recorded ${PatientFormat.rupees(result.amount)} from ${s.name}.');
+      _say(
+        messenger,
+        'Recorded ${PatientFormat.rupees(result.amount)} from ${s.name}.',
+      );
     } catch (e) {
       _say(messenger, "Couldn't record the payment: $e");
     }
@@ -141,11 +148,7 @@ abstract final class PatientActions {
 
   /// Opens the session sheet so a past visit can be marked done, missed
   /// or cancelled.
-  static Future<void> updateVisit(
-    BuildContext context,
-    Visit v,
-    Patient p,
-  ) =>
+  static Future<void> updateVisit(BuildContext context, Visit v, Patient p) =>
       showSessionDetailsSheet(context, VisitWithPatient(visit: v, patient: p));
 
   /// Asks, then soft-deletes the patient. True when deleted.
@@ -189,8 +192,10 @@ abstract final class PatientActions {
   ) async {
     final visit = todaysVisit(s, now);
     if (visit == null) {
-      _say(ScaffoldMessenger.maybeOf(context),
-          "Scribe records against a visit. Add today's visit with New visit first.");
+      _say(
+        ScaffoldMessenger.maybeOf(context),
+        "Scribe records against a visit. Add today's visit with New visit first.",
+      );
       return;
     }
     await showScribeFlow(context, visit: visit, patient: s.patient);
@@ -215,9 +220,9 @@ abstract final class PatientActions {
       'Thank you.';
 
   static void importUnavailable(BuildContext context) => _say(
-        ScaffoldMessenger.maybeOf(context),
-        "Import and export aren't available yet.",
-      );
+    ScaffoldMessenger.maybeOf(context),
+    "Import and export aren't available yet.",
+  );
 
   static String _firstName(PatientSummary s) {
     final f = s.patient.firstName.trim();

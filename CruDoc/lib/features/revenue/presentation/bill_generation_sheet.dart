@@ -56,7 +56,11 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
   String _selectedPaymentMode = 'UPI / Online';
 
   final List<BillItemRow> _items = [
-    BillItemRow(description: 'Clinical Consultation Fee', quantity: 1, unitPrice: 500.0),
+    BillItemRow(
+      description: 'Clinical Consultation Fee',
+      quantity: 1,
+      unitPrice: 500.0,
+    ),
   ];
 
   @override
@@ -69,12 +73,16 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
     _patientPhoneCtrl = TextEditingController(
       text: widget.initialPatient?.phone ?? '',
     );
-    final invoiceSeq = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+    final invoiceSeq = DateTime.now().millisecondsSinceEpoch
+        .toString()
+        .substring(7);
     _billNumberCtrl = TextEditingController(text: 'INV-$invoiceSeq');
     _discountCtrl = TextEditingController(text: '0');
     _taxPercentCtrl = TextEditingController(text: '0');
     _paidAmountCtrl = TextEditingController(text: '500');
-    _notesCtrl = TextEditingController(text: 'Thank you for choosing our clinic!');
+    _notesCtrl = TextEditingController(
+      text: 'Thank you for choosing our clinic!',
+    );
   }
 
   @override
@@ -92,18 +100,23 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
   double get _subtotal => _items.fold(0.0, (acc, item) => acc + item.total);
   double get _discount => double.tryParse(_discountCtrl.text) ?? 0.0;
   double get _taxPercent => double.tryParse(_taxPercentCtrl.text) ?? 0.0;
-  double get _taxAmount => (_subtotal - _discount > 0) ? (_subtotal - _discount) * (_taxPercent / 100.0) : 0.0;
-  double get _grandTotal => (_subtotal - _discount + _taxAmount > 0) ? (_subtotal - _discount + _taxAmount) : 0.0;
+  double get _taxAmount => (_subtotal - _discount > 0)
+      ? (_subtotal - _discount) * (_taxPercent / 100.0)
+      : 0.0;
+  double get _grandTotal => (_subtotal - _discount + _taxAmount > 0)
+      ? (_subtotal - _discount + _taxAmount)
+      : 0.0;
   double get _paidAmount => double.tryParse(_paidAmountCtrl.text) ?? 0.0;
-  double get _balanceDue => (_grandTotal - _paidAmount > 0) ? (_grandTotal - _paidAmount) : 0.0;
+  double get _balanceDue =>
+      (_grandTotal - _paidAmount > 0) ? (_grandTotal - _paidAmount) : 0.0;
 
   // Built for the Day palette: stays on Day even when opened from a
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final cfg = widget.letterheadConfig;
@@ -145,10 +158,16 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                            color: const Color(
+                              0xFF0D9488,
+                            ).withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0D9488), size: 20),
+                          child: const Icon(
+                            Icons.receipt_long_rounded,
+                            color: Color(0xFF0D9488),
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         const Text(
@@ -184,16 +203,15 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [
-                      BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 3)),
-                    ],
+                    boxShadow: const [],
                   ),
                   child: Column(
                     children: [
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (cfg.logoUrl != null && cfg.logoUrl!.trim().isNotEmpty)
+                          if (cfg.logoUrl != null &&
+                              cfg.logoUrl!.trim().isNotEmpty)
                             Padding(
                               padding: const EdgeInsets.only(right: 14),
                               child: ClipRRect(
@@ -203,7 +221,11 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                                   width: 54,
                                   height: 54,
                                   fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => const Icon(Icons.local_hospital_rounded, size: 36, color: Color(0xFF1E78FF)),
+                                  errorWidget: (_, __, ___) => const Icon(
+                                    Icons.local_hospital_rounded,
+                                    size: 36,
+                                    color: Color(0xFF1E78FF),
+                                  ),
                                 ),
                               ),
                             )
@@ -213,10 +235,16 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                               height: 54,
                               margin: const EdgeInsets.only(right: 14),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF1E78FF).withValues(alpha: 0.1),
+                                color: const Color(
+                                  0xFF1E78FF,
+                                ).withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              child: const Icon(Icons.local_hospital_rounded, size: 30, color: Color(0xFF1E78FF)),
+                              child: const Icon(
+                                Icons.local_hospital_rounded,
+                                size: 30,
+                                color: Color(0xFF1E78FF),
+                              ),
                             ),
                           Expanded(
                             child: Column(
@@ -241,12 +269,18 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                                 ),
                                 Text(
                                   '${cfg.specialty} | Reg: ${cfg.registrationNumber}',
-                                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    color: Colors.grey.shade600,
+                                  ),
                                 ),
                                 const SizedBox(height: 3),
                                 Text(
                                   '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
-                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey.shade500,
+                                  ),
                                 ),
                               ],
                             ),
@@ -281,13 +315,21 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                     children: [
                       const Text(
                         'Invoice Details & Patient Info',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF334155)),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Color(0xFF334155),
+                        ),
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
-                            child: _buildInput(_billNumberCtrl, 'Invoice #', Icons.tag_rounded),
+                            child: _buildInput(
+                              _billNumberCtrl,
+                              'Invoice #',
+                              Icons.tag_rounded,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -302,19 +344,33 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                                 if (d != null) setState(() => _billDate = d);
                               },
                               child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 13,
+                                ),
                                 decoration: BoxDecoration(
                                   color: const Color(0xFFF8FAFC),
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE2E8F0),
+                                  ),
                                 ),
                                 child: Row(
                                   children: [
-                                    const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF0D9488)),
+                                    const Icon(
+                                      Icons.calendar_today_rounded,
+                                      size: 16,
+                                      color: Color(0xFF0D9488),
+                                    ),
                                     const SizedBox(width: 8),
                                     Text(
-                                      DateFormat('dd MMM yyyy').format(_billDate),
-                                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                                      DateFormat(
+                                        'dd MMM yyyy',
+                                      ).format(_billDate),
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -327,11 +383,19 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                       Row(
                         children: [
                           Expanded(
-                            child: _buildInput(_patientNameCtrl, 'Patient Full Name', Icons.person_rounded),
+                            child: _buildInput(
+                              _patientNameCtrl,
+                              'Patient Full Name',
+                              Icons.person_rounded,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _buildInput(_patientPhoneCtrl, 'WhatsApp / Phone', Icons.phone_rounded),
+                            child: _buildInput(
+                              _patientPhoneCtrl,
+                              'WhatsApp / Phone',
+                              Icons.phone_rounded,
+                            ),
                           ),
                         ],
                       ),
@@ -356,12 +420,27 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                         children: [
                           const Text(
                             'Bill Items & Services',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF334155)),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14,
+                              color: Color(0xFF334155),
+                            ),
                           ),
                           TextButton.icon(
                             onPressed: _addNewItem,
-                            icon: const Icon(Icons.add_circle_outline_rounded, size: 16, color: Color(0xFF0D9488)),
-                            label: const Text('Add Item', style: TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.w700, fontSize: 13)),
+                            icon: const Icon(
+                              Icons.add_circle_outline_rounded,
+                              size: 16,
+                              color: Color(0xFF0D9488),
+                            ),
+                            label: const Text(
+                              'Add Item',
+                              style: TextStyle(
+                                color: Color(0xFF0D9488),
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -388,7 +467,8 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                                     isDense: true,
                                     border: InputBorder.none,
                                   ),
-                                  onChanged: (v) => setState(() => item.description = v),
+                                  onChanged: (v) =>
+                                      setState(() => item.description = v),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -402,31 +482,46 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                                     isDense: true,
                                     border: InputBorder.none,
                                   ),
-                                  onChanged: (v) => setState(() => item.quantity = int.tryParse(v) ?? 1),
+                                  onChanged: (v) => setState(
+                                    () => item.quantity = int.tryParse(v) ?? 1,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 flex: 2,
                                 child: TextFormField(
-                                  initialValue: item.unitPrice.toStringAsFixed(0),
+                                  initialValue: item.unitPrice.toStringAsFixed(
+                                    0,
+                                  ),
                                   keyboardType: TextInputType.number,
                                   decoration: const InputDecoration(
                                     labelText: 'Rate (₹)',
                                     isDense: true,
                                     border: InputBorder.none,
                                   ),
-                                  onChanged: (v) => setState(() => item.unitPrice = double.tryParse(v) ?? 0.0),
+                                  onChanged: (v) => setState(
+                                    () => item.unitPrice =
+                                        double.tryParse(v) ?? 0.0,
+                                  ),
                                 ),
                               ),
                               Text(
                                 '₹${item.total.toStringAsFixed(0)}',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13,
+                                ),
                               ),
                               if (_items.length > 1)
                                 IconButton(
-                                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 18),
-                                  onPressed: () => setState(() => _items.removeAt(idx)),
+                                  icon: const Icon(
+                                    Icons.delete_outline_rounded,
+                                    color: Color(0xFFEF4444),
+                                    size: 18,
+                                  ),
+                                  onPressed: () =>
+                                      setState(() => _items.removeAt(idx)),
                                 ),
                             ],
                           ),
@@ -450,50 +545,110 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                     children: [
                       const Text(
                         'Total & Payment Breakdown',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: Color(0xFF334155)),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                          color: Color(0xFF334155),
+                        ),
                       ),
                       const SizedBox(height: 12),
-                      _buildSummaryRow('Subtotal', '₹${_subtotal.toStringAsFixed(2)}'),
+                      _buildSummaryRow(
+                        'Subtotal',
+                        '₹${_subtotal.toStringAsFixed(2)}',
+                      ),
                       const SizedBox(height: 8),
                       Row(
                         children: [
                           Expanded(
-                            child: _buildInput(_discountCtrl, 'Discount (₹)', Icons.discount_rounded, isNumber: true, onChanged: (_) => setState(() {})),
+                            child: _buildInput(
+                              _discountCtrl,
+                              'Discount (₹)',
+                              Icons.discount_rounded,
+                              isNumber: true,
+                              onChanged: (_) => setState(() {}),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: _buildInput(_taxPercentCtrl, 'Tax / GST (%)', Icons.percent_rounded, isNumber: true, onChanged: (_) => setState(() {})),
+                            child: _buildInput(
+                              _taxPercentCtrl,
+                              'Tax / GST (%)',
+                              Icons.percent_rounded,
+                              isNumber: true,
+                              onChanged: (_) => setState(() {}),
+                            ),
                           ),
                         ],
                       ),
-                      const Divider(height: 24, color: Color(0xFFE2E8F0)),
+                      const Divider(height: 24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Grand Total', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-                          Text('₹${_grandTotal.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Color(0xFF0D9488))),
+                          const Text(
+                            'Grand Total',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            '₹${_grandTotal.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0D9488),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
                           Expanded(
-                            child: _buildInput(_paidAmountCtrl, 'Amount Paid (₹)', Icons.payments_rounded, isNumber: true, onChanged: (_) => setState(() {})),
+                            child: _buildInput(
+                              _paidAmountCtrl,
+                              'Amount Paid (₹)',
+                              Icons.payments_rounded,
+                              isNumber: true,
+                              onChanged: (_) => setState(() {}),
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Container(
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: _balanceDue > 0 ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
+                                color: _balanceDue > 0
+                                    ? const Color(0xFFFEF2F2)
+                                    : const Color(0xFFF0FDF4),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: _balanceDue > 0 ? const Color(0xFFFCA5A5) : const Color(0xFFBBF7D0)),
+                                border: Border.all(
+                                  color: _balanceDue > 0
+                                      ? const Color(0xFFFCA5A5)
+                                      : const Color(0xFFBBF7D0),
+                                ),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text('Balance Due', style: TextStyle(fontSize: 11, color: Colors.grey.shade600)),
-                                  Text('₹${_balanceDue.toStringAsFixed(2)}', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: _balanceDue > 0 ? const Color(0xFFDC2626) : const Color(0xFF16A34A))),
+                                  Text(
+                                    'Balance Due',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${_balanceDue.toStringAsFixed(2)}',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w800,
+                                      color: _balanceDue > 0
+                                          ? const Color(0xFFDC2626)
+                                          : const Color(0xFF16A34A),
+                                    ),
+                                  ),
                                 ],
                               ),
                             ),
@@ -503,20 +658,45 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                       const SizedBox(height: 16),
 
                       // Payment Mode selector
-                      const Text('Payment Mode', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: Color(0xFF475569))),
+                      const Text(
+                        'Payment Mode',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF475569),
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Wrap(
                         spacing: 8,
-                        children: ['UPI / Online', 'Cash', 'Card / POS', 'Net Banking'].map((mode) {
-                          final isSelected = _selectedPaymentMode == mode;
-                          return ChoiceChip(
-                            label: Text(mode, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500, color: isSelected ? Colors.white : const Color(0xFF334155))),
-                            selected: isSelected,
-                            selectedColor: const Color(0xFF0D9488),
-                            backgroundColor: const Color(0xFFF1F5F9),
-                            onSelected: (_) => setState(() => _selectedPaymentMode = mode),
-                          );
-                        }).toList(),
+                        children:
+                            [
+                              'UPI / Online',
+                              'Cash',
+                              'Card / POS',
+                              'Net Banking',
+                            ].map((mode) {
+                              final isSelected = _selectedPaymentMode == mode;
+                              return ChoiceChip(
+                                label: Text(
+                                  mode,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : const Color(0xFF334155),
+                                  ),
+                                ),
+                                selected: isSelected,
+                                selectedColor: const Color(0xFF0D9488),
+                                backgroundColor: const Color(0xFFF1F5F9),
+                                onSelected: (_) =>
+                                    setState(() => _selectedPaymentMode = mode),
+                              );
+                            }).toList(),
                       ),
                     ],
                   ),
@@ -545,7 +725,9 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                       side: const BorderSide(color: Color(0xFF86EFAC)),
                       backgroundColor: const Color(0xFFF0FDF4),
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -559,7 +741,9 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                       backgroundColor: const Color(0xFF0D9488),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                     ),
                   ),
                 ),
@@ -573,7 +757,13 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
 
   void _addNewItem() {
     setState(() {
-      _items.add(BillItemRow(description: 'Pharmacy / Procedure', quantity: 1, unitPrice: 200.0));
+      _items.add(
+        BillItemRow(
+          description: 'Pharmacy / Procedure',
+          quantity: 1,
+          unitPrice: 200.0,
+        ),
+      );
     });
   }
 
@@ -581,8 +771,18 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Color(0xFF64748B))),
-        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF0F172A))),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+        ),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF0F172A),
+          ),
+        ),
       ],
     );
   }
@@ -603,14 +803,17 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
         prefixIcon: Icon(icon, size: 16, color: const Color(0xFF0D9488)),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -661,22 +864,31 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
 
     return PdfPatientSnapshot(
       fullName: _patientNameCtrl.text.trim().isEmpty
-          ? (patient?.fullName.trim().isNotEmpty == true ? patient!.fullName : 'Patient')
+          ? (patient?.fullName.trim().isNotEmpty == true
+                ? patient!.fullName
+                : 'Patient')
           : _patientNameCtrl.text.trim(),
       phone: _patientPhoneCtrl.text.trim().isEmpty
-          ? (patient?.phone.trim().isEmpty == true ? null : patient?.phone.trim())
+          ? (patient?.phone.trim().isEmpty == true
+                ? null
+                : patient?.phone.trim())
           : _patientPhoneCtrl.text.trim(),
       ageGender: typedAgeGender,
-      email: patient?.email.trim().isEmpty == true ? null : patient?.email.trim(),
+      email: patient?.email.trim().isEmpty == true
+          ? null
+          : patient?.email.trim(),
       patientId: patient?.id.trim().isEmpty == true ? null : patient?.id.trim(),
     );
   }
 
   Future<void> _shareBillWhatsApp() async {
     final phone = _patientPhoneCtrl.text.replaceAll(RegExp(r'\D'), '');
-    final patientName = _patientNameCtrl.text.isNotEmpty ? _patientNameCtrl.text : 'Patient';
+    final patientName = _patientNameCtrl.text.isNotEmpty
+        ? _patientNameCtrl.text
+        : 'Patient';
 
-    final text = '''
+    final text =
+        '''
 🏥 *${widget.letterheadConfig.clinicName}*
 🧾 *Medical Invoice / Bill Receipt*
 
@@ -692,7 +904,9 @@ Doctor: *${widget.letterheadConfig.doctorName}*
 Thank you for visiting! Contact: ${widget.letterheadConfig.clinicPhone}
 ''';
 
-    final uri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(text)}');
+    final uri = Uri.parse(
+      'https://wa.me/$phone?text=${Uri.encodeComponent(text)}',
+    );
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {}

@@ -29,10 +29,10 @@ class MessagingRepository {
     EmailLogLocalService? logLocalService,
     PatientRepository? patientRepository,
     FirebaseAuth? auth,
-  })  : _auth = auth ?? FirebaseAuth.instance,
-        _authService = authService ?? GmailAuthService(),
-        _logLocalService = logLocalService ?? EmailLogLocalService(),
-        _patientRepository = patientRepository ?? PatientRepository() {
+  }) : _auth = auth ?? FirebaseAuth.instance,
+       _authService = authService ?? GmailAuthService(),
+       _logLocalService = logLocalService ?? EmailLogLocalService(),
+       _patientRepository = patientRepository ?? PatientRepository() {
     _sendService = sendService ?? GmailSendService(authService: _authService);
   }
 
@@ -51,9 +51,7 @@ class MessagingRepository {
   ///
   /// This method is deliberately safe and non-throwing so callers (e.g. [VisitRepository])
   /// can fire-and-forget without wrapping in try-catch.
-  Future<bool> sendAppointmentConfirmation({
-    required Visit visit,
-  }) async {
+  Future<bool> sendAppointmentConfirmation({required Visit visit}) async {
     final doctorId = _currentDoctorId;
     if (doctorId == 'anonymous') return false;
 
@@ -73,28 +71,41 @@ class MessagingRepository {
       // 2. Fetch patient details to retrieve email and full name
       final patient = await _patientRepository.getPatient(visit.patientId);
       if (patient == null) {
-        debugPrint('[Gmail Messaging] Patient lookup returned null for patientId: ${visit.patientId}');
+        debugPrint(
+          '[Gmail Messaging] Patient lookup returned null for patientId: ${visit.patientId}',
+        );
         return false;
       }
 
       final recipientEmail = patient.email.trim();
       if (recipientEmail.isEmpty || !recipientEmail.contains('@')) {
-        debugPrint('[Gmail Messaging] Skipping email: Patient "${patient.fullName}" (id: ${patient.id}) has no registered email address on profile.');
+        debugPrint(
+          '[Gmail Messaging] Skipping email: Patient "${patient.fullName}" (id: ${patient.id}) has no registered email address on profile.',
+        );
         return false;
       }
 
-      debugPrint('[Gmail Messaging] Preparing confirmation email for patient "${patient.fullName}" -> $recipientEmail');
+      debugPrint(
+        '[Gmail Messaging] Preparing confirmation email for patient "${patient.fullName}" -> $recipientEmail',
+      );
 
       // 3. Prevent duplicate sends for the same visit
-      final existingLog = await _logLocalService.getLogByVisitId(visit.id, doctorId);
+      final existingLog = await _logLocalService.getLogByVisitId(
+        visit.id,
+        doctorId,
+      );
       if (existingLog != null) {
         if (existingLog.isSent) {
-          debugPrint('[Gmail Messaging] Email already sent for visit ${visit.id}. Skipping duplicate.');
+          debugPrint(
+            '[Gmail Messaging] Email already sent for visit ${visit.id}. Skipping duplicate.',
+          );
           return true;
         }
         if (existingLog.isPending &&
             DateTime.now().difference(existingLog.attemptedAt).inMinutes < 2) {
-          debugPrint('[Gmail Messaging] Email is currently in-flight for visit ${visit.id}. Skipping.');
+          debugPrint(
+            '[Gmail Messaging] Email is currently in-flight for visit ${visit.id}. Skipping.',
+          );
           return true;
         }
       }
@@ -110,7 +121,10 @@ class MessagingRepository {
         if (doc.exists) profileData = doc.data();
       } catch (_) {}
 
-      final doctorName = DoctorProfileHelper.formatDoctorName(user, profileData);
+      final doctorName = DoctorProfileHelper.formatDoctorName(
+        user,
+        profileData,
+      );
       final specialty = DoctorProfileHelper.formatSpecialty(profileData, user);
 
       // 5. Generate plain-text confirmation template
@@ -158,10 +172,14 @@ class MessagingRepository {
           sentAt: DateTime.now(),
         );
 
-        debugPrint('[Gmail Messaging] Successfully sent confirmation email to $recipientEmail (Message ID: ${result.messageId})');
+        debugPrint(
+          '[Gmail Messaging] Successfully sent confirmation email to $recipientEmail (Message ID: ${result.messageId})',
+        );
         return true;
       } on GmailException catch (e) {
-        debugPrint('[Gmail Messaging] Gmail API error sending to $recipientEmail: $e');
+        debugPrint(
+          '[Gmail Messaging] Gmail API error sending to $recipientEmail: $e',
+        );
         await _logLocalService.updateLogStatus(
           logId,
           EmailLogStatus.failed,
@@ -169,7 +187,9 @@ class MessagingRepository {
         );
         return false;
       } catch (e) {
-        debugPrint('[Gmail Messaging] Unexpected error sending to $recipientEmail: $e');
+        debugPrint(
+          '[Gmail Messaging] Unexpected error sending to $recipientEmail: $e',
+        );
         await _logLocalService.updateLogStatus(
           logId,
           EmailLogStatus.failed,

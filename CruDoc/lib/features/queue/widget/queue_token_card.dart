@@ -200,10 +200,14 @@ class QueueTokenCard extends StatelessWidget {
                                 vertical: 2.5,
                               ),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF6366F1).withValues(alpha: 0.12),
+                                color: const Color(
+                                  0xFF6366F1,
+                                ).withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: const Color(0xFF6366F1).withValues(alpha: 0.28),
+                                  color: const Color(
+                                    0xFF6366F1,
+                                  ).withValues(alpha: 0.28),
                                   width: 0.75,
                                 ),
                               ),
@@ -290,19 +294,15 @@ class _TokenBadge extends StatelessWidget {
               ),
             )
           : (isPrebooked
-              ? Icon(
-                  Icons.calendar_month_rounded,
-                  size: 20,
-                  color: color,
-                )
-              : Text(
-                  '—',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: color,
-                  ),
-                )),
+                ? Icon(Icons.calendar_month_rounded, size: 20, color: color)
+                : Text(
+                    '—',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  )),
     );
   }
 }

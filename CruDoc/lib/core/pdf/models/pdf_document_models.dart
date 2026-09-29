@@ -6,16 +6,16 @@ enum PdfMedicalDocumentType {
   report;
 
   String get title => switch (this) {
-        PdfMedicalDocumentType.invoice => 'Medical Invoice / Receipt',
-        PdfMedicalDocumentType.prescription => 'Prescription (Rx)',
-        PdfMedicalDocumentType.report => 'Medical Report',
-      };
+    PdfMedicalDocumentType.invoice => 'Medical Invoice / Receipt',
+    PdfMedicalDocumentType.prescription => 'Prescription (Rx)',
+    PdfMedicalDocumentType.report => 'Medical Report',
+  };
 
   String get filePrefix => switch (this) {
-        PdfMedicalDocumentType.invoice => 'crudoc-invoice',
-        PdfMedicalDocumentType.prescription => 'crudoc-prescription',
-        PdfMedicalDocumentType.report => 'crudoc-medical-report',
-      };
+    PdfMedicalDocumentType.invoice => 'crudoc-invoice',
+    PdfMedicalDocumentType.prescription => 'crudoc-prescription',
+    PdfMedicalDocumentType.report => 'crudoc-medical-report',
+  };
 }
 
 abstract class PdfMedicalDocumentData {
@@ -36,8 +36,10 @@ abstract class PdfMedicalDocumentData {
   final String? notes;
 
   String get previewTitle => type.title;
-  String get fileName => '${type.filePrefix}-$documentNumber.pdf'
-      .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-');
+  String get fileName => '${type.filePrefix}-$documentNumber.pdf'.replaceAll(
+    RegExp(r'[^A-Za-z0-9._-]+'),
+    '-',
+  );
 }
 
 class PdfPatientSnapshot {
@@ -154,10 +156,7 @@ class PdfPrescriptionDocumentData extends PdfMedicalDocumentData {
 }
 
 class PdfReportSection {
-  const PdfReportSection({
-    required this.title,
-    required this.content,
-  });
+  const PdfReportSection({required this.title, required this.content});
 
   final String title;
   final String content;

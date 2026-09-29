@@ -41,13 +41,17 @@ class CampaignAudienceHelper {
         return activePatients.where((p) {
           if (p.diagnosis.isEmpty) return false;
           return p.diagnosis.any(
-              (d) => d.toLowerCase().contains(targetCondition));
+            (d) => d.toLowerCase().contains(targetCondition),
+          );
         }).toList();
 
       case AudienceType.byGender:
-        final targetGender =
-            (filters['gender'] ?? '').toString().trim().toLowerCase();
-        if (targetGender.isEmpty || targetGender == 'all') return activePatients;
+        final targetGender = (filters['gender'] ?? '')
+            .toString()
+            .trim()
+            .toLowerCase();
+        if (targetGender.isEmpty || targetGender == 'all')
+          return activePatients;
 
         return activePatients.where((p) {
           return p.gender.trim().toLowerCase() == targetGender;
@@ -92,13 +96,27 @@ class CampaignAudienceHelper {
 
     // Replace variations of placeholders
     result = result
-        .replaceAll(RegExp(r'\{\{\s*patient_name\s*\}\}', caseSensitive: false), pName)
+        .replaceAll(
+          RegExp(r'\{\{\s*patient_name\s*\}\}', caseSensitive: false),
+          pName,
+        )
         .replaceAll(RegExp(r'\{\{\s*name\s*\}\}', caseSensitive: false), pName)
-        .replaceAll(RegExp(r'\{\{\s*first_name\s*\}\}', caseSensitive: false),
-            patient.firstName.isNotEmpty ? patient.firstName : pName)
-        .replaceAll(RegExp(r'\{\{\s*doctor_name\s*\}\}', caseSensitive: false), dName)
-        .replaceAll(RegExp(r'\{\{\s*clinic_name\s*\}\}', caseSensitive: false), cName)
-        .replaceAll(RegExp(r'\{\{\s*phone\s*\}\}', caseSensitive: false), patient.phone);
+        .replaceAll(
+          RegExp(r'\{\{\s*first_name\s*\}\}', caseSensitive: false),
+          patient.firstName.isNotEmpty ? patient.firstName : pName,
+        )
+        .replaceAll(
+          RegExp(r'\{\{\s*doctor_name\s*\}\}', caseSensitive: false),
+          dName,
+        )
+        .replaceAll(
+          RegExp(r'\{\{\s*clinic_name\s*\}\}', caseSensitive: false),
+          cName,
+        )
+        .replaceAll(
+          RegExp(r'\{\{\s*phone\s*\}\}', caseSensitive: false),
+          patient.phone,
+        );
 
     return result;
   }
@@ -134,12 +152,20 @@ class CampaignAudienceHelper {
         .split('\n')
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
-        .map((p) => '<p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #334155;">$p</p>')
+        .map(
+          (p) =>
+              '<p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #334155;">$p</p>',
+        )
         .join('');
 
-    final cName = clinicName?.trim().isNotEmpty == true ? clinicName!.trim() : 'Healthcare Centre';
-    final dName = doctorName?.trim().isNotEmpty == true ? doctorName!.trim() : 'Your Healthcare Provider';
-    final badgeColorHex = '#${category.color.value.toRadixString(16).substring(2)}';
+    final cName = clinicName?.trim().isNotEmpty == true
+        ? clinicName!.trim()
+        : 'Healthcare Centre';
+    final dName = doctorName?.trim().isNotEmpty == true
+        ? doctorName!.trim()
+        : 'Your Healthcare Provider';
+    final badgeColorHex =
+        '#${category.color.value.toRadixString(16).substring(2)}';
 
     return '''
 <!DOCTYPE html>
@@ -229,8 +255,12 @@ class CampaignAudienceHelper {
       clinicName: clinicName,
     );
 
-    final cName = clinicName?.trim().isNotEmpty == true ? clinicName!.trim() : 'Clinic';
-    final dName = doctorName?.trim().isNotEmpty == true ? doctorName!.trim() : 'Your Doctor';
+    final cName = clinicName?.trim().isNotEmpty == true
+        ? clinicName!.trim()
+        : 'Clinic';
+    final dName = doctorName?.trim().isNotEmpty == true
+        ? doctorName!.trim()
+        : 'Your Doctor';
 
     final categoryEmoji = _getCategoryEmoji(category);
 
@@ -244,7 +274,8 @@ $interpolatedBody
 👨‍⚕️ *$dName*
 🏥 $cName
 📞 Reply to this message for appointment bookings or inquiries.
-'''.trim();
+'''
+        .trim();
   }
 
   /// Builds a clean, emoji-formatted WhatsApp message body with optional media attachment.

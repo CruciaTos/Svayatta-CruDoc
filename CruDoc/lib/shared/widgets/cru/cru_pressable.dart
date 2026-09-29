@@ -59,8 +59,9 @@ class _CruPressableState extends State<CruPressable> {
       enabled: _enabled,
       autofocus: widget.autofocus,
       focusNode: widget.focusNode,
-      mouseCursor:
-          _enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      mouseCursor: _enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
       onShowHoverHighlight: (v) => setState(() => _hovered = v),
       onShowFocusHighlight: (v) => setState(() => _focused = v),
       shortcuts: const {
@@ -134,8 +135,7 @@ class CruTouchTarget extends SingleChildRenderObjectWidget {
   const CruTouchTarget({super.key, required super.child});
 
   @override
-  RenderObject createRenderObject(BuildContext context) =>
-      _RenderTouchTarget();
+  RenderObject createRenderObject(BuildContext context) => _RenderTouchTarget();
 }
 
 class _RenderTouchTarget extends RenderProxyBox {
@@ -144,8 +144,10 @@ class _RenderTouchTarget extends RenderProxyBox {
     if (super.hitTest(result, position: position)) return true;
     final child = this.child;
     if (child == null) return false;
-    final dx = (kCruMinTouchTarget - size.width).clamp(0.0, double.infinity) / 2;
-    final dy = (kCruMinTouchTarget - size.height).clamp(0.0, double.infinity) / 2;
+    final dx =
+        (kCruMinTouchTarget - size.width).clamp(0.0, double.infinity) / 2;
+    final dy =
+        (kCruMinTouchTarget - size.height).clamp(0.0, double.infinity) / 2;
     if (dx == 0 && dy == 0) return false;
     final area = Rect.fromLTRB(-dx, -dy, size.width + dx, size.height + dy);
     if (!area.contains(position)) return false;
@@ -161,7 +163,7 @@ class _RenderTouchTarget extends RenderProxyBox {
 
 /// Hover shade for filled buttons: ~6% darker in Day, lighter in Evening.
 Color cruHoverShade(Color fill, CruColors c) => Color.lerp(
-      fill,
-      c.isEvening ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
-      0.06,
-    )!;
+  fill,
+  c.isEvening ? const Color(0xFFFFFFFF) : const Color(0xFF000000),
+  0.06,
+)!;

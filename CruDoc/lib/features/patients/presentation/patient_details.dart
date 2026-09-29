@@ -24,9 +24,7 @@ BoxDecoration _surfaceCardDecoration({BorderRadius? radius}) {
   return BoxDecoration(
     color: AppColors.cardSurface,
     borderRadius: radius ?? BorderRadius.circular(16),
-    border: Border.all(
-      color: AppColors.chartBarDim.withValues(alpha: 0.22),
-    ),
+    border: Border.all(color: AppColors.chartBarDim.withValues(alpha: 0.22)),
   );
 }
 
@@ -35,22 +33,21 @@ String _titleCaseWords(String value) {
   if (trimmed.isEmpty) return trimmed;
   return trimmed
       .split(RegExp(r'\s+'))
-      .map((word) =>
-          word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}')
+      .map(
+        (word) => word.isEmpty
+            ? word
+            : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+      )
       .join(' ');
 }
 
 class PatientDetailsPage extends ConsumerStatefulWidget {
   final Patient patient;
 
-  const PatientDetailsPage({
-    super.key,
-    required this.patient,
-  });
+  const PatientDetailsPage({super.key, required this.patient});
 
   @override
-  ConsumerState<PatientDetailsPage> createState() =>
-      _PatientDetailsPageState();
+  ConsumerState<PatientDetailsPage> createState() => _PatientDetailsPageState();
 }
 
 class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
@@ -84,9 +81,9 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _note = previous);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save note: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save note: $e')));
     }
   }
 
@@ -154,7 +151,8 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
               backgroundColor: Colors.redAccent,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
+                borderRadius: BorderRadius.circular(12),
+              ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
@@ -176,9 +174,9 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
         Navigator.pop(context);
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to delete patient: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to delete patient: $e')));
       }
     }
   }
@@ -258,10 +256,7 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                     const SizedBox(height: 20),
                     const _SectionLabel(text: 'CONTACT'),
                     const SizedBox(height: 10),
-                    _ContactCard(
-                      phone: patient.phone,
-                      email: patient.email,
-                    ),
+                    _ContactCard(phone: patient.phone, email: patient.email),
                     const SizedBox(height: 20),
                     const _SectionLabel(text: 'SESSION HISTORY'),
                     const SizedBox(height: 10),
@@ -284,14 +279,15 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                         return _SessionHistorySection(
                           sessions: visits.map((visit) {
                             final hasTreatment =
-                                visit.treatmentType?.trim().isNotEmpty ??
-                                    false;
+                                visit.treatmentType?.trim().isNotEmpty ?? false;
                             return _SessionData(
                               visit: visit,
-                              date: DateFormat.yMMMd()
-                                  .format(visit.scheduledStart),
-                              time:
-                                  DateFormat.jm().format(visit.scheduledStart),
+                              date: DateFormat.yMMMd().format(
+                                visit.scheduledStart,
+                              ),
+                              time: DateFormat.jm().format(
+                                visit.scheduledStart,
+                              ),
                               reason: hasTreatment
                                   ? visit.treatmentType!
                                   : '${_readableStatus(visit.status)} visit',
@@ -335,8 +331,11 @@ class _TopBar extends StatelessWidget {
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new,
-                color: AppColors.textPrimary, size: 20),
+            icon: const Icon(
+              Icons.arrow_back_ios_new,
+              color: AppColors.textPrimary,
+              size: 20,
+            ),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 2),
@@ -375,14 +374,20 @@ class _TopBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           IconButton(
-            icon: const Icon(Icons.edit_outlined,
-                color: AppColors.textPrimary, size: 22),
+            icon: const Icon(
+              Icons.edit_outlined,
+              color: AppColors.textPrimary,
+              size: 22,
+            ),
             tooltip: 'Edit patient',
             onPressed: onEdit,
           ),
           IconButton(
-            icon: const Icon(Icons.delete_outline,
-                color: Colors.redAccent, size: 22),
+            icon: const Icon(
+              Icons.delete_outline,
+              color: Colors.redAccent,
+              size: 22,
+            ),
             tooltip: 'Delete patient',
             onPressed: onDelete,
           ),
@@ -421,8 +426,7 @@ class _PatientHeader extends StatelessWidget {
           children: [
             _InfoPill(
               icon: Icons.person_outline,
-              label:
-                  '${_titleCaseWords(patient.gender)}, ${patient.age} yrs',
+              label: '${_titleCaseWords(patient.gender)}, ${patient.age} yrs',
             ),
             for (final diagnosis in patient.diagnosis)
               _InfoPill(
@@ -531,8 +535,9 @@ class _DoctorsNoteCard extends StatelessWidget {
                                   Icon(
                                     Icons.edit_outlined,
                                     size: 12,
-                                    color: AppColors.textSecondary
-                                        .withValues(alpha: 0.6),
+                                    color: AppColors.textSecondary.withValues(
+                                      alpha: 0.6,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -579,8 +584,9 @@ class _NoteEditorSheet extends StatefulWidget {
 }
 
 class _NoteEditorSheetState extends State<_NoteEditorSheet> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initialNote);
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialNote,
+  );
 
   @override
   void dispose() {
@@ -629,8 +635,10 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
                 ),
                 filled: true,
                 fillColor: Colors.white,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
@@ -699,10 +707,7 @@ class _StatsRow extends StatelessWidget {
   final int sessionsAttended;
   final String lastVisit;
 
-  const _StatsRow({
-    required this.sessionsAttended,
-    required this.lastVisit,
-  });
+  const _StatsRow({required this.sessionsAttended, required this.lastVisit});
 
   @override
   Widget build(BuildContext context) {
@@ -772,10 +777,7 @@ class _StatCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
-          Text(
-            label,
-            style: AppColors.bodySmall,
-          ),
+          Text(label, style: AppColors.bodySmall),
         ],
       ),
     );
@@ -805,10 +807,7 @@ class _ContactCard extends StatelessWidget {
   final String phone;
   final String email;
 
-  const _ContactCard({
-    required this.phone,
-    required this.email,
-  });
+  const _ContactCard({required this.phone, required this.email});
 
   @override
   Widget build(BuildContext context) {
@@ -835,7 +834,9 @@ class _ContactCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   phone.isNotEmpty ? phone : 'No phone number',
-                  style: AppColors.bodyMedium.copyWith(fontWeight: FontWeight.w600),
+                  style: AppColors.bodyMedium.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
               ),
             ],
@@ -858,7 +859,9 @@ class _ContactCard extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  email.isNotEmpty ? email : 'No email registered (tap Edit to add)',
+                  email.isNotEmpty
+                      ? email
+                      : 'No email registered (tap Edit to add)',
                   style: AppColors.bodyMedium.copyWith(
                     fontWeight: FontWeight.w600,
                     color: email.isNotEmpty
@@ -898,8 +901,7 @@ class _SessionHistorySection extends StatefulWidget {
   const _SessionHistorySection({required this.sessions, required this.patient});
 
   @override
-  State<_SessionHistorySection> createState() =>
-      _SessionHistorySectionState();
+  State<_SessionHistorySection> createState() => _SessionHistorySectionState();
 }
 
 class _SessionHistorySectionState extends State<_SessionHistorySection> {
@@ -1061,10 +1063,7 @@ class _SessionTimelineTile extends StatelessWidget {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(
-                            reason,
-                            style: AppColors.bodyMeta,
-                          ),
+                          child: Text(reason, style: AppColors.bodyMeta),
                         ),
                         const SizedBox(width: 8),
                         _PaymentChip(visit: visit),
@@ -1129,16 +1128,7 @@ class _BottomActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
       child: SafeArea(
         top: false,
         child: Row(
@@ -1188,10 +1178,7 @@ class _EmptyStateCard extends StatelessWidget {
   final IconData icon;
   final String message;
 
-  const _EmptyStateCard({
-    required this.icon,
-    required this.message,
-  });
+  const _EmptyStateCard({required this.icon, required this.message});
 
   @override
   Widget build(BuildContext context) {
@@ -1235,10 +1222,7 @@ class _StatsRowSkeleton extends StatelessWidget {
 class _StatCardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 118,
-      decoration: _surfaceCardDecoration(),
-    );
+    return Container(height: 118, decoration: _surfaceCardDecoration());
   }
 }
 
@@ -1302,7 +1286,10 @@ class _PhysioPhotosActionCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final setsAsync = ref.watch(
-      patientRecordsProvider((patientId: patient.id, kind: RecKind.physioPhotoSet)),
+      patientRecordsProvider((
+        patientId: patient.id,
+        kind: RecKind.physioPhotoSet,
+      )),
     );
     final count = setsAsync.value?.length ?? 0;
 
@@ -1328,7 +1315,11 @@ class _PhysioPhotosActionCard extends ConsumerWidget {
                     color: _accentBlue.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: const Icon(Icons.accessibility_new_rounded, color: _accentBlue, size: 20),
+                  child: const Icon(
+                    Icons.accessibility_new_rounded,
+                    color: _accentBlue,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -1354,7 +1345,10 @@ class _PhysioPhotosActionCard extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: AppColors.textSecondary,
+                ),
               ],
             ),
           ),

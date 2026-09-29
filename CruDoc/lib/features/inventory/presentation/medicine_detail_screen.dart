@@ -79,9 +79,7 @@ class MedicineDetailScreen extends ConsumerWidget {
                       if (context.mounted) {
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${medicine.name} deleted'),
-                          ),
+                          SnackBar(content: Text('${medicine.name} deleted')),
                         );
                       }
                     }
@@ -101,8 +99,10 @@ class MedicineDetailScreen extends ConsumerWidget {
                       ),
                     ),
                     GestureDetector(
-                      onTap: () =>
-                          showStockAdjustmentDialog(context, medicine: medicine),
+                      onTap: () => showStockAdjustmentDialog(
+                        context,
+                        medicine: medicine,
+                      ),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
@@ -115,7 +115,11 @@ class MedicineDetailScreen extends ConsumerWidget {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.swap_vert, color: Colors.white, size: 18),
+                            Icon(
+                              Icons.swap_vert,
+                              color: Colors.white,
+                              size: 18,
+                            ),
                             SizedBox(width: 4),
                             Text(
                               'Adjust',
@@ -239,13 +243,7 @@ class _SummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,7 +268,7 @@ class _SummaryCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFDDE6F0)),
+          const Divider(height: 1),
           const SizedBox(height: 14),
           Row(
             children: [
@@ -291,9 +289,10 @@ class _SummaryCard extends StatelessWidget {
               ),
             ],
           ),
-          if (medicine.supplierName != null || medicine.batchNumber != null) ...[
+          if (medicine.supplierName != null ||
+              medicine.batchNumber != null) ...[
             const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFDDE6F0)),
+            const Divider(height: 1),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -314,7 +313,7 @@ class _SummaryCard extends StatelessWidget {
           ],
           if (medicine.unitPrice != null) ...[
             const SizedBox(height: 14),
-            const Divider(height: 1, color: Color(0xFFDDE6F0)),
+            const Divider(height: 1),
             const SizedBox(height: 14),
             Row(
               children: [
@@ -342,7 +341,11 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _StatColumn extends StatelessWidget {
-  const _StatColumn({required this.label, required this.value, this.valueColor});
+  const _StatColumn({
+    required this.label,
+    required this.value,
+    this.valueColor,
+  });
 
   final String label;
   final String value;

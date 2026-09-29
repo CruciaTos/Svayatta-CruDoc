@@ -79,17 +79,18 @@ class _AiBlurRevealState extends State<AiBlurReveal>
     );
 
     // 0.0 = hidden in fog, 1.0 = crisp clarity
-    _emergeController = AnimationController(
-      vsync: this,
-      duration: widget.emergeDuration,
-      value: widget.isPending ? 0.0 : 1.0,
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed && mounted) {
-          setState(() {
-            _activeOutgoing = null;
-          });
-        }
-      });
+    _emergeController =
+        AnimationController(
+          vsync: this,
+          duration: widget.emergeDuration,
+          value: widget.isPending ? 0.0 : 1.0,
+        )..addStatusListener((status) {
+          if (status == AnimationStatus.completed && mounted) {
+            setState(() {
+              _activeOutgoing = null;
+            });
+          }
+        });
 
     if (widget.isPending) {
       _dissolveController.value = 1.0;
@@ -185,10 +186,10 @@ class _AiBlurRevealState extends State<AiBlurReveal>
     return AnimatedBuilder(
       animation: Listenable.merge([_dissolveController, _emergeController]),
       builder: (context, child) {
-        final isDissolving = _dissolveController.isAnimating ||
-            _dissolveController.value < 1.0;
-        final isEmerging = _emergeController.isAnimating ||
-            _emergeController.value < 1.0;
+        final isDissolving =
+            _dissolveController.isAnimating || _dissolveController.value < 1.0;
+        final isEmerging =
+            _emergeController.isAnimating || _emergeController.value < 1.0;
         final isPending = widget.isPending;
 
         // If completely idle, clear snapshot and render raw child

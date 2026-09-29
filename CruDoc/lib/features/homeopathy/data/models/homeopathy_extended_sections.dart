@@ -65,17 +65,16 @@ class HomeopathyChildhoodHistory {
   });
 
   bool get isCompleted =>
-      childhoodNature.trim().isNotEmpty ||
-      childhoodFears.trim().isNotEmpty;
+      childhoodNature.trim().isNotEmpty || childhoodFears.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
-        'childhoodNature': childhoodNature,
-        'childhoodHabits': childhoodHabits,
-        'childhoodFears': childhoodFears,
-        'childhoodDreams': childhoodDreams,
-        'childhoodRelationships': childhoodRelationships,
-        'childhoodSensitivities': childhoodSensitivities,
-      };
+    'childhoodNature': childhoodNature,
+    'childhoodHabits': childhoodHabits,
+    'childhoodFears': childhoodFears,
+    'childhoodDreams': childhoodDreams,
+    'childhoodRelationships': childhoodRelationships,
+    'childhoodSensitivities': childhoodSensitivities,
+  };
 
   factory HomeopathyChildhoodHistory.fromMap(Map<String, dynamic> map) =>
       HomeopathyChildhoodHistory(
@@ -83,10 +82,8 @@ class HomeopathyChildhoodHistory {
         childhoodHabits: map['childhoodHabits'] as String? ?? '',
         childhoodFears: map['childhoodFears'] as String? ?? '',
         childhoodDreams: map['childhoodDreams'] as String? ?? '',
-        childhoodRelationships:
-            map['childhoodRelationships'] as String? ?? '',
-        childhoodSensitivities:
-            map['childhoodSensitivities'] as String? ?? '',
+        childhoodRelationships: map['childhoodRelationships'] as String? ?? '',
+        childhoodSensitivities: map['childhoodSensitivities'] as String? ?? '',
       );
 
   HomeopathyChildhoodHistory copyWith({
@@ -96,17 +93,16 @@ class HomeopathyChildhoodHistory {
     String? childhoodDreams,
     String? childhoodRelationships,
     String? childhoodSensitivities,
-  }) =>
-      HomeopathyChildhoodHistory(
-        childhoodNature: childhoodNature ?? this.childhoodNature,
-        childhoodHabits: childhoodHabits ?? this.childhoodHabits,
-        childhoodFears: childhoodFears ?? this.childhoodFears,
-        childhoodDreams: childhoodDreams ?? this.childhoodDreams,
-        childhoodRelationships:
-            childhoodRelationships ?? this.childhoodRelationships,
-        childhoodSensitivities:
-            childhoodSensitivities ?? this.childhoodSensitivities,
-      );
+  }) => HomeopathyChildhoodHistory(
+    childhoodNature: childhoodNature ?? this.childhoodNature,
+    childhoodHabits: childhoodHabits ?? this.childhoodHabits,
+    childhoodFears: childhoodFears ?? this.childhoodFears,
+    childhoodDreams: childhoodDreams ?? this.childhoodDreams,
+    childhoodRelationships:
+        childhoodRelationships ?? this.childhoodRelationships,
+    childhoodSensitivities:
+        childhoodSensitivities ?? this.childhoodSensitivities,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -121,7 +117,8 @@ class HomeopathyChildrenCaseSheet {
   final String coldOrHeatSensitive; // Q3
   final String behaviorWhenUpset; // Q4
   final String whatMakesHappy; // Q5
-  final String schoolBehavior; // Q6 — school, friends, elders, youngers, teachers
+  final String
+  schoolBehavior; // Q6 — school, friends, elders, youngers, teachers
   final int graspingIntelligenceScore; // Q7 — 1 to 10
   final String childTypeDescription; // Q8 — mild/arrogant/rude/cunning/etc.
 
@@ -213,93 +210,89 @@ class HomeopathyChildrenCaseSheet {
       childTypeDescription.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
-        'coldOrHeatSensitive': coldOrHeatSensitive,
-        'behaviorWhenUpset': behaviorWhenUpset,
-        'whatMakesHappy': whatMakesHappy,
-        'schoolBehavior': schoolBehavior,
-        'graspingIntelligenceScore': graspingIntelligenceScore,
-        'childTypeDescription': childTypeDescription,
-        'vaccinationHistory': vaccinationHistory,
-        'favoriteSportActivity': favoriteSportActivity,
-        'attitudeToParents': attitudeToParents,
-        'childMedicalHistory': childMedicalHistory,
-        'maturityLevel': maturityLevel,
-        'familyProblemsReaction': familyProblemsReaction,
-        'childIntrovertExtrovert': childIntrovertExtrovert,
-        'independenceLevel': independenceLevel,
-        'dailyWaterIntake': dailyWaterIntake,
-        'birthComplications': birthComplications,
-        'motherPregnancyHistory': motherPregnancyHistory,
-        'motherMedicalHistory': motherMedicalHistory,
-        'familyHealthHereditary': familyHealthHereditary,
-        'walkingTeethingAge': walkingTeethingAge,
-        'abnormalBehaviors': abnormalBehaviors,
-        'childFears': childFears,
-        'childSleepingHabits': childSleepingHabits,
-        'abnormalCravings': abnormalCravings,
-        'wormsProblems': wormsProblems,
-        'headSymptoms': headSymptoms,
-        'eyeSymptoms': eyeSymptoms,
-        'noseRespirationSymptoms': noseRespirationSymptoms,
-        'tongueMouthTeeth': tongueMouthTeeth,
-        'throatSymptoms': throatSymptoms,
-        'coughAsthmaDetails': coughAsthmaDetails,
-        'stomachSymptoms': stomachSymptoms,
-        'extremitiesSymptoms': extremitiesSymptoms,
-        'stoolRectumSymptoms': stoolRectumSymptoms,
-        'urinarySymptoms': urinarySymptoms,
-        'sexualAwareness': sexualAwareness,
-        'feverDetails': feverDetails,
-        'additionalChildInfo': additionalChildInfo,
-      };
+    'coldOrHeatSensitive': coldOrHeatSensitive,
+    'behaviorWhenUpset': behaviorWhenUpset,
+    'whatMakesHappy': whatMakesHappy,
+    'schoolBehavior': schoolBehavior,
+    'graspingIntelligenceScore': graspingIntelligenceScore,
+    'childTypeDescription': childTypeDescription,
+    'vaccinationHistory': vaccinationHistory,
+    'favoriteSportActivity': favoriteSportActivity,
+    'attitudeToParents': attitudeToParents,
+    'childMedicalHistory': childMedicalHistory,
+    'maturityLevel': maturityLevel,
+    'familyProblemsReaction': familyProblemsReaction,
+    'childIntrovertExtrovert': childIntrovertExtrovert,
+    'independenceLevel': independenceLevel,
+    'dailyWaterIntake': dailyWaterIntake,
+    'birthComplications': birthComplications,
+    'motherPregnancyHistory': motherPregnancyHistory,
+    'motherMedicalHistory': motherMedicalHistory,
+    'familyHealthHereditary': familyHealthHereditary,
+    'walkingTeethingAge': walkingTeethingAge,
+    'abnormalBehaviors': abnormalBehaviors,
+    'childFears': childFears,
+    'childSleepingHabits': childSleepingHabits,
+    'abnormalCravings': abnormalCravings,
+    'wormsProblems': wormsProblems,
+    'headSymptoms': headSymptoms,
+    'eyeSymptoms': eyeSymptoms,
+    'noseRespirationSymptoms': noseRespirationSymptoms,
+    'tongueMouthTeeth': tongueMouthTeeth,
+    'throatSymptoms': throatSymptoms,
+    'coughAsthmaDetails': coughAsthmaDetails,
+    'stomachSymptoms': stomachSymptoms,
+    'extremitiesSymptoms': extremitiesSymptoms,
+    'stoolRectumSymptoms': stoolRectumSymptoms,
+    'urinarySymptoms': urinarySymptoms,
+    'sexualAwareness': sexualAwareness,
+    'feverDetails': feverDetails,
+    'additionalChildInfo': additionalChildInfo,
+  };
 
-  factory HomeopathyChildrenCaseSheet.fromMap(Map<String, dynamic> map) =>
-      HomeopathyChildrenCaseSheet(
-        coldOrHeatSensitive: map['coldOrHeatSensitive'] as String? ?? '',
-        behaviorWhenUpset: map['behaviorWhenUpset'] as String? ?? '',
-        whatMakesHappy: map['whatMakesHappy'] as String? ?? '',
-        schoolBehavior: map['schoolBehavior'] as String? ?? '',
-        graspingIntelligenceScore:
-            (map['graspingIntelligenceScore'] as num?)?.toInt() ?? 0,
-        childTypeDescription: map['childTypeDescription'] as String? ?? '',
-        vaccinationHistory: map['vaccinationHistory'] as String? ?? '',
-        favoriteSportActivity: map['favoriteSportActivity'] as String? ?? '',
-        attitudeToParents: map['attitudeToParents'] as String? ?? '',
-        childMedicalHistory: map['childMedicalHistory'] as String? ?? '',
-        maturityLevel: map['maturityLevel'] as String? ?? '',
-        familyProblemsReaction:
-            map['familyProblemsReaction'] as String? ?? '',
-        childIntrovertExtrovert:
-            map['childIntrovertExtrovert'] as String? ?? '',
-        independenceLevel: map['independenceLevel'] as String? ?? '',
-        dailyWaterIntake: map['dailyWaterIntake'] as String? ?? '',
-        birthComplications: map['birthComplications'] as String? ?? '',
-        motherPregnancyHistory:
-            map['motherPregnancyHistory'] as String? ?? '',
-        motherMedicalHistory: map['motherMedicalHistory'] as String? ?? '',
-        familyHealthHereditary:
-            map['familyHealthHereditary'] as String? ?? '',
-        walkingTeethingAge: map['walkingTeethingAge'] as String? ?? '',
-        abnormalBehaviors: map['abnormalBehaviors'] as String? ?? '',
-        childFears: map['childFears'] as String? ?? '',
-        childSleepingHabits: map['childSleepingHabits'] as String? ?? '',
-        abnormalCravings: map['abnormalCravings'] as String? ?? '',
-        wormsProblems: map['wormsProblems'] as String? ?? '',
-        headSymptoms: map['headSymptoms'] as String? ?? '',
-        eyeSymptoms: map['eyeSymptoms'] as String? ?? '',
-        noseRespirationSymptoms:
-            map['noseRespirationSymptoms'] as String? ?? '',
-        tongueMouthTeeth: map['tongueMouthTeeth'] as String? ?? '',
-        throatSymptoms: map['throatSymptoms'] as String? ?? '',
-        coughAsthmaDetails: map['coughAsthmaDetails'] as String? ?? '',
-        stomachSymptoms: map['stomachSymptoms'] as String? ?? '',
-        extremitiesSymptoms: map['extremitiesSymptoms'] as String? ?? '',
-        stoolRectumSymptoms: map['stoolRectumSymptoms'] as String? ?? '',
-        urinarySymptoms: map['urinarySymptoms'] as String? ?? '',
-        sexualAwareness: map['sexualAwareness'] as String? ?? '',
-        feverDetails: map['feverDetails'] as String? ?? '',
-        additionalChildInfo: map['additionalChildInfo'] as String? ?? '',
-      );
+  factory HomeopathyChildrenCaseSheet.fromMap(
+    Map<String, dynamic> map,
+  ) => HomeopathyChildrenCaseSheet(
+    coldOrHeatSensitive: map['coldOrHeatSensitive'] as String? ?? '',
+    behaviorWhenUpset: map['behaviorWhenUpset'] as String? ?? '',
+    whatMakesHappy: map['whatMakesHappy'] as String? ?? '',
+    schoolBehavior: map['schoolBehavior'] as String? ?? '',
+    graspingIntelligenceScore:
+        (map['graspingIntelligenceScore'] as num?)?.toInt() ?? 0,
+    childTypeDescription: map['childTypeDescription'] as String? ?? '',
+    vaccinationHistory: map['vaccinationHistory'] as String? ?? '',
+    favoriteSportActivity: map['favoriteSportActivity'] as String? ?? '',
+    attitudeToParents: map['attitudeToParents'] as String? ?? '',
+    childMedicalHistory: map['childMedicalHistory'] as String? ?? '',
+    maturityLevel: map['maturityLevel'] as String? ?? '',
+    familyProblemsReaction: map['familyProblemsReaction'] as String? ?? '',
+    childIntrovertExtrovert: map['childIntrovertExtrovert'] as String? ?? '',
+    independenceLevel: map['independenceLevel'] as String? ?? '',
+    dailyWaterIntake: map['dailyWaterIntake'] as String? ?? '',
+    birthComplications: map['birthComplications'] as String? ?? '',
+    motherPregnancyHistory: map['motherPregnancyHistory'] as String? ?? '',
+    motherMedicalHistory: map['motherMedicalHistory'] as String? ?? '',
+    familyHealthHereditary: map['familyHealthHereditary'] as String? ?? '',
+    walkingTeethingAge: map['walkingTeethingAge'] as String? ?? '',
+    abnormalBehaviors: map['abnormalBehaviors'] as String? ?? '',
+    childFears: map['childFears'] as String? ?? '',
+    childSleepingHabits: map['childSleepingHabits'] as String? ?? '',
+    abnormalCravings: map['abnormalCravings'] as String? ?? '',
+    wormsProblems: map['wormsProblems'] as String? ?? '',
+    headSymptoms: map['headSymptoms'] as String? ?? '',
+    eyeSymptoms: map['eyeSymptoms'] as String? ?? '',
+    noseRespirationSymptoms: map['noseRespirationSymptoms'] as String? ?? '',
+    tongueMouthTeeth: map['tongueMouthTeeth'] as String? ?? '',
+    throatSymptoms: map['throatSymptoms'] as String? ?? '',
+    coughAsthmaDetails: map['coughAsthmaDetails'] as String? ?? '',
+    stomachSymptoms: map['stomachSymptoms'] as String? ?? '',
+    extremitiesSymptoms: map['extremitiesSymptoms'] as String? ?? '',
+    stoolRectumSymptoms: map['stoolRectumSymptoms'] as String? ?? '',
+    urinarySymptoms: map['urinarySymptoms'] as String? ?? '',
+    sexualAwareness: map['sexualAwareness'] as String? ?? '',
+    feverDetails: map['feverDetails'] as String? ?? '',
+    additionalChildInfo: map['additionalChildInfo'] as String? ?? '',
+  );
 
   HomeopathyChildrenCaseSheet copyWith({
     String? coldOrHeatSensitive,
@@ -340,63 +333,52 @@ class HomeopathyChildrenCaseSheet {
     String? sexualAwareness,
     String? feverDetails,
     String? additionalChildInfo,
-  }) =>
-      HomeopathyChildrenCaseSheet(
-        coldOrHeatSensitive:
-            coldOrHeatSensitive ?? this.coldOrHeatSensitive,
-        behaviorWhenUpset: behaviorWhenUpset ?? this.behaviorWhenUpset,
-        whatMakesHappy: whatMakesHappy ?? this.whatMakesHappy,
-        schoolBehavior: schoolBehavior ?? this.schoolBehavior,
-        graspingIntelligenceScore:
-            graspingIntelligenceScore ?? this.graspingIntelligenceScore,
-        childTypeDescription:
-            childTypeDescription ?? this.childTypeDescription,
-        vaccinationHistory: vaccinationHistory ?? this.vaccinationHistory,
-        favoriteSportActivity:
-            favoriteSportActivity ?? this.favoriteSportActivity,
-        attitudeToParents: attitudeToParents ?? this.attitudeToParents,
-        childMedicalHistory:
-            childMedicalHistory ?? this.childMedicalHistory,
-        maturityLevel: maturityLevel ?? this.maturityLevel,
-        familyProblemsReaction:
-            familyProblemsReaction ?? this.familyProblemsReaction,
-        childIntrovertExtrovert:
-            childIntrovertExtrovert ?? this.childIntrovertExtrovert,
-        independenceLevel: independenceLevel ?? this.independenceLevel,
-        dailyWaterIntake: dailyWaterIntake ?? this.dailyWaterIntake,
-        birthComplications: birthComplications ?? this.birthComplications,
-        motherPregnancyHistory:
-            motherPregnancyHistory ?? this.motherPregnancyHistory,
-        motherMedicalHistory:
-            motherMedicalHistory ?? this.motherMedicalHistory,
-        familyHealthHereditary:
-            familyHealthHereditary ?? this.familyHealthHereditary,
-        walkingTeethingAge: walkingTeethingAge ?? this.walkingTeethingAge,
-        abnormalBehaviors: abnormalBehaviors ?? this.abnormalBehaviors,
-        childFears: childFears ?? this.childFears,
-        childSleepingHabits:
-            childSleepingHabits ?? this.childSleepingHabits,
-        abnormalCravings: abnormalCravings ?? this.abnormalCravings,
-        wormsProblems: wormsProblems ?? this.wormsProblems,
-        headSymptoms: headSymptoms ?? this.headSymptoms,
-        eyeSymptoms: eyeSymptoms ?? this.eyeSymptoms,
-        noseRespirationSymptoms:
-            noseRespirationSymptoms ?? this.noseRespirationSymptoms,
-        tongueMouthTeeth: tongueMouthTeeth ?? this.tongueMouthTeeth,
-        throatSymptoms: throatSymptoms ?? this.throatSymptoms,
-        coughAsthmaDetails:
-            coughAsthmaDetails ?? this.coughAsthmaDetails,
-        stomachSymptoms: stomachSymptoms ?? this.stomachSymptoms,
-        extremitiesSymptoms:
-            extremitiesSymptoms ?? this.extremitiesSymptoms,
-        stoolRectumSymptoms:
-            stoolRectumSymptoms ?? this.stoolRectumSymptoms,
-        urinarySymptoms: urinarySymptoms ?? this.urinarySymptoms,
-        sexualAwareness: sexualAwareness ?? this.sexualAwareness,
-        feverDetails: feverDetails ?? this.feverDetails,
-        additionalChildInfo:
-            additionalChildInfo ?? this.additionalChildInfo,
-      );
+  }) => HomeopathyChildrenCaseSheet(
+    coldOrHeatSensitive: coldOrHeatSensitive ?? this.coldOrHeatSensitive,
+    behaviorWhenUpset: behaviorWhenUpset ?? this.behaviorWhenUpset,
+    whatMakesHappy: whatMakesHappy ?? this.whatMakesHappy,
+    schoolBehavior: schoolBehavior ?? this.schoolBehavior,
+    graspingIntelligenceScore:
+        graspingIntelligenceScore ?? this.graspingIntelligenceScore,
+    childTypeDescription: childTypeDescription ?? this.childTypeDescription,
+    vaccinationHistory: vaccinationHistory ?? this.vaccinationHistory,
+    favoriteSportActivity: favoriteSportActivity ?? this.favoriteSportActivity,
+    attitudeToParents: attitudeToParents ?? this.attitudeToParents,
+    childMedicalHistory: childMedicalHistory ?? this.childMedicalHistory,
+    maturityLevel: maturityLevel ?? this.maturityLevel,
+    familyProblemsReaction:
+        familyProblemsReaction ?? this.familyProblemsReaction,
+    childIntrovertExtrovert:
+        childIntrovertExtrovert ?? this.childIntrovertExtrovert,
+    independenceLevel: independenceLevel ?? this.independenceLevel,
+    dailyWaterIntake: dailyWaterIntake ?? this.dailyWaterIntake,
+    birthComplications: birthComplications ?? this.birthComplications,
+    motherPregnancyHistory:
+        motherPregnancyHistory ?? this.motherPregnancyHistory,
+    motherMedicalHistory: motherMedicalHistory ?? this.motherMedicalHistory,
+    familyHealthHereditary:
+        familyHealthHereditary ?? this.familyHealthHereditary,
+    walkingTeethingAge: walkingTeethingAge ?? this.walkingTeethingAge,
+    abnormalBehaviors: abnormalBehaviors ?? this.abnormalBehaviors,
+    childFears: childFears ?? this.childFears,
+    childSleepingHabits: childSleepingHabits ?? this.childSleepingHabits,
+    abnormalCravings: abnormalCravings ?? this.abnormalCravings,
+    wormsProblems: wormsProblems ?? this.wormsProblems,
+    headSymptoms: headSymptoms ?? this.headSymptoms,
+    eyeSymptoms: eyeSymptoms ?? this.eyeSymptoms,
+    noseRespirationSymptoms:
+        noseRespirationSymptoms ?? this.noseRespirationSymptoms,
+    tongueMouthTeeth: tongueMouthTeeth ?? this.tongueMouthTeeth,
+    throatSymptoms: throatSymptoms ?? this.throatSymptoms,
+    coughAsthmaDetails: coughAsthmaDetails ?? this.coughAsthmaDetails,
+    stomachSymptoms: stomachSymptoms ?? this.stomachSymptoms,
+    extremitiesSymptoms: extremitiesSymptoms ?? this.extremitiesSymptoms,
+    stoolRectumSymptoms: stoolRectumSymptoms ?? this.stoolRectumSymptoms,
+    urinarySymptoms: urinarySymptoms ?? this.urinarySymptoms,
+    sexualAwareness: sexualAwareness ?? this.sexualAwareness,
+    feverDetails: feverDetails ?? this.feverDetails,
+    additionalChildInfo: additionalChildInfo ?? this.additionalChildInfo,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -414,7 +396,8 @@ class HomeopathyFemaleEndocrine {
   final String emotionalTriggers;
 
   // Disease manifestation
-  final String diseaseManifestationLocation; // thyroid: general, myxoedema, goitre, exophthalmos
+  final String
+  diseaseManifestationLocation; // thyroid: general, myxoedema, goitre, exophthalmos
   final String otherOrgansInvolved;
   final String goitreDetails;
 
@@ -446,11 +429,13 @@ class HomeopathyFemaleEndocrine {
   final String personalMedicalHistory;
 
   // Stages of life
-  final String stagesOfLife; // childhood/puberty/pregnancy/post-parturition/menopause/etc.
+  final String
+  stagesOfLife; // childhood/puberty/pregnancy/post-parturition/menopause/etc.
   final String menstrualHistory;
 
   // Relationships
-  final String relationshipDetails; // family/spouse/children/in-laws/colleagues/tensions
+  final String
+  relationshipDetails; // family/spouse/children/in-laws/colleagues/tensions
 
   const HomeopathyFemaleEndocrine({
     this.medicalDiagnosis = '',
@@ -491,89 +476,78 @@ class HomeopathyFemaleEndocrine {
       physiologicalCauseTrigger.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
-        'medicalDiagnosis': medicalDiagnosis,
-        'howAndWhenStarted': howAndWhenStarted,
-        'physiologicalCauseTrigger': physiologicalCauseTrigger,
-        'emotionalTriggers': emotionalTriggers,
-        'diseaseManifestationLocation': diseaseManifestationLocation,
-        'otherOrgansInvolved': otherOrgansInvolved,
-        'goitreDetails': goitreDetails,
-        'endocrineHeadSymptoms': endocrineHeadSymptoms,
-        'endocrineEyeSymptoms': endocrineEyeSymptoms,
-        'endocrineNoseRespiration': endocrineNoseRespiration,
-        'endocrineTongueMouthTeeth': endocrineTongueMouthTeeth,
-        'endocrineThroatSymptoms': endocrineThroatSymptoms,
-        'endocrineCoughAsthma': endocrineCoughAsthma,
-        'endocrineStomachSymptoms': endocrineStomachSymptoms,
-        'endocrineExtremities': endocrineExtremities,
-        'endocrineStoolRectum': endocrineStoolRectum,
-        'sensationSymptoms': sensationSymptoms,
-        'gastrointestinalSymptoms': gastrointestinalSymptoms,
-        'respiratorySymptoms': respiratorySymptoms,
-        'cardiacCirculatorySymptoms': cardiacCirculatorySymptoms,
-        'glandsProblems': glandsProblems,
-        'skinSymptoms': skinSymptoms,
-        'rheumatologySymptoms': rheumatologySymptoms,
-        'cnsSymptoms': cnsSymptoms,
-        'faceEntProblems': faceEntProblems,
-        'physicalWeakness': physicalWeakness,
-        'familyDiseaseHistory': familyDiseaseHistory,
-        'personalMedicalHistory': personalMedicalHistory,
-        'stagesOfLife': stagesOfLife,
-        'menstrualHistory': menstrualHistory,
-        'relationshipDetails': relationshipDetails,
-      };
+    'medicalDiagnosis': medicalDiagnosis,
+    'howAndWhenStarted': howAndWhenStarted,
+    'physiologicalCauseTrigger': physiologicalCauseTrigger,
+    'emotionalTriggers': emotionalTriggers,
+    'diseaseManifestationLocation': diseaseManifestationLocation,
+    'otherOrgansInvolved': otherOrgansInvolved,
+    'goitreDetails': goitreDetails,
+    'endocrineHeadSymptoms': endocrineHeadSymptoms,
+    'endocrineEyeSymptoms': endocrineEyeSymptoms,
+    'endocrineNoseRespiration': endocrineNoseRespiration,
+    'endocrineTongueMouthTeeth': endocrineTongueMouthTeeth,
+    'endocrineThroatSymptoms': endocrineThroatSymptoms,
+    'endocrineCoughAsthma': endocrineCoughAsthma,
+    'endocrineStomachSymptoms': endocrineStomachSymptoms,
+    'endocrineExtremities': endocrineExtremities,
+    'endocrineStoolRectum': endocrineStoolRectum,
+    'sensationSymptoms': sensationSymptoms,
+    'gastrointestinalSymptoms': gastrointestinalSymptoms,
+    'respiratorySymptoms': respiratorySymptoms,
+    'cardiacCirculatorySymptoms': cardiacCirculatorySymptoms,
+    'glandsProblems': glandsProblems,
+    'skinSymptoms': skinSymptoms,
+    'rheumatologySymptoms': rheumatologySymptoms,
+    'cnsSymptoms': cnsSymptoms,
+    'faceEntProblems': faceEntProblems,
+    'physicalWeakness': physicalWeakness,
+    'familyDiseaseHistory': familyDiseaseHistory,
+    'personalMedicalHistory': personalMedicalHistory,
+    'stagesOfLife': stagesOfLife,
+    'menstrualHistory': menstrualHistory,
+    'relationshipDetails': relationshipDetails,
+  };
 
-  factory HomeopathyFemaleEndocrine.fromMap(Map<String, dynamic> map) =>
-      HomeopathyFemaleEndocrine(
-        medicalDiagnosis: map['medicalDiagnosis'] as String? ?? '',
-        howAndWhenStarted: map['howAndWhenStarted'] as String? ?? '',
-        physiologicalCauseTrigger:
-            map['physiologicalCauseTrigger'] as String? ?? '',
-        emotionalTriggers: map['emotionalTriggers'] as String? ?? '',
-        diseaseManifestationLocation:
-            map['diseaseManifestationLocation'] as String? ?? '',
-        otherOrgansInvolved: map['otherOrgansInvolved'] as String? ?? '',
-        goitreDetails: map['goitreDetails'] as String? ?? '',
-        endocrineHeadSymptoms:
-            map['endocrineHeadSymptoms'] as String? ?? '',
-        endocrineEyeSymptoms:
-            map['endocrineEyeSymptoms'] as String? ?? '',
-        endocrineNoseRespiration:
-            map['endocrineNoseRespiration'] as String? ?? '',
-        endocrineTongueMouthTeeth:
-            map['endocrineTongueMouthTeeth'] as String? ?? '',
-        endocrineThroatSymptoms:
-            map['endocrineThroatSymptoms'] as String? ?? '',
-        endocrineCoughAsthma:
-            map['endocrineCoughAsthma'] as String? ?? '',
-        endocrineStomachSymptoms:
-            map['endocrineStomachSymptoms'] as String? ?? '',
-        endocrineExtremities:
-            map['endocrineExtremities'] as String? ?? '',
-        endocrineStoolRectum:
-            map['endocrineStoolRectum'] as String? ?? '',
-        sensationSymptoms: map['sensationSymptoms'] as String? ?? '',
-        gastrointestinalSymptoms:
-            map['gastrointestinalSymptoms'] as String? ?? '',
-        respiratorySymptoms: map['respiratorySymptoms'] as String? ?? '',
-        cardiacCirculatorySymptoms:
-            map['cardiacCirculatorySymptoms'] as String? ?? '',
-        glandsProblems: map['glandsProblems'] as String? ?? '',
-        skinSymptoms: map['skinSymptoms'] as String? ?? '',
-        rheumatologySymptoms:
-            map['rheumatologySymptoms'] as String? ?? '',
-        cnsSymptoms: map['cnsSymptoms'] as String? ?? '',
-        faceEntProblems: map['faceEntProblems'] as String? ?? '',
-        physicalWeakness: map['physicalWeakness'] as String? ?? '',
-        familyDiseaseHistory:
-            map['familyDiseaseHistory'] as String? ?? '',
-        personalMedicalHistory:
-            map['personalMedicalHistory'] as String? ?? '',
-        stagesOfLife: map['stagesOfLife'] as String? ?? '',
-        menstrualHistory: map['menstrualHistory'] as String? ?? '',
-        relationshipDetails: map['relationshipDetails'] as String? ?? '',
-      );
+  factory HomeopathyFemaleEndocrine.fromMap(
+    Map<String, dynamic> map,
+  ) => HomeopathyFemaleEndocrine(
+    medicalDiagnosis: map['medicalDiagnosis'] as String? ?? '',
+    howAndWhenStarted: map['howAndWhenStarted'] as String? ?? '',
+    physiologicalCauseTrigger:
+        map['physiologicalCauseTrigger'] as String? ?? '',
+    emotionalTriggers: map['emotionalTriggers'] as String? ?? '',
+    diseaseManifestationLocation:
+        map['diseaseManifestationLocation'] as String? ?? '',
+    otherOrgansInvolved: map['otherOrgansInvolved'] as String? ?? '',
+    goitreDetails: map['goitreDetails'] as String? ?? '',
+    endocrineHeadSymptoms: map['endocrineHeadSymptoms'] as String? ?? '',
+    endocrineEyeSymptoms: map['endocrineEyeSymptoms'] as String? ?? '',
+    endocrineNoseRespiration: map['endocrineNoseRespiration'] as String? ?? '',
+    endocrineTongueMouthTeeth:
+        map['endocrineTongueMouthTeeth'] as String? ?? '',
+    endocrineThroatSymptoms: map['endocrineThroatSymptoms'] as String? ?? '',
+    endocrineCoughAsthma: map['endocrineCoughAsthma'] as String? ?? '',
+    endocrineStomachSymptoms: map['endocrineStomachSymptoms'] as String? ?? '',
+    endocrineExtremities: map['endocrineExtremities'] as String? ?? '',
+    endocrineStoolRectum: map['endocrineStoolRectum'] as String? ?? '',
+    sensationSymptoms: map['sensationSymptoms'] as String? ?? '',
+    gastrointestinalSymptoms: map['gastrointestinalSymptoms'] as String? ?? '',
+    respiratorySymptoms: map['respiratorySymptoms'] as String? ?? '',
+    cardiacCirculatorySymptoms:
+        map['cardiacCirculatorySymptoms'] as String? ?? '',
+    glandsProblems: map['glandsProblems'] as String? ?? '',
+    skinSymptoms: map['skinSymptoms'] as String? ?? '',
+    rheumatologySymptoms: map['rheumatologySymptoms'] as String? ?? '',
+    cnsSymptoms: map['cnsSymptoms'] as String? ?? '',
+    faceEntProblems: map['faceEntProblems'] as String? ?? '',
+    physicalWeakness: map['physicalWeakness'] as String? ?? '',
+    familyDiseaseHistory: map['familyDiseaseHistory'] as String? ?? '',
+    personalMedicalHistory: map['personalMedicalHistory'] as String? ?? '',
+    stagesOfLife: map['stagesOfLife'] as String? ?? '',
+    menstrualHistory: map['menstrualHistory'] as String? ?? '',
+    relationshipDetails: map['relationshipDetails'] as String? ?? '',
+  );
 
   HomeopathyFemaleEndocrine copyWith({
     String? medicalDiagnosis,
@@ -607,59 +581,48 @@ class HomeopathyFemaleEndocrine {
     String? stagesOfLife,
     String? menstrualHistory,
     String? relationshipDetails,
-  }) =>
-      HomeopathyFemaleEndocrine(
-        medicalDiagnosis: medicalDiagnosis ?? this.medicalDiagnosis,
-        howAndWhenStarted: howAndWhenStarted ?? this.howAndWhenStarted,
-        physiologicalCauseTrigger:
-            physiologicalCauseTrigger ?? this.physiologicalCauseTrigger,
-        emotionalTriggers: emotionalTriggers ?? this.emotionalTriggers,
-        diseaseManifestationLocation: diseaseManifestationLocation ??
-            this.diseaseManifestationLocation,
-        otherOrgansInvolved:
-            otherOrgansInvolved ?? this.otherOrgansInvolved,
-        goitreDetails: goitreDetails ?? this.goitreDetails,
-        endocrineHeadSymptoms:
-            endocrineHeadSymptoms ?? this.endocrineHeadSymptoms,
-        endocrineEyeSymptoms:
-            endocrineEyeSymptoms ?? this.endocrineEyeSymptoms,
-        endocrineNoseRespiration:
-            endocrineNoseRespiration ?? this.endocrineNoseRespiration,
-        endocrineTongueMouthTeeth:
-            endocrineTongueMouthTeeth ?? this.endocrineTongueMouthTeeth,
-        endocrineThroatSymptoms:
-            endocrineThroatSymptoms ?? this.endocrineThroatSymptoms,
-        endocrineCoughAsthma:
-            endocrineCoughAsthma ?? this.endocrineCoughAsthma,
-        endocrineStomachSymptoms:
-            endocrineStomachSymptoms ?? this.endocrineStomachSymptoms,
-        endocrineExtremities:
-            endocrineExtremities ?? this.endocrineExtremities,
-        endocrineStoolRectum:
-            endocrineStoolRectum ?? this.endocrineStoolRectum,
-        sensationSymptoms: sensationSymptoms ?? this.sensationSymptoms,
-        gastrointestinalSymptoms:
-            gastrointestinalSymptoms ?? this.gastrointestinalSymptoms,
-        respiratorySymptoms:
-            respiratorySymptoms ?? this.respiratorySymptoms,
-        cardiacCirculatorySymptoms: cardiacCirculatorySymptoms ??
-            this.cardiacCirculatorySymptoms,
-        glandsProblems: glandsProblems ?? this.glandsProblems,
-        skinSymptoms: skinSymptoms ?? this.skinSymptoms,
-        rheumatologySymptoms:
-            rheumatologySymptoms ?? this.rheumatologySymptoms,
-        cnsSymptoms: cnsSymptoms ?? this.cnsSymptoms,
-        faceEntProblems: faceEntProblems ?? this.faceEntProblems,
-        physicalWeakness: physicalWeakness ?? this.physicalWeakness,
-        familyDiseaseHistory:
-            familyDiseaseHistory ?? this.familyDiseaseHistory,
-        personalMedicalHistory:
-            personalMedicalHistory ?? this.personalMedicalHistory,
-        stagesOfLife: stagesOfLife ?? this.stagesOfLife,
-        menstrualHistory: menstrualHistory ?? this.menstrualHistory,
-        relationshipDetails:
-            relationshipDetails ?? this.relationshipDetails,
-      );
+  }) => HomeopathyFemaleEndocrine(
+    medicalDiagnosis: medicalDiagnosis ?? this.medicalDiagnosis,
+    howAndWhenStarted: howAndWhenStarted ?? this.howAndWhenStarted,
+    physiologicalCauseTrigger:
+        physiologicalCauseTrigger ?? this.physiologicalCauseTrigger,
+    emotionalTriggers: emotionalTriggers ?? this.emotionalTriggers,
+    diseaseManifestationLocation:
+        diseaseManifestationLocation ?? this.diseaseManifestationLocation,
+    otherOrgansInvolved: otherOrgansInvolved ?? this.otherOrgansInvolved,
+    goitreDetails: goitreDetails ?? this.goitreDetails,
+    endocrineHeadSymptoms: endocrineHeadSymptoms ?? this.endocrineHeadSymptoms,
+    endocrineEyeSymptoms: endocrineEyeSymptoms ?? this.endocrineEyeSymptoms,
+    endocrineNoseRespiration:
+        endocrineNoseRespiration ?? this.endocrineNoseRespiration,
+    endocrineTongueMouthTeeth:
+        endocrineTongueMouthTeeth ?? this.endocrineTongueMouthTeeth,
+    endocrineThroatSymptoms:
+        endocrineThroatSymptoms ?? this.endocrineThroatSymptoms,
+    endocrineCoughAsthma: endocrineCoughAsthma ?? this.endocrineCoughAsthma,
+    endocrineStomachSymptoms:
+        endocrineStomachSymptoms ?? this.endocrineStomachSymptoms,
+    endocrineExtremities: endocrineExtremities ?? this.endocrineExtremities,
+    endocrineStoolRectum: endocrineStoolRectum ?? this.endocrineStoolRectum,
+    sensationSymptoms: sensationSymptoms ?? this.sensationSymptoms,
+    gastrointestinalSymptoms:
+        gastrointestinalSymptoms ?? this.gastrointestinalSymptoms,
+    respiratorySymptoms: respiratorySymptoms ?? this.respiratorySymptoms,
+    cardiacCirculatorySymptoms:
+        cardiacCirculatorySymptoms ?? this.cardiacCirculatorySymptoms,
+    glandsProblems: glandsProblems ?? this.glandsProblems,
+    skinSymptoms: skinSymptoms ?? this.skinSymptoms,
+    rheumatologySymptoms: rheumatologySymptoms ?? this.rheumatologySymptoms,
+    cnsSymptoms: cnsSymptoms ?? this.cnsSymptoms,
+    faceEntProblems: faceEntProblems ?? this.faceEntProblems,
+    physicalWeakness: physicalWeakness ?? this.physicalWeakness,
+    familyDiseaseHistory: familyDiseaseHistory ?? this.familyDiseaseHistory,
+    personalMedicalHistory:
+        personalMedicalHistory ?? this.personalMedicalHistory,
+    stagesOfLife: stagesOfLife ?? this.stagesOfLife,
+    menstrualHistory: menstrualHistory ?? this.menstrualHistory,
+    relationshipDetails: relationshipDetails ?? this.relationshipDetails,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -693,9 +656,12 @@ class HomeopathyAcuteSheet {
   final String additionalInfo; // Q22
 
   // Quick-reference table data (JSON-serialized)
-  final String chiefComplaintTable; // Time/Temperature/Sleep/Air/Thirst/Taste/Eating/Sleep modalities
-  final String thirstMensesSleepTable; // Thirst/Menses/Sleep/Heat-Cold/Stool/Urination/Appetite/Cravings/Aversions
-  final String stateOfMindTable; // Reaction to disease/company/time/fears/dreams/facial expression
+  final String
+  chiefComplaintTable; // Time/Temperature/Sleep/Air/Thirst/Taste/Eating/Sleep modalities
+  final String
+  thirstMensesSleepTable; // Thirst/Menses/Sleep/Heat-Cold/Stool/Urination/Appetite/Cravings/Aversions
+  final String
+  stateOfMindTable; // Reaction to disease/company/time/fears/dreams/facial expression
 
   const HomeopathyAcuteSheet({
     this.howKnewAboutUs = '',
@@ -726,36 +692,35 @@ class HomeopathyAcuteSheet {
   });
 
   bool get isCompleted =>
-      detailedComplaint.trim().isNotEmpty ||
-      causeOfComplaint.trim().isNotEmpty;
+      detailedComplaint.trim().isNotEmpty || causeOfComplaint.trim().isNotEmpty;
 
   Map<String, dynamic> toMap() => {
-        'howKnewAboutUs': howKnewAboutUs,
-        'priorHomeopathyUse': priorHomeopathyUse,
-        'detailedComplaint': detailedComplaint,
-        'causeOfComplaint': causeOfComplaint,
-        'otherProblems': otherProblems,
-        'whatMakesWorse': whatMakesWorse,
-        'whatMakesBetter': whatMakesBetter,
-        'mentalConditionDuringSuffering': mentalConditionDuringSuffering,
-        'appetiteCravingsAversions': appetiteCravingsAversions,
-        'waterRequirement': waterRequirement,
-        'sweatDetails': sweatDetails,
-        'postureModalities': postureModalities,
-        'sleepStoolUrination': sleepStoolUrination,
-        'overallHealthHistory': overallHealthHistory,
-        'acuteFeverDetails': acuteFeverDetails,
-        'specialUncommonSymptoms': specialUncommonSymptoms,
-        'coughRespirationDetail': coughRespirationDetail,
-        'additionalCoughInfo': additionalCoughInfo,
-        'looseDryCoughDetails': looseDryCoughDetails,
-        'diarrheaConstipationDetails': diarrheaConstipationDetails,
-        'bodyPainDetails': bodyPainDetails,
-        'additionalInfo': additionalInfo,
-        'chiefComplaintTable': chiefComplaintTable,
-        'thirstMensesSleepTable': thirstMensesSleepTable,
-        'stateOfMindTable': stateOfMindTable,
-      };
+    'howKnewAboutUs': howKnewAboutUs,
+    'priorHomeopathyUse': priorHomeopathyUse,
+    'detailedComplaint': detailedComplaint,
+    'causeOfComplaint': causeOfComplaint,
+    'otherProblems': otherProblems,
+    'whatMakesWorse': whatMakesWorse,
+    'whatMakesBetter': whatMakesBetter,
+    'mentalConditionDuringSuffering': mentalConditionDuringSuffering,
+    'appetiteCravingsAversions': appetiteCravingsAversions,
+    'waterRequirement': waterRequirement,
+    'sweatDetails': sweatDetails,
+    'postureModalities': postureModalities,
+    'sleepStoolUrination': sleepStoolUrination,
+    'overallHealthHistory': overallHealthHistory,
+    'acuteFeverDetails': acuteFeverDetails,
+    'specialUncommonSymptoms': specialUncommonSymptoms,
+    'coughRespirationDetail': coughRespirationDetail,
+    'additionalCoughInfo': additionalCoughInfo,
+    'looseDryCoughDetails': looseDryCoughDetails,
+    'diarrheaConstipationDetails': diarrheaConstipationDetails,
+    'bodyPainDetails': bodyPainDetails,
+    'additionalInfo': additionalInfo,
+    'chiefComplaintTable': chiefComplaintTable,
+    'thirstMensesSleepTable': thirstMensesSleepTable,
+    'stateOfMindTable': stateOfMindTable,
+  };
 
   factory HomeopathyAcuteSheet.fromMap(Map<String, dynamic> map) =>
       HomeopathyAcuteSheet(
@@ -774,23 +739,19 @@ class HomeopathyAcuteSheet {
         sweatDetails: map['sweatDetails'] as String? ?? '',
         postureModalities: map['postureModalities'] as String? ?? '',
         sleepStoolUrination: map['sleepStoolUrination'] as String? ?? '',
-        overallHealthHistory:
-            map['overallHealthHistory'] as String? ?? '',
+        overallHealthHistory: map['overallHealthHistory'] as String? ?? '',
         acuteFeverDetails: map['acuteFeverDetails'] as String? ?? '',
         specialUncommonSymptoms:
             map['specialUncommonSymptoms'] as String? ?? '',
-        coughRespirationDetail:
-            map['coughRespirationDetail'] as String? ?? '',
+        coughRespirationDetail: map['coughRespirationDetail'] as String? ?? '',
         additionalCoughInfo: map['additionalCoughInfo'] as String? ?? '',
-        looseDryCoughDetails:
-            map['looseDryCoughDetails'] as String? ?? '',
+        looseDryCoughDetails: map['looseDryCoughDetails'] as String? ?? '',
         diarrheaConstipationDetails:
             map['diarrheaConstipationDetails'] as String? ?? '',
         bodyPainDetails: map['bodyPainDetails'] as String? ?? '',
         additionalInfo: map['additionalInfo'] as String? ?? '',
         chiefComplaintTable: map['chiefComplaintTable'] as String? ?? '',
-        thirstMensesSleepTable:
-            map['thirstMensesSleepTable'] as String? ?? '',
+        thirstMensesSleepTable: map['thirstMensesSleepTable'] as String? ?? '',
         stateOfMindTable: map['stateOfMindTable'] as String? ?? '',
       );
 
@@ -820,44 +781,37 @@ class HomeopathyAcuteSheet {
     String? chiefComplaintTable,
     String? thirstMensesSleepTable,
     String? stateOfMindTable,
-  }) =>
-      HomeopathyAcuteSheet(
-        howKnewAboutUs: howKnewAboutUs ?? this.howKnewAboutUs,
-        priorHomeopathyUse:
-            priorHomeopathyUse ?? this.priorHomeopathyUse,
-        detailedComplaint: detailedComplaint ?? this.detailedComplaint,
-        causeOfComplaint: causeOfComplaint ?? this.causeOfComplaint,
-        otherProblems: otherProblems ?? this.otherProblems,
-        whatMakesWorse: whatMakesWorse ?? this.whatMakesWorse,
-        whatMakesBetter: whatMakesBetter ?? this.whatMakesBetter,
-        mentalConditionDuringSuffering: mentalConditionDuringSuffering ??
-            this.mentalConditionDuringSuffering,
-        appetiteCravingsAversions:
-            appetiteCravingsAversions ?? this.appetiteCravingsAversions,
-        waterRequirement: waterRequirement ?? this.waterRequirement,
-        sweatDetails: sweatDetails ?? this.sweatDetails,
-        postureModalities: postureModalities ?? this.postureModalities,
-        sleepStoolUrination:
-            sleepStoolUrination ?? this.sleepStoolUrination,
-        overallHealthHistory:
-            overallHealthHistory ?? this.overallHealthHistory,
-        acuteFeverDetails: acuteFeverDetails ?? this.acuteFeverDetails,
-        specialUncommonSymptoms:
-            specialUncommonSymptoms ?? this.specialUncommonSymptoms,
-        coughRespirationDetail:
-            coughRespirationDetail ?? this.coughRespirationDetail,
-        additionalCoughInfo:
-            additionalCoughInfo ?? this.additionalCoughInfo,
-        looseDryCoughDetails:
-            looseDryCoughDetails ?? this.looseDryCoughDetails,
-        diarrheaConstipationDetails: diarrheaConstipationDetails ??
-            this.diarrheaConstipationDetails,
-        bodyPainDetails: bodyPainDetails ?? this.bodyPainDetails,
-        additionalInfo: additionalInfo ?? this.additionalInfo,
-        chiefComplaintTable:
-            chiefComplaintTable ?? this.chiefComplaintTable,
-        thirstMensesSleepTable:
-            thirstMensesSleepTable ?? this.thirstMensesSleepTable,
-        stateOfMindTable: stateOfMindTable ?? this.stateOfMindTable,
-      );
+  }) => HomeopathyAcuteSheet(
+    howKnewAboutUs: howKnewAboutUs ?? this.howKnewAboutUs,
+    priorHomeopathyUse: priorHomeopathyUse ?? this.priorHomeopathyUse,
+    detailedComplaint: detailedComplaint ?? this.detailedComplaint,
+    causeOfComplaint: causeOfComplaint ?? this.causeOfComplaint,
+    otherProblems: otherProblems ?? this.otherProblems,
+    whatMakesWorse: whatMakesWorse ?? this.whatMakesWorse,
+    whatMakesBetter: whatMakesBetter ?? this.whatMakesBetter,
+    mentalConditionDuringSuffering:
+        mentalConditionDuringSuffering ?? this.mentalConditionDuringSuffering,
+    appetiteCravingsAversions:
+        appetiteCravingsAversions ?? this.appetiteCravingsAversions,
+    waterRequirement: waterRequirement ?? this.waterRequirement,
+    sweatDetails: sweatDetails ?? this.sweatDetails,
+    postureModalities: postureModalities ?? this.postureModalities,
+    sleepStoolUrination: sleepStoolUrination ?? this.sleepStoolUrination,
+    overallHealthHistory: overallHealthHistory ?? this.overallHealthHistory,
+    acuteFeverDetails: acuteFeverDetails ?? this.acuteFeverDetails,
+    specialUncommonSymptoms:
+        specialUncommonSymptoms ?? this.specialUncommonSymptoms,
+    coughRespirationDetail:
+        coughRespirationDetail ?? this.coughRespirationDetail,
+    additionalCoughInfo: additionalCoughInfo ?? this.additionalCoughInfo,
+    looseDryCoughDetails: looseDryCoughDetails ?? this.looseDryCoughDetails,
+    diarrheaConstipationDetails:
+        diarrheaConstipationDetails ?? this.diarrheaConstipationDetails,
+    bodyPainDetails: bodyPainDetails ?? this.bodyPainDetails,
+    additionalInfo: additionalInfo ?? this.additionalInfo,
+    chiefComplaintTable: chiefComplaintTable ?? this.chiefComplaintTable,
+    thirstMensesSleepTable:
+        thirstMensesSleepTable ?? this.thirstMensesSleepTable,
+    stateOfMindTable: stateOfMindTable ?? this.stateOfMindTable,
+  );
 }

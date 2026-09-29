@@ -114,7 +114,9 @@ class DentalProcedureLogModel {
       notationSystem: map['notationSystem'] as String? ?? 'fdi',
       status: map['status'] as String? ?? 'completed',
       notes: FieldCipher.decrypt(rawNotes),
-      materials: rawMaterials != null ? FieldCipher.decrypt(rawMaterials) : null,
+      materials: rawMaterials != null
+          ? FieldCipher.decrypt(rawMaterials)
+          : null,
       performedAt: _toDate(map['performedAt']) ?? DateTime.now(),
       isDeleted: map['isDeleted'] as bool? ?? false,
       createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
@@ -144,7 +146,9 @@ class DentalProcedureLogModel {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'syncStatus': syncStatus,
       'pendingDelete': pendingDelete,
-      'lastSyncedAt': lastSyncedAt != null ? Timestamp.fromDate(lastSyncedAt!) : null,
+      'lastSyncedAt': lastSyncedAt != null
+          ? Timestamp.fromDate(lastSyncedAt!)
+          : null,
     };
   }
 
@@ -187,7 +191,9 @@ class DentalProcedureLogModel {
       notationSystem: map['notationSystem'] as String? ?? 'fdi',
       status: map['status'] as String? ?? 'completed',
       notes: FieldCipher.decrypt(rawNotes),
-      materials: rawMaterials != null ? FieldCipher.decrypt(rawMaterials) : null,
+      materials: rawMaterials != null
+          ? FieldCipher.decrypt(rawMaterials)
+          : null,
       performedAt: _toDate(map['performedAt']) ?? DateTime.now(),
       isDeleted: map['isDeleted'] == 1 || map['isDeleted'] == true,
       createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
@@ -227,8 +233,9 @@ class DentalProcedureLogModel {
       doctorId: doctorId ?? this.doctorId,
       patientId: patientId ?? this.patientId,
       visitId: clearVisitId ? null : (visitId ?? this.visitId),
-      procedureCatalogId:
-          clearProcedureCatalogId ? null : (procedureCatalogId ?? this.procedureCatalogId),
+      procedureCatalogId: clearProcedureCatalogId
+          ? null
+          : (procedureCatalogId ?? this.procedureCatalogId),
       procedureName: procedureName ?? this.procedureName,
       toothNumbers: toothNumbers ?? this.toothNumbers,
       notationSystem: notationSystem ?? this.notationSystem,
@@ -241,7 +248,9 @@ class DentalProcedureLogModel {
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       pendingDelete: pendingDelete ?? this.pendingDelete,
-      lastSyncedAt: clearLastSyncedAt ? null : (lastSyncedAt ?? this.lastSyncedAt),
+      lastSyncedAt: clearLastSyncedAt
+          ? null
+          : (lastSyncedAt ?? this.lastSyncedAt),
     );
   }
 
@@ -254,7 +263,11 @@ class DentalProcedureLogModel {
         final decoded = jsonDecode(raw);
         if (decoded is List) return decoded.map((e) => e.toString()).toList();
       } catch (_) {
-        return raw.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        return raw
+            .split(',')
+            .map((e) => e.trim())
+            .where((e) => e.isNotEmpty)
+            .toList();
       }
     }
     return [];
@@ -302,25 +315,25 @@ class DentalProcedureLogModel {
 
   @override
   int get hashCode => Object.hashAll([
-        id,
-        doctorId,
-        patientId,
-        visitId,
-        procedureCatalogId,
-        procedureName,
-        Object.hashAll(toothNumbers),
-        notationSystem,
-        status,
-        notes,
-        materials,
-        performedAt,
-        isDeleted,
-        createdAt,
-        updatedAt,
-        syncStatus,
-        pendingDelete,
-        lastSyncedAt,
-      ]);
+    id,
+    doctorId,
+    patientId,
+    visitId,
+    procedureCatalogId,
+    procedureName,
+    Object.hashAll(toothNumbers),
+    notationSystem,
+    status,
+    notes,
+    materials,
+    performedAt,
+    isDeleted,
+    createdAt,
+    updatedAt,
+    syncStatus,
+    pendingDelete,
+    lastSyncedAt,
+  ]);
 
   @override
   String toString() {

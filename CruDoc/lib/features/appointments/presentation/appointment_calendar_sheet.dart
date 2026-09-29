@@ -59,9 +59,7 @@ class AppointmentCalendarSheet extends ConsumerStatefulWidget {
   /// Static helper to display the calendar as a full-page screen.
   static Future<void> show(BuildContext context) {
     return Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const AppointmentCalendarSheet(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const AppointmentCalendarSheet()),
     );
   }
 
@@ -79,7 +77,7 @@ class _AppointmentCalendarSheetState
 
   static const double _hourRowHeight = 64.0;
   static const int _startHour = 6; // 6 AM
-  static const int _endHour = 23;  // 11 PM
+  static const int _endHour = 23; // 11 PM
 
   @override
   void initState() {
@@ -105,7 +103,11 @@ class _AppointmentCalendarSheetState
       if (_viewMode == CalendarViewMode.timeGrid) {
         _selectedDate = _selectedDate.subtract(const Duration(days: 3));
       } else {
-        _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+        _selectedDate = DateTime(
+          _selectedDate.year,
+          _selectedDate.month - 1,
+          1,
+        );
       }
     });
   }
@@ -115,7 +117,11 @@ class _AppointmentCalendarSheetState
       if (_viewMode == CalendarViewMode.timeGrid) {
         _selectedDate = _selectedDate.add(const Duration(days: 3));
       } else {
-        _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
+        _selectedDate = DateTime(
+          _selectedDate.year,
+          _selectedDate.month + 1,
+          1,
+        );
       }
     });
   }
@@ -129,7 +135,9 @@ class _AppointmentCalendarSheetState
 
   // --- TIME GRID DATA ---
   List<_TimeGridEvent> _getTimeGridEvents(
-      List<DateTime> visibleDays, List<VisitWithPatient> realVisits) {
+    List<DateTime> visibleDays,
+    List<VisitWithPatient> realVisits,
+  ) {
     final list = <_TimeGridEvent>[];
 
     // 1. Convert ALL real database visits
@@ -236,9 +244,9 @@ class _AppointmentCalendarSheetState
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final visitsAsync = ref.watch(allVisitsWithPatientsProvider);
@@ -253,9 +261,15 @@ class _AppointmentCalendarSheetState
           .where((v) => !v.visit.scheduledStart.isBefore(todayStart))
           .toList();
       final targetList = upcoming.isNotEmpty ? upcoming : realVisits;
-      targetList.sort((a, b) => a.visit.scheduledStart.compareTo(b.visit.scheduledStart));
+      targetList.sort(
+        (a, b) => a.visit.scheduledStart.compareTo(b.visit.scheduledStart),
+      );
       final targetDate = targetList.first.visit.scheduledStart;
-      _selectedDate = DateTime(targetDate.year, targetDate.month, targetDate.day);
+      _selectedDate = DateTime(
+        targetDate.year,
+        targetDate.month,
+        targetDate.day,
+      );
     }
 
     return ShellBackground(
@@ -280,7 +294,10 @@ class _AppointmentCalendarSheetState
                         Row(
                           children: [
                             IconButton(
-                              icon: const Icon(Icons.arrow_back, color: Colors.black87),
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.black87,
+                              ),
                               onPressed: () => Navigator.pop(context),
                             ),
                             const SizedBox(width: 4),
@@ -317,13 +334,19 @@ class _AppointmentCalendarSheetState
                               children: [
                                 const SizedBox(width: 8),
                                 IconButton.filledTonal(
-                                  icon: const Icon(Icons.chevron_left, size: 20),
+                                  icon: const Icon(
+                                    Icons.chevron_left,
+                                    size: 20,
+                                  ),
                                   onPressed: _previousPeriod,
                                   visualDensity: VisualDensity.compact,
                                 ),
                                 const SizedBox(width: 6),
                                 IconButton.filledTonal(
-                                  icon: const Icon(Icons.chevron_right, size: 20),
+                                  icon: const Icon(
+                                    Icons.chevron_right,
+                                    size: 20,
+                                  ),
                                   onPressed: _nextPeriod,
                                   visualDensity: VisualDensity.compact,
                                 ),
@@ -339,16 +362,20 @@ class _AppointmentCalendarSheetState
                                 children: [
                                   _ViewToggleButton(
                                     label: 'Time Grid',
-                                    isSelected: _viewMode == CalendarViewMode.timeGrid,
+                                    isSelected:
+                                        _viewMode == CalendarViewMode.timeGrid,
                                     onTap: () => setState(
-                                      () => _viewMode = CalendarViewMode.timeGrid,
+                                      () =>
+                                          _viewMode = CalendarViewMode.timeGrid,
                                     ),
                                   ),
                                   _ViewToggleButton(
                                     label: 'Month',
-                                    isSelected: _viewMode == CalendarViewMode.monthGrid,
+                                    isSelected:
+                                        _viewMode == CalendarViewMode.monthGrid,
                                     onTap: () => setState(
-                                      () => _viewMode = CalendarViewMode.monthGrid,
+                                      () => _viewMode =
+                                          CalendarViewMode.monthGrid,
                                     ),
                                   ),
                                 ],
@@ -417,7 +444,7 @@ class _AppointmentCalendarSheetState
           ),
         ),
 
-        const Divider(height: 1, color: Color(0xFFE0E0E0)),
+        const Divider(height: 1),
 
         // Hourly Time Grid Body
         Expanded(
@@ -432,30 +459,29 @@ class _AppointmentCalendarSheetState
                   SizedBox(
                     width: 60,
                     child: Column(
-                      children: List.generate(
-                        _endHour - _startHour + 1,
-                        (index) {
-                          final hour = _startHour + index;
-                          return SizedBox(
-                            height: _hourRowHeight,
-                            child: Align(
-                              alignment: Alignment.centerRight,
-                              child: Padding(
-                                padding: const EdgeInsets.only(right: 8),
-                                child: Text(
-                                  _formatHourLabel(hour),
-                                  style: const TextStyle(
-                                    fontFamily: AppColors.bodyFontFamily,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF757575),
-                                  ),
+                      children: List.generate(_endHour - _startHour + 1, (
+                        index,
+                      ) {
+                        final hour = _startHour + index;
+                        return SizedBox(
+                          height: _hourRowHeight,
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                _formatHourLabel(hour),
+                                style: const TextStyle(
+                                  fontFamily: AppColors.bodyFontFamily,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF757575),
                                 ),
                               ),
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      }),
                     ),
                   ),
 
@@ -515,7 +541,9 @@ class _AppointmentCalendarSheetState
   }
 
   List<Widget> _buildPositionedTimeEvents(
-      List<DateTime> visibleDays, List<_TimeGridEvent> events) {
+    List<DateTime> visibleDays,
+    List<_TimeGridEvent> events,
+  ) {
     final widgets = <Widget>[];
 
     for (int dayIdx = 0; dayIdx < visibleDays.length; dayIdx++) {
@@ -533,7 +561,9 @@ class _AppointmentCalendarSheetState
       for (final ev in dayEvents) {
         bool added = false;
         for (final slot in slots) {
-          if (slot.any((e) => (ev.startTime.difference(e.startTime).inMinutes).abs() < 25)) {
+          if (slot.any(
+            (e) => (ev.startTime.difference(e.startTime).inMinutes).abs() < 25,
+          )) {
             slot.add(ev);
             added = true;
             break;
@@ -562,7 +592,8 @@ class _AppointmentCalendarSheetState
               top: topOffset,
               height: height.clamp(44.0, 140.0),
               left: (MediaQuery.of(context).size.width - 60) * leftPercent,
-              width: (MediaQuery.of(context).size.width - 60) * widthPercent - 2,
+              width:
+                  (MediaQuery.of(context).size.width - 60) * widthPercent - 2,
               child: GestureDetector(
                 onTap: () {
                   if (ev.visitWithPatient != null) {
@@ -570,23 +601,24 @@ class _AppointmentCalendarSheetState
                   }
                 },
                 child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 1,
+                    vertical: 1,
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: ev.backgroundColor,
                     border: Border.all(color: ev.borderColor, width: 1.2),
                     borderRadius: BorderRadius.circular(4),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
+                    boxShadow: const [],
                   ),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      final showProcedure = constraints.maxHeight >= 38.0 &&
+                      final showProcedure =
+                          constraints.maxHeight >= 38.0 &&
                           ev.procedure != null &&
                           ev.procedure!.isNotEmpty;
                       return Column(
@@ -637,10 +669,16 @@ class _AppointmentCalendarSheetState
   Widget _buildMonthGridView(List<VisitWithPatient> realVisits) {
     final monthEvents = _getMonthEvents(realVisits);
 
-    final firstDayOfMonth =
-        DateTime(_selectedDate.year, _selectedDate.month, 1);
-    final daysInMonth =
-        DateTime(_selectedDate.year, _selectedDate.month + 1, 0).day;
+    final firstDayOfMonth = DateTime(
+      _selectedDate.year,
+      _selectedDate.month,
+      1,
+    );
+    final daysInMonth = DateTime(
+      _selectedDate.year,
+      _selectedDate.month + 1,
+      0,
+    ).day;
     final startingWeekday = firstDayOfMonth.weekday % 7;
 
     final totalGridCells = startingWeekday + daysInMonth;
@@ -663,7 +701,7 @@ class _AppointmentCalendarSheetState
             ],
           ),
         ),
-        const Divider(height: 1, color: Color(0xFFE2E8F0)),
+        const Divider(height: 1),
 
         Expanded(
           child: GridView.builder(
@@ -681,8 +719,10 @@ class _AppointmentCalendarSheetState
               if (!isCurrentMonthDay) {
                 return Container(
                   decoration: BoxDecoration(
-                    border:
-                        Border.all(color: const Color(0xFFF1F5F9), width: 0.5),
+                    border: Border.all(
+                      color: const Color(0xFFF1F5F9),
+                      width: 0.5,
+                    ),
                     color: const Color(0xFFFAFAFA),
                   ),
                 );
@@ -690,7 +730,10 @@ class _AppointmentCalendarSheetState
 
               final dayNumber = dayOffset + 1;
               final dateOfCell = DateTime(
-                  _selectedDate.year, _selectedDate.month, dayNumber);
+                _selectedDate.year,
+                _selectedDate.month,
+                dayNumber,
+              );
               final isToday = _isSameDate(dateOfCell, DateTime.now());
 
               final dayEvents = monthEvents
@@ -699,8 +742,10 @@ class _AppointmentCalendarSheetState
 
               return Container(
                 decoration: BoxDecoration(
-                  border:
-                      Border.all(color: const Color(0xFFE2E8F0), width: 0.5),
+                  border: Border.all(
+                    color: const Color(0xFFE2E8F0),
+                    width: 0.5,
+                  ),
                   color: isToday ? const Color(0xFFF0F9FF) : Colors.white,
                 ),
                 padding: const EdgeInsets.all(4),
@@ -712,10 +757,8 @@ class _AppointmentCalendarSheetState
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         fontSize: 13,
-                        fontWeight:
-                            isToday ? FontWeight.w800 : FontWeight.w700,
-                        color:
-                            isToday ? AppColors.accentBlue : Colors.black87,
+                        fontWeight: isToday ? FontWeight.w800 : FontWeight.w700,
+                        color: isToday ? AppColors.accentBlue : Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -738,7 +781,9 @@ class _AppointmentCalendarSheetState
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 2),
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: event.backgroundColor,
                                 borderRadius: BorderRadius.circular(4),
@@ -782,10 +827,10 @@ class _AppointmentCalendarSheetState
           id: v.id,
           title: cat,
           category: cat,
-          backgroundColor:
-              isHome ? const Color(0xFFFFEDD5) : const Color(0xFFE0F2FE),
-          textColor:
-              isHome ? const Color(0xFFEA580C) : const Color(0xFF0284C7),
+          backgroundColor: isHome
+              ? const Color(0xFFFFEDD5)
+              : const Color(0xFFE0F2FE),
+          textColor: isHome ? const Color(0xFFEA580C) : const Color(0xFF0284C7),
           date: DateTime(
             v.scheduledStart.year,
             v.scheduledStart.month,
@@ -817,7 +862,7 @@ class _AppointmentCalendarSheetState
       'Sep',
       'Oct',
       'Nov',
-      'Dec'
+      'Dec',
     ];
     return months[month - 1];
   }
@@ -835,7 +880,7 @@ class _AppointmentCalendarSheetState
       'September',
       'October',
       'November',
-      'December'
+      'December',
     ];
     return months[month - 1];
   }
@@ -871,15 +916,7 @@ class _ViewToggleButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : null,
+          boxShadow: const [],
         ),
         child: Text(
           label,

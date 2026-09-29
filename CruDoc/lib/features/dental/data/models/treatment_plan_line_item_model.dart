@@ -182,7 +182,9 @@ class TreatmentPlanLineItemModel {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'syncStatus': syncStatus,
       'pendingDelete': pendingDelete,
-      'lastSyncedAt': lastSyncedAt != null ? Timestamp.fromDate(lastSyncedAt!) : null,
+      'lastSyncedAt': lastSyncedAt != null
+          ? Timestamp.fromDate(lastSyncedAt!)
+          : null,
     };
   }
 

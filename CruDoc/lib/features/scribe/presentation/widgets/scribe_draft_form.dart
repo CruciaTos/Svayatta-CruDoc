@@ -423,7 +423,12 @@ class ScribeDraftForm extends StatelessWidget {
       ),
       child: Column(
         children: [
-          _labelledField('Blood pressure', controller.bp, 'e.g. 120/80 mmHg', fieldKey: 'bp'),
+          _labelledField(
+            'Blood pressure',
+            controller.bp,
+            'e.g. 120/80 mmHg',
+            fieldKey: 'bp',
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -437,7 +442,12 @@ class ScribeDraftForm extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: _labelledField('Pulse', controller.pulse, 'e.g. 78 bpm', fieldKey: 'pulse'),
+                child: _labelledField(
+                  'Pulse',
+                  controller.pulse,
+                  'e.g. 78 bpm',
+                  fieldKey: 'pulse',
+                ),
               ),
             ],
           ),
@@ -1355,11 +1365,7 @@ class _TranscriptSectionState extends State<_TranscriptSection> {
           const SizedBox(height: 5),
           SelectableText(
             content,
-            style: TextStyle(
-              fontSize: 13,
-              height: 1.45,
-              color: p.textPrimary,
-            ),
+            style: TextStyle(fontSize: 13, height: 1.45, color: p.textPrimary),
           ),
         ],
       ),

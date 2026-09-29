@@ -81,10 +81,16 @@ class _SuperAdminSupportScreenState
             children: [
               Row(
                 children: [
-                  Text('Support Desk & Triage', style: CruType.largeTitle.tint(c.label)),
+                  Text(
+                    'Support Desk & Triage',
+                    style: CruType.largeTitle.tint(c.label),
+                  ),
                   const SizedBox(width: CruSpace.s12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: ShapeDecoration(
                       color: c.accentTint,
                       shape: cruShape(CruRadius.full),
@@ -126,10 +132,34 @@ class _SuperAdminSupportScreenState
     final c = context.cru;
 
     final categories = [
-      (TicketCategory.bug, 'Bug Report', CruIcons.warning, c.redText, c.redTint),
-      (TicketCategory.complaint, 'Clinical Issues', CruIcons.clock, c.amberText, c.amberTint),
-      (TicketCategory.feedback, 'Doctor Feedback', CruIcons.whatsapp, c.greenText, c.greenTint),
-      (TicketCategory.featureRequest, 'Feature Requests', CruIcons.sparkle, c.accentText, c.accentTint),
+      (
+        TicketCategory.bug,
+        'Bug Report',
+        CruIcons.warning,
+        c.redText,
+        c.redTint,
+      ),
+      (
+        TicketCategory.complaint,
+        'Clinical Issues',
+        CruIcons.clock,
+        c.amberText,
+        c.amberTint,
+      ),
+      (
+        TicketCategory.feedback,
+        'Doctor Feedback',
+        CruIcons.whatsapp,
+        c.greenText,
+        c.greenTint,
+      ),
+      (
+        TicketCategory.featureRequest,
+        'Feature Requests',
+        CruIcons.sparkle,
+        c.accentText,
+        c.accentTint,
+      ),
     ];
 
     if (isMobile) {
@@ -139,7 +169,16 @@ class _SuperAdminSupportScreenState
           final isSelected = state.categoryFilter == cat.$1;
           return Padding(
             padding: const EdgeInsets.only(bottom: CruSpace.s8),
-            child: _buildCategoryCard(c, notifier, cat.$1, cat.$2, count, cat.$3, cat.$4, isSelected),
+            child: _buildCategoryCard(
+              c,
+              notifier,
+              cat.$1,
+              cat.$2,
+              count,
+              cat.$3,
+              cat.$4,
+              isSelected,
+            ),
           );
         }).toList(),
       );
@@ -204,12 +243,18 @@ class _SuperAdminSupportScreenState
                   const Spacer(),
                   if (isSelected)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
                       decoration: ShapeDecoration(
                         color: c.accent,
                         shape: cruShape(CruRadius.full),
                       ),
-                      child: Text('ACTIVE', style: CruType.caption.w600.tint(CruBrand.white)),
+                      child: Text(
+                        'ACTIVE',
+                        style: CruType.caption.w600.tint(CruBrand.white),
+                      ),
                     ),
                 ],
               ),
@@ -246,7 +291,8 @@ class _SuperAdminSupportScreenState
               onChanged: (val) => notifier.setSearchQuery(val),
               style: CruType.text.tint(c.label),
               decoration: InputDecoration(
-                hintText: 'Search tickets by subject, description, doctor, or clinic...',
+                hintText:
+                    'Search tickets by subject, description, doctor, or clinic...',
                 hintStyle: CruType.text.tint(c.label3),
                 filled: true,
                 fillColor: c.inset,
@@ -256,7 +302,11 @@ class _SuperAdminSupportScreenState
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: CruIcon(CruIcons.close, size: 14, color: c.label3),
+                        icon: CruIcon(
+                          CruIcons.close,
+                          size: 14,
+                          color: c.label3,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           notifier.setSearchQuery('');
@@ -320,7 +370,10 @@ class _SuperAdminSupportScreenState
                     _searchController.clear();
                     notifier.clearFilters();
                   },
-                  builder: (ctx, hovered) => Text('Reset', style: CruType.caption.w600.tint(c.accentText)),
+                  builder: (ctx, hovered) => Text(
+                    'Reset',
+                    style: CruType.caption.w600.tint(c.accentText),
+                  ),
                 ),
               ],
             ],
@@ -346,14 +399,19 @@ class _SuperAdminSupportScreenState
             color: selected
                 ? c.accent
                 : hovered
-                    ? c.hoverFill
-                    : c.inset,
-            shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
+                ? c.hoverFill
+                : c.inset,
+            shape: cruShape(
+              CruRadius.full,
+              side: BorderSide(color: c.hairline),
+            ),
           ),
           child: Text(
             label,
             style: CruType.caption
-                .copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w500)
+                .copyWith(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                )
                 .tint(selected ? CruBrand.white : c.label2),
           ),
         );
@@ -374,7 +432,10 @@ class _SuperAdminSupportScreenState
     final c = context.cru;
 
     if (state.isLoading && tickets.isEmpty) {
-      return const Padding(padding: EdgeInsets.all(48), child: Center(child: CircularProgressIndicator()));
+      return const Padding(
+        padding: EdgeInsets.all(48),
+        child: Center(child: CircularProgressIndicator()),
+      );
     }
 
     if (tickets.isEmpty) {
@@ -385,9 +446,15 @@ class _SuperAdminSupportScreenState
             children: [
               CruIcon(CruIcons.help, size: 40, color: c.label3),
               const SizedBox(height: CruSpace.s12),
-              Text('No support tickets match filters', style: CruType.headline.tint(c.label)),
+              Text(
+                'No support tickets match filters',
+                style: CruType.headline.tint(c.label),
+              ),
               const SizedBox(height: CruSpace.s4),
-              Text('Adjust your category, priority, or search filters above.', style: CruType.text.tint(c.label2)),
+              Text(
+                'Adjust your category, priority, or search filters above.',
+                style: CruType.text.tint(c.label2),
+              ),
             ],
           ),
         ),
@@ -439,26 +506,44 @@ class _SuperAdminSupportScreenState
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: ShapeDecoration(
                   color: c.inset,
-                  shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
+                  shape: cruShape(
+                    CruRadius.full,
+                    side: BorderSide(color: c.hairline),
+                  ),
                 ),
-                child: Text(ticket.category.label, style: CruType.caption.w600.tint(c.label)),
+                child: Text(
+                  ticket.category.label,
+                  style: CruType.caption.w600.tint(c.label),
+                ),
               ),
               const SizedBox(width: CruSpace.s8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: ShapeDecoration(color: prioBg, shape: cruShape(CruRadius.full)),
-                child: Text(ticket.priority.label.toUpperCase(), style: CruType.caption.w600.tint(prioColor)),
+                decoration: ShapeDecoration(
+                  color: prioBg,
+                  shape: cruShape(CruRadius.full),
+                ),
+                child: Text(
+                  ticket.priority.label.toUpperCase(),
+                  style: CruType.caption.w600.tint(prioColor),
+                ),
               ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: ShapeDecoration(color: statusBg, shape: cruShape(CruRadius.full)),
+                decoration: ShapeDecoration(
+                  color: statusBg,
+                  shape: cruShape(CruRadius.full),
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     CruStatusDot(statusDot, size: 6),
                     const SizedBox(width: CruSpace.s6),
-                    Text(ticket.status.label, style: CruType.caption.w600.tint(statusFg)),
+                    Text(
+                      ticket.status.label,
+                      style: CruType.caption.w600.tint(statusFg),
+                    ),
                   ],
                 ),
               ),
@@ -473,13 +558,19 @@ class _SuperAdminSupportScreenState
           const SizedBox(height: CruSpace.s12),
           Row(
             children: [
-              CruMonogram(name: ticket.doctorName, size: 28, background: c.track),
+              CruMonogram(
+                name: ticket.doctorName,
+                size: 28,
+              ),
               const SizedBox(width: CruSpace.s8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('${ticket.doctorName} · ${ticket.doctorEmail}', style: CruType.caption.w600.tint(c.label)),
+                    Text(
+                      '${ticket.doctorName} · ${ticket.doctorEmail}',
+                      style: CruType.caption.w600.tint(c.label),
+                    ),
                     Text(
                       'Created ${DateFormat('dd MMM yyyy, HH:mm').format(ticket.createdAt)}',
                       style: CruType.caption.tabular.tint(c.label3),
@@ -491,14 +582,19 @@ class _SuperAdminSupportScreenState
                 CruButton(
                   label: 'Mark In Progress',
                   kind: CruButtonKind.secondary,
-                  onPressed: () => notifier.updateTicketStatus(ticket.id, TicketStatus.inProgress),
+                  onPressed: () => notifier.updateTicketStatus(
+                    ticket.id,
+                    TicketStatus.inProgress,
+                  ),
                 ),
-              if (ticket.status == TicketStatus.open || ticket.status == TicketStatus.inProgress) ...[
+              if (ticket.status == TicketStatus.open ||
+                  ticket.status == TicketStatus.inProgress) ...[
                 const SizedBox(width: CruSpace.s8),
                 CruButton(
                   label: 'Resolve Ticket',
                   kind: CruButtonKind.primary,
-                  onPressed: () => _showResolveDialog(context, ticket, notifier),
+                  onPressed: () =>
+                      _showResolveDialog(context, ticket, notifier),
                 ),
               ],
             ],
@@ -521,14 +617,20 @@ class _SuperAdminSupportScreenState
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: c.surface,
         shape: cruShape(CruRadius.card),
-        title: Text('Resolve Ticket #${ticket.id}', style: CruType.title.tint(c.label)),
+        title: Text(
+          'Resolve Ticket #${ticket.id}',
+          style: CruType.title.tint(c.label),
+        ),
         content: SizedBox(
           width: 440,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Resolution Notes & Actions Taken:', style: CruType.caption.w600.tint(c.label3)),
+              Text(
+                'Resolution Notes & Actions Taken:',
+                style: CruType.caption.w600.tint(c.label3),
+              ),
               const SizedBox(height: CruSpace.s8),
               TextField(
                 controller: notesController,
@@ -537,7 +639,9 @@ class _SuperAdminSupportScreenState
                 decoration: InputDecoration(
                   hintText: 'Enter resolution details sent to the doctor...',
                   hintStyle: CruType.caption.tint(c.label3),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(CruRadius.control),
+                  ),
                 ),
               ),
             ],

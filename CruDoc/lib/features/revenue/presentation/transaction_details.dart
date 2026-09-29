@@ -114,8 +114,9 @@ class _TransactionHeader extends StatelessWidget {
               children: [
                 Text(
                   isExpense ? '−$amount' : '+$amount',
-                  style: CruType.amount
-                      .tint(isExpense ? c.redText : c.greenText),
+                  style: CruType.amount.tint(
+                    isExpense ? c.redText : c.greenText,
+                  ),
                 ),
                 const SizedBox(height: CruSpace.s8),
                 CruPill(
@@ -164,17 +165,9 @@ class _TransactionInfoCard extends StatelessWidget {
             quiet: !hasPayer,
           ),
           const CruSeparator(indent: _infoTextInset),
-          _InfoRow(
-            icon: CruIcons.calendar,
-            label: 'Date',
-            value: dateStr,
-          ),
+          _InfoRow(icon: CruIcons.calendar, label: 'Date', value: dateStr),
           const CruSeparator(indent: _infoTextInset),
-          _InfoRow(
-            icon: CruIcons.clock,
-            label: 'Day',
-            value: dayStr,
-          ),
+          _InfoRow(icon: CruIcons.clock, label: 'Day', value: dayStr),
           const CruSeparator(indent: _infoTextInset),
           _InfoRow(
             icon: CruIcons.pen,
@@ -230,9 +223,9 @@ class _InfoRow extends StatelessWidget {
                 const SizedBox(height: CruSpace.s2),
                 Text(
                   value,
-                  style: (quiet ? CruType.text : CruType.callout)
-                      .tabular
-                      .tint(quiet ? c.label3 : c.label),
+                  style: (quiet ? CruType.text : CruType.callout).tabular.tint(
+                    quiet ? c.label3 : c.label,
+                  ),
                 ),
               ],
             ),

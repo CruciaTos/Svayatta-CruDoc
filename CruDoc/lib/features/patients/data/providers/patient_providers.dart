@@ -30,31 +30,31 @@ final encryptionKeyProvider = FutureProvider<String>((ref) async {
   return base64Encode(key.bytes);
 });
 
-final patientsStreamProvider = StreamProvider<List<Patient>>(
-  (ref) {
-    // Keep stream registration reactive to auth changes.
-    ref.watch(authStateProvider);
+final patientsStreamProvider = StreamProvider<List<Patient>>((ref) {
+  // Keep stream registration reactive to auth changes.
+  ref.watch(authStateProvider);
 
-    final keyAsync = ref.watch(encryptionKeyProvider);
+  final keyAsync = ref.watch(encryptionKeyProvider);
 
-    return keyAsync.when(
-      data: (keyBase64) {
-        // Pass loaded key into the repository so it can map/decrypt snapshots synchronously.
-        return ref.watch(patientRepositoryProvider).watchPatients(encryptionKey: keyBase64);
-      },
-      loading: () {
-        // While key is loading, return an empty stream; the provider will be in loading state.
-        return const Stream<List<Patient>>.empty();
-      },
-      error: (e, s) {
-        final controller = StreamController<List<Patient>>();
-        controller.addError(e, s);
-        controller.close();
-        return controller.stream;
-      },
-    );
-  },
-);
+  return keyAsync.when(
+    data: (keyBase64) {
+      // Pass loaded key into the repository so it can map/decrypt snapshots synchronously.
+      return ref
+          .watch(patientRepositoryProvider)
+          .watchPatients(encryptionKey: keyBase64);
+    },
+    loading: () {
+      // While key is loading, return an empty stream; the provider will be in loading state.
+      return const Stream<List<Patient>>.empty();
+    },
+    error: (e, s) {
+      final controller = StreamController<List<Patient>>();
+      controller.addError(e, s);
+      controller.close();
+      return controller.stream;
+    },
+  );
+});
 
 final searchQueryProvider = riverpod_legacy.StateProvider<String>((ref) => '');
 
@@ -143,7 +143,8 @@ final lastPatientProvider = Provider<AsyncValue<PatientVisit?>>((ref) {
         )),
         data: (lastVisits) {
           final patientVisit = lastVisits[newestPatient.id];
-          final visitToUse = patientVisit ??
+          final visitToUse =
+              patientVisit ??
               Visit(
                 id: '',
                 patientId: newestPatient.id,

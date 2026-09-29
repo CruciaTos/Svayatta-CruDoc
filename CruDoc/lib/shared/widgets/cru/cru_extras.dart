@@ -98,8 +98,9 @@ class CruInfoPill extends StatelessWidget {
     };
     var style = (tall ? CruType.subhead : CruType.caption).copyWith(
       color: fg,
-      fontWeight:
-          tone == CruInfoPillTone.allergy ? FontWeight.w600 : FontWeight.w500,
+      fontWeight: tone == CruInfoPillTone.allergy
+          ? FontWeight.w600
+          : FontWeight.w500,
     );
     if (tabular) style = style.tabular;
     return Container(
@@ -119,7 +120,12 @@ class CruInfoPill extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            CruIcon(icon!, size: tall ? 14 : 13, strokeWidth: 2.2, color: iconColor),
+            CruIcon(
+              icon!,
+              size: tall ? 14 : 13,
+              strokeWidth: 2.2,
+              color: iconColor,
+            ),
             const SizedBox(width: CruSpace.s6),
           ],
           Flexible(
@@ -212,22 +218,20 @@ class CruTimeText extends StatelessWidget {
     int last = 0;
     for (final m in _dashRegex.allMatches(segment)) {
       if (m.start > last) {
-        spans.add(TextSpan(
-          text: segment.substring(last, m.start),
-          style: baseStyle,
-        ));
+        spans.add(
+          TextSpan(text: segment.substring(last, m.start), style: baseStyle),
+        );
       }
-      spans.add(TextSpan(
-        text: m.group(0),
-        style: baseStyle.copyWith(fontWeight: FontWeight.w700),
-      ));
+      spans.add(
+        TextSpan(
+          text: m.group(0),
+          style: baseStyle.copyWith(fontWeight: FontWeight.w700),
+        ),
+      );
       last = m.end;
     }
     if (last < segment.length) {
-      spans.add(TextSpan(
-        text: segment.substring(last),
-        style: baseStyle,
-      ));
+      spans.add(TextSpan(text: segment.substring(last), style: baseStyle));
     }
   }
 
@@ -240,16 +244,22 @@ class CruTimeText extends StatelessWidget {
     int lastIndex = 0;
     for (final match in timeRegex.allMatches(text)) {
       if (match.start > lastIndex) {
-        _appendNonTime(spans, text.substring(lastIndex, match.start), baseStyle);
+        _appendNonTime(
+          spans,
+          text.substring(lastIndex, match.start),
+          baseStyle,
+        );
       }
-      spans.add(TextSpan(
-        text: match.group(0),
-        style: baseStyle.copyWith(
-          color: timeColor,
-          fontWeight: FontWeight.w600,
-          fontFeatures: CruType.tabular,
+      spans.add(
+        TextSpan(
+          text: match.group(0),
+          style: baseStyle.copyWith(
+            color: timeColor,
+            fontWeight: FontWeight.w600,
+            fontFeatures: CruType.tabular,
+          ),
         ),
-      ));
+      );
       lastIndex = match.end;
     }
     if (lastIndex < text.length) {

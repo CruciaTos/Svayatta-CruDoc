@@ -88,7 +88,7 @@ class _Segment extends StatelessWidget {
                 ? c.segmentSelected
                 : c.segmentSelected.withValues(alpha: 0),
             shape: cruShape(CruRadius.segmentInner),
-            shadows: selected ? c.segmentShadow : null,
+            shadows: const [],
           ),
           child: Text(
             label,

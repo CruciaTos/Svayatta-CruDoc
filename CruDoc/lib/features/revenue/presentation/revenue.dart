@@ -13,7 +13,7 @@ import 'package:intl/intl.dart';
 /// Revenue tracking screen.
 class RevenueScreen extends StatefulWidget {
   const RevenueScreen({super.key, RevenueRepository? repository})
-      : _repository = repository;
+    : _repository = repository;
 
   final RevenueRepository? _repository;
 
@@ -70,8 +70,10 @@ class _RevenueScreenState extends State<RevenueScreen> {
     }
 
     var filtered = entries
-        .where((e) =>
-            e.date.isAfter(startDate) || e.date.isAtSameMomentAs(startDate))
+        .where(
+          (e) =>
+              e.date.isAfter(startDate) || e.date.isAtSameMomentAs(startDate),
+        )
         .toList();
 
     // Apply kind filter if set
@@ -161,12 +163,14 @@ class _RevenueScreenState extends State<RevenueScreen> {
       );
     } on RevenueException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e, stackTrace) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Failed to update: $e')));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update: $e')));
       debugPrint('Error marking pending as paid: $e\n$stackTrace');
     }
   }
@@ -177,7 +181,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
       stream: _repository.watchRevenueEntries(),
       builder: (context, entriesSnapshot) {
         final allEntries = entriesSnapshot.data ?? const <RevenueEntry>[];
-        final stillLoading = !entriesSnapshot.hasData &&
+        final stillLoading =
+            !entriesSnapshot.hasData &&
             entriesSnapshot.connectionState == ConnectionState.waiting;
 
         return StreamBuilder<List<PendingPayment>>(
@@ -244,8 +249,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                         decoration: BoxDecoration(
                                           color: AppColors.chartBarLight
                                               .withValues(alpha: 0.15),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
+                                          borderRadius: BorderRadius.circular(
+                                            16,
+                                          ),
                                           border: Border.all(
                                             color: AppColors.chartBarLight
                                                 .withValues(alpha: 0.4),
@@ -287,17 +293,11 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   gradient: const LinearGradient(
                                     colors: [
                                       Color(0xFF1E78FF),
-                                      Color(0xFF5BA6FF)
+                                      Color(0xFF5BA6FF),
                                     ],
                                   ),
                                   borderRadius: BorderRadius.circular(28),
-                                  boxShadow: const [
-                                    BoxShadow(
-                                      color: Color(0x33000000),
-                                      blurRadius: 16,
-                                      offset: Offset(0, 8),
-                                    ),
-                                  ],
+                                  boxShadow: const [],
                                 ),
                                 child: Column(
                                   mainAxisAlignment: MainAxisAlignment.center,
@@ -340,11 +340,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             color: Colors.white.withValues(
                                               alpha: 0.18,
                                             ),
-                                            borderRadius:
-                                                BorderRadius.circular(18),
+                                            borderRadius: BorderRadius.circular(
+                                              18,
+                                            ),
                                           ),
                                           child: const Icon(
-                                            Icons.account_balance_wallet_rounded,
+                                            Icons
+                                                .account_balance_wallet_rounded,
                                             color: Colors.white,
                                             size: 24,
                                           ),
@@ -358,8 +360,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                         Flexible(
                                           child: Material(
                                             color: Colors.transparent,
-                                            borderRadius:
-                                                BorderRadius.circular(16),
+                                            borderRadius: BorderRadius.circular(
+                                              16,
+                                            ),
                                             child: InkWell(
                                               onTap: _cycleFilter,
                                               borderRadius:
@@ -371,9 +374,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                               child: Container(
                                                 padding:
                                                     const EdgeInsets.symmetric(
-                                                  horizontal: 12,
-                                                  vertical: 10,
-                                                ),
+                                                      horizontal: 12,
+                                                      vertical: 10,
+                                                    ),
                                                 decoration: BoxDecoration(
                                                   color: Colors.white
                                                       .withValues(alpha: 0.16),
@@ -405,10 +408,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                                     const SizedBox(width: 4),
                                                     AnimatedRotation(
                                                       turns: _chevronAngle,
-                                                      duration:
-                                                          const Duration(
-                                                              milliseconds:
-                                                                  300),
+                                                      duration: const Duration(
+                                                        milliseconds: 300,
+                                                      ),
                                                       child: const Icon(
                                                         Icons.arrow_drop_down,
                                                         color: Colors.white70,
@@ -442,11 +444,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   ),
                                   TextButton.icon(
                                     onPressed: _showAddPendingSheet,
-                                    icon: const Icon(Icons.add_rounded, size: 18),
+                                    icon: const Icon(
+                                      Icons.add_rounded,
+                                      size: 18,
+                                    ),
                                     label: const Text('Add'),
                                     style: TextButton.styleFrom(
-                                      foregroundColor:
-                                          AppColors.chartBarLight,
+                                      foregroundColor: AppColors.chartBarLight,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
                                         vertical: 6,
@@ -477,8 +481,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
                                             color: AppColors.chartBarLight,
-                                            borderRadius:
-                                                BorderRadius.circular(12),
+                                            borderRadius: BorderRadius.circular(
+                                              12,
+                                            ),
                                           ),
                                           child: const Icon(
                                             Icons.hourglass_empty_rounded,
@@ -509,7 +514,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                                   fontFamily:
                                                       AppColors.bodyFontFamily,
                                                   fontSize: 12,
-                                                  color: AppColors.textSecondary,
+                                                  color:
+                                                      AppColors.textSecondary,
                                                 ),
                                               ),
                                             ],
@@ -532,26 +538,22 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                             _openPendingPaymentDetails(pending),
                                         child: Container(
                                           width: 190,
-                                          margin:
-                                              const EdgeInsets.only(right: 10),
+                                          margin: const EdgeInsets.only(
+                                            right: 10,
+                                          ),
                                           padding: const EdgeInsets.all(14),
                                           decoration: BoxDecoration(
                                             color: AppColors.cardSurface,
-                                            borderRadius:
-                                                BorderRadius.circular(24),
+                                            borderRadius: BorderRadius.circular(
+                                              24,
+                                            ),
                                             border: Border.all(
                                               color: Colors.amber.withValues(
                                                 alpha: 0.35,
                                               ),
                                               width: 1,
                                             ),
-                                            boxShadow: const [
-                                              BoxShadow(
-                                                color: Colors.black12,
-                                                blurRadius: 8,
-                                                offset: Offset(0, 3),
-                                              ),
-                                            ],
+                                            boxShadow: const [],
                                           ),
                                           child: Column(
                                             crossAxisAlignment:
@@ -576,7 +578,8 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                                     onTap: () =>
                                                         _markAsPaid(pending),
                                                     child: const Icon(
-                                                      Icons.check_circle_outline,
+                                                      Icons
+                                                          .check_circle_outline,
                                                       size: 20,
                                                       color: Color(0xFF4CAF50),
                                                     ),
@@ -598,8 +601,9 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                DateFormat.yMMMd()
-                                                    .format(pending.date),
+                                                DateFormat.yMMMd().format(
+                                                  pending.date,
+                                                ),
                                                 style: const TextStyle(
                                                   fontFamily:
                                                       AppColors.bodyFontFamily,
@@ -633,17 +637,22 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                       selected:
                                           _kindFilter == TransactionKind.income,
                                       selectedColor: AppColors.positiveGreen,
-                                      onSelected: () => setState(() =>
-                                          _kindFilter = TransactionKind.income),
+                                      onSelected: () => setState(
+                                        () => _kindFilter =
+                                            TransactionKind.income,
+                                      ),
                                     ),
                                     const SizedBox(width: 8),
                                     _KindFilterChip(
                                       label: 'Expense',
                                       selected:
-                                          _kindFilter == TransactionKind.expense,
+                                          _kindFilter ==
+                                          TransactionKind.expense,
                                       selectedColor: AppColors.negativeRed,
-                                      onSelected: () => setState(() =>
-                                          _kindFilter = TransactionKind.expense),
+                                      onSelected: () => setState(
+                                        () => _kindFilter =
+                                            TransactionKind.expense,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -663,11 +672,13 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                   ),
                                   TextButton.icon(
                                     onPressed: _showAddTransactionSheet,
-                                    icon: const Icon(Icons.add_rounded, size: 18),
+                                    icon: const Icon(
+                                      Icons.add_rounded,
+                                      size: 18,
+                                    ),
                                     label: const Text('Add'),
                                     style: TextButton.styleFrom(
-                                      foregroundColor:
-                                          AppColors.chartBarLight,
+                                      foregroundColor: AppColors.chartBarLight,
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 10,
                                         vertical: 6,
@@ -710,29 +721,32 @@ class _RevenueScreenState extends State<RevenueScreen> {
                                         FocusScope.of(context).unfocus();
                                         WidgetsBinding.instance
                                             .addPostFrameCallback((_) {
-                                          if (!mounted) return;
-                                          try {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) =>
-                                                    TransactionDetailsPage(
-                                                      entry: entry,
+                                              if (!mounted) return;
+                                              try {
+                                                Navigator.push(
+                                                  context,
+                                                  MaterialPageRoute(
+                                                    builder: (_) =>
+                                                        TransactionDetailsPage(
+                                                          entry: entry,
+                                                        ),
+                                                  ),
+                                                );
+                                              } catch (e, stack) {
+                                                debugPrint(
+                                                  'Navigation error: $e\n$stack',
+                                                );
+                                                ScaffoldMessenger.of(
+                                                  context,
+                                                ).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      'Error opening details: $e',
                                                     ),
-                                              ),
-                                            );
-                                          } catch (e, stack) {
-                                            debugPrint(
-                                                'Navigation error: $e\n$stack');
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(
-                                              SnackBar(
-                                                content: Text(
-                                                    'Error opening details: $e'),
-                                              ),
-                                            );
-                                          }
-                                        });
+                                                  ),
+                                                );
+                                              }
+                                            });
                                       },
                                     );
                                   },
@@ -837,8 +851,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
 
     final desc = _descController.text.trim();
     final amount = double.parse(_amountController.text.trim());
-    final payerText =
-        widget.includePayerField ? _payerController.text.trim() : null;
+    final payerText = widget.includePayerField
+        ? _payerController.text.trim()
+        : null;
     final kind = widget.includeKindToggle ? _selectedKind : null;
     final now = DateTime.now();
 
@@ -862,9 +877,11 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(kind == TransactionKind.income
-                ? 'Income recorded'
-                : 'Expense recorded'),
+            content: Text(
+              kind == TransactionKind.income
+                  ? 'Income recorded'
+                  : 'Expense recorded',
+            ),
           ),
         );
       } else {
@@ -880,15 +897,16 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
           ),
         );
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Pending payment added')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pending payment added')));
       }
       if (mounted) Navigator.pop(context);
     } on RevenueException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e, stack) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -996,10 +1014,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                 ),
-                children: const [
-                  Text('Income'),
-                  Text('Expense'),
-                ],
+                children: const [Text('Income'), Text('Expense')],
               ),
               const SizedBox(height: 16),
             ],
@@ -1109,8 +1124,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
             TextFormField(
               controller: _amountController,
               enabled: !_isSaving,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
@@ -1225,7 +1241,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text(
                           'Save',
@@ -1331,14 +1349,15 @@ class _PendingPaymentDetailsSheetState
         'date': _selectedDate,
       });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pending payment updated')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Pending payment updated')));
       Navigator.pop(context);
     } on RevenueException catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(e.message)));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
     } catch (e, stack) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1498,8 +1517,9 @@ class _PendingPaymentDetailsSheetState
             TextFormField(
               controller: _amountController,
               enabled: !_isSaving,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               style: const TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 color: AppColors.textPrimary,
@@ -1655,7 +1675,9 @@ class _PendingPaymentDetailsSheetState
                           width: 16,
                           height: 16,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white),
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Text(
                           'Save Changes',

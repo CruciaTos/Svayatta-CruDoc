@@ -41,10 +41,7 @@ class InventoryItemPanel extends ConsumerWidget {
     final blocks = <Widget>[
       _Head(item: item, now: now, hasUsage: hasUsage, onClose: onClose),
       _StockBlock(item: item),
-      if (hasUsage) ...[
-        _UsageBlock(item: item),
-        const CruSeparator(),
-      ],
+      if (hasUsage) ...[_UsageBlock(item: item), const CruSeparator()],
       if (showBatch) _BatchBlock(item: item),
       if (showSuggestion) _Suggestion(item: item),
       CruButton(
@@ -103,8 +100,8 @@ class InventoryPanelFrame extends StatelessWidget {
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: c.surface,
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
-          shadows: c.cardShadow,
+          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+          shadows: const [],
         ),
         child: SingleChildScrollView(
           primary: false,
@@ -205,8 +202,9 @@ class _Head extends ConsumerWidget {
               if (eyebrow != null)
                 Text(
                   eyebrow.$1,
-                  style: CruType.subhead.w600
-                      .tint(eyebrow.$2 ? c.amberText : c.label2),
+                  style: CruType.subhead.w600.tint(
+                    eyebrow.$2 ? c.amberText : c.label2,
+                  ),
                 ),
               Semantics(
                 header: true,
@@ -251,28 +249,29 @@ class _MoreMenu extends ConsumerWidget {
       borderRadius: BorderRadius.circular(CruRadius.control - CruSpace.s6),
     );
     ButtonStyle style() => ButtonStyle(
-          minimumSize: const WidgetStatePropertyAll(Size(0, CruSize.control)),
-          padding: const WidgetStatePropertyAll(
-            EdgeInsets.symmetric(horizontal: CruSpace.s12),
-          ),
-          shape: WidgetStatePropertyAll(itemShape),
-          overlayColor:
-              WidgetStatePropertyAll(c.hoverFill.withValues(alpha: 0)),
-          backgroundColor: WidgetStateProperty.resolveWith(
-            (states) => states.contains(WidgetState.hovered) ||
-                    states.contains(WidgetState.focused)
-                ? c.hoverFill
-                : c.surface,
-          ),
-        );
+      minimumSize: const WidgetStatePropertyAll(Size(0, CruSize.control)),
+      padding: const WidgetStatePropertyAll(
+        EdgeInsets.symmetric(horizontal: CruSpace.s12),
+      ),
+      shape: WidgetStatePropertyAll(itemShape),
+      overlayColor: WidgetStatePropertyAll(c.hoverFill.withValues(alpha: 0)),
+      backgroundColor: WidgetStateProperty.resolveWith(
+        (states) =>
+            states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused)
+            ? c.hoverFill
+            : c.surface,
+      ),
+    );
     return MenuAnchor(
       alignmentOffset: const Offset(0, CruSpace.s6),
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(c.surface),
-        surfaceTintColor:
-            WidgetStatePropertyAll(c.surface.withValues(alpha: 0)),
+        surfaceTintColor: WidgetStatePropertyAll(
+          c.surface.withValues(alpha: 0),
+        ),
         shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.18)),
-        elevation: WidgetStatePropertyAll(c.isEvening ? 0 : 8),
+        elevation: const WidgetStatePropertyAll(0),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
         shape: WidgetStatePropertyAll(
           RoundedSuperellipseBorder(
@@ -360,8 +359,9 @@ class _StockBlock extends StatelessWidget {
                     children: [
                       TextSpan(
                         text: InventoryFormat.count(item.stock),
-                        style: CruType.largeTitle.tabular
-                            .tint(stockText(c, item.stockState)),
+                        style: CruType.largeTitle.tabular.tint(
+                          stockText(c, item.stockState),
+                        ),
                       ),
                       TextSpan(
                         text: unit.isEmpty ? ' in stock' : ' $unit in stock',
@@ -468,8 +468,9 @@ class _BatchBlock extends StatelessWidget {
                 width: InventorySize.batchCodeColumn,
                 child: Text(
                   item.batch ?? '—',
-                  style: CruType.profileName.tabular
-                      .tint(item.batch == null ? c.label3 : c.label),
+                  style: CruType.profileName.tabular.tint(
+                    item.batch == null ? c.label3 : c.label,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -480,10 +481,11 @@ class _BatchBlock extends StatelessWidget {
                   expiry == null
                       ? 'No expiry date'
                       : 'Expires ${InventoryFormat.monthYear(expiry)}',
-                  style: (item.expiringSoon
-                          ? CruType.chip.w600.tint(c.amberText)
-                          : CruType.chip.tint(c.label2))
-                      .tabular,
+                  style:
+                      (item.expiringSoon
+                              ? CruType.chip.w600.tint(c.amberText)
+                              : CruType.chip.tint(c.label2))
+                          .tabular,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

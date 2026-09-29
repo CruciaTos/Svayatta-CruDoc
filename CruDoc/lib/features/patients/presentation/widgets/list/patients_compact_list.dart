@@ -36,7 +36,7 @@ class PatientsCompactList extends StatelessWidget {
       PatientFilter.followUpOverdue => 'Overdue',
       _ => 'Last visit',
     };
-    final header = CruType.caption.w600.tint(c.label2);
+    final header = CruType.caption.w600.tint(c.accentText);
 
     final children = <Widget>[
       Container(
@@ -172,14 +172,19 @@ class _CompactRow extends StatelessWidget {
             color: selected
                 ? c.accentTint
                 : (hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0)),
-            shape: cruShape(CruRadius.control),
+            shape: cruShape(
+              CruRadius.control,
+              side: selected
+                  ? BorderSide(color: c.accent, width: 1.5)
+                  : BorderSide.none,
+            ),
           ),
           child: Row(
             children: [
               CruMonogram(
                 name: s.name,
                 size: CruSize.monogramList,
-                background: selected ? c.surface : c.inset,
+                background: selected ? c.surface : null,
                 foreground: selected ? c.accentText : null,
               ),
               const SizedBox(width: CruSpace.s12),
@@ -215,8 +220,8 @@ class _CompactRow extends StatelessWidget {
                     style: top == null
                         ? CruType.row.w500.tint(c.label3)
                         : attention
-                            ? CruType.row.tabular.tint(c.amberText)
-                            : CruType.row.w500.tabular.tint(c.label),
+                        ? CruType.row.tabular.tint(c.amberText)
+                        : CruType.row.w500.tabular.tint(c.label),
                   ),
                   if (sub != null)
                     CruTimeText(

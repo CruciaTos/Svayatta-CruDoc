@@ -17,15 +17,15 @@ import 'package:doctor_management_app/features/update/controllers/update_control
 /// internally, the same way `VisitRepository()` / `RevenueRepository()`
 /// build their own Firestore access rather than taking it as a
 /// constructor argument — no manual wiring needed here.
-final updateServiceProvider =
-    Provider<UpdateService>((ref) => UpdateService());
+final updateServiceProvider = Provider<UpdateService>((ref) => UpdateService());
 
 /// Singleton [UpdatePreferences] — thin `shared_preferences` wrapper for
 /// `lastCheckedAt` / `skippedVersion` / `lastNotifiedVersion`, the state
 /// that makes throttling and "don't nag" behavior possible without any
 /// server-side flag.
-final updatePreferencesProvider =
-    Provider<UpdatePreferences>((ref) => UpdatePreferences());
+final updatePreferencesProvider = Provider<UpdatePreferences>(
+  (ref) => UpdatePreferences(),
+);
 
 /// Read-only view of [UpdateController]'s current [UpdateCheckResult].
 /// Lets a widget that only cares "is there an update" — `UpdateBanner` —

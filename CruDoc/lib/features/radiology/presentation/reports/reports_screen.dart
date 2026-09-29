@@ -44,21 +44,34 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
     final now = DateTime.now();
     final loading = !reportsAsync.hasValue || !studiesAsync.hasValue;
 
-    final studyById = {for (final s in studiesAsync.value ?? const <RadStudy>[]) s.id: s};
+    final studyById = {
+      for (final s in studiesAsync.value ?? const <RadStudy>[]) s.id: s,
+    };
     final items = <(RadReport, RadStudy)>[
       for (final r in reportsAsync.value ?? const <RadReport>[])
         if (studyById[r.studyId] != null) (r, studyById[r.studyId]!),
     ]..sort((a, b) => b.$1.updatedAt.compareTo(a.$1.updatedAt));
 
-    final weekStart =
-        DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
-    final drafts = items.where((e) => e.$1.status == RadReportStatus.draft).toList();
-    final prelim = items.where((e) => e.$1.status == RadReportStatus.preliminary).toList();
+    final weekStart = DateTime(
+      now.year,
+      now.month,
+      now.day,
+    ).subtract(Duration(days: now.weekday - 1));
+    final drafts = items
+        .where((e) => e.$1.status == RadReportStatus.draft)
+        .toList();
+    final prelim = items
+        .where((e) => e.$1.status == RadReportStatus.preliminary)
+        .toList();
     final signedWeek = items
-        .where((e) => e.$1.signedAt != null && !e.$1.signedAt!.isBefore(weekStart))
+        .where(
+          (e) => e.$1.signedAt != null && !e.$1.signedAt!.isBefore(weekStart),
+        )
         .length;
     final sent = items.where((e) => e.$1.sharedAt != null).toList();
-    final sentWeek = sent.where((e) => !e.$1.sharedAt!.isBefore(weekStart)).length;
+    final sentWeek = sent
+        .where((e) => !e.$1.sharedAt!.isBefore(weekStart))
+        .length;
 
     final q = _query.trim().toLowerCase();
     final shown = items.where((e) {
@@ -85,10 +98,14 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
     }
 
     Widget cell(String label, String value, Widget caption) => Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [GlanceLabel(label), GlanceMetric(value), GlanceCaption(caption)],
-        );
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GlanceLabel(label),
+        GlanceMetric(value),
+        GlanceCaption(caption),
+      ],
+    );
 
     final open = drafts.length + prelim.length;
     return Padding(
@@ -101,10 +118,10 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
             subtitle: loading
                 ? 'Your radiology reports'
                 : open == 0
-                    ? (items.isEmpty
-                        ? 'Your radiology reports'
-                        : 'Nothing left to finish · ${DashFormat.plural(items.length, 'report')}')
-                    : '${DashFormat.plural(open, 'report')} to finish',
+                ? (items.isEmpty
+                      ? 'Your radiology reports'
+                      : 'Nothing left to finish · ${DashFormat.plural(items.length, 'report')}')
+                : '${DashFormat.plural(open, 'report')} to finish',
             actions: [
               CruButton(
                 label: 'Templates',
@@ -132,21 +149,33 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
                   '${drafts.length}',
                   drafts.isEmpty
                       ? const Text('None half-written')
-                      : Text('Oldest: ${RadFormat.ago(drafts.last.$1.updatedAt, now)}'),
+                      : Text(
+                          'Oldest: ${RadFormat.ago(drafts.last.$1.updatedAt, now)}',
+                        ),
                 ),
                 cell(
                   'Awaiting signature',
                   '${prelim.length}',
                   prelim.isEmpty
                       ? const Text('None waiting')
-                      : Text('Preliminary, not signed',
-                          style: CruType.caption.tint(c.amberText)),
+                      : Text(
+                          'Preliminary, not signed',
+                          style: CruType.caption.tint(c.amberText),
+                        ),
                 ),
-                cell('Signed this week', '$signedWeek', const Text('Since Monday')),
+                cell(
+                  'Signed this week',
+                  '$signedWeek',
+                  const Text('Since Monday'),
+                ),
                 cell(
                   'Sent this week',
                   '$sentWeek',
-                  Text(sent.isEmpty ? 'None sent yet' : '${sent.length} sent in all'),
+                  Text(
+                    sent.isEmpty
+                        ? 'None sent yet'
+                        : '${sent.length} sent in all',
+                  ),
                 ),
               ],
             ),
@@ -183,37 +212,47 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
               child: loading
                   ? const SizedBox.shrink()
                   : shown.isEmpty
-                      ? Center(
-                          child: SingleChildScrollView(
-                            child: DentalEmptyState(
-                              icon: RadIcons.report,
-                              title: items.isEmpty ? 'No reports yet' : 'No reports here',
-                              body: items.isEmpty
-                                  ? 'Open a study from the worklist and press Report. '
-                                      'Drafts save as you type and show up here.'
-                                  : 'Try another filter or search.',
+                  ? Center(
+                      child: SingleChildScrollView(
+                        child: DentalEmptyState(
+                          icon: RadIcons.report,
+                          title: items.isEmpty
+                              ? 'No reports yet'
+                              : 'No reports here',
+                          body: items.isEmpty
+                              ? 'Open a study from the worklist and press Report. '
+                                    'Drafts save as you type and show up here.'
+                              : 'Try another filter or search.',
+                        ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final g in groups.entries) ...[
+                          DentalGroupLabel(
+                            g.key,
+                            trailing: DashFormat.plural(
+                              g.value.length,
+                              'report',
                             ),
                           ),
-                        )
-                      : ListView(
-                          children: [
-                            for (final g in groups.entries) ...[
-                              DentalGroupLabel(g.key,
-                                  trailing: DashFormat.plural(g.value.length, 'report')),
-                              for (var i = 0; i < g.value.length; i++) ...[
-                                if (i > 0)
-                                  const CruSeparator(
-                                    indent: CruSpace.s12 + CruSize.monogramRow + CruSpace.s12,
-                                  ),
-                                _ReportRow(
-                                  report: g.value[i].$1,
-                                  study: g.value[i].$2,
-                                  referrer: referrers[g.value[i].$2.referrerId],
-                                ),
-                              ],
-                            ],
+                          for (var i = 0; i < g.value.length; i++) ...[
+                            if (i > 0)
+                              const CruSeparator(
+                                indent:
+                                    CruSpace.s12 +
+                                    CruSize.monogramRow +
+                                    CruSpace.s12,
+                              ),
+                            _ReportRow(
+                              report: g.value[i].$1,
+                              study: g.value[i].$2,
+                              referrer: referrers[g.value[i].$2.referrerId],
+                            ),
                           ],
-                        ),
+                        ],
+                      ],
+                    ),
             ),
           ),
         ],
@@ -223,7 +262,11 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
 }
 
 class _ReportRow extends StatelessWidget {
-  const _ReportRow({required this.report, required this.study, required this.referrer});
+  const _ReportRow({
+    required this.report,
+    required this.study,
+    required this.referrer,
+  });
 
   final RadReport report;
   final RadStudy study;
@@ -253,7 +296,9 @@ class _ReportRow extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        study.patientName.isEmpty ? 'Unnamed patient' : study.patientName,
+                        study.patientName.isEmpty
+                            ? 'Unnamed patient'
+                            : study.patientName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: CruType.callout.tint(c.label),
@@ -263,7 +308,12 @@ class _ReportRow extends StatelessWidget {
                       const SizedBox(width: CruSpace.s6),
                       Tooltip(
                         message: 'Critical finding',
-                        child: CruIcon(RadIcons.flag, size: 14, strokeWidth: 2, color: c.redText),
+                        child: CruIcon(
+                          RadIcons.flag,
+                          size: 14,
+                          strokeWidth: 2,
+                          color: c.redText,
+                        ),
                       ),
                     ],
                   ],

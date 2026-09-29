@@ -41,7 +41,8 @@ class MobilePostCampaignSheet extends StatefulWidget {
   }
 
   @override
-  State<MobilePostCampaignSheet> createState() => _MobilePostCampaignSheetState();
+  State<MobilePostCampaignSheet> createState() =>
+      _MobilePostCampaignSheetState();
 }
 
 class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
@@ -88,7 +89,8 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   @override
   void initState() {
     super.initState();
-    _selectedCategory = widget.initialCategory ?? CampaignCategory.generalAnnouncement;
+    _selectedCategory =
+        widget.initialCategory ?? CampaignCategory.generalAnnouncement;
     _loadInitialData();
   }
 
@@ -105,7 +107,10 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       try {
-        final profile = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+        final profile = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
         final data = profile.data();
         final docName = DoctorProfileHelper.formatDoctorName(user, data);
         final clName = DoctorProfileHelper.formatClinicName(user, data);
@@ -155,7 +160,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
       final newText = text.replaceRange(selection.start, selection.end, token);
       _messageController.value = TextEditingValue(
         text: newText,
-        selection: TextSelection.collapsed(offset: selection.start + token.length),
+        selection: TextSelection.collapsed(
+          offset: selection.start + token.length,
+        ),
       );
     } else {
       _messageController.text = '$text $token';
@@ -190,13 +197,15 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
 
           // Header
           _buildSheetHeader(),
-          const Divider(height: 1, color: AppColors.divider),
+          const Divider(height: 1),
 
           // Body Step
           Expanded(
             child: _isLoadingPatients
                 ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.chartBarLight),
+                    child: CircularProgressIndicator(
+                      color: AppColors.chartBarLight,
+                    ),
                   )
                 : _buildStepBody(),
           ),
@@ -209,7 +218,12 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   }
 
   Widget _buildSheetHeader() {
-    final stepTitles = ['1. Compose Message', '2. Target Audience', '3. Live Previews', '4. Broadcasting'];
+    final stepTitles = [
+      '1. Compose Message',
+      '2. Target Audience',
+      '3. Live Previews',
+      '4. Broadcasting',
+    ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 4, 16, 12),
@@ -223,7 +237,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                   color: AppColors.chartBarLight.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.campaign_rounded, color: AppColors.chartBarLight, size: 20),
+                child: const Icon(
+                  Icons.campaign_rounded,
+                  color: AppColors.chartBarLight,
+                  size: 20,
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -253,7 +271,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary, size: 22),
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: AppColors.textSecondary,
+                  size: 22,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -332,18 +354,29 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                     onTap: () => setState(() => _selectedCategory = category),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 7,
+                      ),
                       decoration: BoxDecoration(
-                        color: isSelected ? category.color : category.color.withValues(alpha: 0.08),
+                        color: isSelected
+                            ? category.color
+                            : category.color.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: isSelected ? category.color : category.color.withValues(alpha: 0.25),
+                          color: isSelected
+                              ? category.color
+                              : category.color.withValues(alpha: 0.25),
                         ),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(category.icon, size: 14, color: isSelected ? Colors.white : category.color),
+                          Icon(
+                            category.icon,
+                            size: 14,
+                            color: isSelected ? Colors.white : category.color,
+                          ),
                           const SizedBox(width: 5),
                           Text(
                             category.label,
@@ -379,7 +412,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             style: AppColors.bodyMedium,
             decoration: InputDecoration(
               hintText: 'e.g. Free Diabetes Screening & Checkup Camp',
-              hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
+              hintStyle: AppColors.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
               filled: true,
               fillColor: AppColors.inputBackground,
               border: OutlineInputBorder(
@@ -388,9 +423,15 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.chartBarLight, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.chartBarLight,
+                  width: 1.5,
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 13,
+              ),
             ),
           ),
           const SizedBox(height: 18),
@@ -420,8 +461,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             maxLines: 5,
             style: AppColors.bodyMedium,
             decoration: InputDecoration(
-              hintText: 'Dear {{patient_name}},\n\nWe are hosting a free health checkup camp at {{clinic_name}} this Sunday.\n\nBest regards,\n{{doctor_name}}',
-              hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
+              hintText:
+                  'Dear {{patient_name}},\n\nWe are hosting a free health checkup camp at {{clinic_name}} this Sunday.\n\nBest regards,\n{{doctor_name}}',
+              hintStyle: AppColors.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
               filled: true,
               fillColor: AppColors.inputBackground,
               border: OutlineInputBorder(
@@ -430,7 +474,10 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.chartBarLight, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.chartBarLight,
+                  width: 1.5,
+                ),
               ),
               contentPadding: const EdgeInsets.all(16),
             ),
@@ -452,8 +499,14 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             style: AppColors.bodyMedium,
             decoration: InputDecoration(
               hintText: 'https://example.com/clinic-camp.jpg',
-              hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
-              prefixIcon: const Icon(Icons.image_outlined, size: 20, color: AppColors.slateBlue),
+              hintStyle: AppColors.bodyMedium.copyWith(
+                color: AppColors.textSecondary,
+              ),
+              prefixIcon: const Icon(
+                Icons.image_outlined,
+                size: 20,
+                color: AppColors.slateBlue,
+              ),
               filled: true,
               fillColor: AppColors.inputBackground,
               border: OutlineInputBorder(
@@ -462,9 +515,15 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: AppColors.chartBarLight, width: 1.5),
+                borderSide: const BorderSide(
+                  color: AppColors.chartBarLight,
+                  width: 1.5,
+                ),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
         ],
@@ -500,8 +559,12 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   Widget _buildStep2Audience() {
     final count = _filteredAudience.length;
-    final emailEligible = _filteredAudience.where((p) => CampaignAudienceHelper.isValidEmail(p.email)).length;
-    final waEligible = _filteredAudience.where((p) => WhatsAppTemplateService.isValidWhatsAppPhone(p.phone)).length;
+    final emailEligible = _filteredAudience
+        .where((p) => CampaignAudienceHelper.isValidEmail(p.email))
+        .length;
+    final waEligible = _filteredAudience
+        .where((p) => WhatsAppTemplateService.isValidWhatsAppPhone(p.phone))
+        .length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
@@ -527,20 +590,31 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 onTap: () => setState(() => _selectedAudienceType = type),
                 borderRadius: BorderRadius.circular(14),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.chartBarLight.withValues(alpha: 0.08) : AppColors.inputBackground,
+                    color: isSelected
+                        ? AppColors.chartBarLight.withValues(alpha: 0.08)
+                        : AppColors.inputBackground,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isSelected ? AppColors.chartBarLight : Colors.transparent,
+                      color: isSelected
+                          ? AppColors.chartBarLight
+                          : Colors.transparent,
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(
-                        isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                        isSelected
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
                         size: 18,
-                        color: isSelected ? AppColors.chartBarLight : AppColors.textSecondary,
+                        color: isSelected
+                            ? AppColors.chartBarLight
+                            : AppColors.textSecondary,
                       ),
                       const SizedBox(width: 10),
                       Text(
@@ -548,8 +622,12 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                         style: TextStyle(
                           fontFamily: AppColors.bodyFontFamily,
                           fontSize: 13.5,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? AppColors.chartBarLight : AppColors.textPrimary,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? AppColors.chartBarLight
+                              : AppColors.textPrimary,
                         ),
                       ),
                     ],
@@ -567,11 +645,19 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               style: AppColors.bodyMedium,
               decoration: InputDecoration(
                 hintText: 'Condition filter: Diabetes, Hypertension...',
-                hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
+                hintStyle: AppColors.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
                 filled: true,
                 fillColor: AppColors.inputBackground,
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
               ),
             ),
           ],
@@ -584,11 +670,17 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             decoration: BoxDecoration(
               color: AppColors.positiveGreen.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.positiveGreen.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: AppColors.positiveGreen.withValues(alpha: 0.3),
+              ),
             ),
             child: Row(
               children: [
-                const Icon(Icons.groups_rounded, color: AppColors.positiveGreen, size: 24),
+                const Icon(
+                  Icons.groups_rounded,
+                  color: AppColors.positiveGreen,
+                  size: 24,
+                ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -646,8 +738,20 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
             ),
             subtitle: _connectedGmail != null
-                ? Text('Sending from: $_connectedGmail', style: const TextStyle(fontSize: 11, color: AppColors.positiveGreen))
-                : const Text('Connect Gmail in Profile to send live emails.', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+                ? Text(
+                    'Sending from: $_connectedGmail',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.positiveGreen,
+                    ),
+                  )
+                : const Text(
+                    'Connect Gmail in Profile to send live emails.',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
             onChanged: (v) {
               if (v == false && !_enableWhatsApp) return;
               setState(() => _enableEmail = v);
@@ -667,7 +771,10 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 color: AppColors.textPrimary,
               ),
             ),
-            subtitle: const Text('Delivers automatically via WhatsApp Business Cloud API.', style: TextStyle(fontSize: 11, color: AppColors.textSecondary)),
+            subtitle: const Text(
+              'Delivers automatically via WhatsApp Business Cloud API.',
+              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+            ),
             onChanged: (v) {
               if (v == false && !_enableEmail) return;
               setState(() => _enableWhatsApp = v);
@@ -700,8 +807,12 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
           );
 
     final whatsAppText = CampaignAudienceHelper.buildFormattedWhatsAppText(
-      _messageController.text.trim().isNotEmpty ? _messageController.text.trim() : 'Campaign message content',
-      title: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Campaign Title',
+      _messageController.text.trim().isNotEmpty
+          ? _messageController.text.trim()
+          : 'Campaign message content',
+      title: _titleController.text.trim().isNotEmpty
+          ? _titleController.text.trim()
+          : 'Campaign Title',
       patient: samplePatient,
       category: _selectedCategory,
       clinicName: _clinicName,
@@ -716,8 +827,16 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             labelColor: AppColors.chartBarLight,
             unselectedLabelColor: AppColors.textSecondary,
             indicatorColor: AppColors.chartBarLight,
-            labelStyle: const TextStyle(fontFamily: AppColors.bodyFontFamily, fontWeight: FontWeight.w700, fontSize: 13),
-            unselectedLabelStyle: const TextStyle(fontFamily: AppColors.bodyFontFamily, fontWeight: FontWeight.w500, fontSize: 13),
+            labelStyle: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontWeight: FontWeight.w700,
+              fontSize: 13,
+            ),
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontWeight: FontWeight.w500,
+              fontSize: 13,
+            ),
             tabs: const [
               Tab(text: '📧 Email Preview'),
               Tab(text: '💬 WhatsApp Preview'),
@@ -736,13 +855,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.divider),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      boxShadow: const [],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -752,10 +865,16 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.chartBarLight.withValues(alpha: 0.1),
+                                color: AppColors.chartBarLight.withValues(
+                                  alpha: 0.1,
+                                ),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(Icons.local_hospital_rounded, size: 16, color: AppColors.chartBarLight),
+                              child: const Icon(
+                                Icons.local_hospital_rounded,
+                                size: 16,
+                                color: AppColors.chartBarLight,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Text(
@@ -771,7 +890,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                         ),
                         const SizedBox(height: 12),
                         Text(
-                          _titleController.text.isNotEmpty ? _titleController.text : 'Campaign Title',
+                          _titleController.text.isNotEmpty
+                              ? _titleController.text
+                              : 'Campaign Title',
                           style: const TextStyle(
                             fontFamily: AppColors.headingFontFamily,
                             fontWeight: FontWeight.w800,
@@ -782,7 +903,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                         const SizedBox(height: 8),
                         Text(
                           CampaignAudienceHelper.interpolateVariables(
-                            _messageController.text.isNotEmpty ? _messageController.text : 'Dear {{patient_name}}, message body here...',
+                            _messageController.text.isNotEmpty
+                                ? _messageController.text
+                                : 'Dear {{patient_name}}, message body here...',
                             patient: samplePatient,
                             clinicName: _clinicName,
                             doctorName: _doctorName,
@@ -795,7 +918,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Divider(height: 1, color: AppColors.divider),
+                        const Divider(height: 1),
                         const SizedBox(height: 10),
                         Text(
                           'Warm regards,\n$_doctorName • $_clinicName',
@@ -820,13 +943,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                     decoration: BoxDecoration(
                       color: const Color(0xFFDCF8C6),
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.04),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      boxShadow: const [],
                     ),
                     child: Text(
                       whatsAppText,
@@ -852,7 +969,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   Widget _buildStep4Dispatch() {
     if (_isDispatching) {
-      final percent = _dispatchTotal > 0 ? (_dispatchProcessed / _dispatchTotal) : 0.0;
+      final percent = _dispatchTotal > 0
+          ? (_dispatchProcessed / _dispatchTotal)
+          : 0.0;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -886,7 +1005,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                   value: percent,
                   minHeight: 6,
                   backgroundColor: AppColors.inputBackground,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.positiveGreen),
+                  valueColor: const AlwaysStoppedAnimation(
+                    AppColors.positiveGreen,
+                  ),
                 ),
               ),
             ],
@@ -902,7 +1023,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, color: Colors.red, size: 48),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Colors.red,
+                size: 48,
+              ),
               const SizedBox(height: 14),
               Text(
                 _dispatchError!,
@@ -918,7 +1043,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 onPressed: () => setState(() => _currentStep = 2),
                 style: FilledButton.styleFrom(
                   backgroundColor: AppColors.chartBarLight,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text('Back to Review'),
               ),
@@ -940,7 +1067,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 color: AppColors.positiveGreen.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.check_circle_rounded, color: AppColors.positiveGreen, size: 52),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: AppColors.positiveGreen,
+                size: 52,
+              ),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -970,12 +1101,20 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.chartBarLight,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: const Text(
                 'Done',
-                style: TextStyle(fontFamily: AppColors.bodyFontFamily, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -1011,9 +1150,14 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             FilledButton(
               onPressed: () {
                 if (_currentStep == 0 &&
-                    (_titleController.text.trim().isEmpty || _messageController.text.trim().isEmpty)) {
+                    (_titleController.text.trim().isEmpty ||
+                        _messageController.text.trim().isEmpty)) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please fill out the campaign title and message.')),
+                    const SnackBar(
+                      content: Text(
+                        'Please fill out the campaign title and message.',
+                      ),
+                    ),
                   );
                   return;
                 }
@@ -1022,12 +1166,20 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.chartBarLight,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
               child: const Text(
                 'Next Step',
-                style: TextStyle(fontFamily: AppColors.bodyFontFamily, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             )
           else
@@ -1036,13 +1188,21 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               icon: const Icon(Icons.send_rounded, size: 16),
               label: const Text(
                 'Publish & Send',
-                style: TextStyle(fontFamily: AppColors.bodyFontFamily, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF16A34A),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 13),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
               ),
             ),
         ],
@@ -1054,7 +1214,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
     final audience = _filteredAudience;
     if (audience.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Target audience is empty. Please choose eligible patients.')),
+        const SnackBar(
+          content: Text(
+            'Target audience is empty. Please choose eligible patients.',
+          ),
+        ),
       );
       return;
     }
@@ -1080,7 +1244,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
       channels: channel,
       audienceType: _selectedAudienceType,
       totalRecipients: audience.length,
-      mediaUrl: _mediaUrlController.text.trim().isNotEmpty ? _mediaUrlController.text.trim() : null,
+      mediaUrl: _mediaUrlController.text.trim().isNotEmpty
+          ? _mediaUrlController.text.trim()
+          : null,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );

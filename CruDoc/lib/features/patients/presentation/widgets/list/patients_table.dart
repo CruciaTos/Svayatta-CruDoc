@@ -66,10 +66,7 @@ class PatientsTable extends StatelessWidget {
           for (final g in view.groups) {
             if (g.title != null) {
               children.add(
-                _GroupHeader(
-                  title: g.title!,
-                  count: _groupTotal(g, view.rows),
-                ),
+                _GroupHeader(title: g.title!, count: _groupTotal(g, view.rows)),
               );
             } else {
               children.add(const SizedBox(height: CruSpace.s8));
@@ -210,14 +207,14 @@ class _TableHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final style = CruType.caption.w600.tint(c.label2);
+    final style = CruType.caption.w600.tint(c.accentText);
     Text t(String s, [TextAlign align = TextAlign.start]) => Text(
-          s,
-          style: style,
-          textAlign: align,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        );
+      s,
+      style: style,
+      textAlign: align,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
     return Container(
       height: CruSize.tableHeader,
       padding: const EdgeInsets.symmetric(horizontal: CruSpace.s16),
@@ -307,8 +304,9 @@ class PatientTableRow extends StatelessWidget {
             if (bottom != null)
               CruTimeText(
                 bottom,
-                style: (tabularBottom ? CruType.subhead.tabular : CruType.subhead)
-                    .tint(c.label2),
+                style:
+                    (tabularBottom ? CruType.subhead.tabular : CruType.subhead)
+                        .tint(c.label2),
                 timeColor: c.accentText,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -393,7 +391,12 @@ class PatientTableRow extends StatelessWidget {
           color: selected
               ? c.accentTint
               : (hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0)),
-          shape: cruShape(CruRadius.control),
+          shape: cruShape(
+            CruRadius.control,
+            side: selected
+                ? BorderSide(color: c.accent, width: 1.5)
+                : BorderSide.none,
+          ),
         ),
         child: _Columns(
           narrow: narrow,
@@ -402,7 +405,7 @@ class PatientTableRow extends StatelessWidget {
               CruMonogram(
                 name: s.name,
                 size: CruSize.monogramList,
-                background: selected ? c.surface : c.inset,
+                background: selected ? c.surface : null,
                 foreground: selected ? c.accentText : null,
               ),
               const SizedBox(width: CruSpace.s12),

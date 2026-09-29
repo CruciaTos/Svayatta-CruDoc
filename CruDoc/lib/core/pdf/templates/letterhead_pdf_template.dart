@@ -247,7 +247,9 @@ class LetterheadPdfTemplate {
                 pw.Text('Patient', style: theme.mutedStyle),
                 pw.SizedBox(height: 3),
                 pw.Text(
-                  patient.fullName.trim().isEmpty ? 'Patient' : patient.fullName.trim(),
+                  patient.fullName.trim().isEmpty
+                      ? 'Patient'
+                      : patient.fullName.trim(),
                   style: pw.TextStyle(
                     color: theme.darkTextColor,
                     fontSize: 12,
@@ -328,10 +330,7 @@ class LetterheadPdfTemplate {
         child: pw.ClipRRect(
           horizontalRadius: 12,
           verticalRadius: 12,
-          child: pw.Image(
-            pw.MemoryImage(logoBytes!),
-            fit: pw.BoxFit.cover,
-          ),
+          child: pw.Image(pw.MemoryImage(logoBytes!), fit: pw.BoxFit.cover),
         ),
       );
     }

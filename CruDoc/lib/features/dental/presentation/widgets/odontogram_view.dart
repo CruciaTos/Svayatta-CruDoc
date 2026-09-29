@@ -108,7 +108,9 @@ class _OdontogramViewState extends State<OdontogramView> {
             children: [
               Expanded(
                 child: Text(
-                  _isPrimaryDentition ? 'Primary Dentition (20 Teeth)' : 'Permanent Dentition (32 Teeth)',
+                  _isPrimaryDentition
+                      ? 'Primary Dentition (20 Teeth)'
+                      : 'Permanent Dentition (32 Teeth)',
                   style: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -126,9 +128,7 @@ class _OdontogramViewState extends State<OdontogramView> {
                 onSelectionChanged: (set) {
                   setState(() => _isPrimaryDentition = set.first);
                 },
-                style: const ButtonStyle(
-                  visualDensity: VisualDensity.compact,
-                ),
+                style: const ButtonStyle(visualDensity: VisualDensity.compact),
               ),
             ],
           ),
@@ -198,11 +198,26 @@ class _OdontogramViewState extends State<OdontogramView> {
               ),
               Row(
                 children: [
-                  Text(leftQuadLabel, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  Text(
+                    leftQuadLabel,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
                   const SizedBox(width: 8),
-                  const Text('|', style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1))),
+                  const Text(
+                    '|',
+                    style: TextStyle(fontSize: 11, color: Color(0xFFCBD5E1)),
+                  ),
                   const SizedBox(width: 8),
-                  Text(rightQuadLabel, style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                  Text(
+                    rightQuadLabel,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF94A3B8),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -321,11 +336,14 @@ class _ToothCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final bgColor = _getBackgroundColor();
     final textColor = _getTextColor();
-    final hasCondition = entry?.condition != null && entry!.condition!.isNotEmpty;
-    final hasTreatment = entry?.treatment != null && entry!.treatment!.isNotEmpty;
+    final hasCondition =
+        entry?.condition != null && entry!.condition!.isNotEmpty;
+    final hasTreatment =
+        entry?.treatment != null && entry!.treatment!.isNotEmpty;
 
     return Tooltip(
-      message: '${getToothName(toothNumber)}'
+      message:
+          '${getToothName(toothNumber)}'
           '${hasCondition ? ' | Cond: ${entry!.condition}' : ''}'
           '${hasTreatment ? ' | Tx: ${entry!.treatment}' : ''}',
       child: InkWell(
@@ -342,19 +360,11 @@ class _ToothCell extends StatelessWidget {
               color: isSelected
                   ? const Color(0xFF0D9488)
                   : (hasCondition || hasTreatment)
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFFE2E8F0),
+                  ? const Color(0xFF94A3B8)
+                  : const Color(0xFFE2E8F0),
               width: isSelected ? 2.5 : 1.0,
             ),
-            boxShadow: isSelected
-                ? [
-                    BoxShadow(
-                      color: const Color(0xFF0D9488).withValues(alpha: 0.25),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    )
-                  ]
-                : null,
+            boxShadow: const [],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -373,7 +383,9 @@ class _ToothCell extends StatelessWidget {
                   width: 6,
                   height: 6,
                   decoration: BoxDecoration(
-                    color: hasCondition ? const Color(0xFFEF4444) : const Color(0xFF0D9488),
+                    color: hasCondition
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFF0D9488),
                     shape: BoxShape.circle,
                   ),
                 )

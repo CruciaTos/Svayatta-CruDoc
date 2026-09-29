@@ -59,5 +59,5 @@ class GmailConnectionNotifier extends AsyncNotifier<String?> {
 /// Provider for the Gmail connection state (returns the connected email or null).
 final gmailConnectionProvider =
     AsyncNotifierProvider<GmailConnectionNotifier, String?>(
-  GmailConnectionNotifier.new,
-);
+      GmailConnectionNotifier.new,
+    );

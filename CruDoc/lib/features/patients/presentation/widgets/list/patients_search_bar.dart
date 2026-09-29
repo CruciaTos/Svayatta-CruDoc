@@ -89,16 +89,11 @@ class _PatientsSearchBarState extends ConsumerState<PatientsSearchBar> {
 
     final field = Container(
       height: CruSize.searchBar,
-      padding: const EdgeInsets.fromLTRB(
-        CruSpace.s14,
-        0,
-        CruSpace.s10,
-        0,
-      ),
+      padding: const EdgeInsets.fromLTRB(CruSpace.s14, 0, CruSpace.s10, 0),
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-        shadows: c.cardShadow,
+        shadows: const [],
       ),
       child: Row(
         children: [
@@ -168,9 +163,11 @@ class _SortButton extends ConsumerWidget {
       alignmentOffset: const Offset(0, CruSpace.s6),
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(c.surface),
-        surfaceTintColor: WidgetStatePropertyAll(c.surface.withValues(alpha: 0)),
+        surfaceTintColor: WidgetStatePropertyAll(
+          c.surface.withValues(alpha: 0),
+        ),
         shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.18)),
-        elevation: WidgetStatePropertyAll(c.isEvening ? 0 : 8),
+        elevation: const WidgetStatePropertyAll(0),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
         shape: WidgetStatePropertyAll(
           RoundedSuperellipseBorder(
@@ -196,7 +193,8 @@ class _SortButton extends ConsumerWidget {
                 c.hoverFill.withValues(alpha: 0),
               ),
               backgroundColor: WidgetStateProperty.resolveWith(
-                (states) => states.contains(WidgetState.hovered) ||
+                (states) =>
+                    states.contains(WidgetState.hovered) ||
                         states.contains(WidgetState.focused)
                     ? c.hoverFill
                     : c.surface,
@@ -232,7 +230,7 @@ class _SortButton extends ConsumerWidget {
               CruRadius.control,
               side: BorderSide(color: c.hairline),
             ),
-            shadows: c.cardShadow,
+            shadows: const [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,

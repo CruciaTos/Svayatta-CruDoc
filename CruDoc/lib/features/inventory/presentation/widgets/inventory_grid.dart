@@ -48,8 +48,7 @@ class InventoryGrid extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (var i = start; i < start + columns; i++) ...[
-                    if (i > start)
-                      const SizedBox(width: InventorySize.tileGap),
+                    if (i > start) const SizedBox(width: InventorySize.tileGap),
                     Expanded(
                       child: i < items.length
                           ? _tile(items[i])
@@ -234,7 +233,7 @@ class InventoryTile extends StatelessWidget {
                 ? c.accentWash
                 : (hovered ? cruHoverShade(c.surface, c) : c.surface),
             shape: cruShape(InventorySize.tileRadius),
-            shadows: selected ? null : c.cardShadow,
+            shadows: const [],
           ),
           // The ring is a foreground so it never changes the padding.
           foregroundDecoration: ShapeDecoration(
@@ -303,11 +302,12 @@ class InventoryTile extends StatelessWidget {
                           const SizedBox(width: CruSpace.s8),
                           Text(
                             slot.$1,
-                            style: (slot.$3
-                                    ? CruType.caption.w600
-                                    : CruType.caption)
-                                .tabular
-                                .tint(slot.$2 ? c.amberText : c.label2),
+                            style:
+                                (slot.$3
+                                        ? CruType.caption.w600
+                                        : CruType.caption)
+                                    .tabular
+                                    .tint(slot.$2 ? c.amberText : c.label2),
                             maxLines: 1,
                           ),
                         ],

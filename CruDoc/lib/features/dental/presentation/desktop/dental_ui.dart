@@ -20,8 +20,9 @@ abstract final class DentalFormat {
     final diff = b.difference(a).inDays;
     if (diff == 0) return 'Today';
     if (diff == 1) return 'Yesterday';
-    return DateFormat(a.year == b.year ? 'EEE d MMM' : 'EEE d MMM yyyy')
-        .format(d);
+    return DateFormat(
+      a.year == b.year ? 'EEE d MMM' : 'EEE d MMM yyyy',
+    ).format(d);
   }
 
   static bool sameDay(DateTime a, DateTime b) =>
@@ -32,10 +33,22 @@ abstract final class DentalFormat {
 ({Color fill, Color ring, Color text}) toothColors(CruColors c, ToothState s) =>
     switch (s) {
       ToothState.healthy => (fill: c.surface, ring: c.hairline, text: c.label2),
-      ToothState.needsCare => (fill: c.amberTint, ring: c.amberTint, text: c.amberText),
-      ToothState.treated => (fill: c.greenTint, ring: c.greenTint, text: c.greenText),
+      ToothState.needsCare => (
+        fill: c.amberTint,
+        ring: c.amberTint,
+        text: c.amberText,
+      ),
+      ToothState.treated => (
+        fill: c.greenTint,
+        ring: c.greenTint,
+        text: c.greenText,
+      ),
       ToothState.missing => (fill: c.inset, ring: c.inset, text: c.label3),
-      ToothState.notErupted => (fill: c.inset, ring: c.hairline, text: c.label3),
+      ToothState.notErupted => (
+        fill: c.inset,
+        ring: c.hairline,
+        text: c.label3,
+      ),
     };
 
 Widget toothStatePill(CruColors c, ToothState s) {
@@ -51,14 +64,26 @@ Widget toothStatePill(CruColors c, ToothState s) {
 Widget planStatusPill(CruColors c, String status) {
   final s = TreatmentPlanItemStatus.fromString(status);
   return switch (s) {
-    TreatmentPlanItemStatus.proposed =>
-      CruPill(text: 'Proposed', background: c.inset, foreground: c.label2),
-    TreatmentPlanItemStatus.accepted =>
-      CruPill(text: 'Accepted', background: c.accentTint, foreground: c.accentText),
-    TreatmentPlanItemStatus.invoiced =>
-      CruPill(text: 'Invoiced', background: c.greenTint, foreground: c.greenText),
-    TreatmentPlanItemStatus.declined =>
-      CruPill(text: 'Declined', background: c.inset, foreground: c.label3),
+    TreatmentPlanItemStatus.proposed => CruPill(
+      text: 'Proposed',
+      background: c.inset,
+      foreground: c.label2,
+    ),
+    TreatmentPlanItemStatus.accepted => CruPill(
+      text: 'Accepted',
+      background: c.accentTint,
+      foreground: c.accentText,
+    ),
+    TreatmentPlanItemStatus.invoiced => CruPill(
+      text: 'Invoiced',
+      background: c.greenTint,
+      foreground: c.greenText,
+    ),
+    TreatmentPlanItemStatus.declined => CruPill(
+      text: 'Declined',
+      background: c.inset,
+      foreground: c.label3,
+    ),
   };
 }
 
@@ -66,12 +91,21 @@ Widget planStatusPill(CruColors c, String status) {
 Widget procedureStatusPill(CruColors c, String status) {
   final s = DentalProcedureStatus.fromString(status);
   return switch (s) {
-    DentalProcedureStatus.planned =>
-      CruPill(text: 'Planned', background: c.inset, foreground: c.label2),
-    DentalProcedureStatus.inProgress =>
-      CruPill(text: 'In progress', background: c.amberTint, foreground: c.amberText),
-    DentalProcedureStatus.completed =>
-      CruPill(text: 'Completed', background: c.greenTint, foreground: c.greenText),
+    DentalProcedureStatus.planned => CruPill(
+      text: 'Planned',
+      background: c.inset,
+      foreground: c.label2,
+    ),
+    DentalProcedureStatus.inProgress => CruPill(
+      text: 'In progress',
+      background: c.amberTint,
+      foreground: c.amberText,
+    ),
+    DentalProcedureStatus.completed => CruPill(
+      text: 'Completed',
+      background: c.greenTint,
+      foreground: c.greenText,
+    ),
   };
 }
 
@@ -79,12 +113,21 @@ Widget procedureStatusPill(CruColors c, String status) {
 Widget sterilizationPill(CruColors c, String result) {
   final r = SterilizationResult.fromString(result);
   return switch (r) {
-    SterilizationResult.pass =>
-      CruPill(text: 'Passed', background: c.greenTint, foreground: c.greenText),
-    SterilizationResult.fail =>
-      CruPill(text: 'Failed', background: c.redTint, foreground: c.redText),
-    SterilizationResult.incomplete =>
-      CruPill(text: 'Incomplete', background: c.amberTint, foreground: c.amberText),
+    SterilizationResult.pass => CruPill(
+      text: 'Passed',
+      background: c.greenTint,
+      foreground: c.greenText,
+    ),
+    SterilizationResult.fail => CruPill(
+      text: 'Failed',
+      background: c.redTint,
+      foreground: c.redText,
+    ),
+    SterilizationResult.incomplete => CruPill(
+      text: 'Incomplete',
+      background: c.amberTint,
+      foreground: c.amberText,
+    ),
   };
 }
 
@@ -113,11 +156,11 @@ Future<DateTime?> pickDentalDate(
     builder: (ctx, child) => Theme(
       data: Theme.of(ctx).copyWith(
         colorScheme: Theme.of(ctx).colorScheme.copyWith(
-              primary: c.accent,
-              onPrimary: c.onAccent,
-              surface: c.surface,
-              onSurface: c.label,
-            ),
+          primary: c.accent,
+          onPrimary: c.onAccent,
+          surface: c.surface,
+          onSurface: c.label,
+        ),
       ),
       child: child!,
     ),
@@ -167,10 +210,10 @@ class DentalChoiceChip extends StatelessWidget {
             color: selected
                 ? c.label
                 : hovered
-                    ? cruHoverShade(onSurface ? c.surface : c.inset, c)
-                    : onSurface
-                        ? c.surface
-                        : c.inset,
+                ? cruHoverShade(onSurface ? c.surface : c.inset, c)
+                : onSurface
+                ? c.surface
+                : c.inset,
             shape: StadiumBorder(
               side: onSurface && !selected
                   ? BorderSide(color: c.hairline)
@@ -181,8 +224,12 @@ class DentalChoiceChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (selected) ...[
-                CruIcon(CruIcons.check,
-                    size: 14, strokeWidth: 2.2, color: c.surface),
+                CruIcon(
+                  CruIcons.check,
+                  size: 14,
+                  strokeWidth: 2.2,
+                  color: c.surface,
+                ),
                 const SizedBox(width: CruSpace.s6),
               ] else if (dot != null) ...[
                 Container(
@@ -227,18 +274,18 @@ class DentalChipWrap<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Wrap(
-        spacing: CruSpace.s8,
-        runSpacing: CruSpace.s8,
-        children: [
-          for (final o in options)
-            DentalChoiceChip(
-              label: label(o),
-              selected: isSelected(o),
-              tabular: tabular,
-              onTap: () => onTap(o),
-            ),
-        ],
-      );
+    spacing: CruSpace.s8,
+    runSpacing: CruSpace.s8,
+    children: [
+      for (final o in options)
+        DentalChoiceChip(
+          label: label(o),
+          selected: isSelected(o),
+          tabular: tabular,
+          onTap: () => onTap(o),
+        ),
+    ],
+  );
 }
 
 /// Page title, one-line subtitle and the header buttons.
@@ -272,7 +319,7 @@ class DentalPageHeader extends StatelessWidget {
               const SizedBox(height: CruSpace.s2),
               Text(
                 subtitle,
-                style: CruType.text.tabular.tint(c.label2),
+                style: CruType.text.tabular.tint(c.accentText),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -310,7 +357,7 @@ class DentalSearchField extends StatelessWidget {
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-        shadows: c.cardShadow,
+        shadows: const [],
       ),
       child: Row(
         children: [
@@ -384,9 +431,11 @@ class DentalEmptyState extends StatelessWidget {
         children: [
           CruIconTile(icon: icon, tone: CruTileTone.accent),
           const SizedBox(height: CruSpace.s14),
-          Text(title,
-              style: CruType.headline.tint(c.label),
-              textAlign: TextAlign.center),
+          Text(
+            title,
+            style: CruType.headline.tint(c.label),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: CruSpace.s6),
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
@@ -430,9 +479,7 @@ class DentalGroupLabel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(text, style: CruType.groupLabel.tint(c.label3)),
-          ),
+          Expanded(child: Text(text, style: CruType.groupLabel.tint(c.label3))),
           if (trailing != null)
             Text(trailing!, style: CruType.caption.tabular.tint(c.label3)),
         ],
@@ -512,7 +559,7 @@ class DentalPanelDialog extends StatelessWidget {
       backgroundColor: c.surface,
       surfaceTintColor: c.surface.withValues(alpha: 0),
       insetPadding: const EdgeInsets.all(CruSpace.s32),
-      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: width, maxHeight: maxHeight),

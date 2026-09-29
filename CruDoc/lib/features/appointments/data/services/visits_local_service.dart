@@ -317,7 +317,8 @@ class VisitLocalService {
     final db = await _databaseService.localDatabase;
     final rows = await db.query(
       'visits',
-      where: 'isActive = 1 AND isDeleted = 0 AND status = ? '
+      where:
+          'isActive = 1 AND isDeleted = 0 AND status = ? '
           'AND scheduledStart >= ? AND scheduledStart < ?',
       whereArgs: [
         VisitStatus.scheduled.value,

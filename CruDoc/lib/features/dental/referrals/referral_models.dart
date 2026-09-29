@@ -63,16 +63,17 @@ class ReferralHistoryItem {
       ReferralHistoryItem(
         status: json['status'] as String? ?? '',
         at: DateTime.fromMillisecondsSinceEpoch(
-          (json['at'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+          (json['at'] as num?)?.toInt() ??
+              DateTime.now().millisecondsSinceEpoch,
         ),
         note: json['note'] as String? ?? '',
       );
 
   Map<String, dynamic> toJson() => {
-        'status': status,
-        'at': at.millisecondsSinceEpoch,
-        'note': note,
-      };
+    'status': status,
+    'at': at.millisecondsSinceEpoch,
+    'note': note,
+  };
 }
 
 /// External doctor, clinic or lab contact for referrals.
@@ -100,27 +101,27 @@ class ReferralContact {
   final int? turnaroundDays;
 
   factory ReferralContact.fromRecord(DentalRecord r) => ReferralContact(
-        id: r.id,
-        name: r.str('name'),
-        clinic: r.str('clinic'),
-        specialty: r.str('specialty'),
-        phone: r.str('phone'),
-        email: r.str('email'),
-        city: r.str('city'),
-        notes: r.str('notes'),
-        turnaroundDays: r.integer('turnaroundDays'),
-      );
+    id: r.id,
+    name: r.str('name'),
+    clinic: r.str('clinic'),
+    specialty: r.str('specialty'),
+    phone: r.str('phone'),
+    email: r.str('email'),
+    city: r.str('city'),
+    notes: r.str('notes'),
+    turnaroundDays: r.integer('turnaroundDays'),
+  );
 
   Map<String, dynamic> toData() => {
-        'name': name,
-        'clinic': clinic,
-        'specialty': specialty,
-        'phone': phone,
-        'email': email,
-        'city': city,
-        'notes': notes,
-        if (turnaroundDays != null) 'turnaroundDays': turnaroundDays,
-      };
+    'name': name,
+    'clinic': clinic,
+    'specialty': specialty,
+    'phone': phone,
+    'email': email,
+    'city': city,
+    'notes': notes,
+    if (turnaroundDays != null) 'turnaroundDays': turnaroundDays,
+  };
 }
 
 /// One referral record between dentists.
@@ -166,7 +167,10 @@ class DentalReferral {
   factory DentalReferral.fromRecord(DentalRecord r) {
     final rawHistory = r.data['history'] as List? ?? const [];
     final hist = rawHistory
-        .map((h) => ReferralHistoryItem.fromJson(Map<String, dynamic>.from(h as Map)))
+        .map(
+          (h) =>
+              ReferralHistoryItem.fromJson(Map<String, dynamic>.from(h as Map)),
+        )
         .toList();
     final rawTeeth = r.data['teeth'] as List? ?? const [];
     final rawAttachments = r.data['attachments'] as List? ?? const [];
@@ -193,20 +197,20 @@ class DentalReferral {
   }
 
   Map<String, dynamic> toData() => {
-        'direction': direction.wireName,
-        'contactId': contactId,
-        'contactName': contactName,
-        'contactSpecialty': contactSpecialty,
-        'reason': reason,
-        'teeth': teeth,
-        'findings': findings,
-        'question': question,
-        'urgency': urgency.name,
-        'attachments': attachments,
-        'status': status.name,
-        'history': history.map((h) => h.toJson()).toList(),
-        'reply': reply,
-      };
+    'direction': direction.wireName,
+    'contactId': contactId,
+    'contactName': contactName,
+    'contactSpecialty': contactSpecialty,
+    'reason': reason,
+    'teeth': teeth,
+    'findings': findings,
+    'question': question,
+    'urgency': urgency.name,
+    'attachments': attachments,
+    'status': status.name,
+    'history': history.map((h) => h.toJson()).toList(),
+    'reply': reply,
+  };
 
   DentalReferral copyWith({
     ReferralDirection? direction,
@@ -249,7 +253,8 @@ class DentalReferral {
 
 /// Provider for all referral contacts clinic-wide.
 final referralContactsProvider = Provider<List<ReferralContact>>((ref) {
-  final records = ref.watch(clinicRecordsProvider(RecKind.referralContact)).value ??
+  final records =
+      ref.watch(clinicRecordsProvider(RecKind.referralContact)).value ??
       const <DentalRecord>[];
   return records.map(ReferralContact.fromRecord).toList()
     ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
@@ -257,7 +262,8 @@ final referralContactsProvider = Provider<List<ReferralContact>>((ref) {
 
 /// Provider for all referrals clinic-wide.
 final allReferralsProvider = Provider<List<DentalReferral>>((ref) {
-  final records = ref.watch(clinicRecordsProvider(RecKind.referral)).value ??
+  final records =
+      ref.watch(clinicRecordsProvider(RecKind.referral)).value ??
       const <DentalRecord>[];
   return records.map(DentalReferral.fromRecord).toList()
     ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
@@ -267,8 +273,10 @@ final allReferralsProvider = Provider<List<DentalReferral>>((ref) {
 final labPartnersProvider = Provider<List<ReferralContact>>((ref) {
   final contacts = ref.watch(referralContactsProvider);
   return contacts
-      .where((c) =>
-          c.specialty.toLowerCase().contains('lab') ||
-          c.name.toLowerCase().contains('lab'))
+      .where(
+        (c) =>
+            c.specialty.toLowerCase().contains('lab') ||
+            c.name.toLowerCase().contains('lab'),
+      )
       .toList();
 });

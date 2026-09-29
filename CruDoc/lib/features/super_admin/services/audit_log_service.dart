@@ -63,10 +63,16 @@ class SuperAdminAuditLogService {
         query = query.where('adminEmail', isEqualTo: adminEmailFilter);
       }
       if (startDate != null) {
-        query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
       if (endDate != null) {
-        query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'timestamp',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
       if (lastDocId != null) {
         final lastDoc = await _fb.auditLogsCollection.doc(lastDocId).get();
@@ -77,7 +83,10 @@ class SuperAdminAuditLogService {
 
       final snapshot = await query.get();
       var logs = snapshot.docs.map((doc) {
-        return AuditLogModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+        return AuditLogModel.fromJson(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }).toList();
 
       // Client-side search
@@ -86,8 +95,10 @@ class SuperAdminAuditLogService {
         logs = logs.where((log) {
           return log.adminEmail.toLowerCase().contains(queryLower) ||
               log.actionDescription.toLowerCase().contains(queryLower) ||
-              (log.targetDoctorName?.toLowerCase().contains(queryLower) ?? false) ||
-              (log.targetDoctorEmail?.toLowerCase().contains(queryLower) ?? false);
+              (log.targetDoctorName?.toLowerCase().contains(queryLower) ??
+                  false) ||
+              (log.targetDoctorEmail?.toLowerCase().contains(queryLower) ??
+                  false);
         }).toList();
       }
 
@@ -115,16 +126,25 @@ class SuperAdminAuditLogService {
     AuditActionType? actionTypeFilter,
   }) async {
     try {
-      Query query = _fb.auditLogsCollection.orderBy('timestamp', descending: false);
+      Query query = _fb.auditLogsCollection.orderBy(
+        'timestamp',
+        descending: false,
+      );
 
       if (actionTypeFilter != null) {
         query = query.where('actionType', isEqualTo: actionTypeFilter.name);
       }
       if (startDate != null) {
-        query = query.where('timestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'timestamp',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
       if (endDate != null) {
-        query = query.where('timestamp', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'timestamp',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       final snapshot = await query.get();
@@ -135,10 +155,12 @@ class SuperAdminAuditLogService {
 
       for (final doc in snapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final timestamp = (data['timestamp'] as Timestamp?)?.toDate().toIso8601String() ?? '';
+        final timestamp =
+            (data['timestamp'] as Timestamp?)?.toDate().toIso8601String() ?? '';
         final admin = data['adminEmail'] ?? '';
         final action = data['actionType'] ?? '';
-        final target = data['targetDoctorName'] ?? data['targetDoctorEmail'] ?? '';
+        final target =
+            data['targetDoctorName'] ?? data['targetDoctorEmail'] ?? '';
         final status = data['status'] ?? '';
         buffer.writeln('"$timestamp","$admin","$action","$target","$status"');
       }

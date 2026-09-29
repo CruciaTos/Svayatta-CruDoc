@@ -14,7 +14,11 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// The mic beside a report field. On: the field takes the cursor and the
 /// note under it explains how to dictate today.
 class RadDictationButton extends StatelessWidget {
-  const RadDictationButton({super.key, required this.active, required this.onPressed});
+  const RadDictationButton({
+    super.key,
+    required this.active,
+    required this.onPressed,
+  });
 
   final bool active;
   final VoidCallback onPressed;
@@ -33,10 +37,17 @@ class RadDictationButton extends StatelessWidget {
         height: CruSize.rowCapsule,
         alignment: Alignment.center,
         decoration: ShapeDecoration(
-          color: active ? c.inset : (hovered ? c.hoverFill : c.inset.withValues(alpha: 0)),
+          color: active
+              ? c.inset
+              : (hovered ? c.hoverFill : c.inset.withValues(alpha: 0)),
           shape: const CircleBorder(),
         ),
-        child: CruIcon(CruIcons.mic, size: 16, strokeWidth: 1.9, color: active ? c.label : c.label3),
+        child: CruIcon(
+          CruIcons.mic,
+          size: 16,
+          strokeWidth: 1.9,
+          color: active ? c.label : c.label3,
+        ),
       ),
     );
   }
@@ -51,10 +62,16 @@ class RadDictationNote extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final (String? keys, String? how) = Platform.isWindows
-        ? ('Win + H', 'Windows voice typing works here now: the cursor is in this field, press')
+        ? (
+            'Win + H',
+            'Windows voice typing works here now: the cursor is in this field, press',
+          )
         : Platform.isMacOS
-            ? ('Fn Fn', 'macOS dictation works here now: the cursor is in this field, press')
-            : (null, null);
+        ? (
+            'Fn Fn',
+            'macOS dictation works here now: the cursor is in this field, press',
+          )
+        : (null, null);
     return Padding(
       padding: const EdgeInsets.only(top: CruSpace.s8),
       child: Column(
@@ -64,7 +81,8 @@ class RadDictationNote extends StatelessWidget {
           const RadNotConnected(
             icon: CruIcons.mic,
             title: 'Dictation not connected yet',
-            body: "CruDoc's own speech-to-text turns on once a transcription service is "
+            body:
+                "CruDoc's own speech-to-text turns on once a transcription service is "
                 'connected. Nothing is recorded or sent until then.',
           ),
           if (keys != null && how != null) ...[

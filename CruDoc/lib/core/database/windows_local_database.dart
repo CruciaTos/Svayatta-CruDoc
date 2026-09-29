@@ -75,20 +75,11 @@ abstract class _WindowsExecutor implements LocalDatabaseExecutor {
     String? where,
     List<Object?>? whereArgs,
   }) {
-    return _executor.update(
-      table,
-      values,
-      where: where,
-      whereArgs: whereArgs,
-    );
+    return _executor.update(table, values, where: where, whereArgs: whereArgs);
   }
 
   @override
-  Future<int> delete(
-    String table, {
-    String? where,
-    List<Object?>? whereArgs,
-  }) {
+  Future<int> delete(String table, {String? where, List<Object?>? whereArgs}) {
     return _executor.delete(table, where: where, whereArgs: whereArgs);
   }
 

@@ -12,7 +12,7 @@ import 'package:doctor_management_app/features/messaging/data/models/email_log_e
 /// - Supports crash recovery for pending email states
 class EmailLogLocalService {
   EmailLogLocalService({LocalDatabaseService? dbService})
-      : _dbService = dbService ?? LocalDatabaseService.instance;
+    : _dbService = dbService ?? LocalDatabaseService.instance;
 
   final LocalDatabaseService _dbService;
 
@@ -87,20 +87,13 @@ class EmailLogLocalService {
     final db = await _dbService.localDatabase;
     await ensureTableCreated(db);
 
-    final values = <String, Object?>{
-      'status': status.value,
-    };
+    final values = <String, Object?>{'status': status.value};
     if (gmailMessageId != null) values['gmailMessageId'] = gmailMessageId;
     if (gmailThreadId != null) values['gmailThreadId'] = gmailThreadId;
     if (failureReason != null) values['failureReason'] = failureReason;
     if (sentAt != null) values['sentAt'] = sentAt.millisecondsSinceEpoch;
 
-    await db.update(
-      tableName,
-      values,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    await db.update(tableName, values, where: 'id = ?', whereArgs: [id]);
   }
 
   /// Retrieves recent email logs for a specific doctor.
@@ -144,7 +137,10 @@ class EmailLogLocalService {
   }
 
   /// Checks if an email was already logged for a given appointment visit.
-  Future<EmailLogEntry?> getLogByVisitId(String visitId, String doctorId) async {
+  Future<EmailLogEntry?> getLogByVisitId(
+    String visitId,
+    String doctorId,
+  ) async {
     if (kIsWeb) return null;
     if (visitId.trim().isEmpty || doctorId.trim().isEmpty) return null;
 

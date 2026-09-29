@@ -60,11 +60,14 @@ class DeviceSessionService {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(_sessionKey, newToken);
 
-      final deviceName = customDeviceName ?? await DeviceInfoHelper.getDeviceDisplayName();
+      final deviceName =
+          customDeviceName ?? await DeviceInfoHelper.getDeviceDisplayName();
       final platform = DeviceInfoHelper.getPlatformKey();
       final appVersion = await DeviceInfoHelper.getAppVersion();
 
-      final userRef = FirebaseFirestore.instance.collection('users').doc(doctorId);
+      final userRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(doctorId);
       final userSnap = await userRef.get();
       final userData = userSnap.data() ?? {};
 
@@ -87,14 +90,18 @@ class DeviceSessionService {
       if (!allowMultiDevice) {
         // Enforce single-device: purge existing active sessions
         try {
-          final existingSessions = await sessionsCol.where('status', isEqualTo: 'active').get();
+          final existingSessions = await sessionsCol
+              .where('status', isEqualTo: 'active')
+              .get();
           final batch = FirebaseFirestore.instance.batch();
           for (final doc in existingSessions.docs) {
             batch.delete(doc.reference);
           }
           await batch.commit();
         } catch (e) {
-          debugPrint('DeviceSessionService: Error cleaning previous sessions: $e');
+          debugPrint(
+            'DeviceSessionService: Error cleaning previous sessions: $e',
+          );
         }
       } else {
         // Deduplicate: purge existing active sessions for this exact same physical device
@@ -112,7 +119,9 @@ class DeviceSessionService {
             await batch.commit();
           }
         } catch (e) {
-          debugPrint('DeviceSessionService: Error deduplicating device sessions: $e');
+          debugPrint(
+            'DeviceSessionService: Error deduplicating device sessions: $e',
+          );
         }
 
         // Check max device limit (0 or null means unlimited)
@@ -134,7 +143,9 @@ class DeviceSessionService {
               await batch.commit();
             }
           } catch (e) {
-            debugPrint('DeviceSessionService: Error enforcing maxDeviceLimit: $e');
+            debugPrint(
+              'DeviceSessionService: Error enforcing maxDeviceLimit: $e',
+            );
           }
         }
       }
@@ -155,21 +166,19 @@ class DeviceSessionService {
 
       final batch = FirebaseFirestore.instance.batch();
       batch.set(sessionsCol.doc(newToken), sessionModel.toFirestore());
-      batch.set(
-        userRef,
-        {
-          'currentSessionToken': newToken,
-          'lastLoginDeviceAt': FieldValue.serverTimestamp(),
-          'lastLoginPlatform': platform,
-          'lastLoginDeviceName': deviceName,
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(userRef, {
+        'currentSessionToken': newToken,
+        'lastLoginDeviceAt': FieldValue.serverTimestamp(),
+        'lastLoginPlatform': platform,
+        'lastLoginDeviceName': deviceName,
+      }, SetOptions(merge: true));
 
       await batch.commit();
       _startHeartbeat(doctorId, newToken);
     } catch (e) {
-      debugPrint('DeviceSessionService: Failed to register session in Firestore: $e');
+      debugPrint(
+        'DeviceSessionService: Failed to register session in Firestore: $e',
+      );
     } finally {
       _isRegistering = false;
     }
@@ -192,47 +201,49 @@ class DeviceSessionService {
         .doc(doctorId)
         .snapshots()
         .listen(
-      (snapshot) async {
-        if (!snapshot.exists) return;
-        if (_isRegistering) return;
+          (snapshot) async {
+            if (!snapshot.exists) return;
+            if (_isRegistering) return;
 
-        final data = snapshot.data();
-        if (data == null) return;
+            final data = snapshot.data();
+            if (data == null) return;
 
-        final currentLocalToken = _localSessionToken;
-        if (currentLocalToken == null || currentLocalToken.isEmpty) return;
+            final currentLocalToken = _localSessionToken;
+            if (currentLocalToken == null || currentLocalToken.isEmpty) return;
 
-        bool allowMultiDevice = data['allowMultiDevice'] as bool? ?? false;
-        if (allowMultiDevice) {
-          final rawExpires = data['expiresDate'];
-          DateTime? expiresDate;
-          if (rawExpires is Timestamp) {
-            expiresDate = rawExpires.toDate();
-          } else if (rawExpires is String) {
-            expiresDate = DateTime.tryParse(rawExpires);
-          }
-          if (expiresDate != null && expiresDate.isBefore(DateTime.now())) {
-            allowMultiDevice = false; // Expired reverts to single-device
-          }
-        }
-        final remoteToken = data['currentSessionToken'] as String?;
+            bool allowMultiDevice = data['allowMultiDevice'] as bool? ?? false;
+            if (allowMultiDevice) {
+              final rawExpires = data['expiresDate'];
+              DateTime? expiresDate;
+              if (rawExpires is Timestamp) {
+                expiresDate = rawExpires.toDate();
+              } else if (rawExpires is String) {
+                expiresDate = DateTime.tryParse(rawExpires);
+              }
+              if (expiresDate != null && expiresDate.isBefore(DateTime.now())) {
+                allowMultiDevice = false; // Expired reverts to single-device
+              }
+            }
+            final remoteToken = data['currentSessionToken'] as String?;
 
-        // In single-device mode, a different session token means another device logged in
-        if (!allowMultiDevice &&
-            remoteToken != null &&
-            remoteToken.isNotEmpty &&
-            remoteToken != currentLocalToken) {
-          debugPrint('DeviceSessionService: Session invalidated by newer login on another device.');
-          await _handleForcedLogout(
-            'Logged out: Your account was accessed from another device.',
-            onForcedLogout,
-          );
-        }
-      },
-      onError: (error) {
-        debugPrint('DeviceSessionService userSub error: $error');
-      },
-    );
+            // In single-device mode, a different session token means another device logged in
+            if (!allowMultiDevice &&
+                remoteToken != null &&
+                remoteToken.isNotEmpty &&
+                remoteToken != currentLocalToken) {
+              debugPrint(
+                'DeviceSessionService: Session invalidated by newer login on another device.',
+              );
+              await _handleForcedLogout(
+                'Logged out: Your account was accessed from another device.',
+                onForcedLogout,
+              );
+            }
+          },
+          onError: (error) {
+            debugPrint('DeviceSessionService userSub error: $error');
+          },
+        );
 
     // 2. Listen to this specific device session doc in active_sessions
     _watchIndividualSession(doctorId, onForcedLogout);
@@ -257,38 +268,42 @@ class DeviceSessionService {
         .doc(token)
         .snapshots()
         .listen(
-      (snapshot) async {
-        if (_isRegistering) return;
-        if (!snapshot.exists) {
-          if (hasEverExisted) {
-            // Session document was deleted (revoked remotely)
-            debugPrint('DeviceSessionService: Session doc deleted remotely.');
-            await _handleForcedLogout(
-              'Your session was ended remotely.',
-              onForcedLogout,
-            );
-          } else {
-            // Session doc was not found on startup — register it seamlessly
-            debugPrint('DeviceSessionService: Session doc missing on startup, registering session...');
-            await registerNewSession(doctorId);
-          }
-          return;
-        }
+          (snapshot) async {
+            if (_isRegistering) return;
+            if (!snapshot.exists) {
+              if (hasEverExisted) {
+                // Session document was deleted (revoked remotely)
+                debugPrint(
+                  'DeviceSessionService: Session doc deleted remotely.',
+                );
+                await _handleForcedLogout(
+                  'Your session was ended remotely.',
+                  onForcedLogout,
+                );
+              } else {
+                // Session doc was not found on startup — register it seamlessly
+                debugPrint(
+                  'DeviceSessionService: Session doc missing on startup, registering session...',
+                );
+                await registerNewSession(doctorId);
+              }
+              return;
+            }
 
-        hasEverExisted = true;
-        final data = snapshot.data();
-        if (data != null && data['status'] == 'revoked') {
-          debugPrint('DeviceSessionService: Session marked as revoked.');
-          await _handleForcedLogout(
-            'Your session has been revoked.',
-            onForcedLogout,
-          );
-        }
-      },
-      onError: (error) {
-        debugPrint('DeviceSessionService sessionSub error: $error');
-      },
-    );
+            hasEverExisted = true;
+            final data = snapshot.data();
+            if (data != null && data['status'] == 'revoked') {
+              debugPrint('DeviceSessionService: Session marked as revoked.');
+              await _handleForcedLogout(
+                'Your session has been revoked.',
+                onForcedLogout,
+              );
+            }
+          },
+          onError: (error) {
+            debugPrint('DeviceSessionService sessionSub error: $error');
+          },
+        );
 
     _startHeartbeat(doctorId, token);
   }
@@ -350,21 +365,26 @@ class DeviceSessionService {
         .collection('active_sessions')
         .snapshots()
         .map((snapshot) {
-      final currentToken = _localSessionToken;
-      final list = snapshot.docs
-          .map((doc) => DeviceSession.fromFirestore(doc, currentLocalToken: currentToken))
-          .where((s) => s.isActive)
-          .toList();
+          final currentToken = _localSessionToken;
+          final list = snapshot.docs
+              .map(
+                (doc) => DeviceSession.fromFirestore(
+                  doc,
+                  currentLocalToken: currentToken,
+                ),
+              )
+              .where((s) => s.isActive)
+              .toList();
 
-      list.sort((a, b) {
-        // Current device first, then sorted by most recent activity
-        if (a.isCurrentDevice) return -1;
-        if (b.isCurrentDevice) return 1;
-        return b.lastActiveAt.compareTo(a.lastActiveAt);
-      });
+          list.sort((a, b) {
+            // Current device first, then sorted by most recent activity
+            if (a.isCurrentDevice) return -1;
+            if (b.isCurrentDevice) return 1;
+            return b.lastActiveAt.compareTo(a.lastActiveAt);
+          });
 
-      return list;
-    });
+          return list;
+        });
   }
 
   /// Revokes a specific session remotely.
@@ -377,7 +397,9 @@ class DeviceSessionService {
           .doc(sessionId)
           .delete();
     } catch (e) {
-      debugPrint('DeviceSessionService: Failed to revoke session $sessionId: $e');
+      debugPrint(
+        'DeviceSessionService: Failed to revoke session $sessionId: $e',
+      );
       rethrow;
     }
   }
@@ -400,7 +422,9 @@ class DeviceSessionService {
       }
       await batch.commit();
     } catch (e) {
-      debugPrint('DeviceSessionService: Failed to revoke all other sessions: $e');
+      debugPrint(
+        'DeviceSessionService: Failed to revoke all other sessions: $e',
+      );
       rethrow;
     }
   }
@@ -424,7 +448,9 @@ class DeviceSessionService {
       );
       await batch.commit();
     } catch (e) {
-      debugPrint('DeviceSessionService: Failed to revoke all sessions for $doctorId: $e');
+      debugPrint(
+        'DeviceSessionService: Failed to revoke all sessions for $doctorId: $e',
+      );
       rethrow;
     }
   }

@@ -46,7 +46,9 @@ class _MedicalReportGenerationSheetState
   @override
   void initState() {
     super.initState();
-    final reportSeq = DateTime.now().millisecondsSinceEpoch.toString().substring(7);
+    final reportSeq = DateTime.now().millisecondsSinceEpoch
+        .toString()
+        .substring(7);
     final patient = widget.initialPatient;
     _reportDate = DateTime.now();
     _patientNameCtrl = TextEditingController(text: patient?.fullName ?? '');
@@ -69,7 +71,8 @@ class _MedicalReportGenerationSheetState
           : 'General examination stable. No acute distress noted at the time of evaluation.',
     );
     _investigationsCtrl = TextEditingController(
-      text: 'Relevant investigations reviewed / advised as clinically indicated.',
+      text:
+          'Relevant investigations reviewed / advised as clinically indicated.',
     );
     _impressionCtrl = TextEditingController(
       text: patient?.diagnosis.isNotEmpty == true
@@ -77,10 +80,12 @@ class _MedicalReportGenerationSheetState
           : 'Clinical condition stable as per current assessment.',
     );
     _recommendationsCtrl = TextEditingController(
-      text: 'Continue prescribed treatment, maintain hydration, and follow up as advised.',
+      text:
+          'Continue prescribed treatment, maintain hydration, and follow up as advised.',
     );
     _notesCtrl = TextEditingController(
-      text: 'This report is generated based on available clinical information and examination records.',
+      text:
+          'This report is generated based on available clinical information and examination records.',
     );
   }
 
@@ -104,9 +109,9 @@ class _MedicalReportGenerationSheetState
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final cfg = widget.letterheadConfig;
@@ -209,9 +214,7 @@ class _MedicalReportGenerationSheetState
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 3)),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         children: [
@@ -274,12 +277,18 @@ class _MedicalReportGenerationSheetState
                     ),
                     Text(
                       '${cfg.specialty} | Reg. No: ${cfg.registrationNumber}',
-                      style: TextStyle(fontSize: 11.5, color: Colors.grey.shade700),
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
                     ),
                   ],
                 ),
@@ -335,11 +344,7 @@ class _MedicalReportGenerationSheetState
             ],
           ),
           const SizedBox(height: 12),
-          _buildInput(
-            _reportTitleCtrl,
-            'Report Title',
-            Icons.title_rounded,
-          ),
+          _buildInput(_reportTitleCtrl, 'Report Title', Icons.title_rounded),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -393,7 +398,11 @@ class _MedicalReportGenerationSheetState
         ),
         child: Row(
           children: [
-            const Icon(Icons.calendar_today_rounded, size: 16, color: Color(0xFF1E78FF)),
+            const Icon(
+              Icons.calendar_today_rounded,
+              size: 16,
+              color: Color(0xFF1E78FF),
+            ),
             const SizedBox(width: 8),
             Text(
               DateFormat('dd MMM yyyy').format(_reportDate),
@@ -491,11 +500,18 @@ class _MedicalReportGenerationSheetState
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Icon(Icons.draw_rounded, color: Color(0xFF1E78FF), size: 24),
+              const Icon(
+                Icons.draw_rounded,
+                color: Color(0xFF1E78FF),
+                size: 24,
+              ),
               const SizedBox(height: 4),
               Text(
                 cfg.doctorName,
-                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               Text(
                 'Reg: ${cfg.registrationNumber}',
@@ -525,7 +541,9 @@ class _MedicalReportGenerationSheetState
             backgroundColor: const Color(0xFF1E78FF),
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
           ),
         ),
       ),
@@ -546,14 +564,17 @@ class _MedicalReportGenerationSheetState
         prefixIcon: Icon(icon, size: 16, color: const Color(0xFF1E78FF)),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 10,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          borderSide: const BorderSide(color: Colors.transparent),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
@@ -609,15 +630,21 @@ class _MedicalReportGenerationSheetState
 
     return PdfPatientSnapshot(
       fullName: _patientNameCtrl.text.trim().isEmpty
-          ? (patient?.fullName.trim().isNotEmpty == true ? patient!.fullName : 'Patient')
+          ? (patient?.fullName.trim().isNotEmpty == true
+                ? patient!.fullName
+                : 'Patient')
           : _patientNameCtrl.text.trim(),
       phone: _patientPhoneCtrl.text.trim().isEmpty
-          ? (patient?.phone.trim().isEmpty == true ? null : patient?.phone.trim())
+          ? (patient?.phone.trim().isEmpty == true
+                ? null
+                : patient?.phone.trim())
           : _patientPhoneCtrl.text.trim(),
       ageGender: _patientAgeGenderCtrl.text.trim().isEmpty
           ? null
           : _patientAgeGenderCtrl.text.trim(),
-      email: patient?.email.trim().isEmpty == true ? null : patient?.email.trim(),
+      email: patient?.email.trim().isEmpty == true
+          ? null
+          : patient?.email.trim(),
       patientId: patient?.id.trim().isEmpty == true ? null : patient?.id.trim(),
     );
   }

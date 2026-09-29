@@ -38,16 +38,26 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final cases = ref.watch(allLabCasesProvider);
-    final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+    final patients =
+        ref.watch(patientsStreamProvider).value ?? const <Patient>[];
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final nextWeek = today.add(const Duration(days: 7));
 
     // Glance metrics
     final atLab = cases.where((c) => c.stage.isAtLab).length;
-    final dueThisWeek = cases.where((c) => c.stage.isOpen && !c.due.isBefore(today) && c.due.isBefore(nextWeek)).length;
+    final dueThisWeek = cases
+        .where(
+          (c) =>
+              c.stage.isOpen &&
+              !c.due.isBefore(today) &&
+              c.due.isBefore(nextWeek),
+        )
+        .length;
     final overdue = cases.where((c) => c.isOverdue(now)).length;
-    final receivedToFit = cases.where((c) => c.stage == LabCaseStage.received).length;
+    final receivedToFit = cases
+        .where((c) => c.stage == LabCaseStage.received)
+        .length;
 
     final subtitle = [
       '$atLab at lab',
@@ -64,14 +74,22 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
         final labName = lc.labName.toLowerCase();
         final type = lc.type.toLowerCase();
         final teeth = lc.teeth.join(' ');
-        if (!patientName.contains(query) && !labName.contains(query) && !type.contains(query) && !teeth.contains(query)) {
+        if (!patientName.contains(query) &&
+            !labName.contains(query) &&
+            !type.contains(query) &&
+            !teeth.contains(query)) {
           return false;
         }
       }
       return true;
     }).toList();
 
-    Widget cell(String label, String value, Widget caption, {bool warn = false}) => Column(
+    Widget cell(
+      String label,
+      String value,
+      Widget caption, {
+      bool warn = false,
+    }) => Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -89,7 +107,9 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
           // Header
           DentalPageHeader(
             title: 'Lab cases',
-            subtitle: subtitle.isNotEmpty ? subtitle : 'Track prosthodontic cases from impression to try-in and delivery',
+            subtitle: subtitle.isNotEmpty
+                ? subtitle
+                : 'Track prosthodontic cases from impression to try-in and delivery',
             actions: [
               CruButton(
                 label: 'New lab case',
@@ -111,17 +131,32 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
                 GlanceStrip(
                   semanticLabel: 'Lab cases at a glance',
                   cells: [
-                    cell('At lab', '$atLab', const Text('Fabrication in progress')),
-                    cell('Due this week', '$dueThisWeek', const Text('Next 7 days')),
+                    cell(
+                      'At lab',
+                      '$atLab',
+                      const Text('Fabrication in progress'),
+                    ),
+                    cell(
+                      'Due this week',
+                      '$dueThisWeek',
+                      const Text('Next 7 days'),
+                    ),
                     cell(
                       'Overdue',
                       '$overdue',
                       overdue > 0
-                          ? Text('Past due date', style: CruType.caption.tint(c.amberText))
+                          ? Text(
+                              'Past due date',
+                              style: CruType.caption.tint(c.amberText),
+                            )
                           : const Text('None'),
                       warn: overdue > 0,
                     ),
-                    cell('Received to fit', '$receivedToFit', const Text('Ready for try-in / delivery')),
+                    cell(
+                      'Received to fit',
+                      '$receivedToFit',
+                      const Text('Ready for try-in / delivery'),
+                    ),
                   ],
                 ),
                 const SizedBox(height: CruSpace.s20),
@@ -143,16 +178,25 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
                       DropdownButtonHideUnderline(
                         child: DropdownButton<LabCaseStage?>(
                           value: _stageFilter,
-                          hint: Text('All stages', style: CruType.subhead.tint(c.label2)),
+                          hint: Text(
+                            'All stages',
+                            style: CruType.subhead.tint(c.label2),
+                          ),
                           items: [
                             DropdownMenuItem<LabCaseStage?>(
                               value: null,
-                              child: Text('All stages', style: CruType.body.tint(c.label)),
+                              child: Text(
+                                'All stages',
+                                style: CruType.body.tint(c.label),
+                              ),
                             ),
                             for (final st in LabCaseStage.values)
                               DropdownMenuItem<LabCaseStage?>(
                                 value: st,
-                                child: Text(st.label, style: CruType.body.tint(c.label)),
+                                child: Text(
+                                  st.label,
+                                  style: CruType.body.tint(c.label),
+                                ),
                               ),
                           ],
                           onChanged: (st) => setState(() => _stageFilter = st),
@@ -176,7 +220,9 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
                 if (filtered.isEmpty)
                   DentalEmptyState(
                     icon: CruIcons.box,
-                    title: query.isNotEmpty ? 'No matching lab cases' : 'No lab cases yet',
+                    title: query.isNotEmpty
+                        ? 'No matching lab cases'
+                        : 'No lab cases yet',
                     body: query.isNotEmpty
                         ? 'Try changing your search terms or filters.'
                         : 'Create a laboratory prescription for crowns, bridges, dentures or night guards.',
@@ -203,17 +249,16 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
                           if (i > 0) const CruSeparator(),
                           _LabCaseListRow(
                             labCase: filtered[i],
-                            patient: patients.where((p) => p.id == filtered[i].patientId).firstOrNull,
+                            patient: patients
+                                .where((p) => p.id == filtered[i].patientId)
+                                .firstOrNull,
                           ),
                         ],
                       ],
                     ),
                   )
                 else
-                  _LabCaseBoardView(
-                    cases: filtered,
-                    patients: patients,
-                  ),
+                  _LabCaseBoardView(cases: filtered, patients: patients),
               ],
             ),
           ),
@@ -226,10 +271,7 @@ class _LabCasesScreenState extends ConsumerState<LabCasesScreen> {
 // ───────────────────────────── List View Row ─────────────────────────────
 
 class _LabCaseListRow extends ConsumerWidget {
-  const _LabCaseListRow({
-    required this.labCase,
-    required this.patient,
-  });
+  const _LabCaseListRow({required this.labCase, required this.patient});
 
   final LabCase labCase;
   final Patient? patient;
@@ -238,7 +280,8 @@ class _LabCaseListRow extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final lc = labCase;
-    final numbering = ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final isOverdue = lc.isOverdue(DateTime.now());
 
     final teethStr = lc.teeth.isEmpty
@@ -249,10 +292,8 @@ class _LabCaseListRow extends ConsumerWidget {
       semanticLabel: '${lc.type} - ${patient?.fullName ?? 'Patient'}',
       onTap: () => showDialog<void>(
         context: context,
-        builder: (_) => LabCaseEditDialog(
-          initialCase: lc,
-          initialPatient: patient,
-        ),
+        builder: (_) =>
+            LabCaseEditDialog(initialCase: lc, initialPatient: patient),
       ),
       minHeight: 56,
       child: Row(
@@ -269,12 +310,11 @@ class _LabCaseListRow extends ConsumerWidget {
               children: [
                 Text(
                   DentalFormat.date(lc.due),
-                  style: CruType.caption.w600.tabular.tint(isOverdue ? c.amberText : c.label),
+                  style: CruType.caption.w600.tabular.tint(
+                    isOverdue ? c.amberText : c.label,
+                  ),
                 ),
-                Text(
-                  'Due',
-                  style: CruType.micro.tint(c.label3),
-                ),
+                Text('Due', style: CruType.micro.tint(c.label3)),
               ],
             ),
           ),
@@ -328,11 +368,7 @@ class _LabCaseListRow extends ConsumerWidget {
 
           // Files chip (if has 3D scans)
           if (lc.files.any((f) => f.is3dScan)) ...[
-            CruPill(
-              text: '3D',
-              background: c.accentTint,
-              foreground: c.accent,
-            ),
+            CruPill(text: '3D', background: c.accentTint, foreground: c.accent),
             const SizedBox(width: CruSpace.s8),
           ],
 
@@ -368,24 +404,24 @@ class _LabCaseListRow extends ConsumerWidget {
                     value: 'stage_${st.name}',
                     child: Text('Move to ${st.label}'),
                   ),
-              const PopupMenuItem(
-                value: 'pdf',
-                child: Text('Print Rx (PDF)'),
-              ),
+              const PopupMenuItem(value: 'pdf', child: Text('Print Rx (PDF)')),
               const PopupMenuItem(
                 value: 'export',
                 child: Text('Export case (ZIP)'),
               ),
-              const PopupMenuItem(
-                value: 'delete',
-                child: Text('Delete case'),
-              ),
+              const PopupMenuItem(value: 'delete', child: Text('Delete case')),
             ],
             onSelected: (action) async {
               if (action.startsWith('stage_')) {
                 final stageName = action.substring('stage_'.length);
                 final nextStage = LabCaseStage.fromName(stageName);
-                await updateLabCaseStage(context, ref, lc, nextStage, patient: patient);
+                await updateLabCaseStage(
+                  context,
+                  ref,
+                  lc,
+                  nextStage,
+                  patient: patient,
+                );
               } else if (action == 'pdf') {
                 if (patient != null) {
                   await LabRxPdfService.printOrPreview(
@@ -399,17 +435,16 @@ class _LabCaseListRow extends ConsumerWidget {
                 if (patient != null) {
                   await showDialog<void>(
                     context: context,
-                    builder: (_) => ExportLabCaseDialog(
-                      labCase: lc,
-                      patient: patient!,
-                    ),
+                    builder: (_) =>
+                        ExportLabCaseDialog(labCase: lc, patient: patient!),
                   );
                 }
               } else if (action == 'delete') {
                 final ok = await confirmDental(
                   context,
                   title: 'Delete lab case?',
-                  body: 'This will remove the lab order for ${patient?.fullName ?? 'this patient'}.',
+                  body:
+                      'This will remove the lab order for ${patient?.fullName ?? 'this patient'}.',
                   action: 'Delete',
                 );
                 if (ok) {
@@ -428,10 +463,7 @@ class _LabCaseListRow extends ConsumerWidget {
 // ───────────────────────────── Board View with Drag & Drop ─────────────────────────────
 
 class _LabCaseBoardView extends ConsumerWidget {
-  const _LabCaseBoardView({
-    required this.cases,
-    required this.patients,
-  });
+  const _LabCaseBoardView({required this.cases, required this.patients});
 
   final List<LabCase> cases;
   final List<Patient> patients;
@@ -450,14 +482,25 @@ class _LabCaseBoardView extends ConsumerWidget {
               width: 260,
               margin: const EdgeInsets.only(right: CruSpace.s12),
               child: DragTarget<LabCase>(
-                onWillAcceptWithDetails: (details) => details.data.stage != stage,
+                onWillAcceptWithDetails: (details) =>
+                    details.data.stage != stage,
                 onAcceptWithDetails: (details) {
                   final droppedCase = details.data;
-                  final p = patients.where((pt) => pt.id == droppedCase.patientId).firstOrNull;
-                  updateLabCaseStage(context, ref, droppedCase, stage, patient: p);
+                  final p = patients
+                      .where((pt) => pt.id == droppedCase.patientId)
+                      .firstOrNull;
+                  updateLabCaseStage(
+                    context,
+                    ref,
+                    droppedCase,
+                    stage,
+                    patient: p,
+                  );
                 },
                 builder: (context, candidateData, rejectedData) {
-                  final stageCases = cases.where((lc) => lc.stage == stage).toList();
+                  final stageCases = cases
+                      .where((lc) => lc.stage == stage)
+                      .toList();
                   final isHovered = candidateData.isNotEmpty;
 
                   return Container(
@@ -484,14 +527,21 @@ class _LabCaseBoardView extends ConsumerWidget {
                               ),
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: c.inset,
-                                borderRadius: BorderRadius.circular(CruRadius.full),
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.full,
+                                ),
                               ),
                               child: Text(
                                 '${stageCases.length}',
-                                style: CruType.caption.w600.tabular.tint(c.label2),
+                                style: CruType.caption.w600.tabular.tint(
+                                  c.label2,
+                                ),
                               ),
                             ),
                           ],
@@ -511,18 +561,24 @@ class _LabCaseBoardView extends ConsumerWidget {
                         else
                           for (final lc in stageCases)
                             Padding(
-                              padding: const EdgeInsets.only(bottom: CruSpace.s8),
+                              padding: const EdgeInsets.only(
+                                bottom: CruSpace.s8,
+                              ),
                               child: Draggable<LabCase>(
                                 data: lc,
                                 feedback: Material(
-                                  elevation: 6,
-                                  borderRadius: BorderRadius.circular(CruRadius.control),
+                                  elevation: 0,
+                                  borderRadius: BorderRadius.circular(
+                                    CruRadius.control,
+                                  ),
                                   child: Container(
                                     width: 236,
                                     padding: const EdgeInsets.all(CruSpace.s12),
                                     decoration: BoxDecoration(
                                       color: c.surface,
-                                      borderRadius: BorderRadius.circular(CruRadius.control),
+                                      borderRadius: BorderRadius.circular(
+                                        CruRadius.control,
+                                      ),
                                       border: Border.all(color: c.accent),
                                     ),
                                     child: Text(
@@ -535,12 +591,16 @@ class _LabCaseBoardView extends ConsumerWidget {
                                   opacity: 0.3,
                                   child: _BoardCard(
                                     labCase: lc,
-                                    patient: patients.where((p) => p.id == lc.patientId).firstOrNull,
+                                    patient: patients
+                                        .where((p) => p.id == lc.patientId)
+                                        .firstOrNull,
                                   ),
                                 ),
                                 child: _BoardCard(
                                   labCase: lc,
-                                  patient: patients.where((p) => p.id == lc.patientId).firstOrNull,
+                                  patient: patients
+                                      .where((p) => p.id == lc.patientId)
+                                      .firstOrNull,
                                 ),
                               ),
                             ),
@@ -557,10 +617,7 @@ class _LabCaseBoardView extends ConsumerWidget {
 }
 
 class _BoardCard extends StatelessWidget {
-  const _BoardCard({
-    required this.labCase,
-    required this.patient,
-  });
+  const _BoardCard({required this.labCase, required this.patient});
 
   final LabCase labCase;
   final Patient? patient;
@@ -574,10 +631,8 @@ class _BoardCard extends StatelessWidget {
     return InkWell(
       onTap: () => showDialog<void>(
         context: context,
-        builder: (_) => LabCaseEditDialog(
-          initialCase: lc,
-          initialPatient: patient,
-        ),
+        builder: (_) =>
+            LabCaseEditDialog(initialCase: lc, initialPatient: patient),
       ),
       borderRadius: BorderRadius.circular(CruRadius.control),
       child: Container(
@@ -601,7 +656,11 @@ class _BoardCard extends StatelessWidget {
                   ),
                 ),
                 if (lc.files.any((f) => f.is3dScan))
-                  CruPill(text: '3D', background: c.accentTint, foreground: c.accent),
+                  CruPill(
+                    text: '3D',
+                    background: c.accentTint,
+                    foreground: c.accent,
+                  ),
               ],
             ),
             const SizedBox(height: CruSpace.s4),
@@ -621,7 +680,9 @@ class _BoardCard extends StatelessWidget {
                 ),
                 Text(
                   DentalFormat.date(lc.due),
-                  style: CruType.caption.tabular.tint(isOverdue ? c.amberText : c.label2),
+                  style: CruType.caption.tabular.tint(
+                    isOverdue ? c.amberText : c.label2,
+                  ),
                 ),
               ],
             ),

@@ -74,7 +74,9 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
     _authService = SuperAdminAuthService();
     DemoSessionService.sessionStateNotifier.addListener(_onSessionStateChanged);
     ref.onDispose(() {
-      DemoSessionService.sessionStateNotifier.removeListener(_onSessionStateChanged);
+      DemoSessionService.sessionStateNotifier.removeListener(
+        _onSessionStateChanged,
+      );
     });
 
     if (DemoSessionService.isSuperAdminMode) {
@@ -123,7 +125,11 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
 
   /// Sign in with email and password.
   Future<bool> login(String email, String password) async {
-    state = state.copyWith(isLoading: true, clearError: true, pendingEmail: email);
+    state = state.copyWith(
+      isLoading: true,
+      clearError: true,
+      pendingEmail: email,
+    );
 
     try {
       final admin = await _authService.signIn(email: email, password: password);
@@ -226,5 +232,5 @@ class SuperAdminAuthNotifier extends Notifier<SuperAdminAuthState> {
 
 final superAdminAuthProvider =
     NotifierProvider<SuperAdminAuthNotifier, SuperAdminAuthState>(
-  SuperAdminAuthNotifier.new,
-);
+      SuperAdminAuthNotifier.new,
+    );

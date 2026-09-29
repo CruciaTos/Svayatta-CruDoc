@@ -40,8 +40,8 @@ class PlanModel {
     this.sortOrder = 0,
     DateTime? createdAt,
     DateTime? updatedAt,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
 
   factory PlanModel.fromJson(Map<String, dynamic> json, String id) {
     return PlanModel(
@@ -57,7 +57,8 @@ class PlanModel {
       onlineSessionsPerMonth: json['onlineSessionsPerMonth'] as int? ?? 0,
       customDomain: json['customDomain'] as bool? ?? false,
       whiteLabel: json['whiteLabel'] as bool? ?? false,
-      includedModules: (json['includedModules'] as List<dynamic>?)
+      includedModules:
+          (json['includedModules'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
@@ -120,8 +121,10 @@ class PlanModel {
       patientLimit: patientLimit ?? this.patientLimit,
       staffSlots: staffSlots ?? this.staffSlots,
       ocrLimitPerMonth: ocrLimitPerMonth ?? this.ocrLimitPerMonth,
-      appointmentLimitPerMonth: appointmentLimitPerMonth ?? this.appointmentLimitPerMonth,
-      onlineSessionsPerMonth: onlineSessionsPerMonth ?? this.onlineSessionsPerMonth,
+      appointmentLimitPerMonth:
+          appointmentLimitPerMonth ?? this.appointmentLimitPerMonth,
+      onlineSessionsPerMonth:
+          onlineSessionsPerMonth ?? this.onlineSessionsPerMonth,
       customDomain: customDomain ?? this.customDomain,
       whiteLabel: whiteLabel ?? this.whiteLabel,
       includedModules: includedModules ?? this.includedModules,
@@ -134,5 +137,6 @@ class PlanModel {
   }
 
   @override
-  String toString() => 'PlanModel(id: $id, name: $name, price: \$$monthlyPrice/mo)';
+  String toString() =>
+      'PlanModel(id: $id, name: $name, price: \$$monthlyPrice/mo)';
 }

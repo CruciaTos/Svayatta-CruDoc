@@ -36,11 +36,18 @@ class _DentalTreatmentPlanSheetState
 
   Future<void> _addItemDialog({TreatmentPlanLineItemModel? existing}) async {
     final catalogAsync = ref.read(dentalCatalogProvider(_currentDoctorId));
-    final catalog = catalogAsync.maybeWhen(data: (l) => l, orElse: () => <DentalProcedureCatalogModel>[]);
+    final catalog = catalogAsync.maybeWhen(
+      data: (l) => l,
+      orElse: () => <DentalProcedureCatalogModel>[],
+    );
 
-    final nameController = TextEditingController(text: existing?.procedureName ?? '');
+    final nameController = TextEditingController(
+      text: existing?.procedureName ?? '',
+    );
     final priceController = TextEditingController(
-      text: existing?.estimatedPrice != null ? existing!.estimatedPrice.toStringAsFixed(0) : '',
+      text: existing?.estimatedPrice != null
+          ? existing!.estimatedPrice.toStringAsFixed(0)
+          : '',
     );
     final teethController = TextEditingController(
       text: existing?.toothNumbers.join(', ') ?? '',
@@ -53,7 +60,9 @@ class _DentalTreatmentPlanSheetState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(existing == null ? 'Add Treatment Item' : 'Edit Treatment Item'),
+              title: Text(
+                existing == null ? 'Add Treatment Item' : 'Edit Treatment Item',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -62,22 +71,32 @@ class _DentalTreatmentPlanSheetState
                       DropdownButtonFormField<String?>(
                         initialValue: selectedCatalogId,
                         isExpanded: true,
-                        decoration: const InputDecoration(labelText: 'From Catalog (Optional)'),
+                        decoration: const InputDecoration(
+                          labelText: 'From Catalog (Optional)',
+                        ),
                         items: [
-                          const DropdownMenuItem<String?>(value: null, child: Text('Custom Entry')),
-                          ...catalog.map((c) => DropdownMenuItem<String?>(
-                                value: c.id,
-                                child: Text('${c.name} (${c.code})'),
-                              )),
+                          const DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Custom Entry'),
+                          ),
+                          ...catalog.map(
+                            (c) => DropdownMenuItem<String?>(
+                              value: c.id,
+                              child: Text('${c.name} (${c.code})'),
+                            ),
+                          ),
                         ],
                         onChanged: (val) {
                           setDialogState(() {
                             selectedCatalogId = val;
                             if (val != null) {
-                              final item = catalog.firstWhere((c) => c.id == val);
+                              final item = catalog.firstWhere(
+                                (c) => c.id == val,
+                              );
                               nameController.text = item.name;
                               if (item.defaultPrice != null) {
-                                priceController.text = item.defaultPrice!.toStringAsFixed(0);
+                                priceController.text = item.defaultPrice!
+                                    .toStringAsFixed(0);
                               }
                             }
                           });
@@ -103,7 +122,9 @@ class _DentalTreatmentPlanSheetState
                     const SizedBox(height: 12),
                     TextField(
                       controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Estimated Fee (₹) *',
                         hintText: 'e.g. 4500',
@@ -122,7 +143,9 @@ class _DentalTreatmentPlanSheetState
                   onPressed: () {
                     if (nameController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Procedure Name is required')),
+                        const SnackBar(
+                          content: Text('Procedure Name is required'),
+                        ),
                       );
                       return;
                     }
@@ -167,13 +190,20 @@ class _DentalTreatmentPlanSheetState
     }
   }
 
-  Future<void> _updateItemStatus(TreatmentPlanLineItemModel item, String newStatus) async {
-    await ref.read(dentalRepositoryProvider).updateTreatmentPlanLineItemStatus(item.id, newStatus);
+  Future<void> _updateItemStatus(
+    TreatmentPlanLineItemModel item,
+    String newStatus,
+  ) async {
+    await ref
+        .read(dentalRepositoryProvider)
+        .updateTreatmentPlanLineItemStatus(item.id, newStatus);
     ref.invalidate(patientTreatmentPlanProvider(widget.patientId));
   }
 
   Future<void> _deleteItem(TreatmentPlanLineItemModel item) async {
-    await ref.read(dentalRepositoryProvider).deleteTreatmentPlanLineItem(item.id);
+    await ref
+        .read(dentalRepositoryProvider)
+        .deleteTreatmentPlanLineItem(item.id);
     ref.invalidate(patientTreatmentPlanProvider(widget.patientId));
   }
 
@@ -185,7 +215,9 @@ class _DentalTreatmentPlanSheetState
 
     if (invoiceableItems.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No proposed or accepted treatment items to invoice.')),
+        const SnackBar(
+          content: Text('No proposed or accepted treatment items to invoice.'),
+        ),
       );
       return;
     }
@@ -195,12 +227,14 @@ class _DentalTreatmentPlanSheetState
       (sum, item) => sum + item.estimatedPrice,
     );
 
-    final serviceDescriptions = invoiceableItems.map((item) {
-      if (item.toothNumbers.isNotEmpty) {
-        return '${item.procedureName} (Tooth ${item.toothNumbers.join(", ")})';
-      }
-      return item.procedureName;
-    }).join('; ');
+    final serviceDescriptions = invoiceableItems
+        .map((item) {
+          if (item.toothNumbers.isNotEmpty) {
+            return '${item.procedureName} (Tooth ${item.toothNumbers.join(", ")})';
+          }
+          return item.procedureName;
+        })
+        .join('; ');
 
     final fullServiceName = 'Dental: $serviceDescriptions';
 
@@ -245,7 +279,8 @@ class _DentalTreatmentPlanSheetState
 
     try {
       final now = DateTime.now();
-      final invoiceId = 'INV-${now.year}-${now.millisecondsSinceEpoch.toString().substring(7)}';
+      final invoiceId =
+          'INV-${now.year}-${now.millisecondsSinceEpoch.toString().substring(7)}';
 
       final invoice = InvoiceModel(
         id: invoiceId,
@@ -275,23 +310,27 @@ class _DentalTreatmentPlanSheetState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Invoice $invoiceId created successfully (₹${totalAmount.toStringAsFixed(0)})'),
+            content: Text(
+              'Invoice $invoiceId created successfully (₹${totalAmount.toStringAsFixed(0)})',
+            ),
             backgroundColor: _accentTeal,
           ),
         );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating invoice: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error generating invoice: $e')));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final itemsAsync = ref.watch(patientTreatmentPlanProvider(widget.patientId));
+    final itemsAsync = ref.watch(
+      patientTreatmentPlanProvider(widget.patientId),
+    );
 
     return Padding(
       padding: EdgeInsets.only(
@@ -326,7 +365,10 @@ class _DentalTreatmentPlanSheetState
                       ),
                       Text(
                         widget.patientName,
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                     ],
                   ),
@@ -344,27 +386,40 @@ class _DentalTreatmentPlanSheetState
             Expanded(
               child: itemsAsync.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (err, _) => Center(child: Text('Error loading treatment plan: $err')),
+                error: (err, _) =>
+                    Center(child: Text('Error loading treatment plan: $err')),
                 data: (items) {
                   if (items.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.request_quote_outlined, size: 48, color: Color(0xFF94A3B8)),
+                          const Icon(
+                            Icons.request_quote_outlined,
+                            size: 48,
+                            color: Color(0xFF94A3B8),
+                          ),
                           const SizedBox(height: 12),
                           const Text(
                             'No treatment plan items yet',
-                            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           const Text(
                             'Add proposed procedures to build a treatment quote.',
-                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
-                            style: FilledButton.styleFrom(backgroundColor: _accentTeal),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _accentTeal,
+                            ),
                             icon: const Icon(Icons.add),
                             label: const Text('Add Procedure Item'),
                             onPressed: () => _addItemDialog(),
@@ -375,7 +430,9 @@ class _DentalTreatmentPlanSheetState
                   }
 
                   final totalProposedOrAccepted = items
-                      .where((i) => i.status == 'proposed' || i.status == 'accepted')
+                      .where(
+                        (i) => i.status == 'proposed' || i.status == 'accepted',
+                      )
                       .fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
 
                   return Column(
@@ -383,13 +440,19 @@ class _DentalTreatmentPlanSheetState
                       // List of items
                       Expanded(
                         child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
                           itemCount: items.length,
-                          separatorBuilder: (context, sepIndex) => const Divider(height: 1),
+                          separatorBuilder: (context, sepIndex) =>
+                              const Divider(height: 1),
                           itemBuilder: (context, idx) {
                             final item = items[idx];
                             return ListTile(
-                              contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                              contentPadding: const EdgeInsets.symmetric(
+                                vertical: 4,
+                              ),
                               title: Row(
                                 children: [
                                   Expanded(
@@ -422,7 +485,10 @@ class _DentalTreatmentPlanSheetState
                                   if (item.toothNumbers.isNotEmpty)
                                     Text(
                                       'Teeth: ${item.toothNumbers.join(", ")} • ',
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
                                   _buildStatusBadge(item.status),
                                 ],
@@ -439,14 +505,29 @@ class _DentalTreatmentPlanSheetState
                                   }
                                 },
                                 itemBuilder: (ctx) => [
-                                  const PopupMenuItem(value: 'proposed', child: Text('Mark Proposed')),
-                                  const PopupMenuItem(value: 'accepted', child: Text('Mark Accepted')),
-                                  const PopupMenuItem(value: 'declined', child: Text('Mark Declined')),
+                                  const PopupMenuItem(
+                                    value: 'proposed',
+                                    child: Text('Mark Proposed'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'accepted',
+                                    child: Text('Mark Accepted'),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'declined',
+                                    child: Text('Mark Declined'),
+                                  ),
                                   const PopupMenuDivider(),
-                                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                  const PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Edit'),
+                                  ),
                                   const PopupMenuItem(
                                     value: 'delete',
-                                    child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                    child: Text(
+                                      'Delete',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -460,7 +541,9 @@ class _DentalTreatmentPlanSheetState
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
-                          border: Border(top: BorderSide(color: Colors.grey.shade200)),
+                          border: Border(
+                            top: BorderSide(color: Colors.grey.shade200),
+                          ),
                         ),
                         child: Column(
                           children: [
@@ -469,7 +552,10 @@ class _DentalTreatmentPlanSheetState
                               children: [
                                 const Text(
                                   'Estimated Quote Total:',
-                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
                                 ),
                                 Text(
                                   '₹${totalProposedOrAccepted.toStringAsFixed(0)}',
@@ -494,8 +580,13 @@ class _DentalTreatmentPlanSheetState
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: FilledButton.icon(
-                                    style: FilledButton.styleFrom(backgroundColor: _accentTeal),
-                                    icon: const Icon(Icons.receipt_long, size: 16),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: _accentTeal,
+                                    ),
+                                    icon: const Icon(
+                                      Icons.receipt_long,
+                                      size: 16,
+                                    ),
                                     label: const Text('Create Invoice'),
                                     onPressed: () => _generateInvoice(items),
                                   ),

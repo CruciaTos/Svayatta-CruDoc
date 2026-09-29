@@ -47,11 +47,15 @@ class _DentalProcedureCatalogScreenState
     super.dispose();
   }
 
-  Future<void> _openProcedureDialog({DentalProcedureCatalogModel? existing}) async {
+  Future<void> _openProcedureDialog({
+    DentalProcedureCatalogModel? existing,
+  }) async {
     final nameController = TextEditingController(text: existing?.name ?? '');
     final codeController = TextEditingController(text: existing?.code ?? '');
     final priceController = TextEditingController(
-      text: existing?.defaultPrice != null ? existing!.defaultPrice!.toStringAsFixed(0) : '',
+      text: existing?.defaultPrice != null
+          ? existing!.defaultPrice!.toStringAsFixed(0)
+          : '',
     );
     String selectedCategory = existing?.category ?? 'General';
     bool requiresToothSelection = existing?.requiresToothSelection ?? true;
@@ -62,7 +66,9 @@ class _DentalProcedureCatalogScreenState
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(existing == null ? 'Add Procedure' : 'Edit Procedure'),
+              title: Text(
+                existing == null ? 'Add Procedure' : 'Edit Procedure',
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -90,7 +96,9 @@ class _DentalProcedureCatalogScreenState
                       decoration: const InputDecoration(labelText: 'Category'),
                       items: _categories
                           .where((c) => c != 'All')
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .map(
+                            (c) => DropdownMenuItem(value: c, child: Text(c)),
+                          )
                           .toList(),
                       onChanged: (val) {
                         if (val != null) {
@@ -101,7 +109,9 @@ class _DentalProcedureCatalogScreenState
                     const SizedBox(height: 12),
                     TextField(
                       controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Default Fee (₹)',
                         hintText: 'e.g. 5000',
@@ -131,7 +141,9 @@ class _DentalProcedureCatalogScreenState
                     if (nameController.text.trim().isEmpty ||
                         codeController.text.trim().isEmpty) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Name and Code are required')),
+                        const SnackBar(
+                          content: Text('Name and Code are required'),
+                        ),
                       );
                       return;
                     }
@@ -186,9 +198,11 @@ class _DentalProcedureCatalogScreenState
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(count > 0
-              ? 'Added $count standard dental procedures'
-              : 'Standard dental procedures already loaded'),
+          content: Text(
+            count > 0
+                ? 'Added $count standard dental procedures'
+                : 'Standard dental procedures already loaded',
+          ),
         ),
       );
     }
@@ -198,9 +212,11 @@ class _DentalProcedureCatalogScreenState
     List<DentalProcedureCatalogModel> list,
   ) {
     return list.where((p) {
-      final matchesCategory = _selectedCategory == 'All' ||
+      final matchesCategory =
+          _selectedCategory == 'All' ||
           p.category.toLowerCase() == _selectedCategory.toLowerCase();
-      final matchesQuery = _searchQuery.isEmpty ||
+      final matchesQuery =
+          _searchQuery.isEmpty ||
           p.name.toLowerCase().contains(_searchQuery) ||
           p.code.toLowerCase().contains(_searchQuery);
       return matchesCategory && matchesQuery;
@@ -256,7 +272,10 @@ class _DentalProcedureCatalogScreenState
                         : null,
                     filled: true,
                     fillColor: const Color(0xFFF1F5F9),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      vertical: 0,
+                      horizontal: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
                       borderSide: BorderSide.none,
@@ -272,7 +291,8 @@ class _DentalProcedureCatalogScreenState
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
                     itemCount: _categories.length,
-                    separatorBuilder: (context, sepIndex) => const SizedBox(width: 8),
+                    separatorBuilder: (context, sepIndex) =>
+                        const SizedBox(width: 8),
                     itemBuilder: (context, idx) {
                       final cat = _categories[idx];
                       final isSelected = cat == _selectedCategory;
@@ -282,8 +302,12 @@ class _DentalProcedureCatalogScreenState
                         selectedColor: const Color(0xFFCCFBF1),
                         labelStyle: TextStyle(
                           fontSize: 12,
-                          color: isSelected ? _accentTeal : const Color(0xFF64748B),
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                          color: isSelected
+                              ? _accentTeal
+                              : const Color(0xFF64748B),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
                         ),
                         onSelected: (selected) {
                           if (selected) {
@@ -304,7 +328,8 @@ class _DentalProcedureCatalogScreenState
           Expanded(
             child: rawCatalog.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error loading catalog: $err')),
+              error: (err, _) =>
+                  Center(child: Text('Error loading catalog: $err')),
               data: (allProcedures) {
                 final procedures = _filterProcedures(allProcedures);
 
@@ -313,16 +338,28 @@ class _DentalProcedureCatalogScreenState
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.menu_book_rounded, size: 48, color: Color(0xFF94A3B8)),
+                        const Icon(
+                          Icons.menu_book_rounded,
+                          size: 48,
+                          color: Color(0xFF94A3B8),
+                        ),
                         const SizedBox(height: 12),
                         const Text(
                           'No procedures found',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         const SizedBox(height: 8),
                         TextButton.icon(
-                          icon: const Icon(Icons.download_rounded, color: _accentTeal),
-                          label: const Text('Load Standard Indian Dental Procedures'),
+                          icon: const Icon(
+                            Icons.download_rounded,
+                            color: _accentTeal,
+                          ),
+                          label: const Text(
+                            'Load Standard Indian Dental Procedures',
+                          ),
                           onPressed: _seedStandardProcedures,
                         ),
                       ],
@@ -333,7 +370,8 @@ class _DentalProcedureCatalogScreenState
                 return ListView.separated(
                   padding: const EdgeInsets.only(bottom: 80, top: 8),
                   itemCount: procedures.length,
-                  separatorBuilder: (context, sepIndex) => const Divider(height: 1, indent: 16, endIndent: 16),
+                  separatorBuilder: (context, sepIndex) =>
+                      const Divider(height: 1, indent: 16, endIndent: 16),
                   itemBuilder: (context, index) {
                     final proc = procedures[index];
                     return ListTile(
@@ -344,7 +382,9 @@ class _DentalProcedureCatalogScreenState
                               proc.name,
                               style: TextStyle(
                                 fontWeight: FontWeight.w600,
-                                decoration: proc.isActive ? null : TextDecoration.lineThrough,
+                                decoration: proc.isActive
+                                    ? null
+                                    : TextDecoration.lineThrough,
                                 color: proc.isActive
                                     ? const Color(0xFF0F172A)
                                     : const Color(0xFF94A3B8),
@@ -353,21 +393,31 @@ class _DentalProcedureCatalogScreenState
                           ),
                           if (!proc.isActive)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.grey.shade200,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: const Text(
                                 'ARCHIVED',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.grey,
+                                ),
                               ),
                             ),
                         ],
                       ),
                       subtitle: Text(
                         '${proc.code} • ${proc.category}${proc.requiresToothSelection ? ' • Tooth-specific' : ' • Clinic-level'}',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -382,7 +432,11 @@ class _DentalProcedureCatalogScreenState
                               ),
                             ),
                           PopupMenuButton<String>(
-                            icon: const Icon(Icons.more_vert, size: 20, color: Color(0xFF64748B)),
+                            icon: const Icon(
+                              Icons.more_vert,
+                              size: 20,
+                              color: Color(0xFF64748B),
+                            ),
                             onSelected: (val) {
                               if (val == 'edit') {
                                 _openProcedureDialog(existing: proc);
@@ -391,10 +445,15 @@ class _DentalProcedureCatalogScreenState
                               }
                             },
                             itemBuilder: (ctx) => [
-                              const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: Text('Edit'),
+                              ),
                               PopupMenuItem(
                                 value: 'archive',
-                                child: Text(proc.isActive ? 'Archive' : 'Restore'),
+                                child: Text(
+                                  proc.isActive ? 'Archive' : 'Restore',
+                                ),
                               ),
                             ],
                           ),

@@ -41,12 +41,13 @@ class SupportTicketState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
-      categoryFilter:
-          clearCategory ? null : (categoryFilter ?? this.categoryFilter),
-      statusFilter:
-          clearStatus ? null : (statusFilter ?? this.statusFilter),
-      priorityFilter:
-          clearPriority ? null : (priorityFilter ?? this.priorityFilter),
+      categoryFilter: clearCategory
+          ? null
+          : (categoryFilter ?? this.categoryFilter),
+      statusFilter: clearStatus ? null : (statusFilter ?? this.statusFilter),
+      priorityFilter: clearPriority
+          ? null
+          : (priorityFilter ?? this.priorityFilter),
     );
   }
 
@@ -57,7 +58,8 @@ class SupportTicketState {
       if (searchQuery.isNotEmpty) {
         final q = searchQuery.toLowerCase().trim();
         final matchesSubject = ticket.subject.toLowerCase().contains(q);
-        final matchesDoctor = ticket.doctorName.toLowerCase().contains(q) ||
+        final matchesDoctor =
+            ticket.doctorName.toLowerCase().contains(q) ||
             ticket.doctorEmail.toLowerCase().contains(q) ||
             (ticket.doctorPhone?.toLowerCase().contains(q) ?? false);
         final matchesDescription = ticket.description.toLowerCase().contains(q);
@@ -164,8 +166,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
             senderId: 'doc-882',
             senderName: 'Dr. Smit Mhatre',
             senderRole: 'doctor',
-            content:
-                'I noticed this when I exported the CSV for tax filing.',
+            content: 'I noticed this when I exported the CSV for tax filing.',
             timestamp: now.subtract(const Duration(days: 1, hours: 5)),
           ),
           TicketMessage(
@@ -181,7 +182,8 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
           TicketNote(
             adminId: 'admin-02',
             adminName: 'Rahul Sharma',
-            content: 'Likely related to the encryption migration for amount fields. Checking revenue_repo.dart.',
+            content:
+                'Likely related to the encryption migration for amount fields. Checking revenue_repo.dart.',
             timestamp: now.subtract(const Duration(hours: 5)),
           ),
         ],
@@ -237,7 +239,8 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
         doctorId: 'doc-446',
         doctorName: 'Dr. Alex Mercer',
         doctorEmail: 'alex.m@clinic.org',
-        subject: 'Feature Request: WhatsApp integration for appointment reminders',
+        subject:
+            'Feature Request: WhatsApp integration for appointment reminders',
         description:
             'I would love to have WhatsApp integration to send automatic appointment reminders to patients. This would reduce no-shows significantly. Many of my patients prefer WhatsApp over SMS.',
         category: TicketCategory.featureRequest,
@@ -270,7 +273,8 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
             senderId: 'doc-337',
             senderName: 'Dr. John Doe',
             senderRole: 'doctor',
-            content: 'I need to view my medicine stock even on the Starter plan.',
+            content:
+                'I need to view my medicine stock even on the Starter plan.',
             timestamp: now.subtract(const Duration(days: 6, hours: 4)),
           ),
           TicketMessage(
@@ -312,10 +316,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
     try {
       await Future.delayed(const Duration(milliseconds: 300));
       final mockTickets = _getMockTickets();
-      state = state.copyWith(
-        tickets: mockTickets,
-        isLoading: false,
-      );
+      state = state.copyWith(tickets: mockTickets, isLoading: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -336,10 +337,7 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
   }
 
   void setStatusFilter(TicketStatus? status) {
-    state = state.copyWith(
-      statusFilter: status,
-      clearStatus: status == null,
-    );
+    state = state.copyWith(statusFilter: status, clearStatus: status == null);
   }
 
   void setPriorityFilter(TicketPriority? priority) {
@@ -378,8 +376,12 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
           assignedToName: t.assignedToName,
           messages: t.messages,
           internalNotes: t.internalNotes,
-          resolvedAt: newStatus == TicketStatus.resolved ? DateTime.now() : t.resolvedAt,
-          resolvedBy: newStatus == TicketStatus.resolved ? 'Super Admin' : t.resolvedBy,
+          resolvedAt: newStatus == TicketStatus.resolved
+              ? DateTime.now()
+              : t.resolvedAt,
+          resolvedBy: newStatus == TicketStatus.resolved
+              ? 'Super Admin'
+              : t.resolvedBy,
           resolution: t.resolution,
           isArchived: t.isArchived,
         );
@@ -393,5 +395,5 @@ class SupportTicketNotifier extends Notifier<SupportTicketState> {
 /// Provider for Support Tickets state.
 final supportTicketProvider =
     NotifierProvider<SupportTicketNotifier, SupportTicketState>(() {
-  return SupportTicketNotifier();
-});
+      return SupportTicketNotifier();
+    });

@@ -46,7 +46,7 @@ class _RemindersDialog extends ConsumerWidget {
     return Dialog(
       backgroundColor: c.surface,
       surfaceTintColor: c.surface.withValues(alpha: 0),
-      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: CruSize.remindersDialog,
@@ -148,7 +148,8 @@ class _ReminderRow extends StatelessWidget {
       info = '${PatientFormat.rupees(s.balance)} due';
     } else {
       final since = s.overdueSince!;
-      info = 'Overdue ${PatientFormat.days(PatientsBuilder.daysSince(since, now))}'
+      info =
+          'Overdue ${PatientFormat.days(PatientsBuilder.daysSince(since, now))}'
           ' · since ${PatientFormat.weekdayDate(since)}';
     }
     return SizedBox(
@@ -158,7 +159,6 @@ class _ReminderRow extends StatelessWidget {
           CruMonogram(
             name: s.name,
             size: CruSize.monogramList,
-            background: c.inset,
           ),
           const SizedBox(width: CruSpace.s12),
           Expanded(
@@ -188,18 +188,18 @@ class _ReminderRow extends StatelessWidget {
             onPressed: !hasPhone
                 ? null
                 : () => PatientActions.whatsApp(
-                      context,
-                      s.patient,
-                      message: kind == RemindersKind.payment
-                          ? PatientActions.paymentReminderText(
-                              s,
-                              clinicName: clinicName,
-                            )
-                          : PatientActions.followUpReminderText(
-                              s,
-                              clinicName: clinicName,
-                            ),
-                    ),
+                    context,
+                    s.patient,
+                    message: kind == RemindersKind.payment
+                        ? PatientActions.paymentReminderText(
+                            s,
+                            clinicName: clinicName,
+                          )
+                        : PatientActions.followUpReminderText(
+                            s,
+                            clinicName: clinicName,
+                          ),
+                  ),
           ),
         ],
       ),

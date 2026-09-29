@@ -141,8 +141,10 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
   }
 
   /// Sends a user message to the Gemini API and returns the bot's response.
-  Future<String> sendMessage(String userMessage,
-      {List<String>? enabledModules}) async {
+  Future<String> sendMessage(
+    String userMessage, {
+    List<String>? enabledModules,
+  }) async {
     // Check if the user is asking about a locked feature first
     final lockedMsg = _checkLockedFeature(userMessage, enabledModules);
     if (lockedMsg != null) {
@@ -152,19 +154,22 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     _history.add({
       'role': 'user',
       'parts': [
-        {'text': userMessage}
+        {'text': userMessage},
       ],
     });
 
     // 1. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
     try {
-      final callable = FirebaseFunctions.instanceFor(region: 'asia-south1')
-          .httpsCallable('chatWithAssistant');
-      final result = await callable.call({
-        'message': userMessage,
-        'history': _history,
-        'enabledModules': enabledModules,
-      }).timeout(const Duration(seconds: 12));
+      final callable = FirebaseFunctions.instanceFor(
+        region: 'asia-south1',
+      ).httpsCallable('chatWithAssistant');
+      final result = await callable
+          .call({
+            'message': userMessage,
+            'history': _history,
+            'enabledModules': enabledModules,
+          })
+          .timeout(const Duration(seconds: 12));
 
       final data = result.data;
       if (data is Map && data['reply'] is String) {
@@ -173,7 +178,7 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           _history.add({
             'role': 'model',
             'parts': [
-              {'text': reply}
+              {'text': reply},
             ],
           });
           return reply;
@@ -190,11 +195,11 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
       final String activePrompt = enabledModules == null
           ? _systemPrompt
           : '$_systemPrompt\n\n'
-              '## CURRENT DOCTOR LOCKED FEATURES\n'
-              'The following features are currently LOCKED for this doctor: '
-              '${_getLockedFeatureNames(enabledModules).join(', ')}.\n'
-              'If the doctor asks how to use or access any of these locked features, explicitly inform them: '
-              '"You have to upgrade your subscription plan or contact your Super Admin to unlock and use this feature."';
+                '## CURRENT DOCTOR LOCKED FEATURES\n'
+                'The following features are currently LOCKED for this doctor: '
+                '${_getLockedFeatureNames(enabledModules).join(', ')}.\n'
+                'If the doctor asks how to use or access any of these locked features, explicitly inform them: '
+                '"You have to upgrade your subscription plan or contact your Super Admin to unlock and use this feature."';
 
       try {
         final response = await http.post(
@@ -203,8 +208,8 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           body: jsonEncode({
             'system_instruction': {
               'parts': [
-                {'text': activePrompt}
-              ]
+                {'text': activePrompt},
+              ],
             },
             'contents': _history,
             'generationConfig': {
@@ -228,7 +233,7 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
               _history.add({
                 'role': 'model',
                 'parts': [
-                  {'text': text}
+                  {'text': text},
                 ],
               });
 
@@ -236,7 +241,9 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
             }
           }
         } else {
-          debugPrint('[ChatbotService] Gemini HTTP ${response.statusCode}: ${response.body}');
+          debugPrint(
+            '[ChatbotService] Gemini HTTP ${response.statusCode}: ${response.body}',
+          );
         }
       } catch (e) {
         debugPrint('[ChatbotService] Direct REST error: $e');
@@ -306,7 +313,10 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
             q.contains('newsletter') ||
             q.contains('outreach')) &&
         !DoctorFeatureGuard.isEnabled(enabledModules, 'campaigns') &&
-        !DoctorFeatureGuard.isEnabled(enabledModules, 'omnichannel_messaging')) {
+        !DoctorFeatureGuard.isEnabled(
+          enabledModules,
+          'omnichannel_messaging',
+        )) {
       return _lockedResponse('Patient Campaigns');
     }
 
@@ -321,14 +331,19 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // AI Agentic Calling
-    if ((q.contains('calling') || q.contains('agentic') || q.contains('call')) &&
+    if ((q.contains('calling') ||
+            q.contains('agentic') ||
+            q.contains('call')) &&
         !DoctorFeatureGuard.isEnabled(enabledModules, 'ai_agentic_calling')) {
       return _lockedResponse('AI Agentic Calling');
     }
 
     // Omnichannel Messaging
     if ((q.contains('messaging') || q.contains('omnichannel')) &&
-        !DoctorFeatureGuard.isEnabled(enabledModules, 'omnichannel_messaging')) {
+        !DoctorFeatureGuard.isEnabled(
+          enabledModules,
+          'omnichannel_messaging',
+        )) {
       return _lockedResponse('Omnichannel Messaging');
     }
 
@@ -354,7 +369,10 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     // 1. AI Voice Scribe & Ambient Consultation
     if (q.contains('scribe') ||
         q.contains('ambient') ||
-        (q.contains('voice') && (q.contains('record') || q.contains('consultation') || q.contains('note')))) {
+        (q.contains('voice') &&
+            (q.contains('record') ||
+                q.contains('consultation') ||
+                q.contains('note')))) {
       return '🎙️ **AI Voice Scribe (Consultation Dictation)**\n\n'
           'The AI Voice Scribe ambiently transcribes and structures your doctor-patient consultations:\n\n'
           '1. **Start Recording**: Open the patient consultation and tap the **Voice Scribe** mic button.\n'
@@ -389,7 +407,9 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     // 3. Appointments & Visits (Disambiguated from campaigns)
     if (q.contains('visit') ||
         q.contains('appointment') ||
-        (q.contains('schedule') && !q.contains('campaign') && !q.contains('broadcast')) ||
+        (q.contains('schedule') &&
+            !q.contains('campaign') &&
+            !q.contains('broadcast')) ||
         q.contains('calendar')) {
       return '📅 **Scheduling & Managing Appointments**\n\n'
           '1. Go to the **Appointments** tab (5th icon — calendar)\n'
@@ -404,7 +424,11 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 4. Patient Records (Add, Search, Edit, Vitals, History, WhatsApp/Call)
-    if (q.contains('patient') && (q.contains('add') || q.contains('new') || q.contains('create') || q.contains('register'))) {
+    if (q.contains('patient') &&
+        (q.contains('add') ||
+            q.contains('new') ||
+            q.contains('create') ||
+            q.contains('register'))) {
       return '📋 **Adding a New Patient**\n\n'
           '1. Go to the **Patient Records** tab (2nd icon in the bottom bar)\n'
           '2. Tap the **"+"** button in the top-right corner\n'
@@ -412,13 +436,19 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           '4. Tap **Save**\n\n'
           'The patient is immediately added to your searchable patient registry! ✅';
     }
-    if (q.contains('patient') && (q.contains('search') || q.contains('find') || q.contains('filter'))) {
+    if (q.contains('patient') &&
+        (q.contains('search') || q.contains('find') || q.contains('filter'))) {
       return '🔍 **Searching Patients**\n\n'
           '• Use the search bar at the top of the **Patient Records** tab.\n'
           '• Search in real time by **Patient Name** or **Phone Number**.\n'
           '• Tap any patient to open their comprehensive medical profile.';
     }
-    if (q.contains('patient') && (q.contains('vital') || q.contains('bp') || q.contains('history') || q.contains('detail') || q.contains('record'))) {
+    if (q.contains('patient') &&
+        (q.contains('vital') ||
+            q.contains('bp') ||
+            q.contains('history') ||
+            q.contains('detail') ||
+            q.contains('record'))) {
       return '🩺 **Patient Medical Details & History**\n\n'
           'Tap any patient in **Patient Records** to access:\n'
           '• **Demographics**: Name, Age, Gender, Contact, Address\n'
@@ -427,7 +457,11 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           '• **Past Consultations**: List of completed visits and attached prescriptions\n'
           '• **Quick Actions**: One-tap WhatsApp chat and direct phone calling! 📞';
     }
-    if (q.contains('patient') && (q.contains('edit') || q.contains('update') || q.contains('delete') || q.contains('remove'))) {
+    if (q.contains('patient') &&
+        (q.contains('edit') ||
+            q.contains('update') ||
+            q.contains('delete') ||
+            q.contains('remove'))) {
       return '✏️ **Editing or Deleting Patients**\n\n'
           '1. Open the **Patient Records** tab\n'
           '2. Locate the patient card\n'
@@ -437,7 +471,12 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 5. Invoices, Revenue & Billing
-    if (q.contains('invoice') && (q.contains('create') || q.contains('add') || q.contains('new') || q.contains('bill') || q.contains('make'))) {
+    if (q.contains('invoice') &&
+        (q.contains('create') ||
+            q.contains('add') ||
+            q.contains('new') ||
+            q.contains('bill') ||
+            q.contains('make'))) {
       return '🧾 **Creating an Invoice**\n\n'
           '1. Go to the **Revenue** tab (4th icon — currency icon)\n'
           '2. Tap the blue **"+"** gradient button next to the search bar\n'
@@ -446,7 +485,12 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           '5. Tap **Create**\n\n'
           'The invoice is instantly saved and available for PDF printing and sharing! 📄';
     }
-    if (q.contains('invoice') && (q.contains('pdf') || q.contains('print') || q.contains('share') || q.contains('download') || q.contains('receipt'))) {
+    if (q.contains('invoice') &&
+        (q.contains('pdf') ||
+            q.contains('print') ||
+            q.contains('share') ||
+            q.contains('download') ||
+            q.contains('receipt'))) {
       return '📄 **Exporting & Sharing Invoice PDFs**\n\n'
           '1. Go to the **Revenue** tab\n'
           '2. Tap on the desired invoice from the list\n'
@@ -454,13 +498,20 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           '4. Preview the clean branded invoice receipt\n'
           '5. Tap **Share** to send directly via WhatsApp/Email or **Print** to a thermal/A4 printer! 🖨️';
     }
-    if (q.contains('revenue') && (q.contains('hide') || q.contains('eye') || q.contains('privacy') || q.contains('show'))) {
+    if (q.contains('revenue') &&
+        (q.contains('hide') ||
+            q.contains('eye') ||
+            q.contains('privacy') ||
+            q.contains('show'))) {
       return '👁️ **Hiding Revenue on Dashboard**\n\n'
           'On the Dashboard, find the eye icon (👁) next to the "Revenue" title:\n'
           '• **Tap Eye Icon**: Toggles between visible amount (e.g. "₹ 45,200") and private mode ("₹ ••••••")\n'
           '• Perfect for keeping financial figures confidential in front of patients! 🔒';
     }
-    if (q.contains('revenue') || q.contains('earning') || q.contains('income') || q.contains('billing')) {
+    if (q.contains('revenue') ||
+        q.contains('earning') ||
+        q.contains('income') ||
+        q.contains('billing')) {
       return '📊 **Revenue & Invoicing Overview**\n\n'
           'The **Revenue** tab and **Dashboard Chart** provide full financial visibility:\n'
           '• **Weekly / Monthly Analytics**: Compare earnings over time\n'
@@ -469,7 +520,8 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 6. Inventory & Medicine Management
-    if (q.contains('medicine') && (q.contains('add') || q.contains('new') || q.contains('create'))) {
+    if (q.contains('medicine') &&
+        (q.contains('add') || q.contains('new') || q.contains('create'))) {
       return '💊 **Adding a Medicine to Inventory**\n\n'
           '1. Go to the **Inventory** tab (3rd icon — box icon)\n'
           '2. Tap the **"+"** button\n'
@@ -477,7 +529,11 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
           '4. Tap **Save**\n\n'
           'The medicine is immediately tracked in your pharmacy stock! ✅';
     }
-    if (q.contains('stock') || q.contains('low stock') || q.contains('reorder') || q.contains('expiry') || q.contains('inventory')) {
+    if (q.contains('stock') ||
+        q.contains('low stock') ||
+        q.contains('reorder') ||
+        q.contains('expiry') ||
+        q.contains('inventory')) {
       return '📦 **Inventory & Stock Management**\n\n'
           'The Inventory tab (3rd icon) provides end-to-end stock control:\n'
           '• **Low Stock Warnings**: Medicines below their reorder threshold display an amber warning\n'
@@ -499,7 +555,12 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 8. Doctor Profile, Account & Security
-    if (q.contains('profile') || q.contains('account') || q.contains('logout') || q.contains('sign out') || q.contains('device') || q.contains('session')) {
+    if (q.contains('profile') ||
+        q.contains('account') ||
+        q.contains('logout') ||
+        q.contains('sign out') ||
+        q.contains('device') ||
+        q.contains('session')) {
       return '👤 **Doctor Profile & Multi-Device Security**\n\n'
           '• **View Profile**: Tap your avatar on the Dashboard top bar\n'
           '• **Details**: View Doctor Name, Specialty, Clinic Name, Email, Phone, and License Number\n'
@@ -508,7 +569,11 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 9. Subscription & Unlocking Features
-    if (q.contains('upgrade') || q.contains('subscription') || q.contains('plan') || q.contains('unlock') || q.contains('module')) {
+    if (q.contains('upgrade') ||
+        q.contains('subscription') ||
+        q.contains('plan') ||
+        q.contains('unlock') ||
+        q.contains('module')) {
       return '⭐ **CruDoc Subscriptions & Module Upgrades**\n\n'
           '• **Core Base Modules** (Always active): Dashboard, Patients, Appointments, Inventory\n'
           '• **Add-On Features**: Revenue & Invoices, AI Voice Scribe, Patient Campaigns, AI Calling, Multi-Device\n'
@@ -516,7 +581,10 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 10. Voice Input & Chatbot Features
-    if (q.contains('mic') || q.contains('voice input') || q.contains('chatbot') || q.contains('assistant')) {
+    if (q.contains('mic') ||
+        q.contains('voice input') ||
+        q.contains('chatbot') ||
+        q.contains('assistant')) {
       return '🤖 **CruDoc AI Assistant & Voice Dictation**\n\n'
           '• **Voice Dictation**: Tap the blue **Mic icon** in the chat input bar to speak your queries naturally with live waveform feedback\n'
           '• **Dynamic Input**: The button automatically morphs between Mic (when empty) and Send (when typing)\n'
@@ -526,7 +594,12 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 11. Navigation Guide
-    if (q.contains('navigate') || q.contains('tab') || q.contains('where') || q.contains('find') || q.contains('go to') || q.contains('menu')) {
+    if (q.contains('navigate') ||
+        q.contains('tab') ||
+        q.contains('where') ||
+        q.contains('find') ||
+        q.contains('go to') ||
+        q.contains('menu')) {
       return '🧭 **CruDoc App Navigation Guide**\n\n'
           'CruDoc features 6 primary bottom navigation tabs + center AI Assistant:\n'
           '1. 🏠 **Dashboard** — Practice overview, revenue chart, and today\'s visits\n'
@@ -539,7 +612,10 @@ You must answer ANY question asked regarding the CruDoc application, clinical wo
     }
 
     // 12. General Greetings
-    if (q.contains('hello') || q.contains('hi') || q.contains('hey') || q.contains('help')) {
+    if (q.contains('hello') ||
+        q.contains('hi') ||
+        q.contains('hey') ||
+        q.contains('help')) {
       return '👋 **Hello, Doctor!**\n\n'
           'I\'m your CruDoc Clinical & Practice Assistant. I can answer any question about:\n\n'
           '• 📋 **Patient Management** — Adding patients, vitals, medical history\n'

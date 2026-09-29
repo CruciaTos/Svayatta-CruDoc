@@ -17,27 +17,28 @@ final dentalDoctorIdProvider = Provider<String>((ref) {
 /// The clinic's procedure list and fees, archived ones included.
 final dentalProcedureListProvider =
     FutureProvider<List<DentalProcedureCatalogModel>>((ref) {
-  final doctorId = ref.watch(dentalDoctorIdProvider);
-  return ref
-      .watch(dentalRepositoryProvider)
-      .getProcedureCatalog(doctorId, includeArchived: true);
-});
+      final doctorId = ref.watch(dentalDoctorIdProvider);
+      return ref
+          .watch(dentalRepositoryProvider)
+          .getProcedureCatalog(doctorId, includeArchived: true);
+    });
 
 /// Every patient's treatment plan items.
 final clinicTreatmentPlansProvider =
     FutureProvider<List<TreatmentPlanLineItemModel>>((ref) {
-  final doctorId = ref.watch(dentalDoctorIdProvider);
-  return ref.watch(dentalRepositoryProvider).getAllTreatmentPlanLineItems(
-        doctorId,
-      );
-});
+      final doctorId = ref.watch(dentalDoctorIdProvider);
+      return ref
+          .watch(dentalRepositoryProvider)
+          .getAllTreatmentPlanLineItems(doctorId);
+    });
 
 /// Autoclave cycles, newest first.
-final clinicSterilizationProvider =
-    FutureProvider<List<SterilizationLogModel>>((ref) {
-  final doctorId = ref.watch(dentalDoctorIdProvider);
-  return ref.watch(dentalRepositoryProvider).getSterilizationLogs(doctorId);
-});
+final clinicSterilizationProvider = FutureProvider<List<SterilizationLogModel>>(
+  (ref) {
+    final doctorId = ref.watch(dentalDoctorIdProvider);
+    return ref.watch(dentalRepositoryProvider).getSterilizationLogs(doctorId);
+  },
+);
 
 /// Re-reads one patient's chart, procedures and plan (and the clinic-wide
 /// plan list) after a change.

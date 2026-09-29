@@ -39,18 +39,22 @@ class SubscriptionModel {
     List<SubscriptionHistoryEntry>? history,
     DateTime? lastModified,
     this.modifiedBy,
-  })  : subscribedDate = subscribedDate ?? DateTime.now(),
-        history = history ?? [],
-        lastModified = lastModified ?? DateTime.now();
+  }) : subscribedDate = subscribedDate ?? DateTime.now(),
+       history = history ?? [],
+       lastModified = lastModified ?? DateTime.now();
 
-  factory SubscriptionModel.fromJson(Map<String, dynamic> json, String doctorId) {
+  factory SubscriptionModel.fromJson(
+    Map<String, dynamic> json,
+    String doctorId,
+  ) {
     return SubscriptionModel(
       doctorId: doctorId,
       plan: SubscriptionPlan.values.firstWhere(
         (e) => e.name == json['plan'],
         orElse: () => SubscriptionPlan.starter,
       ),
-      subscribedDate: (json['subscribedDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      subscribedDate:
+          (json['subscribedDate'] as Timestamp?)?.toDate() ?? DateTime.now(),
       expiresDate: (json['expiresDate'] as Timestamp?)?.toDate(),
       isTrial: json['isTrial'] as bool? ?? false,
       trialEndDate: (json['trialEndDate'] as Timestamp?)?.toDate(),
@@ -62,11 +66,17 @@ class SubscriptionModel {
       lastPaymentDate: (json['lastPaymentDate'] as Timestamp?)?.toDate(),
       nextBillingDate: (json['nextBillingDate'] as Timestamp?)?.toDate(),
       paymentMethod: json['paymentMethod'] as String?,
-      history: (json['history'] as List<dynamic>?)
-              ?.map((e) => SubscriptionHistoryEntry.fromJson(e as Map<String, dynamic>))
+      history:
+          (json['history'] as List<dynamic>?)
+              ?.map(
+                (e) => SubscriptionHistoryEntry.fromJson(
+                  e as Map<String, dynamic>,
+                ),
+              )
               .toList() ??
           [],
-      lastModified: (json['lastModified'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastModified:
+          (json['lastModified'] as Timestamp?)?.toDate() ?? DateTime.now(),
       modifiedBy: json['modifiedBy'] as String?,
     );
   }
@@ -75,16 +85,24 @@ class SubscriptionModel {
     return {
       'plan': plan.name,
       'subscribedDate': Timestamp.fromDate(subscribedDate),
-      'expiresDate': expiresDate != null ? Timestamp.fromDate(expiresDate!) : null,
+      'expiresDate': expiresDate != null
+          ? Timestamp.fromDate(expiresDate!)
+          : null,
       'isTrial': isTrial,
-      'trialEndDate': trialEndDate != null ? Timestamp.fromDate(trialEndDate!) : null,
+      'trialEndDate': trialEndDate != null
+          ? Timestamp.fromDate(trialEndDate!)
+          : null,
       'stripeCustomerId': stripeCustomerId,
       'stripeSubscriptionId': stripeSubscriptionId,
       'autoRenew': autoRenew,
       'couponCode': couponCode,
       'discountPercent': discountPercent,
-      'lastPaymentDate': lastPaymentDate != null ? Timestamp.fromDate(lastPaymentDate!) : null,
-      'nextBillingDate': nextBillingDate != null ? Timestamp.fromDate(nextBillingDate!) : null,
+      'lastPaymentDate': lastPaymentDate != null
+          ? Timestamp.fromDate(lastPaymentDate!)
+          : null,
+      'nextBillingDate': nextBillingDate != null
+          ? Timestamp.fromDate(nextBillingDate!)
+          : null,
       'paymentMethod': paymentMethod,
       'history': history.map((e) => e.toJson()).toList(),
       'lastModified': Timestamp.fromDate(lastModified),

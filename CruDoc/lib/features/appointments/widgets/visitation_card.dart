@@ -64,7 +64,8 @@ class VisitCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasMenu = onReschedule != null ||
+    final hasMenu =
+        onReschedule != null ||
         onMarkCompleted != null ||
         onCancel != null ||
         onDelete != null;
@@ -360,7 +361,7 @@ class VisitCard extends StatelessWidget {
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+              shadows: const [],
             ),
           ),
         ),
@@ -414,7 +415,7 @@ class VisitCard extends StatelessWidget {
               color: Colors.white,
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+              shadows: const [],
             ),
           ),
         ),

@@ -42,7 +42,7 @@ class InventoryFilter {
   const InventoryFilter._(this.kind, [this.category]);
 
   const InventoryFilter.category(String name)
-      : this._(InventoryFilterKind.category, name);
+    : this._(InventoryFilterKind.category, name);
 
   static const all = InventoryFilter._(InventoryFilterKind.all);
   static const low = InventoryFilter._(InventoryFilterKind.low);
@@ -54,11 +54,11 @@ class InventoryFilter {
   final String? category;
 
   String get label => switch (kind) {
-        InventoryFilterKind.all => 'All',
-        InventoryFilterKind.low => 'Low stock',
-        InventoryFilterKind.expiring => 'Expiring soon',
-        InventoryFilterKind.category => category ?? '',
-      };
+    InventoryFilterKind.all => 'All',
+    InventoryFilterKind.low => 'Low stock',
+    InventoryFilterKind.expiring => 'Expiring soon',
+    InventoryFilterKind.category => category ?? '',
+  };
 
   /// Low stock and Expiring soon carry an amber dot.
   bool get attention =>

@@ -127,7 +127,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   /// the same item within the double-tap window opens its details.
   void _onTap(InventoryItem item) {
     final now = DateTime.now();
-    final isDouble = _lastTapId == item.id &&
+    final isDouble =
+        _lastTapId == item.id &&
         _lastTapAt != null &&
         now.difference(_lastTapAt!) < kDoubleTapTimeout;
     _lastTapId = item.id;
@@ -146,7 +147,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final selected = view?.selected;
     if (view == null || selected == null || view.rows.isEmpty) return;
     final grid =
-        ref.read(inventoryControllerProvider).viewMode == InventoryViewMode.grid;
+        ref.read(inventoryControllerProvider).viewMode ==
+        InventoryViewMode.grid;
     final columns = grid ? InventoryGrid.columnsFor(_leftWidth) : 1;
     final delta = intent.dy * columns + (grid ? intent.dx : 0);
     if (delta == 0) return;
@@ -223,51 +225,51 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   Map<ShortcutActivator, Intent> get _shortcuts => {
-        const SingleActivator(LogicalKeyboardKey.keyF, control: true):
-            const _FocusSearchIntent(),
-        if (defaultTargetPlatform == TargetPlatform.macOS)
-          const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
-              const _FocusSearchIntent(),
-        const SingleActivator(LogicalKeyboardKey.arrowDown):
-            const _MoveIntent(dy: 1),
-        const SingleActivator(LogicalKeyboardKey.arrowUp):
-            const _MoveIntent(dy: -1),
-        const SingleActivator(LogicalKeyboardKey.arrowRight):
-            const _MoveIntent(dx: 1),
-        const SingleActivator(LogicalKeyboardKey.arrowLeft):
-            const _MoveIntent(dx: -1),
-        const SingleActivator(LogicalKeyboardKey.enter): const _OpenIntent(),
-        const SingleActivator(LogicalKeyboardKey.numpadEnter):
-            const _OpenIntent(),
-        const SingleActivator(LogicalKeyboardKey.escape): const _CloseIntent(),
-      };
+    const SingleActivator(LogicalKeyboardKey.keyF, control: true):
+        const _FocusSearchIntent(),
+    if (defaultTargetPlatform == TargetPlatform.macOS)
+      const SingleActivator(LogicalKeyboardKey.keyF, meta: true):
+          const _FocusSearchIntent(),
+    const SingleActivator(LogicalKeyboardKey.arrowDown): const _MoveIntent(
+      dy: 1,
+    ),
+    const SingleActivator(LogicalKeyboardKey.arrowUp): const _MoveIntent(
+      dy: -1,
+    ),
+    const SingleActivator(LogicalKeyboardKey.arrowRight): const _MoveIntent(
+      dx: 1,
+    ),
+    const SingleActivator(LogicalKeyboardKey.arrowLeft): const _MoveIntent(
+      dx: -1,
+    ),
+    const SingleActivator(LogicalKeyboardKey.enter): const _OpenIntent(),
+    const SingleActivator(LogicalKeyboardKey.numpadEnter): const _OpenIntent(),
+    const SingleActivator(LogicalKeyboardKey.escape): const _CloseIntent(),
+  };
 
   Map<Type, Action<Intent>> get _actions => {
-        _FocusSearchIntent: _InventoryAction<_FocusSearchIntent>(
-          (_) => _onItems && _searchFocus.context != null,
-          (_) => _searchFocus.requestFocus(),
-        ),
-        _MoveIntent: _InventoryAction<_MoveIntent>(
-          (intent) {
-            if (_searchFocused || !_onItems || !_hasRows) return false;
-            // Left and right only move tiles in the grid.
-            if (intent.dy == 0) {
-              return ref.read(inventoryControllerProvider).viewMode ==
-                  InventoryViewMode.grid;
-            }
-            return true;
-          },
-          _move,
-        ),
-        _OpenIntent: _InventoryAction<_OpenIntent>(
-          (_) => !_searchFocused && _onItems && _hasRows,
-          (_) => _openSelected(),
-        ),
-        _CloseIntent: _InventoryAction<_CloseIntent>(
-          (_) => _sheetOpen(),
-          (_) => _closePanel(),
-        ),
-      };
+    _FocusSearchIntent: _InventoryAction<_FocusSearchIntent>(
+      (_) => _onItems && _searchFocus.context != null,
+      (_) => _searchFocus.requestFocus(),
+    ),
+    _MoveIntent: _InventoryAction<_MoveIntent>((intent) {
+      if (_searchFocused || !_onItems || !_hasRows) return false;
+      // Left and right only move tiles in the grid.
+      if (intent.dy == 0) {
+        return ref.read(inventoryControllerProvider).viewMode ==
+            InventoryViewMode.grid;
+      }
+      return true;
+    }, _move),
+    _OpenIntent: _InventoryAction<_OpenIntent>(
+      (_) => !_searchFocused && _onItems && _hasRows,
+      (_) => _openSelected(),
+    ),
+    _CloseIntent: _InventoryAction<_CloseIntent>(
+      (_) => _sheetOpen(),
+      (_) => _closePanel(),
+    ),
+  };
 
   // ---- Layout ------------------------------------------------------------
 
@@ -359,7 +361,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final loading = view == null && !async.hasError;
     final hasItems = view != null && view.all.isNotEmpty;
     final split = wide && (loading || (hasItems && selected != null));
-    final sheet = !wide &&
+    final sheet =
+        !wide &&
         state.panelOpen &&
         (view?.selectedExplicit ?? false) &&
         selected != null;
@@ -577,9 +580,8 @@ class _Backdrop extends StatelessWidget {
           tween: Tween(begin: 0, end: 1),
           duration: CruMotion.of(context, CruMotion.pane),
           curve: CruMotion.curve,
-          builder: (context, t, _) => ColoredBox(
-            color: c.label.withValues(alpha: 0.24 * t),
-          ),
+          builder: (context, t, _) =>
+              ColoredBox(color: c.label.withValues(alpha: 0.24 * t)),
         ),
       ),
     );

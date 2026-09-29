@@ -111,9 +111,7 @@ PerioDxComputation computePerioDx({
   // ---------------------------------------------------------------- diagnosis
   final interdental = _hasNonAdjacent(
     teeth,
-    (t, s) =>
-        _interdentalSites.contains(s) &&
-        (teeth[t]!.cal(s) ?? -999) >= 2,
+    (t, s) => _interdentalSites.contains(s) && (teeth[t]!.cal(s) ?? -999) >= 2,
   );
   final buccalOral = _hasNonAdjacent(
     teeth,
@@ -392,8 +390,9 @@ class _PerioStagingPanelState extends State<PerioStagingPanel> {
     _auto = computePerioDx(exam: widget.exam, inputs: _inputs);
 
     if (ex != null && ex.data['overridden'] == true) {
-      _diagnosis =
-          ex.str('diagnosis').isEmpty ? _auto.diagnosis : ex.str('diagnosis');
+      _diagnosis = ex.str('diagnosis').isEmpty
+          ? _auto.diagnosis
+          : ex.str('diagnosis');
       _stage = ex.integer('stage') ?? _auto.stage;
       _extent = ex.str('extent').isEmpty ? _auto.extent : ex.str('extent');
       _grade = ex.str('grade').isEmpty ? _auto.grade : ex.str('grade');
@@ -405,11 +404,13 @@ class _PerioStagingPanelState extends State<PerioStagingPanel> {
 
   void _writeControllers() {
     _boneLoss.text = _inputs.boneLossPct?.toString() ?? '';
-    _teethLost.text =
-        _inputs.teethLostToPerio == 0 ? '' : '${_inputs.teethLostToPerio}';
+    _teethLost.text = _inputs.teethLostToPerio == 0
+        ? ''
+        : '${_inputs.teethLostToPerio}';
     _age.text = _inputs.age?.toString() ?? '';
-    _smoking.text =
-        _inputs.smokingPerDay == 0 ? '' : '${_inputs.smokingPerDay}';
+    _smoking.text = _inputs.smokingPerDay == 0
+        ? ''
+        : '${_inputs.smokingPerDay}';
     _hba1c.text = _inputs.hba1c?.toString() ?? '';
   }
 
@@ -456,7 +457,8 @@ class _PerioStagingPanelState extends State<PerioStagingPanel> {
   Future<void> _save() async {
     final inputs = _readInputs();
     final auto = computePerioDx(exam: widget.exam, inputs: inputs);
-    final overridden = _diagnosis != auto.diagnosis ||
+    final overridden =
+        _diagnosis != auto.diagnosis ||
         _stage != auto.stage ||
         _extent != auto.extent ||
         _grade != auto.grade;
@@ -495,17 +497,9 @@ class _PerioStagingPanelState extends State<PerioStagingPanel> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Expanded(
-            child: SingleChildScrollView(
-              child: _inputsColumn(context),
-            ),
-          ),
+          Expanded(child: SingleChildScrollView(child: _inputsColumn(context))),
           const SizedBox(width: CruSpace.s20),
-          Expanded(
-            child: SingleChildScrollView(
-              child: _resultColumn(context),
-            ),
-          ),
+          Expanded(child: SingleChildScrollView(child: _resultColumn(context))),
         ],
       ),
     );
@@ -644,8 +638,7 @@ class _PerioStagingPanelState extends State<PerioStagingPanel> {
           options: const ['', 'localized', 'generalized', 'molarIncisor'],
           label: (v) => v.isEmpty ? '—' : _extentLabel(v),
           isSelected: (v) => (_extent ?? '') == v,
-          onTap: (v) =>
-              overrideWith(() => _extent = v.isEmpty ? null : v),
+          onTap: (v) => overrideWith(() => _extent = v.isEmpty ? null : v),
         ),
         const SizedBox(height: CruSpace.s12),
         Text('Grade', style: CruType.subhead.w600.tint(c.label)),

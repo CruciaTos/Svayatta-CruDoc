@@ -138,15 +138,15 @@ class _MiniMonthCalendarState extends State<MiniMonthCalendar> {
     final Color? fill = isToday
         ? c.accent
         : isSelected
-            ? c.accentTint
-            : null;
+        ? c.accentTint
+        : null;
     final Color fg = isToday
         ? c.onAccent
         : isSelected
-            ? c.accentText
-            : inMonth
-                ? c.label
-                : c.label3;
+        ? c.accentText
+        : inMonth
+        ? c.label
+        : c.label3;
     var style = CruType.dateLine.tabular.tint(fg);
     if (isToday || isSelected) style = style.w600;
 

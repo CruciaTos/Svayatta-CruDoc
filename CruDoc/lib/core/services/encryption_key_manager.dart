@@ -60,15 +60,12 @@ class EncryptionKeyManager {
           .collection('doctor_keys')
           .doc(doctorId)
           .set({
-        'wrappedKey': wrapped,
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'wrappedKey': wrapped,
+            'createdAt': FieldValue.serverTimestamp(),
+          });
     }
 
-    await _secureStorage.write(
-      key: cacheKey,
-      value: base64Encode(dek.bytes),
-    );
+    await _secureStorage.write(key: cacheKey, value: base64Encode(dek.bytes));
     _activeKey = dek;
     _activeDoctorId = doctorId;
   }

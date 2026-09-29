@@ -148,5 +148,25 @@ void main() {
       expect(CruMonogram.initialsOf('dr Kavya Iyer'), 'KI');
       expect(CruMonogram.initialsOf(''), '?');
     });
+
+    test('monogram colors are stable per person across appearances', () {
+      final day = CruMonogram.vibrantColorsOf('Soham Bordikar', false);
+      expect(
+        CruMonogram.vibrantColorsOf('  SOHAM BORDIKAR ', false),
+        day,
+      );
+      expect(CruMonogram.vibrantColorsOf('Omkar Pathse', false), isNot(day));
+      expect(CruMonogram.vibrantColorsOf('Soham Bordikar', true), day);
+    });
+
+    test('card outlines do not change control hairlines or dividers', () {
+      expect(CruColors.day.cardBorder, const Color(0xFFDCE3EC));
+      expect(CruColors.day.hairline, Colors.transparent);
+      expect(CruColors.day.separator, const Color(0xFFE2E8F0));
+      expect(
+        (CruTheme.day().cardTheme.shape as RoundedSuperellipseBorder).side.color,
+        CruColors.day.cardBorder,
+      );
+    });
   });
 }

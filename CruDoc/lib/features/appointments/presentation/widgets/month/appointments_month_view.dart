@@ -42,8 +42,7 @@ class _MonthBodyState extends ConsumerState<_MonthBody> {
     final selected = state.monthSelected ?? tomorrow;
     final async = ref.watch(apptItemsProvider);
     final loading = async.value == null && !async.hasError;
-    final wide =
-        MediaQuery.sizeOf(context).width >= CruBreakpoint.splitPane;
+    final wide = MediaQuery.sizeOf(context).width >= CruBreakpoint.splitPane;
     final controller = ref.read(apptsControllerProvider.notifier);
 
     final grid = SingleChildScrollView(
@@ -98,9 +97,7 @@ class _MonthBodyState extends ConsumerState<_MonthBody> {
                 ),
                 child: Align(
                   alignment: Alignment.topCenter,
-                  child: MonthSheetSlide(
-                    child: MonthDayPanel(date: selected),
-                  ),
+                  child: MonthSheetSlide(child: MonthDayPanel(date: selected)),
                 ),
               ),
             ],

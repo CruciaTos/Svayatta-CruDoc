@@ -80,12 +80,12 @@ class ApptItem {
     final status = statuses.contains(ApptStatus.inConsultation)
         ? ApptStatus.inConsultation
         : statuses.contains(ApptStatus.waiting)
-            ? ApptStatus.waiting
-            : statuses.contains(ApptStatus.booked)
-                ? ApptStatus.booked
-                : statuses.contains(ApptStatus.done)
-                    ? ApptStatus.done
-                    : ApptStatus.missed;
+        ? ApptStatus.waiting
+        : statuses.contains(ApptStatus.booked)
+        ? ApptStatus.booked
+        : statuses.contains(ApptStatus.done)
+        ? ApptStatus.done
+        : ApptStatus.missed;
     final reasons = {for (final m in members) ?m.reason};
     final waits = [for (final m in members) ?m.waitMinutes];
     return ApptItem(
@@ -98,8 +98,7 @@ class ApptItem {
       isNewPatient: members.any((m) => m.isNewPatient),
       reason: reasons.isEmpty ? null : reasons.join(' · '),
       tokenNumber: members.map((m) => m.tokenNumber).nonNulls.firstOrNull,
-      waitMinutes:
-          waits.isEmpty ? null : waits.reduce((a, b) => a > b ? a : b),
+      waitMinutes: waits.isEmpty ? null : waits.reduce((a, b) => a > b ? a : b),
       members: members,
     );
   }

@@ -28,35 +28,51 @@ class SettingsState {
   bool get isDirty =>
       settings.pacsAeTitle != originalSettings.pacsAeTitle ||
       settings.pacsPort != originalSettings.pacsPort ||
-      settings.enableCStoreAutoIngest != originalSettings.enableCStoreAutoIngest ||
-      settings.dicomPreloadSliceCount != originalSettings.dicomPreloadSliceCount ||
-      settings.highBitDepthRendering != originalSettings.highBitDepthRendering ||
+      settings.enableCStoreAutoIngest !=
+          originalSettings.enableCStoreAutoIngest ||
+      settings.dicomPreloadSliceCount !=
+          originalSettings.dicomPreloadSliceCount ||
+      settings.highBitDepthRendering !=
+          originalSettings.highBitDepthRendering ||
       settings.progressiveStreaming != originalSettings.progressiveStreaming ||
-      settings.defaultDoctorStorageQuotaGB != originalSettings.defaultDoctorStorageQuotaGB ||
+      settings.defaultDoctorStorageQuotaGB !=
+          originalSettings.defaultDoctorStorageQuotaGB ||
       settings.rvgBridgeHost != originalSettings.rvgBridgeHost ||
       settings.rvgBridgePort != originalSettings.rvgBridgePort ||
-      settings.rvgAcquisitionTimeoutSeconds != originalSettings.rvgAcquisitionTimeoutSeconds ||
-      settings.allowSimulatedCaptureFallback != originalSettings.allowSimulatedCaptureFallback ||
+      settings.rvgAcquisitionTimeoutSeconds !=
+          originalSettings.rvgAcquisitionTimeoutSeconds ||
+      settings.allowSimulatedCaptureFallback !=
+          originalSettings.allowSimulatedCaptureFallback ||
       settings.autoDiscoverDrivers != originalSettings.autoDiscoverDrivers ||
-      settings.defaultCalibrationProfile != originalSettings.defaultCalibrationProfile ||
-      settings.odontogramNumberingSystem != originalSettings.odontogramNumberingSystem ||
-      settings.enablePediatricDentitionToggle != originalSettings.enablePediatricDentitionToggle ||
+      settings.defaultCalibrationProfile !=
+          originalSettings.defaultCalibrationProfile ||
+      settings.odontogramNumberingSystem !=
+          originalSettings.odontogramNumberingSystem ||
+      settings.enablePediatricDentitionToggle !=
+          originalSettings.enablePediatricDentitionToggle ||
       settings.perioWarningDepthMm != originalSettings.perioWarningDepthMm ||
       settings.perioSevereDepthMm != originalSettings.perioSevereDepthMm ||
-      settings.procedureCatalogVersion != originalSettings.procedureCatalogVersion ||
+      settings.procedureCatalogVersion !=
+          originalSettings.procedureCatalogVersion ||
       settings.geminiModel != originalSettings.geminiModel ||
-      settings.aiSecondReadConfidenceThreshold != originalSettings.aiSecondReadConfidenceThreshold ||
-      settings.ambientScribeAudioChunkSeconds != originalSettings.ambientScribeAudioChunkSeconds ||
+      settings.aiSecondReadConfidenceThreshold !=
+          originalSettings.aiSecondReadConfidenceThreshold ||
+      settings.ambientScribeAudioChunkSeconds !=
+          originalSettings.ambientScribeAudioChunkSeconds ||
       settings.autoSoapNotes != originalSettings.autoSoapNotes ||
       settings.redactPatientPii != originalSettings.redactPatientPii ||
       settings.maintenanceMode != originalSettings.maintenanceMode ||
       settings.maintenanceMessage != originalSettings.maintenanceMessage ||
-      settings.emergencyReadOnlyLockdown != originalSettings.emergencyReadOnlyLockdown ||
+      settings.emergencyReadOnlyLockdown !=
+          originalSettings.emergencyReadOnlyLockdown ||
       settings.enforce2FA != originalSettings.enforce2FA ||
-      settings.sessionTimeoutMinutes != originalSettings.sessionTimeoutMinutes ||
-      settings.auditLogRetentionYears != originalSettings.auditLogRetentionYears ||
+      settings.sessionTimeoutMinutes !=
+          originalSettings.sessionTimeoutMinutes ||
+      settings.auditLogRetentionYears !=
+          originalSettings.auditLogRetentionYears ||
       settings.syncIntervalSeconds != originalSettings.syncIntervalSeconds ||
-      settings.purgeTempCapturesAfterDays != originalSettings.purgeTempCapturesAfterDays;
+      settings.purgeTempCapturesAfterDays !=
+          originalSettings.purgeTempCapturesAfterDays;
 
   SettingsState copyWith({
     PlatformSettingsModel? settings,
@@ -79,7 +95,9 @@ class SettingsState {
       isCompacting: isCompacting ?? this.isCompacting,
       bridgePingResult: bridgePingResult ?? this.bridgePingResult,
       errorMessage: clearErrors ? null : (errorMessage ?? this.errorMessage),
-      successMessage: clearErrors ? null : (successMessage ?? this.successMessage),
+      successMessage: clearErrors
+          ? null
+          : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -116,10 +134,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
   }
 
   void resetChanges() {
-    state = state.copyWith(
-      settings: state.originalSettings,
-      clearErrors: true,
-    );
+    state = state.copyWith(settings: state.originalSettings, clearErrors: true);
   }
 
   Future<bool> saveSettings() async {
@@ -129,7 +144,8 @@ class SettingsNotifier extends Notifier<SettingsState> {
       state = state.copyWith(
         originalSettings: state.settings,
         isSaving: false,
-        successMessage: 'Configuration saved and deployed across CruDoc platform.',
+        successMessage:
+            'Configuration saved and deployed across CruDoc platform.',
       );
       return true;
     } catch (e) {
@@ -148,10 +164,7 @@ class SettingsNotifier extends Notifier<SettingsState> {
         host: state.settings.rvgBridgeHost,
         port: state.settings.rvgBridgePort,
       );
-      state = state.copyWith(
-        isTestingBridge: false,
-        bridgePingResult: res,
-      );
+      state = state.copyWith(isTestingBridge: false, bridgePingResult: res);
     } catch (e) {
       state = state.copyWith(
         isTestingBridge: false,
@@ -187,6 +200,4 @@ class SettingsNotifier extends Notifier<SettingsState> {
 }
 
 final superAdminSettingsProvider =
-    NotifierProvider<SettingsNotifier, SettingsState>(
-  SettingsNotifier.new,
-);
+    NotifierProvider<SettingsNotifier, SettingsState>(SettingsNotifier.new);

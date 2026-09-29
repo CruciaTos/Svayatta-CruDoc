@@ -106,11 +106,8 @@ class PatientsSummaryStrip extends StatelessWidget {
             icon: CruIcons.whatsapp,
             height: CruSize.stripButton,
             large: true,
-            onPressed: () => showPatientsRemindersSheet(
-              context,
-              kind: kind,
-              rows: rows,
-            ),
+            onPressed: () =>
+                showPatientsRemindersSheet(context, kind: kind, rows: rows),
           ),
         ],
       ),

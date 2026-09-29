@@ -52,8 +52,9 @@ class _InventoryAlertListenerState
             alreadyNotified: (m) => m.lowStockNotifiedAt != null,
             message: (m) =>
                 '${m.name} is low on stock (${m.currentStock} ${m.unit} left).',
-            markNotified: (m) =>
-                ref.read(inventoryRepositoryProvider).markLowStockNotified(m.id),
+            markNotified: (m) => ref
+                .read(inventoryRepositoryProvider)
+                .markLowStockNotified(m.id),
           );
           _previousLowStockIds = medicines.map((m) => m.id).toSet();
         },

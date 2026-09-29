@@ -12,7 +12,10 @@ class SuperAdminFeatureModuleService {
     try {
       final doc = await _fb.doctorSettingsCollection.doc(doctorId).get();
       if (!doc.exists) return null;
-      return FeatureFlagModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+      return FeatureFlagModel.fromJson(
+        doc.data() as Map<String, dynamic>,
+        doc.id,
+      );
     } catch (e) {
       throw Exception('Failed to fetch feature flags: ${e.toString()}');
     }
@@ -28,14 +31,19 @@ class SuperAdminFeatureModuleService {
       final doctorDoc = await _fb.usersCollection.doc(doctorId).get();
       if (!doctorDoc.exists) throw Exception('Doctor not found');
 
-      final planStr = (doctorDoc.data() as Map<String, dynamic>)['subscriptionPlan'] as String? ?? 'starter';
+      final planStr =
+          (doctorDoc.data() as Map<String, dynamic>)['subscriptionPlan']
+              as String? ??
+          'starter';
       final plan = SubscriptionPlan.values.firstWhere(
         (e) => e.name == planStr,
         orElse: () => SubscriptionPlan.starter,
       );
 
       if (!plan.includedModules.contains(moduleId)) {
-        throw Exception('Module "$moduleId" is not available in the ${plan.label} plan');
+        throw Exception(
+          'Module "$moduleId" is not available in the ${plan.label} plan',
+        );
       }
 
       final batch = _fb.batch();
@@ -125,7 +133,8 @@ class SuperAdminFeatureModuleService {
     return FeatureModule.values.map((module) {
       final planAvailability = <String, bool>{};
       for (final plan in SubscriptionPlan.values) {
-        planAvailability[plan.label] = plan.includedModules.contains(module.id) ||
+        planAvailability[plan.label] =
+            plan.includedModules.contains(module.id) ||
             plan.includedModules.contains(module.name);
       }
       return {

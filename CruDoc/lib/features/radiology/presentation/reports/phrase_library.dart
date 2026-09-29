@@ -36,13 +36,20 @@ class _PhraseLibraryState extends ConsumerState<_PhraseLibrary> {
     final phrases = ref.watch(radPhrasesProvider).value ?? const <RadPhrase>[];
     final q = _query.trim().toLowerCase();
     final shown = phrases
-        .where((p) =>
-            q.isEmpty || p.trigger.toLowerCase().contains(q) || p.text.toLowerCase().contains(q))
+        .where(
+          (p) =>
+              q.isEmpty ||
+              p.trigger.toLowerCase().contains(q) ||
+              p.text.toLowerCase().contains(q),
+        )
         .toList();
     return DentalPanelDialog(
       title: 'Phrases',
       subtitle: 'Type a shortcut and a space in any report field to expand it',
-      leading: const CruIconTile(icon: RadIcons.phrase, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.phrase,
+        tone: CruTileTone.accent,
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -64,7 +71,8 @@ class _PhraseLibraryState extends ConsumerState<_PhraseLibrary> {
             DentalEmptyState(
               icon: RadIcons.phrase,
               title: 'No phrases yet',
-              body: 'Save the sentences you write again and again, with a short '
+              body:
+                  'Save the sentences you write again and again, with a short '
                   'trigger like .sinus. Blanks written as __ are selected after '
                   'expanding, and Tab jumps to the next one.',
               actions: [
@@ -89,7 +97,11 @@ class _PhraseLibraryState extends ConsumerState<_PhraseLibrary> {
               if (i > 0) const CruSeparator(indent: CruSpace.s12),
               DentalListRow(
                 semanticLabel: '${shown[i].trigger}: ${shown[i].text}',
-                onTap: () => _showPhraseEditor(context, phrases: phrases, existing: shown[i]),
+                onTap: () => _showPhraseEditor(
+                  context,
+                  phrases: phrases,
+                  existing: shown[i],
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -141,11 +153,10 @@ Future<void> _showPhraseEditor(
   BuildContext context, {
   required List<RadPhrase> phrases,
   RadPhrase? existing,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _PhraseEditor(phrases: phrases, existing: existing),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _PhraseEditor(phrases: phrases, existing: existing),
+);
 
 class _PhraseEditor extends ConsumerStatefulWidget {
   const _PhraseEditor({required this.phrases, this.existing});
@@ -159,7 +170,9 @@ class _PhraseEditor extends ConsumerStatefulWidget {
 
 class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
   final _form = GlobalKey<FormState>();
-  late final _trigger = TextEditingController(text: widget.existing?.trigger ?? '.');
+  late final _trigger = TextEditingController(
+    text: widget.existing?.trigger ?? '.',
+  );
   late final _text = TextEditingController(text: widget.existing?.text ?? '');
   bool _dirty = false;
   bool _busy = false;
@@ -180,10 +193,14 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
   /// ".sinus": a dot, then letters or digits, no spaces, not taken.
   String? _checkTrigger(String? v) {
     final t = (v ?? '').trim();
-    if (t.length < 2 || !t.startsWith('.')) return 'Start with a dot, like .sinus';
+    if (t.length < 2 || !t.startsWith('.'))
+      return 'Start with a dot, like .sinus';
     if (t.contains(RegExp(r'\s'))) return 'No spaces in a shortcut.';
-    final taken = widget.phrases.any((p) =>
-        p.id != widget.existing?.id && p.trigger.toLowerCase() == t.toLowerCase());
+    final taken = widget.phrases.any(
+      (p) =>
+          p.id != widget.existing?.id &&
+          p.trigger.toLowerCase() == t.toLowerCase(),
+    );
     return taken ? '$t is already used.' : null;
   }
 
@@ -195,11 +212,15 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
       _notice = null;
     });
     try {
-      await ref.read(radiologyProvider).savePhrase(RadPhrase(
-            id: widget.existing?.id ?? radId('phr_'),
-            trigger: _trigger.text.trim(),
-            text: _text.text.trim(),
-          ));
+      await ref
+          .read(radiologyProvider)
+          .savePhrase(
+            RadPhrase(
+              id: widget.existing?.id ?? radId('phr_'),
+              trigger: _trigger.text.trim(),
+              text: _text.text.trim(),
+            ),
+          );
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
       setState(() {
@@ -215,7 +236,8 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
     final ok = await confirmDental(
       context,
       title: 'Delete ${e.trigger}?',
-      body: 'The shortcut stops expanding. Reports already written keep their text.',
+      body:
+          'The shortcut stops expanding. Reports already written keep their text.',
       action: 'Delete',
     );
     if (!ok || !mounted) return;
@@ -228,7 +250,10 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
     return CruFormDialog(
       title: widget.existing == null ? 'New phrase' : 'Edit phrase',
       subtitle: widget.existing?.trigger,
-      leading: const CruIconTile(icon: RadIcons.phrase, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.phrase,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.existing == null ? 'Add phrase' : 'Save phrase',
       onSubmit: _save,
       busy: _busy,
@@ -238,12 +263,14 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
       width: CruSize.formDialog - 80,
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: CruFormSection(
           first: true,
           title: 'Phrase',
-          description: 'Write __ where a value goes: it is selected after expanding, and '
+          description:
+              'Write __ where a value goes: it is selected after expanding, and '
               'Tab moves to the next one.',
           children: [
             CruTextField(
@@ -251,7 +278,9 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
               controller: _trigger,
               hint: '.sinus',
               autofocus: widget.existing == null,
-              inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r'\s'))],
+              inputFormatters: [
+                FilteringTextInputFormatter.deny(RegExp(r'\s')),
+              ],
               validator: _checkTrigger,
               onChanged: (_) => _edited(),
             ),
@@ -261,7 +290,9 @@ class _PhraseEditorState extends ConsumerState<_PhraseEditor> {
               maxLines: 5,
               hint: 'Both maxillary sinuses are well pneumatised and clear.',
               textCapitalization: TextCapitalization.sentences,
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Write the text it puts in.' : null,
+              validator: (v) => (v ?? '').trim().isEmpty
+                  ? 'Write the text it puts in.'
+                  : null,
               onChanged: (_) => _edited(),
             ),
             if (widget.existing != null)

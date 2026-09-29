@@ -48,14 +48,12 @@ class BottomNavBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lowStockCount = ref.watch(lowStockMedicinesProvider).maybeWhen(
-          data: (data) => data.length,
-          orElse: () => 0,
-        );
-    final expiringCount = ref.watch(expiringMedicinesProvider).maybeWhen(
-          data: (data) => data.length,
-          orElse: () => 0,
-        );
+    final lowStockCount = ref
+        .watch(lowStockMedicinesProvider)
+        .maybeWhen(data: (data) => data.length, orElse: () => 0);
+    final expiringCount = ref
+        .watch(expiringMedicinesProvider)
+        .maybeWhen(data: (data) => data.length, orElse: () => 0);
     final inventoryBadgeCount = lowStockCount + expiringCount;
 
     return ClipRRect(
@@ -71,23 +69,19 @@ class BottomNavBar extends ConsumerWidget {
             border: Border.all(
               color: chartBarLight.withValues(alpha: 0.3), // vivid blue border
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               ...List.generate(_icons.length, (index) {
                 final isActive = index == selectedIndex;
-                final badgeCount =
-                    index == _inventoryTabIndex ? inventoryBadgeCount : 0;
+                final badgeCount = index == _inventoryTabIndex
+                    ? inventoryBadgeCount
+                    : 0;
                 final moduleKey = DoctorFeatureGuard.getModuleKeyForTab(index);
-                final isEnabled = enabledModules == null ||
+                final isEnabled =
+                    enabledModules == null ||
                     index == 0 ||
                     index == 5 ||
                     DoctorFeatureGuard.isEnabled(enabledModules!, moduleKey);
@@ -116,8 +110,8 @@ class BottomNavBar extends ConsumerWidget {
                           color: isActive
                               ? Colors.white
                               : (isEnabled
-                                  ? AppColors.silver
-                                  : AppColors.silver.withValues(alpha: 0.5)),
+                                    ? AppColors.silver
+                                    : AppColors.silver.withValues(alpha: 0.5)),
                         ),
                         if (!isEnabled)
                           Positioned(
@@ -184,14 +178,7 @@ class BottomNavBar extends ConsumerWidget {
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-                        BoxShadow(
-                          color:
-                              const Color(0xFF1E78FF).withValues(alpha: 0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                      boxShadow: const [],
                     ),
                     child: const Icon(
                       Icons.smart_toy_rounded,

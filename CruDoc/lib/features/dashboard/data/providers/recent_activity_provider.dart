@@ -62,7 +62,9 @@ final recentActivityProvider = Provider<AsyncValue<List<ActivityItem>>>((ref) {
   // and sorting thousands of historical entries.
   final candidatePatients = patients.take(kRecentActivityDisplayLimit * 2);
   final candidateVisits = visits.take(kRecentActivityDisplayLimit * 2);
-  final candidateTransactions = transactions.take(kRecentActivityDisplayLimit * 2);
+  final candidateTransactions = transactions.take(
+    kRecentActivityDisplayLimit * 2,
+  );
   final candidateRevenue = revenueEntries.take(kRecentActivityDisplayLimit * 2);
 
   final items = <ActivityItem>[

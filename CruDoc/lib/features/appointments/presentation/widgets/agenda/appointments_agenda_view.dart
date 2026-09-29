@@ -67,10 +67,7 @@ class AppointmentsAgendaView extends ConsumerWidget {
               width: double.infinity,
               child: Column(
                 children: [
-                  Text(
-                    'Nothing booked',
-                    style: CruType.headline.tint(c.label),
-                  ),
+                  Text('Nothing booked', style: CruType.headline.tint(c.label)),
                   const SizedBox(height: CruSpace.s4),
                   Text(
                     'No appointments in the $days days from '
@@ -145,9 +142,7 @@ class AppointmentsAgendaView extends ConsumerWidget {
 class _Entry {
   const _Entry.header(DateTime this.date) : item = null;
   const _Entry.row(DateTime this.date, ApptItem this.item);
-  const _Entry.separator()
-      : date = null,
-        item = null;
+  const _Entry.separator() : date = null, item = null;
 
   final DateTime? date;
   final ApptItem? item;

@@ -7,10 +7,7 @@ class AppointmentEmailContent {
   final String subject;
   final String body;
 
-  const AppointmentEmailContent({
-    required this.subject,
-    required this.body,
-  });
+  const AppointmentEmailContent({required this.subject, required this.body});
 }
 
 /// Helper service that generates clean, professional plain-text appointment confirmation emails.
@@ -36,7 +33,9 @@ class AppointmentEmailTemplate {
         : 'Patient';
 
     final isHomeVisit = visit.visitType == VisitType.home;
-    final visitTypeLabel = isHomeVisit ? 'Home Visit Consultation' : 'In-Clinic Consultation';
+    final visitTypeLabel = isHomeVisit
+        ? 'Home Visit Consultation'
+        : 'In-Clinic Consultation';
 
     String location = 'Clinic';
     if (isHomeVisit) {
@@ -57,7 +56,8 @@ class AppointmentEmailTemplate {
 
     final subject = 'Appointment Confirmation: $doctorName on $formattedDate';
 
-    final body = '''
+    final body =
+        '''
 Dear $patientName,
 
 Your appointment with $doctorName ($specialty) has been successfully scheduled.

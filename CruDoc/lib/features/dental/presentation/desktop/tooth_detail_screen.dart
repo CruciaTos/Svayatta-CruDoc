@@ -12,16 +12,24 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 /// A patient's chart from every source: findings, the plan, the latest
 /// perio exam and the endo records.
 ToothChartData watchPatientChart(WidgetRef ref, String patientId) {
-  final entries = ref.watch(patientToothChartProvider(patientId)).value ??
+  final entries =
+      ref.watch(patientToothChartProvider(patientId)).value ??
       const <ToothChartEntryModel>[];
-  final plan = ref.watch(patientTreatmentPlanProvider(patientId)).value ??
+  final plan =
+      ref.watch(patientTreatmentPlanProvider(patientId)).value ??
       const <TreatmentPlanLineItemModel>[];
-  final perio = ref
-          .watch(patientRecordsProvider((patientId: patientId, kind: RecKind.perio)))
+  final perio =
+      ref
+          .watch(
+            patientRecordsProvider((patientId: patientId, kind: RecKind.perio)),
+          )
           .value ??
       const <DentalRecord>[];
-  final endo = ref
-          .watch(patientRecordsProvider((patientId: patientId, kind: RecKind.endo)))
+  final endo =
+      ref
+          .watch(
+            patientRecordsProvider((patientId: patientId, kind: RecKind.endo)),
+          )
           .value ??
       const <DentalRecord>[];
   return ToothChartData.from(

@@ -24,10 +24,8 @@ Future<bool?> showDesktopAddEditPatientDialog(
   return showDialog<bool>(
     context: context,
     barrierDismissible: false,
-    builder: (_) => DesktopAddEditPatientDialog(
-      patient: patient,
-      repository: repository,
-    ),
+    builder: (_) =>
+        DesktopAddEditPatientDialog(patient: patient, repository: repository),
   );
 }
 
@@ -270,7 +268,8 @@ class _DesktopAddEditPatientDialogState
       // As soon as ANY field value is recognized, populate it immediately! Do NOT wait for key-up!
       // But for names, wait until the user finishes speaking or moves past the name
       // to prevent flickering and stuttering on intermediate syllable guesses.
-      final movedPastName = f.isFinal ||
+      final movedPastName =
+          f.isFinal ||
           f.gender != null ||
           f.dateOfBirth != null ||
           f.age != null ||
@@ -310,24 +309,18 @@ class _DesktopAddEditPatientDialogState
           _revealLastName++;
         }
       }
-      if (f.phone != null &&
-          f.phone!.isNotEmpty &&
-          _phone.text != f.phone!) {
+      if (f.phone != null && f.phone!.isNotEmpty && _phone.text != f.phone!) {
         _phone.text = f.phone!;
         _pendingPhone = false;
         _revealPhone++;
       }
-      if (f.email != null &&
-          f.email!.isNotEmpty &&
-          _email.text != f.email!) {
+      if (f.email != null && f.email!.isNotEmpty && _email.text != f.email!) {
         _email.text = f.email!;
         _pendingEmail = false;
         _revealEmail++;
       }
       // Sex is toggled directly without blur or disappearing animation
-      if (f.gender != null &&
-          _sexes.contains(f.gender) &&
-          _sex != f.gender) {
+      if (f.gender != null && _sexes.contains(f.gender) && _sex != f.gender) {
         _sex = f.gender;
       }
       if (f.dateOfBirth != null && _dateOfBirth != f.dateOfBirth) {
@@ -402,12 +395,12 @@ class _DesktopAddEditPatientDialogState
 
   @override
   List<String> voiceMissing() => [
-        if (_firstName.text.trim().isEmpty) 'first name',
-        if (_lastName.text.trim().isEmpty) 'last name',
-        if (_sex == null) 'sex',
-        if (_dateOfBirth == null) 'age',
-        if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) 'mobile',
-      ];
+    if (_firstName.text.trim().isEmpty) 'first name',
+    if (_lastName.text.trim().isEmpty) 'last name',
+    if (_sex == null) 'sex',
+    if (_dateOfBirth == null) 'age',
+    if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) 'mobile',
+  ];
 
   @override
   void onVoiceConfirm() => _save();
@@ -526,7 +519,8 @@ class _DesktopAddEditPatientDialogState
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _notice = "Couldn't save ${_isEditing ? 'the changes' : 'this patient'}. "
+        _notice =
+            "Couldn't save ${_isEditing ? 'the changes' : 'this patient'}. "
             'Check your connection and try again.';
       });
     }
@@ -541,8 +535,14 @@ class _DesktopAddEditPatientDialogState
           ? widget.patient!.fullName
           : 'Add them to your patient list',
       leading: name.isEmpty
-          ? const CruIconTile(icon: CruIcons.userPlus, tone: CruTileTone.neutral)
-          : CruMonogram(name: name, size: CruSize.iconTile),
+          ? const CruIconTile(
+              icon: CruIcons.userPlus,
+              tone: CruTileTone.neutral,
+            )
+          : CruMonogram(
+              name: name,
+              size: CruSize.iconTile,
+            ),
       submitLabel: _isEditing ? 'Save changes' : 'Add patient',
       onSubmit: _save,
       busy: _saving,
@@ -569,7 +569,8 @@ class _DesktopAddEditPatientDialogState
               first: true,
               title: 'Patient',
               description: 'As it will appear on the record and on bills.',
-              children: [                CruFieldRow(
+              children: [
+                CruFieldRow(
                   children: [
                     CruTextField(
                       label: 'First name',
@@ -736,8 +737,9 @@ class _DesktopAddEditPatientDialogState
                       prefix: '₹',
                       hint: '0',
                       tabular: true,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
                       ],

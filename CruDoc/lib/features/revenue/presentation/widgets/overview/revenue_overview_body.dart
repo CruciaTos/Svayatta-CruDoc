@@ -56,7 +56,8 @@ class RevenueOverviewBody extends ConsumerWidget {
         : PendingPaymentsCard(
             groups: pending,
             onMarkPaid: (g) => PendingActions.markPaid(context, ref, g),
-            onSendReminders: () => PendingActions.sendReminders(context, pending),
+            onSendReminders: () =>
+                PendingActions.sendReminders(context, pending),
           );
 
     final wide = MediaQuery.sizeOf(context).width >= CruBreakpoint.splitPane;

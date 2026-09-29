@@ -182,9 +182,7 @@ class QueueEntry {
   bool get isPrebooked => linkedVisitId != null && linkedVisitId!.isNotEmpty;
 
   /// Builds a [QueueEntry] from a Firestore document snapshot.
-  factory QueueEntry.fromFirestore(
-    DocumentSnapshot<Map<String, dynamic>> doc,
-  ) {
+  factory QueueEntry.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
     final data = doc.data() ?? <String, dynamic>{};
     return QueueEntry.fromMap(data, id: doc.id);
   }
@@ -276,7 +274,8 @@ class QueueEntry {
       reason: reason ?? this.reason,
       checkedInAt: checkedInAt ?? this.checkedInAt,
       calledAt: calledAt ?? this.calledAt,
-      consultationStartedAt: consultationStartedAt ?? this.consultationStartedAt,
+      consultationStartedAt:
+          consultationStartedAt ?? this.consultationStartedAt,
       completedAt: completedAt ?? this.completedAt,
       linkedVisitId: linkedVisitId ?? this.linkedVisitId,
       groupId: groupId ?? this.groupId,

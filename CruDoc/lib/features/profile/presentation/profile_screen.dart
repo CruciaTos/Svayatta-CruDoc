@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/shell/components/shell_background
 import 'package:doctor_management_app/features/profile/presentation/widgets/gmail_integration_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/letterhead_branding_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/active_sessions_card.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -34,8 +35,10 @@ class ProfileScreen extends StatelessWidget {
       stream: DoctorProfileHelper.watchDoctorProfile(user),
       builder: (context, snapshot) {
         final profileData = snapshot.data;
-        final doctorName =
-            DoctorProfileHelper.formatDoctorName(user, profileData);
+        final doctorName = DoctorProfileHelper.formatDoctorName(
+          user,
+          profileData,
+        );
         final specialty = DoctorProfileHelper.formatSpecialty(profileData);
 
         return Scaffold(
@@ -61,13 +64,7 @@ class ProfileScreen extends StatelessWidget {
                               border: Border.all(
                                 color: const Color(0xFFE2E8F0),
                               ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x08000000),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
+                              boxShadow: const [],
                             ),
                             child: const Icon(
                               Icons.arrow_back_rounded,
@@ -88,7 +85,10 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         InkWell(
                           onTap: () => _showEditProfileSheet(
-                              context, doctorName, specialty),
+                            context,
+                            doctorName,
+                            specialty,
+                          ),
                           borderRadius: BorderRadius.circular(14),
                           child: Container(
                             padding: const EdgeInsets.symmetric(
@@ -96,12 +96,14 @@ class ProfileScreen extends StatelessWidget {
                               vertical: 8,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1E78FF)
-                                  .withValues(alpha: 0.12),
+                              color: const Color(
+                                0xFF1E78FF,
+                              ).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
-                                color: const Color(0xFF1E78FF)
-                                    .withValues(alpha: 0.3),
+                                color: const Color(
+                                  0xFF1E78FF,
+                                ).withValues(alpha: 0.3),
                               ),
                             ),
                             child: Row(
@@ -137,20 +139,14 @@ class ProfileScreen extends StatelessWidget {
                         // ---- Hero Profile Card ----
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              vertical: 24, horizontal: 20),
+                            vertical: 24,
+                            horizontal: 20,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(24),
-                            border: Border.all(
-                              color: const Color(0xFFE2E8F0),
-                            ),
-                            boxShadow: const [
-                              BoxShadow(
-                                color: Color(0x0C000000),
-                                blurRadius: 14,
-                                offset: Offset(0, 4),
-                              ),
-                            ],
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                            boxShadow: const [],
                           ),
                           child: Column(
                             children: [
@@ -161,22 +157,13 @@ class ProfileScreen extends StatelessWidget {
                                 padding: const EdgeInsets.all(4),
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  gradient: const LinearGradient(
-                                    colors: [
-                                      Color(0xFF1E78FF),
-                                      Color(0xFF00C6FF)
-                                    ],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
+                                  border: Border.all(
+                                    color: const Color(
+                                      0xFF3155E0,
+                                    ).withValues(alpha: 0.4),
+                                    width: 1,
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF1E78FF)
-                                          .withValues(alpha: 0.25),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
+                                  boxShadow: const [],
                                 ),
                                 child: Container(
                                   decoration: const BoxDecoration(
@@ -188,18 +175,18 @@ class ProfileScreen extends StatelessWidget {
                                           child: Image.network(
                                             user!.photoURL!,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (_, __, _) =>
-                                                const Icon(
-                                              Icons.medical_services_rounded,
-                                              color: Color(0xFF1E78FF),
-                                              size: 44,
-                                            ),
+                                            errorBuilder: (context, error, stackTrace) =>
+                                                CruMonogram(
+                                                  name: doctorName,
+                                                  size: 88,
+                                                  showRing: false,
+                                                ),
                                           ),
                                         )
-                                      : const Icon(
-                                          Icons.person_rounded,
-                                          color: Color(0xFF1E78FF),
-                                          size: 52,
+                                      : CruMonogram(
+                                          name: doctorName,
+                                          size: 88,
+                                          showRing: false,
                                         ),
                                 ),
                               ),
@@ -224,12 +211,14 @@ class ProfileScreen extends StatelessWidget {
                                   vertical: 5,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF1E78FF)
-                                      .withValues(alpha: 0.1),
+                                  color: const Color(
+                                    0xFF1E78FF,
+                                  ).withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: const Color(0xFF1E78FF)
-                                        .withValues(alpha: 0.25),
+                                    color: const Color(
+                                      0xFF1E78FF,
+                                    ).withValues(alpha: 0.25),
                                   ),
                                 ),
                                 child: Row(
@@ -283,7 +272,10 @@ class ProfileScreen extends StatelessWidget {
                           color: Colors.transparent,
                           child: InkWell(
                             onTap: () => _showEditProfileSheet(
-                                context, doctorName, specialty),
+                              context,
+                              doctorName,
+                              specialty,
+                            ),
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -291,19 +283,13 @@ class ProfileScreen extends StatelessWidget {
                                 gradient: const LinearGradient(
                                   colors: [
                                     Color(0xFF1E78FF),
-                                    Color(0xFF1D4ED8)
+                                    Color(0xFF1D4ED8),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                                 borderRadius: BorderRadius.circular(16),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x331E78FF),
-                                    blurRadius: 10,
-                                    offset: Offset(0, 4),
-                                  ),
-                                ],
+                                boxShadow: const [],
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -346,8 +332,9 @@ class ProfileScreen extends StatelessWidget {
                           _ProfileCard(
                             icon: Icons.email_outlined,
                             iconColor: const Color(0xFF1E78FF),
-                            iconBg: const Color(0xFF1E78FF)
-                                .withValues(alpha: 0.1),
+                            iconBg: const Color(
+                              0xFF1E78FF,
+                            ).withValues(alpha: 0.1),
                             title: 'Email Address',
                             subtitle: email,
                           ),
@@ -357,8 +344,9 @@ class ProfileScreen extends StatelessWidget {
                           _ProfileCard(
                             icon: Icons.phone_outlined,
                             iconColor: const Color(0xFF0D9488),
-                            iconBg: const Color(0xFF0D9488)
-                                .withValues(alpha: 0.1),
+                            iconBg: const Color(
+                              0xFF0D9488,
+                            ).withValues(alpha: 0.1),
                             title: 'Phone Number',
                             subtitle: phone,
                           ),
@@ -367,8 +355,9 @@ class ProfileScreen extends StatelessWidget {
                         _ProfileCard(
                           icon: Icons.local_hospital_outlined,
                           iconColor: const Color(0xFF8B5CF6),
-                          iconBg:
-                              const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                          iconBg: const Color(
+                            0xFF8B5CF6,
+                          ).withValues(alpha: 0.1),
                           title: 'Specialty / Qualification',
                           subtitle: specialty,
                         ),
@@ -376,8 +365,9 @@ class ProfileScreen extends StatelessWidget {
                         _ProfileCard(
                           icon: Icons.shield_outlined,
                           iconColor: const Color(0xFFF59E0B),
-                          iconBg:
-                              const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                          iconBg: const Color(
+                            0xFFF59E0B,
+                          ).withValues(alpha: 0.1),
                           title: 'Authentication Provider',
                           subtitle: '$authMethod Account',
                         ),
@@ -443,7 +433,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   void _showEditProfileSheet(
-      BuildContext context, String currentName, String currentSpecialty) {
+    BuildContext context,
+    String currentName,
+    String currentSpecialty,
+  ) {
     final nameController = TextEditingController(text: currentName);
     final specialtyController = TextEditingController(text: currentSpecialty);
     bool isSaving = false;
@@ -480,8 +473,10 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: Color(0xFF64748B)),
+                    icon: const Icon(
+                      Icons.close_rounded,
+                      color: Color(0xFF64748B),
+                    ),
                     onPressed: () => Navigator.pop(ctx),
                   ),
                 ],
@@ -503,11 +498,13 @@ class ProfileScreen extends StatelessWidget {
                   hintText: 'e.g. Dr. Vinit Parab',
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: const BorderSide(color: Colors.transparent),
                   ),
                 ),
               ),
@@ -528,11 +525,13 @@ class ProfileScreen extends StatelessWidget {
                   hintText: 'e.g. General Physician, MD Cardiology',
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 12,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: const BorderSide(color: Colors.transparent),
                   ),
                 ),
               ),
@@ -599,13 +598,7 @@ class _ProfileCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06000000),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Row(
         children: [

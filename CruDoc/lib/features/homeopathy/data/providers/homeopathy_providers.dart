@@ -14,6 +14,6 @@ final homeopathyRepositoryProvider = Provider<HomeopathyRepository>((ref) {
 
 final homeopathyCaseSheetProvider =
     StreamProvider.family<HomeopathyCaseSheet?, String>((ref, patientId) {
-  final repo = ref.watch(homeopathyRepositoryProvider);
-  return repo.watchCaseSheetForPatient(patientId);
-});
+      final repo = ref.watch(homeopathyRepositoryProvider);
+      return repo.watchCaseSheetForPatient(patientId);
+    });

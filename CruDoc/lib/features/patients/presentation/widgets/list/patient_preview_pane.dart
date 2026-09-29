@@ -40,10 +40,11 @@ class PatientPreviewPane extends ConsumerWidget {
     final allergy = _allergyPill(ref);
     final phone = s.patient.phone.trim();
 
-    final scans = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
-        .where((st) => st.patientId == s.id)
-        .toList()
-      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+    final scans =
+        (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+            .where((st) => st.patientId == s.id)
+            .toList()
+          ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
 
     final blocks = <Widget>[
       _Head(summary: s, onOpen: onOpen, onClose: onClose),
@@ -79,8 +80,8 @@ class PatientPreviewPane extends ConsumerWidget {
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: c.surface,
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
-          shadows: c.paneShadow,
+          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+          shadows: const [],
         ),
         child: SingleChildScrollView(
           primary: false,
@@ -176,7 +177,10 @@ class _Head extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CruMonogram(name: summary.name, size: CruSize.monogramPreview),
+        CruMonogram(
+          name: summary.name,
+          size: CruSize.monogramPreview,
+        ),
         const SizedBox(width: CruSpace.s14),
         Expanded(
           child: Padding(
@@ -241,6 +245,7 @@ class _ActionTiles extends ConsumerWidget {
           child: _ActionTile(
             icon: CruIcons.phone,
             label: 'Call',
+            tone: _ActionTileTone.accent,
             onTap: hasPhone ? () => PatientActions.call(context, p) : null,
           ),
         ),
@@ -249,6 +254,7 @@ class _ActionTiles extends ConsumerWidget {
           child: _ActionTile(
             icon: CruIcons.whatsapp,
             label: 'WhatsApp',
+            tone: _ActionTileTone.success,
             onTap: hasPhone ? () => PatientActions.whatsApp(context, p) : null,
           ),
         ),
@@ -257,6 +263,7 @@ class _ActionTiles extends ConsumerWidget {
           child: _ActionTile(
             icon: CruIcons.calendar,
             label: 'New visit',
+            tone: _ActionTileTone.accent,
             onTap: () => PatientActions.newVisit(context, ref, p),
           ),
         ),
@@ -265,21 +272,36 @@ class _ActionTiles extends ConsumerWidget {
   }
 }
 
+enum _ActionTileTone { accent, success }
+
 class _ActionTile extends StatelessWidget {
   const _ActionTile({
     required this.icon,
     required this.label,
+    required this.tone,
     required this.onTap,
   });
 
   final CruIconData icon;
   final String label;
+  final _ActionTileTone tone;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final fg = onTap == null ? c.label3 : c.accentText;
+    final isDisabled = onTap == null;
+    final (fg, fill) = switch (tone) {
+      _ActionTileTone.accent => (
+        isDisabled ? c.label3 : c.accentText,
+        isDisabled ? c.inset : c.accentTint,
+      ),
+      _ActionTileTone.success => (
+        isDisabled ? c.label3 : c.greenText,
+        isDisabled ? c.inset : c.greenTint,
+      ),
+    };
+
     return CruPressable(
       onTap: onTap,
       semanticLabel: label,
@@ -288,7 +310,7 @@ class _ActionTile extends StatelessWidget {
         curve: CruMotion.curve,
         height: CruSize.actionTile,
         decoration: ShapeDecoration(
-          color: hovered ? cruHoverShade(c.inset, c) : c.inset,
+          color: hovered ? cruHoverShade(fill, c) : fill,
           shape: cruShape(CruRadius.control),
         ),
         child: Column(
@@ -536,7 +558,10 @@ class _OpenProfileButton extends StatelessWidget {
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('Open full profile', style: CruType.callout.tint(c.accentText)),
+            Text(
+              'Open full profile',
+              style: CruType.callout.tint(c.accentText),
+            ),
             const SizedBox(width: CruSpace.s4),
             CruIcon(
               CruIcons.chevronRight,
@@ -560,7 +585,10 @@ class _ImagingBlock extends ConsumerWidget {
     final c = context.cru;
     final first = studies.first;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s12,
+        vertical: CruSpace.s10,
+      ),
       decoration: BoxDecoration(
         color: c.inset,
         borderRadius: BorderRadius.circular(CruRadius.panel),
@@ -596,4 +624,3 @@ class _ImagingBlock extends ConsumerWidget {
     );
   }
 }
-

@@ -19,10 +19,8 @@ Future<void> showStockAdjustmentDialog(
 }) {
   return showDialog<void>(
     context: context,
-    builder: (_) => StockAdjustmentDialog(
-      medicine: medicine,
-      repository: repository,
-    ),
+    builder: (_) =>
+        StockAdjustmentDialog(medicine: medicine, repository: repository),
   );
 }
 
@@ -43,8 +41,7 @@ class StockAdjustmentDialog extends ConsumerStatefulWidget {
       _StockAdjustmentDialogState();
 }
 
-class _StockAdjustmentDialogState
-    extends ConsumerState<StockAdjustmentDialog> {
+class _StockAdjustmentDialogState extends ConsumerState<StockAdjustmentDialog> {
   late final InventoryRepository _repository =
       widget.repository ?? InventoryRepository();
 
@@ -134,7 +131,8 @@ class _StockAdjustmentDialogState
     return CruFormDialog(
       width: CruSize.dialog,
       title: 'Adjust stock',
-      subtitle: '${m.name} · '
+      subtitle:
+          '${m.name} · '
           '${InventoryFormat.quantity(m.currentStock, m.unit)} in stock',
       leading: CruIconTile(
         icon: pills.any(u.startsWith) ? InventoryIcons.pill : CruIcons.box,

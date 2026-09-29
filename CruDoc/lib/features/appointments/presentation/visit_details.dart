@@ -374,8 +374,10 @@ class VisitDetailsPage extends ConsumerWidget {
                       builder: (context, snapshot) {
                         final modules =
                             snapshot.data ?? DoctorFeatureGuard.defaultModules;
-                        final hasAiAssistant =
-                            DoctorFeatureGuard.isEnabled(modules, 'ai_assistant');
+                        final hasAiAssistant = DoctorFeatureGuard.isEnabled(
+                          modules,
+                          'ai_assistant',
+                        );
                         if (!hasAiAssistant) return const SizedBox.shrink();
                         return IconButton(
                           icon: const Icon(

@@ -5,7 +5,7 @@ import 'package:doctor_management_app/features/revenue/data/models/invoice_model
 
 class InvoiceLocalService {
   InvoiceLocalService({LocalDatabaseService? dbService})
-      : _dbService = dbService ?? LocalDatabaseService.instance;
+    : _dbService = dbService ?? LocalDatabaseService.instance;
 
   final LocalDatabaseService _dbService;
 

@@ -27,25 +27,26 @@ class GmailAuthService {
     FlutterSecureStorage? secureStorage,
     GoogleSignIn? googleSignIn,
     http.Client? httpClient,
-  })  : _secureStorage = secureStorage ??
-            (kIsWeb
-                ? const FlutterSecureStorage()
-                : const FlutterSecureStorage(
-                    aOptions: AndroidOptions(encryptedSharedPreferences: true),
-                  )),
-        _googleSignIn = googleSignIn ??
-            GoogleSignIn(
-              scopes: const [
-                'https://www.googleapis.com/auth/gmail.send',
-              ],
-            ),
-        _httpClient = httpClient;
+  }) : _secureStorage =
+           secureStorage ??
+           (kIsWeb
+               ? const FlutterSecureStorage()
+               : const FlutterSecureStorage(
+                   aOptions: AndroidOptions(encryptedSharedPreferences: true),
+                 )),
+       _googleSignIn =
+           googleSignIn ??
+           GoogleSignIn(
+             scopes: const ['https://www.googleapis.com/auth/gmail.send'],
+           ),
+       _httpClient = httpClient;
 
   final FlutterSecureStorage _secureStorage;
   final GoogleSignIn _googleSignIn;
   final http.Client? _httpClient;
 
-  static const String _gmailScope = 'https://www.googleapis.com/auth/gmail.send';
+  static const String _gmailScope =
+      'https://www.googleapis.com/auth/gmail.send';
   static const String _tokenEndpoint = 'https://oauth2.googleapis.com/token';
   static const String _revokeEndpoint = 'https://oauth2.googleapis.com/revoke';
 
@@ -67,10 +68,12 @@ class GmailAuthService {
   }
 
   String _refreshTokenKey(String doctorId) => 'gmail_refresh_token_$doctorId';
-  String _connectedEmailKey(String doctorId) => 'gmail_connected_email_$doctorId';
+  String _connectedEmailKey(String doctorId) =>
+      'gmail_connected_email_$doctorId';
 
   /// Whether a connected Gmail account is available for sending emails.
-  bool get isConnected => _connectedEmail != null && _connectedEmail!.isNotEmpty;
+  bool get isConnected =>
+      _connectedEmail != null && _connectedEmail!.isNotEmpty;
 
   /// Alias for isConnected.
   bool get isSignedIn => isConnected;
@@ -87,7 +90,9 @@ class GmailAuthService {
     }
 
     try {
-      final storedEmail = await _secureStorage.read(key: _connectedEmailKey(doctorId));
+      final storedEmail = await _secureStorage.read(
+        key: _connectedEmailKey(doctorId),
+      );
       if (storedEmail == null || storedEmail.isEmpty) {
         _clearMemoryState();
         return false;
@@ -95,7 +100,9 @@ class GmailAuthService {
 
       // Check desktop refresh token
       if (_isDesktop) {
-        final storedRefreshToken = await _secureStorage.read(key: _refreshTokenKey(doctorId));
+        final storedRefreshToken = await _secureStorage.read(
+          key: _refreshTokenKey(doctorId),
+        );
         if (storedRefreshToken != null && storedRefreshToken.isNotEmpty) {
           try {
             await _refreshDesktopAccessToken(storedRefreshToken);
@@ -133,7 +140,9 @@ class GmailAuthService {
   Future<String> signIn() async {
     final doctorId = _currentDoctorId;
     if (doctorId == 'anonymous') {
-      throw const GmailAuthRevokedException('User must be signed in to connect Gmail.');
+      throw const GmailAuthRevokedException(
+        'User must be signed in to connect Gmail.',
+      );
     }
 
     if (_isDesktop) {
@@ -150,7 +159,8 @@ class GmailAuthService {
 
     try {
       if (_isDesktop) {
-        final token = await _secureStorage.read(key: _refreshTokenKey(doctorId)) ??
+        final token =
+            await _secureStorage.read(key: _refreshTokenKey(doctorId)) ??
             _cachedAccessToken;
         if (token != null && token.isNotEmpty) {
           try {
@@ -198,13 +208,17 @@ class GmailAuthService {
       account ??= await _googleSignIn.signInSilently();
 
       if (account == null) {
-        throw const GmailAuthRevokedException('Gmail session not found. Please connect your account.');
+        throw const GmailAuthRevokedException(
+          'Gmail session not found. Please connect your account.',
+        );
       }
 
       final auth = await account.authentication;
       final accessToken = auth.accessToken;
       if (accessToken == null || accessToken.isEmpty) {
-        throw const GmailAuthRevokedException('Failed to retrieve Gmail access token.');
+        throw const GmailAuthRevokedException(
+          'Failed to retrieve Gmail access token.',
+        );
       }
 
       return {
@@ -224,13 +238,13 @@ class GmailAuthService {
       account ??= await _googleSignIn.signInSilently();
 
       if (account != null) {
-        final hasScope = await _googleSignIn.canAccessScopes(
-          const [_gmailScope],
-        );
+        final hasScope = await _googleSignIn.canAccessScopes(const [
+          _gmailScope,
+        ]);
         if (!hasScope) {
-          final granted = await _googleSignIn.requestScopes(
-            const [_gmailScope],
-          );
+          final granted = await _googleSignIn.requestScopes(const [
+            _gmailScope,
+          ]);
           if (!granted) {
             throw const GmailAuthCancelledException();
           }
@@ -255,15 +269,20 @@ class GmailAuthService {
       if (pe.code == 'sign_in_canceled') {
         throw const GmailAuthCancelledException();
       }
-      if (pe.message?.contains('ApiException: 10') == true || pe.details?.toString().contains('10') == true) {
+      if (pe.message?.contains('ApiException: 10') == true ||
+          pe.details?.toString().contains('10') == true) {
         throw const GmailSendException(
           'Google Sign-In requires registering your debug SHA-1 in Firebase Console:\n90:97:84:95:7F:7A:25:9D:08:44:5F:F9:37:DA:5C:04:4C:D4:CA:14',
         );
       }
-      throw GmailSendException('Google Sign-In failed (${pe.code}): ${pe.message ?? ''}');
+      throw GmailSendException(
+        'Google Sign-In failed (${pe.code}): ${pe.message ?? ''}',
+      );
     } catch (e) {
       if (e is GmailException) rethrow;
-      throw GmailSendException('Failed to connect Gmail account: ${e.toString()}');
+      throw GmailSendException(
+        'Failed to connect Gmail account: ${e.toString()}',
+      );
     }
   }
 
@@ -298,14 +317,21 @@ class GmailAuthService {
         'prompt': 'consent',
       });
 
-      final launched = await launchUrl(authUri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        authUri,
+        mode: LaunchMode.externalApplication,
+      );
       if (!launched) {
-        throw const GmailNetworkException('Could not launch browser for Google sign-in.');
+        throw const GmailNetworkException(
+          'Could not launch browser for Google sign-in.',
+        );
       }
 
       final request = await server.first.timeout(
         const Duration(minutes: 2),
-        onTimeout: () => throw const GmailAuthCancelledException('Sign-in timed out. Please try again.'),
+        onTimeout: () => throw const GmailAuthCancelledException(
+          'Sign-in timed out. Please try again.',
+        ),
       );
 
       final queryParams = request.uri.queryParameters;
@@ -374,7 +400,9 @@ class GmailAuthService {
       );
 
       if (response.statusCode != 200) {
-        throw const GmailAuthRevokedException('Failed to exchange authorization code for tokens.');
+        throw const GmailAuthRevokedException(
+          'Failed to exchange authorization code for tokens.',
+        );
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -384,14 +412,18 @@ class GmailAuthService {
       final idToken = body['id_token'] as String?;
 
       if (accessToken == null) {
-        throw const GmailAuthRevokedException('No access token returned by Google OAuth.');
+        throw const GmailAuthRevokedException(
+          'No access token returned by Google OAuth.',
+        );
       }
 
       String? email = _extractEmailFromIdToken(idToken);
       email ??= await _fetchEmailFromUserInfo(accessToken, client);
 
       _cachedAccessToken = accessToken;
-      _accessTokenExpiresAt = DateTime.now().add(Duration(seconds: expiresIn - 60));
+      _accessTokenExpiresAt = DateTime.now().add(
+        Duration(seconds: expiresIn - 60),
+      );
       _connectedEmail = email;
 
       if (refreshToken != null) {
@@ -430,9 +462,13 @@ class GmailAuthService {
     _refreshCompleter = completer;
 
     try {
-      final refreshToken = await _secureStorage.read(key: _refreshTokenKey(doctorId));
+      final refreshToken = await _secureStorage.read(
+        key: _refreshTokenKey(doctorId),
+      );
       if (refreshToken == null || refreshToken.isEmpty) {
-        throw const GmailAuthRevokedException('No refresh token available. Please reconnect Gmail.');
+        throw const GmailAuthRevokedException(
+          'No refresh token available. Please reconnect Gmail.',
+        );
       }
 
       final newToken = await _refreshDesktopAccessToken(refreshToken);
@@ -460,7 +496,9 @@ class GmailAuthService {
       );
 
       if (response.statusCode != 200) {
-        throw const GmailAuthRevokedException('Google refresh token has expired or was revoked.');
+        throw const GmailAuthRevokedException(
+          'Google refresh token has expired or was revoked.',
+        );
       }
 
       final body = jsonDecode(response.body) as Map<String, dynamic>;
@@ -468,11 +506,15 @@ class GmailAuthService {
       final expiresIn = body['expires_in'] as int? ?? 3600;
 
       if (accessToken == null) {
-        throw const GmailAuthRevokedException('Invalid token refresh response.');
+        throw const GmailAuthRevokedException(
+          'Invalid token refresh response.',
+        );
       }
 
       _cachedAccessToken = accessToken;
-      _accessTokenExpiresAt = DateTime.now().add(Duration(seconds: expiresIn - 60));
+      _accessTokenExpiresAt = DateTime.now().add(
+        Duration(seconds: expiresIn - 60),
+      );
       return accessToken;
     } finally {
       if (_httpClient == null) {
@@ -495,7 +537,10 @@ class GmailAuthService {
     }
   }
 
-  Future<String?> _fetchEmailFromUserInfo(String accessToken, http.Client client) async {
+  Future<String?> _fetchEmailFromUserInfo(
+    String accessToken,
+    http.Client client,
+  ) async {
     try {
       final res = await client.get(
         Uri.parse('https://www.googleapis.com/oauth2/v2/userinfo'),
@@ -521,7 +566,9 @@ class GmailAuthService {
   String _generateCodeVerifier() {
     final random = Random.secure();
     final values = List<int>.generate(64, (_) => random.nextInt(256));
-    return base64UrlEncode(values).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
+    return base64UrlEncode(
+      values,
+    ).replaceAll('=', '').replaceAll('+', '-').replaceAll('/', '_');
   }
 
   String _generateCodeChallenge(String verifier) {

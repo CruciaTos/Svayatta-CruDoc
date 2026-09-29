@@ -29,10 +29,13 @@ import 'package:doctor_management_app/core/update/update_exceptions.dart';
 /// `MissingPluginException` branch below for exactly what to add on the
 /// Kotlin side.
 class AndroidUpdateInstaller implements UpdateInstaller {
-  AndroidUpdateInstaller({http.Client? client}) : _client = client ?? http.Client();
+  AndroidUpdateInstaller({http.Client? client})
+    : _client = client ?? http.Client();
 
   static const String _platformKey = 'android';
-  static const MethodChannel _installChannel = MethodChannel('crudoc/update_installer');
+  static const MethodChannel _installChannel = MethodChannel(
+    'crudoc/update_installer',
+  );
 
   final http.Client _client;
 
@@ -43,7 +46,10 @@ class AndroidUpdateInstaller implements UpdateInstaller {
   bool get supportsInAppInstall => true;
 
   @override
-  Future<void> download(AppRelease release, void Function(UpdateProgress progress) onProgress) async {
+  Future<void> download(
+    AppRelease release,
+    void Function(UpdateProgress progress) onProgress,
+  ) async {
     final platformInfo = release.manifest?.platformFor(_platformKey);
     final assetName = platformInfo?.asset;
     if (assetName == null || assetName.isEmpty) {
@@ -54,7 +60,9 @@ class AndroidUpdateInstaller implements UpdateInstaller {
 
     final asset = release.assetNamed(assetName);
     if (asset == null || asset.downloadUrl.isEmpty) {
-      throw UpdateDownloadException('Could not find the "$assetName" asset on the GitHub release.');
+      throw UpdateDownloadException(
+        'Could not find the "$assetName" asset on the GitHub release.',
+      );
     }
 
     _expectedSha256 = platformInfo?.sha256;
@@ -62,7 +70,9 @@ class AndroidUpdateInstaller implements UpdateInstaller {
     // App-scoped storage that a FileProvider can expose via a content://
     // URI — never the public Downloads folder, which REQUEST_INSTALL_PACKAGES
     // sideloading doesn't need and which complicates cleanup.
-    final dir = await getExternalStorageDirectory() ?? await getApplicationSupportDirectory();
+    final dir =
+        await getExternalStorageDirectory() ??
+        await getApplicationSupportDirectory();
     final destination = File(p.join(dir.path, asset.name));
 
     await downloadFileWithProgress(
@@ -94,7 +104,9 @@ class AndroidUpdateInstaller implements UpdateInstaller {
     }
 
     try {
-      await _installChannel.invokeMethod<void>('installApk', {'path': file.path});
+      await _installChannel.invokeMethod<void>('installApk', {
+        'path': file.path,
+      });
     } on MissingPluginException {
       throw const UpdateInstallException(
         'The native Android install bridge is not implemented yet. Add a '
@@ -107,7 +119,9 @@ class AndroidUpdateInstaller implements UpdateInstaller {
         'entry in AndroidManifest.xml (architecture doc §7).',
       );
     } on PlatformException catch (e) {
-      throw UpdateInstallException('The system installer could not be launched: ${e.message}');
+      throw UpdateInstallException(
+        'The system installer could not be launched: ${e.message}',
+      );
     }
   }
 }

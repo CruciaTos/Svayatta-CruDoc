@@ -45,13 +45,20 @@ void paintCephTracing(
       }
       if (labels) {
         final u = d / d.distance;
-        _text(canvas, l.label, to + u * 6 * unit, unit,
-            color: l.analysis ? ink.label : ink.label2, centred: true);
+        _text(
+          canvas,
+          l.label,
+          to + u * 6 * unit,
+          unit,
+          color: l.analysis ? ink.label : ink.label2,
+          centred: true,
+        );
       }
     }
     final profile = cephProfile(points);
     if (profile.length > 1) {
-      final path = Path()..moveTo(toScreen(profile.first).dx, toScreen(profile.first).dy);
+      final path = Path()
+        ..moveTo(toScreen(profile.first).dx, toScreen(profile.first).dy);
       for (final p in profile.skip(1)) {
         final s = toScreen(p);
         path.lineTo(s.dx, s.dy);
@@ -81,17 +88,33 @@ void paintCephTracing(
     final isNow = e.key == current;
     final isHover = e.key == hover;
     canvas
-      ..drawCircle(s, 3.5 * unit, isHover ? (Paint()..color = ink.accentText) : dotFill)
+      ..drawCircle(
+        s,
+        3.5 * unit,
+        isHover ? (Paint()..color = ink.accentText) : dotFill,
+      )
       ..drawCircle(s, 3.5 * unit, dotRing);
     if (isNow) canvas.drawCircle(s, 9 * unit, now);
     if (labels || isNow || isHover) {
-      _text(canvas, e.key, s + Offset(7 * unit, -15 * unit), unit,
-          color: isNow || isHover ? ink.accentText : ink.label);
+      _text(
+        canvas,
+        e.key,
+        s + Offset(7 * unit, -15 * unit),
+        unit,
+        color: isNow || isHover ? ink.accentText : ink.label,
+      );
     }
   }
 }
 
-void _dashed(Canvas canvas, Offset a, Offset b, Paint paint, double dash, double gap) {
+void _dashed(
+  Canvas canvas,
+  Offset a,
+  Offset b,
+  Paint paint,
+  double dash,
+  double gap,
+) {
   final d = b - a;
   final len = d.distance;
   if (len == 0) return;
@@ -104,15 +127,21 @@ void _dashed(Canvas canvas, Offset a, Offset b, Paint paint, double dash, double
   }
 }
 
-void _text(Canvas canvas, String text, Offset at, double unit,
-    {required Color color, bool centred = false}) {
+void _text(
+  Canvas canvas,
+  String text,
+  Offset at,
+  double unit, {
+  required Color color,
+  bool centred = false,
+}) {
   final tp = TextPainter(
     text: TextSpan(
       text: text,
       style: CruType.micro.copyWith(
         fontSize: CruType.micro.fontSize! * unit,
         color: color,
-        shadows: PlusStage.textShadow,
+        shadows: const [],
       ),
     ),
     textDirection: TextDirection.ltr,

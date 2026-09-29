@@ -61,7 +61,12 @@ class DoctorListNotifier extends Notifier<DoctorListState> {
 
   Future<void> loadDoctors({bool refresh = false}) async {
     if (refresh) {
-      state = state.copyWith(isLoading: true, doctors: [], lastDocId: null, hasMore: true);
+      state = state.copyWith(
+        isLoading: true,
+        doctors: [],
+        lastDocId: null,
+        hasMore: true,
+      );
     } else {
       state = state.copyWith(isLoading: true);
     }
@@ -106,6 +111,7 @@ class DoctorListNotifier extends Notifier<DoctorListState> {
   }
 }
 
-final doctorListProvider = NotifierProvider<DoctorListNotifier, DoctorListState>(
-  DoctorListNotifier.new,
-);
+final doctorListProvider =
+    NotifierProvider<DoctorListNotifier, DoctorListState>(
+      DoctorListNotifier.new,
+    );

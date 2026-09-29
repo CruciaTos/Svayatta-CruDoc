@@ -41,7 +41,11 @@ class ApiKeyModel {
       expiresAt: (json['expiresAt'] as Timestamp?)?.toDate(),
       lastUsedAt: (json['lastUsedAt'] as Timestamp?)?.toDate(),
       rateLimit: json['rateLimit'] as int? ?? 60,
-      scopes: (json['scopes'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      scopes:
+          (json['scopes'] as List<dynamic>?)
+              ?.map((e) => e as String)
+              .toList() ??
+          [],
       createdBy: json['createdBy'] as String? ?? '',
       totalRequests: json['totalRequests'] as int? ?? 0,
     );

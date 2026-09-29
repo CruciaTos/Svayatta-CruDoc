@@ -85,7 +85,11 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
   List<String> _parseAndValidateTeeth(String raw) {
     if (raw.trim().isEmpty) return const [];
-    final tokens = raw.split(RegExp(r'[, ]+')).map((t) => t.trim()).where((t) => t.isNotEmpty).toList();
+    final tokens = raw
+        .split(RegExp(r'[, ]+'))
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
     for (final t in tokens) {
       if (!DentalChart.isValid(t)) {
         throw FormatException('Invalid FDI tooth number: "$t"');
@@ -106,8 +110,12 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
     if (result == null || result.files.isEmpty) return;
 
     final appSupport = await getApplicationSupportDirectory();
-    final refId = widget.initialReferral?.id ?? 'temp_${DateTime.now().millisecondsSinceEpoch}';
-    final targetDir = Directory(p.join(appSupport.path, 'dental', 'referrals', refId));
+    final refId =
+        widget.initialReferral?.id ??
+        'temp_${DateTime.now().millisecondsSinceEpoch}';
+    final targetDir = Directory(
+      p.join(appSupport.path, 'dental', 'referrals', refId),
+    );
     if (!targetDir.existsSync()) {
       targetDir.createSync(recursive: true);
     }
@@ -161,39 +169,35 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
       final r = widget.initialReferral;
 
       final contactName = _selectedContact?.name ?? r?.contactName ?? '';
-      final contactSpecialty = _selectedContact?.specialty ?? r?.contactSpecialty ?? '';
+      final contactSpecialty =
+          _selectedContact?.specialty ?? r?.contactSpecialty ?? '';
       final contactId = _selectedContact?.id ?? r?.contactId ?? '';
 
       final now = DateTime.now();
 
       if (r == null) {
         // Create new
-        final record = DentalRecord.create(
-          _patient!.id,
-          RecKind.referral,
-          {
-            'direction': _direction.wireName,
-            'contactId': contactId,
-            'contactName': contactName,
-            'contactSpecialty': contactSpecialty,
-            'reason': _reason.text.trim(),
-            'teeth': parsedTeeth,
-            'findings': _findings.text.trim(),
-            'question': _question.text.trim(),
-            'urgency': _urgency.name,
-            'attachments': _attachments,
-            'status': ReferralStatus.draft.name,
-            'history': [
-              {
-                'status': ReferralStatus.draft.name,
-                'at': now.millisecondsSinceEpoch,
-                'note': 'Referral created as draft',
-              }
-            ],
-            'reply': '',
-          },
-          at: now,
-        );
+        final record = DentalRecord.create(_patient!.id, RecKind.referral, {
+          'direction': _direction.wireName,
+          'contactId': contactId,
+          'contactName': contactName,
+          'contactSpecialty': contactSpecialty,
+          'reason': _reason.text.trim(),
+          'teeth': parsedTeeth,
+          'findings': _findings.text.trim(),
+          'question': _question.text.trim(),
+          'urgency': _urgency.name,
+          'attachments': _attachments,
+          'status': ReferralStatus.draft.name,
+          'history': [
+            {
+              'status': ReferralStatus.draft.name,
+              'at': now.millisecondsSinceEpoch,
+              'note': 'Referral created as draft',
+            },
+          ],
+          'reply': '',
+        }, at: now);
         await saveDentalRecord(ref, record);
         if (mounted) recToast(context, 'Referral draft created');
       } else {
@@ -232,16 +236,22 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
     // Resolve contact selection if matching ID
     if (_selectedContact == null && widget.initialReferral != null) {
-      final match = contacts.where((cnt) => cnt.id == widget.initialReferral!.contactId).firstOrNull;
+      final match = contacts
+          .where((cnt) => cnt.id == widget.initialReferral!.contactId)
+          .firstOrNull;
       if (match != null) _selectedContact = match;
     }
 
     return CruFormDialog(
       title: widget.initialReferral == null ? 'New referral' : 'Edit referral',
-      subtitle: _direction == ReferralDirection.out ? 'Referring to specialist' : 'Referred to this clinic',
+      subtitle: _direction == ReferralDirection.out
+          ? 'Referring to specialist'
+          : 'Referred to this clinic',
       width: 580,
       busy: _busy,
-      submitLabel: widget.initialReferral == null ? 'Create referral' : 'Save changes',
+      submitLabel: widget.initialReferral == null
+          ? 'Create referral'
+          : 'Save changes',
       onSubmit: _save,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -274,7 +284,9 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
                     _patient != null
                         ? '${_patient!.fullName} (${_patient!.age}y, ${_patient!.gender.toUpperCase()})'
                         : 'No patient selected',
-                    style: CruType.body.tint(_patient != null ? c.label : c.label3),
+                    style: CruType.body.tint(
+                      _patient != null ? c.label : c.label3,
+                    ),
                   ),
                 ),
                 CruCapsuleButton(
@@ -289,7 +301,9 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
 
           // Contact selector
           CruFieldFrame(
-            label: _direction == ReferralDirection.out ? 'Referring to' : 'Referred by',
+            label: _direction == ReferralDirection.out
+                ? 'Referring to'
+                : 'Referred by',
             child: Row(
               children: [
                 Expanded(
@@ -313,7 +327,9 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
                       ],
                       onChanged: (id) {
                         setState(() {
-                          _selectedContact = contacts.where((cnt) => cnt.id == id).firstOrNull;
+                          _selectedContact = contacts
+                              .where((cnt) => cnt.id == id)
+                              .firstOrNull;
                         });
                       },
                     ),
@@ -355,7 +371,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
             label: 'Clinical findings & history',
             controller: _findings,
             maxLines: 4,
-            hint: 'Relevant symptoms, radiographic findings, prior treatments...',
+            hint:
+                'Relevant symptoms, radiographic findings, prior treatments...',
           ),
           const SizedBox(height: CruSpace.s12),
 
@@ -364,7 +381,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
             label: 'Specific question or requested procedure',
             controller: _question,
             maxLines: 4,
-            hint: 'e.g. Please evaluate for surgical extraction vs endodontic retreat',
+            hint:
+                'e.g. Please evaluate for surgical extraction vs endodontic retreat',
           ),
           const SizedBox(height: CruSpace.s12),
 
@@ -374,11 +392,7 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
             child: CruSegmentedControl<ReferralUrgency>(
               semanticLabel: 'Urgency',
               segments: [
-                for (final u in ReferralUrgency.values)
-                  CruSegment(
-                    u,
-                    u.label,
-                  ),
+                for (final u in ReferralUrgency.values) CruSegment(u, u.label),
               ],
               selected: _urgency,
               onChanged: (u) => setState(() => _urgency = u),
@@ -445,7 +459,8 @@ class _ReferralEditDialogState extends ConsumerState<ReferralEditDialog> {
                         size: CruSize.squareButton,
                         semanticLabel: 'Remove file',
                         tooltip: 'Remove',
-                        onPressed: () => setState(() => _attachments.remove(path)),
+                        onPressed: () =>
+                            setState(() => _attachments.remove(path)),
                       ),
                     ],
                   ),
@@ -553,13 +568,19 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
 
       ReferralContact resultContact;
       if (widget.contact == null) {
-        final rec = DentalRecord.create('', RecKind.referralContact, contactData);
+        final rec = DentalRecord.create(
+          '',
+          RecKind.referralContact,
+          contactData,
+        );
         await saveDentalRecord(ref, rec);
         resultContact = ReferralContact.fromRecord(rec);
       } else {
-        final oldRecord = (ref.read(clinicRecordsProvider(RecKind.referralContact)).value ?? [])
-            .where((r) => r.id == widget.contact!.id)
-            .firstOrNull;
+        final oldRecord =
+            (ref.read(clinicRecordsProvider(RecKind.referralContact)).value ??
+                    [])
+                .where((r) => r.id == widget.contact!.id)
+                .firstOrNull;
         if (oldRecord != null) {
           final updated = oldRecord.copyWith(data: contactData);
           await saveDentalRecord(ref, updated);
@@ -592,15 +613,31 @@ class _EditContactDialogState extends ConsumerState<EditContactDialog> {
           const SizedBox(height: CruSpace.s12),
           CruTextField(label: 'Clinic / Hospital', controller: _clinic),
           const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Specialty', controller: _specialty, hint: 'e.g. Endodontist, Dental lab, OMFS'),
+          CruTextField(
+            label: 'Specialty',
+            controller: _specialty,
+            hint: 'e.g. Endodontist, Dental lab, OMFS',
+          ),
           const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Phone (for WhatsApp)', controller: _phone, keyboardType: TextInputType.phone),
+          CruTextField(
+            label: 'Phone (for WhatsApp)',
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+          ),
           const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Email', controller: _email, keyboardType: TextInputType.emailAddress),
+          CruTextField(
+            label: 'Email',
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+          ),
           const SizedBox(height: CruSpace.s12),
           CruTextField(label: 'City', controller: _city),
           const SizedBox(height: CruSpace.s12),
-          CruTextField(label: 'Standard turnaround (days)', controller: _turnaround, keyboardType: TextInputType.number),
+          CruTextField(
+            label: 'Standard turnaround (days)',
+            controller: _turnaround,
+            keyboardType: TextInputType.number,
+          ),
           const SizedBox(height: CruSpace.s12),
           CruTextField(label: 'Notes', controller: _notes, maxLines: 4),
         ],
@@ -616,10 +653,12 @@ class ContactDirectoryDialog extends ConsumerStatefulWidget {
   final bool initialLabsOnly;
 
   @override
-  ConsumerState<ContactDirectoryDialog> createState() => _ContactDirectoryDialogState();
+  ConsumerState<ContactDirectoryDialog> createState() =>
+      _ContactDirectoryDialogState();
 }
 
-class _ContactDirectoryDialogState extends ConsumerState<ContactDirectoryDialog> {
+class _ContactDirectoryDialogState
+    extends ConsumerState<ContactDirectoryDialog> {
   late bool _labsOnly;
 
   @override
@@ -637,8 +676,12 @@ class _ContactDirectoryDialogState extends ConsumerState<ContactDirectoryDialog>
 
     return DentalPanelDialog(
       title: 'Referral contacts',
-      subtitle: '${contacts.length} contacts · ${labContacts.length} lab partners',
-      leading: const CruIconTile(icon: CruIcons.userPlus, tone: CruTileTone.neutral),
+      subtitle:
+          '${contacts.length} contacts · ${labContacts.length} lab partners',
+      leading: const CruIconTile(
+        icon: CruIcons.userPlus,
+        tone: CruTileTone.neutral,
+      ),
       width: 560,
       footer: CruButton(
         label: 'New contact',
@@ -680,7 +723,11 @@ class _ContactDirectoryDialogState extends ConsumerState<ContactDirectoryDialog>
                     context: context,
                     builder: (_) => EditContactDialog(
                       contact: _labsOnly
-                          ? const ReferralContact(id: '', name: '', specialty: 'Dental lab')
+                          ? const ReferralContact(
+                              id: '',
+                              name: '',
+                              specialty: 'Dental lab',
+                            )
                           : null,
                     ),
                   ),
@@ -710,7 +757,10 @@ class _ContactDirectoryDialogState extends ConsumerState<ContactDirectoryDialog>
                         children: [
                           Row(
                             children: [
-                              Text(cnt.name, style: CruType.callout.w600.tint(c.label)),
+                              Text(
+                                cnt.name,
+                                style: CruType.callout.w600.tint(c.label),
+                              ),
                               if (cnt.turnaroundDays != null) ...[
                                 const SizedBox(width: CruSpace.s8),
                                 CruPill(
@@ -733,7 +783,10 @@ class _ContactDirectoryDialogState extends ConsumerState<ContactDirectoryDialog>
                       ),
                     ),
                     if (cnt.phone.isNotEmpty)
-                      Text(cnt.phone, style: CruType.caption.tabular.tint(c.label2)),
+                      Text(
+                        cnt.phone,
+                        style: CruType.caption.tabular.tint(c.label2),
+                      ),
                   ],
                 ),
               ),
@@ -786,7 +839,7 @@ class _WriteReplyDialogState extends ConsumerState<WriteReplyDialog> {
           'status': ReferralStatus.completed.name,
           'at': now.millisecondsSinceEpoch,
           'note': 'Treatment reply documented',
-        }
+        },
       ];
 
       final updatedRecord = widget.referral.record.copyWith(
@@ -823,7 +876,8 @@ class _WriteReplyDialogState extends ConsumerState<WriteReplyDialog> {
             label: 'Treatment summary & clinical outcome',
             controller: _reply,
             maxLines: 8,
-            hint: 'Summary of procedures performed, findings, post-op instructions, recommendations...',
+            hint:
+                'Summary of procedures performed, findings, post-op instructions, recommendations...',
           ),
         ],
       ),
@@ -842,7 +896,15 @@ class PatientReferralsDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final records = ref.watch(patientRecordsProvider((patientId: patient.id, kind: RecKind.referral))).value ??
+    final records =
+        ref
+            .watch(
+              patientRecordsProvider((
+                patientId: patient.id,
+                kind: RecKind.referral,
+              )),
+            )
+            .value ??
         const <DentalRecord>[];
     final referrals = records.map(DentalReferral.fromRecord).toList()
       ..sort((a, b) => b.recordedAt.compareTo(a.recordedAt));
@@ -850,7 +912,10 @@ class PatientReferralsDialog extends ConsumerWidget {
     return DentalPanelDialog(
       title: 'Referrals: ${patient.fullName}',
       subtitle: '${referrals.length} referral records',
-      leading: const CruIconTile(icon: CruIcons.arrowUpRight, tone: CruTileTone.neutral),
+      leading: const CruIconTile(
+        icon: CruIcons.arrowUpRight,
+        tone: CruTileTone.neutral,
+      ),
       width: 560,
       footer: CruButton(
         label: 'New referral',
@@ -864,7 +929,8 @@ class PatientReferralsDialog extends ConsumerWidget {
           ? DentalEmptyState(
               icon: CruIcons.arrowUpRight,
               title: 'No referrals for this patient',
-              body: 'Refer to an external specialist or log an incoming referral.',
+              body:
+                  'Refer to an external specialist or log an incoming referral.',
               actions: [
                 CruButton(
                   label: 'New referral',
@@ -892,7 +958,9 @@ class PatientReferralsDialog extends ConsumerWidget {
                     child: Row(
                       children: [
                         CruIconTile(
-                          icon: r.direction == ReferralDirection.out ? CruIcons.arrowUpRight : CruIcons.chevronLeft,
+                          icon: r.direction == ReferralDirection.out
+                              ? CruIcons.arrowUpRight
+                              : CruIcons.chevronLeft,
                           tone: CruTileTone.neutral,
                         ),
                         const SizedBox(width: CruSpace.s12),
@@ -900,7 +968,10 @@ class PatientReferralsDialog extends ConsumerWidget {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(r.reason, style: CruType.callout.w600.tint(c.label)),
+                              Text(
+                                r.reason,
+                                style: CruType.callout.w600.tint(c.label),
+                              ),
                               Text(
                                 '${DentalFormat.date(r.recordedAt)} · ${r.direction == ReferralDirection.out ? 'To' : 'From'} ${r.contactName.isNotEmpty ? r.contactName : 'Specialist'}',
                                 style: CruType.caption.tint(c.label2),
@@ -910,8 +981,12 @@ class PatientReferralsDialog extends ConsumerWidget {
                         ),
                         CruPill(
                           text: r.status.label,
-                          background: r.status == ReferralStatus.completed ? c.greenTint : c.inset,
-                          foreground: r.status == ReferralStatus.completed ? c.greenText : c.label2,
+                          background: r.status == ReferralStatus.completed
+                              ? c.greenTint
+                              : c.inset,
+                          foreground: r.status == ReferralStatus.completed
+                              ? c.greenText
+                              : c.label2,
                         ),
                       ],
                     ),
@@ -938,7 +1013,7 @@ Future<void> updateReferralStatus(
       'status': newStatus.name,
       'at': now.millisecondsSinceEpoch,
       'note': note.isNotEmpty ? note : 'Status changed to ${newStatus.label}',
-    }
+    },
   ];
 
   final updatedRecord = referral.record.copyWith(
@@ -959,7 +1034,9 @@ Future<void> sendReferralWhatsApp(
   Patient patient,
 ) async {
   final contacts = ref.read(referralContactsProvider);
-  final contact = contacts.where((cnt) => cnt.id == referral.contactId).firstOrNull;
+  final contact = contacts
+      .where((cnt) => cnt.id == referral.contactId)
+      .firstOrNull;
   final phone = contact?.phone ?? '';
 
   if (phone.isEmpty) {
@@ -991,7 +1068,12 @@ Future<void> sendReferralWhatsApp(
 
   // 3. Update status to sent if draft
   if (referral.status == ReferralStatus.draft) {
-    await updateReferralStatus(ref, referral, ReferralStatus.sent, note: 'Sent via WhatsApp');
+    await updateReferralStatus(
+      ref,
+      referral,
+      ReferralStatus.sent,
+      note: 'Sent via WhatsApp',
+    );
   }
 
   if (context.mounted) {

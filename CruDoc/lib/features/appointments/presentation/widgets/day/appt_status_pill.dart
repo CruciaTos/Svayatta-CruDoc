@@ -14,22 +14,26 @@ class ApptStatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final (String text, Color bg, Color fg, CruIconData? icon) =
-        switch (item.status) {
+    final (
+      String text,
+      Color bg,
+      Color fg,
+      CruIconData? icon,
+    ) = switch (item.status) {
       ApptStatus.waiting => (
-          item.waitMinutes == null
-              ? 'Waiting'
-              : 'Waiting · ${DashFormat.minutes(item.waitMinutes!)}',
-          c.amberTint,
-          c.amberText,
-          CruIcons.clock,
-        ),
+        item.waitMinutes == null
+            ? 'Waiting'
+            : 'Waiting · ${DashFormat.minutes(item.waitMinutes!)}',
+        c.amberTint,
+        c.amberText,
+        CruIcons.clock,
+      ),
       ApptStatus.inConsultation => (
-          'In consultation',
-          c.accentTint,
-          c.accentText,
-          null,
-        ),
+        'In consultation',
+        c.accentTint,
+        c.accentText,
+        null,
+      ),
       ApptStatus.booked => ('Booked', c.inset, c.label2, null),
       ApptStatus.done => ('Seen', c.greenTint, c.greenText, CruIcons.check),
       ApptStatus.missed => ('Missed', c.inset, c.label3, null),

@@ -17,12 +17,15 @@ class SuperAdminAnalyticsService {
 
       if (cachedDoc.exists) {
         final stats = DashboardStatsModel.fromJson(
-            cachedDoc.data() as Map<String, dynamic>);
-        
+          cachedDoc.data() as Map<String, dynamic>,
+        );
+
         // If the cache contains zero values for core fields despite having doctors,
         // it means the cache is unpopulated. Force a recalculation.
-        if (stats.totalDoctors > 0 && 
-            (stats.activeDevices == 0 || stats.totalPatients == 0 || stats.storageUsedGB == 0.0)) {
+        if (stats.totalDoctors > 0 &&
+            (stats.activeDevices == 0 ||
+                stats.totalPatients == 0 ||
+                stats.storageUsedGB == 0.0)) {
           final liveStats = await _calculateLiveStats();
           // Cache the recalculated stats for today
           await _fb.analyticsCollection.doc(todayKey).set(liveStats.toJson());
@@ -64,7 +67,7 @@ class SuperAdminAnalyticsService {
       for (final doc in doctorsSnapshot.docs) {
         final data = doc.data() as Map<String, dynamic>;
         totalDoctors++;
-        
+
         final String statusStr = data['status'] as String? ?? '';
         final planStr = data['subscriptionPlan'] as String? ?? 'starter';
         final plan = SubscriptionPlan.values.firstWhere(
@@ -73,11 +76,16 @@ class SuperAdminAnalyticsService {
         );
 
         activeDoctors += statusStr == DoctorStatus.active.name ? 1 : 0;
-        
+
         // Check status == trial, or if the subscription data has isTrial == true
-        trialAccounts += (statusStr == DoctorStatus.trial.name || statusStr == 'trial' || data['subscriptionPlan'] == 'trial') ? 1 : 0;
+        trialAccounts +=
+            (statusStr == DoctorStatus.trial.name ||
+                statusStr == 'trial' ||
+                data['subscriptionPlan'] == 'trial')
+            ? 1
+            : 0;
         expiredAccounts += statusStr == DoctorStatus.expired.name ? 1 : 0;
-        
+
         double docStorage = (data['storageUsedGB'] as num?)?.toDouble() ?? 0.0;
         int docPatients = data['patientCount'] as int? ?? 0;
         int docOcr = data['ocrRequestsThisMonth'] as int? ?? 0;
@@ -173,7 +181,11 @@ class SuperAdminAnalyticsService {
         }
 
         if (docClinics == 0) {
-          docClinics = (plan == SubscriptionPlan.clinic || plan == SubscriptionPlan.enterprise) ? 2 : 1;
+          docClinics =
+              (plan == SubscriptionPlan.clinic ||
+                  plan == SubscriptionPlan.enterprise)
+              ? 2
+              : 1;
         }
 
         storageUsedGB += docStorage;
@@ -230,7 +242,10 @@ class SuperAdminAnalyticsService {
           .get();
 
       return snapshot.docs.map((doc) {
-        return AnalyticsModel.fromJson(doc.data() as Map<String, dynamic>, doc.id);
+        return AnalyticsModel.fromJson(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }).toList();
     } catch (e) {
       return [];
@@ -253,7 +268,8 @@ class SuperAdminAnalyticsService {
         appointmentCount: data['appointmentCount'] as int? ?? 0,
         ocrRequestsThisMonth: data['ocrRequestsThisMonth'] as int? ?? 0,
         activeDeviceCount: data['activeDeviceCount'] as int? ?? 0,
-        lastLogin: (data['lastLogin'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        lastLogin:
+            (data['lastLogin'] as Timestamp?)?.toDate() ?? DateTime.now(),
         totalSessions: data['totalSessions'] as int? ?? 0,
       );
 
@@ -268,24 +284,24 @@ class SuperAdminAnalyticsService {
     try {
       final now = DateTime.now();
       final batch = _fb.batch();
-      
+
       // Let's seed a realistic growth trend for the past 12 months.
       final mockGrowth = [12, 15, 18, 20, 24, 28, 31, 35, 38, 41, 43, 45];
-      
+
       for (int i = 11; i >= 0; i--) {
         final month = DateTime(now.year, now.month - i, 1);
         final key = '${month.year}-${month.month.toString().padLeft(2, '0')}';
         final docRef = _fb.analyticsCollection.doc('growth_$key');
-        
+
         final count = mockGrowth[11 - i];
-        
+
         batch.set(docRef, {
           'totalDoctors': count,
           'activeDoctors': (count * 0.9).round(),
           'generatedAt': FieldValue.serverTimestamp(),
         });
       }
-      
+
       await batch.commit();
     } catch (e) {
       // Fail silently
@@ -301,7 +317,9 @@ class SuperAdminAnalyticsService {
     bool needsSeeding = false;
     try {
       final checkKey = '${now.year}-${now.month.toString().padLeft(2, '0')}';
-      final checkDoc = await _fb.analyticsCollection.doc('growth_$checkKey').get();
+      final checkDoc = await _fb.analyticsCollection
+          .doc('growth_$checkKey')
+          .get();
       if (!checkDoc.exists) {
         needsSeeding = true;
       }
@@ -319,22 +337,27 @@ class SuperAdminAnalyticsService {
 
       try {
         final doc = await _fb.analyticsCollection.doc('growth_$key').get();
-        final count = (doc.data() as Map<String, dynamic>?)?['totalDoctors'] as int? ?? 0;
-        
+        final count =
+            (doc.data() as Map<String, dynamic>?)?['totalDoctors'] as int? ?? 0;
+
         // Code-level fallback values to ensure chart is populated even if DB connection fails
         final mockTrend = [12, 15, 18, 20, 24, 28, 31, 35, 38, 41, 43, 45];
         final fallbackVal = mockTrend[11 - i].toDouble();
 
-        points.add(ChartDataPoint(
-          label: _monthAbbr(month.month),
-          value: count > 0 ? count.toDouble() : fallbackVal,
-        ));
+        points.add(
+          ChartDataPoint(
+            label: _monthAbbr(month.month),
+            value: count > 0 ? count.toDouble() : fallbackVal,
+          ),
+        );
       } catch (_) {
         final mockTrend = [12, 15, 18, 20, 24, 28, 31, 35, 38, 41, 43, 45];
-        points.add(ChartDataPoint(
-          label: _monthAbbr(month.month),
-          value: mockTrend[11 - i].toDouble(),
-        ));
+        points.add(
+          ChartDataPoint(
+            label: _monthAbbr(month.month),
+            value: mockTrend[11 - i].toDouble(),
+          ),
+        );
       }
     }
 
@@ -346,8 +369,18 @@ class SuperAdminAnalyticsService {
 
   String _monthAbbr(int month) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return months[month - 1];
   }

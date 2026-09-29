@@ -1187,9 +1187,11 @@ class _Parser {
       notes: _notes.isEmpty
           ? null
           : _notes
-              .where((n) => n.trim().isNotEmpty && !isIncompleteNoteFragment(n))
-              .map((n) => n.startsWith('•') ? n : '• $n')
-              .join('\n'),
+                .where(
+                  (n) => n.trim().isNotEmpty && !isIncompleteNoteFragment(n),
+                )
+                .map((n) => n.startsWith('•') ? n : '• $n')
+                .join('\n'),
       balance: _balance,
       reason: _reason,
       durationMinutes: _duration,
@@ -1245,7 +1247,13 @@ class _Parser {
     final deleting = _has(const {'delete', 'remove', 'trash', 'erase'});
     if (deleting &&
         (_has(const {'file', 'document', 'report', 'attachment', 'pdf'}) ||
-            _has(const {'files', 'documents', 'reports', 'attachments', 'pdfs'}))) {
+            _has(const {
+              'files',
+              'documents',
+              'reports',
+              'attachments',
+              'pdfs',
+            }))) {
       return VoiceIntent.deleteFile;
     }
     if (deleting &&
@@ -1460,7 +1468,11 @@ class _Parser {
         }
         final idx = _span(s);
         if (idx.isEmpty) continue;
-        final detected = extractMedicalConditions(t, start: s, end: s + idx.length);
+        final detected = extractMedicalConditions(
+          t,
+          start: s,
+          end: s + idx.length,
+        );
         for (final c in detected) {
           _addCondition(c);
         }

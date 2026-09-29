@@ -49,7 +49,11 @@ class DetailsTopBar extends StatelessWidget {
           onDelete: onDelete,
         ),
         const SizedBox(width: CruSpace.s10),
-        CruButton(label: 'New visit', icon: CruIcons.plus, onPressed: onNewVisit),
+        CruButton(
+          label: 'New visit',
+          icon: CruIcons.plus,
+          onPressed: onNewVisit,
+        ),
       ],
     );
   }
@@ -72,7 +76,11 @@ class DetailsBackLink extends ConsumerWidget {
           label: back == null ? 'Patients' : DesktopTab.label(back),
           onPressed: onBack,
           style: CruType.input.w500,
-          leading: const CruIcon(CruIcons.chevronLeft, size: 20, strokeWidth: 2),
+          leading: const CruIcon(
+            CruIcons.chevronLeft,
+            size: 20,
+            strokeWidth: 2,
+          ),
         ),
       ),
     );
@@ -113,12 +121,12 @@ class _MoreMenu extends StatelessWidget {
       alignmentOffset: const Offset(0, CruSpace.s6),
       style: MenuStyle(
         backgroundColor: WidgetStatePropertyAll(c.surface),
-        surfaceTintColor: WidgetStatePropertyAll(c.surface.withValues(alpha: 0)),
-        elevation: const WidgetStatePropertyAll(8),
-        shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.12)),
-        padding: const WidgetStatePropertyAll(
-          EdgeInsets.all(CruSpace.s6),
+        surfaceTintColor: WidgetStatePropertyAll(
+          c.surface.withValues(alpha: 0),
         ),
+        elevation: const WidgetStatePropertyAll(0),
+        shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.12)),
+        padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(CruRadius.control),

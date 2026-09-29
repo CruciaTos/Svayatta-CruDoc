@@ -94,18 +94,27 @@ const _black = PdfColor.fromInt(0xFF000000);
 /// Helvetica if the font can't be read.
 Future<pw.ThemeData> _fonts() async {
   try {
-    final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Geist/Geist-Regular.ttf'));
-    final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Geist/Geist-SemiBold.ttf'));
+    final regular = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Geist/Geist-Regular.ttf'),
+    );
+    final bold = pw.Font.ttf(
+      await rootBundle.load('assets/fonts/Geist/Geist-SemiBold.ttf'),
+    );
     return pw.ThemeData.withFont(base: regular, bold: bold);
   } catch (_) {
-    return pw.ThemeData.withFont(base: pw.Font.helvetica(), bold: pw.Font.helveticaBold());
+    return pw.ThemeData.withFont(
+      base: pw.Font.helvetica(),
+      bold: pw.Font.helveticaBold(),
+    );
   }
 }
 
 /// The report as a letterhead-style A4 PDF, in the look of CruDoc's other
 /// medical documents (lib/core/pdf).
 Future<Uint8List> buildRadReportPdf(RadReportPdfData d) async {
-  final theme = const CleanLetterheadPdfTheme().forDocument(PdfMedicalDocumentType.report);
+  final theme = const CleanLetterheadPdfTheme().forDocument(
+    PdfMedicalDocumentType.report,
+  );
   final r = d.report;
   final doc = pw.Document(
     title: r.title.trim().isEmpty ? 'Radiology report' : r.title.trim(),
@@ -113,22 +122,29 @@ Future<Uint8List> buildRadReportPdf(RadReportPdfData d) async {
     creator: 'CruDoc',
     subject: 'Radiology report — ${d.study.patientName}',
   );
-  doc.addPage(pw.MultiPage(
-    pageTheme: pw.PageTheme(
-      pageFormat: PdfPageFormat.a4,
-      margin: const pw.EdgeInsets.fromLTRB(36, 32, 36, 34),
-      theme: await _fonts(),
+  doc.addPage(
+    pw.MultiPage(
+      pageTheme: pw.PageTheme(
+        pageFormat: PdfPageFormat.a4,
+        margin: const pw.EdgeInsets.fromLTRB(36, 32, 36, 34),
+        theme: await _fonts(),
+      ),
+      header: (ctx) =>
+          ctx.pageNumber == 1 ? _letterhead(d, theme) : _slimHeader(d, theme),
+      footer: (ctx) => _footer(ctx, d, theme),
+      build: (_) => _body(d, theme),
     ),
-    header: (ctx) => ctx.pageNumber == 1 ? _letterhead(d, theme) : _slimHeader(d, theme),
-    footer: (ctx) => _footer(ctx, d, theme),
-    build: (_) => _body(d, theme),
-  ));
+  );
   return doc.save();
 }
 
 pw.Widget _letterhead(RadReportPdfData d, PdfTemplateTheme t) {
   final l = d.letterhead;
-  final contact = [l.address, l.phone, l.email].where((s) => s.isNotEmpty).join('  ·  ');
+  final contact = [
+    l.address,
+    l.phone,
+    l.email,
+  ].where((s) => s.isNotEmpty).join('  ·  ');
   final doctor = [
     l.doctorName,
     l.qualification,
@@ -200,7 +216,8 @@ pw.Widget _letterhead(RadReportPdfData d, PdfTemplateTheme t) {
                   ),
                 ),
                 pw.SizedBox(height: 5),
-                if (d.study.accession.isNotEmpty) _meta(t, 'Accession', d.study.accession),
+                if (d.study.accession.isNotEmpty)
+                  _meta(t, 'Accession', d.study.accession),
                 _meta(t, 'Date', RadFormat.date(r.signedAt ?? r.updatedAt)),
                 _meta(t, 'Status', r.status.label),
               ],
@@ -212,7 +229,9 @@ pw.Widget _letterhead(RadReportPdfData d, PdfTemplateTheme t) {
       pw.Container(
         height: 2.2,
         decoration: pw.BoxDecoration(
-          gradient: pw.LinearGradient(colors: [t.accentColor, t.secondaryAccentColor]),
+          gradient: pw.LinearGradient(
+            colors: [t.accentColor, t.secondaryAccentColor],
+          ),
         ),
       ),
       pw.SizedBox(height: 16),
@@ -221,42 +240,42 @@ pw.Widget _letterhead(RadReportPdfData d, PdfTemplateTheme t) {
 }
 
 pw.Widget _meta(PdfTemplateTheme t, String label, String value) => pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 3),
-      child: pw.Row(
-        children: [
-          pw.Text(label, style: t.mutedStyle),
-          pw.SizedBox(width: 5),
-          pw.Expanded(
-            child: pw.Text(
-              value,
-              textAlign: pw.TextAlign.right,
-              style: pw.TextStyle(
-                color: t.darkTextColor,
-                fontSize: 8.5,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
+  padding: const pw.EdgeInsets.only(bottom: 3),
+  child: pw.Row(
+    children: [
+      pw.Text(label, style: t.mutedStyle),
+      pw.SizedBox(width: 5),
+      pw.Expanded(
+        child: pw.Text(
+          value,
+          textAlign: pw.TextAlign.right,
+          style: pw.TextStyle(
+            color: t.darkTextColor,
+            fontSize: 8.5,
+            fontWeight: pw.FontWeight.bold,
           ),
-        ],
+        ),
       ),
-    );
+    ],
+  ),
+);
 
 pw.Widget _slimHeader(RadReportPdfData d, PdfTemplateTheme t) => pw.Column(
+  children: [
+    pw.Row(
       children: [
-        pw.Row(
-          children: [
-            pw.Expanded(
-              child: pw.Text(
-                '${d.study.patientName} · ${d.study.modality.label} · ${RadFormat.date(d.study.studyDate)}',
-                style: t.mutedStyle,
-              ),
-            ),
-            pw.Text('Radiology report', style: t.mutedStyle),
-          ],
+        pw.Expanded(
+          child: pw.Text(
+            '${d.study.patientName} · ${d.study.modality.label} · ${RadFormat.date(d.study.studyDate)}',
+            style: t.mutedStyle,
+          ),
         ),
-        pw.Divider(color: t.borderColor, height: 14),
+        pw.Text('Radiology report', style: t.mutedStyle),
       ],
-    );
+    ),
+    pw.Divider(color: t.borderColor, height: 14),
+  ],
+);
 
 pw.Widget _footer(pw.Context ctx, RadReportPdfData d, PdfTemplateTheme t) {
   final small = pw.TextStyle(color: t.mutedTextColor, fontSize: 7.5);
@@ -281,29 +300,32 @@ pw.Widget _footer(pw.Context ctx, RadReportPdfData d, PdfTemplateTheme t) {
 }
 
 pw.Widget _heading(PdfTemplateTheme t, String title) => pw.Padding(
-      padding: const pw.EdgeInsets.only(top: 14, bottom: 6),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          pw.Container(width: 3.5, height: 12, color: t.accentColor),
-          pw.SizedBox(width: 7),
-          pw.Text(title, style: t.sectionTitleStyle),
-        ],
-      ),
-    );
+  padding: const pw.EdgeInsets.only(top: 14, bottom: 6),
+  child: pw.Row(
+    crossAxisAlignment: pw.CrossAxisAlignment.center,
+    children: [
+      pw.Container(width: 3.5, height: 12, color: t.accentColor),
+      pw.SizedBox(width: 7),
+      pw.Text(title, style: t.sectionTitleStyle),
+    ],
+  ),
+);
 
 pw.Widget _para(PdfTemplateTheme t, String text) =>
     pw.Text(text.trim(), style: t.bodyStyle.copyWith(lineSpacing: 2.5));
 
 pw.Widget _banner(String text, PdfColor fg, PdfColor bg) => pw.Container(
-      margin: const pw.EdgeInsets.only(top: 8),
-      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: pw.BoxDecoration(color: bg, borderRadius: pw.BorderRadius.circular(6)),
-      child: pw.Text(
-        text,
-        style: pw.TextStyle(color: fg, fontSize: 9, fontWeight: pw.FontWeight.bold),
-      ),
-    );
+  margin: const pw.EdgeInsets.only(top: 8),
+  padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+  decoration: pw.BoxDecoration(
+    color: bg,
+    borderRadius: pw.BorderRadius.circular(6),
+  ),
+  child: pw.Text(
+    text,
+    style: pw.TextStyle(color: fg, fontSize: 9, fontWeight: pw.FontWeight.bold),
+  ),
+);
 
 pw.Widget _table(
   PdfTemplateTheme t,
@@ -313,16 +335,25 @@ pw.Widget _table(
   Set<int> amberRows = const {},
   int amberColumn = -1,
 }) {
-  final head = pw.TextStyle(color: t.mutedTextColor, fontSize: 8, fontWeight: pw.FontWeight.bold);
+  final head = pw.TextStyle(
+    color: t.mutedTextColor,
+    fontSize: 8,
+    fontWeight: pw.FontWeight.bold,
+  );
   return pw.Table(
     columnWidths: widths,
-    border: pw.TableBorder(horizontalInside: pw.BorderSide(color: t.borderColor, width: 0.6)),
+    border: pw.TableBorder(
+      horizontalInside: pw.BorderSide(color: t.borderColor, width: 0.6),
+    ),
     children: [
       pw.TableRow(
         decoration: pw.BoxDecoration(color: t.softBackgroundColor),
         children: [
           for (final h in header)
-            pw.Padding(padding: const pw.EdgeInsets.all(5), child: pw.Text(h, style: head)),
+            pw.Padding(
+              padding: const pw.EdgeInsets.all(5),
+              child: pw.Text(h, style: head),
+            ),
         ],
       ),
       for (var i = 0; i < rows.length; i++)
@@ -334,7 +365,10 @@ pw.Widget _table(
                 child: pw.Text(
                   rows[i][j],
                   style: amberRows.contains(i) && j == amberColumn
-                      ? t.bodyStyle.copyWith(color: _amberText, fontWeight: pw.FontWeight.bold)
+                      ? t.bodyStyle.copyWith(
+                          color: _amberText,
+                          fontWeight: pw.FontWeight.bold,
+                        )
                       : t.bodyStyle,
                 ),
               ),
@@ -350,32 +384,44 @@ List<pw.Widget> _body(RadReportPdfData d, PdfTemplateTheme t) {
   final now = DateTime.now();
   final out = <pw.Widget>[];
 
-  out.add(pw.Text(
-    r.title.trim().isEmpty ? '${s.modality.label} report' : r.title.trim(),
-    style: t.titleStyle,
-  ));
+  out.add(
+    pw.Text(
+      r.title.trim().isEmpty ? '${s.modality.label} report' : r.title.trim(),
+      style: t.titleStyle,
+    ),
+  );
   switch (r.status) {
     case RadReportStatus.draft:
-      out.add(_banner('DRAFT: not signed, not for clinical decisions.', _amberText, _amberFill));
+      out.add(
+        _banner(
+          'DRAFT: not signed, not for clinical decisions.',
+          _amberText,
+          _amberFill,
+        ),
+      );
     case RadReportStatus.preliminary:
-      out.add(_banner(
-        'PRELIMINARY REPORT: to be confirmed by the final signed report.',
-        _amberText,
-        _amberFill,
-      ));
+      out.add(
+        _banner(
+          'PRELIMINARY REPORT: to be confirmed by the final signed report.',
+          _amberText,
+          _amberFill,
+        ),
+      );
     case RadReportStatus.finalised:
       break;
   }
   if (s.critical) {
     final told = s.criticalLog.isEmpty ? null : s.criticalLog.last;
-    out.add(_banner(
-      told == null
-          ? 'CRITICAL FINDING: the referring clinician must be told.'
-          : 'CRITICAL FINDING: referring clinician informed ${RadFormat.dateTime(told.at)}'
-              '${told.contacted.isEmpty ? '' : ' (${told.contacted})'}.',
-      _redText,
-      _redFill,
-    ));
+    out.add(
+      _banner(
+        told == null
+            ? 'CRITICAL FINDING: the referring clinician must be told.'
+            : 'CRITICAL FINDING: referring clinician informed ${RadFormat.dateTime(told.at)}'
+                  '${told.contacted.isEmpty ? '' : ' (${told.contacted})'}.',
+        _redText,
+        _redFill,
+      ),
+    );
   }
 
   // Patient and study.
@@ -383,38 +429,51 @@ List<pw.Widget> _body(RadReportPdfData d, PdfTemplateTheme t) {
     ('Patient', s.patientName),
     ('Age / sex', RadFormat.patientLine(s, now)),
     ('Patient ID', s.patientExternalId),
-    ('Study', [s.modality.label, s.description.trim()].where((e) => e.isNotEmpty).join(' · ')),
+    (
+      'Study',
+      [
+        s.modality.label,
+        s.description.trim(),
+      ].where((e) => e.isNotEmpty).join(' · '),
+    ),
     ('Study date', RadFormat.date(s.studyDate)),
     ('Referred by', d.referrer?.display ?? ''),
     ('Clinical question', s.clinicalQuestion.trim()),
   ].where((f) => f.$2.trim().isNotEmpty).toList();
   out.add(pw.SizedBox(height: 12));
-  out.add(pw.Container(
-    padding: const pw.EdgeInsets.all(10),
-    decoration: pw.BoxDecoration(
-      color: t.softBackgroundColor,
-      borderRadius: pw.BorderRadius.circular(8),
-      border: pw.Border.all(color: t.borderColor),
-    ),
-    child: pw.Wrap(
-      spacing: 16,
-      runSpacing: 8,
-      children: [
-        for (final (label, value) in facts)
-          pw.SizedBox(
-            width: label == 'Clinical question' || label == 'Study' ? 490 : 150,
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(label, style: t.mutedStyle),
-                pw.SizedBox(height: 2),
-                pw.Text(value, style: t.bodyStyle.copyWith(color: t.darkTextColor)),
-              ],
+  out.add(
+    pw.Container(
+      padding: const pw.EdgeInsets.all(10),
+      decoration: pw.BoxDecoration(
+        color: t.softBackgroundColor,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: t.borderColor),
+      ),
+      child: pw.Wrap(
+        spacing: 16,
+        runSpacing: 8,
+        children: [
+          for (final (label, value) in facts)
+            pw.SizedBox(
+              width: label == 'Clinical question' || label == 'Study'
+                  ? 490
+                  : 150,
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text(label, style: t.mutedStyle),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    value,
+                    style: t.bodyStyle.copyWith(color: t.darkTextColor),
+                  ),
+                ],
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     ),
-  ));
+  );
 
   if (r.technique.trim().isNotEmpty) {
     out
@@ -424,21 +483,29 @@ List<pw.Widget> _body(RadReportPdfData d, PdfTemplateTheme t) {
   for (final sec in r.sections) {
     if (sec.body.trim().isEmpty) continue;
     out
-      ..add(_heading(t, sec.title.trim().isEmpty ? 'Findings' : sec.title.trim()))
+      ..add(
+        _heading(t, sec.title.trim().isEmpty ? 'Findings' : sec.title.trim()),
+      )
       ..add(_para(t, sec.body));
   }
 
   if (r.toothFindings.isNotEmpty) {
     final teeth = r.toothFindings.keys.toList()
-      ..sort((a, b) => (int.tryParse(a) ?? 999).compareTo(int.tryParse(b) ?? 999));
+      ..sort(
+        (a, b) => (int.tryParse(a) ?? 999).compareTo(int.tryParse(b) ?? 999),
+      );
     out
       ..add(_heading(t, 'Teeth'))
-      ..add(_table(
-        t,
-        const ['Tooth (FDI)', 'Finding'],
-        [for (final n in teeth) [n, r.toothFindings[n]!]],
-        widths: const {0: pw.FixedColumnWidth(70), 1: pw.FlexColumnWidth()},
-      ));
+      ..add(
+        _table(
+          t,
+          const ['Tooth (FDI)', 'Finding'],
+          [
+            for (final n in teeth) [n, r.toothFindings[n]!],
+          ],
+          widths: const {0: pw.FixedColumnWidth(70), 1: pw.FlexColumnWidth()},
+        ),
+      );
   }
 
   for (var i = 0; i < r.lesions.length; i++) {
@@ -454,46 +521,62 @@ List<pw.Widget> _body(RadReportPdfData d, PdfTemplateTheme t) {
     ].where((e) => e.$2.trim().isNotEmpty).toList();
     if (lines.isEmpty) continue;
     out.add(_heading(t, r.lesions.length == 1 ? 'Lesion' : 'Lesion ${i + 1}'));
-    out.add(_table(
-      t,
-      const ['Descriptor', 'Finding'],
-      [for (final (k, v) in lines) [k, v.trim()]],
-      widths: const {0: pw.FixedColumnWidth(150), 1: pw.FlexColumnWidth()},
-    ));
+    out.add(
+      _table(
+        t,
+        const ['Descriptor', 'Finding'],
+        [
+          for (final (k, v) in lines) [k, v.trim()],
+        ],
+        widths: const {0: pw.FixedColumnWidth(150), 1: pw.FlexColumnWidth()},
+      ),
+    );
   }
 
   if (d.measurements.isNotEmpty) {
     out
       ..add(_heading(t, 'Measurements'))
-      ..add(_table(
-        t,
-        const ['Measurement', 'Value'],
-        [for (final m in d.measurements) [m.label, m.value]],
-        widths: const {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(2)},
-      ));
+      ..add(
+        _table(
+          t,
+          const ['Measurement', 'Value'],
+          [
+            for (final m in d.measurements) [m.label, m.value],
+          ],
+          widths: const {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(2)},
+        ),
+      );
   }
 
   for (final table in d.ceph) {
     out
-      ..add(_heading(
-        t,
-        table.analysis.isEmpty ? 'Cephalometric analysis' : 'Cephalometric analysis — ${table.analysis}',
-      ))
-      ..add(_table(
-        t,
-        const ['Measure', 'Value', 'Norm'],
-        [for (final row in table.rows) [row.name, row.value, row.norm]],
-        widths: const {
-          0: pw.FlexColumnWidth(3),
-          1: pw.FlexColumnWidth(1.4),
-          2: pw.FlexColumnWidth(1.4),
-        },
-        amberRows: {
-          for (var i = 0; i < table.rows.length; i++)
-            if (table.rows[i].deviates) i,
-        },
-        amberColumn: 1,
-      ));
+      ..add(
+        _heading(
+          t,
+          table.analysis.isEmpty
+              ? 'Cephalometric analysis'
+              : 'Cephalometric analysis — ${table.analysis}',
+        ),
+      )
+      ..add(
+        _table(
+          t,
+          const ['Measure', 'Value', 'Norm'],
+          [
+            for (final row in table.rows) [row.name, row.value, row.norm],
+          ],
+          widths: const {
+            0: pw.FlexColumnWidth(3),
+            1: pw.FlexColumnWidth(1.4),
+            2: pw.FlexColumnWidth(1.4),
+          },
+          amberRows: {
+            for (var i = 0; i < table.rows.length; i++)
+              if (table.rows[i].deviates) i,
+          },
+          amberColumn: 1,
+        ),
+      );
   }
 
   if (d.keyImages.isNotEmpty) {
@@ -501,50 +584,60 @@ List<pw.Widget> _body(RadReportPdfData d, PdfTemplateTheme t) {
     const gap = 12.0;
     final w = (PdfPageFormat.a4.width - 72 - gap) / 2;
     for (var i = 0; i < d.keyImages.length; i += 2) {
-      final pair = d.keyImages.sublist(i, i + 2 > d.keyImages.length ? d.keyImages.length : i + 2);
-      out.add(pw.Padding(
-        padding: const pw.EdgeInsets.only(bottom: 10),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            for (var j = 0; j < pair.length; j++) ...[
-              if (j > 0) pw.SizedBox(width: gap),
-              pw.SizedBox(
-                width: w,
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Container(
-                      height: w * 0.72,
-                      color: _black,
-                      alignment: pw.Alignment.center,
-                      child: pw.Image(pw.MemoryImage(pair[j].png), fit: pw.BoxFit.contain),
-                    ),
-                    if (pair[j].caption.trim().isNotEmpty) ...[
-                      pw.SizedBox(height: 3),
-                      pw.Text(pair[j].caption.trim(), style: t.mutedStyle),
+      final pair = d.keyImages.sublist(
+        i,
+        i + 2 > d.keyImages.length ? d.keyImages.length : i + 2,
+      );
+      out.add(
+        pw.Padding(
+          padding: const pw.EdgeInsets.only(bottom: 10),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              for (var j = 0; j < pair.length; j++) ...[
+                if (j > 0) pw.SizedBox(width: gap),
+                pw.SizedBox(
+                  width: w,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Container(
+                        height: w * 0.72,
+                        color: _black,
+                        alignment: pw.Alignment.center,
+                        child: pw.Image(
+                          pw.MemoryImage(pair[j].png),
+                          fit: pw.BoxFit.contain,
+                        ),
+                      ),
+                      if (pair[j].caption.trim().isNotEmpty) ...[
+                        pw.SizedBox(height: 3),
+                        pw.Text(pair[j].caption.trim(), style: t.mutedStyle),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
-      ));
+      );
     }
   }
 
   if (r.impression.trim().isNotEmpty) {
     out
       ..add(_heading(t, 'Impression'))
-      ..add(pw.Text(
-        r.impression.trim(),
-        style: t.bodyStyle.copyWith(
-          color: t.darkTextColor,
-          fontWeight: pw.FontWeight.bold,
-          lineSpacing: 2.5,
+      ..add(
+        pw.Text(
+          r.impression.trim(),
+          style: t.bodyStyle.copyWith(
+            color: t.darkTextColor,
+            fontWeight: pw.FontWeight.bold,
+            lineSpacing: 2.5,
+          ),
         ),
-      ));
+      );
   }
   if (r.recommendations.trim().isNotEmpty) {
     out
@@ -556,37 +649,49 @@ List<pw.Widget> _body(RadReportPdfData d, PdfTemplateTheme t) {
   out.add(pw.SizedBox(height: 18));
   if (r.isSigned) {
     final l = d.letterhead;
-    out.add(pw.Align(
-      alignment: pw.Alignment.centerRight,
-      child: pw.SizedBox(
-        width: 220,
-        child: pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Divider(color: t.borderColor, thickness: 1),
-            pw.Text(
-              r.signedBy.isNotEmpty ? r.signedBy : l.doctorName,
-              style: pw.TextStyle(
-                color: t.darkTextColor,
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
+    out.add(
+      pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.SizedBox(
+          width: 220,
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Divider(color: t.borderColor, thickness: 1),
+              pw.Text(
+                r.signedBy.isNotEmpty ? r.signedBy : l.doctorName,
+                style: pw.TextStyle(
+                  color: t.darkTextColor,
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
-            ),
-            if (l.qualification.isNotEmpty) pw.Text(l.qualification, style: t.mutedStyle),
-            if (l.regNo.isNotEmpty) pw.Text('Reg. No. ${l.regNo}', style: t.mutedStyle),
-            if (r.signedAt != null)
-              pw.Text('Signed electronically ${RadFormat.dateTime(r.signedAt!)}', style: t.mutedStyle),
-          ],
+              if (l.qualification.isNotEmpty)
+                pw.Text(l.qualification, style: t.mutedStyle),
+              if (l.regNo.isNotEmpty)
+                pw.Text('Reg. No. ${l.regNo}', style: t.mutedStyle),
+              if (r.signedAt != null)
+                pw.Text(
+                  'Signed electronically ${RadFormat.dateTime(r.signedAt!)}',
+                  style: t.mutedStyle,
+                ),
+            ],
+          ),
         ),
       ),
-    ));
+    );
   } else {
     out.add(pw.Text('Not signed yet.', style: t.mutedStyle));
   }
 
   for (final a in r.addenda) {
     out
-      ..add(_heading(t, 'Addendum · ${RadFormat.dateTime(a.at)}${a.by.isEmpty ? '' : ' · ${a.by}'}'))
+      ..add(
+        _heading(
+          t,
+          'Addendum · ${RadFormat.dateTime(a.at)}${a.by.isEmpty ? '' : ' · ${a.by}'}',
+        ),
+      )
       ..add(_para(t, a.text));
   }
   return out;

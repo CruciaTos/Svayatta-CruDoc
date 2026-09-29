@@ -24,7 +24,12 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// (A − B, mid-grey = no change). The alignment saves in
 /// `extras['subtraction'][imageIdA]`.
 class RadSubtractionScreen extends ConsumerStatefulWidget {
-  const RadSubtractionScreen({super.key, required this.studyId, required this.imageIdA, this.imageIdB});
+  const RadSubtractionScreen({
+    super.key,
+    required this.studyId,
+    required this.imageIdA,
+    this.imageIdB,
+  });
 
   final String studyId;
   final String imageIdA;
@@ -33,7 +38,8 @@ class RadSubtractionScreen extends ConsumerStatefulWidget {
   final String? imageIdB;
 
   @override
-  ConsumerState<RadSubtractionScreen> createState() => _RadSubtractionScreenState();
+  ConsumerState<RadSubtractionScreen> createState() =>
+      _RadSubtractionScreenState();
 }
 
 enum _Mode {
@@ -157,7 +163,8 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     try {
       final settings = await ref.read(radSettingsProvider.future);
       final w = settings.viewer['plus.sub.panel'];
-      if (w is num) _panelWidth = w.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
+      if (w is num)
+        _panelWidth = w.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
     } catch (_) {
       // Preferences are a convenience; the defaults work.
     }
@@ -191,7 +198,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     if (!mounted) return;
     for (final c in _candidates(all, s)) {
       if (c.image.id == wantB) {
-        final restore = saved != null && saved['bImageId'] == wantB ? saved : null;
+        final restore = saved != null && saved['bImageId'] == wantB
+            ? saved
+            : null;
         await _pickB(c, restore: restore);
         return;
       }
@@ -211,7 +220,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     final w = px.width, h = px.height;
     final lo = px.lowPct, hi = px.highPct;
     final invert = px.invert;
-    final small = await Isolate.run(() => _shrink(values, w, h, lo, hi, invert));
+    final small = await Isolate.run(
+      () => _shrink(values, w, h, lo, hi, invert),
+    );
     return _Side(s, imageId, raster, small);
   }
 
@@ -226,13 +237,15 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
             o.patientExternalId == a.patientExternalId);
     final studies = [
       for (final o in all)
-        if (samePatient(o) && o.modality == a.modality && !o.modality.isVolume) o,
+        if (samePatient(o) && o.modality == a.modality && !o.modality.isVolume)
+          o,
     ]..sort((x, y) => y.studyDate.compareTo(x.studyDate));
     if (!studies.any((o) => o.id == a.id)) studies.insert(0, a);
     return [
       for (final o in studies)
         for (final i in o.images)
-          if (!i.compressed && !(o.id == a.id && i.id == widget.imageIdA)) _Candidate(o, i),
+          if (!i.compressed && !(o.id == a.id && i.id == widget.imageIdA))
+            _Candidate(o, i),
     ];
   }
 
@@ -255,7 +268,10 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
         _rot = (restore['rotation'] as num?)?.toDouble() ?? 0;
         _scale = (restore['scale'] as num?)?.toDouble() ?? 1;
         _opacity = (restore['opacity'] as num?)?.toDouble() ?? 0.5;
-        _mode = _Mode.values.firstWhere((m) => m.name == restore['mode'], orElse: () => _mode);
+        _mode = _Mode.values.firstWhere(
+          (m) => m.name == restore['mode'],
+          orElse: () => _mode,
+        );
       } else {
         _resetAlignmentValues(a, b);
         _dirty = true;
@@ -288,7 +304,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     _dx = 0;
     _dy = 0;
     _rot = 0;
-    _scale = sa != null && sb != null && sa > 0 && sb > 0 ? (sb / sa).clamp(0.5, 2.0) : 1;
+    _scale = sa != null && sb != null && sa > 0 && sb > 0
+        ? (sb / sa).clamp(0.5, 2.0)
+        : 1;
   }
 
   void _resetAlignment() {
@@ -331,10 +349,26 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     final ca = a.centre, cb = b.centre;
     final dx = _dx, dy = _dy, rot = _rot * math.pi / 180, scale = _scale;
     _diffJob.run(() async {
-      final diff = await Isolate.run(() => _difference(
-            av, aw, ah, af, bv, bw, bh, bf,
-            ca.dx, ca.dy, cb.dx, cb.dy, dx, dy, rot, scale,
-          ));
+      final diff = await Isolate.run(
+        () => _difference(
+          av,
+          aw,
+          ah,
+          af,
+          bv,
+          bw,
+          bh,
+          bf,
+          ca.dx,
+          ca.dy,
+          cb.dx,
+          cb.dy,
+          dx,
+          dy,
+          rot,
+          scale,
+        ),
+      );
       if (!mounted || a != _a || b != _b) return;
       _diff = diff;
       _paintDifference();
@@ -434,17 +468,26 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
       ..save()
       ..translate(_view.offset.dx, _view.offset.dy)
       ..scale(_view.scale);
-    _paintView(canvas, a,
-        quality: _view.scale < 1 ? FilterQuality.medium : FilterQuality.low);
+    _paintView(
+      canvas,
+      a,
+      quality: _view.scale < 1 ? FilterQuality.medium : FilterQuality.low,
+    );
     canvas.restore();
     final s = _study;
-    plusPaintScaleBar(canvas, size, _view, s == null ? null : RadMeasure.mmPerPx(s, widget.imageIdA));
+    plusPaintScaleBar(
+      canvas,
+      size,
+      _view,
+      s == null ? null : RadMeasure.mmPerPx(s, widget.imageIdA),
+    );
   }
 
   // ───────────────────────────── Input ─────────────────────────────
 
   bool _down(Offset p) {
-    if (_a?.image == null || _b?.image == null || _mode == _Mode.a) return false;
+    if (_a?.image == null || _b?.image == null || _mode == _Mode.a)
+      return false;
     _moveFrom = p;
     return true;
   }
@@ -510,7 +553,8 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
   KeyEventResult _onKey(FocusNode node, KeyEvent e) {
     if (e is KeyUpEvent) return KeyEventResult.ignored;
     final kb = HardwareKeyboard.instance;
-    if (kb.isControlPressed || kb.isMetaPressed || kb.isAltPressed) return KeyEventResult.ignored;
+    if (kb.isControlPressed || kb.isMetaPressed || kb.isAltPressed)
+      return KeyEventResult.ignored;
     final k = e.logicalKey;
     final step = kb.isShiftPressed ? 10.0 : 1.0;
     final nudge = switch (k) {
@@ -529,9 +573,12 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
       _alignmentChanged();
       return KeyEventResult.handled;
     }
-    if (k == LogicalKeyboardKey.bracketLeft || k == LogicalKeyboardKey.bracketRight) {
+    if (k == LogicalKeyboardKey.bracketLeft ||
+        k == LogicalKeyboardKey.bracketRight) {
       if (_b == null) return KeyEventResult.ignored;
-      final turn = (kb.isShiftPressed ? 2.0 : 0.5) * (k == LogicalKeyboardKey.bracketLeft ? -1 : 1);
+      final turn =
+          (kb.isShiftPressed ? 2.0 : 0.5) *
+          (k == LogicalKeyboardKey.bracketLeft ? -1 : 1);
       setState(() => _rot = (_rot + turn).clamp(-45.0, 45.0));
       _alignmentChanged();
       return KeyEventResult.handled;
@@ -569,7 +616,10 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
 
   void _scheduleSave() {
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 700), () => unawaited(_write(_saveNow)));
+    _saveTimer = Timer(
+      const Duration(milliseconds: 700),
+      () => unawaited(_write(_saveNow)),
+    );
   }
 
   Future<void> _saveNow() async {
@@ -626,8 +676,13 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
       await _write(() async {
         final fresh = await _repo.study(widget.studyId);
         if (fresh == null) return;
-        final key = await plusWriteKeyImage(_rad, fresh,
-            imageId: widget.imageIdA, png: png, caption: caption);
+        final key = await plusWriteKeyImage(
+          _rad,
+          fresh,
+          imageId: widget.imageIdA,
+          png: png,
+          caption: caption,
+        );
         await _rad.saveStudy(
           fresh.copyWith(keyImages: [...fresh.keyImages, key]),
           auditAction: 'Marked key image',
@@ -667,7 +722,9 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
               actions: [
                 CruSegmentedControl<_Mode>(
                   semanticLabel: 'View',
-                  segments: [for (final m in _Mode.values) CruSegment(m, m.label)],
+                  segments: [
+                    for (final m in _Mode.values) CruSegment(m, m.label),
+                  ],
                   selected: _mode,
                   onChanged: _setMode,
                 ),
@@ -711,13 +768,15 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     } else {
       title = switch (_mode) {
         _Mode.a => 'A · ${a == null ? '' : RadFormat.date(a.study.studyDate)}',
-        _Mode.b => 'B · ${b == null ? '' : RadFormat.date(b.study.studyDate)} (aligned)',
+        _Mode.b =>
+          'B · ${b == null ? '' : RadFormat.date(b.study.studyDate)} (aligned)',
         _Mode.overlay => 'Overlay',
         _Mode.difference => 'Subtraction A − B',
       };
       body = switch (_mode) {
         _Mode.a => 'Press 2 to flick to B.',
-        _Mode.b || _Mode.overlay => 'Drag to move B · arrows nudge · [ ] rotate',
+        _Mode.b ||
+        _Mode.overlay => 'Drag to move B · arrows nudge · [ ] rotate',
         _Mode.difference => 'Mid-grey is no change.',
       };
     }
@@ -730,27 +789,40 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
       onPrimaryMove: _move,
       onPrimaryUp: _up,
       onWindowDrag: ready ? _window : null,
-      cursor: b != null && _mode != _Mode.a ? SystemMouseCursors.move : SystemMouseCursors.basic,
+      cursor: b != null && _mode != _Mode.a
+          ? SystemMouseCursors.move
+          : SystemMouseCursors.basic,
       overlays: [
         if (!ready)
-          PlusStageMessage(title: _errorA ?? 'Opening the image…', loading: _errorA == null)
+          PlusStageMessage(
+            title: _errorA ?? 'Opening the image…',
+            loading: _errorA == null,
+          )
         else ...[
           Positioned(
             left: CruSpace.s16,
             top: CruSpace.s16,
-            child: IgnorePointer(child: PlusStageNote(title: title, body: body)),
+            child: IgnorePointer(
+              child: PlusStageNote(title: title, body: body),
+            ),
           ),
           Positioned(
             right: CruSpace.s16,
             top: CruSpace.s16,
-            child: PlusStageBar(children: [
-              PlusStageButton(icon: PlusIcons.fit, tooltip: 'Fit (F)', onTap: _view.fit),
-              PlusStageButton(
-                icon: PlusIcons.resetWindow,
-                tooltip: 'Reset brightness and contrast',
-                onTap: _resetWindow,
-              ),
-            ]),
+            child: PlusStageBar(
+              children: [
+                PlusStageButton(
+                  icon: PlusIcons.fit,
+                  tooltip: 'Fit (F)',
+                  onTap: _view.fit,
+                ),
+                PlusStageButton(
+                  icon: PlusIcons.resetWindow,
+                  tooltip: 'Reset brightness and contrast',
+                  onTap: _resetWindow,
+                ),
+              ],
+            ),
           ),
           Positioned(
             left: CruSpace.s16,
@@ -774,7 +846,12 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
     final a = _a;
     final hasB = _b != null;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s12, CruSpace.s16, CruSpace.s16, CruSpace.s24),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        CruSpace.s16,
+        CruSpace.s16,
+        CruSpace.s24,
+      ),
       children: [
         Text('Images', style: CruType.headline.tint(c.label)),
         const SizedBox(height: CruSpace.s12),
@@ -791,7 +868,7 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
             s == null
                 ? ''
                 : 'No other ${s.modality.label} images of this patient yet. '
-                    'Import an earlier study to compare.',
+                      'Import an earlier study to compare.',
             style: CruType.caption.tint(c.label2),
           )
         else
@@ -799,10 +876,13 @@ class _RadSubtractionScreenState extends ConsumerState<RadSubtractionScreen> {
             _ImageTile(
               badge: 'B',
               title: RadFormat.date(cand.study.studyDate),
-              subtitle: '${plusImageLabel(cand.study, cand.image.id)}'
+              subtitle:
+                  '${plusImageLabel(cand.study, cand.image.id)}'
                   '${cand.study.id == s?.id ? ' · this study' : ''}',
               selected: _b?.imageId == cand.image.id,
-              onTap: a == null || _loadingB ? null : () => unawaited(_pickB(cand)),
+              onTap: a == null || _loadingB
+                  ? null
+                  : () => unawaited(_pickB(cand)),
             ),
             const SizedBox(height: CruSpace.s6),
           ],
@@ -924,7 +1004,9 @@ class _ImageTile extends StatelessWidget {
           curve: CruMotion.curve,
           padding: const EdgeInsets.all(CruSpace.s10),
           decoration: ShapeDecoration(
-            color: selected ? c.inset : (hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0)),
+            color: selected
+                ? c.inset
+                : (hovered ? c.hoverFill : c.hoverFill.withValues(alpha: 0)),
             shape: cruShape(
               CruRadius.control,
               side: BorderSide(color: selected ? c.separator : c.hairline),
@@ -940,7 +1022,10 @@ class _ImageTile extends StatelessWidget {
                   color: selected ? c.label : c.inset,
                   shape: cruShape(CruRadius.iconTile),
                 ),
-                child: Text(badge, style: CruType.callout.tint(selected ? c.surface : c.label2)),
+                child: Text(
+                  badge,
+                  style: CruType.callout.tint(selected ? c.surface : c.label2),
+                ),
               ),
               const SizedBox(width: CruSpace.s12),
               Expanded(
@@ -948,15 +1033,22 @@ class _ImageTile extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(title, style: CruType.callout.tabular.tint(c.label)),
-                    Text(subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: CruType.caption.tint(c.label2)),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CruType.caption.tint(c.label2),
+                    ),
                   ],
                 ),
               ),
               if (selected && badge == 'B')
-                CruIcon(CruIcons.check, size: 16, strokeWidth: 2.2, color: c.label2),
+                CruIcon(
+                  CruIcons.check,
+                  size: 16,
+                  strokeWidth: 2.2,
+                  color: c.label2,
+                ),
             ],
           ),
         ),

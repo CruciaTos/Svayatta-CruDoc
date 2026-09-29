@@ -21,10 +21,7 @@ Future<bool> promptScheduleVisit(
   String pickerTitle = 'Select a patient',
 }) async {
   // Step 1: Pick a patient
-  final patient = await showPatientPickerDialog(
-    context,
-    title: pickerTitle,
-  );
+  final patient = await showPatientPickerDialog(context, title: pickerTitle);
 
   if (patient == null || !context.mounted) return false;
 

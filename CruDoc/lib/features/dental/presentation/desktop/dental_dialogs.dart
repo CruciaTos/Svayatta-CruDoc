@@ -125,9 +125,17 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
     });
     try {
       final now = DateTime.now();
-      final at = DateTime(_date.year, _date.month, _date.day, now.hour,
-          now.minute, now.second);
-      await ref.read(dentalRepositoryProvider).saveToothChartEntry(
+      final at = DateTime(
+        _date.year,
+        _date.month,
+        _date.day,
+        now.hour,
+        now.minute,
+        now.second,
+      );
+      await ref
+          .read(dentalRepositoryProvider)
+          .saveToothChartEntry(
             ToothChartEntryModel(
               id: _uuid.v4(),
               doctorId: ref.read(dentalDoctorIdProvider),
@@ -159,22 +167,25 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final state = DentalChart.stateOf(ToothChartEntryModel(
-      id: '',
-      doctorId: '',
-      patientId: '',
-      toothNumber: widget.tooth,
-      condition: _condition?.name,
-      treatment: _treatment?.name,
-      recordedAt: _date,
-      createdAt: _date,
-      updatedAt: _date,
-    ));
+    final state = DentalChart.stateOf(
+      ToothChartEntryModel(
+        id: '',
+        doctorId: '',
+        patientId: '',
+        toothNumber: widget.tooth,
+        condition: _condition?.name,
+        treatment: _treatment?.name,
+        recordedAt: _date,
+        createdAt: _date,
+        updatedAt: _date,
+      ),
+    );
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     return CruFormDialog(
       title: 'Tooth ${toothLabel(widget.tooth, numbering)}',
-      subtitle: '${DentalChart.name(widget.tooth)} · ${widget.patient.fullName}',
+      subtitle:
+          '${DentalChart.name(widget.tooth)} · ${widget.patient.fullName}',
       leading: ToothBadge(tooth: widget.tooth, state: state),
       submitLabel: 'Save finding',
       onSubmit: _save,
@@ -194,7 +205,8 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
                 label: 'Condition',
                 child: DentalChipWrap<ToothCondition?>(
                   options: const [null, ...ToothCondition.values],
-                  label: (c) => c == null ? 'Healthy' : DentalChart.conditionLabel(c),
+                  label: (c) =>
+                      c == null ? 'Healthy' : DentalChart.conditionLabel(c),
                   isSelected: (c) => c == _condition,
                   onTap: (c) {
                     setState(() => _condition = c);
@@ -207,7 +219,8 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
                 optional: true,
                 child: DentalChipWrap<ToothTreatment?>(
                   options: const [null, ...ToothTreatment.values],
-                  label: (t) => t == null ? 'None' : DentalChart.treatmentLabel(t),
+                  label: (t) =>
+                      t == null ? 'None' : DentalChart.treatmentLabel(t),
                   isSelected: (t) => t == _treatment,
                   onTap: (t) {
                     setState(() => _treatment = t);
@@ -218,15 +231,19 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
               CruFieldFrame(
                 label: 'Surfaces',
                 optional: true,
-                help: 'Mesial, distal, occlusal, buccal, lingual, incisal, cervical.',
+                help:
+                    'Mesial, distal, occlusal, buccal, lingual, incisal, cervical.',
                 child: DentalChipWrap<ToothSurface>(
                   options: ToothSurface.values,
                   label: (s) =>
                       '${DentalChart.surfaceLetter(s)} · ${DentalChart.surfaceLabel(s)}',
                   isSelected: _surfaces.contains,
                   onTap: (s) {
-                    setState(() =>
-                        _surfaces.contains(s) ? _surfaces.remove(s) : _surfaces.add(s));
+                    setState(
+                      () => _surfaces.contains(s)
+                          ? _surfaces.remove(s)
+                          : _surfaces.add(s),
+                    );
                     _edited();
                   },
                 ),
@@ -247,8 +264,11 @@ class _ToothFindingDialogState extends ConsumerState<_ToothFindingDialog> {
                         ? const CruInfoPill(text: 'Today')
                         : null,
                     onTap: () async {
-                      final d = await pickDentalDate(context,
-                          initial: _date, last: DateTime.now());
+                      final d = await pickDentalDate(
+                        context,
+                        initial: _date,
+                        last: DateTime.now(),
+                      );
                       if (d != null) {
                         setState(() => _date = d);
                         _edited();
@@ -315,7 +335,7 @@ class _ProcedurePicker extends ConsumerWidget {
           hint: 'Root canal treatment, composite filling…',
           help: catalog.isEmpty
               ? 'Add your procedures and fees under Procedures in the sidebar '
-                  'to pick them here.'
+                    'to pick them here.'
               : null,
           textCapitalization: TextCapitalization.sentences,
           validator: (v) =>
@@ -345,11 +365,8 @@ Future<bool> showProcedureLogDialog(
 }) async {
   final saved = await showDialog<bool>(
     context: context,
-    builder: (_) => _ProcedureLogDialog(
-      patient: patient,
-      teeth: teeth,
-      existing: existing,
-    ),
+    builder: (_) =>
+        _ProcedureLogDialog(patient: patient, teeth: teeth, existing: existing),
   );
   return saved == true;
 }
@@ -392,7 +409,8 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
     final e = widget.existing;
     _name = TextEditingController(text: e?.procedureName ?? '');
     _teeth = TextEditingController(
-        text: (e?.toothNumbers ?? widget.teeth).join(', '));
+      text: (e?.toothNumbers ?? widget.teeth).join(', '),
+    );
     _materials = TextEditingController(text: e?.materials ?? '');
     _notes = TextEditingController(text: e?.notes ?? '');
     _catalogId = e?.procedureCatalogId;
@@ -438,7 +456,9 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
         toothNumbers: teeth,
         status: _status.code,
         notes: _notes.text.trim(),
-        materials: _materials.text.trim().isEmpty ? null : _materials.text.trim(),
+        materials: _materials.text.trim().isEmpty
+            ? null
+            : _materials.text.trim(),
         performedAt: _date,
         createdAt: e?.createdAt ?? now,
         updatedAt: now,
@@ -446,26 +466,36 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
       );
       await repo.saveProcedureLog(log);
       // A completed procedure shows on the tooth chart.
-      final wasCompleted = e != null &&
+      final wasCompleted =
+          e != null &&
           DentalProcedureStatus.fromString(e.status) ==
               DentalProcedureStatus.completed;
-      final t = DentalChart.treatmentForProcedure(_catalogCode, log.procedureName);
-      if (_status == DentalProcedureStatus.completed && !wasCompleted && t != null) {
+      final t = DentalChart.treatmentForProcedure(
+        _catalogCode,
+        log.procedureName,
+      );
+      if (_status == DentalProcedureStatus.completed &&
+          !wasCompleted &&
+          t != null) {
         for (final tooth in teeth) {
-          await repo.saveToothChartEntry(ToothChartEntryModel(
-            id: _uuid.v4(),
-            doctorId: doctorId,
-            patientId: widget.patient.id,
-            toothNumber: tooth,
-            treatment: t.name,
-            condition: t == ToothTreatment.extraction ? ToothCondition.missing.name : null,
-            procedureLogId: log.id,
-            notes: log.procedureName,
-            recordedAt: _date,
-            createdAt: now,
-            updatedAt: now,
-            syncStatus: 'pending',
-          ));
+          await repo.saveToothChartEntry(
+            ToothChartEntryModel(
+              id: _uuid.v4(),
+              doctorId: doctorId,
+              patientId: widget.patient.id,
+              toothNumber: tooth,
+              treatment: t.name,
+              condition: t == ToothTreatment.extraction
+                  ? ToothCondition.missing.name
+                  : null,
+              procedureLogId: log.id,
+              notes: log.procedureName,
+              recordedAt: _date,
+              createdAt: now,
+              updatedAt: now,
+              syncStatus: 'pending',
+            ),
+          );
         }
       }
       refreshDentalPatient(ref, widget.patient.id);
@@ -484,7 +514,8 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
     final ok = await confirmDental(
       context,
       title: 'Remove this procedure?',
-      body: '${e.procedureName} on ${DentalFormat.date(e.performedAt)} will '
+      body:
+          '${e.procedureName} on ${DentalFormat.date(e.performedAt)} will '
           'be removed from ${widget.patient.firstName}\'s record.',
       action: 'Remove',
     );
@@ -500,7 +531,10 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
     return CruFormDialog(
       title: widget.existing == null ? 'Log procedure' : 'Procedure',
       subtitle: widget.patient.fullName,
-      leading: const CruIconTile(icon: DentalIcons.tooth, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: DentalIcons.tooth,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.existing == null ? 'Log procedure' : 'Save changes',
       onSubmit: _save,
       busy: _saving,
@@ -550,7 +584,8 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
                       controller: _teeth,
                       hint: '16, 17',
                       tabular: true,
-                      validator: (v) => _validateTeeth(v, required: _needsTeeth),
+                      validator: (v) =>
+                          _validateTeeth(v, required: _needsTeeth),
                       onChanged: (_) => _edited(),
                     ),
                     CruPickerField(
@@ -579,8 +614,14 @@ class _ProcedureLogDialogState extends ConsumerState<_ProcedureLogDialog> {
                       semanticLabel: 'Status',
                       segments: const [
                         CruSegment(DentalProcedureStatus.planned, 'Planned'),
-                        CruSegment(DentalProcedureStatus.inProgress, 'In progress'),
-                        CruSegment(DentalProcedureStatus.completed, 'Completed'),
+                        CruSegment(
+                          DentalProcedureStatus.inProgress,
+                          'In progress',
+                        ),
+                        CruSegment(
+                          DentalProcedureStatus.completed,
+                          'Completed',
+                        ),
                       ],
                       selected: _status,
                       onChanged: (s) {
@@ -639,11 +680,8 @@ Future<bool> showPlanItemDialog(
 }) async {
   final saved = await showDialog<bool>(
     context: context,
-    builder: (_) => _PlanItemDialog(
-      patient: patient,
-      teeth: teeth,
-      existing: existing,
-    ),
+    builder: (_) =>
+        _PlanItemDialog(patient: patient, teeth: teeth, existing: existing),
   );
   return saved == true;
 }
@@ -682,11 +720,13 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
     final e = widget.existing;
     _name = TextEditingController(text: e?.procedureName ?? '');
     _teeth = TextEditingController(
-        text: (e?.toothNumbers ?? widget.teeth).join(', '));
+      text: (e?.toothNumbers ?? widget.teeth).join(', '),
+    );
     _price = TextEditingController(
-        text: e == null || e.estimatedPrice <= 0
-            ? ''
-            : e.estimatedPrice.round().toString());
+      text: e == null || e.estimatedPrice <= 0
+          ? ''
+          : e.estimatedPrice.round().toString(),
+    );
     _catalogId = e?.procedureCatalogId;
     _status = e == null
         ? TreatmentPlanItemStatus.proposed
@@ -723,30 +763,39 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
     });
     try {
       final repo = ref.read(dentalRepositoryProvider);
-      final existingItems =
-          await repo.getTreatmentPlanLineItems(widget.patient.id);
-      final planId = widget.existing?.treatmentPlanId ??
-          (existingItems.isEmpty ? _uuid.v4() : existingItems.first.treatmentPlanId);
+      final existingItems = await repo.getTreatmentPlanLineItems(
+        widget.patient.id,
+      );
+      final planId =
+          widget.existing?.treatmentPlanId ??
+          (existingItems.isEmpty
+              ? _uuid.v4()
+              : existingItems.first.treatmentPlanId);
       final nextSeq = existingItems.isEmpty
           ? 1
-          : existingItems.map((i) => i.sequence).reduce((a, b) => a > b ? a : b) + 1;
+          : existingItems
+                    .map((i) => i.sequence)
+                    .reduce((a, b) => a > b ? a : b) +
+                1;
       final now = DateTime.now();
       final e = widget.existing;
-      await repo.saveTreatmentPlanLineItem(TreatmentPlanLineItemModel(
-        id: e?.id ?? _uuid.v4(),
-        doctorId: ref.read(dentalDoctorIdProvider),
-        patientId: widget.patient.id,
-        treatmentPlanId: planId,
-        procedureCatalogId: _catalogId,
-        procedureName: _name.text.trim(),
-        toothNumbers: DentalChart.parseTeeth(_teeth.text).teeth,
-        estimatedPrice: double.tryParse(_price.text.trim()) ?? 0,
-        sequence: e?.sequence ?? nextSeq,
-        status: _status.code,
-        createdAt: e?.createdAt ?? now,
-        updatedAt: now,
-        syncStatus: 'pending',
-      ));
+      await repo.saveTreatmentPlanLineItem(
+        TreatmentPlanLineItemModel(
+          id: e?.id ?? _uuid.v4(),
+          doctorId: ref.read(dentalDoctorIdProvider),
+          patientId: widget.patient.id,
+          treatmentPlanId: planId,
+          procedureCatalogId: _catalogId,
+          procedureName: _name.text.trim(),
+          toothNumbers: DentalChart.parseTeeth(_teeth.text).teeth,
+          estimatedPrice: double.tryParse(_price.text.trim()) ?? 0,
+          sequence: e?.sequence ?? nextSeq,
+          status: _status.code,
+          createdAt: e?.createdAt ?? now,
+          updatedAt: now,
+          syncStatus: 'pending',
+        ),
+      );
       refreshDentalPatient(ref, widget.patient.id);
       if (mounted) Navigator.of(context).pop(true);
     } catch (_) {
@@ -762,7 +811,10 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
     return CruFormDialog(
       title: widget.existing == null ? 'Add to treatment plan' : 'Plan item',
       subtitle: widget.patient.fullName,
-      leading: const CruIconTile(icon: DentalIcons.plan, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: DentalIcons.plan,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.existing == null ? 'Add to plan' : 'Save changes',
       onSubmit: _save,
       busy: _saving,
@@ -838,11 +890,23 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
                     child: CruSegmentedControl<TreatmentPlanItemStatus>(
                       semanticLabel: 'Status',
                       segments: [
-                        const CruSegment(TreatmentPlanItemStatus.proposed, 'Proposed'),
-                        const CruSegment(TreatmentPlanItemStatus.accepted, 'Accepted'),
+                        const CruSegment(
+                          TreatmentPlanItemStatus.proposed,
+                          'Proposed',
+                        ),
+                        const CruSegment(
+                          TreatmentPlanItemStatus.accepted,
+                          'Accepted',
+                        ),
                         if (widget.existing != null) ...const [
-                          CruSegment(TreatmentPlanItemStatus.declined, 'Declined'),
-                          CruSegment(TreatmentPlanItemStatus.invoiced, 'Invoiced'),
+                          CruSegment(
+                            TreatmentPlanItemStatus.declined,
+                            'Declined',
+                          ),
+                          CruSegment(
+                            TreatmentPlanItemStatus.invoiced,
+                            'Invoiced',
+                          ),
                         ],
                       ],
                       selected: _status,
@@ -867,11 +931,10 @@ class _PlanItemDialogState extends ConsumerState<_PlanItemDialog> {
 Future<void> showTreatmentPlanDialog(
   BuildContext context, {
   required Patient patient,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _TreatmentPlanDialog(patient: patient),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _TreatmentPlanDialog(patient: patient),
+);
 
 class _TreatmentPlanDialog extends ConsumerWidget {
   const _TreatmentPlanDialog({required this.patient});
@@ -899,9 +962,11 @@ class _TreatmentPlanDialog extends ConsumerWidget {
     final a = items[from], b = items[to];
     final now = DateTime.now();
     await repo.saveTreatmentPlanLineItem(
-        a.copyWith(sequence: b.sequence, updatedAt: now));
+      a.copyWith(sequence: b.sequence, updatedAt: now),
+    );
     await repo.saveTreatmentPlanLineItem(
-        b.copyWith(sequence: a.sequence, updatedAt: now));
+      b.copyWith(sequence: a.sequence, updatedAt: now),
+    );
     refreshDentalPatient(ref, patient.id);
   }
 
@@ -929,7 +994,10 @@ class _TreatmentPlanDialog extends ConsumerWidget {
     for (final i in accepted) {
       await ref
           .read(dentalRepositoryProvider)
-          .updateTreatmentPlanLineItemStatus(i.id, TreatmentPlanItemStatus.invoiced.code);
+          .updateTreatmentPlanLineItemStatus(
+            i.id,
+            TreatmentPlanItemStatus.invoiced.code,
+          );
     }
     refreshDentalPatient(ref, patient.id);
   }
@@ -937,37 +1005,48 @@ class _TreatmentPlanDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final items = [...(ref.watch(patientTreatmentPlanProvider(patient.id)).value ?? const <TreatmentPlanLineItemModel>[])]
-      ..sort((a, b) => a.sequence.compareTo(b.sequence));
+    final items = [
+      ...(ref.watch(patientTreatmentPlanProvider(patient.id)).value ??
+          const <TreatmentPlanLineItemModel>[]),
+    ]..sort((a, b) => a.sequence.compareTo(b.sequence));
     double sum(TreatmentPlanItemStatus s) => items
         .where((i) => TreatmentPlanItemStatus.fromString(i.status) == s)
         .fold(0.0, (t, i) => t + i.estimatedPrice);
     final accepted = items
-        .where((i) =>
-            TreatmentPlanItemStatus.fromString(i.status) ==
-            TreatmentPlanItemStatus.accepted)
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) ==
+              TreatmentPlanItemStatus.accepted,
+        )
         .toList();
     final proposed = items
-        .where((i) =>
-            TreatmentPlanItemStatus.fromString(i.status) ==
-            TreatmentPlanItemStatus.proposed)
+        .where(
+          (i) =>
+              TreatmentPlanItemStatus.fromString(i.status) ==
+              TreatmentPlanItemStatus.proposed,
+        )
         .toList();
 
     return DentalPanelDialog(
       title: 'Treatment plan',
       subtitle: patient.fullName,
-      leading: const CruIconTile(icon: DentalIcons.plan, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: DentalIcons.plan,
+        tone: CruTileTone.accent,
+      ),
       body: items.isEmpty
           ? DentalEmptyState(
               icon: DentalIcons.plan,
               title: 'No treatment plan yet',
-              body: 'Add the procedures you recommend, with teeth and fees. '
+              body:
+                  'Add the procedures you recommend, with teeth and fees. '
                   '${patient.firstName} can accept them one by one.',
               actions: [
                 CruButton(
                   label: 'Add procedure',
                   icon: CruIcons.plus,
-                  onPressed: () => showPlanItemDialog(context, patient: patient),
+                  onPressed: () =>
+                      showPlanItemDialog(context, patient: patient),
                 ),
               ],
             )
@@ -979,30 +1058,54 @@ class _TreatmentPlanDialog extends ConsumerWidget {
                   _PlanRow(
                     index: i,
                     item: items[i],
-                    onEdit: () => showPlanItemDialog(context,
-                        patient: patient, existing: items[i]),
+                    onEdit: () => showPlanItemDialog(
+                      context,
+                      patient: patient,
+                      existing: items[i],
+                    ),
                     onAction: (a) async {
                       switch (a) {
                         case _PlanAction.accept:
-                          await _setStatus(ref, items[i], TreatmentPlanItemStatus.accepted);
+                          await _setStatus(
+                            ref,
+                            items[i],
+                            TreatmentPlanItemStatus.accepted,
+                          );
                         case _PlanAction.propose:
-                          await _setStatus(ref, items[i], TreatmentPlanItemStatus.proposed);
+                          await _setStatus(
+                            ref,
+                            items[i],
+                            TreatmentPlanItemStatus.proposed,
+                          );
                         case _PlanAction.decline:
-                          await _setStatus(ref, items[i], TreatmentPlanItemStatus.declined);
+                          await _setStatus(
+                            ref,
+                            items[i],
+                            TreatmentPlanItemStatus.declined,
+                          );
                         case _PlanAction.invoiced:
-                          await _setStatus(ref, items[i], TreatmentPlanItemStatus.invoiced);
+                          await _setStatus(
+                            ref,
+                            items[i],
+                            TreatmentPlanItemStatus.invoiced,
+                          );
                         case _PlanAction.up:
                           if (i > 0) await _move(ref, items, i, i - 1);
                         case _PlanAction.down:
-                          if (i < items.length - 1) await _move(ref, items, i, i + 1);
+                          if (i < items.length - 1)
+                            await _move(ref, items, i, i + 1);
                         case _PlanAction.edit:
-                          await showPlanItemDialog(context,
-                              patient: patient, existing: items[i]);
+                          await showPlanItemDialog(
+                            context,
+                            patient: patient,
+                            existing: items[i],
+                          );
                         case _PlanAction.remove:
                           final ok = await confirmDental(
                             context,
                             title: 'Remove from the plan?',
-                            body: '${items[i].procedureName} will be taken off '
+                            body:
+                                '${items[i].procedureName} will be taken off '
                                 '${patient.firstName}\'s plan.',
                             action: 'Remove',
                           );
@@ -1041,7 +1144,8 @@ class _TreatmentPlanDialog extends ConsumerWidget {
                   label: 'Add procedure',
                   kind: CruButtonKind.secondary,
                   icon: CruIcons.plus,
-                  onPressed: () => showPlanItemDialog(context, patient: patient),
+                  onPressed: () =>
+                      showPlanItemDialog(context, patient: patient),
                 ),
                 const Spacer(),
                 if (proposed.isNotEmpty) ...[
@@ -1050,8 +1154,12 @@ class _TreatmentPlanDialog extends ConsumerWidget {
                     kind: CruButtonKind.inset,
                     onPressed: () async {
                       for (final i in proposed) {
-                        await ref.read(dentalRepositoryProvider).updateTreatmentPlanLineItemStatus(
-                            i.id, TreatmentPlanItemStatus.accepted.code);
+                        await ref
+                            .read(dentalRepositoryProvider)
+                            .updateTreatmentPlanLineItemStatus(
+                              i.id,
+                              TreatmentPlanItemStatus.accepted.code,
+                            );
                       }
                       refreshDentalPatient(ref, patient.id);
                     },
@@ -1104,8 +1212,14 @@ class _PlanRow extends ConsumerWidget {
             width: 24,
             height: 24,
             alignment: Alignment.center,
-            decoration: ShapeDecoration(color: c.inset, shape: const CircleBorder()),
-            child: Text('${index + 1}', style: CruType.caption.w600.tabular.tint(c.label2)),
+            decoration: ShapeDecoration(
+              color: c.inset,
+              shape: const CircleBorder(),
+            ),
+            child: Text(
+              '${index + 1}',
+              style: CruType.caption.w600.tabular.tint(c.label2),
+            ),
           ),
           const SizedBox(width: CruSpace.s12),
           Expanded(
@@ -1116,8 +1230,12 @@ class _PlanRow extends ConsumerWidget {
                   item.procedureName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: CruType.callout.tint(declined ? c.label3 : c.label).copyWith(
-                        decoration: declined ? TextDecoration.lineThrough : null,
+                  style: CruType.callout
+                      .tint(declined ? c.label3 : c.label)
+                      .copyWith(
+                        decoration: declined
+                            ? TextDecoration.lineThrough
+                            : null,
                       ),
                 ),
                 if (teeth != null)
@@ -1127,7 +1245,9 @@ class _PlanRow extends ConsumerWidget {
           ),
           const SizedBox(width: CruSpace.s12),
           Text(
-            item.estimatedPrice > 0 ? DashFormat.rupees(item.estimatedPrice) : '—',
+            item.estimatedPrice > 0
+                ? DashFormat.rupees(item.estimatedPrice)
+                : '—',
             style: CruType.row.tabular.tint(declined ? c.label3 : c.label),
           ),
           const SizedBox(width: CruSpace.s12),
@@ -1137,7 +1257,10 @@ class _PlanRow extends ConsumerWidget {
             tooltip: 'More',
             onSelected: onAction,
             color: c.surface,
-            shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+            shape: cruShape(
+              CruRadius.control,
+              side: BorderSide(color: c.hairline),
+            ),
             itemBuilder: (_) => [
               if (status != TreatmentPlanItemStatus.accepted)
                 _item(c, _PlanAction.accept, 'Mark accepted'),
@@ -1166,10 +1289,13 @@ class _PlanRow extends ConsumerWidget {
     );
   }
 
-  static PopupMenuItem<_PlanAction> _item(CruColors c, _PlanAction a, String label) =>
-      PopupMenuItem(
-        value: a,
-        height: CruSize.control,
-        child: Text(label, style: CruType.text.tint(c.label)),
-      );
+  static PopupMenuItem<_PlanAction> _item(
+    CruColors c,
+    _PlanAction a,
+    String label,
+  ) => PopupMenuItem(
+    value: a,
+    height: CruSize.control,
+    child: Text(label, style: CruType.text.tint(c.label)),
+  );
 }

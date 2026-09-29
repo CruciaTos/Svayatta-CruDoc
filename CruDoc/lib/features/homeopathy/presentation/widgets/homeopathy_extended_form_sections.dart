@@ -34,7 +34,8 @@ class ChildhoodHistoryCard extends StatelessWidget {
         HomeopathyFormField(
           controller: natureCtrl,
           label: '1. What was your nature as a child?',
-          hint: 'e.g. Shy, bold, stubborn, quiet, obedient, playful, rebellious',
+          hint:
+              'e.g. Shy, bold, stubborn, quiet, obedient, playful, rebellious',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -69,7 +70,8 @@ class ChildhoodHistoryCard extends StatelessWidget {
         HomeopathyFormField(
           controller: sensitivitiesCtrl,
           label: '6. Childhood Sensitivities & Vulnerabilities',
-          hint: 'e.g. Cried easily if scolded, sensitive to punishment, teasing',
+          hint:
+              'e.g. Cried easily if scolded, sensitive to punishment, teasing',
           maxLines: 2,
         ),
       ],
@@ -134,7 +136,8 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
         HomeopathyFormField(
           controller: fearDetailsCtrl,
           label: 'Q3. Details of Fears & Phobias',
-          hint: 'Describe when fear started, what happens physically, what you do',
+          hint:
+              'Describe when fear started, what happens physically, what you do',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -147,35 +150,40 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
         HomeopathyFormField(
           controller: stressHistoryCtrl,
           label: 'Q5. Major Life Stresses & Chronology',
-          hint: 'Bereavement, financial loss, divorce, job loss, emotional shock',
+          hint:
+              'Bereavement, financial loss, divorce, job loss, emotional shock',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: stressCopingCtrl,
           label: 'Q7. How do you cope when stressed or angry?',
-          hint: 'Silence, weeping, shouting, isolating, walking, working, smoking',
+          hint:
+              'Silence, weeping, shouting, isolating, walking, working, smoking',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: sensitivityDetailsCtrl,
           label: 'Q8. Sensitivities to surroundings & people',
-          hint: 'Noise, bright light, odors, rude behavior, criticism, sympathy',
+          hint:
+              'Noise, bright light, odors, rude behavior, criticism, sympathy',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: fixedHabitsCtrl,
           label: 'Q9. Fixed Habits, Routines or Fastidiousness',
-          hint: 'Need everything in order, checking locks repeatedly, cleanliness',
+          hint:
+              'Need everything in order, checking locks repeatedly, cleanliness',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: angerBodyCtrl,
           label: 'Q10. Physical symptoms when angry',
-          hint: 'Trembling, headache, palpitations, loss of speech, indigestion',
+          hint:
+              'Trembling, headache, palpitations, loss of speech, indigestion',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -223,7 +231,8 @@ class ExpandedMindPersonalityCard extends StatelessWidget {
         HomeopathyFormField(
           controller: lifeSituationCtrl,
           label: 'Q18. Overall Picture of Current Life Situation',
-          hint: 'How you perceive your life right now (content, trapped, struggling, peaceful)',
+          hint:
+              'How you perceive your life right now (content, trapped, struggling, peaceful)',
           maxLines: 2,
         ),
       ],
@@ -306,7 +315,8 @@ class ChildrenPediatricFormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Pediatric Case Sheet (Questions 1–27)',
-      subtitle: 'Temperament, school, milestones, birth & developmental history',
+      subtitle:
+          'Temperament, school, milestones, birth & developmental history',
       isComplete: isComplete,
       icon: Icons.child_care_rounded,
       initiallyExpanded: true,
@@ -323,13 +333,15 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: coldHeatCtrl,
           label: 'Q3. Child Sensitive to Cold or Heat?',
-          hint: 'Prefers warm clothing, throws off blankets, seeks AC/fan, catches cold easily',
+          hint:
+              'Prefers warm clothing, throws off blankets, seeks AC/fan, catches cold easily',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: behaviorWhenUpsetCtrl,
           label: 'Q4. Behavior when upset, scolded or crying',
-          hint: 'Tantrums, throwing things, sulking in corner, wants to be carried/rocked',
+          hint:
+              'Tantrums, throwing things, sulking in corner, wants to be carried/rocked',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -342,7 +354,8 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: schoolBehaviorCtrl,
           label: 'Q6. School Behavior, Studies & Friends',
-          hint: 'Attentive, restless, fights with peers, fear of teachers, exam anxiety',
+          hint:
+              'Attentive, restless, fights with peers, fear of teachers, exam anxiety',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -369,13 +382,15 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: attitudeParentsCtrl,
           label: 'Q11. Attitude towards parents & siblings',
-          hint: 'Obedient, stubborn, jealous of younger sibling, clinging to mother',
+          hint:
+              'Obedient, stubborn, jealous of younger sibling, clinging to mother',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: familyProblemsCtrl,
           label: 'Q14. Reaction to family arguments or tension',
-          hint: 'Frightened, cries, becomes aggressive, physical complaints follow',
+          hint:
+              'Frightened, cries, becomes aggressive, physical complaints follow',
         ),
         const SizedBox(height: 12),
         Row(
@@ -411,7 +426,8 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         const SizedBox(height: 8),
         HomeopathyFormField(
           controller: birthComplicationsCtrl,
-          label: 'Q18. Birth Complications (Forceps, Caesarean, Jaundice, Delayed Cry)',
+          label:
+              'Q18. Birth Complications (Forceps, Caesarean, Jaundice, Delayed Cry)',
           hint: 'Full term / premature, birth weight, ICU stay',
           maxLines: 2,
         ),
@@ -419,7 +435,8 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: motherPregnancyCtrl,
           label: 'Q19. Mother\'s Emotional State & Health during Pregnancy',
-          hint: 'Grief, shock, nausea, high BP, thyroid, family stress during pregnancy',
+          hint:
+              'Grief, shock, nausea, high BP, thyroid, family stress during pregnancy',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -439,13 +456,15 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: walkingTeethingCtrl,
           label: 'Q22. Milestone Ages (Walking, Talking, Teething)',
-          hint: 'Teething troubles (fever/diarrhea), delayed speech, delayed walking',
+          hint:
+              'Teething troubles (fever/diarrhea), delayed speech, delayed walking',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: vaccinationCtrl,
           label: 'Q9. Vaccination History & Adverse Reactions',
-          hint: 'High fever, convulsions, skin eruption, regressions after vaccine',
+          hint:
+              'High fever, convulsions, skin eruption, regressions after vaccine',
           maxLines: 2,
         ),
         const SizedBox(height: 16),
@@ -462,21 +481,24 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         const SizedBox(height: 8),
         HomeopathyFormField(
           controller: abnormalBehaviorsCtrl,
-          label: 'Q23. Abnormal Behaviors (Head banging, biting, picking nose/lips)',
+          label:
+              'Q23. Abnormal Behaviors (Head banging, biting, picking nose/lips)',
           hint: 'Tics, restlessness, bedwetting, stammering',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: childFearsCtrl,
-          label: 'Q24. Child Fears (Dogs, dark, thunder, strangers, being alone)',
+          label:
+              'Q24. Child Fears (Dogs, dark, thunder, strangers, being alone)',
           hint: 'Describe specific fears and child\'s reaction',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: sleepingHabitsCtrl,
-          label: 'Q25. Sleeping Habits (Posture, snoring, teeth grinding, sweat)',
+          label:
+              'Q25. Sleeping Habits (Posture, snoring, teeth grinding, sweat)',
           hint: 'Sleeps on tummy, head sweats during sleep, night terrors',
           maxLines: 2,
         ),
@@ -490,7 +512,8 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: wormsCtrl,
           label: 'Q27. Worms History & Symptoms',
-          hint: 'Anal itching, nose rubbing, grinds teeth at night, variable appetite',
+          hint:
+              'Anal itching, nose rubbing, grinds teeth at night, variable appetite',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
@@ -516,7 +539,8 @@ class ChildrenPediatricFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: stoolCtrl,
           label: 'Stool & Urinary Symptoms',
-          hint: 'Constipation, hard large stool, involuntary urination, enuresis',
+          hint:
+              'Constipation, hard large stool, involuntary urination, enuresis',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
@@ -577,7 +601,8 @@ class FemaleEndocrineFormCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Female & Endocrine Questionnaire',
-      subtitle: 'Thyroid, hormonal etiology, lifecycle stages & systemic symptoms',
+      subtitle:
+          'Thyroid, hormonal etiology, lifecycle stages & systemic symptoms',
       isComplete: isComplete,
       icon: Icons.female_rounded,
       initiallyExpanded: true,
@@ -585,21 +610,25 @@ class FemaleEndocrineFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: diagnosisCtrl,
           label: 'Medical Diagnosis & Thyroid Profile',
-          hint: 'e.g. Hypothyroidism, Hashimoto\'s, Graves\', PCOD, Goitre, TSH/T3/T4 values',
+          hint:
+              'e.g. Hypothyroidism, Hashimoto\'s, Graves\', PCOD, Goitre, TSH/T3/T4 values',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: howStartedCtrl,
           label: 'How & When Did the Problem Start?',
-          hint: 'Initial symptoms noticed, timeline, precipitating circumstances',
+          hint:
+              'Initial symptoms noticed, timeline, precipitating circumstances',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: physioTriggerCtrl,
-          label: 'Physiological Triggers (Menarche, Pregnancy, OC Pills, Hysterectomy)',
-          hint: 'Did complaint trigger after puberty, miscarriage, childbirth, birth control pills?',
+          label:
+              'Physiological Triggers (Menarche, Pregnancy, OC Pills, Hysterectomy)',
+          hint:
+              'Did complaint trigger after puberty, miscarriage, childbirth, birth control pills?',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -613,13 +642,15 @@ class FemaleEndocrineFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: manifestationLocCtrl,
           label: 'Disease Manifestation & Physical Location',
-          hint: 'General myxoedema, localized swelling, exophthalmos, puffiness around eyes',
+          hint:
+              'General myxoedema, localized swelling, exophthalmos, puffiness around eyes',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: goitreCtrl,
           label: 'Goitre / Thyroid Gland Details',
-          hint: 'Size, texture (soft/hard/nodular), constriction feeling, choking sensation with collar',
+          hint:
+              'Size, texture (soft/hard/nodular), constriction feeling, choking sensation with collar',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -632,7 +663,8 @@ class FemaleEndocrineFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: skinCtrl,
           label: 'Skin & Hair Symptoms (Dryness, Hair Loss, Pigmentation)',
-          hint: 'Loss of outer eyebrow hair, coarse skin, brittle nails, melasma',
+          hint:
+              'Loss of outer eyebrow hair, coarse skin, brittle nails, melasma',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -653,7 +685,8 @@ class FemaleEndocrineFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: stagesOfLifeCtrl,
           label: 'Stages of Life Impact (Puberty / Motherhood / Menopause)',
-          hint: 'How health fluctuated during childhood, puberty, post-pregnancy, and perimenopause',
+          hint:
+              'How health fluctuated during childhood, puberty, post-pregnancy, and perimenopause',
           maxLines: 3,
         ),
         const SizedBox(height: 12),
@@ -667,7 +700,8 @@ class FemaleEndocrineFormCard extends StatelessWidget {
         HomeopathyFormField(
           controller: relationshipsCtrl,
           label: 'Relationships & Domestic Dynamics (Family / In-Laws / Work)',
-          hint: 'Interpersonal tensions, feelings of being unappreciated or suppressed',
+          hint:
+              'Interpersonal tensions, feelings of being unappreciated or suppressed',
           maxLines: 2,
         ),
       ],
@@ -718,7 +752,8 @@ class AcuteCaseSheetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return HomeopathyAccordionCard(
       title: 'Acute Presentation Questionnaire',
-      subtitle: 'Onset, modalities, fever stages, thirst, posture & acute totality',
+      subtitle:
+          'Onset, modalities, fever stages, thirst, posture & acute totality',
       isComplete: isComplete,
       icon: Icons.flash_on_rounded,
       initiallyExpanded: true,
@@ -726,14 +761,16 @@ class AcuteCaseSheetCard extends StatelessWidget {
         HomeopathyFormField(
           controller: complaintCtrl,
           label: 'Q3. Detailed Acute Complaint (What exactly is happening?)',
-          hint: 'e.g. Sudden high fever with bodyache, barking cough, acute diarrhea',
+          hint:
+              'e.g. Sudden high fever with bodyache, barking cough, acute diarrhea',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: causeCtrl,
           label: 'Q4. Cause of Present Complaint (Trigger)',
-          hint: 'e.g. Cold dry wind, getting wet in rain, ice cream, mental shock, anger, overexertion',
+          hint:
+              'e.g. Cold dry wind, getting wet in rain, ice cream, mental shock, anger, overexertion',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -762,7 +799,8 @@ class AcuteCaseSheetCard extends StatelessWidget {
         HomeopathyFormField(
           controller: mentalConditionCtrl,
           label: 'Q8. Mental Condition During This Suffering',
-          hint: 'Restless & anxious (Acon/Ars), irritable & wants silence (Bry/Cham), weeping & clingy (Puls)',
+          hint:
+              'Restless & anxious (Acon/Ars), irritable & wants silence (Bry/Cham), weeping & clingy (Puls)',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -789,13 +827,15 @@ class AcuteCaseSheetCard extends StatelessWidget {
         HomeopathyFormField(
           controller: postureCtrl,
           label: 'Q12. Posture Modalities (How patient lies/sits)',
-          hint: 'Must sit up to breathe, lies on painful side, double up with hands on abdomen',
+          hint:
+              'Must sit up to breathe, lies on painful side, double up with hands on abdomen',
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: feverCtrl,
           label: 'Q15. Fever Details (Chill, Heat, Sweat Sequence)',
-          hint: 'Time of chill (e.g. 10 AM), thirst during chill or heat, shivering with goosebumps',
+          hint:
+              'Time of chill (e.g. 10 AM), thirst during chill or heat, shivering with goosebumps',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -822,14 +862,16 @@ class AcuteCaseSheetCard extends StatelessWidget {
         HomeopathyFormField(
           controller: diarrheaCtrl,
           label: 'Q20. Stool / Diarrhea / Dysentery Character',
-          hint: 'Watery, offensive, bloody, painless, burning, urgency on waking',
+          hint:
+              'Watery, offensive, bloody, painless, burning, urgency on waking',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
         HomeopathyFormField(
           controller: painCtrl,
           label: 'Q21. Body Pain Character & Location',
-          hint: 'Aching all over bones (Eup-per), sharp stitching (Bry), burning (Ars)',
+          hint:
+              'Aching all over bones (Eup-per), sharp stitching (Bry), burning (Ars)',
           maxLines: 2,
         ),
         const SizedBox(height: 12),
@@ -1050,188 +1092,264 @@ class ExtendedCaseSheetControllers {
 
   factory ExtendedCaseSheetControllers.fromSheet(HomeopathyCaseSheet s) {
     return ExtendedCaseSheetControllers._(
-      childhoodNatureCtrl:
-          TextEditingController(text: s.childhoodHistory.childhoodNature),
-      childhoodHabitsCtrl:
-          TextEditingController(text: s.childhoodHistory.childhoodHabits),
-      childhoodFearsCtrl:
-          TextEditingController(text: s.childhoodHistory.childhoodFears),
-      childhoodDreamsHistoryCtrl:
-          TextEditingController(text: s.childhoodHistory.childhoodDreams),
-      childhoodRelationshipsCtrl:
-          TextEditingController(text: s.childhoodHistory.childhoodRelationships),
-      childhoodSensitivitiesCtrl:
-          TextEditingController(text: s.childhoodHistory.childhoodSensitivities),
-      upsetWorryCtrl:
-          TextEditingController(text: s.mentalEmotional.upsetWorryTriggers),
-      fearDetailsCtrl:
-          TextEditingController(text: s.mentalEmotional.fearDetails),
-      introvertExtrovertCtrl:
-          TextEditingController(text: s.mentalEmotional.introvertExtrovert),
-      stressHistoryCtrl:
-          TextEditingController(text: s.mentalEmotional.stressHistory),
-      stressCopingCtrl:
-          TextEditingController(text: s.mentalEmotional.stressCopingMethods),
-      sensitivityDetailsCtrl:
-          TextEditingController(text: s.mentalEmotional.sensitivityDetails),
-      fixedHabitsCtrl:
-          TextEditingController(text: s.mentalEmotional.fixedHabits),
-      angerBodyCtrl:
-          TextEditingController(text: s.mentalEmotional.angerBodySymptoms),
-      disorderSensitivityCtrl:
-          TextEditingController(text: s.mentalEmotional.disorderSensitivity),
-      greatestGriefCtrl:
-          TextEditingController(text: s.mentalEmotional.greatestGrief),
-      greatestJoysCtrl:
-          TextEditingController(text: s.mentalEmotional.greatestJoys),
-      deeplyLikedCtrl:
-          TextEditingController(text: s.mentalEmotional.deeplyLikedActivities),
-      deeplyDislikedCtrl:
-          TextEditingController(text: s.mentalEmotional.deeplyDislikedMatters),
-      disagreeableMindCtrl:
-          TextEditingController(text: s.mentalEmotional.disagreeableMindAspects),
-      lifeSituationCtrl:
-          TextEditingController(text: s.mentalEmotional.lifeSituationPicture),
-      childColdHeatCtrl:
-          TextEditingController(text: s.childrenCaseSheet.coldOrHeatSensitive),
-      childBehaviorUpsetCtrl:
-          TextEditingController(text: s.childrenCaseSheet.behaviorWhenUpset),
-      childWhatMakesHappyCtrl:
-          TextEditingController(text: s.childrenCaseSheet.whatMakesHappy),
-      childSchoolBehaviorCtrl:
-          TextEditingController(text: s.childrenCaseSheet.schoolBehavior),
+      childhoodNatureCtrl: TextEditingController(
+        text: s.childhoodHistory.childhoodNature,
+      ),
+      childhoodHabitsCtrl: TextEditingController(
+        text: s.childhoodHistory.childhoodHabits,
+      ),
+      childhoodFearsCtrl: TextEditingController(
+        text: s.childhoodHistory.childhoodFears,
+      ),
+      childhoodDreamsHistoryCtrl: TextEditingController(
+        text: s.childhoodHistory.childhoodDreams,
+      ),
+      childhoodRelationshipsCtrl: TextEditingController(
+        text: s.childhoodHistory.childhoodRelationships,
+      ),
+      childhoodSensitivitiesCtrl: TextEditingController(
+        text: s.childhoodHistory.childhoodSensitivities,
+      ),
+      upsetWorryCtrl: TextEditingController(
+        text: s.mentalEmotional.upsetWorryTriggers,
+      ),
+      fearDetailsCtrl: TextEditingController(
+        text: s.mentalEmotional.fearDetails,
+      ),
+      introvertExtrovertCtrl: TextEditingController(
+        text: s.mentalEmotional.introvertExtrovert,
+      ),
+      stressHistoryCtrl: TextEditingController(
+        text: s.mentalEmotional.stressHistory,
+      ),
+      stressCopingCtrl: TextEditingController(
+        text: s.mentalEmotional.stressCopingMethods,
+      ),
+      sensitivityDetailsCtrl: TextEditingController(
+        text: s.mentalEmotional.sensitivityDetails,
+      ),
+      fixedHabitsCtrl: TextEditingController(
+        text: s.mentalEmotional.fixedHabits,
+      ),
+      angerBodyCtrl: TextEditingController(
+        text: s.mentalEmotional.angerBodySymptoms,
+      ),
+      disorderSensitivityCtrl: TextEditingController(
+        text: s.mentalEmotional.disorderSensitivity,
+      ),
+      greatestGriefCtrl: TextEditingController(
+        text: s.mentalEmotional.greatestGrief,
+      ),
+      greatestJoysCtrl: TextEditingController(
+        text: s.mentalEmotional.greatestJoys,
+      ),
+      deeplyLikedCtrl: TextEditingController(
+        text: s.mentalEmotional.deeplyLikedActivities,
+      ),
+      deeplyDislikedCtrl: TextEditingController(
+        text: s.mentalEmotional.deeplyDislikedMatters,
+      ),
+      disagreeableMindCtrl: TextEditingController(
+        text: s.mentalEmotional.disagreeableMindAspects,
+      ),
+      lifeSituationCtrl: TextEditingController(
+        text: s.mentalEmotional.lifeSituationPicture,
+      ),
+      childColdHeatCtrl: TextEditingController(
+        text: s.childrenCaseSheet.coldOrHeatSensitive,
+      ),
+      childBehaviorUpsetCtrl: TextEditingController(
+        text: s.childrenCaseSheet.behaviorWhenUpset,
+      ),
+      childWhatMakesHappyCtrl: TextEditingController(
+        text: s.childrenCaseSheet.whatMakesHappy,
+      ),
+      childSchoolBehaviorCtrl: TextEditingController(
+        text: s.childrenCaseSheet.schoolBehavior,
+      ),
       childGraspingScoreCtrl: TextEditingController(
-          text: s.childrenCaseSheet.graspingIntelligenceScore > 0
-              ? s.childrenCaseSheet.graspingIntelligenceScore.toString()
-              : ''),
-      childTypeCtrl:
-          TextEditingController(text: s.childrenCaseSheet.childTypeDescription),
-      childVaccinationCtrl:
-          TextEditingController(text: s.childrenCaseSheet.vaccinationHistory),
-      childFavoriteSportCtrl:
-          TextEditingController(text: s.childrenCaseSheet.favoriteSportActivity),
-      childAttitudeParentsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.attitudeToParents),
-      childMedicalHistoryCtrl:
-          TextEditingController(text: s.childrenCaseSheet.childMedicalHistory),
-      childMaturityCtrl:
-          TextEditingController(text: s.childrenCaseSheet.maturityLevel),
-      childFamilyProblemsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.familyProblemsReaction),
-      childIntrovertCtrl:
-          TextEditingController(text: s.childrenCaseSheet.childIntrovertExtrovert),
-      childIndependenceCtrl:
-          TextEditingController(text: s.childrenCaseSheet.independenceLevel),
-      childWaterIntakeCtrl:
-          TextEditingController(text: s.childrenCaseSheet.dailyWaterIntake),
-      childBirthComplicationsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.birthComplications),
-      childMotherPregnancyCtrl:
-          TextEditingController(text: s.childrenCaseSheet.motherPregnancyHistory),
-      childMotherMedicalCtrl:
-          TextEditingController(text: s.childrenCaseSheet.motherMedicalHistory),
-      childFamilyHereditaryCtrl:
-          TextEditingController(text: s.childrenCaseSheet.familyHealthHereditary),
-      childWalkingTeethingCtrl:
-          TextEditingController(text: s.childrenCaseSheet.walkingTeethingAge),
-      childAbnormalBehaviorsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.abnormalBehaviors),
-      childFearsSpecificCtrl:
-          TextEditingController(text: s.childrenCaseSheet.childFears),
-      childSleepingHabitsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.childSleepingHabits),
-      abnormalCravingsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.abnormalCravings),
-      childWormsCtrl:
-          TextEditingController(text: s.childrenCaseSheet.wormsProblems),
-      childHeadCtrl:
-          TextEditingController(text: s.childrenCaseSheet.headSymptoms),
-      childCoughAsthmaCtrl:
-          TextEditingController(text: s.childrenCaseSheet.coughAsthmaDetails),
-      childStomachCtrl:
-          TextEditingController(text: s.childrenCaseSheet.stomachSymptoms),
-      childStoolRectumCtrl:
-          TextEditingController(text: s.childrenCaseSheet.stoolRectumSymptoms),
-      childSexualAwarenessCtrl:
-          TextEditingController(text: s.childrenCaseSheet.sexualAwareness),
-      childAdditionalInfoCtrl:
-          TextEditingController(text: s.childrenCaseSheet.additionalChildInfo),
-      endoDiagnosisCtrl:
-          TextEditingController(text: s.femaleEndocrine.medicalDiagnosis),
-      endoHowStartedCtrl:
-          TextEditingController(text: s.femaleEndocrine.howAndWhenStarted),
+        text: s.childrenCaseSheet.graspingIntelligenceScore > 0
+            ? s.childrenCaseSheet.graspingIntelligenceScore.toString()
+            : '',
+      ),
+      childTypeCtrl: TextEditingController(
+        text: s.childrenCaseSheet.childTypeDescription,
+      ),
+      childVaccinationCtrl: TextEditingController(
+        text: s.childrenCaseSheet.vaccinationHistory,
+      ),
+      childFavoriteSportCtrl: TextEditingController(
+        text: s.childrenCaseSheet.favoriteSportActivity,
+      ),
+      childAttitudeParentsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.attitudeToParents,
+      ),
+      childMedicalHistoryCtrl: TextEditingController(
+        text: s.childrenCaseSheet.childMedicalHistory,
+      ),
+      childMaturityCtrl: TextEditingController(
+        text: s.childrenCaseSheet.maturityLevel,
+      ),
+      childFamilyProblemsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.familyProblemsReaction,
+      ),
+      childIntrovertCtrl: TextEditingController(
+        text: s.childrenCaseSheet.childIntrovertExtrovert,
+      ),
+      childIndependenceCtrl: TextEditingController(
+        text: s.childrenCaseSheet.independenceLevel,
+      ),
+      childWaterIntakeCtrl: TextEditingController(
+        text: s.childrenCaseSheet.dailyWaterIntake,
+      ),
+      childBirthComplicationsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.birthComplications,
+      ),
+      childMotherPregnancyCtrl: TextEditingController(
+        text: s.childrenCaseSheet.motherPregnancyHistory,
+      ),
+      childMotherMedicalCtrl: TextEditingController(
+        text: s.childrenCaseSheet.motherMedicalHistory,
+      ),
+      childFamilyHereditaryCtrl: TextEditingController(
+        text: s.childrenCaseSheet.familyHealthHereditary,
+      ),
+      childWalkingTeethingCtrl: TextEditingController(
+        text: s.childrenCaseSheet.walkingTeethingAge,
+      ),
+      childAbnormalBehaviorsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.abnormalBehaviors,
+      ),
+      childFearsSpecificCtrl: TextEditingController(
+        text: s.childrenCaseSheet.childFears,
+      ),
+      childSleepingHabitsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.childSleepingHabits,
+      ),
+      abnormalCravingsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.abnormalCravings,
+      ),
+      childWormsCtrl: TextEditingController(
+        text: s.childrenCaseSheet.wormsProblems,
+      ),
+      childHeadCtrl: TextEditingController(
+        text: s.childrenCaseSheet.headSymptoms,
+      ),
+      childCoughAsthmaCtrl: TextEditingController(
+        text: s.childrenCaseSheet.coughAsthmaDetails,
+      ),
+      childStomachCtrl: TextEditingController(
+        text: s.childrenCaseSheet.stomachSymptoms,
+      ),
+      childStoolRectumCtrl: TextEditingController(
+        text: s.childrenCaseSheet.stoolRectumSymptoms,
+      ),
+      childSexualAwarenessCtrl: TextEditingController(
+        text: s.childrenCaseSheet.sexualAwareness,
+      ),
+      childAdditionalInfoCtrl: TextEditingController(
+        text: s.childrenCaseSheet.additionalChildInfo,
+      ),
+      endoDiagnosisCtrl: TextEditingController(
+        text: s.femaleEndocrine.medicalDiagnosis,
+      ),
+      endoHowStartedCtrl: TextEditingController(
+        text: s.femaleEndocrine.howAndWhenStarted,
+      ),
       endoPhysioTriggerCtrl: TextEditingController(
-          text: s.femaleEndocrine.physiologicalCauseTrigger),
-      endoEmotionalTriggerCtrl:
-          TextEditingController(text: s.femaleEndocrine.emotionalTriggers),
+        text: s.femaleEndocrine.physiologicalCauseTrigger,
+      ),
+      endoEmotionalTriggerCtrl: TextEditingController(
+        text: s.femaleEndocrine.emotionalTriggers,
+      ),
       endoManifestationLocCtrl: TextEditingController(
-          text: s.femaleEndocrine.diseaseManifestationLocation),
-      endoOtherOrgansCtrl:
-          TextEditingController(text: s.femaleEndocrine.otherOrgansInvolved),
-      endoGoitreCtrl:
-          TextEditingController(text: s.femaleEndocrine.goitreDetails),
-      endoGlandsCtrl:
-          TextEditingController(text: s.femaleEndocrine.glandsProblems),
-      endoSkinCtrl:
-          TextEditingController(text: s.femaleEndocrine.skinSymptoms),
+        text: s.femaleEndocrine.diseaseManifestationLocation,
+      ),
+      endoOtherOrgansCtrl: TextEditingController(
+        text: s.femaleEndocrine.otherOrgansInvolved,
+      ),
+      endoGoitreCtrl: TextEditingController(
+        text: s.femaleEndocrine.goitreDetails,
+      ),
+      endoGlandsCtrl: TextEditingController(
+        text: s.femaleEndocrine.glandsProblems,
+      ),
+      endoSkinCtrl: TextEditingController(text: s.femaleEndocrine.skinSymptoms),
       endoCardiacCtrl: TextEditingController(
-          text: s.femaleEndocrine.cardiacCirculatorySymptoms),
-      endoStagesOfLifeCtrl:
-          TextEditingController(text: s.femaleEndocrine.stagesOfLife),
-      endoMenstrualCtrl:
-          TextEditingController(text: s.femaleEndocrine.menstrualHistory),
-      endoWeaknessCtrl:
-          TextEditingController(text: s.femaleEndocrine.physicalWeakness),
-      endoRelationshipsCtrl:
-          TextEditingController(text: s.femaleEndocrine.relationshipDetails),
-      acuteComplaintCtrl:
-          TextEditingController(text: s.acuteSheet.detailedComplaint),
-      acuteCauseCtrl:
-          TextEditingController(text: s.acuteSheet.causeOfComplaint),
-      acuteWorseCtrl:
-          TextEditingController(text: s.acuteSheet.whatMakesWorse),
-      acuteBetterCtrl:
-          TextEditingController(text: s.acuteSheet.whatMakesBetter),
+        text: s.femaleEndocrine.cardiacCirculatorySymptoms,
+      ),
+      endoStagesOfLifeCtrl: TextEditingController(
+        text: s.femaleEndocrine.stagesOfLife,
+      ),
+      endoMenstrualCtrl: TextEditingController(
+        text: s.femaleEndocrine.menstrualHistory,
+      ),
+      endoWeaknessCtrl: TextEditingController(
+        text: s.femaleEndocrine.physicalWeakness,
+      ),
+      endoRelationshipsCtrl: TextEditingController(
+        text: s.femaleEndocrine.relationshipDetails,
+      ),
+      acuteComplaintCtrl: TextEditingController(
+        text: s.acuteSheet.detailedComplaint,
+      ),
+      acuteCauseCtrl: TextEditingController(
+        text: s.acuteSheet.causeOfComplaint,
+      ),
+      acuteWorseCtrl: TextEditingController(text: s.acuteSheet.whatMakesWorse),
+      acuteBetterCtrl: TextEditingController(
+        text: s.acuteSheet.whatMakesBetter,
+      ),
       acuteMentalConditionCtrl: TextEditingController(
-          text: s.acuteSheet.mentalConditionDuringSuffering),
-      acuteWaterReqCtrl:
-          TextEditingController(text: s.acuteSheet.waterRequirement),
-      acuteSweatCtrl:
-          TextEditingController(text: s.acuteSheet.sweatDetails),
-      acutePostureCtrl:
-          TextEditingController(text: s.acuteSheet.postureModalities),
-      acuteFeverCtrl:
-          TextEditingController(text: s.acuteSheet.acuteFeverDetails),
-      acuteCoughCtrl:
-          TextEditingController(text: s.acuteSheet.coughRespirationDetail),
-      acuteLooseDryCoughCtrl:
-          TextEditingController(text: s.acuteSheet.looseDryCoughDetails),
-      acuteDiarrheaCtrl:
-          TextEditingController(text: s.acuteSheet.diarrheaConstipationDetails),
-      acutePainCtrl:
-          TextEditingController(text: s.acuteSheet.bodyPainDetails),
-      acuteUncommonSymptomsCtrl:
-          TextEditingController(text: s.acuteSheet.specialUncommonSymptoms),
-      acuteAdditionalInfoCtrl:
-          TextEditingController(text: s.acuteSheet.additionalInfo),
-      hungerTimeCtrl:
-          TextEditingController(text: s.generalSymptoms.hungerTime),
-      hungerReactionCtrl:
-          TextEditingController(text: s.generalSymptoms.hungerReaction),
-      eatingSpeedCtrl:
-          TextEditingController(text: s.generalSymptoms.eatingSpeed),
-      thirstTimeCtrl:
-          TextEditingController(text: s.generalSymptoms.thirstTime),
-      tasteChangesCtrl:
-          TextEditingController(text: s.generalSymptoms.tasteChanges),
-      sleepPostureCtrl:
-          TextEditingController(text: s.dreamsSleep.sleepPosture),
-      sleepRestrictionsCtrl:
-          TextEditingController(text: s.dreamsSleep.sleepPositionRestrictions),
-      sleepBehaviorsCtrl:
-          TextEditingController(text: s.dreamsSleep.sleepBehaviors),
-      childhoodDreamsCtrl:
-          TextEditingController(text: s.dreamsSleep.childhoodDreams),
+        text: s.acuteSheet.mentalConditionDuringSuffering,
+      ),
+      acuteWaterReqCtrl: TextEditingController(
+        text: s.acuteSheet.waterRequirement,
+      ),
+      acuteSweatCtrl: TextEditingController(text: s.acuteSheet.sweatDetails),
+      acutePostureCtrl: TextEditingController(
+        text: s.acuteSheet.postureModalities,
+      ),
+      acuteFeverCtrl: TextEditingController(
+        text: s.acuteSheet.acuteFeverDetails,
+      ),
+      acuteCoughCtrl: TextEditingController(
+        text: s.acuteSheet.coughRespirationDetail,
+      ),
+      acuteLooseDryCoughCtrl: TextEditingController(
+        text: s.acuteSheet.looseDryCoughDetails,
+      ),
+      acuteDiarrheaCtrl: TextEditingController(
+        text: s.acuteSheet.diarrheaConstipationDetails,
+      ),
+      acutePainCtrl: TextEditingController(text: s.acuteSheet.bodyPainDetails),
+      acuteUncommonSymptomsCtrl: TextEditingController(
+        text: s.acuteSheet.specialUncommonSymptoms,
+      ),
+      acuteAdditionalInfoCtrl: TextEditingController(
+        text: s.acuteSheet.additionalInfo,
+      ),
+      hungerTimeCtrl: TextEditingController(text: s.generalSymptoms.hungerTime),
+      hungerReactionCtrl: TextEditingController(
+        text: s.generalSymptoms.hungerReaction,
+      ),
+      eatingSpeedCtrl: TextEditingController(
+        text: s.generalSymptoms.eatingSpeed,
+      ),
+      thirstTimeCtrl: TextEditingController(text: s.generalSymptoms.thirstTime),
+      tasteChangesCtrl: TextEditingController(
+        text: s.generalSymptoms.tasteChanges,
+      ),
+      sleepPostureCtrl: TextEditingController(text: s.dreamsSleep.sleepPosture),
+      sleepRestrictionsCtrl: TextEditingController(
+        text: s.dreamsSleep.sleepPositionRestrictions,
+      ),
+      sleepBehaviorsCtrl: TextEditingController(
+        text: s.dreamsSleep.sleepBehaviors,
+      ),
+      childhoodDreamsCtrl: TextEditingController(
+        text: s.dreamsSleep.childhoodDreams,
+      ),
     );
   }
 
@@ -1261,7 +1379,8 @@ class ExtendedCaseSheetControllers {
     childBehaviorUpsetCtrl.text = s.childrenCaseSheet.behaviorWhenUpset;
     childWhatMakesHappyCtrl.text = s.childrenCaseSheet.whatMakesHappy;
     childSchoolBehaviorCtrl.text = s.childrenCaseSheet.schoolBehavior;
-    childGraspingScoreCtrl.text = s.childrenCaseSheet.graspingIntelligenceScore > 0
+    childGraspingScoreCtrl.text =
+        s.childrenCaseSheet.graspingIntelligenceScore > 0
         ? s.childrenCaseSheet.graspingIntelligenceScore.toString()
         : '';
     childTypeCtrl.text = s.childrenCaseSheet.childTypeDescription;
@@ -1294,7 +1413,8 @@ class ExtendedCaseSheetControllers {
     endoHowStartedCtrl.text = s.femaleEndocrine.howAndWhenStarted;
     endoPhysioTriggerCtrl.text = s.femaleEndocrine.physiologicalCauseTrigger;
     endoEmotionalTriggerCtrl.text = s.femaleEndocrine.emotionalTriggers;
-    endoManifestationLocCtrl.text = s.femaleEndocrine.diseaseManifestationLocation;
+    endoManifestationLocCtrl.text =
+        s.femaleEndocrine.diseaseManifestationLocation;
     endoOtherOrgansCtrl.text = s.femaleEndocrine.otherOrgansInvolved;
     endoGoitreCtrl.text = s.femaleEndocrine.goitreDetails;
     endoGlandsCtrl.text = s.femaleEndocrine.glandsProblems;
@@ -1331,7 +1451,8 @@ class ExtendedCaseSheetControllers {
   }
 
   HomeopathyChildhoodHistory buildChildhoodHistory(
-      HomeopathyChildhoodHistory base) {
+    HomeopathyChildhoodHistory base,
+  ) {
     return base.copyWith(
       childhoodNature: childhoodNatureCtrl.text.trim(),
       childhoodHabits: childhoodHabitsCtrl.text.trim(),
@@ -1343,7 +1464,8 @@ class ExtendedCaseSheetControllers {
   }
 
   HomeopathyChildrenCaseSheet buildChildrenCaseSheet(
-      HomeopathyChildrenCaseSheet base) {
+    HomeopathyChildrenCaseSheet base,
+  ) {
     final score = int.tryParse(childGraspingScoreCtrl.text.trim()) ?? 0;
     return base.copyWith(
       coldOrHeatSensitive: childColdHeatCtrl.text.trim(),
@@ -1381,7 +1503,8 @@ class ExtendedCaseSheetControllers {
   }
 
   HomeopathyFemaleEndocrine buildFemaleEndocrine(
-      HomeopathyFemaleEndocrine base) {
+    HomeopathyFemaleEndocrine base,
+  ) {
     return base.copyWith(
       medicalDiagnosis: endoDiagnosisCtrl.text.trim(),
       howAndWhenStarted: endoHowStartedCtrl.text.trim(),
@@ -1421,7 +1544,8 @@ class ExtendedCaseSheetControllers {
   }
 
   HomeopathyGeneralSymptoms updateGeneralSymptoms(
-      HomeopathyGeneralSymptoms base) {
+    HomeopathyGeneralSymptoms base,
+  ) {
     return base.copyWith(
       hungerTime: hungerTimeCtrl.text.trim(),
       hungerReaction: hungerReactionCtrl.text.trim(),
@@ -1432,7 +1556,8 @@ class ExtendedCaseSheetControllers {
   }
 
   HomeopathyMentalEmotional updateMentalEmotional(
-      HomeopathyMentalEmotional base) {
+    HomeopathyMentalEmotional base,
+  ) {
     return base.copyWith(
       upsetWorryTriggers: upsetWorryCtrl.text.trim(),
       fearDetails: fearDetailsCtrl.text.trim(),
@@ -1554,4 +1679,3 @@ class ExtendedCaseSheetControllers {
     childhoodDreamsCtrl.dispose();
   }
 }
-

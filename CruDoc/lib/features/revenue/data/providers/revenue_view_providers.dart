@@ -36,13 +36,12 @@ class RevenueViewState {
     RevenuePeriod? period,
     TxnFilter? filter,
     bool? expanded,
-  }) =>
-      RevenueViewState(
-        tab: tab ?? this.tab,
-        period: period ?? this.period,
-        filter: filter ?? this.filter,
-        expanded: expanded ?? this.expanded,
-      );
+  }) => RevenueViewState(
+    tab: tab ?? this.tab,
+    period: period ?? this.period,
+    filter: filter ?? this.filter,
+    expanded: expanded ?? this.expanded,
+  );
 }
 
 class RevenueViewController extends Notifier<RevenueViewState> {
@@ -65,8 +64,8 @@ class RevenueViewController extends Notifier<RevenueViewState> {
 
 final revenueViewControllerProvider =
     NotifierProvider<RevenueViewController, RevenueViewState>(
-  () => RevenueViewController(),
-);
+      () => RevenueViewController(),
+    );
 
 /// The Overview's figures, or null while revenue entries load.
 final revenueOverviewProvider = Provider<RevenueOverview?>((ref) {

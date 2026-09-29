@@ -13,43 +13,60 @@ final dentalRepositoryProvider = Provider<DentalRepository>((ref) {
 
 /// FutureProvider for fetching dental procedure catalog items for a doctor.
 final dentalCatalogProvider =
-    FutureProvider.family<List<DentalProcedureCatalogModel>, String>((ref, doctorId) async {
-  final repository = ref.watch(dentalRepositoryProvider);
-  return repository.getProcedureCatalog(doctorId, includeArchived: true);
-});
+    FutureProvider.family<List<DentalProcedureCatalogModel>, String>((
+      ref,
+      doctorId,
+    ) async {
+      final repository = ref.watch(dentalRepositoryProvider);
+      return repository.getProcedureCatalog(doctorId, includeArchived: true);
+    });
 
 /// FutureProvider for fetching tooth chart entries for a patient.
 final patientToothChartProvider =
-    FutureProvider.family<List<ToothChartEntryModel>, String>((ref, patientId) async {
-  final repository = ref.watch(dentalRepositoryProvider);
-  return repository.getToothChartForPatient(patientId);
-});
+    FutureProvider.family<List<ToothChartEntryModel>, String>((
+      ref,
+      patientId,
+    ) async {
+      final repository = ref.watch(dentalRepositoryProvider);
+      return repository.getToothChartForPatient(patientId);
+    });
 
 /// FutureProvider for fetching dental procedure logs for a patient.
 final patientProcedureLogProvider =
-    FutureProvider.family<List<DentalProcedureLogModel>, String>((ref, patientId) async {
-  final repository = ref.watch(dentalRepositoryProvider);
-  return repository.getProcedureLogsForPatient(patientId);
-});
+    FutureProvider.family<List<DentalProcedureLogModel>, String>((
+      ref,
+      patientId,
+    ) async {
+      final repository = ref.watch(dentalRepositoryProvider);
+      return repository.getProcedureLogsForPatient(patientId);
+    });
 
 /// FutureProvider for fetching dental procedure logs for a visit.
 final visitProcedureLogProvider =
-    FutureProvider.family<List<DentalProcedureLogModel>, String>((ref, visitId) async {
-  final repository = ref.watch(dentalRepositoryProvider);
-  return repository.getProcedureLogsForVisit(visitId);
-});
+    FutureProvider.family<List<DentalProcedureLogModel>, String>((
+      ref,
+      visitId,
+    ) async {
+      final repository = ref.watch(dentalRepositoryProvider);
+      return repository.getProcedureLogsForVisit(visitId);
+    });
 
 /// FutureProvider for fetching treatment plan line items for a patient.
 final patientTreatmentPlanProvider =
-    FutureProvider.family<List<TreatmentPlanLineItemModel>, String>((ref, patientId) async {
-  final repository = ref.watch(dentalRepositoryProvider);
-  return repository.getTreatmentPlanLineItems(patientId);
-});
+    FutureProvider.family<List<TreatmentPlanLineItemModel>, String>((
+      ref,
+      patientId,
+    ) async {
+      final repository = ref.watch(dentalRepositoryProvider);
+      return repository.getTreatmentPlanLineItems(patientId);
+    });
 
 /// FutureProvider for fetching sterilization log entries for a doctor.
 final sterilizationLogProvider =
-    FutureProvider.family<List<SterilizationLogModel>, String>((ref, doctorId) async {
-  final repository = ref.watch(dentalRepositoryProvider);
-  return repository.getSterilizationLogs(doctorId);
-});
-
+    FutureProvider.family<List<SterilizationLogModel>, String>((
+      ref,
+      doctorId,
+    ) async {
+      final repository = ref.watch(dentalRepositoryProvider);
+      return repository.getSterilizationLogs(doctorId);
+    });

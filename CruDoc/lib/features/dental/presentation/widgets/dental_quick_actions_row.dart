@@ -25,7 +25,9 @@ class DentalQuickActionsRow extends ConsumerWidget {
 
     if (patients.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add a patient first to view tooth chart.')),
+        const SnackBar(
+          content: Text('Please add a patient first to view tooth chart.'),
+        ),
       );
       return;
     }
@@ -62,15 +64,21 @@ class DentalQuickActionsRow extends ConsumerWidget {
                         backgroundColor: _accentTealLight,
                         child: Icon(Icons.person, color: _accentTeal, size: 20),
                       ),
-                      title: Text(p.fullName, style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('ID: ${p.id.substring(0, p.id.length > 8 ? 8 : p.id.length)}'),
+                      title: Text(
+                        p.fullName,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      subtitle: Text(
+                        'ID: ${p.id.substring(0, p.id.length > 8 ? 8 : p.id.length)}',
+                      ),
                       trailing: const Icon(Icons.chevron_right, size: 18),
                       onTap: () {
                         Navigator.pop(ctx);
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => DentalPatientDetailsScreen(patient: p),
+                            builder: (_) =>
+                                DentalPatientDetailsScreen(patient: p),
                           ),
                         );
                       },
@@ -99,7 +107,9 @@ class DentalQuickActionsRow extends ConsumerWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const DentalProcedureCatalogScreen()),
+            MaterialPageRoute(
+              builder: (_) => const DentalProcedureCatalogScreen(),
+            ),
           );
         },
       ),
@@ -109,7 +119,9 @@ class DentalQuickActionsRow extends ConsumerWidget {
         onTap: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (_) => const DentalSterilizationScreen()),
+            MaterialPageRoute(
+              builder: (_) => const DentalSterilizationScreen(),
+            ),
           );
         },
       ),
@@ -131,13 +143,7 @@ class DentalQuickActionsRow extends ConsumerWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _accentTeal.withValues(alpha: 0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: _accentTeal.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,7 +177,10 @@ class DentalQuickActionsRow extends ConsumerWidget {
                       onTap: act.onTap,
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 10,
+                          horizontal: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(10),
@@ -186,7 +195,11 @@ class DentalQuickActionsRow extends ConsumerWidget {
                                 color: _accentTealLight,
                                 shape: BoxShape.circle,
                               ),
-                              child: Icon(act.icon, size: 20, color: _accentTeal),
+                              child: Icon(
+                                act.icon,
+                                size: 20,
+                                color: _accentTeal,
+                              ),
                             ),
                             const SizedBox(height: 6),
                             Text(

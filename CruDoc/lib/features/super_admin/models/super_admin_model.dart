@@ -31,8 +31,8 @@ class SuperAdminModel {
     this.isActive = true,
     this.failedLoginAttempts = 0,
     this.lockedUntil,
-  })  : accountCreated = accountCreated ?? DateTime.now(),
-        lastLogin = lastLogin ?? DateTime.now();
+  }) : accountCreated = accountCreated ?? DateTime.now(),
+       lastLogin = lastLogin ?? DateTime.now();
 
   factory SuperAdminModel.fromJson(Map<String, dynamic> json, String id) {
     return SuperAdminModel(
@@ -68,7 +68,9 @@ class SuperAdminModel {
       'lastLogin': Timestamp.fromDate(lastLogin),
       'isActive': isActive,
       'failedLoginAttempts': failedLoginAttempts,
-      'lockedUntil': lockedUntil != null ? Timestamp.fromDate(lockedUntil!) : null,
+      'lockedUntil': lockedUntil != null
+          ? Timestamp.fromDate(lockedUntil!)
+          : null,
     };
   }
 

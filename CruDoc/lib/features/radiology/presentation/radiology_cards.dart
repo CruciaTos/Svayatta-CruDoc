@@ -27,15 +27,28 @@ class RadiologyTodayCard extends ConsumerWidget {
     if (studies == null) return const SizedBox.shrink();
     final now = DateTime.now();
     final toRead = studies
-        .where((s) => s.status == RadStudyStatus.newStudy || s.status == RadStudyStatus.reading)
+        .where(
+          (s) =>
+              s.status == RadStudyStatus.newStudy ||
+              s.status == RadStudyStatus.reading,
+        )
         .toList();
     final inReport = studies
-        .where((s) => s.status == RadStudyStatus.draft || s.status == RadStudyStatus.preliminary)
+        .where(
+          (s) =>
+              s.status == RadStudyStatus.draft ||
+              s.status == RadStudyStatus.preliminary,
+        )
         .length;
-    final urgent = toRead.where((s) => s.priority != RadPriority.routine).length;
+    final urgent = toRead
+        .where((s) => s.priority != RadPriority.routine)
+        .length;
     final overdue = studies.where((s) => s.isOverdue(now)).length;
-    final signedToday =
-        studies.where((s) => !s.status.isOpen && DentalFormat.sameDay(s.updatedAt, now)).length;
+    final signedToday = studies
+        .where(
+          (s) => !s.status.isOpen && DentalFormat.sameDay(s.updatedAt, now),
+        )
+        .length;
     final next = radNextUnread(studies);
 
     final readText = toRead.isEmpty
@@ -46,7 +59,9 @@ class RadiologyTodayCard extends ConsumerWidget {
             if (overdue > 0) '$overdue overdue',
           ].join(' · ');
     final reportText = [
-      inReport == 0 ? 'No drafts open' : '${DashFormat.plural(inReport, 'report')} in progress',
+      inReport == 0
+          ? 'No drafts open'
+          : '${DashFormat.plural(inReport, 'report')} in progress',
       '$signedToday signed today',
     ].join(' · ');
 
@@ -59,7 +74,7 @@ class RadiologyTodayCard extends ConsumerWidget {
             icon: RadIcons.worklist,
             title: 'Worklist',
             detail: readText,
-            tone: overdue > 0 ? c.amberText : c.label2,
+            tone: c.accentText,
             onTap: () => onNavigate(DesktopTab.worklist),
           ),
           const CruSeparator(indent: 12 + 36 + 12),
@@ -84,19 +99,23 @@ class RadiologyTodayCard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Read next · ${next.patientName}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: CruType.callout.w600.tint(c.label)),
+                        Text(
+                          'Read next · ${next.patientName}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CruType.callout.w600.tint(c.label),
+                        ),
                         Text(
                           [
                             RadFormat.due(next, now).text,
-                            if (next.clinicalQuestion.isNotEmpty) next.clinicalQuestion,
+                            if (next.clinicalQuestion.isNotEmpty)
+                              next.clinicalQuestion,
                           ].join(' · '),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: CruType.subhead.tabular.tint(
-                              next.isOverdue(now) ? c.amberText : c.label2),
+                            next.isOverdue(now) ? c.amberText : c.label2,
+                          ),
                         ),
                       ],
                     ),
@@ -115,15 +134,23 @@ class RadiologyTodayCard extends ConsumerWidget {
               minHeight: 60,
               child: Row(
                 children: [
-                  const CruIconTile(icon: RadIcons.import, tone: CruTileTone.accent),
+                  const CruIconTile(
+                    icon: RadIcons.import,
+                    tone: CruTileTone.accent,
+                  ),
                   const SizedBox(width: CruSpace.s12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Import scans', style: CruType.callout.w600.tint(c.label)),
-                        Text('From a CD, folder or ZIP',
-                            style: CruType.subhead.tint(c.label2)),
+                        Text(
+                          'Import scans',
+                          style: CruType.callout.w600.tint(c.label),
+                        ),
+                        Text(
+                          'From a CD, folder or ZIP',
+                          style: CruType.subhead.tint(c.label2),
+                        ),
                       ],
                     ),
                   ),
@@ -194,10 +221,11 @@ class PatientImagingCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final studies = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
-        .where((s) => s.patientId == patientId)
-        .toList()
-      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+    final studies =
+        (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+            .where((s) => s.patientId == patientId)
+            .toList()
+          ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
     final now = DateTime.now();
 
     return CruCard(
@@ -210,16 +238,23 @@ class PatientImagingCard extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
             child: Row(
               children: [
-                Expanded(child: Text('Imaging', style: CruType.headline.tint(c.label))),
+                Expanded(
+                  child: Text('Imaging', style: CruType.headline.tint(c.label)),
+                ),
                 if (studies.any((s) => !s.dose.isEmpty))
                   CruLink(
                     label: 'Dose log',
-                    onPressed: () => showRadDoseLogDialog(context,
-                        patientId: patientId, name: studies.first.patientName),
+                    onPressed: () => showRadDoseLogDialog(
+                      context,
+                      patientId: patientId,
+                      name: studies.first.patientName,
+                    ),
                   )
                 else
                   Text(
-                    studies.isEmpty ? '' : DashFormat.plural(studies.length, 'study', 'studies'),
+                    studies.isEmpty
+                        ? ''
+                        : DashFormat.plural(studies.length, 'study', 'studies'),
                     style: CruType.caption.tabular.tint(c.label3),
                   ),
               ],
@@ -238,7 +273,8 @@ class PatientImagingCard extends ConsumerWidget {
             for (var i = 0; i < studies.length; i++) ...[
               if (i > 0) const CruSeparator(indent: 12 + 58 + 14),
               DentalListRow(
-                semanticLabel: '${studies[i].modality.label}, ${RadFormat.date(studies[i].studyDate)}',
+                semanticLabel:
+                    '${studies[i].modality.label}, ${RadFormat.date(studies[i].studyDate)}',
                 onTap: () => openRadStudy(context, ref, studies[i]),
                 child: Row(
                   children: [
@@ -281,8 +317,10 @@ class PatientImagingCard extends ConsumerWidget {
           if (studies.isNotEmpty && studies.first.isOverdue(now))
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-              child: Text('The latest study is past its turnaround time.',
-                  style: CruType.caption.tint(c.amberText)),
+              child: Text(
+                'The latest study is past its turnaround time.',
+                style: CruType.caption.tint(c.amberText),
+              ),
             ),
         ],
       ),

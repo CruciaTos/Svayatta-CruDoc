@@ -58,7 +58,8 @@ class CampaignModel {
   double get successRate {
     final totalAttempts = totalSent + totalFailed;
     if (totalAttempts == 0) {
-      if (totalRecipients > 0 && status == CampaignStatus.completed) return 100.0;
+      if (totalRecipients > 0 && status == CampaignStatus.completed)
+        return 100.0;
       return 0.0;
     }
     return (totalSent / totalAttempts) * 100.0;
@@ -76,13 +77,18 @@ class CampaignModel {
   }
 
   /// Factory constructor to parse from Firestore snapshot.
-  factory CampaignModel.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory CampaignModel.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? {};
     return CampaignModel.fromMap(data, id: doc.id);
   }
 
   /// Factory constructor to parse from a Map.
-  factory CampaignModel.fromMap(Map<String, dynamic> map, {required String id}) {
+  factory CampaignModel.fromMap(
+    Map<String, dynamic> map, {
+    required String id,
+  }) {
     DateTime parseDate(dynamic val, DateTime fallback) {
       if (val is Timestamp) return val.toDate();
       if (val is String) {
@@ -112,7 +118,8 @@ class CampaignModel {
       targetFilters: map['targetFilters'] is Map<String, dynamic>
           ? Map<String, dynamic>.from(map['targetFilters'] as Map)
           : {},
-      selectedPatientIds: (map['selectedPatientIds'] as List<dynamic>?)
+      selectedPatientIds:
+          (map['selectedPatientIds'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
@@ -145,7 +152,9 @@ class CampaignModel {
       'selectedPatientIds': selectedPatientIds,
       'mediaUrl': mediaUrl,
       'status': status.name,
-      'scheduledAt': scheduledAt != null ? Timestamp.fromDate(scheduledAt!) : null,
+      'scheduledAt': scheduledAt != null
+          ? Timestamp.fromDate(scheduledAt!)
+          : null,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
       'totalRecipients': totalRecipients,

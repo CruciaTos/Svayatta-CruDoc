@@ -21,11 +21,11 @@ enum RadAiKind { caries, boneLoss, periapical, impacted }
 
 extension RadAiKindExt on RadAiKind {
   String get label => switch (this) {
-        RadAiKind.caries => 'Caries',
-        RadAiKind.boneLoss => 'Bone loss',
-        RadAiKind.periapical => 'Periapical lesion',
-        RadAiKind.impacted => 'Impacted tooth',
-      };
+    RadAiKind.caries => 'Caries',
+    RadAiKind.boneLoss => 'Bone loss',
+    RadAiKind.periapical => 'Periapical lesion',
+    RadAiKind.impacted => 'Impacted tooth',
+  };
 }
 
 /// One finding suggested by the AI second reader.
@@ -61,28 +61,25 @@ class RadAiFinding {
     Rect? box,
     String? tooth,
     String? status,
-  }) =>
-      RadAiFinding(
-        id: id ?? this.id,
-        kind: kind ?? this.kind,
-        label: label ?? this.label,
-        confidence: confidence ?? this.confidence,
-        box: box ?? this.box,
-        tooth: tooth ?? this.tooth,
-        status: status ?? this.status,
-      );
+  }) => RadAiFinding(
+    id: id ?? this.id,
+    kind: kind ?? this.kind,
+    label: label ?? this.label,
+    confidence: confidence ?? this.confidence,
+    box: box ?? this.box,
+    tooth: tooth ?? this.tooth,
+    status: status ?? this.status,
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'kind': kind.name,
-        'label': label,
-        'confidence': confidence,
-        'box': box == null
-            ? null
-            : [box!.left, box!.top, box!.right, box!.bottom],
-        'tooth': tooth,
-        'status': status,
-      };
+    'id': id,
+    'kind': kind.name,
+    'label': label,
+    'confidence': confidence,
+    'box': box == null ? null : [box!.left, box!.top, box!.right, box!.bottom],
+    'tooth': tooth,
+    'status': status,
+  };
 
   factory RadAiFinding.fromJson(Map<String, dynamic> j) {
     RadAiKind parseKind(String k) {
@@ -167,8 +164,8 @@ String resolveGeminiApiKey() {
 /// Real AI second reader calling Gemini 3.5 Flash via REST.
 class GeminiRadAiProvider implements RadAiProvider {
   GeminiRadAiProvider({String? apiKey, http.Client? client})
-      : _apiKey = apiKey ?? resolveGeminiApiKey(),
-        _http = client ?? http.Client();
+    : _apiKey = apiKey ?? resolveGeminiApiKey(),
+      _http = client ?? http.Client();
 
   final String _apiKey;
   final http.Client _http;
@@ -189,7 +186,8 @@ class GeminiRadAiProvider implements RadAiProvider {
         'You provide suggestions for a qualified dentist or radiologist to confirm or reject. '
         'This is a second reader, not an autonomous clinical diagnosis.';
 
-    final prompt = '''
+    final prompt =
+        '''
 Examine this dental radiograph (modality: $modality).
 Identify findings strictly in these four categories:
 1. caries (enamel caries, dentin caries, proximal, occlusal, cervical, recurrent)
@@ -258,7 +256,8 @@ Note: Coordinates in "box" must be normalised floats from 0.0 to 1.0 representin
 
     final body = jsonDecode(raw);
     final parts = (body is Map ? body['candidates'] : null) is List
-        ? ((body['candidates'] as List).firstOrNull as Map?)?['content']?['parts']
+        ? ((body['candidates'] as List).firstOrNull
+              as Map?)?['content']?['parts']
         : null;
     if (parts is! List) return [];
 
@@ -274,8 +273,8 @@ Note: Coordinates in "box" must be normalised floats from 0.0 to 1.0 representin
     final list = decoded is List
         ? decoded
         : (decoded is Map && decoded['findings'] is List
-            ? decoded['findings'] as List
-            : <dynamic>[]);
+              ? decoded['findings'] as List
+              : <dynamic>[]);
 
     final findings = <RadAiFinding>[];
     for (final item in list) {

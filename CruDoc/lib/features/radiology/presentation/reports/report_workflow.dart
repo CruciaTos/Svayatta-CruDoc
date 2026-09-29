@@ -17,7 +17,10 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// number printed under the report (saved to the radiology settings when
 /// changed or missing). Returns the settings used, or null if cancelled.
 Future<RadSettings?> showRadSignDialog(BuildContext context) =>
-    showDialog<RadSettings>(context: context, builder: (_) => const _SignDialog());
+    showDialog<RadSettings>(
+      context: context,
+      builder: (_) => const _SignDialog(),
+    );
 
 class _SignDialog extends ConsumerStatefulWidget {
   const _SignDialog();
@@ -42,7 +45,8 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
     _settings = ref.read(radSettingsProvider).value ?? const RadSettings();
     final me = ref.read(doctorIdentityProvider).fullName ?? '';
     _name = TextEditingController(
-        text: _settings.signatureName.isNotEmpty ? _settings.signatureName : me);
+      text: _settings.signatureName.isNotEmpty ? _settings.signatureName : me,
+    );
     _qualification = TextEditingController(text: _settings.qualification);
     _regNo = TextEditingController(text: _settings.regNo);
   }
@@ -82,17 +86,22 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
     }
   }
 
-  String? _required(String? v, String what) => (v ?? '').trim().isEmpty ? what : null;
+  String? _required(String? v, String what) =>
+      (v ?? '').trim().isEmpty ? what : null;
 
   @override
   Widget build(BuildContext context) {
-    final missing = _settings.signatureName.isEmpty ||
+    final missing =
+        _settings.signatureName.isEmpty ||
         _settings.qualification.isEmpty ||
         _settings.regNo.isEmpty;
     return CruFormDialog(
       title: 'Sign & finalise',
       subtitle: 'The report is locked once signed',
-      leading: const CruIconTile(icon: RadIcons.signature, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.signature,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: 'Sign & finalise',
       onSubmit: _sign,
       busy: _busy,
@@ -101,8 +110,9 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
       width: CruSize.formDialog - 80,
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -119,7 +129,8 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
                   hint: 'Dr. Meera Kulkarni',
                   autofocus: _settings.signatureName.isEmpty,
                   textCapitalization: TextCapitalization.words,
-                  validator: (v) => _required(v, 'Add your name as it should print.'),
+                  validator: (v) =>
+                      _required(v, 'Add your name as it should print.'),
                 ),
                 CruTextField(
                   label: 'Qualification',
@@ -132,7 +143,8 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
                   controller: _regNo,
                   hint: 'Dental council registration',
                   tabular: true,
-                  validator: (v) => _required(v, 'Add your registration number.'),
+                  validator: (v) =>
+                      _required(v, 'Add your registration number.'),
                 ),
               ],
             ),
@@ -157,7 +169,10 @@ class _SignDialogState extends ConsumerState<_SignDialog> {
 
 /// Text to add to a signed report. Returns it, or null if cancelled.
 Future<String?> showRadAddendumDialog(BuildContext context) =>
-    showDialog<String>(context: context, builder: (_) => const _AddendumDialog());
+    showDialog<String>(
+      context: context,
+      builder: (_) => const _AddendumDialog(),
+    );
 
 class _AddendumDialog extends StatefulWidget {
   const _AddendumDialog();
@@ -182,7 +197,10 @@ class _AddendumDialogState extends State<_AddendumDialog> {
     return CruFormDialog(
       title: 'Add addendum',
       subtitle: 'Signed reports stay as they are; this is added below',
-      leading: const CruIconTile(icon: RadReportIcons.addendum, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadReportIcons.addendum,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: 'Add addendum',
       dirty: _dirty,
       width: CruSize.formDialog - 80,
@@ -196,7 +214,8 @@ class _AddendumDialogState extends State<_AddendumDialog> {
         child: CruFormSection(
           first: true,
           title: 'Addendum',
-          description: 'Dated and signed with your name. Send the report again afterwards.',
+          description:
+              'Dated and signed with your name. Send the report again afterwards.',
           children: [
             CruTextField(
               label: 'What to add',
@@ -205,7 +224,8 @@ class _AddendumDialogState extends State<_AddendumDialog> {
               autofocus: true,
               hint: 'On review of the sagittal sections, the lesion also…',
               textCapitalization: TextCapitalization.sentences,
-              validator: (v) => (v ?? '').trim().isEmpty ? 'Write the addendum.' : null,
+              validator: (v) =>
+                  (v ?? '').trim().isEmpty ? 'Write the addendum.' : null,
               onChanged: (_) {
                 if (!_dirty) setState(() => _dirty = true);
               },
@@ -221,7 +241,10 @@ class _AddendumDialogState extends State<_AddendumDialog> {
 
 /// Every saved state of the report, newest first, each readable in full.
 Future<void> showRadVersionHistory(BuildContext context, RadReport report) =>
-    showDialog<void>(context: context, builder: (_) => _HistoryDialog(report: report));
+    showDialog<void>(
+      context: context,
+      builder: (_) => _HistoryDialog(report: report),
+    );
 
 class _HistoryDialog extends StatefulWidget {
   const _HistoryDialog({required this.report});
@@ -244,14 +267,18 @@ class _HistoryDialogState extends State<_HistoryDialog> {
       subtitle: versions.isEmpty
           ? widget.report.title
           : '${versions.length == 1 ? '1 version' : '${versions.length} versions'} · '
-              'a copy is kept at every status change',
-      leading: const CruIconTile(icon: RadIcons.history, tone: CruTileTone.neutral),
+                'a copy is kept at every status change',
+      leading: const CruIconTile(
+        icon: RadIcons.history,
+        tone: CruTileTone.neutral,
+      ),
       width: CruSize.formDialog - 60,
       body: versions.isEmpty
           ? const DentalEmptyState(
               icon: RadIcons.history,
               title: 'No versions yet',
-              body: 'A copy of the report is kept each time it is marked preliminary, '
+              body:
+                  'A copy of the report is kept each time it is marked preliminary, '
                   'signed, or given an addendum.',
             )
           : Column(
@@ -260,7 +287,8 @@ class _HistoryDialogState extends State<_HistoryDialog> {
                 for (var i = 0; i < versions.length; i++) ...[
                   if (i > 0) const CruSeparator(indent: CruSpace.s12),
                   DentalListRow(
-                    semanticLabel: '${versions[i].status.label}, ${RadFormat.dateTime(versions[i].at)}',
+                    semanticLabel:
+                        '${versions[i].status.label}, ${RadFormat.dateTime(versions[i].at)}',
                     onTap: () => setState(() => _open = _open == i ? null : i),
                     child: Row(
                       children: [
@@ -273,14 +301,19 @@ class _HistoryDialogState extends State<_HistoryDialog> {
                                 style: CruType.callout.tabular.tint(c.label),
                               ),
                               if (versions[i].by.isNotEmpty)
-                                Text(versions[i].by, style: CruType.subhead.tint(c.label2)),
+                                Text(
+                                  versions[i].by,
+                                  style: CruType.subhead.tint(c.label2),
+                                ),
                             ],
                           ),
                         ),
                         radReportStatusPill(c, versions[i].status),
                         const SizedBox(width: CruSpace.s8),
                         CruIcon(
-                          _open == i ? CruIcons.chevronDown : CruIcons.chevronRight,
+                          _open == i
+                              ? CruIcons.chevronDown
+                              : CruIcons.chevronRight,
                           size: 16,
                           color: c.label3,
                         ),
@@ -301,7 +334,9 @@ class _HistoryDialogState extends State<_HistoryDialog> {
                         shape: cruShape(CruRadius.control),
                       ),
                       child: SelectableText(
-                        versions[i].snapshot.isEmpty ? '(Empty report)' : versions[i].snapshot,
+                        versions[i].snapshot.isEmpty
+                            ? '(Empty report)'
+                            : versions[i].snapshot,
                         style: CruType.note.tint(c.label),
                       ),
                     ),
@@ -320,11 +355,10 @@ Future<void> showRadCriticalDialog(
   BuildContext context, {
   required String studyId,
   required RadReferrer? referrer,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _CriticalDialog(studyId: studyId, referrer: referrer),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _CriticalDialog(studyId: studyId, referrer: referrer),
+);
 
 class _CriticalDialog extends ConsumerStatefulWidget {
   const _CriticalDialog({required this.studyId, required this.referrer});
@@ -351,9 +385,14 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
     super.dispose();
   }
 
-  Future<RadStudy?> _fresh() => ref.read(radStudyProvider(widget.studyId).future);
+  Future<RadStudy?> _fresh() =>
+      ref.read(radStudyProvider(widget.studyId).future);
 
-  Future<void> _update(RadStudy Function(RadStudy) change, String audit, {String detail = ''}) async {
+  Future<void> _update(
+    RadStudy Function(RadStudy) change,
+    String audit, {
+    String detail = '',
+  }) async {
     setState(() {
       _busy = true;
       _message = null;
@@ -361,7 +400,9 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
     try {
       final s = await _fresh();
       if (s == null) return;
-      await ref.read(radiologyProvider).saveStudy(change(s), auditAction: audit, detail: detail);
+      await ref
+          .read(radiologyProvider)
+          .saveStudy(change(s), auditAction: audit, detail: detail);
     } catch (_) {
       _message = "Couldn't save. Try again.";
     } finally {
@@ -384,7 +425,10 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
     final c = context.cru;
     final study = ref.watch(radStudyProvider(widget.studyId)).value;
     if (study == null) {
-      return const DentalPanelDialog(title: 'Critical finding', body: SizedBox.shrink());
+      return const DentalPanelDialog(
+        title: 'Critical finding',
+        body: SizedBox.shrink(),
+      );
     }
     final r = widget.referrer;
     final phone = r?.phone.trim() ?? '';
@@ -420,10 +464,10 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
               onPressed: _busy
                   ? null
                   : () => _update(
-                        (s) => s.copyWith(critical: true),
-                        'Flagged critical finding',
-                        detail: study.patientName,
-                      ),
+                      (s) => s.copyWith(critical: true),
+                      'Flagged critical finding',
+                      detail: study.patientName,
+                    ),
             ),
           ],
         ),
@@ -442,8 +486,16 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s8, CruSpace.s8, 0),
-            child: Text('Tell the referrer now', style: CruType.callout.tint(c.label)),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              CruSpace.s8,
+              CruSpace.s8,
+              0,
+            ),
+            child: Text(
+              'Tell the referrer now',
+              style: CruType.callout.tint(c.label),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.all(CruSpace.s8),
@@ -479,8 +531,10 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
                             icon: CruIcons.whatsapp,
                             kind: CruCapsuleKind.tinted,
                             onPressed: () => _launch(
-                              Uri.parse('https://wa.me/${wa ?? ''}'
-                                  '?text=${Uri.encodeComponent(_alertText(study))}'),
+                              Uri.parse(
+                                'https://wa.me/${wa ?? ''}'
+                                '?text=${Uri.encodeComponent(_alertText(study))}',
+                              ),
                               "Couldn't open WhatsApp.",
                             ),
                           ),
@@ -492,11 +546,19 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
           const SizedBox(height: CruSpace.s8),
           const CruSeparator(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s16, CruSpace.s8, CruSpace.s8),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              CruSpace.s16,
+              CruSpace.s8,
+              CruSpace.s8,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Log that you told them', style: CruType.callout.tint(c.label)),
+                Text(
+                  'Log that you told them',
+                  style: CruType.callout.tint(c.label),
+                ),
                 const SizedBox(height: CruSpace.s12),
                 CruFieldRow(
                   flex: const [2, 3],
@@ -534,7 +596,9 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
                               note: _note.text.trim(),
                             );
                             await _update(
-                              (s) => s.copyWith(criticalLog: [...s.criticalLog, entry]),
+                              (s) => s.copyWith(
+                                criticalLog: [...s.criticalLog, entry],
+                              ),
                               'Logged critical finding call',
                               detail: who,
                             );
@@ -554,7 +618,10 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
             const SizedBox(height: CruSpace.s8),
             for (final l in log)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: CruSpace.s8,
+                  vertical: CruSpace.s6,
+                ),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -567,7 +634,10 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
                     ),
                     Expanded(
                       child: Text(
-                        [l.contacted, if (l.note.isNotEmpty) l.note].join(' · '),
+                        [
+                          l.contacted,
+                          if (l.note.isNotEmpty) l.note,
+                        ].join(' · '),
                         style: CruType.subhead.tint(c.label),
                       ),
                     ),
@@ -588,16 +658,23 @@ class _CriticalDialogState extends ConsumerState<_CriticalDialog> {
                     final ok = await confirmDental(
                       context,
                       title: 'Clear the critical flag?',
-                      body: 'The study and report stop showing it in red. The call log is kept.',
+                      body:
+                          'The study and report stop showing it in red. The call log is kept.',
                       action: 'Clear flag',
                     );
                     if (ok) {
-                      await _update((s) => s.copyWith(critical: false), 'Cleared critical flag');
+                      await _update(
+                        (s) => s.copyWith(critical: false),
+                        'Cleared critical flag',
+                      );
                     }
                   },
           ),
           const Spacer(),
-          CruButton(label: 'Done', onPressed: () => Navigator.of(context).pop()),
+          CruButton(
+            label: 'Done',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ],
       ),
     );
@@ -614,8 +691,16 @@ class _RedTile extends StatelessWidget {
       width: CruSize.iconTile,
       height: CruSize.iconTile,
       alignment: Alignment.center,
-      decoration: ShapeDecoration(color: c.redTint, shape: cruShape(CruRadius.iconTile)),
-      child: CruIcon(RadIcons.flag, size: 18, strokeWidth: 1.8, color: c.redText),
+      decoration: ShapeDecoration(
+        color: c.redTint,
+        shape: cruShape(CruRadius.iconTile),
+      ),
+      child: CruIcon(
+        RadIcons.flag,
+        size: 18,
+        strokeWidth: 1.8,
+        color: c.redText,
+      ),
     );
   }
 }

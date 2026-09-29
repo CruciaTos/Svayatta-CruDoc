@@ -9,7 +9,8 @@ import 'audit_log_service.dart';
 /// Service for managing API Keys and tracking API Usage in Super Admin.
 class SuperAdminApiKeyService {
   final SuperAdminFirebaseService _fb = SuperAdminFirebaseService();
-  final SuperAdminAuditLogService _auditLogService = SuperAdminAuditLogService();
+  final SuperAdminAuditLogService _auditLogService =
+      SuperAdminAuditLogService();
 
   /// Fetch all API Keys from Firestore ordered by creation date.
   Future<List<ApiKeyModel>> getApiKeys() async {
@@ -29,7 +30,8 @@ class SuperAdminApiKeyService {
   /// Generate a cryptographically secure random API key.
   String _generateSecureKey() {
     final rand = Random.secure();
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    const chars =
+        'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     final buffer = StringBuffer('cd_live_');
     for (var i = 0; i < 32; i++) {
       buffer.write(chars[rand.nextInt(chars.length)]);
@@ -47,14 +49,15 @@ class SuperAdminApiKeyService {
   }) async {
     try {
       final cleartextKey = _generateSecureKey();
-      
+
       // Hash the key using SHA-256
       final bytes = utf8.encode(cleartextKey);
       final hash = sha256.convert(bytes).toString();
 
       // Mask the key (e.g. cd_live_••••••••abcd)
-      final maskedKey = 'cd_live_••••••••${cleartextKey.substring(cleartextKey.length - 4)}';
-      
+      final maskedKey =
+          'cd_live_••••••••${cleartextKey.substring(cleartextKey.length - 4)}';
+
       final docRef = _fb.apiKeysCollection.doc();
       final adminEmail = _fb.currentUserEmail ?? 'unknown';
 
@@ -87,10 +90,7 @@ class SuperAdminApiKeyService {
         },
       );
 
-      return {
-        'model': apiKey,
-        'secretKey': cleartextKey,
-      };
+      return {'model': apiKey, 'secretKey': cleartextKey};
     } catch (e) {
       throw Exception('Failed to create API key: ${e.toString()}');
     }
@@ -112,7 +112,7 @@ class SuperAdminApiKeyService {
       }
 
       final beforeData = docSnapshot.data() as Map<String, dynamic>;
-      
+
       final updates = {
         'name': name,
         'rateLimit': rateLimit,
@@ -127,10 +127,7 @@ class SuperAdminApiKeyService {
         actionType: AuditActionType.updatedApiKey,
         beforeValues: beforeData,
         afterValues: updates,
-        details: {
-          'keyId': id,
-          'keyName': name,
-        },
+        details: {'keyId': id, 'keyName': name},
       );
     } catch (e) {
       throw Exception('Failed to update API key: ${e.toString()}');
@@ -147,20 +144,15 @@ class SuperAdminApiKeyService {
       }
 
       final beforeData = docSnapshot.data() as Map<String, dynamic>;
-      
-      await docRef.update({
-        'isActive': false,
-      });
+
+      await docRef.update({'isActive': false});
 
       // Write to Audit Log
       await _auditLogService.logAction(
         actionType: AuditActionType.revokedApiKey,
         beforeValues: beforeData,
         afterValues: {'isActive': false},
-        details: {
-          'keyId': id,
-          'keyName': beforeData['name'],
-        },
+        details: {'keyId': id, 'keyName': beforeData['name']},
       );
     } catch (e) {
       throw Exception('Failed to revoke API key: ${e.toString()}');
@@ -225,7 +217,7 @@ class SuperAdminApiKeyService {
           final endpoint = endpoints[rand.nextInt(endpoints.length)];
           final methodList = methods[endpoint]!;
           final method = methodList[rand.nextInt(methodList.length)];
-          
+
           // Mostly 200, occasionally 400 or 500
           final randVal = rand.nextDouble();
           int statusCode = 200;
@@ -238,7 +230,7 @@ class SuperAdminApiKeyService {
           }
 
           final latency = 40 + rand.nextInt(320); // 40ms to 360ms
-          
+
           final logTime = DateTime(
             date.year,
             date.month,
@@ -291,7 +283,10 @@ class SuperAdminApiKeyService {
       if (!doc.exists) {
         // Return blank values instead of hardcoded production secrets
         return {
-          'googleMapsApiKey': const String.fromEnvironment('GOOGLE_MAPS_API_KEY', defaultValue: ''),
+          'googleMapsApiKey': const String.fromEnvironment(
+            'GOOGLE_MAPS_API_KEY',
+            defaultValue: '',
+          ),
           'chatbotGeminiApiKey': '',
           'sarvamApiKey': '',
           'voiceGeminiApiKey': '',
@@ -322,7 +317,9 @@ class SuperAdminApiKeyService {
         return MapEntry(key, strVal);
       });
     } catch (e) {
-      throw Exception('Failed to fetch system integration keys: ${e.toString()}');
+      throw Exception(
+        'Failed to fetch system integration keys: ${e.toString()}',
+      );
     }
   }
 
@@ -363,7 +360,9 @@ class SuperAdminApiKeyService {
         },
       );
     } catch (e) {
-      throw Exception('Failed to save system integration keys: ${e.toString()}');
+      throw Exception(
+        'Failed to save system integration keys: ${e.toString()}',
+      );
     }
   }
 }

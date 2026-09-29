@@ -14,8 +14,10 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Report templates: the headings and normal wording a report starts from,
 /// by study type. Built-in ones can be edited (and restored), duplicated,
 /// not deleted; the doctor's own can be deleted.
-Future<void> showRadTemplateManager(BuildContext context) =>
-    showDialog<void>(context: context, builder: (_) => const _TemplateManager());
+Future<void> showRadTemplateManager(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (_) => const _TemplateManager(),
+);
 
 /// The shipped version of a built-in template, to tell whether it was
 /// edited.
@@ -37,7 +39,12 @@ enum _TplAction { edit, duplicate, restore, delete }
 class _TemplateManager extends ConsumerWidget {
   const _TemplateManager();
 
-  Future<void> _act(BuildContext context, WidgetRef ref, RadTemplate t, _TplAction a) async {
+  Future<void> _act(
+    BuildContext context,
+    WidgetRef ref,
+    RadTemplate t,
+    _TplAction a,
+  ) async {
     final rad = ref.read(radiologyProvider);
     switch (a) {
       case _TplAction.edit:
@@ -59,7 +66,8 @@ class _TemplateManager extends ConsumerWidget {
         final ok = await confirmDental(
           context,
           title: 'Restore the original wording?',
-          body: 'Your changes to "${t.name}" are replaced with the wording CruDoc ships.',
+          body:
+              'Your changes to "${t.name}" are replaced with the wording CruDoc ships.',
           action: 'Restore',
         );
         if (ok) await rad.deleteTemplate(t);
@@ -67,7 +75,8 @@ class _TemplateManager extends ConsumerWidget {
         final ok = await confirmDental(
           context,
           title: 'Delete this template?',
-          body: '"${t.name}" is removed. Reports already written with it stay as they are.',
+          body:
+              '"${t.name}" is removed. Reports already written with it stay as they are.',
           action: 'Delete',
         );
         if (ok) await rad.deleteTemplate(t);
@@ -77,7 +86,8 @@ class _TemplateManager extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final templates = ref.watch(radTemplatesProvider).value ?? const <RadTemplate>[];
+    final templates =
+        ref.watch(radTemplatesProvider).value ?? const <RadTemplate>[];
     final byType = <RadModality, List<RadTemplate>>{};
     for (final t in templates) {
       (byType[t.modality] ??= []).add(t);
@@ -85,7 +95,10 @@ class _TemplateManager extends ConsumerWidget {
     return DentalPanelDialog(
       title: 'Report templates',
       subtitle: 'The headings and normal wording each report starts from',
-      leading: const CruIconTile(icon: RadIcons.template, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.template,
+        tone: CruTileTone.accent,
+      ),
       body: templates.isEmpty
           ? const DentalEmptyState(
               icon: RadIcons.template,
@@ -102,7 +115,8 @@ class _TemplateManager extends ConsumerWidget {
                       if (i > 0) const CruSeparator(indent: CruSpace.s12),
                       _TemplateRow(
                         template: byType[m]![i],
-                        onTap: () => _act(context, ref, byType[m]![i], _TplAction.edit),
+                        onTap: () =>
+                            _act(context, ref, byType[m]![i], _TplAction.edit),
                         onAction: (a) => _act(context, ref, byType[m]![i], a),
                       ),
                     ],
@@ -142,7 +156,11 @@ class _TemplateManager extends ConsumerWidget {
 }
 
 class _TemplateRow extends StatelessWidget {
-  const _TemplateRow({required this.template, required this.onTap, required this.onAction});
+  const _TemplateRow({
+    required this.template,
+    required this.onTap,
+    required this.onAction,
+  });
 
   final RadTemplate template;
   final VoidCallback onTap;
@@ -153,7 +171,10 @@ class _TemplateRow extends StatelessWidget {
     final c = context.cru;
     final t = template;
     final edited = _edited(t);
-    final headings = t.sections.map((s) => s.title).where((s) => s.isNotEmpty).join(', ');
+    final headings = t.sections
+        .map((s) => s.title)
+        .where((s) => s.isNotEmpty)
+        .join(', ');
     return DentalListRow(
       semanticLabel: t.name,
       onTap: onTap,
@@ -188,17 +209,23 @@ class _TemplateRow extends StatelessWidget {
             tooltip: 'More',
             onSelected: onAction,
             color: c.surface,
-            shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+            shape: cruShape(
+              CruRadius.control,
+              side: BorderSide(color: c.hairline),
+            ),
             itemBuilder: (_) => [
               radMenuItem(c, _TplAction.edit, 'Edit'),
               radMenuItem(c, _TplAction.duplicate, 'Duplicate'),
-              if (edited) radMenuItem(c, _TplAction.restore, 'Restore original wording'),
+              if (edited)
+                radMenuItem(c, _TplAction.restore, 'Restore original wording'),
               if (!t.builtIn) radMenuItem(c, _TplAction.delete, 'Delete'),
             ],
             child: SizedBox(
               width: CruSize.squareButton,
               height: CruSize.squareButton,
-              child: Center(child: CruIcon(CruIcons.more, size: 18, color: c.label2)),
+              child: Center(
+                child: CruIcon(CruIcons.more, size: 18, color: c.label2),
+              ),
             ),
           ),
         ],
@@ -213,17 +240,16 @@ Future<void> _showTemplateEditor(
   BuildContext context, {
   required RadTemplate existing,
   bool isNew = false,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _TemplateEditor(template: existing, isNew: isNew),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _TemplateEditor(template: existing, isNew: isNew),
+);
 
 /// One heading of the template being edited.
 class _SectionDraft {
   _SectionDraft(RadReportSection s)
-      : title = TextEditingController(text: s.title),
-        body = TextEditingController(text: s.body);
+    : title = TextEditingController(text: s.title),
+      body = TextEditingController(text: s.body);
 
   final Key key = UniqueKey();
   final TextEditingController title;
@@ -248,8 +274,12 @@ class _TemplateEditor extends ConsumerStatefulWidget {
 class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.template.name);
-  late final _technique = TextEditingController(text: widget.template.technique);
-  late final _impression = TextEditingController(text: widget.template.impression);
+  late final _technique = TextEditingController(
+    text: widget.template.technique,
+  );
+  late final _impression = TextEditingController(
+    text: widget.template.impression,
+  );
   late RadModality _modality = widget.template.modality;
   late final List<_SectionDraft> _sections = [
     for (final s in widget.template.sections) _SectionDraft(s),
@@ -304,7 +334,10 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
         sections: [
           for (final s in _sections)
             if (s.title.text.trim().isNotEmpty)
-              RadReportSection(title: s.title.text.trim(), body: s.body.text.trim()),
+              RadReportSection(
+                title: s.title.text.trim(),
+                body: s.body.text.trim(),
+              ),
         ],
       );
       await ref.read(radiologyProvider).saveTemplate(t);
@@ -325,7 +358,10 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
       subtitle: widget.template.builtIn
           ? 'Built-in: your changes are kept, and the original can be restored'
           : null,
-      leading: const CruIconTile(icon: RadIcons.template, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.template,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.isNew ? 'Add template' : 'Save template',
       onSubmit: _save,
       busy: _busy,
@@ -334,8 +370,9 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
       footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -350,7 +387,8 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                   hint: 'CBCT — implant site assessment',
                   autofocus: widget.isNew,
                   textCapitalization: TextCapitalization.sentences,
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Name the template.' : null,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Name the template.' : null,
                   onChanged: (_) => _edited(),
                 ),
                 CruFieldFrame(
@@ -370,7 +408,8 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                   controller: _technique,
                   optional: true,
                   maxLines: 3,
-                  hint: 'How the scan was taken: field of view, voxel size, reconstructions',
+                  hint:
+                      'How the scan was taken: field of view, voxel size, reconstructions',
                   textCapitalization: TextCapitalization.sentences,
                   onChanged: (_) => _edited(),
                 ),
@@ -378,7 +417,8 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
             ),
             CruFormSection(
               title: 'Sections',
-              description: 'One heading each, with the wording for a normal finding. '
+              description:
+                  'One heading each, with the wording for a normal finding. '
                   'The doctor edits it in the report.',
               children: [
                 for (var i = 0; i < _sections.length; i++)
@@ -386,7 +426,10 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                     key: _sections[i].key,
                     padding: const EdgeInsets.all(CruSpace.s12),
                     decoration: ShapeDecoration(
-                      shape: cruShape(CruRadius.control, side: BorderSide(color: c.separator)),
+                      shape: cruShape(
+                        CruRadius.control,
+                        side: BorderSide(color: c.separator),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -405,7 +448,9 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                                 iconSize: 15,
                                 semanticLabel: 'Move up',
                                 tooltip: 'Move up',
-                                onPressed: i == 0 ? null : () => _move(i, i - 1),
+                                onPressed: i == 0
+                                    ? null
+                                    : () => _move(i, i - 1),
                               ),
                               CruIconButton(
                                 icon: CruIcons.arrowDown,
@@ -413,8 +458,9 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                                 iconSize: 15,
                                 semanticLabel: 'Move down',
                                 tooltip: 'Move down',
-                                onPressed:
-                                    i == _sections.length - 1 ? null : () => _move(i, i + 1),
+                                onPressed: i == _sections.length - 1
+                                    ? null
+                                    : () => _move(i, i + 1),
                               ),
                               CruIconButton(
                                 icon: CruIcons.close,
@@ -450,7 +496,9 @@ class _TemplateEditorState extends ConsumerState<_TemplateEditor> {
                     label: 'Add section',
                     icon: CruIcons.plus,
                     onPressed: () => setState(() {
-                      _sections.add(_SectionDraft(const RadReportSection(title: '')));
+                      _sections.add(
+                        _SectionDraft(const RadReportSection(title: '')),
+                      );
                       _dirty = true;
                     }),
                   ),

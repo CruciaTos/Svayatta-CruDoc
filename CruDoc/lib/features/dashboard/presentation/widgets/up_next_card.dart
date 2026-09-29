@@ -22,113 +22,187 @@ class UpNextCard extends ConsumerWidget {
     return CruInkCard(
       semanticLabel: 'Up next',
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Builder(builder: (context) {
-        final c = context.cru; // on-ink colours
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Text('Up next', style: CruType.callout.w600.tint(c.accentText)),
-                const Spacer(),
-                CruPill(
-                  text: 'Waiting ${DashFormat.minutes(data.waitMinutes)}',
-                  icon: CruIcons.clock,
-                  background: CruBrand.white,
-                  foreground: c.amber,
-                  borderColor: c.amber,
-                  borderWidth: 1.5,
-                ),
-                const SizedBox(width: CruSpace.s6),
-                _MoreMenu(data: data, navigate: navigate),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s12),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CruMonogram(
-                  name: data.name,
-                  size: 40,
-                  foreground: c.label,
-                ),
-                const SizedBox(width: CruSpace.s12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: Builder(
+        builder: (context) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        data.name,
-                        style: CruType.headline.tint(c.label),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                      CruIcon(
+                        CruIcons.sparkle,
+                        size: 13,
+                        color: const Color(0xFF93C5FD),
                       ),
-                      const SizedBox(height: CruSpace.s2),
+                      const SizedBox(width: 6),
                       Text(
-                        data.details,
-                        style: CruType.caption.tabular.tint(c.label2),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                        'UP NEXT',
+                        style: TextStyle(
+                          fontFamily: CruType.family,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.0,
+                          color: const Color(0xFFBFDBFE),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  CruPill(
+                    text: 'Waiting ${DashFormat.minutes(data.waitMinutes)}',
+                    icon: CruIcons.clock,
+                    background: const Color(0xFFFEF3C7),
+                    foreground: const Color(0xFF92400E),
+                    borderColor: const Color(0xFFF59E0B),
+                    borderWidth: 1.2,
+                  ),
+                  const SizedBox(width: CruSpace.s6),
+                  _MoreMenu(data: data, navigate: navigate),
+                ],
+              ),
+              const SizedBox(height: CruSpace.s12),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.4),
+                        width: 1,
+                      ),
+                    ),
+                    child: CruMonogram(
+                      name: data.name,
+                      size: 40,
+                      background: Colors.white.withValues(alpha: 0.20),
+                      foreground: Colors.white,
+                      showRing: false,
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          data.name,
+                          style: CruType.headline.w700.tint(Colors.white),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: CruSpace.s2),
+                        Text(
+                          data.details,
+                          style: CruType.caption.tabular.tint(
+                            const Color(0xFFBFDBFE),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (data.tokenNumber != null) ...[
+                    const SizedBox(width: CruSpace.s8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 4,
+                      ),
+                      decoration: ShapeDecoration(
+                        color: Colors.white.withValues(alpha: 0.16),
+                        shape: cruShape(
+                          CruRadius.control,
+                          side: BorderSide(
+                            color: Colors.white.withValues(alpha: 0.28),
+                          ),
+                        ),
+                      ),
+                      child: Text(
+                        '# ${data.tokenNumber}',
+                        style: const TextStyle(
+                          fontFamily: CruType.family,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5,
+                          height: 1.0,
+                          color: Colors.white,
+                          fontFeatures: CruType.tabular,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (data.reason != null) ...[
+                const SizedBox(height: CruSpace.s10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: ShapeDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    shape: cruShape(8),
+                  ),
+                  child: Row(
+                    children: [
+                      CruIcon(
+                        CruIcons.fileText,
+                        size: 14,
+                        color: const Color(0xFF93C5FD),
+                      ),
+                      const SizedBox(width: CruSpace.s8),
+                      Expanded(
+                        child: Text(
+                          data.reason!,
+                          style: CruType.callout.tint(Colors.white),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                if (data.tokenNumber != null) ...[
-                  const SizedBox(width: CruSpace.s8),
-                  Text(
-                    '# ${data.tokenNumber}',
-                    style: const TextStyle(
-                      fontFamily: CruType.family,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5,
-                      height: 1.0,
-                      color: CruBrand.white,
-                      fontFeatures: CruType.tabular,
+              ],
+              const SizedBox(height: CruSpace.s12),
+              Row(
+                children: [
+                  Expanded(
+                    child: CruButton(
+                      label: 'Start consultation',
+                      icon: CruIcons.play,
+                      onPressed: () => DashboardActions.startConsultation(
+                        context,
+                        ref,
+                        data,
+                        navigate: navigate,
+                      ),
                     ),
                   ),
+                  if (data.patient != null) ...[
+                    const SizedBox(width: CruSpace.s8),
+                    CruButton(
+                      label: 'History',
+                      icon: CruIcons.clock,
+                      kind: CruButtonKind.inset,
+                      onPressed: () =>
+                          DashboardActions.openPatient(context, data.patient!),
+                    ),
+                  ],
                 ],
-              ],
-            ),
-            if (data.reason != null) ...[
-              const SizedBox(height: CruSpace.s8),
-              Text(
-                data.reason!,
-                style: CruType.callout.tint(c.label),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
-            const SizedBox(height: CruSpace.s12),
-            Row(
-              children: [
-                Expanded(
-                  child: CruButton(
-                    label: 'Start consultation',
-                    onPressed: () => DashboardActions.startConsultation(
-                      context,
-                      ref,
-                      data,
-                      navigate: navigate,
-                    ),
-                  ),
-                ),
-                if (data.patient != null) ...[
-                  const SizedBox(width: CruSpace.s8),
-                  CruButton(
-                    label: 'History',
-                    kind: CruButtonKind.inset,
-                    onPressed: () =>
-                        DashboardActions.openPatient(context, data.patient!),
-                  ),
-                ],
-              ],
-            ),
-          ],
-        );
-      }),
+          );
+        },
+      ),
     );
   }
 }
@@ -199,7 +273,10 @@ class NoOneWaitingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('No one waiting', style: CruType.subhead.w600.tint(c.label)),
+                Text(
+                  'No one waiting',
+                  style: CruType.subhead.w600.tint(c.label),
+                ),
                 const SizedBox(height: CruSpace.s2),
                 CruTimeText(
                   nextBooking == null

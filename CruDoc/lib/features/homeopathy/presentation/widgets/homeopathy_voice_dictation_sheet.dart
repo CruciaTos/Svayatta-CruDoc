@@ -118,8 +118,9 @@ class _HomeopathyVoiceDictationSheetState
       });
 
       // Amplitude polling
-      _amplitudeTimer =
-          Timer.periodic(const Duration(milliseconds: 100), (_) async {
+      _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 100), (
+        _,
+      ) async {
         if (!mounted || !_isListening) return;
         final amp = await _transcriptionService.getAmplitude();
         final normalized = ((amp.current + 60) / 60).clamp(0.12, 1.0);
@@ -216,13 +217,7 @@ class _HomeopathyVoiceDictationSheetState
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
       child: Column(
@@ -271,8 +266,9 @@ class _HomeopathyVoiceDictationSheetState
                     Text(
                       widget.fieldName,
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color
-                            ?.withValues(alpha: 0.7),
+                        color: theme.textTheme.bodySmall?.color?.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -390,7 +386,10 @@ class _HomeopathyVoiceDictationSheetState
               icon: const Icon(Icons.close_rounded, size: 18),
               label: const Text('Cancel'),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -404,7 +403,10 @@ class _HomeopathyVoiceDictationSheetState
               style: ElevatedButton.styleFrom(
                 backgroundColor: _primaryGreen,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -460,8 +462,11 @@ class _HomeopathyVoiceDictationSheetState
           ),
           child: Row(
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: Colors.red, size: 22),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Colors.red,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
@@ -530,10 +535,7 @@ class _HomeopathyVoiceDictationSheetState
             ),
             focusedBorder: const OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(12)),
-              borderSide: BorderSide(
-                color: _primaryGreen,
-                width: 1.5,
-              ),
+              borderSide: BorderSide(color: _primaryGreen, width: 1.5),
             ),
           ),
         ),
@@ -565,7 +567,10 @@ class _HomeopathyVoiceDictationSheetState
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
               ),
             ),
           ],

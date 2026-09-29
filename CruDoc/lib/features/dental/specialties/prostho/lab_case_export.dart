@@ -30,7 +30,8 @@ class ExportLabCaseDialog extends ConsumerStatefulWidget {
   final Patient patient;
 
   @override
-  ConsumerState<ExportLabCaseDialog> createState() => _ExportLabCaseDialogState();
+  ConsumerState<ExportLabCaseDialog> createState() =>
+      _ExportLabCaseDialogState();
 }
 
 class _ExportLabCaseDialogState extends ConsumerState<ExportLabCaseDialog> {
@@ -114,10 +115,7 @@ class _ExportLabCaseDialogState extends ConsumerState<ExportLabCaseDialog> {
           const SizedBox(height: CruSpace.s16),
 
           // Archive content summary
-          Text(
-            'ARCHIVE CONTENTS',
-            style: CruType.micro.w600.tint(c.label3),
-          ),
+          Text('ARCHIVE CONTENTS', style: CruType.micro.w600.tint(c.label3)),
           const SizedBox(height: CruSpace.s8),
           Container(
             padding: const EdgeInsets.all(CruSpace.s12),
@@ -132,7 +130,8 @@ class _ExportLabCaseDialogState extends ConsumerState<ExportLabCaseDialog> {
                 _contentRow(
                   icon: CruIcons.download,
                   name: 'order.pdf',
-                  desc: 'Laboratory prescription form with clinical specs & signatures',
+                  desc:
+                      'Laboratory prescription form with clinical specs & signatures',
                   c: c,
                 ),
                 const CruSeparator(),
@@ -148,7 +147,9 @@ class _ExportLabCaseDialogState extends ConsumerState<ExportLabCaseDialog> {
                     _contentRow(
                       icon: f.is3dScan ? CruIcons.box : CruIcons.download,
                       name: f.name,
-                      desc: f.is3dScan ? '3D optical scan mesh' : 'Attached clinical file',
+                      desc: f.is3dScan
+                          ? '3D optical scan mesh'
+                          : 'Attached clinical file',
                       is3d: f.is3dScan,
                       c: c,
                     ),
@@ -202,7 +203,8 @@ Future<bool> exportLabCaseZip({
   required Patient patient,
 }) async {
   final identity = ref.read(doctorIdentityProvider);
-  final numbering = ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
+  final numbering =
+      ref.read(toothNumberingProvider).value ?? ToothNumbering.fdi;
 
   // 1. Generate order.pdf
   final pdfBytes = await LabRxPdfService.buildRx(
@@ -231,7 +233,9 @@ Future<bool> exportLabCaseZip({
     'case': {
       'type': labCase.type,
       'teeth': labCase.teeth,
-      'teethFormatted': labCase.teeth.map((t) => toothLabel(t, numbering)).toList(),
+      'teethFormatted': labCase.teeth
+          .map((t) => toothLabel(t, numbering))
+          .toList(),
       'material': labCase.material,
       'shade': labCase.shade,
       'shadeSystem': labCase.shadeSystem,
@@ -243,16 +247,12 @@ Future<bool> exportLabCaseZip({
       'labContactId': labCase.labContactId,
     },
     'attachments': [
-      for (final f in labCase.files)
-        {
-          'name': f.name,
-          'is3dScan': f.is3dScan,
-        }
+      for (final f in labCase.files) {'name': f.name, 'is3dScan': f.is3dScan},
     ],
     'softwareIntegration': {
       'exocad': 'Direct integration not connected yet',
       'threeShape': 'Direct integration not connected yet',
-    }
+    },
   };
 
   final jsonStr = const JsonEncoder.withIndent('  ').convert(orderJsonMap);
@@ -278,7 +278,10 @@ Future<bool> exportLabCaseZip({
   final zipData = ZipEncoder().encode(archive);
   final zipBytes = Uint8List.fromList(zipData);
 
-  final patientSlug = patient.fullName.trim().replaceAll(RegExp(r'[^\w\-]'), '_');
+  final patientSlug = patient.fullName.trim().replaceAll(
+    RegExp(r'[^\w\-]'),
+    '_',
+  );
   final dateSlug = DateFormat('yyyyMMdd').format(DateTime.now());
   final fileName = 'Case_${patientSlug}_$dateSlug.zip';
 

@@ -88,7 +88,9 @@ class DentalProcedureCatalogModel {
       'updatedAt': Timestamp.fromDate(updatedAt),
       'syncStatus': syncStatus,
       'pendingDelete': pendingDelete,
-      'lastSyncedAt': lastSyncedAt != null ? Timestamp.fromDate(lastSyncedAt!) : null,
+      'lastSyncedAt': lastSyncedAt != null
+          ? Timestamp.fromDate(lastSyncedAt!)
+          : null,
     };
   }
 
@@ -122,7 +124,9 @@ class DentalProcedureCatalogModel {
       category: map['category'] as String? ?? 'general',
       defaultPrice: (map['defaultPrice'] as num?)?.toDouble(),
       defaultDurationMinutes: (map['defaultDurationMinutes'] as num?)?.toInt(),
-      requiresToothSelection: map['requiresToothSelection'] == 1 || map['requiresToothSelection'] == true,
+      requiresToothSelection:
+          map['requiresToothSelection'] == 1 ||
+          map['requiresToothSelection'] == true,
       isActive: map['isActive'] == 1 || map['isActive'] == true,
       isDeleted: map['isDeleted'] == 1 || map['isDeleted'] == true,
       createdAt: _toDate(map['createdAt']) ?? DateTime.now(),
@@ -159,18 +163,23 @@ class DentalProcedureCatalogModel {
       code: code ?? this.code,
       name: name ?? this.name,
       category: category ?? this.category,
-      defaultPrice: clearDefaultPrice ? null : (defaultPrice ?? this.defaultPrice),
+      defaultPrice: clearDefaultPrice
+          ? null
+          : (defaultPrice ?? this.defaultPrice),
       defaultDurationMinutes: clearDefaultDuration
           ? null
           : (defaultDurationMinutes ?? this.defaultDurationMinutes),
-      requiresToothSelection: requiresToothSelection ?? this.requiresToothSelection,
+      requiresToothSelection:
+          requiresToothSelection ?? this.requiresToothSelection,
       isActive: isActive ?? this.isActive,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       syncStatus: syncStatus ?? this.syncStatus,
       pendingDelete: pendingDelete ?? this.pendingDelete,
-      lastSyncedAt: clearLastSyncedAt ? null : (lastSyncedAt ?? this.lastSyncedAt),
+      lastSyncedAt: clearLastSyncedAt
+          ? null
+          : (lastSyncedAt ?? this.lastSyncedAt),
     );
   }
 
@@ -205,22 +214,22 @@ class DentalProcedureCatalogModel {
 
   @override
   int get hashCode => Object.hash(
-        id,
-        doctorId,
-        code,
-        name,
-        category,
-        defaultPrice,
-        defaultDurationMinutes,
-        requiresToothSelection,
-        isActive,
-        isDeleted,
-        createdAt,
-        updatedAt,
-        syncStatus,
-        pendingDelete,
-        lastSyncedAt,
-      );
+    id,
+    doctorId,
+    code,
+    name,
+    category,
+    defaultPrice,
+    defaultDurationMinutes,
+    requiresToothSelection,
+    isActive,
+    isDeleted,
+    createdAt,
+    updatedAt,
+    syncStatus,
+    pendingDelete,
+    lastSyncedAt,
+  );
 
   @override
   String toString() {

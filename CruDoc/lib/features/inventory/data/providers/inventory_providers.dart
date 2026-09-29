@@ -75,32 +75,33 @@ final recentStockTransactionsProvider =
 
 /// Medicines whose `currentStock` has crossed at/under their configured
 /// `reorderThreshold`.
-final lowStockMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>(
-  (ref) {
-    final medicinesAsync = ref.watch(medicinesStreamProvider);
-    return medicinesAsync.whenData(
-      (medicines) => medicines.where((m) => m.isLowStock).toList(),
-    );
-  },
-);
+final lowStockMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>((
+  ref,
+) {
+  final medicinesAsync = ref.watch(medicinesStreamProvider);
+  return medicinesAsync.whenData(
+    (medicines) => medicines.where((m) => m.isLowStock).toList(),
+  );
+});
 
 /// Medicines within 30 days of (or past) their expiry date.
-final expiringMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>(
-  (ref) {
-    final medicinesAsync = ref.watch(medicinesStreamProvider);
-    return medicinesAsync.whenData(
-      (medicines) => medicines.where((m) => m.isExpiringSoon).toList(),
-    );
-  },
-);
+final expiringMedicinesProvider = Provider<AsyncValue<List<MedicineModel>>>((
+  ref,
+) {
+  final medicinesAsync = ref.watch(medicinesStreamProvider);
+  return medicinesAsync.whenData(
+    (medicines) => medicines.where((m) => m.isExpiringSoon).toList(),
+  );
+});
 
 /// Family provider for a single medicine's transaction history, newest
 /// first.
 final medicineTransactionsProvider =
-    FutureProvider.family<List<StockTransactionModel>, String>(
-      (ref, medicineId) {
-        return ref
-            .watch(inventoryRepositoryProvider)
-            .getTransactionsForMedicine(medicineId);
-      },
-    );
+    FutureProvider.family<List<StockTransactionModel>, String>((
+      ref,
+      medicineId,
+    ) {
+      return ref
+          .watch(inventoryRepositoryProvider)
+          .getTransactionsForMedicine(medicineId);
+    });

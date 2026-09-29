@@ -99,9 +99,7 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
   void initState() {
     super.initState();
     _visit = widget.initial.visit;
-    _notesController = TextEditingController(
-      text: _visit.therapistNotes ?? '',
-    );
+    _notesController = TextEditingController(text: _visit.therapistNotes ?? '');
   }
 
   @override
@@ -152,9 +150,15 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
     // Keep unsaved typing: the refresh below replaces the field's text.
     if (_noteDirty) await _saveNote();
     if (!mounted) return;
-    final confirmed = await showScribeFlow(context, visit: _visit, patient: _patient);
+    final confirmed = await showScribeFlow(
+      context,
+      visit: _visit,
+      patient: _patient,
+    );
     if (!confirmed || !mounted) return;
-    final refreshed = await ref.read(visitRepositoryProvider).getVisit(_visit.id);
+    final refreshed = await ref
+        .read(visitRepositoryProvider)
+        .getVisit(_visit.id);
     if (!mounted || refreshed == null) return;
     setState(() {
       _visit = refreshed;
@@ -215,9 +219,9 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
         ref.invalidate(visitsForPatientProvider(_visit.patientId));
         ref.invalidate(upcomingVisitsProvider);
         ref.invalidate(lastVisitPerPatientProvider);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Appointment deleted.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Appointment deleted.')));
         Navigator.pop(context);
       } catch (e) {
         if (!mounted) return;
@@ -270,16 +274,14 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
       if (await canLaunchUrl(uri)) {
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Could not open the link')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the link')),
+        );
       }
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Unable to open link. Please try again.'),
-        ),
+        const SnackBar(content: Text('Unable to open link. Please try again.')),
       );
     }
   }
@@ -288,9 +290,9 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
@@ -396,7 +398,11 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 const _SectionLabel(text: 'SESSION NOTE'),
                 TextButton.icon(
                   onPressed: _openScribe,
-                  icon: const Icon(Icons.mic_none_rounded, size: 16, color: AppColors.slateBlue),
+                  icon: const Icon(
+                    Icons.mic_none_rounded,
+                    size: 16,
+                    color: AppColors.slateBlue,
+                  ),
                   label: Text(
                     'AI Voice Scribe',
                     style: AppColors.bodySmall.copyWith(
@@ -405,11 +411,18 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                     ),
                   ),
                   style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    backgroundColor: AppColors.slateBlue.withValues(alpha: 0.08),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    backgroundColor: AppColors.slateBlue.withValues(
+                      alpha: 0.08,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(20),
-                      side: BorderSide(color: AppColors.slateBlue.withValues(alpha: 0.2)),
+                      side: BorderSide(
+                        color: AppColors.slateBlue.withValues(alpha: 0.2),
+                      ),
                     ),
                   ),
                 ),
@@ -427,7 +440,10 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      final cfg = DoctorLetterheadConfig.fromProfileData(null, null);
+                      final cfg = DoctorLetterheadConfig.fromProfileData(
+                        null,
+                        null,
+                      );
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -439,7 +455,11 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.receipt_long_rounded, size: 16, color: Color(0xFF0D9488)),
+                    icon: const Icon(
+                      Icons.receipt_long_rounded,
+                      size: 16,
+                      color: Color(0xFF0D9488),
+                    ),
                     label: const Text(
                       'Generate Bill',
                       style: TextStyle(
@@ -452,7 +472,9 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: const BorderSide(color: Color(0xFF99F6E4)),
                       backgroundColor: const Color(0xFFF0FDFA),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -460,7 +482,10 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      final cfg = DoctorLetterheadConfig.fromProfileData(null, null);
+                      final cfg = DoctorLetterheadConfig.fromProfileData(
+                        null,
+                        null,
+                      );
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
@@ -472,7 +497,11 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.medication_rounded, size: 16, color: Color(0xFF8B5CF6)),
+                    icon: const Icon(
+                      Icons.medication_rounded,
+                      size: 16,
+                      color: Color(0xFF8B5CF6),
+                    ),
                     label: const Text(
                       'Generate Rx',
                       style: TextStyle(
@@ -485,7 +514,9 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       side: const BorderSide(color: Color(0xFFDDD6FE)),
                       backgroundColor: const Color(0xFFF5F3FF),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
                 ),
@@ -497,7 +528,11 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
               height: 48,
               child: OutlinedButton.icon(
                 onPressed: _deleteVisit,
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                icon: const Icon(
+                  Icons.delete_outline,
+                  color: Colors.redAccent,
+                  size: 20,
+                ),
                 label: const Text(
                   'Delete Appointment',
                   style: TextStyle(
@@ -734,11 +769,7 @@ class _ScheduleInfo extends StatelessWidget {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(
-                Icons.timelapse,
-                size: 16,
-                color: AppColors.slateBlue,
-              ),
+              const Icon(Icons.timelapse, size: 16, color: AppColors.slateBlue),
               const SizedBox(width: 10),
               Text('${visit.durationMinutes} min', style: AppColors.bodyMedium),
             ],
@@ -881,16 +912,20 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
 
   Future<void> _openDirectWhatsApp(BuildContext context) async {
     final rawPhone = patient?.phone;
-    if (rawPhone == null || !WhatsAppTemplateService.isValidWhatsAppPhone(rawPhone)) {
+    if (rawPhone == null ||
+        !WhatsAppTemplateService.isValidWhatsAppPhone(rawPhone)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No valid WhatsApp mobile number for this patient.')),
+        const SnackBar(
+          content: Text('No valid WhatsApp mobile number for this patient.'),
+        ),
       );
       return;
     }
 
     final message = WhatsAppTemplateService.buildConfirmationMessage(
       visit: visit,
-      patient: patient ??
+      patient:
+          patient ??
           Patient(
             id: '',
             firstName: 'Valued',
@@ -917,7 +952,11 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
     } else {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not launch WhatsApp. Please check if WhatsApp is installed.')),
+        const SnackBar(
+          content: Text(
+            'Could not launch WhatsApp. Please check if WhatsApp is installed.',
+          ),
+        ),
       );
     }
   }
@@ -927,7 +966,9 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
     final statusAsync = ref.watch(visitWhatsAppStatusProvider(visit.id));
     final log = statusAsync.asData?.value;
 
-    final hasPhone = patient?.phone != null && WhatsAppTemplateService.isValidWhatsAppPhone(patient?.phone);
+    final hasPhone =
+        patient?.phone != null &&
+        WhatsAppTemplateService.isValidWhatsAppPhone(patient?.phone);
 
     Color badgeColor = const Color(0xFF25D366);
     IconData badgeIcon = Icons.check_circle_outline;
@@ -986,7 +1027,10 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: badgeColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
@@ -1010,7 +1054,9 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
               const Spacer(),
               if (log?.recipientPhone != null && log!.recipientPhone.isNotEmpty)
                 Text(
-                  WhatsAppTemplateService.formatDisplayPhone(log.recipientPhone),
+                  WhatsAppTemplateService.formatDisplayPhone(
+                    log.recipientPhone,
+                  ),
                   style: AppColors.bodySmall,
                 ),
             ],
@@ -1021,10 +1067,17 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => _openDirectWhatsApp(context),
-                icon: const Icon(Icons.chat_outlined, size: 16, color: Colors.white),
+                icon: const Icon(
+                  Icons.chat_outlined,
+                  size: 16,
+                  color: Colors.white,
+                ),
                 label: const Text(
                   'Chat / Resend via WhatsApp',
-                  style: TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366),
@@ -1041,4 +1094,3 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
     );
   }
 }
-

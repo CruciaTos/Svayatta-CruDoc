@@ -43,7 +43,9 @@ class DeviceSession {
     }
 
     final createdAt = parseTimestamp(data['createdAt']);
-    final lastActiveAt = parseTimestamp(data['lastActiveAt'] ?? data['createdAt']);
+    final lastActiveAt = parseTimestamp(
+      data['lastActiveAt'] ?? data['createdAt'],
+    );
 
     return DeviceSession(
       sessionId: id,

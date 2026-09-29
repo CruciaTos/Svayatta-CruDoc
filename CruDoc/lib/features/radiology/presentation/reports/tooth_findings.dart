@@ -57,8 +57,10 @@ class RadToothFindings extends ConsumerStatefulWidget {
 }
 
 class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
-  late bool _child = widget.childDefault ||
-      (widget.findings.isNotEmpty && widget.findings.keys.every(DentalChart.isPrimary));
+  late bool _child =
+      widget.childDefault ||
+      (widget.findings.isNotEmpty &&
+          widget.findings.keys.every(DentalChart.isPrimary));
   String? _selected;
   final _finding = TextEditingController();
   final _focus = FocusNode();
@@ -101,7 +103,8 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final numbers = widget.findings.keys.toList()..sort(_fdiOrder);
     final data = ToothChartData({
-      for (final n in numbers) n: ToothVisual(number: n, state: ToothState.needsCare),
+      for (final n in numbers)
+        n: ToothVisual(number: n, state: ToothState.needsCare),
     });
     final sel = _selected;
     return Column(
@@ -143,7 +146,10 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
             padding: const EdgeInsets.all(CruSpace.s12),
             decoration: ShapeDecoration(
               color: c.surface,
-              shape: cruShape(CruRadius.control, side: BorderSide(color: c.separator)),
+              shape: cruShape(
+                CruRadius.control,
+                side: BorderSide(color: c.separator),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -157,7 +163,9 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
                     const SizedBox(width: CruSpace.s8),
                     Expanded(
                       child: Text(
-                        DentalChart.isPrimary(sel) ? 'Milk tooth' : 'Permanent tooth',
+                        DentalChart.isPrimary(sel)
+                            ? 'Milk tooth'
+                            : 'Permanent tooth',
                         style: CruType.caption.tint(c.label3),
                       ),
                     ),
@@ -182,7 +190,10 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
                         selected: radHasTerm(_finding.text, f),
                         onSurface: true,
                         onTap: () {
-                          setState(() => _finding.text = radToggleTerm(_finding.text, f));
+                          setState(
+                            () =>
+                                _finding.text = radToggleTerm(_finding.text, f),
+                          );
                           _write(sel, _finding.text);
                         },
                       ),
@@ -194,7 +205,8 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
                   focusNode: _focus,
                   phrases: widget.phrases,
                   minLines: 1,
-                  hint: 'What the scan shows for tooth ${toothLabel(sel, numbering)}',
+                  hint:
+                      'What the scan shows for tooth ${toothLabel(sel, numbering)}',
                   onChanged: () {
                     setState(() {});
                     _write(sel, _finding.text);
@@ -207,7 +219,10 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
         if (numbers.isNotEmpty) ...[
           const SizedBox(height: CruSpace.s12),
           for (var i = 0; i < numbers.length; i++) ...[
-            if (i > 0) const CruSeparator(indent: CruSpace.s12 + CruSize.iconTile + CruSpace.s12),
+            if (i > 0)
+              const CruSeparator(
+                indent: CruSpace.s12 + CruSize.iconTile + CruSpace.s12,
+              ),
             DentalListRow(
               semanticLabel:
                   'Tooth ${toothLabel(numbers[i], numbering)}, ${widget.findings[numbers[i]]}',
@@ -225,8 +240,9 @@ class _RadToothFindingsState extends ConsumerState<RadToothFindings> {
                     ),
                     child: Text(
                       toothLabel(numbers[i], numbering),
-                      style: CruType.caption.w600.tabular
-                          .tint(numbers[i] == sel ? c.surface : c.label),
+                      style: CruType.caption.w600.tabular.tint(
+                        numbers[i] == sel ? c.surface : c.label,
+                      ),
                     ),
                   ),
                   const SizedBox(width: CruSpace.s12),

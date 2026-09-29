@@ -81,7 +81,9 @@ class RadUnsupportedImage implements Exception {
 /// Decodes [file] off the UI thread.
 Future<RadPixels> loadRadPixels(File file, RadFileKind kind, {int frame = 0}) {
   final path = file.path;
-  return Isolate.run(() => decodeRadPixels(File(path).readAsBytesSync(), kind, frame: frame));
+  return Isolate.run(
+    () => decodeRadPixels(File(path).readAsBytesSync(), kind, frame: frame),
+  );
 }
 
 /// Decodes bytes (call from an isolate for big images).
@@ -95,7 +97,8 @@ RadPixels _fromDicom(Uint8List bytes, int frame) {
   if (!d.hasPixels) throw RadUnsupportedImage('This DICOM file has no image');
   if (d.isCompressed) {
     throw RadUnsupportedImage(
-        '${DicomSyntax.name(d.transferSyntax)} DICOM images are not supported yet');
+      '${DicomSyntax.name(d.transferSyntax)} DICOM images are not supported yet',
+    );
   }
   final w = d.columns, h = d.rows;
   final f = frame.clamp(0, (d.frames - 1).clamp(0, 1 << 30));
@@ -103,9 +106,19 @@ RadPixels _fromDicom(Uint8List bytes, int frame) {
     final rgba = d.frameRgba(f);
     final values = Float32List(w * h);
     for (var i = 0; i < values.length; i++) {
-      values[i] = 0.299 * rgba[i * 4] + 0.587 * rgba[i * 4 + 1] + 0.114 * rgba[i * 4 + 2];
+      values[i] =
+          0.299 * rgba[i * 4] +
+          0.587 * rgba[i * 4 + 1] +
+          0.114 * rgba[i * 4 + 2];
     }
-    return _withStats(values, w, h, rgba: rgba, spacing: d.pixelSpacingMm, frames: d.frames);
+    return _withStats(
+      values,
+      w,
+      h,
+      rgba: rgba,
+      spacing: d.pixelSpacingMm,
+      frames: d.frames,
+    );
   }
   final values = d.frameValues(f);
   return _withStats(
@@ -122,7 +135,8 @@ RadPixels _fromDicom(Uint8List bytes, int frame) {
 
 RadPixels _fromRaster(Uint8List bytes) {
   final image = img.decodeImage(bytes);
-  if (image == null) throw RadUnsupportedImage('This picture format is not supported');
+  if (image == null)
+    throw RadUnsupportedImage('This picture format is not supported');
   final w = image.width, h = image.height;
   final values = Float32List(w * h);
   final colour = image.numChannels >= 3 && _looksColour(image);

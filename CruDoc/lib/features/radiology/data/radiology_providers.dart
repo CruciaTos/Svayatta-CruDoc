@@ -14,8 +14,9 @@ const _uuid = Uuid();
 /// A new record id.
 String radId([String prefix = '']) => '$prefix${_uuid.v4()}';
 
-final radiologyRepositoryProvider =
-    Provider<RadiologyRepository>((ref) => RadiologyRepository());
+final radiologyRepositoryProvider = Provider<RadiologyRepository>(
+  (ref) => RadiologyRepository(),
+);
 
 /// Whose radiology records these are: the signed-in doctor (the demo
 /// account when nobody is signed in, like the dental screens).
@@ -57,7 +58,10 @@ final radReportsProvider = FutureProvider<List<RadReport>>((ref) {
 });
 
 /// The report for a study, if one was started.
-final radReportForStudyProvider = Provider.family<RadReport?, String>((ref, studyId) {
+final radReportForStudyProvider = Provider.family<RadReport?, String>((
+  ref,
+  studyId,
+) {
   final reports = ref.watch(radReportsProvider).value ?? const <RadReport>[];
   for (final r in reports) {
     if (r.studyId == studyId) return r;
@@ -107,7 +111,9 @@ final radReferrerByIdProvider = Provider<Map<String, RadReferrer>>((ref) {
   return {for (final r in list) r.id: r};
 });
 
-final radiologyProvider = Provider<RadiologyController>(RadiologyController.new);
+final radiologyProvider = Provider<RadiologyController>(
+  RadiologyController.new,
+);
 
 /// Every change to radiology records goes through here: it saves, writes
 /// the audit trail and refreshes the lists that show the record.
@@ -122,8 +128,12 @@ class RadiologyController {
 
   // ───────────────────────────── Audit ─────────────────────────────
 
-  Future<void> log(String action,
-      {String targetKind = '', String targetId = '', String detail = ''}) async {
+  Future<void> log(
+    String action, {
+    String targetKind = '',
+    String targetId = '',
+    String detail = '',
+  }) async {
     await _repo.addAudit(
       doctorId,
       RadAuditEvent(
@@ -141,11 +151,20 @@ class RadiologyController {
 
   // ───────────────────────────── Studies ─────────────────────────────
 
-  Future<void> saveStudy(RadStudy s, {String? auditAction, String detail = ''}) async {
+  Future<void> saveStudy(
+    RadStudy s, {
+    String? auditAction,
+    String detail = '',
+  }) async {
     await _repo.saveStudy(doctorId, s);
     _ref.invalidate(radStudiesProvider);
     if (auditAction != null) {
-      await log(auditAction, targetKind: 'study', targetId: s.id, detail: detail);
+      await log(
+        auditAction,
+        targetKind: 'study',
+        targetId: s.id,
+        detail: detail,
+      );
     }
   }
 
@@ -155,19 +174,33 @@ class RadiologyController {
     if (report != null) await _repo.deleteReport(report.id);
     _ref.invalidate(radStudiesProvider);
     _ref.invalidate(radReportsProvider);
-    await log('Deleted study', targetKind: 'study', targetId: s.id, detail: s.patientName);
+    await log(
+      'Deleted study',
+      targetKind: 'study',
+      targetId: s.id,
+      detail: s.patientName,
+    );
   }
 
   /// Marks a new study as being read when it's opened.
   Future<void> openedStudy(RadStudy s) async {
     if (s.status == RadStudyStatus.newStudy) {
-      await _repo.saveStudy(doctorId, s.copyWith(status: RadStudyStatus.reading));
+      await _repo.saveStudy(
+        doctorId,
+        s.copyWith(status: RadStudyStatus.reading),
+      );
       _ref.invalidate(radStudiesProvider);
     }
-    await log('Opened', targetKind: 'study', targetId: s.id, detail: s.patientName);
+    await log(
+      'Opened',
+      targetKind: 'study',
+      targetId: s.id,
+      detail: s.patientName,
+    );
   }
 
-  Future<Directory> studyDir(String studyId) => _repo.studyDir(doctorId, studyId);
+  Future<Directory> studyDir(String studyId) =>
+      _repo.studyDir(doctorId, studyId);
 
   Future<File> fileOf(RadStudy s, String relativePath) =>
       _repo.fileOf(doctorId, s.id, relativePath);
@@ -185,14 +218,23 @@ class RadiologyController {
   Future<void> saveReferrer(RadReferrer r, {bool isNew = false}) async {
     await _repo.saveReferrer(doctorId, r);
     _ref.invalidate(radReferrersProvider);
-    await log(isNew ? 'Added referrer' : 'Edited referrer',
-        targetKind: 'referrer', targetId: r.id, detail: r.name);
+    await log(
+      isNew ? 'Added referrer' : 'Edited referrer',
+      targetKind: 'referrer',
+      targetId: r.id,
+      detail: r.name,
+    );
   }
 
   Future<void> deleteReferrer(RadReferrer r) async {
     await _repo.deleteReferrer(r.id);
     _ref.invalidate(radReferrersProvider);
-    await log('Deleted referrer', targetKind: 'referrer', targetId: r.id, detail: r.name);
+    await log(
+      'Deleted referrer',
+      targetKind: 'referrer',
+      targetId: r.id,
+      detail: r.name,
+    );
   }
 
   // ───────────────────────────── Reports ─────────────────────────────
@@ -206,7 +248,9 @@ class RadiologyController {
         RadReportStatus.draft => RadStudyStatus.draft,
         RadReportStatus.preliminary => RadStudyStatus.preliminary,
         RadReportStatus.finalised =>
-          r.sharedAt != null ? RadStudyStatus.delivered : RadStudyStatus.finalised,
+          r.sharedAt != null
+              ? RadStudyStatus.delivered
+              : RadStudyStatus.finalised,
       };
       if (next != study.status) {
         await _repo.saveStudy(doctorId, study.copyWith(status: next));
@@ -215,14 +259,24 @@ class RadiologyController {
     }
     _ref.invalidate(radReportsProvider);
     if (auditAction != null) {
-      await log(auditAction, targetKind: 'report', targetId: r.id, detail: r.title);
+      await log(
+        auditAction,
+        targetKind: 'report',
+        targetId: r.id,
+        detail: r.title,
+      );
     }
   }
 
   Future<void> deleteReport(RadReport r) async {
     await _repo.deleteReport(r.id);
     _ref.invalidate(radReportsProvider);
-    await log('Deleted report', targetKind: 'report', targetId: r.id, detail: r.title);
+    await log(
+      'Deleted report',
+      targetKind: 'report',
+      targetId: r.id,
+      detail: r.title,
+    );
   }
 
   // ──────────────────────── Templates, phrases, fees ────────────────────────

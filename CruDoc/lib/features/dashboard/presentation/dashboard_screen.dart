@@ -57,6 +57,26 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= CruBreakpoint.wide;
     final compact = width < CruBreakpoint.compact;
+    final theme = Theme.of(context);
+    final dashboardColors = context.cru.copyWith(
+      cardShadow: const [],
+      segmentShadow: const [],
+      inkShadow: const [],
+      paneShadow: const [],
+      hairline: Colors.transparent,
+      separator: Colors.transparent,
+    );
+    final dashboardTheme = theme.copyWith(
+      extensions: theme.extensions.values
+          .map(
+            (extension) => extension is CruColors ? dashboardColors : extension,
+          )
+          .toList(),
+      popupMenuTheme: theme.popupMenuTheme.copyWith(
+        elevation: 0,
+        shadowColor: Colors.transparent,
+      ),
+    );
 
     final left = <Widget>[
       data.schedule == null
@@ -77,8 +97,8 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     final upNext = !data.scheduleReady
         ? const SkeletonCard(rows: 2, rowHeight: 48)
         : data.upNext != null
-            ? UpNextCard(data: data.upNext!, navigate: widget.onNavigateToTab)
-            : NoOneWaitingCard(nextBooking: data.nextBooking);
+        ? UpNextCard(data: data.upNext!, navigate: widget.onNavigateToTab)
+        : NoOneWaitingCard(nextBooking: data.nextBooking);
 
     final right = <Widget>[
       upNext,
@@ -122,40 +142,44 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
       );
     }
 
-    return SingleChildScrollView(
-      padding: compact
-          ? const EdgeInsets.fromLTRB(12, 24, 24, 24)
-          : CruSpace.mainPadding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          DashboardHeader(searchFocusNode: widget.searchFocusNode),
-          const SizedBox(height: CruSpace.stackGap),
-          GlanceCard(glance: data.glance, collected: data.collected),
-          const SizedBox(height: CruSpace.stackGap),
-          body,
-        ],
+    return Theme(
+      data: dashboardTheme,
+      child: SingleChildScrollView(
+        padding: compact
+            ? const EdgeInsets.fromLTRB(12, 24, 24, 24)
+            : CruSpace.mainPadding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            DashboardHeader(searchFocusNode: widget.searchFocusNode),
+            const SizedBox(height: CruSpace.stackGap),
+            GlanceCard(glance: data.glance, collected: data.collected),
+            const SizedBox(height: CruSpace.stackGap),
+            body,
+          ],
+        ),
       ),
     );
   }
 
-  /// Cards above Collections in the right column: Wrap up the day in the
-  /// evening, Needs attention during the day. (Insights stay hidden: no
-  /// AI insights are generated from records yet.)
+  /// Cards above Collections in the right column. Content follows the live
+  /// records, not the selected light/dark appearance.
   List<Widget> _rightColumnTop(BuildContext context, DashboardData data) {
-    if (context.cru.isEvening) {
-      final wrapUp = ref.watch(wrapUpProvider);
-      if (wrapUp == null || !wrapUp.hasRows) return const [];
-      return [WrapUpCard(data: wrapUp, navigate: widget.onNavigateToTab)];
-    }
+    final cards = <Widget>[];
     final attention = data.attention;
-    if (attention == null || attention.isEmpty) return const [];
-    return [
-      NeedsAttentionCard(
-        items: attention,
-        onOpenInventory: () => widget.onNavigateToTab(DesktopTab.inventory),
-      ),
-    ];
+    if (attention != null && attention.isNotEmpty) {
+      cards.add(
+        NeedsAttentionCard(
+          items: attention,
+          onOpenInventory: () => widget.onNavigateToTab(DesktopTab.inventory),
+        ),
+      );
+    }
+    final wrapUp = ref.watch(wrapUpProvider);
+    if (wrapUp != null && wrapUp.hasRows) {
+      cards.add(WrapUpCard(data: wrapUp, navigate: widget.onNavigateToTab));
+    }
+    return cards;
   }
 
   static Widget _stack(List<Widget> children) => Column(

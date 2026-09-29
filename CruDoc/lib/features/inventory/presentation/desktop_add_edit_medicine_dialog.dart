@@ -110,24 +110,34 @@ class _DesktopAddEditMedicineDialogState
           ..._categoryPresets.where((c) => c.startsWith('Dental')),
           ..._categoryPresets.where((c) => !c.startsWith('Dental')),
         ]
-      : _categoryPresets
-          .where((c) => !c.startsWith('Dental'))
-          .toList();
+      : _categoryPresets.where((c) => !c.startsWith('Dental')).toList();
 
-  static const _dentalUnits = ['Cartridges', 'Burs', 'Pouches', 'Syringes', 'Pcs'];
+  static const _dentalUnits = [
+    'Cartridges',
+    'Burs',
+    'Pouches',
+    'Syringes',
+    'Pcs',
+  ];
 
   List<String> get _units => _dental
-      ? [..._dentalUnits, ..._unitPresets.where((u) => !_dentalUnits.contains(u))]
+      ? [
+          ..._dentalUnits,
+          ..._unitPresets.where((u) => !_dentalUnits.contains(u)),
+        ]
       : _unitPresets
-          .where((u) => !const ['Cartridges', 'Burs', 'Pouches'].contains(u))
-          .toList();
+            .where((u) => !const ['Cartridges', 'Burs', 'Pouches'].contains(u))
+            .toList();
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _dental = ProviderScope.containerOf(context, listen: false)
-        .read(isDentistProvider);
+    _dental = ProviderScope.containerOf(
+      context,
+      listen: false,
+    ).read(isDentistProvider);
   }
+
   late final TextEditingController _unit;
   late final TextEditingController _stock;
   late final TextEditingController _threshold;
@@ -160,8 +170,9 @@ class _DesktopAddEditMedicineDialogState
     _category = TextEditingController(text: m?.category ?? '');
     _unit = TextEditingController(text: m?.unit ?? 'Tablets');
     _stock = TextEditingController(text: m != null ? '${m.currentStock}' : '0');
-    _threshold =
-        TextEditingController(text: m != null ? '${m.reorderThreshold}' : '10');
+    _threshold = TextEditingController(
+      text: m != null ? '${m.reorderThreshold}' : '10',
+    );
     _good = TextEditingController(
       text: m?.goodStockLevel == null ? '' : '${m!.goodStockLevel}',
     );
@@ -169,8 +180,8 @@ class _DesktopAddEditMedicineDialogState
       text: m?.unitPrice == null
           ? ''
           : m!.unitPrice! == m.unitPrice!.roundToDouble()
-              ? m.unitPrice!.toStringAsFixed(0)
-              : m.unitPrice!.toStringAsFixed(2),
+          ? m.unitPrice!.toStringAsFixed(0)
+          : m.unitPrice!.toStringAsFixed(2),
     );
     _supplier = TextEditingController(text: m?.supplierName ?? '');
     _batch = TextEditingController(text: m?.batchNumber ?? '');
@@ -232,7 +243,9 @@ class _DesktopAddEditMedicineDialogState
       await _scanReceiptWithOcr(image);
     } catch (_) {
       if (!mounted) return;
-      setState(() => _attachError = "Couldn't open that file. Try another photo.");
+      setState(
+        () => _attachError = "Couldn't open that file. Try another photo.",
+      );
     }
   }
 
@@ -343,8 +356,9 @@ class _DesktopAddEditMedicineDialogState
     final threshold = int.tryParse(_threshold.text.trim()) ?? 10;
     // Empty: the good level follows the alert level (twice it).
     final good = int.tryParse(_good.text.trim());
-    final price =
-        _price.text.trim().isEmpty ? null : double.tryParse(_price.text.trim());
+    final price = _price.text.trim().isEmpty
+        ? null
+        : double.tryParse(_price.text.trim());
     final supplier = _supplier.text.trim();
     final batch = _batch.text.trim();
 
@@ -396,7 +410,8 @@ class _DesktopAddEditMedicineDialogState
       if (!mounted) return;
       setState(() {
         _saving = false;
-        _notice = "Couldn't save ${_isEditing ? 'the changes' : 'this item'}. "
+        _notice =
+            "Couldn't save ${_isEditing ? 'the changes' : 'this item'}. "
             'Try again.';
       });
     }
@@ -408,9 +423,11 @@ class _DesktopAddEditMedicineDialogState
     if (e == null) return null;
     final now = DateTime.now();
     final l = e.toLocal();
-    return DateTime(l.year, l.month, l.day)
-        .difference(DateTime(now.year, now.month, now.day))
-        .inDays;
+    return DateTime(
+      l.year,
+      l.month,
+      l.day,
+    ).difference(DateTime(now.year, now.month, now.day)).inDays;
   }
 
   CruIconData get _itemIcon {
@@ -423,8 +440,7 @@ class _DesktopAddEditMedicineDialogState
   Widget build(BuildContext context) {
     return CruFormDialog(
       title: _isEditing ? 'Edit item' : 'New item',
-      subtitle:
-          _isEditing ? widget.medicine!.name : 'Add it to your inventory',
+      subtitle: _isEditing ? widget.medicine!.name : 'Add it to your inventory',
       leading: CruIconTile(icon: _itemIcon, tone: CruTileTone.neutral),
       submitLabel: _isEditing ? 'Save changes' : 'Add item',
       onSubmit: _save,
@@ -470,7 +486,8 @@ class _DesktopAddEditMedicineDialogState
                       controller: _unit,
                       hint: 'Tablets',
                       presets: _units,
-                      validator: (v) => _required(v, 'Add a unit, like Tablets.'),
+                      validator: (v) =>
+                          _required(v, 'Add a unit, like Tablets.'),
                       onChanged: _edited,
                       onPick: (v) => _pickPreset(_unit, v),
                     ),
@@ -514,7 +531,8 @@ class _DesktopAddEditMedicineDialogState
                       label: 'Good at',
                       optional: true,
                       controller: _good,
-                      hint: '${(int.tryParse(_threshold.text.trim()) ?? 10) * 2}',
+                      hint:
+                          '${(int.tryParse(_threshold.text.trim()) ?? 10) * 2}',
                       help: 'Leave empty for twice the alert level.',
                       tabular: true,
                       keyboardType: TextInputType.number,
@@ -528,8 +546,9 @@ class _DesktopAddEditMedicineDialogState
                       prefix: '₹',
                       hint: '0.00',
                       tabular: true,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
                       ],
@@ -543,7 +562,8 @@ class _DesktopAddEditMedicineDialogState
             ),
             CruFormSection(
               title: 'Batch and expiry',
-              description: 'For reordering and to catch stock before it '
+              description:
+                  'For reordering and to catch stock before it '
                   'expires.',
               children: [
                 CruFieldRow(
@@ -581,7 +601,8 @@ class _DesktopAddEditMedicineDialogState
             ),
             CruFormSection(
               title: 'Bill and photo',
-              description: 'A bill photo fills in what it can read. '
+              description:
+                  'A bill photo fills in what it can read. '
                   'Check the fields after.',
               children: [
                 _billTile(context),
@@ -604,12 +625,12 @@ class _DesktopAddEditMedicineDialogState
     final status = stock == null || (widget.medicine == null && !_dirty)
         ? null
         : stock == 0
-            ? 'Out of stock'
-            : stock <= threshold * kCriticalStockShare
-                ? 'Critically low'
-                : stock <= threshold
-                    ? 'Low stock'
-                    : null;
+        ? 'Out of stock'
+        : stock <= threshold * kCriticalStockShare
+        ? 'Critically low'
+        : stock <= threshold
+        ? 'Low stock'
+        : null;
     final value = stock == null || price == null || price < 0
         ? null
         : InventoryFormat.rupees(price * stock);
@@ -651,7 +672,9 @@ class _DesktopAddEditMedicineDialogState
     final c = context.cru;
     final soon = days <= InventoryBuilder.expiringWithinDays;
     final when = InventoryFormat.inTime(days);
-    final label = days < 0 ? 'Expired' : when[0].toUpperCase() + when.substring(1);
+    final label = days < 0
+        ? 'Expired'
+        : when[0].toUpperCase() + when.substring(1);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -675,7 +698,12 @@ class _DesktopAddEditMedicineDialogState
               color: hovered ? c.surface : c.surface.withValues(alpha: 0),
               shape: cruShape(CruRadius.full),
             ),
-            child: CruIcon(CruIcons.close, size: 12, strokeWidth: 2, color: c.label2),
+            child: CruIcon(
+              CruIcons.close,
+              size: 12,
+              strokeWidth: 2,
+              color: c.label2,
+            ),
           ),
         ),
       ],
@@ -686,7 +714,10 @@ class _DesktopAddEditMedicineDialogState
     final receipt = _receiptImage;
     if (receipt == null) {
       return _AttachTile(
-        leading: const CruIconTile(icon: _receiptIcon, tone: CruTileTone.neutral),
+        leading: const CruIconTile(
+          icon: _receiptIcon,
+          tone: CruTileTone.neutral,
+        ),
         title: 'Fill from a bill',
         subtitle: 'Supplier bill or a photo of the strip',
         onTap: _saving ? null : () => _pickReceiptImage(ImageSource.gallery),
@@ -694,8 +725,9 @@ class _DesktopAddEditMedicineDialogState
           CruCapsuleButton(
             label: 'Choose…',
             kind: CruCapsuleKind.surface,
-            onPressed:
-                _saving ? null : () => _pickReceiptImage(ImageSource.gallery),
+            onPressed: _saving
+                ? null
+                : () => _pickReceiptImage(ImageSource.gallery),
           ),
         ],
       );
@@ -717,7 +749,10 @@ class _DesktopAddEditMedicineDialogState
           ? [
               SizedBox.square(
                 dimension: CruSpace.s16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: c.label3),
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: c.label3,
+                ),
               ),
             ]
           : [
@@ -733,9 +768,9 @@ class _DesktopAddEditMedicineDialogState
                 onPressed: _saving
                     ? null
                     : () => setState(() {
-                          _receiptImage = null;
-                          _ocrFieldsFilled = 0;
-                        }),
+                        _receiptImage = null;
+                        _ocrFieldsFilled = 0;
+                      }),
                 semanticLabel: 'Remove bill',
                 tooltip: 'Remove bill',
                 size: CruSize.control,
@@ -753,7 +788,9 @@ class _DesktopAddEditMedicineDialogState
           ? _Thumb(path: url, fallback: _imageIcon)
           : const CruIconTile(icon: _imageIcon, tone: CruTileTone.neutral),
       title: 'Item photo',
-      subtitle: has ? 'Shown with the item' : 'The box or strip, to spot it faster',
+      subtitle: has
+          ? 'Shown with the item'
+          : 'The box or strip, to spot it faster',
       onTap: has || _saving ? null : _pickItemImage,
       actions: [
         CruCapsuleButton(
@@ -767,9 +804,9 @@ class _DesktopAddEditMedicineDialogState
             onPressed: _saving
                 ? null
                 : () => setState(() {
-                      _imageUrl = null;
-                      _dirty = true;
-                    }),
+                    _imageUrl = null;
+                    _dirty = true;
+                  }),
             semanticLabel: 'Remove photo',
             tooltip: 'Remove photo',
             size: CruSize.control,
@@ -878,47 +915,44 @@ class _AttachTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     Widget tile(bool hovered) => Container(
-          constraints: const BoxConstraints(minHeight: CruSize.actionTile),
-          padding: const EdgeInsets.symmetric(
-            horizontal: CruSpace.s12,
-            vertical: CruSpace.s12,
-          ),
-          decoration: ShapeDecoration(
-            color: hovered ? cruHoverShade(c.inset, c) : c.inset,
-            shape: cruShape(CruRadius.control),
-          ),
-          child: Row(
-            children: [
-              leading,
-              const SizedBox(width: CruSpace.s12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      title,
-                      style: CruType.subhead.w500.tint(c.label),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: CruSpace.s2),
-                    Text(
-                      subtitle,
-                      style: CruType.caption.tint(c.label3),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+      constraints: const BoxConstraints(minHeight: CruSize.actionTile),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s12,
+        vertical: CruSpace.s12,
+      ),
+      decoration: ShapeDecoration(
+        color: hovered ? cruHoverShade(c.inset, c) : c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          leading,
+          const SizedBox(width: CruSpace.s12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: CruType.subhead.w500.tint(c.label),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              for (final a in actions) ...[
-                const SizedBox(width: CruSpace.s8),
-                a,
+                const SizedBox(height: CruSpace.s2),
+                Text(
+                  subtitle,
+                  style: CruType.caption.tint(c.label3),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ],
-            ],
+            ),
           ),
-        );
+          for (final a in actions) ...[const SizedBox(width: CruSpace.s8), a],
+        ],
+      ),
+    );
     if (onTap == null) return tile(false);
     return CruPressable(
       onTap: onTap,
@@ -970,7 +1004,12 @@ class _WarnPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CruIcon(CruIcons.warning, size: 13, strokeWidth: 2.2, color: c.amberText),
+          CruIcon(
+            CruIcons.warning,
+            size: 13,
+            strokeWidth: 2.2,
+            color: c.amberText,
+          ),
           const SizedBox(width: CruSpace.s6),
           Text(text, style: CruType.caption.w500.tabular.tint(c.amberText)),
         ],

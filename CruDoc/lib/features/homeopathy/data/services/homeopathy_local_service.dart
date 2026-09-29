@@ -15,8 +15,9 @@ class HomeopathyLocalService {
 
   HomeopathyLocalService._(this._databaseService);
 
-  static final HomeopathyLocalService instance =
-      HomeopathyLocalService._(LocalDatabaseService.instance);
+  static final HomeopathyLocalService instance = HomeopathyLocalService._(
+    LocalDatabaseService.instance,
+  );
 
   final LocalDatabaseService _databaseService;
   final StreamController<void> _changeController =
@@ -71,7 +72,8 @@ class HomeopathyLocalService {
 
     final rows = await db.query(
       'homeopathy_case_sheets',
-      where: 'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
+      where:
+          'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
       whereArgs: [patientId, doctorId],
       orderBy: 'updatedAt DESC',
       limit: 1,
@@ -82,13 +84,15 @@ class HomeopathyLocalService {
   }
 
   Future<List<HomeopathyCaseSheet>> getAllCaseSheetsForPatient(
-      String patientId) async {
+    String patientId,
+  ) async {
     final doctorId = _currentDoctorId;
     final db = await _databaseService.localDatabase;
 
     final rows = await db.query(
       'homeopathy_case_sheets',
-      where: 'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
+      where:
+          'patientId = ? AND (doctorId = ? OR doctorId = "") AND pendingDelete = 0',
       whereArgs: [patientId, doctorId],
       orderBy: 'caseDate DESC, updatedAt DESC',
     );

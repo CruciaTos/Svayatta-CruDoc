@@ -11,7 +11,11 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Clinical notes: the composer, then every visit note newest first
 /// (from `Visit.therapistNotes`), then the patient's note on file.
 class ClinicalNotesCard extends StatelessWidget {
-  const ClinicalNotesCard({super.key, required this.summary, required this.now});
+  const ClinicalNotesCard({
+    super.key,
+    required this.summary,
+    required this.now,
+  });
 
   final PatientSummary summary;
   final DateTime now;
@@ -23,7 +27,8 @@ class ClinicalNotesCard extends StatelessWidget {
       for (final v in summary.visits)
         if (v.therapistNotes?.trim().isNotEmpty ?? false)
           NoteItem(
-            heading: '${PatientFormat.day(v.scheduledStart, now)} · '
+            heading:
+                '${PatientFormat.day(v.scheduledStart, now)} · '
                 '${_treatment(v.treatmentType)}',
             trailing: DashFormat.time(v.scheduledStart),
             body: v.therapistNotes!.trim(),

@@ -60,8 +60,9 @@ class _PhysioBeforeAfterDialogState
   Future<void> _exportPng() async {
     setState(() => _exporting = true);
     try {
-      final boundary = _exportBoundaryKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _exportBoundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) {
         recToast(context, 'Unable to capture comparison view');
         return;
@@ -75,9 +76,10 @@ class _PhysioBeforeAfterDialogState
       }
 
       final bytes = byteData.buffer.asUint8List();
-      final patientSlug = widget.patient.fullName
-          .trim()
-          .replaceAll(RegExp(r'[^\w\-]'), '_');
+      final patientSlug = widget.patient.fullName.trim().replaceAll(
+        RegExp(r'[^\w\-]'),
+        '_',
+      );
       final dateSlug = DateFormat('yyyyMMdd').format(DateTime.now());
       final defaultName =
           'Physio_${patientSlug}_${_selectedSlot.name}_$dateSlug.png';
@@ -119,9 +121,10 @@ class _PhysioBeforeAfterDialogState
   Widget build(BuildContext context) {
     final c = context.cru;
     final recordsAsync = ref.watch(
-      patientRecordsProvider(
-        (patientId: widget.patient.id, kind: RecKind.physioPhotoSet),
-      ),
+      patientRecordsProvider((
+        patientId: widget.patient.id,
+        kind: RecKind.physioPhotoSet,
+      )),
     );
 
     return recordsAsync.when(
@@ -207,8 +210,9 @@ class _PhysioBeforeAfterDialogState
                               ],
                               onChanged: (id) {
                                 setState(() {
-                                  _beforeSet =
-                                      sets.where((s) => s.id == id).firstOrNull;
+                                  _beforeSet = sets
+                                      .where((s) => s.id == id)
+                                      .firstOrNull;
                                 });
                               },
                             ),
@@ -280,8 +284,9 @@ class _PhysioBeforeAfterDialogState
                               ],
                               onChanged: (id) {
                                 setState(() {
-                                  _afterSet =
-                                      sets.where((s) => s.id == id).firstOrNull;
+                                  _afterSet = sets
+                                      .where((s) => s.id == id)
+                                      .firstOrNull;
                                 });
                               },
                             ),
@@ -307,7 +312,9 @@ class _PhysioBeforeAfterDialogState
                       label: _exporting ? 'Exporting…' : 'Export PNG',
                       icon: CruIcons.download,
                       kind: CruButtonKind.secondary,
-                      onPressed: hasBothPhotos && !_exporting ? _exportPng : null,
+                      onPressed: hasBothPhotos && !_exporting
+                          ? _exportPng
+                          : null,
                     ),
                   ],
                 ),
@@ -340,18 +347,16 @@ class _PhysioBeforeAfterDialogState
                         height: 440,
                         decoration: BoxDecoration(
                           color: c.surface,
-                          borderRadius: BorderRadius.circular(CruRadius.control),
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
                           border: Border.all(color: c.hairline),
                         ),
                         child: Center(
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              CruIcon(
-                                CruIcons.box,
-                                size: 32,
-                                color: c.label3,
-                              ),
+                              CruIcon(CruIcons.box, size: 32, color: c.label3),
                               const SizedBox(height: CruSpace.s12),
                               Text(
                                 'Missing photo in selected slot',
@@ -381,27 +386,136 @@ class _PhysioBeforeAfterDialogState
                         ),
                       )
                     : (_sideBySide
-                        ? Container(
-                            height: 480,
-                            decoration: BoxDecoration(
-                              color: Colors.black,
-                              borderRadius:
-                                  BorderRadius.circular(CruRadius.control),
-                              border: Border.all(color: c.hairline),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Row(
-                              children: [
-                                // Before pane
-                                Expanded(
+                          ? Container(
+                              height: 480,
+                              decoration: BoxDecoration(
+                                color: Colors.black,
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
+                                border: Border.all(color: c.hairline),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: Row(
+                                children: [
+                                  // Before pane
+                                  Expanded(
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.file(
+                                          File(beforePhoto),
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.center,
+                                        ),
+                                        Positioned(
+                                          top: CruSpace.s12,
+                                          left: CruSpace.s12,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: CruSpace.s10,
+                                              vertical: CruSpace.s4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.65,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    CruRadius.control,
+                                                  ),
+                                            ),
+                                            child: Text(
+                                              'Earlier · ${_beforeSet!.label} (${DentalFormat.date(_beforeSet!.date)})',
+                                              style: CruType.caption.w600.tint(
+                                                Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(width: 2, color: Colors.white24),
+                                  // After pane
+                                  Expanded(
+                                    child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        Image.file(
+                                          File(afterPhoto),
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.center,
+                                        ),
+                                        Positioned(
+                                          top: CruSpace.s12,
+                                          right: CruSpace.s12,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: CruSpace.s10,
+                                              vertical: CruSpace.s4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: Colors.black.withValues(
+                                                alpha: 0.65,
+                                              ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    CruRadius.control,
+                                                  ),
+                                            ),
+                                            child: Text(
+                                              'Follow-up · ${_afterSet!.label} (${DentalFormat.date(_afterSet!.date)})',
+                                              style: CruType.caption.w600.tint(
+                                                Colors.white,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : LayoutBuilder(
+                              builder: (context, constraints) {
+                                final boxWidth = constraints.maxWidth;
+                                const boxHeight = 480.0;
+
+                                return Container(
+                                  height: boxHeight,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black,
+                                    borderRadius: BorderRadius.circular(
+                                      CruRadius.control,
+                                    ),
+                                    border: Border.all(color: c.hairline),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
                                   child: Stack(
                                     fit: StackFit.expand,
                                     children: [
+                                      // 1. Bottom layer: AFTER photo
                                       Image.file(
-                                        File(beforePhoto),
+                                        File(afterPhoto),
                                         fit: BoxFit.contain,
                                         alignment: Alignment.center,
                                       ),
+
+                                      // 2. Top layer: BEFORE photo clipped
+                                      ClipRect(
+                                        clipper: _PhysioSplitClipper(
+                                          _dividerFraction,
+                                        ),
+                                        child: Image.file(
+                                          File(beforePhoto),
+                                          fit: BoxFit.contain,
+                                          alignment: Alignment.center,
+                                        ),
+                                      ),
+
+                                      // 3. Before label badge
                                       Positioned(
                                         top: CruSpace.s12,
                                         left: CruSpace.s12,
@@ -411,35 +525,23 @@ class _PhysioBeforeAfterDialogState
                                             vertical: CruSpace.s4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.black
-                                                .withValues(alpha: 0.65),
+                                            color: Colors.black.withValues(
+                                              alpha: 0.65,
+                                            ),
                                             borderRadius: BorderRadius.circular(
-                                                CruRadius.control),
+                                              CruRadius.control,
+                                            ),
                                           ),
                                           child: Text(
                                             'Earlier · ${_beforeSet!.label} (${DentalFormat.date(_beforeSet!.date)})',
-                                            style: CruType.caption.w600
-                                                .tint(Colors.white),
+                                            style: CruType.caption.w600.tint(
+                                              Colors.white,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ],
-                                  ),
-                                ),
-                                Container(
-                                  width: 2,
-                                  color: Colors.white24,
-                                ),
-                                // After pane
-                                Expanded(
-                                  child: Stack(
-                                    fit: StackFit.expand,
-                                    children: [
-                                      Image.file(
-                                        File(afterPhoto),
-                                        fit: BoxFit.contain,
-                                        alignment: Alignment.center,
-                                      ),
+
+                                      // 4. After label badge
                                       Positioned(
                                         top: CruSpace.s12,
                                         right: CruSpace.s12,
@@ -449,164 +551,75 @@ class _PhysioBeforeAfterDialogState
                                             vertical: CruSpace.s4,
                                           ),
                                           decoration: BoxDecoration(
-                                            color: Colors.black
-                                                .withValues(alpha: 0.65),
+                                            color: Colors.black.withValues(
+                                              alpha: 0.65,
+                                            ),
                                             borderRadius: BorderRadius.circular(
-                                                CruRadius.control),
+                                              CruRadius.control,
+                                            ),
                                           ),
                                           child: Text(
                                             'Follow-up · ${_afterSet!.label} (${DentalFormat.date(_afterSet!.date)})',
-                                            style: CruType.caption.w600
-                                                .tint(Colors.white),
+                                            style: CruType.caption.w600.tint(
+                                              Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+
+                                      // 5. Draggable Divider Line and Handle
+                                      Positioned(
+                                        left:
+                                            (boxWidth * _dividerFraction) - 16,
+                                        top: 0,
+                                        bottom: 0,
+                                        width: 32,
+                                        child: GestureDetector(
+                                          behavior: HitTestBehavior.opaque,
+                                          onHorizontalDragUpdate: (details) {
+                                            setState(() {
+                                              _dividerFraction =
+                                                  (_dividerFraction +
+                                                          (details.delta.dx /
+                                                              boxWidth))
+                                                      .clamp(0.02, 0.98);
+                                            });
+                                          },
+                                          child: Center(
+                                            child: Stack(
+                                              alignment: Alignment.center,
+                                              children: [
+                                                // Vertical divider line
+                                                Container(
+                                                  width: 2,
+                                                  color: Colors.white,
+                                                ),
+                                                // Central circular grab handle
+                                                Container(
+                                                  width: 30,
+                                                  height: 30,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: const [],
+                                                  ),
+                                                  child: const Icon(
+                                                    Icons
+                                                        .compare_arrows_rounded,
+                                                    color: Colors.black87,
+                                                    size: 20,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ],
                                   ),
-                                ),
-                              ],
-                            ),
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              final boxWidth = constraints.maxWidth;
-                              const boxHeight = 480.0;
-
-                              return Container(
-                                height: boxHeight,
-                                decoration: BoxDecoration(
-                                  color: Colors.black,
-                                  borderRadius:
-                                      BorderRadius.circular(CruRadius.control),
-                                  border: Border.all(color: c.hairline),
-                                ),
-                                clipBehavior: Clip.antiAlias,
-                                child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    // 1. Bottom layer: AFTER photo
-                                    Image.file(
-                                      File(afterPhoto),
-                                      fit: BoxFit.contain,
-                                      alignment: Alignment.center,
-                                    ),
-
-                                    // 2. Top layer: BEFORE photo clipped
-                                    ClipRect(
-                                      clipper: _PhysioSplitClipper(
-                                        _dividerFraction,
-                                      ),
-                                      child: Image.file(
-                                        File(beforePhoto),
-                                        fit: BoxFit.contain,
-                                        alignment: Alignment.center,
-                                      ),
-                                    ),
-
-                                    // 3. Before label badge
-                                    Positioned(
-                                      top: CruSpace.s12,
-                                      left: CruSpace.s12,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: CruSpace.s10,
-                                          vertical: CruSpace.s4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.65),
-                                          borderRadius: BorderRadius.circular(
-                                              CruRadius.control),
-                                        ),
-                                        child: Text(
-                                          'Earlier · ${_beforeSet!.label} (${DentalFormat.date(_beforeSet!.date)})',
-                                          style: CruType.caption.w600
-                                              .tint(Colors.white),
-                                        ),
-                                      ),
-                                    ),
-
-                                    // 4. After label badge
-                                    Positioned(
-                                      top: CruSpace.s12,
-                                      right: CruSpace.s12,
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: CruSpace.s10,
-                                          vertical: CruSpace.s4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black
-                                              .withValues(alpha: 0.65),
-                                          borderRadius: BorderRadius.circular(
-                                              CruRadius.control),
-                                        ),
-                                        child: Text(
-                                          'Follow-up · ${_afterSet!.label} (${DentalFormat.date(_afterSet!.date)})',
-                                          style: CruType.caption.w600
-                                              .tint(Colors.white),
-                                        ),
-                                      ),
-                                    ),
-
-                                    // 5. Draggable Divider Line and Handle
-                                    Positioned(
-                                      left: (boxWidth * _dividerFraction) - 16,
-                                      top: 0,
-                                      bottom: 0,
-                                      width: 32,
-                                      child: GestureDetector(
-                                        behavior: HitTestBehavior.opaque,
-                                        onHorizontalDragUpdate: (details) {
-                                          setState(() {
-                                            _dividerFraction =
-                                                (_dividerFraction +
-                                                        (details.delta.dx /
-                                                            boxWidth))
-                                                    .clamp(0.02, 0.98);
-                                          });
-                                        },
-                                        child: Center(
-                                          child: Stack(
-                                            alignment: Alignment.center,
-                                            children: [
-                                              // Vertical divider line
-                                              Container(
-                                                width: 2,
-                                                color: Colors.white,
-                                              ),
-                                              // Central circular grab handle
-                                              Container(
-                                                width: 30,
-                                                height: 30,
-                                                decoration: BoxDecoration(
-                                                  color: Colors.white,
-                                                  shape: BoxShape.circle,
-                                                  boxShadow: [
-                                                    BoxShadow(
-                                                      color: Colors.black
-                                                          .withValues(alpha: 0.35),
-                                                      blurRadius: 6,
-                                                      offset: const Offset(0, 2),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: const Icon(
-                                                  Icons.compare_arrows_rounded,
-                                                  color: Colors.black87,
-                                                  size: 20,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          )),
+                                );
+                              },
+                            )),
               ),
             ],
           ),

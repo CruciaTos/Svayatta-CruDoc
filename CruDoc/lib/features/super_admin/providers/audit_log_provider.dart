@@ -48,11 +48,13 @@ class AuditLogState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
-      actionTypeFilter:
-          clearActionType ? null : (actionTypeFilter ?? this.actionTypeFilter),
+      actionTypeFilter: clearActionType
+          ? null
+          : (actionTypeFilter ?? this.actionTypeFilter),
       statusFilter: statusFilter ?? this.statusFilter,
-      dateRangeFilter:
-          clearDateRange ? null : (dateRangeFilter ?? this.dateRangeFilter),
+      dateRangeFilter: clearDateRange
+          ? null
+          : (dateRangeFilter ?? this.dateRangeFilter),
       lastDocId: lastDocId ?? this.lastDocId,
       hasMore: hasMore ?? this.hasMore,
     );
@@ -64,15 +66,20 @@ class AuditLogState {
       // 1. Search Query Filter (Admin name, email, target doctor name/email, action label)
       if (searchQuery.isNotEmpty) {
         final q = searchQuery.toLowerCase().trim();
-        final matchesAdmin = log.adminName.toLowerCase().contains(q) ||
+        final matchesAdmin =
+            log.adminName.toLowerCase().contains(q) ||
             log.adminEmail.toLowerCase().contains(q);
-        final matchesTarget = (log.targetDoctorName?.toLowerCase().contains(q) ?? false) ||
+        final matchesTarget =
+            (log.targetDoctorName?.toLowerCase().contains(q) ?? false) ||
             (log.targetDoctorEmail?.toLowerCase().contains(q) ?? false) ||
             (log.targetDoctorId?.toLowerCase().contains(q) ?? false);
         final matchesAction = log.actionType.label.toLowerCase().contains(q);
         final matchesStatus = log.status.toLowerCase().contains(q);
 
-        if (!matchesAdmin && !matchesTarget && !matchesAction && !matchesStatus) {
+        if (!matchesAdmin &&
+            !matchesTarget &&
+            !matchesAction &&
+            !matchesStatus) {
           return false;
         }
       }
@@ -136,8 +143,16 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
         targetDoctorId: 'doc-991',
         targetDoctorName: 'Dr. Venom Mhatre',
         targetDoctorEmail: 'venom@crudoc.com',
-        details: {'plan': 'Enterprise', 'region': 'India', 'initialStatus': 'Active'},
-        afterValues: {'status': 'Active', 'plan': 'Enterprise', 'patientsLimit': -1},
+        details: {
+          'plan': 'Enterprise',
+          'region': 'India',
+          'initialStatus': 'Active',
+        },
+        afterValues: {
+          'status': 'Active',
+          'plan': 'Enterprise',
+          'patientsLimit': -1,
+        },
         timestamp: now.subtract(const Duration(minutes: 12)),
         status: 'success',
         ipAddress: '192.168.1.45',
@@ -170,7 +185,8 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
         details: {'reason': 'Unverified credentials'},
         timestamp: now.subtract(const Duration(hours: 3, minutes: 10)),
         status: 'failed',
-        errorMessage: 'Security Policy Guard: Cannot suspend system owner account',
+        errorMessage:
+            'Security Policy Guard: Cannot suspend system owner account',
         ipAddress: '192.168.1.45',
         userAgent: 'Chrome 127.0 (Windows NT 10.0)',
       ),
@@ -272,7 +288,10 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
         targetDoctorId: null,
         targetDoctorName: null,
         targetDoctorEmail: null,
-        details: {'title': 'System Maintenance Notification', 'recipientsCount': 142},
+        details: {
+          'title': 'System Maintenance Notification',
+          'recipientsCount': 142,
+        },
         timestamp: now.subtract(const Duration(days: 5, hours: 6)),
         status: 'success',
         ipAddress: '10.0.0.12',
@@ -287,11 +306,7 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
     try {
       await Future.delayed(const Duration(milliseconds: 300));
       final mockLogs = _getMockSeedLogs();
-      state = state.copyWith(
-        logs: mockLogs,
-        isLoading: false,
-        hasMore: false,
-      );
+      state = state.copyWith(logs: mockLogs, isLoading: false, hasMore: false);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -337,7 +352,9 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
     if (logsToExport.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No audit logs available to export for current filters'),
+          content: Text(
+            'No audit logs available to export for current filters',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -375,7 +392,11 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
       SnackBar(
         content: Row(
           children: [
-            const Icon(Icons.download_done_rounded, color: Colors.white, size: 20),
+            const Icon(
+              Icons.download_done_rounded,
+              color: Colors.white,
+              size: 20,
+            ),
             const SizedBox(width: 10),
             Text(
               'Successfully exported ${logsToExport.length} audit logs to CSV',
@@ -399,7 +420,10 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
         str.startsWith('@')) {
       str = "'$str";
     }
-    if (str.contains(',') || str.contains('"') || str.contains('\n') || str.contains('\r')) {
+    if (str.contains(',') ||
+        str.contains('"') ||
+        str.contains('\n') ||
+        str.contains('\r')) {
       final escaped = str.replaceAll('"', '""');
       return '"$escaped"';
     }
@@ -410,5 +434,5 @@ class AuditLogNotifier extends Notifier<AuditLogState> {
 /// Provider for Super Admin Audit Logs state.
 final superAdminAuditLogProvider =
     NotifierProvider<AuditLogNotifier, AuditLogState>(() {
-  return AuditLogNotifier();
-});
+      return AuditLogNotifier();
+    });

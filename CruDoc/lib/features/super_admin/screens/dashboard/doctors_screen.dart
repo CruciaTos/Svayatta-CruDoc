@@ -79,7 +79,12 @@ class _SuperAdminDoctorsScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // 1. Header Bar
-          _buildHeaderBar(context, notifier, doctors.length, doctorState.isLoading),
+          _buildHeaderBar(
+            context,
+            notifier,
+            doctors.length,
+            doctorState.isLoading,
+          ),
 
           const SizedBox(height: CruSpace.s20),
 
@@ -120,7 +125,10 @@ class _SuperAdminDoctorsScreenState
                   ),
                   const SizedBox(width: CruSpace.s12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: ShapeDecoration(
                       color: c.accentTint,
                       shape: cruShape(CruRadius.full),
@@ -144,7 +152,9 @@ class _SuperAdminDoctorsScreenState
           label: 'Refresh',
           kind: CruButtonKind.secondary,
           icon: CruIcons.sparkle,
-          onPressed: isLoading ? null : () => notifier.loadDoctors(refresh: true),
+          onPressed: isLoading
+              ? null
+              : () => notifier.loadDoctors(refresh: true),
         ),
         const SizedBox(width: CruSpace.s10),
         CruButton(
@@ -179,7 +189,8 @@ class _SuperAdminDoctorsScreenState
               onChanged: (val) => notifier.setSearchQuery(val),
               style: CruType.text.tint(c.label),
               decoration: InputDecoration(
-                hintText: 'Search by doctor name, email, clinic, or specialization...',
+                hintText:
+                    'Search by doctor name, email, clinic, or specialization...',
                 hintStyle: CruType.text.tint(c.label3),
                 filled: true,
                 fillColor: c.inset,
@@ -189,7 +200,11 @@ class _SuperAdminDoctorsScreenState
                 ),
                 suffixIcon: _searchController.text.isNotEmpty
                     ? IconButton(
-                        icon: CruIcon(CruIcons.close, size: 14, color: c.label3),
+                        icon: CruIcon(
+                          CruIcons.close,
+                          size: 14,
+                          color: c.label3,
+                        ),
                         onPressed: () {
                           _searchController.clear();
                           notifier.setSearchQuery('');
@@ -286,14 +301,19 @@ class _SuperAdminDoctorsScreenState
             color: selected
                 ? c.accent
                 : hovered
-                    ? c.hoverFill
-                    : c.inset,
-            shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
+                ? c.hoverFill
+                : c.inset,
+            shape: cruShape(
+              CruRadius.full,
+              side: BorderSide(color: c.hairline),
+            ),
           ),
           child: Text(
             label,
             style: CruType.caption
-                .copyWith(fontWeight: selected ? FontWeight.w600 : FontWeight.w500)
+                .copyWith(
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                )
                 .tint(selected ? CruBrand.white : c.label2),
           ),
         );
@@ -329,17 +349,56 @@ class _SuperAdminDoctorsScreenState
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: BoxDecoration(
                 color: c.inset,
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(CruRadius.card)),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(CruRadius.card),
+                ),
                 border: Border(bottom: BorderSide(color: c.hairline)),
               ),
               child: Row(
                 children: [
-                  Expanded(flex: 3, child: Text('DOCTOR & CLINIC', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 3, child: Text('SPECIALTY & EMAIL', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('TIER PLAN', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('ACCOUNT STATUS', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('CLOUD STORAGE', style: CruType.groupLabel.tint(c.label3))),
-                  SizedBox(width: 80, child: Text('ACTIONS', style: CruType.groupLabel.tint(c.label3), textAlign: TextAlign.right)),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'DOCTOR & CLINIC',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'SPECIALTY & EMAIL',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'TIER PLAN',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'ACCOUNT STATUS',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'CLOUD STORAGE',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 80,
+                    child: Text(
+                      'ACTIONS',
+                      style: CruType.groupLabel.tint(c.label3),
+                      textAlign: TextAlign.right,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -394,7 +453,8 @@ class _SuperAdminDoctorsScreenState
                 child: CruButton(
                   label: 'Load More Doctors',
                   kind: CruButtonKind.secondary,
-                  onPressed: () => ref.read(doctorListProvider.notifier).loadDoctors(),
+                  onPressed: () =>
+                      ref.read(doctorListProvider.notifier).loadDoctors(),
                 ),
               ),
             ),
@@ -413,7 +473,7 @@ class _SuperAdminDoctorsScreenState
             flex: 3,
             child: Row(
               children: [
-                CruMonogram(name: doctor.name, size: 34, background: c.track),
+                CruMonogram(name: doctor.name, size: 34),
                 const SizedBox(width: CruSpace.s12),
                 Expanded(
                   child: Column(
@@ -425,7 +485,9 @@ class _SuperAdminDoctorsScreenState
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        doctor.clinicName.isNotEmpty ? doctor.clinicName : 'Independent Practice',
+                        doctor.clinicName.isNotEmpty
+                            ? doctor.clinicName
+                            : 'Independent Practice',
                         style: CruType.caption.tint(c.label3),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -443,7 +505,9 @@ class _SuperAdminDoctorsScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  doctor.specialization.isNotEmpty ? doctor.specialization : 'General Practice',
+                  doctor.specialization.isNotEmpty
+                      ? doctor.specialization
+                      : 'General Practice',
                   style: CruType.caption.w600.tint(c.label2),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -505,18 +569,26 @@ class _SuperAdminDoctorsScreenState
                   PopupMenuItem(
                     value: 'suspend',
                     child: Text(
-                      doctor.status == DoctorStatus.suspended ? 'Reactivate Account' : 'Suspend Account',
+                      doctor.status == DoctorStatus.suspended
+                          ? 'Reactivate Account'
+                          : 'Suspend Account',
                       style: CruType.text.tint(c.label),
                     ),
                   ),
                   PopupMenuItem(
                     value: 'reset_pwd',
-                    child: Text('Send Password Reset', style: CruType.text.tint(c.label)),
+                    child: Text(
+                      'Send Password Reset',
+                      style: CruType.text.tint(c.label),
+                    ),
                   ),
                   const PopupMenuDivider(),
                   PopupMenuItem(
                     value: 'delete',
-                    child: Text('Delete Doctor', style: CruType.text.tint(c.redText)),
+                    child: Text(
+                      'Delete Doctor',
+                      style: CruType.text.tint(c.redText),
+                    ),
                   ),
                 ],
               ),
@@ -535,7 +607,7 @@ class _SuperAdminDoctorsScreenState
         children: [
           Row(
             children: [
-              CruMonogram(name: doctor.name, size: 34, background: c.track),
+              CruMonogram(name: doctor.name, size: 34),
               const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Column(
@@ -565,9 +637,21 @@ class _SuperAdminDoctorsScreenState
                 icon: CruIcon(CruIcons.more, size: 16, color: c.label2),
                 onSelected: (v) => _handleDoctorAction(v, doctor),
                 itemBuilder: (_) => [
-                  PopupMenuItem(value: 'suspend', child: Text('Suspend Account', style: CruType.text)),
-                  PopupMenuItem(value: 'reset_pwd', child: Text('Reset Password', style: CruType.text)),
-                  PopupMenuItem(value: 'delete', child: Text('Delete Doctor', style: TextStyle(color: c.redText))),
+                  PopupMenuItem(
+                    value: 'suspend',
+                    child: Text('Suspend Account', style: CruType.text),
+                  ),
+                  PopupMenuItem(
+                    value: 'reset_pwd',
+                    child: Text('Reset Password', style: CruType.text),
+                  ),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(
+                      'Delete Doctor',
+                      style: TextStyle(color: c.redText),
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -588,10 +672,7 @@ class _SuperAdminDoctorsScreenState
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: ShapeDecoration(
-        color: bg,
-        shape: cruShape(CruRadius.full),
-      ),
+      decoration: ShapeDecoration(color: bg, shape: cruShape(CruRadius.full)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -610,10 +691,7 @@ class _SuperAdminDoctorsScreenState
         color: c.inset,
         shape: cruShape(CruRadius.full, side: BorderSide(color: c.hairline)),
       ),
-      child: Text(
-        plan.label,
-        style: CruType.caption.w600.tint(c.label),
-      ),
+      child: Text(plan.label, style: CruType.caption.w600.tint(c.label)),
     );
   }
 
@@ -624,8 +702,11 @@ class _SuperAdminDoctorsScreenState
     switch (action) {
       case 'suspend':
         _showConfirmDialog(
-          title: doctor.status == DoctorStatus.suspended ? 'Reactivate Doctor' : 'Suspend Doctor',
-          message: 'Are you sure you want to change platform status for ${doctor.name}?',
+          title: doctor.status == DoctorStatus.suspended
+              ? 'Reactivate Doctor'
+              : 'Suspend Doctor',
+          message:
+              'Are you sure you want to change platform status for ${doctor.name}?',
           onConfirm: () async {
             try {
               final doctorService = SuperAdminDoctorService();
@@ -638,7 +719,10 @@ class _SuperAdminDoctorsScreenState
                   targetDoctorEmail: doctor.email,
                 );
               } else {
-                await doctorService.suspendDoctor(doctor.id, reason: 'Suspended by admin');
+                await doctorService.suspendDoctor(
+                  doctor.id,
+                  reason: 'Suspended by admin',
+                );
                 await auditService.logAction(
                   actionType: AuditActionType.suspendedAccount,
                   targetDoctorName: doctor.name,
@@ -646,16 +730,20 @@ class _SuperAdminDoctorsScreenState
                 );
               }
               if (mounted) {
-                ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+                ref
+                    .read(doctorListProvider.notifier)
+                    .loadDoctors(refresh: true);
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Doctor status updated successfully')),
+                  const SnackBar(
+                    content: Text('Doctor status updated successfully'),
+                  ),
                 );
               }
             } catch (e) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             }
           },
@@ -664,7 +752,8 @@ class _SuperAdminDoctorsScreenState
       case 'delete':
         _showConfirmDialog(
           title: 'Delete Doctor Account',
-          message: 'Are you sure you want to permanently delete ${doctor.name}? This action cannot be undone.',
+          message:
+              'Are you sure you want to permanently delete ${doctor.name}? This action cannot be undone.',
           onConfirm: () async {
             try {
               final doctorService = SuperAdminDoctorService();
@@ -676,16 +765,18 @@ class _SuperAdminDoctorsScreenState
                 targetDoctorEmail: doctor.email,
               );
               if (mounted) {
-                ref.read(doctorListProvider.notifier).loadDoctors(refresh: true);
+                ref
+                    .read(doctorListProvider.notifier)
+                    .loadDoctors(refresh: true);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Doctor deleted successfully')),
                 );
               }
             } catch (e) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             }
           },
@@ -701,14 +792,16 @@ class _SuperAdminDoctorsScreenState
               await doctorService.resetDoctorPassword(doctor.id, doctor.email);
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Password reset email sent successfully')),
+                  const SnackBar(
+                    content: Text('Password reset email sent successfully'),
+                  ),
                 );
               }
             } catch (e) {
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             }
           },
@@ -760,9 +853,14 @@ class _SuperAdminDoctorsScreenState
                       decoration: InputDecoration(
                         labelText: 'Doctor Full Name *',
                         hintText: 'Dr. Jane Smith',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
                       ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Required' : null,
+                      validator: (v) =>
+                          v == null || v.trim().isEmpty ? 'Required' : null,
                     ),
                     const SizedBox(height: CruSpace.s12),
                     TextFormField(
@@ -771,7 +869,11 @@ class _SuperAdminDoctorsScreenState
                       decoration: InputDecoration(
                         labelText: 'Email Address *',
                         hintText: 'jane@clinic.com',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
                       ),
                       keyboardType: TextInputType.emailAddress,
                       validator: (v) {
@@ -787,7 +889,11 @@ class _SuperAdminDoctorsScreenState
                       decoration: InputDecoration(
                         labelText: 'Clinic / Practice Name *',
                         hintText: 'Apex Dental Care',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: CruSpace.s12),
@@ -795,27 +901,59 @@ class _SuperAdminDoctorsScreenState
                       initialValue: specialization,
                       decoration: InputDecoration(
                         labelText: 'Clinical Specialization',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
                       ),
-                      items: [
-                        'Dentist', 'Endodontist', 'Periodontist', 'Orthodontist',
-                        'Oral & Maxillofacial Radiologist', 'Prosthodontist',
-                        'Pediatric Dentist', 'Oral Pathologist', 'Oral Surgeon',
-                        'General Physician', 'Dermatologist', 'Cardiologist',
-                      ].map((s) => DropdownMenuItem(value: s, child: Text(s))).toList(),
-                      onChanged: (v) => setDialogState(() => specialization = v ?? 'Dentist'),
+                      items:
+                          [
+                                'Dentist',
+                                'Endodontist',
+                                'Periodontist',
+                                'Orthodontist',
+                                'Oral & Maxillofacial Radiologist',
+                                'Prosthodontist',
+                                'Pediatric Dentist',
+                                'Oral Pathologist',
+                                'Oral Surgeon',
+                                'General Physician',
+                                'Dermatologist',
+                                'Cardiologist',
+                              ]
+                              .map(
+                                (s) =>
+                                    DropdownMenuItem(value: s, child: Text(s)),
+                              )
+                              .toList(),
+                      onChanged: (v) =>
+                          setDialogState(() => specialization = v ?? 'Dentist'),
                     ),
                     const SizedBox(height: CruSpace.s12),
                     DropdownButtonFormField<SubscriptionPlan>(
                       initialValue: selectedPlan,
                       decoration: InputDecoration(
                         labelText: 'Subscription Plan Tier',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
                       ),
                       items: SubscriptionPlan.values
-                          .map((p) => DropdownMenuItem(value: p, child: Text('${p.label} (${p.storageLimitGB.toStringAsFixed(0)}GB Quota)')))
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p,
+                              child: Text(
+                                '${p.label} (${p.storageLimitGB.toStringAsFixed(0)}GB Quota)',
+                              ),
+                            ),
+                          )
                           .toList(),
-                      onChanged: (v) => setDialogState(() => selectedPlan = v ?? SubscriptionPlan.professional),
+                      onChanged: (v) => setDialogState(
+                        () => selectedPlan = v ?? SubscriptionPlan.professional,
+                      ),
                     ),
                     const SizedBox(height: CruSpace.s12),
                     TextFormField(
@@ -823,10 +961,15 @@ class _SuperAdminDoctorsScreenState
                       style: CruType.text.tint(c.label),
                       decoration: InputDecoration(
                         labelText: 'Account Temporary Password *',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(CruRadius.control)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
                       ),
                       obscureText: true,
-                      validator: (v) => v == null || v.length < 6 ? 'Min 6 characters' : null,
+                      validator: (v) =>
+                          v == null || v.length < 6 ? 'Min 6 characters' : null,
                     ),
                     if (isSubmitting) ...[
                       const SizedBox(height: CruSpace.s16),
@@ -841,7 +984,9 @@ class _SuperAdminDoctorsScreenState
             CruButton(
               label: 'Cancel',
               kind: CruButtonKind.secondary,
-              onPressed: isSubmitting ? null : () => Navigator.of(ctx).pop(false),
+              onPressed: isSubmitting
+                  ? null
+                  : () => Navigator.of(ctx).pop(false),
             ),
             CruButton(
               label: 'Create Account',
@@ -875,9 +1020,9 @@ class _SuperAdminDoctorsScreenState
                       } catch (e) {
                         setDialogState(() => isSubmitting = false);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('Error: $e')),
-                          );
+                          ScaffoldMessenger.of(
+                            context,
+                          ).showSnackBar(SnackBar(content: Text('Error: $e')));
                         }
                       }
                     },

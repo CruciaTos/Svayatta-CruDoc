@@ -91,7 +91,7 @@ class ApptInlineError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: CruType.caption.w500.tabular.tint(context.cru.amberText),
-      );
+    text,
+    style: CruType.caption.w500.tabular.tint(context.cru.amberText),
+  );
 }

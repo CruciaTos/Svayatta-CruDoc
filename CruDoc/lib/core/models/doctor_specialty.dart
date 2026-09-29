@@ -127,7 +127,12 @@ class DoctorSpecialty {
     gradientColors: [Color(0xFFDBEAFE), Color(0xFFBFDBFE), Color(0xFFE0F2FE)],
     demoEmail: 'doctor@crudoc.com',
     demoPassword: 'demo1234',
-    quickActions: ['Quick Vitals', 'Prescription Pad', 'Lab Order', 'Consultation'],
+    quickActions: [
+      'Quick Vitals',
+      'Prescription Pad',
+      'Lab Order',
+      'Consultation',
+    ],
   );
 
   static const _cardiologist = DoctorSpecialty._(
@@ -153,7 +158,12 @@ class DoctorSpecialty {
     gradientColors: [Color(0xFFEDE9FE), Color(0xFFDDD6FE), Color(0xFFF3E8FF)],
     demoEmail: 'pedia@crudoc.com',
     demoPassword: 'demo1234',
-    quickActions: ['Growth Chart', 'Immunization', 'Milestones', 'Parent Alert'],
+    quickActions: [
+      'Growth Chart',
+      'Immunization',
+      'Milestones',
+      'Parent Alert',
+    ],
   );
 
   static const _dentist = DoctorSpecialty._(
@@ -166,7 +176,12 @@ class DoctorSpecialty {
     gradientColors: [Color(0xFFCCFBF1), Color(0xFF99F6E4), Color(0xFFD1FAE5)],
     demoEmail: 'dental@crudoc.com',
     demoPassword: 'demo1234',
-    quickActions: ['Tooth Chart', 'Procedure Log', 'Sterilization', 'Dental Inv.'],
+    quickActions: [
+      'Tooth Chart',
+      'Procedure Log',
+      'Sterilization',
+      'Dental Inv.',
+    ],
   );
 
   static const _dermatologist = DoctorSpecialty._(
@@ -231,7 +246,12 @@ class DoctorSpecialty {
     gradientColors: [Color(0xFFCCFBF1), Color(0xFF99F6E4), Color(0xFFE6FFFA)],
     demoEmail: 'physio@crudoc.com',
     demoPassword: 'demo1234',
-    quickActions: ['Rehab Session', 'ROM Evaluation', 'Exercise Rx', 'Package Balance'],
+    quickActions: [
+      'Rehab Session',
+      'ROM Evaluation',
+      'Exercise Rx',
+      'Package Balance',
+    ],
   );
 
   static const _homeopath = DoctorSpecialty._(
@@ -273,9 +293,8 @@ class DoctorSpecialty {
       type == DoctorSpecialtyType.dentist ? dentalSubspecialties : const [];
 
   /// The specialty for [type], sub-specialties included.
-  static DoctorSpecialty ofType(DoctorSpecialtyType type) =>
-      everything.firstWhere((s) => s.type == type,
-          orElse: () => _generalPhysician);
+  static DoctorSpecialty ofType(DoctorSpecialtyType type) => everything
+      .firstWhere((s) => s.type == type, orElse: () => _generalPhysician);
 
   static const _oralRadiologist = DoctorSpecialty._(
     type: DoctorSpecialtyType.oralRadiologist,
@@ -482,7 +501,8 @@ class DoctorSpecialty {
     if (lower.contains('pedo') || lower.contains('pediatric dent')) {
       return _pediatricDentist;
     }
-    if (lower.contains('oral patholog') || lower.contains('maxillofacial patholog')) {
+    if (lower.contains('oral patholog') ||
+        lower.contains('maxillofacial patholog')) {
       return _oralPathologist;
     }
     if (lower.contains('oral med')) return _oralMedicine;
@@ -499,13 +519,17 @@ class DoctorSpecialty {
     if (lower.contains('derm') || lower.contains('skin')) {
       return _dermatologist;
     }
-    if (lower.contains('ortho') || lower.contains('bone') || lower.contains('joint')) {
+    if (lower.contains('ortho') ||
+        lower.contains('bone') ||
+        lower.contains('joint')) {
       return _orthopedic;
     }
     if (lower.contains('gynec') || lower.contains('obstet')) {
       return _gynecologist;
     }
-    if (lower.contains('psych') || lower.contains('neuro') || lower.contains('mental')) {
+    if (lower.contains('psych') ||
+        lower.contains('neuro') ||
+        lower.contains('mental')) {
       return _psychiatrist;
     }
 

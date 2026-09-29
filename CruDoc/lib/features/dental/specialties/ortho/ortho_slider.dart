@@ -32,10 +32,12 @@ class OrthoBeforeAfterDialog extends ConsumerStatefulWidget {
   final OrthoPhotoSlot initialSlot;
 
   @override
-  ConsumerState<OrthoBeforeAfterDialog> createState() => _OrthoBeforeAfterDialogState();
+  ConsumerState<OrthoBeforeAfterDialog> createState() =>
+      _OrthoBeforeAfterDialogState();
 }
 
-class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog> {
+class _OrthoBeforeAfterDialogState
+    extends ConsumerState<OrthoBeforeAfterDialog> {
   final GlobalKey _exportBoundaryKey = GlobalKey();
 
   OrthoPhotoSet? _beforeSet;
@@ -58,8 +60,9 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
   Future<void> _exportPng() async {
     setState(() => _exporting = true);
     try {
-      final boundary = _exportBoundaryKey.currentContext?.findRenderObject()
-          as RenderRepaintBoundary?;
+      final boundary =
+          _exportBoundaryKey.currentContext?.findRenderObject()
+              as RenderRepaintBoundary?;
       if (boundary == null) {
         recToast(context, 'Unable to capture comparison view');
         return;
@@ -73,9 +76,13 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
       }
 
       final bytes = byteData.buffer.asUint8List();
-      final patientSlug = widget.patient.fullName.trim().replaceAll(RegExp(r'[^\w\-]'), '_');
+      final patientSlug = widget.patient.fullName.trim().replaceAll(
+        RegExp(r'[^\w\-]'),
+        '_',
+      );
       final dateSlug = DateFormat('yyyyMMdd').format(DateTime.now());
-      final defaultName = 'BeforeAfter_${patientSlug}_${_selectedSlot.name}_$dateSlug.png';
+      final defaultName =
+          'BeforeAfter_${patientSlug}_${_selectedSlot.name}_$dateSlug.png';
 
       final savePath = await FilePicker.saveFile(
         dialogTitle: 'Export Before/After PNG',
@@ -114,7 +121,10 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
   Widget build(BuildContext context) {
     final c = context.cru;
     final recordsAsync = ref.watch(
-      patientRecordsProvider((patientId: widget.patient.id, kind: RecKind.photoSet)),
+      patientRecordsProvider((
+        patientId: widget.patient.id,
+        kind: RecKind.photoSet,
+      )),
     );
 
     return recordsAsync.when(
@@ -136,7 +146,8 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
             body: DentalEmptyState(
               icon: CruIcons.box,
               title: 'Need at least two photo series',
-              body: 'Capture a "Start" and a "Progress" or "Debond" series to compare clinical changes.',
+              body:
+                  'Capture a "Start" and a "Progress" or "Debond" series to compare clinical changes.',
               actions: [
                 CruButton(
                   label: 'Close',
@@ -158,7 +169,8 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
 
         return DentalPanelDialog(
           title: 'Before & After Comparison',
-          subtitle: '${widget.patient.fullName} · ${_sideBySide ? 'Side by side comparison' : 'Drag slider to compare'}',
+          subtitle:
+              '${widget.patient.fullName} · ${_sideBySide ? 'Side by side comparison' : 'Drag slider to compare'}',
           width: 960,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -178,7 +190,10 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('BEFORE', style: CruType.micro.w600.tint(c.label3)),
+                          Text(
+                            'BEFORE',
+                            style: CruType.micro.w600.tint(c.label3),
+                          ),
                           const SizedBox(height: CruSpace.s4),
                           DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
@@ -196,7 +211,9 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                               ],
                               onChanged: (id) {
                                 setState(() {
-                                  _beforeSet = sets.where((s) => s.id == id).firstOrNull;
+                                  _beforeSet = sets
+                                      .where((s) => s.id == id)
+                                      .firstOrNull;
                                 });
                               },
                             ),
@@ -211,7 +228,10 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('VIEW', style: CruType.micro.w600.tint(c.label3)),
+                          Text(
+                            'VIEW',
+                            style: CruType.micro.w600.tint(c.label3),
+                          ),
                           const SizedBox(height: CruSpace.s4),
                           DropdownButtonHideUnderline(
                             child: DropdownButton<OrthoPhotoSlot>(
@@ -244,7 +264,10 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('AFTER', style: CruType.micro.w600.tint(c.label3)),
+                          Text(
+                            'AFTER',
+                            style: CruType.micro.w600.tint(c.label3),
+                          ),
                           const SizedBox(height: CruSpace.s4),
                           DropdownButtonHideUnderline(
                             child: DropdownButton<String>(
@@ -262,7 +285,9 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                               ],
                               onChanged: (id) {
                                 setState(() {
-                                  _afterSet = sets.where((s) => s.id == id).firstOrNull;
+                                  _afterSet = sets
+                                      .where((s) => s.id == id)
+                                      .firstOrNull;
                                 });
                               },
                             ),
@@ -288,7 +313,9 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                       label: _exporting ? 'Exporting…' : 'Export PNG',
                       icon: CruIcons.download,
                       kind: CruButtonKind.primary,
-                      onPressed: (!hasBothPhotos || _exporting) ? null : _exportPng,
+                      onPressed: (!hasBothPhotos || _exporting)
+                          ? null
+                          : _exportPng,
                     ),
                   ],
                 ),
@@ -369,21 +396,22 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withValues(alpha: 0.65),
-                                  borderRadius: BorderRadius.circular(CruRadius.control),
+                                  borderRadius: BorderRadius.circular(
+                                    CruRadius.control,
+                                  ),
                                 ),
                                 child: Text(
                                   'Before · ${DentalFormat.date(_beforeSet!.date)}',
-                                  style: CruType.caption.w600.tint(Colors.white),
+                                  style: CruType.caption.w600.tint(
+                                    Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        width: 2,
-                        color: Colors.white24,
-                      ),
+                      Container(width: 2, color: Colors.white24),
                       // After pane
                       Expanded(
                         child: Stack(
@@ -404,11 +432,15 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                                 ),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withValues(alpha: 0.65),
-                                  borderRadius: BorderRadius.circular(CruRadius.control),
+                                  borderRadius: BorderRadius.circular(
+                                    CruRadius.control,
+                                  ),
                                 ),
                                 child: Text(
                                   'After · ${DentalFormat.date(_afterSet!.date)}',
-                                  style: CruType.caption.w600.tint(Colors.white),
+                                  style: CruType.caption.w600.tint(
+                                    Colors.white,
+                                  ),
                                 ),
                               ),
                             ),
@@ -463,7 +495,9 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(CruRadius.control),
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
                               ),
                               child: Text(
                                 'Before · ${DentalFormat.date(_beforeSet!.date)}',
@@ -483,7 +517,9 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                               ),
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.65),
-                                borderRadius: BorderRadius.circular(CruRadius.control),
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
                               ),
                               child: Text(
                                 'After · ${DentalFormat.date(_afterSet!.date)}',
@@ -497,10 +533,7 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                             top: 0,
                             bottom: 0,
                             left: (boxWidth * _dividerFraction) - 1.5,
-                            child: Container(
-                              width: 3,
-                              color: Colors.white,
-                            ),
+                            child: Container(width: 3, color: Colors.white),
                           ),
 
                           Positioned(
@@ -512,13 +545,7 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.35),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
+                                boxShadow: const [],
                               ),
                               child: Center(
                                 child: CruIcon(
@@ -535,8 +562,10 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                             behavior: HitTestBehavior.translucent,
                             onHorizontalDragUpdate: (details) {
                               setState(() {
-                                _dividerFraction = (_dividerFraction + (details.delta.dx / boxWidth))
-                                    .clamp(0.02, 0.98);
+                                _dividerFraction =
+                                    (_dividerFraction +
+                                            (details.delta.dx / boxWidth))
+                                        .clamp(0.02, 0.98);
                               });
                             },
                           ),
@@ -606,10 +635,13 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                                 // Before pane
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
                                         color: Colors.grey.shade100,
                                         child: Text(
                                           'BEFORE: ${_beforeSet!.label} (${DentalFormat.date(_beforeSet!.date)})',
@@ -636,10 +668,13 @@ class _OrthoBeforeAfterDialogState extends ConsumerState<OrthoBeforeAfterDialog>
                                 // After pane
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
                                     children: [
                                       Container(
-                                        padding: const EdgeInsets.symmetric(vertical: 6),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 6,
+                                        ),
                                         color: Colors.grey.shade100,
                                         child: Text(
                                           'AFTER: ${_afterSet!.label} (${DentalFormat.date(_afterSet!.date)})',
@@ -688,5 +723,6 @@ class _HorizontalSplitClipper extends CustomClipper<Rect> {
   }
 
   @override
-  bool shouldReclip(_HorizontalSplitClipper oldClipper) => oldClipper.fraction != fraction;
+  bool shouldReclip(_HorizontalSplitClipper oldClipper) =>
+      oldClipper.fraction != fraction;
 }

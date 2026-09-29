@@ -63,7 +63,10 @@ TextEditingValue? radExpandPhrase(TextEditingValue v, List<RadPhrase> phrases) {
   final end = text[pos - 1];
   if (end != ' ' && end != '\n') return null;
   final typed = radTypedTrigger(
-    TextEditingValue(text: text, selection: TextSelection.collapsed(offset: pos - 1)),
+    TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: pos - 1),
+    ),
   );
   if (typed == null || typed.word.length < 2) return null;
   final hit = radPhraseFor(typed.word, phrases);
@@ -94,8 +97,13 @@ TextEditingValue radInsertPhrase(
   return TextEditingValue(
     text: out,
     selection: blank == null
-        ? TextSelection.collapsed(offset: start + phrase.length + trailing.length)
-        : TextSelection(baseOffset: start + blank.start, extentOffset: start + blank.end),
+        ? TextSelection.collapsed(
+            offset: start + phrase.length + trailing.length,
+          )
+        : TextSelection(
+            baseOffset: start + blank.start,
+            extentOffset: start + blank.end,
+          ),
   );
 }
 
@@ -103,7 +111,8 @@ TextEditingValue radInsertPhrase(
 TextSelection? radNextBlank(TextEditingValue v) {
   final from = v.selection.isValid ? v.selection.end : 0;
   for (final m in RegExp('_{2,}').allMatches(v.text)) {
-    if (m.start >= from) return TextSelection(baseOffset: m.start, extentOffset: m.end);
+    if (m.start >= from)
+      return TextSelection(baseOffset: m.start, extentOffset: m.end);
   }
   return null;
 }
@@ -156,14 +165,19 @@ class RadCephRow {
 /// The values of one traced image (the ceph screen saves them in
 /// `study.extras['ceph'][imageId]`).
 class RadCephTable {
-  const RadCephTable({required this.imageId, required this.analysis, required this.rows});
+  const RadCephTable({
+    required this.imageId,
+    required this.analysis,
+    required this.rows,
+  });
 
   final String imageId;
   final String analysis;
   final List<RadCephRow> rows;
 }
 
-String _num(num v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+String _num(num v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 /// Mean and SD from a norm in any shape the ceph screen may store it:
 /// a number, "82 ± 2", {mean, sd} or [mean, sd].
@@ -171,19 +185,35 @@ String _num(num v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toString
   if (raw is num) return (mean: raw.toDouble(), sd: null, text: _num(raw));
   if (raw is List && raw.isNotEmpty && raw.first is num) {
     final mean = (raw.first as num).toDouble();
-    final sd = raw.length > 1 && raw[1] is num ? (raw[1] as num).toDouble() : null;
-    return (mean: mean, sd: sd, text: sd == null ? _num(mean) : '${_num(mean)} ± ${_num(sd)}');
+    final sd = raw.length > 1 && raw[1] is num
+        ? (raw[1] as num).toDouble()
+        : null;
+    return (
+      mean: mean,
+      sd: sd,
+      text: sd == null ? _num(mean) : '${_num(mean)} ± ${_num(sd)}',
+    );
   }
   if (raw is Map) {
     final mean = raw['mean'] is num ? (raw['mean'] as num).toDouble() : null;
     final sd = raw['sd'] is num ? (raw['sd'] as num).toDouble() : null;
     if (mean == null) return (mean: null, sd: null, text: '');
-    return (mean: mean, sd: sd, text: sd == null ? _num(mean) : '${_num(mean)} ± ${_num(sd)}');
+    return (
+      mean: mean,
+      sd: sd,
+      text: sd == null ? _num(mean) : '${_num(mean)} ± ${_num(sd)}',
+    );
   }
   if (raw is String && raw.trim().isNotEmpty) {
-    final m = RegExp(r'(-?\d+(?:\.\d+)?)\s*(?:±|\+/-|\+-)\s*(\d+(?:\.\d+)?)').firstMatch(raw);
+    final m = RegExp(
+      r'(-?\d+(?:\.\d+)?)\s*(?:±|\+/-|\+-)\s*(\d+(?:\.\d+)?)',
+    ).firstMatch(raw);
     if (m != null) {
-      return (mean: double.parse(m.group(1)!), sd: double.parse(m.group(2)!), text: raw.trim());
+      return (
+        mean: double.parse(m.group(1)!),
+        sd: double.parse(m.group(2)!),
+        text: raw.trim(),
+      );
     }
     return (mean: double.tryParse(raw.trim()), sd: null, text: raw.trim());
   }
@@ -209,14 +239,26 @@ List<RadCephTable> radCephTables(RadStudy s) {
       final unit = '${item['unit'] ?? ''}'.trim();
       final rawValue = item['value'];
       final value = rawValue is num
-          ? '${rawValue.toStringAsFixed(1)}${unit.isEmpty ? '' : unit == '°' ? '°' : ' $unit'}'
+          ? '${rawValue.toStringAsFixed(1)}${unit.isEmpty
+                ? ''
+                : unit == '°'
+                ? '°'
+                : ' $unit'}'
           : '${rawValue ?? ''}${unit.isEmpty ? '' : ' $unit'}'.trim();
       final norm = _norm(item['norm']);
-      final deviates = rawValue is num &&
+      final deviates =
+          rawValue is num &&
           norm.mean != null &&
           norm.sd != null &&
           (rawValue - norm.mean!).abs() > norm.sd!;
-      rows.add(RadCephRow(name: name, value: value, norm: norm.text, deviates: deviates));
+      rows.add(
+        RadCephRow(
+          name: name,
+          value: value,
+          norm: norm.text,
+          deviates: deviates,
+        ),
+      );
     }
     if (rows.isEmpty) continue;
     final analysis = '${v['analysis'] ?? ''}'.trim();
@@ -236,13 +278,17 @@ List<({String id, String label, String value})> radMeasurementRows(RadStudy s) {
 // ───────────────────────────── Widgets ─────────────────────────────
 
 /// A popup menu item in the Calm Clinical style.
-PopupMenuItem<T> radMenuItem<T>(CruColors c, T value, String label, {bool enabled = true}) =>
-    PopupMenuItem<T>(
-      value: value,
-      enabled: enabled,
-      height: CruSize.control,
-      child: Text(label, style: CruType.text.tint(enabled ? c.label : c.label3)),
-    );
+PopupMenuItem<T> radMenuItem<T>(
+  CruColors c,
+  T value,
+  String label, {
+  bool enabled = true,
+}) => PopupMenuItem<T>(
+  value: value,
+  enabled: enabled,
+  height: CruSize.control,
+  child: Text(label, style: CruType.text.tint(enabled ? c.label : c.label3)),
+);
 
 /// A multi-line report field: inset box, accent ring on focus, phrase
 /// shortcuts (".sinus" + space), Tab to the next blank, and matching
@@ -366,9 +412,13 @@ class _RadTextAreaState extends State<RadTextArea> {
     final matches = typed == null
         ? const <RadPhrase>[]
         : widget.phrases
-            .where((p) => p.trigger.toLowerCase().startsWith(typed.word.toLowerCase()))
-            .take(6)
-            .toList();
+              .where(
+                (p) => p.trigger.toLowerCase().startsWith(
+                  typed.word.toLowerCase(),
+                ),
+              )
+              .take(6)
+              .toList();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
@@ -478,7 +528,10 @@ class RadBlock extends StatelessWidget {
                   child: title,
                 ),
               ),
-              for (final t in trailing) ...[const SizedBox(width: CruSpace.s6), t],
+              for (final t in trailing) ...[
+                const SizedBox(width: CruSpace.s6),
+                t,
+              ],
             ],
           ),
           if (caption != null) ...[
@@ -524,11 +577,18 @@ class RadCheck extends StatelessWidget {
             color: value ? c.label : (hovered ? c.hoverFill : c.surface),
             shape: cruShape(
               CruRadius.keycap,
-              side: value ? BorderSide.none : BorderSide(color: c.separator, width: 1.5),
+              side: value
+                  ? BorderSide.none
+                  : BorderSide(color: c.separator, width: 1.5),
             ),
           ),
           child: value
-              ? CruIcon(CruIcons.check, size: 14, strokeWidth: 2.4, color: c.surface)
+              ? CruIcon(
+                  CruIcons.check,
+                  size: 14,
+                  strokeWidth: 2.4,
+                  color: c.surface,
+                )
               : null,
         ),
       ),
@@ -559,11 +619,19 @@ class RadAiPending extends StatelessWidget {
             child: Container(
               height: CruSize.capsule,
               padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-              decoration: ShapeDecoration(color: c.aiTint, shape: const StadiumBorder()),
+              decoration: ShapeDecoration(
+                color: c.aiTint,
+                shape: const StadiumBorder(),
+              ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CruIcon(CruIcons.sparkle, size: 14, strokeWidth: 1.8, color: c.ai),
+                  CruIcon(
+                    CruIcons.sparkle,
+                    size: 14,
+                    strokeWidth: 1.8,
+                    color: c.ai,
+                  ),
                   const SizedBox(width: CruSpace.s6),
                   Text(label, style: CruType.subhead.w600.tint(c.ai)),
                 ],

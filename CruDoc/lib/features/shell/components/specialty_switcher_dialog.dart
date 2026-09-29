@@ -19,10 +19,7 @@ Future<void> showSpecialtySwitcherDialog(BuildContext context) async {
       final curved = CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic);
       return ScaleTransition(
         scale: Tween<double>(begin: 0.92, end: 1.0).animate(curved),
-        child: FadeTransition(
-          opacity: curved,
-          child: child,
-        ),
+        child: FadeTransition(opacity: curved, child: child),
       );
     },
   );
@@ -63,13 +60,7 @@ class _SpecialtySwitcherDialogState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.25),
-                blurRadius: 30,
-                offset: const Offset(0, 12),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -77,8 +68,10 @@ class _SpecialtySwitcherDialogState
             children: [
               // ── Header ──
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 20,
+                ),
                 decoration: const BoxDecoration(
                   border: Border(
                     bottom: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
@@ -119,10 +112,13 @@ class _SpecialtySwitcherDialogState
                               const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 2),
+                                  horizontal: 8,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981)
-                                      .withValues(alpha: 0.12),
+                                  color: const Color(
+                                    0xFF10B981,
+                                  ).withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
                                 ),
                                 child: const Text(
@@ -149,8 +145,10 @@ class _SpecialtySwitcherDialogState
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded,
-                          color: Color(0xFF64748B)),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        color: Color(0xFF64748B),
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       splashRadius: 20,
                     ),
@@ -161,8 +159,10 @@ class _SpecialtySwitcherDialogState
               // ── Active Indicator Banner ──
               Container(
                 margin: const EdgeInsets.fromLTRB(20, 14, 20, 4),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: activeSpec.accentColor.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(12),
@@ -172,8 +172,11 @@ class _SpecialtySwitcherDialogState
                 ),
                 child: Row(
                   children: [
-                    Icon(activeSpec.icon,
-                        size: 18, color: activeSpec.accentColor),
+                    Icon(
+                      activeSpec.icon,
+                      size: 18,
+                      color: activeSpec.accentColor,
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text.rich(
@@ -230,7 +233,8 @@ class _SpecialtySwitcherDialogState
                           subs: DoctorSpecialty.subspecialtiesOf(spec.type),
                           activeType: activeSpec.type,
                           onPickSub: (sub) async {
-                            if (sub.type == activeSpec.type || _isSwitching) return;
+                            if (sub.type == activeSpec.type || _isSwitching)
+                              return;
                             setState(() {
                               _isSwitching = true;
                               _switchingLabel = spec.label;
@@ -278,20 +282,26 @@ class _SpecialtySwitcherDialogState
 
               // ── Footer ──
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 decoration: const BoxDecoration(
                   color: Color(0xFFF8FAFC),
-                  borderRadius:
-                      BorderRadius.vertical(bottom: Radius.circular(24)),
+                  borderRadius: BorderRadius.vertical(
+                    bottom: Radius.circular(24),
+                  ),
                   border: Border(
                     top: BorderSide(color: Color(0xFFF1F5F9), width: 1.2),
                   ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.info_outline_rounded,
-                        size: 15, color: Color(0xFF94A3B8)),
+                    const Icon(
+                      Icons.info_outline_rounded,
+                      size: 15,
+                      color: Color(0xFF94A3B8),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -353,9 +363,7 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
     final isActive = widget.isActive;
 
     return MouseRegion(
-      cursor: isActive
-          ? SystemMouseCursors.basic
-          : SystemMouseCursors.click,
+      cursor: isActive ? SystemMouseCursors.basic : SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -367,26 +375,18 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
             color: isActive
                 ? spec.accentColor.withValues(alpha: 0.08)
                 : (_isHovered
-                    ? spec.accentColor.withValues(alpha: 0.04)
-                    : Colors.white),
+                      ? spec.accentColor.withValues(alpha: 0.04)
+                      : Colors.white),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
               color: isActive
                   ? spec.accentColor
                   : (_isHovered
-                      ? spec.accentColor.withValues(alpha: 0.4)
-                      : const Color(0xFFE2E8F0)),
+                        ? spec.accentColor.withValues(alpha: 0.4)
+                        : const Color(0xFFE2E8F0)),
               width: isActive ? 2.0 : 1.2,
             ),
-            boxShadow: _isHovered && !isActive
-                ? [
-                    BoxShadow(
-                      color: spec.accentColor.withValues(alpha: 0.12),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
-                : [],
+            boxShadow: const [],
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -399,11 +399,7 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                   color: spec.accentColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  spec.icon,
-                  color: spec.accentColor,
-                  size: 22,
-                ),
+                child: Icon(spec.icon, color: spec.accentColor, size: 22),
               ),
               const SizedBox(width: 12),
               // Specialty Info
@@ -438,7 +434,9 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                         else if (isActive)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 2),
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: spec.accentColor,
                               borderRadius: BorderRadius.circular(10),
@@ -472,7 +470,9 @@ class _SpecialtyCardItemState extends State<_SpecialtyCardItem> {
                       children: spec.quickActions.take(3).map((act) {
                         return Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(4),
@@ -564,7 +564,11 @@ class _SubChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(spec.icon, size: 13, color: on ? Colors.white : spec.accentColor),
+              Icon(
+                spec.icon,
+                size: 13,
+                color: on ? Colors.white : spec.accentColor,
+              ),
               const SizedBox(width: 5),
               Text(
                 label,

@@ -33,12 +33,12 @@ class WhatsAppRepository {
     FirebaseFirestore? firestore,
     http.Client? httpClient,
     String? currentDoctorId,
-  })  : _logLocalService = logLocalService ?? WhatsAppLogLocalService(),
-        _patientRepository = patientRepository ?? PatientRepository(),
-        _authOverride = auth,
-        _firestoreOverride = firestore,
-        _httpClient = httpClient ?? http.Client(),
-        _doctorIdOverride = currentDoctorId;
+  }) : _logLocalService = logLocalService ?? WhatsAppLogLocalService(),
+       _patientRepository = patientRepository ?? PatientRepository(),
+       _authOverride = auth,
+       _firestoreOverride = firestore,
+       _httpClient = httpClient ?? http.Client(),
+       _doctorIdOverride = currentDoctorId;
 
   final WhatsAppLogLocalService _logLocalService;
   final PatientRepository _patientRepository;
@@ -104,7 +104,9 @@ class WhatsAppRepository {
       // 2. Normalize and validate phone number
       final normalizedPhone = WhatsAppTemplateService.normalizePhone(rawPhone);
       if (normalizedPhone == null) {
-        debugPrint('[WhatsApp] Skipping notification: Patient "$patientName" has no valid WhatsApp number (raw: "$rawPhone").');
+        debugPrint(
+          '[WhatsApp] Skipping notification: Patient "$patientName" has no valid WhatsApp number (raw: "$rawPhone").',
+        );
         await _recordSkippedLog(
           visit: visit,
           doctorId: doctorId,
@@ -119,12 +121,16 @@ class WhatsAppRepository {
       final existingLog = await getLogForVisit(visit.id);
       if (existingLog != null) {
         if (existingLog.isCompleted) {
-          debugPrint('[WhatsApp] Notification already completed for visit ${visit.id} (Status: ${existingLog.status.value}). Skipping duplicate.');
+          debugPrint(
+            '[WhatsApp] Notification already completed for visit ${visit.id} (Status: ${existingLog.status.value}). Skipping duplicate.',
+          );
           return true;
         }
         if (existingLog.isPending &&
             DateTime.now().difference(existingLog.attemptedAt).inMinutes < 2) {
-          debugPrint('[WhatsApp] Notification is currently in-flight for visit ${visit.id}. Skipping.');
+          debugPrint(
+            '[WhatsApp] Notification is currently in-flight for visit ${visit.id}. Skipping.',
+          );
           return true;
         }
       }
@@ -140,8 +146,12 @@ class WhatsAppRepository {
         }
       } catch (_) {}
 
-      final doctorName = DoctorProfileHelper.formatDoctorName(user, profileData);
-      final clinicName = (profileData?['clinicName'] as String?) ??
+      final doctorName = DoctorProfileHelper.formatDoctorName(
+        user,
+        profileData,
+      );
+      final clinicName =
+          (profileData?['clinicName'] as String?) ??
           (profileData?['practiceName'] as String?) ??
           'CruDoc Practice';
 
@@ -196,10 +206,15 @@ class WhatsAppRepository {
           sentAt: DateTime.now(),
         );
 
-        debugPrint('[WhatsApp] Successfully dispatched notification to $normalizedPhone (Message ID: ${result.messageId})');
+        debugPrint(
+          '[WhatsApp] Successfully dispatched notification to $normalizedPhone (Message ID: ${result.messageId})',
+        );
 
         // Automatically schedule local pre-appointment reminder timer (10 mins before visit)
-        _scheduleLocalPreAppointmentReminder(visit: visit, patientOverride: patient);
+        _scheduleLocalPreAppointmentReminder(
+          visit: visit,
+          patientOverride: patient,
+        );
 
         return true;
       } else {
@@ -215,11 +230,15 @@ class WhatsAppRepository {
           failureReason: result.error ?? 'dispatch_failed',
         );
 
-        debugPrint('[WhatsApp] Failed to dispatch notification to $normalizedPhone: ${result.error}');
+        debugPrint(
+          '[WhatsApp] Failed to dispatch notification to $normalizedPhone: ${result.error}',
+        );
         return false;
       }
     } catch (e, st) {
-      debugPrint('[WhatsApp] Unexpected error in sendAppointmentConfirmation: $e\n$st');
+      debugPrint(
+        '[WhatsApp] Unexpected error in sendAppointmentConfirmation: $e\n$st',
+      );
       return false;
     }
   }
@@ -245,26 +264,39 @@ class WhatsAppRepository {
 
     // If appointment starts in <= 10 minutes (or now), fire reminder after 5 seconds
     if (durationUntilStart <= const Duration(minutes: 10)) {
-      debugPrint('[WhatsApp Auto-Reminder] Visit ${visit.id} starts in ${durationUntilStart.inMinutes}m (<=10m). Scheduling reminder in 5s...');
+      debugPrint(
+        '[WhatsApp Auto-Reminder] Visit ${visit.id} starts in ${durationUntilStart.inMinutes}m (<=10m). Scheduling reminder in 5s...',
+      );
       Timer(const Duration(seconds: 5), () {
         if (!_sentReminderVisitIds.contains(visit.id)) {
           _sentReminderVisitIds.add(visit.id);
-          sendAppointmentReminder(visit: visit, patientOverride: patientOverride);
+          sendAppointmentReminder(
+            visit: visit,
+            patientOverride: patientOverride,
+          );
         }
       });
       return;
     }
 
     // Otherwise, schedule to fire exactly 10 minutes before start time
-    final reminderTime = visit.scheduledStart.subtract(const Duration(minutes: 10));
+    final reminderTime = visit.scheduledStart.subtract(
+      const Duration(minutes: 10),
+    );
     final durationUntilReminder = reminderTime.difference(now);
 
-    if (durationUntilReminder > Duration.zero && durationUntilReminder < const Duration(hours: 24)) {
-      debugPrint('[WhatsApp Auto-Reminder] Scheduling 10-min reminder to fire in ${durationUntilReminder.inMinutes}m for visit ${visit.id}');
+    if (durationUntilReminder > Duration.zero &&
+        durationUntilReminder < const Duration(hours: 24)) {
+      debugPrint(
+        '[WhatsApp Auto-Reminder] Scheduling 10-min reminder to fire in ${durationUntilReminder.inMinutes}m for visit ${visit.id}',
+      );
       Timer(durationUntilReminder, () {
         if (!_sentReminderVisitIds.contains(visit.id)) {
           _sentReminderVisitIds.add(visit.id);
-          sendAppointmentReminder(visit: visit, patientOverride: patientOverride);
+          sendAppointmentReminder(
+            visit: visit,
+            patientOverride: patientOverride,
+          );
         }
       });
     }
@@ -301,12 +333,18 @@ class WhatsAppRepository {
         }
       } catch (_) {}
 
-      final doctorName = DoctorProfileHelper.formatDoctorName(user, profileData);
-      final clinicName = (profileData?['clinicName'] as String?) ??
+      final doctorName = DoctorProfileHelper.formatDoctorName(
+        user,
+        profileData,
+      );
+      final clinicName =
+          (profileData?['clinicName'] as String?) ??
           (profileData?['practiceName'] as String?) ??
           'CruDoc Practice';
 
-      debugPrint('[WhatsApp Auto-Reminder] Automatically dispatching 10-min reminder to $phone for appointment ${visit.id}');
+      debugPrint(
+        '[WhatsApp Auto-Reminder] Automatically dispatching 10-min reminder to $phone for appointment ${visit.id}',
+      );
 
       final res = await _dispatchViaEndpointOrMock(
         appointmentId: '${visit.id}_reminder',
@@ -322,14 +360,17 @@ class WhatsAppRepository {
 
       return res.success;
     } catch (e) {
-      debugPrint('[WhatsApp Auto-Reminder] Error in sendAppointmentReminder: $e');
+      debugPrint(
+        '[WhatsApp Auto-Reminder] Error in sendAppointmentReminder: $e',
+      );
       return false;
     }
   }
 
   /// Dispatches the notification to the backend Cloud Functions endpoint,
   /// with automatic fallback to realistic mock in development environments.
-  Future<({bool success, String? messageId, String? error})> _dispatchViaEndpointOrMock({
+  Future<({bool success, String? messageId, String? error})>
+  _dispatchViaEndpointOrMock({
     required String appointmentId,
     required String doctorId,
     required String patientId,
@@ -340,7 +381,8 @@ class WhatsAppRepository {
     required DateTime scheduledStart,
     required String visitType,
   }) async {
-    const endpointUrl = 'https://asia-south1-svayatta-crudoc.cloudfunctions.net/sendWhatsAppAppointmentConfirmation';
+    const endpointUrl =
+        'https://asia-south1-svayatta-crudoc.cloudfunctions.net/sendWhatsAppAppointmentConfirmation';
 
     // 1. Try Cloud Functions Endpoint
     try {
@@ -373,22 +415,29 @@ class WhatsAppRepository {
     } catch (_) {}
 
     // 2. Development Direct Meta Dispatch Fallback (for isolated offline/local dev only)
-    const devMetaToken = String.fromEnvironment('WHATSAPP_DEV_TOKEN', defaultValue: '');
-    const metaPhoneId = String.fromEnvironment('WHATSAPP_PHONE_NUMBER_ID', defaultValue: '1260194177180019');
+    const devMetaToken = String.fromEnvironment(
+      'WHATSAPP_DEV_TOKEN',
+      defaultValue: '',
+    );
+    const metaPhoneId = String.fromEnvironment(
+      'WHATSAPP_PHONE_NUMBER_ID',
+      defaultValue: '1260194177180019',
+    );
 
     if (devMetaToken.isEmpty) {
-      debugPrint('[WhatsApp] Production dispatch is managed by Cloud Functions. Direct token not present on client.');
-      final mockId = 'wamid.HBgL${DateTime.now().millisecondsSinceEpoch}_mock';
-      return (
-        success: true,
-        messageId: mockId,
-        error: null,
+      debugPrint(
+        '[WhatsApp] Production dispatch is managed by Cloud Functions. Direct token not present on client.',
       );
+      final mockId = 'wamid.HBgL${DateTime.now().millisecondsSinceEpoch}_mock';
+      return (success: true, messageId: mockId, error: null);
     }
 
     try {
-      final normalizedTo = WhatsAppTemplateService.normalizePhone(phone) ?? phone;
-      final metaUrl = Uri.parse('https://graph.facebook.com/v20.0/$metaPhoneId/messages');
+      final normalizedTo =
+          WhatsAppTemplateService.normalizePhone(phone) ?? phone;
+      final metaUrl = Uri.parse(
+        'https://graph.facebook.com/v20.0/$metaPhoneId/messages',
+      );
 
       final dateStr = DateFormat('EEE, d MMM yyyy').format(scheduledStart);
       final timeStr = DateFormat('h:mm a').format(scheduledStart);
@@ -409,9 +458,20 @@ class WhatsAppRepository {
             {
               'type': 'body',
               'parameters': [
-                {'type': 'text', 'text': patientName.isNotEmpty ? patientName : 'Valued Patient'},
-                {'type': 'text', 'text': doctorName.isNotEmpty ? doctorName : 'Doctor'},
-                {'type': 'text', 'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Clinic'},
+                {
+                  'type': 'text',
+                  'text': patientName.isNotEmpty
+                      ? patientName
+                      : 'Valued Patient',
+                },
+                {
+                  'type': 'text',
+                  'text': doctorName.isNotEmpty ? doctorName : 'Doctor',
+                },
+                {
+                  'type': 'text',
+                  'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Clinic',
+                },
                 {'type': 'text', 'text': dateStr},
                 {'type': 'text', 'text': timeStr},
                 {'type': 'text', 'text': consultationType},
@@ -421,14 +481,16 @@ class WhatsAppRepository {
         },
       });
 
-      var metaResponse = await _httpClient.post(
-        metaUrl,
-        headers: {
-          'Authorization': 'Bearer $devMetaToken',
-          'Content-Type': 'application/json',
-        },
-        body: templateBodyEnUs,
-      ).timeout(const Duration(seconds: 15));
+      var metaResponse = await _httpClient
+          .post(
+            metaUrl,
+            headers: {
+              'Authorization': 'Bearer $devMetaToken',
+              'Content-Type': 'application/json',
+            },
+            body: templateBodyEnUs,
+          )
+          .timeout(const Duration(seconds: 15));
 
       // 2. If en_US fails, try language code 'en'
       if (metaResponse.statusCode != 200) {
@@ -444,9 +506,22 @@ class WhatsAppRepository {
               {
                 'type': 'body',
                 'parameters': [
-                  {'type': 'text', 'text': patientName.isNotEmpty ? patientName : 'Valued Patient'},
-                  {'type': 'text', 'text': doctorName.isNotEmpty ? doctorName : 'Doctor'},
-                  {'type': 'text', 'text': clinicName.isNotEmpty ? clinicName : 'CruDoc Clinic'},
+                  {
+                    'type': 'text',
+                    'text': patientName.isNotEmpty
+                        ? patientName
+                        : 'Valued Patient',
+                  },
+                  {
+                    'type': 'text',
+                    'text': doctorName.isNotEmpty ? doctorName : 'Doctor',
+                  },
+                  {
+                    'type': 'text',
+                    'text': clinicName.isNotEmpty
+                        ? clinicName
+                        : 'CruDoc Clinic',
+                  },
                   {'type': 'text', 'text': dateStr},
                   {'type': 'text', 'text': timeStr},
                   {'type': 'text', 'text': consultationType},
@@ -456,19 +531,23 @@ class WhatsAppRepository {
           },
         });
 
-        metaResponse = await _httpClient.post(
-          metaUrl,
-          headers: {
-            'Authorization': 'Bearer $devMetaToken',
-            'Content-Type': 'application/json',
-          },
-          body: templateBodyEn,
-        ).timeout(const Duration(seconds: 15));
+        metaResponse = await _httpClient
+            .post(
+              metaUrl,
+              headers: {
+                'Authorization': 'Bearer $devMetaToken',
+                'Content-Type': 'application/json',
+              },
+              body: templateBodyEn,
+            )
+            .timeout(const Duration(seconds: 15));
       }
 
       // 3. If appointment_confirmation is still pending, fallback to hello_world test template
       if (metaResponse.statusCode != 200) {
-        debugPrint('[WhatsApp Cloud API] appointment_confirmation error (${metaResponse.statusCode}: ${metaResponse.body}), falling back to hello_world...');
+        debugPrint(
+          '[WhatsApp Cloud API] appointment_confirmation error (${metaResponse.statusCode}: ${metaResponse.body}), falling back to hello_world...',
+        );
         final fallbackBody = jsonEncode({
           'messaging_product': 'whatsapp',
           'recipient_type': 'individual',
@@ -480,14 +559,16 @@ class WhatsAppRepository {
           },
         });
 
-        metaResponse = await _httpClient.post(
-          metaUrl,
-          headers: {
-            'Authorization': 'Bearer $devMetaToken',
-            'Content-Type': 'application/json',
-          },
-          body: fallbackBody,
-        ).timeout(const Duration(seconds: 15));
+        metaResponse = await _httpClient
+            .post(
+              metaUrl,
+              headers: {
+                'Authorization': 'Bearer $devMetaToken',
+                'Content-Type': 'application/json',
+              },
+              body: fallbackBody,
+            )
+            .timeout(const Duration(seconds: 15));
       }
 
       if (metaResponse.statusCode == 200) {
@@ -495,11 +576,15 @@ class WhatsAppRepository {
         final messages = metaData['messages'] as List<dynamic>?;
         if (messages != null && messages.isNotEmpty) {
           final id = messages[0]['id'] as String?;
-          debugPrint('[WhatsApp Cloud API] Successfully sent live Meta message: $id to $normalizedTo');
+          debugPrint(
+            '[WhatsApp Cloud API] Successfully sent live Meta message: $id to $normalizedTo',
+          );
           return (success: true, messageId: id, error: null);
         }
       } else {
-        debugPrint('[WhatsApp Cloud API] Meta responded with HTTP ${metaResponse.statusCode}: ${metaResponse.body}');
+        debugPrint(
+          '[WhatsApp Cloud API] Meta responded with HTTP ${metaResponse.statusCode}: ${metaResponse.body}',
+        );
       }
     } catch (e) {
       debugPrint('[WhatsApp Cloud API] Error connecting directly to Meta: $e');
@@ -551,7 +636,10 @@ class WhatsAppRepository {
     try {
       final firestore = _firestore;
       if (firestore != null) {
-        final doc = await firestore.collection('whatsapp_notification_logs').doc(visitId).get();
+        final doc = await firestore
+            .collection('whatsapp_notification_logs')
+            .doc(visitId)
+            .get();
         if (doc.exists && doc.data() != null) {
           return WhatsAppNotificationLog.fromFirestore(doc);
         }
@@ -573,11 +661,12 @@ class WhatsAppRepository {
         .doc(visitId)
         .snapshots()
         .map((snap) {
-      if (snap.exists && snap.data() != null) {
-        return WhatsAppNotificationLog.fromFirestore(snap);
-      }
-      return null;
-    }).handleError((_) => null);
+          if (snap.exists && snap.data() != null) {
+            return WhatsAppNotificationLog.fromFirestore(snap);
+          }
+          return null;
+        })
+        .handleError((_) => null);
   }
 
   Future<void> _writeFirestoreLog(WhatsAppNotificationLog log) async {
@@ -609,7 +698,8 @@ class WhatsAppRepository {
         'status': status.value,
         'updatedAt': FieldValue.serverTimestamp(),
       };
-      if (whatsappMessageId != null) updateData['whatsappMessageId'] = whatsappMessageId;
+      if (whatsappMessageId != null)
+        updateData['whatsappMessageId'] = whatsappMessageId;
       if (failureReason != null) updateData['failureReason'] = failureReason;
       if (sentAt != null) updateData['sentAt'] = Timestamp.fromDate(sentAt);
 

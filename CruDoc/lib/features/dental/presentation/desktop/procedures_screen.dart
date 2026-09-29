@@ -29,20 +29,21 @@ const kProcedureCategories = [
 ];
 
 String categoryLabel(String c) => switch (c.toLowerCase()) {
-      'general' => 'General',
-      'diagnostics' => 'Diagnostics',
-      'preventive' => 'Preventive',
-      'restorative' => 'Restorative',
-      'endodontics' => 'Endodontics',
-      'periodontics' => 'Gums (periodontics)',
-      'surgery' => 'Surgery',
-      'prosthodontics' => 'Crowns and dentures',
-      'implantology' => 'Implants',
-      'orthodontics' => 'Orthodontics',
-      'pediatric' => 'Children',
-      'cosmetic' => 'Cosmetic',
-      final other => other.isEmpty ? 'Other' : '${other[0].toUpperCase()}${other.substring(1)}',
-    };
+  'general' => 'General',
+  'diagnostics' => 'Diagnostics',
+  'preventive' => 'Preventive',
+  'restorative' => 'Restorative',
+  'endodontics' => 'Endodontics',
+  'periodontics' => 'Gums (periodontics)',
+  'surgery' => 'Surgery',
+  'prosthodontics' => 'Crowns and dentures',
+  'implantology' => 'Implants',
+  'orthodontics' => 'Orthodontics',
+  'pediatric' => 'Children',
+  'cosmetic' => 'Cosmetic',
+  final other =>
+    other.isEmpty ? 'Other' : '${other[0].toUpperCase()}${other.substring(1)}',
+};
 
 /// The clinic's procedure list and fees: what can be picked when logging
 /// a procedure or planning treatment.
@@ -80,20 +81,30 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final list = ref.watch(dentalProcedureListProvider).value;
-    final active = list?.where((p) => p.isActive && !p.isDeleted).toList() ?? const [];
-    final archived = list?.where((p) => !p.isActive && !p.isDeleted).toList() ?? const [];
+    final active =
+        list?.where((p) => p.isActive && !p.isDeleted).toList() ?? const [];
+    final archived =
+        list?.where((p) => !p.isActive && !p.isDeleted).toList() ?? const [];
     final pool = _archived ? archived : active;
     final counts = <String, int>{};
     for (final p in active) {
-      counts[p.category.toLowerCase()] = (counts[p.category.toLowerCase()] ?? 0) + 1;
+      counts[p.category.toLowerCase()] =
+          (counts[p.category.toLowerCase()] ?? 0) + 1;
     }
     final q = _query.trim().toLowerCase();
     final shown = pool
-        .where((p) => _archived || _category == null || p.category.toLowerCase() == _category)
-        .where((p) =>
-            q.isEmpty ||
-            p.name.toLowerCase().contains(q) ||
-            p.code.toLowerCase().contains(q))
+        .where(
+          (p) =>
+              _archived ||
+              _category == null ||
+              p.category.toLowerCase() == _category,
+        )
+        .where(
+          (p) =>
+              q.isEmpty ||
+              p.name.toLowerCase().contains(q) ||
+              p.code.toLowerCase().contains(q),
+        )
         .toList();
     final groups = <String, List<DentalProcedureCatalogModel>>{};
     for (final p in shown) {
@@ -116,9 +127,9 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
             subtitle: list == null
                 ? ''
                 : active.isEmpty
-                    ? 'Your procedure list and fees'
-                    : '${DashFormat.plural(active.length, 'procedure')} · '
-                        '${DashFormat.plural(counts.length, 'category', 'categories')}',
+                ? 'Your procedure list and fees'
+                : '${DashFormat.plural(active.length, 'procedure')} · '
+                      '${DashFormat.plural(counts.length, 'category', 'categories')}',
             actions: [
               CruButton(
                 label: 'Add procedure',
@@ -145,7 +156,9 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
                         _archived = false;
                       }),
                     ),
-                    for (final k in kProcedureCategories.where(counts.containsKey))
+                    for (final k in kProcedureCategories.where(
+                      counts.containsKey,
+                    ))
                       DentalChoiceChip(
                         label: '${categoryLabel(k)} · ${counts[k]}',
                         tabular: true,
@@ -155,7 +168,9 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
                           _archived = false;
                         }),
                       ),
-                    for (final k in counts.keys.where((k) => !kProcedureCategories.contains(k)))
+                    for (final k in counts.keys.where(
+                      (k) => !kProcedureCategories.contains(k),
+                    ))
                       DentalChoiceChip(
                         label: '${categoryLabel(k)} · ${counts[k]}',
                         tabular: true,
@@ -194,47 +209,55 @@ class _ProceduresScreenState extends ConsumerState<ProceduresScreen> {
               child: list == null
                   ? const SizedBox.shrink()
                   : shown.isEmpty
-                      ? Center(
-                          child: SingleChildScrollView(
-                            child: DentalEmptyState(
-                              icon: DentalIcons.procedures,
-                              title: active.isEmpty && archived.isEmpty
-                                  ? 'No procedures yet'
-                                  : 'Nothing here',
-                              body: active.isEmpty && archived.isEmpty
-                                  ? 'List what you do and what you charge. Start '
-                                      'with the common ones (consultation, scaling, '
-                                      'fillings, root canal, crowns, extractions) '
-                                      'and change the fees to yours.'
-                                  : 'Try another category or search.',
-                              actions: [
-                                if (active.isEmpty && archived.isEmpty) ...[
-                                  CruButton(
-                                    label: _seeding ? 'Adding…' : 'Add common procedures',
-                                    onPressed: _seeding ? null : _addCommon,
-                                  ),
-                                  CruButton(
-                                    label: 'Add my own',
-                                    kind: CruButtonKind.secondary,
-                                    onPressed: () => showProcedureCatalogDialog(context),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        )
-                      : ListView(
-                          children: [
-                            for (final k in orderedKeys) ...[
-                              DentalGroupLabel(categoryLabel(k),
-                                  trailing: DashFormat.plural(groups[k]!.length, 'procedure')),
-                              for (var i = 0; i < groups[k]!.length; i++) ...[
-                                if (i > 0) const CruSeparator(indent: 12),
-                                _ProcedureRow(item: groups[k]![i]),
-                              ],
+                  ? Center(
+                      child: SingleChildScrollView(
+                        child: DentalEmptyState(
+                          icon: DentalIcons.procedures,
+                          title: active.isEmpty && archived.isEmpty
+                              ? 'No procedures yet'
+                              : 'Nothing here',
+                          body: active.isEmpty && archived.isEmpty
+                              ? 'List what you do and what you charge. Start '
+                                    'with the common ones (consultation, scaling, '
+                                    'fillings, root canal, crowns, extractions) '
+                                    'and change the fees to yours.'
+                              : 'Try another category or search.',
+                          actions: [
+                            if (active.isEmpty && archived.isEmpty) ...[
+                              CruButton(
+                                label: _seeding
+                                    ? 'Adding…'
+                                    : 'Add common procedures',
+                                onPressed: _seeding ? null : _addCommon,
+                              ),
+                              CruButton(
+                                label: 'Add my own',
+                                kind: CruButtonKind.secondary,
+                                onPressed: () =>
+                                    showProcedureCatalogDialog(context),
+                              ),
                             ],
                           ],
                         ),
+                      ),
+                    )
+                  : ListView(
+                      children: [
+                        for (final k in orderedKeys) ...[
+                          DentalGroupLabel(
+                            categoryLabel(k),
+                            trailing: DashFormat.plural(
+                              groups[k]!.length,
+                              'procedure',
+                            ),
+                          ),
+                          for (var i = 0; i < groups[k]!.length; i++) ...[
+                            if (i > 0) const CruSeparator(indent: 12),
+                            _ProcedureRow(item: groups[k]![i]),
+                          ],
+                        ],
+                      ],
+                    ),
             ),
           ),
           if (list != null && active.isNotEmpty) ...[
@@ -282,7 +305,11 @@ class _ProcedureRow extends ConsumerWidget {
             ),
           ),
           if (item.requiresToothSelection) ...[
-            CruPill(text: 'Per tooth', background: c.inset, foreground: c.label2),
+            CruPill(
+              text: 'Per tooth',
+              background: c.inset,
+              foreground: c.label2,
+            ),
             const SizedBox(width: CruSpace.s12),
           ],
           SizedBox(
@@ -298,7 +325,9 @@ class _ProcedureRow extends ConsumerWidget {
           SizedBox(
             width: 110,
             child: Text(
-              item.defaultPrice == null ? '—' : DashFormat.rupees(item.defaultPrice!),
+              item.defaultPrice == null
+                  ? '—'
+                  : DashFormat.rupees(item.defaultPrice!),
               textAlign: TextAlign.right,
               style: CruType.row.tabular.tint(archived ? c.label3 : c.label),
             ),
@@ -308,7 +337,9 @@ class _ProcedureRow extends ConsumerWidget {
             CruCapsuleButton(
               label: 'Restore',
               onPressed: () async {
-                await ref.read(dentalRepositoryProvider).restoreCatalogItem(item.id);
+                await ref
+                    .read(dentalRepositoryProvider)
+                    .restoreCatalogItem(item.id);
                 ref.invalidate(dentalProcedureListProvider);
               },
             ),
@@ -362,9 +393,11 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
     _name = TextEditingController(text: e?.name ?? '');
     _code = TextEditingController(text: e?.code ?? '');
     _price = TextEditingController(
-        text: e?.defaultPrice == null ? '' : e!.defaultPrice!.round().toString());
+      text: e?.defaultPrice == null ? '' : e!.defaultPrice!.round().toString(),
+    );
     _minutes = TextEditingController(
-        text: e?.defaultDurationMinutes?.toString() ?? '');
+      text: e?.defaultDurationMinutes?.toString() ?? '',
+    );
     _category = (e?.category ?? 'general').toLowerCase();
     _perTooth = e?.requiresToothSelection ?? true;
     _codeTouched = e != null;
@@ -406,7 +439,9 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
     try {
       final now = DateTime.now();
       final e = widget.existing;
-      await ref.read(dentalRepositoryProvider).saveCatalogItem(
+      await ref
+          .read(dentalRepositoryProvider)
+          .saveCatalogItem(
             DentalProcedureCatalogModel(
               id: e?.id ?? const Uuid().v4(),
               doctorId: ref.read(dentalDoctorIdProvider),
@@ -445,8 +480,13 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
     final e = widget.existing;
     return CruFormDialog(
       title: e == null ? 'Add procedure' : e.name,
-      subtitle: e == null ? 'To your procedure list' : categoryLabel(e.category),
-      leading: const CruIconTile(icon: DentalIcons.procedures, tone: CruTileTone.accent),
+      subtitle: e == null
+          ? 'To your procedure list'
+          : categoryLabel(e.category),
+      leading: const CruIconTile(
+        icon: DentalIcons.procedures,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: e == null ? 'Add procedure' : 'Save changes',
       onSubmit: _save,
       busy: _saving,
@@ -455,8 +495,9 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
       footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -473,7 +514,9 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
                       autofocus: e == null,
                       hint: 'Root canal treatment (molar)',
                       textCapitalization: TextCapitalization.sentences,
-                      validator: (v) => (v ?? '').trim().isEmpty ? 'Name the procedure.' : null,
+                      validator: (v) => (v ?? '').trim().isEmpty
+                          ? 'Name the procedure.'
+                          : null,
                       onChanged: (_) {
                         setState(_suggestCode);
                         _edited();
@@ -484,7 +527,8 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
                       controller: _code,
                       hint: 'RCT',
                       textCapitalization: TextCapitalization.characters,
-                      validator: (v) => (v ?? '').trim().isEmpty ? 'Add a short code.' : null,
+                      validator: (v) =>
+                          (v ?? '').trim().isEmpty ? 'Add a short code.' : null,
                       onChanged: (_) {
                         _codeTouched = true;
                         _edited();
@@ -508,7 +552,8 @@ class _CatalogDialogState extends ConsumerState<_CatalogDialog> {
             ),
             CruFormSection(
               title: 'Fee and time',
-              description: 'Filled in when you plan treatment; change it per patient.',
+              description:
+                  'Filled in when you plan treatment; change it per patient.',
               children: [
                 CruFieldRow(
                   children: [

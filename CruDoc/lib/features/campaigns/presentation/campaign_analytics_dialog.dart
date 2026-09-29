@@ -39,7 +39,8 @@ class CampaignAnalyticsDialog extends StatefulWidget {
   }
 
   @override
-  State<CampaignAnalyticsDialog> createState() => _CampaignAnalyticsDialogState();
+  State<CampaignAnalyticsDialog> createState() =>
+      _CampaignAnalyticsDialogState();
 }
 
 class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
@@ -81,7 +82,10 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
       if (mounted) {
         setState(() => _isRetrying = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Retry failed: $e'), backgroundColor: Colors.red),
+          SnackBar(
+            content: Text('Retry failed: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -93,13 +97,7 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.15),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -107,11 +105,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
           children: [
             // Modal Header
             _buildHeader(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1),
 
             // Top KPI Stat Tiles
             _buildKpiRow(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1),
 
             // Filter Bar
             _buildFilterBar(),
@@ -152,7 +150,7 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
             ),
 
             // Modal Footer
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1),
             _buildFooter(),
           ],
         ),
@@ -185,17 +183,26 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                     Flexible(
                       child: Text(
                         _currentCampaign.title,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF0F172A),
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
                     const SizedBox(width: 8),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: _currentCampaign.status.color.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: _currentCampaign.status.color.withOpacity(0.3)),
+                        border: Border.all(
+                          color: _currentCampaign.status.color.withOpacity(0.3),
+                        ),
                       ),
                       child: Text(
                         _currentCampaign.status.label,
@@ -232,18 +239,39 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
       color: Colors.white,
       child: Row(
         children: [
-          _buildKpiCard('Total Targeted', '${_currentCampaign.totalRecipients}', const Color(0xFF0F172A)),
-          _buildKpiCard('Success Rate', '${successRate.toStringAsFixed(1)}%', const Color(0xFF16A34A)),
-          _buildKpiCard('📧 Emails Sent', '${_currentCampaign.emailsSent}', const Color(0xFF2563EB),
-              failedCount: _currentCampaign.emailsFailed),
-          _buildKpiCard('💬 WhatsApp Sent', '${_currentCampaign.whatsAppSent}', const Color(0xFF059669),
-              failedCount: _currentCampaign.whatsAppFailed),
+          _buildKpiCard(
+            'Total Targeted',
+            '${_currentCampaign.totalRecipients}',
+            const Color(0xFF0F172A),
+          ),
+          _buildKpiCard(
+            'Success Rate',
+            '${successRate.toStringAsFixed(1)}%',
+            const Color(0xFF16A34A),
+          ),
+          _buildKpiCard(
+            '📧 Emails Sent',
+            '${_currentCampaign.emailsSent}',
+            const Color(0xFF2563EB),
+            failedCount: _currentCampaign.emailsFailed,
+          ),
+          _buildKpiCard(
+            '💬 WhatsApp Sent',
+            '${_currentCampaign.whatsAppSent}',
+            const Color(0xFF059669),
+            failedCount: _currentCampaign.whatsAppFailed,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildKpiCard(String label, String value, Color color, {int failedCount = 0}) {
+  Widget _buildKpiCard(
+    String label,
+    String value,
+    Color color, {
+    int failedCount = 0,
+  }) {
     return Expanded(
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -256,16 +284,34 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.grey[700])),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+              ),
+            ),
             const SizedBox(height: 4),
             Row(
               children: [
-                Text(value, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: color)),
+                Text(
+                  value,
+                  style: TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
                 if (failedCount > 0) ...[
                   const SizedBox(width: 6),
                   Text(
                     '($failedCount failed)',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFFDC2626)),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFFDC2626),
+                    ),
                   ),
                 ],
               ],
@@ -286,20 +332,22 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
             child: SizedBox(
               height: 36,
               child: TextField(
-                onChanged: (q) => setState(() => _searchQuery = q.trim().toLowerCase()),
+                onChanged: (q) =>
+                    setState(() => _searchQuery = q.trim().toLowerCase()),
                 decoration: InputDecoration(
-                  hintText: 'Search recipients by patient name, phone, or email...',
+                  hintText:
+                      'Search recipients by patient name, phone, or email...',
                   prefixIcon: const Icon(Icons.search, size: 16),
                   filled: true,
                   fillColor: Colors.white,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: const BorderSide(color: Colors.transparent),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    borderSide: const BorderSide(color: Colors.transparent),
                   ),
                 ),
               ),
@@ -331,7 +379,9 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
+        side: BorderSide(
+          color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+        ),
       ),
     );
   }
@@ -340,7 +390,8 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
     return logs.where((log) {
       // Search
       if (_searchQuery.isNotEmpty) {
-        final match = log.patientName.toLowerCase().contains(_searchQuery) ||
+        final match =
+            log.patientName.toLowerCase().contains(_searchQuery) ||
             log.phone.contains(_searchQuery) ||
             log.email.toLowerCase().contains(_searchQuery);
         if (!match) return false;
@@ -360,7 +411,8 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       itemCount: logs.length,
-      separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+      separatorBuilder: (_, __) =>
+          const Divider(height: 1),
       itemBuilder: (context, index) {
         final log = logs[index];
         return Padding(
@@ -372,8 +424,14 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                 radius: 16,
                 backgroundColor: const Color(0xFFEFF6FF),
                 child: Text(
-                  log.patientName.isNotEmpty ? log.patientName[0].toUpperCase() : '?',
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF2563EB)),
+                  log.patientName.isNotEmpty
+                      ? log.patientName[0].toUpperCase()
+                      : '?',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: Color(0xFF2563EB),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
@@ -386,7 +444,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                   children: [
                     Text(
                       log.patientName,
-                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Color(0xFF0F172A)),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                     Text(
                       '${log.phone}  •  ${log.email.isNotEmpty ? log.email : "No Email"}',
@@ -404,7 +466,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.email_outlined, size: 14, color: Color(0xFF64748B)),
+                      const Icon(
+                        Icons.email_outlined,
+                        size: 14,
+                        color: Color(0xFF64748B),
+                      ),
                       const SizedBox(width: 4),
                       _buildStatusBadge(log.emailStatus, log.emailError),
                     ],
@@ -419,7 +485,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.chat_bubble_outline, size: 14, color: Color(0xFF64748B)),
+                      const Icon(
+                        Icons.chat_bubble_outline,
+                        size: 14,
+                        color: Color(0xFF64748B),
+                      ),
                       const SizedBox(width: 4),
                       _buildStatusBadge(log.whatsAppStatus, log.whatsAppError),
                     ],
@@ -456,12 +526,19 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
           Container(
             width: 6,
             height: 6,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: status.color),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: status.color,
+            ),
           ),
           const SizedBox(width: 6),
           Text(
             status.label,
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: status.color),
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: status.color,
+            ),
           ),
         ],
       ),
@@ -494,13 +571,26 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
             ElevatedButton.icon(
               onPressed: _isRetrying ? null : _handleRetry,
               icon: _isRetrying
-                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
                   : const Icon(Icons.replay_rounded, size: 16),
-              label: Text(_isRetrying ? 'Retrying...' : 'Retry Failed Dispatches (${_currentCampaign.totalFailed})'),
+              label: Text(
+                _isRetrying
+                    ? 'Retrying...'
+                    : 'Retry Failed Dispatches (${_currentCampaign.totalFailed})',
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFFDC2626),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           ],

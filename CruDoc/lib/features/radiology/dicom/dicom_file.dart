@@ -90,7 +90,8 @@ abstract final class DicomSyntax {
     if (isUncompressed(ts)) return 'Uncompressed';
     if (ts == '1.2.840.10008.1.2.5') return 'RLE';
     if (ts.startsWith('1.2.840.10008.1.2.4.9')) return 'JPEG 2000';
-    if (ts == '1.2.840.10008.1.2.4.80' || ts == '1.2.840.10008.1.2.4.81') return 'JPEG-LS';
+    if (ts == '1.2.840.10008.1.2.4.80' || ts == '1.2.840.10008.1.2.4.81')
+      return 'JPEG-LS';
     if (ts == '1.2.840.10008.1.2.4.57' || ts == '1.2.840.10008.1.2.4.70') {
       return 'JPEG Lossless';
     }
@@ -118,7 +119,14 @@ class DicomUnsupportedException implements Exception {
 }
 
 class _Element {
-  _Element(this.tag, this.vr, this.start, this.valueOffset, this.length, this.end);
+  _Element(
+    this.tag,
+    this.vr,
+    this.start,
+    this.valueOffset,
+    this.length,
+    this.end,
+  );
 
   final int tag;
   final String vr;
@@ -133,7 +141,21 @@ class _Element {
 }
 
 const _undefined = 0xFFFFFFFF;
-const _longVrs = {'OB', 'OD', 'OF', 'OL', 'OV', 'OW', 'SQ', 'SV', 'UC', 'UN', 'UR', 'UT', 'UV'};
+const _longVrs = {
+  'OB',
+  'OD',
+  'OF',
+  'OL',
+  'OV',
+  'OW',
+  'SQ',
+  'SV',
+  'UC',
+  'UN',
+  'UR',
+  'UT',
+  'UV',
+};
 
 /// Tags stored as binary in implicit VR files (everything else read is text).
 const _implicitVr = <int, String>{
@@ -152,8 +174,16 @@ const _implicitVr = <int, String>{
 /// uncompressed pixel data; compressed pixel data is detected and
 /// reported, not decoded.
 class DicomFile {
-  DicomFile._(this.bytes, this.transferSyntax, this.littleEndian, this.explicitVr,
-      this._top, this._nested, this._metaEnd, this.hasPreamble);
+  DicomFile._(
+    this.bytes,
+    this.transferSyntax,
+    this.littleEndian,
+    this.explicitVr,
+    this._top,
+    this._nested,
+    this._metaEnd,
+    this.hasPreamble,
+  );
 
   /// Whether [head] (the first 132+ bytes) looks like DICOM.
   static bool looksLikeDicom(Uint8List head) {
@@ -165,7 +195,10 @@ class DicomFile {
       return true;
     }
     // A bare dataset: starts with group 0x0008 (little endian).
-    return head.length >= 8 && head[0] == 0x08 && head[1] == 0x00 && head[3] == 0x00;
+    return head.length >= 8 &&
+        head[0] == 0x08 &&
+        head[1] == 0x00 &&
+        head[3] == 0x00;
   }
 
   /// Reads the first bytes of a file to check [looksLikeDicom].
@@ -239,11 +272,21 @@ class DicomFile {
     } on DicomFormatException {
       if (top.isEmpty) rethrow;
     }
-    if (!top.containsKey(DicomTag.rows) && !top.containsKey(DicomTag.patientName) &&
+    if (!top.containsKey(DicomTag.rows) &&
+        !top.containsKey(DicomTag.patientName) &&
         !top.containsKey(DicomTag.sopInstanceUid)) {
       throw DicomFormatException('Not a DICOM dataset');
     }
-    return DicomFile._(bytes, ts, little, explicit, top, nested, metaEnd, hasPreamble);
+    return DicomFile._(
+      bytes,
+      ts,
+      little,
+      explicit,
+      top,
+      nested,
+      metaEnd,
+      hasPreamble,
+    );
   }
 
   final Uint8List bytes;
@@ -281,35 +324,64 @@ class DicomFile {
   String? personName(int tag) {
     final raw = string(tag);
     if (raw == null) return null;
-    final parts = raw.split('=').first.split('^').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+    final parts = raw
+        .split('=')
+        .first
+        .split('^')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
     if (parts.isEmpty) return null;
-    String cap(String s) => s.length <= 1 ? s.toUpperCase() : s[0].toUpperCase() + s.substring(1).toLowerCase();
+    String cap(String s) => s.length <= 1
+        ? s.toUpperCase()
+        : s[0].toUpperCase() + s.substring(1).toLowerCase();
     final family = cap(parts.first);
     final given = parts.skip(1).map(cap).join(' ');
     return given.isEmpty ? family : '$given $family';
   }
 
-  String _vrOf(_Element e) => e.vr.isNotEmpty ? e.vr : (_implicitVr[e.tag] ?? 'XX');
+  String _vrOf(_Element e) =>
+      e.vr.isNotEmpty ? e.vr : (_implicitVr[e.tag] ?? 'XX');
 
   List<double>? numbers(int tag) {
     final e = _find(tag);
     if (e == null || e.length <= 0) return null;
     final vr = _vrOf(e);
-    final bd = ByteData.sublistView(bytes, e.valueOffset, e.valueOffset + e.length);
+    final bd = ByteData.sublistView(
+      bytes,
+      e.valueOffset,
+      e.valueOffset + e.length,
+    );
     final endian = littleEndian ? Endian.little : Endian.big;
     switch (vr) {
       case 'US':
-        return [for (var i = 0; i + 2 <= e.length; i += 2) bd.getUint16(i, endian).toDouble()];
+        return [
+          for (var i = 0; i + 2 <= e.length; i += 2)
+            bd.getUint16(i, endian).toDouble(),
+        ];
       case 'SS':
-        return [for (var i = 0; i + 2 <= e.length; i += 2) bd.getInt16(i, endian).toDouble()];
+        return [
+          for (var i = 0; i + 2 <= e.length; i += 2)
+            bd.getInt16(i, endian).toDouble(),
+        ];
       case 'UL':
-        return [for (var i = 0; i + 4 <= e.length; i += 4) bd.getUint32(i, endian).toDouble()];
+        return [
+          for (var i = 0; i + 4 <= e.length; i += 4)
+            bd.getUint32(i, endian).toDouble(),
+        ];
       case 'SL':
-        return [for (var i = 0; i + 4 <= e.length; i += 4) bd.getInt32(i, endian).toDouble()];
+        return [
+          for (var i = 0; i + 4 <= e.length; i += 4)
+            bd.getInt32(i, endian).toDouble(),
+        ];
       case 'FL':
-        return [for (var i = 0; i + 4 <= e.length; i += 4) bd.getFloat32(i, endian)];
+        return [
+          for (var i = 0; i + 4 <= e.length; i += 4) bd.getFloat32(i, endian),
+        ];
       case 'FD':
-        return [for (var i = 0; i + 8 <= e.length; i += 8) bd.getFloat64(i, endian)];
+        return [
+          for (var i = 0; i + 8 <= e.length; i += 8) bd.getFloat64(i, endian),
+        ];
     }
     final s = _text(bytes, e.valueOffset, e.length);
     final out = <double>[];
@@ -359,12 +431,14 @@ class DicomFile {
 
   bool get isCompressed {
     final e = _top[DicomTag.pixelData];
-    return !DicomSyntax.isUncompressed(transferSyntax) || (e != null && e.length < 0);
+    return !DicomSyntax.isUncompressed(transferSyntax) ||
+        (e != null && e.length < 0);
   }
 
   /// Millimetres per pixel (Pixel Spacing, else Imager Pixel Spacing).
   double? get pixelSpacingMm =>
-      numbers(DicomTag.pixelSpacing)?.first ?? numbers(DicomTag.imagerPixelSpacing)?.first;
+      numbers(DicomTag.pixelSpacing)?.first ??
+      numbers(DicomTag.imagerPixelSpacing)?.first;
 
   int get _bytesPerSample => (bitsAllocated + 7) ~/ 8;
   int get frameBytes => rows * columns * samplesPerPixel * _bytesPerSample;
@@ -372,9 +446,11 @@ class DicomFile {
   int _frameOffset(int frame) {
     final e = _top[DicomTag.pixelData];
     if (e == null) throw DicomFormatException('No pixel data');
-    if (isCompressed) throw DicomUnsupportedException(DicomSyntax.name(transferSyntax));
+    if (isCompressed)
+      throw DicomUnsupportedException(DicomSyntax.name(transferSyntax));
     final off = e.valueOffset + frame * frameBytes;
-    if (off + frameBytes > bytes.length) throw DicomFormatException('Pixel data is cut short');
+    if (off + frameBytes > bytes.length)
+      throw DicomFormatException('Pixel data is cut short');
     return off;
   }
 
@@ -407,7 +483,9 @@ class DicomFile {
         final bd = ByteData.sublistView(bytes, off, off + n * 4);
         final endian = littleEndian ? Endian.little : Endian.big;
         for (var i = 0; i < n; i++) {
-          out[i] = sgn ? bd.getInt32(i * 4, endian) : bd.getUint32(i * 4, endian);
+          out[i] = sgn
+              ? bd.getInt32(i * 4, endian)
+              : bd.getUint32(i * 4, endian);
         }
       default:
         throw DicomUnsupportedException('$bitsAllocated-bit');
@@ -482,7 +560,10 @@ class DicomFile {
   /// A copy of the file with identifying tags replaced ([replace], tag to
   /// new text) or removed, private tags dropped and "identity removed"
   /// set. Little-endian files only; returns null for big-endian.
-  Uint8List? anonymised({Map<int, String> replace = const {}, bool dropPrivate = true}) {
+  Uint8List? anonymised({
+    Map<int, String> replace = const {},
+    bool dropPrivate = true,
+  }) {
     if (!littleEndian) return null;
     final values = <int, String>{
       DicomTag.patientName: 'Anonymous',
@@ -494,14 +575,18 @@ class DicomFile {
     final out = BytesBuilder(copy: false);
     if (hasPreamble) out.add(bytes.sublist(0, _metaEnd));
 
-    final datasetTags = _top.keys.where((t) => (t >> 16) != 0x0002).toList()..sort();
-    final pending = values.keys.where((t) => !_top.containsKey(t)).toList()..sort();
+    final datasetTags = _top.keys.where((t) => (t >> 16) != 0x0002).toList()
+      ..sort();
+    final pending = values.keys.where((t) => !_top.containsKey(t)).toList()
+      ..sort();
     var pi = 0;
 
     void writeNew(int tag, String text) {
       final vr = switch (tag) {
-        DicomTag.patientName || DicomTag.referringPhysician ||
-        DicomTag.performingPhysician || DicomTag.operatorsName => 'PN',
+        DicomTag.patientName ||
+        DicomTag.referringPhysician ||
+        DicomTag.performingPhysician ||
+        DicomTag.operatorsName => 'PN',
         DicomTag.birthDate => 'DA',
         DicomTag.identityRemoved => 'CS',
         _ => 'LO',

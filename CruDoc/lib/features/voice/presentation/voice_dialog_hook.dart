@@ -99,6 +99,8 @@ abstract final class VoiceBus {
   /// Bumped when "confirm" was refused because of [missing].
   static final refused = ValueNotifier<int>(0);
 
+  static Object? _activeFormToken;
+
   static Stream<VoiceEvent> get events => _events.stream;
 
   static void emit(VoiceEvent e) {
@@ -121,6 +123,7 @@ abstract final class VoiceBus {
 /// ```
 mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
   StreamSubscription<VoiceEvent>? _voiceSub;
+  final Object _voiceToken = Object();
 
   void onVoiceFill(VoiceFill fill);
   void onVoiceConfirm();
@@ -140,6 +143,7 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
   @override
   void initState() {
     super.initState();
+    VoiceBus._activeFormToken = _voiceToken;
     _voiceSub = VoiceBus.events.listen((e) {
       if (!mounted) return;
       switch (e) {
@@ -170,9 +174,13 @@ mixin VoiceDialogHook<T extends StatefulWidget> on State<T> {
   @override
   void dispose() {
     _voiceSub?.cancel();
-    VoiceBus.missing.value = const [];
-    VoiceBus.formReady.value = false;
-    VoiceBus.openKind.value = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!identical(VoiceBus._activeFormToken, _voiceToken)) return;
+      VoiceBus._activeFormToken = null;
+      VoiceBus.missing.value = const [];
+      VoiceBus.formReady.value = false;
+      VoiceBus.openKind.value = null;
+    });
     super.dispose();
   }
 }

@@ -22,14 +22,16 @@ class PlatformSettingsModel {
   final String defaultCalibrationProfile;
 
   // --- 3. Dental Specialty Suite ---
-  final String odontogramNumberingSystem; // 'FDI (ISO 3950)', 'Universal (ADA)', 'Palmer'
+  final String
+  odontogramNumberingSystem; // 'FDI (ISO 3950)', 'Universal (ADA)', 'Palmer'
   final bool enablePediatricDentitionToggle;
   final int perioWarningDepthMm;
   final int perioSevereDepthMm;
   final String procedureCatalogVersion;
 
   // --- 4. AI Diagnostic & Medical Scribe ---
-  final String geminiModel; // 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'
+  final String
+  geminiModel; // 'gemini-2.5-flash', 'gemini-2.5-pro', 'gemini-1.5-flash'
   final double aiSecondReadConfidenceThreshold;
   final int ambientScribeAudioChunkSeconds;
   final bool autoSoapNotes;
@@ -95,10 +97,8 @@ class PlatformSettingsModel {
       enableCStoreAutoIngest: json['enableCStoreAutoIngest'] as bool? ?? true,
       dicomPreloadSliceCount:
           (json['dicomPreloadSliceCount'] as num?)?.toInt() ?? 16,
-      highBitDepthRendering:
-          json['highBitDepthRendering'] as bool? ?? true,
-      progressiveStreaming:
-          json['progressiveStreaming'] as bool? ?? true,
+      highBitDepthRendering: json['highBitDepthRendering'] as bool? ?? true,
+      progressiveStreaming: json['progressiveStreaming'] as bool? ?? true,
       defaultDoctorStorageQuotaGB:
           (json['defaultDoctorStorageQuotaGB'] as num?)?.toDouble() ?? 50.0,
       rvgBridgeHost: json['rvgBridgeHost'] as String? ?? '127.0.0.1',
@@ -107,19 +107,16 @@ class PlatformSettingsModel {
           (json['rvgAcquisitionTimeoutSeconds'] as num?)?.toInt() ?? 45,
       allowSimulatedCaptureFallback:
           json['allowSimulatedCaptureFallback'] as bool? ?? true,
-      autoDiscoverDrivers:
-          json['autoDiscoverDrivers'] as bool? ?? true,
+      autoDiscoverDrivers: json['autoDiscoverDrivers'] as bool? ?? true,
       defaultCalibrationProfile:
           json['defaultCalibrationProfile'] as String? ??
-              'High Contrast Dental (16-bit)',
+          'High Contrast Dental (16-bit)',
       odontogramNumberingSystem:
           json['odontogramNumberingSystem'] as String? ?? 'FDI (ISO 3950)',
       enablePediatricDentitionToggle:
           json['enablePediatricDentitionToggle'] as bool? ?? true,
-      perioWarningDepthMm:
-          (json['perioWarningDepthMm'] as num?)?.toInt() ?? 4,
-      perioSevereDepthMm:
-          (json['perioSevereDepthMm'] as num?)?.toInt() ?? 6,
+      perioWarningDepthMm: (json['perioWarningDepthMm'] as num?)?.toInt() ?? 4,
+      perioSevereDepthMm: (json['perioSevereDepthMm'] as num?)?.toInt() ?? 6,
       procedureCatalogVersion:
           json['procedureCatalogVersion'] as String? ?? 'CDT-2026.1',
       geminiModel: json['geminiModel'] as String? ?? 'gemini-2.5-flash',
@@ -130,7 +127,8 @@ class PlatformSettingsModel {
       autoSoapNotes: json['autoSoapNotes'] as bool? ?? true,
       redactPatientPii: json['redactPatientPii'] as bool? ?? true,
       maintenanceMode: json['maintenanceMode'] as bool? ?? false,
-      maintenanceMessage: json['maintenanceMessage'] as String? ??
+      maintenanceMessage:
+          json['maintenanceMessage'] as String? ??
           'System maintenance in progress. Please save your work.',
       emergencyReadOnlyLockdown:
           json['emergencyReadOnlyLockdown'] as bool? ?? false,
@@ -139,8 +137,7 @@ class PlatformSettingsModel {
           (json['sessionTimeoutMinutes'] as num?)?.toInt() ?? 15,
       auditLogRetentionYears:
           (json['auditLogRetentionYears'] as num?)?.toInt() ?? 7,
-      syncIntervalSeconds:
-          (json['syncIntervalSeconds'] as num?)?.toInt() ?? 30,
+      syncIntervalSeconds: (json['syncIntervalSeconds'] as num?)?.toInt() ?? 30,
       purgeTempCapturesAfterDays:
           (json['purgeTempCapturesAfterDays'] as num?)?.toInt() ?? 14,
       lastModified: (json['lastModified'] as Timestamp?)?.toDate(),
@@ -251,7 +248,8 @@ class PlatformSettingsModel {
           procedureCatalogVersion ?? this.procedureCatalogVersion,
       geminiModel: geminiModel ?? this.geminiModel,
       aiSecondReadConfidenceThreshold:
-          aiSecondReadConfidenceThreshold ?? this.aiSecondReadConfidenceThreshold,
+          aiSecondReadConfidenceThreshold ??
+          this.aiSecondReadConfidenceThreshold,
       ambientScribeAudioChunkSeconds:
           ambientScribeAudioChunkSeconds ?? this.ambientScribeAudioChunkSeconds,
       autoSoapNotes: autoSoapNotes ?? this.autoSoapNotes,

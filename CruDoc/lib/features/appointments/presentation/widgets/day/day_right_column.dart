@@ -42,11 +42,11 @@ class DayRightColumn extends ConsumerWidget {
             day: day,
           )
         : selected != null
-            ? SelectedAppointmentCard(
-                key: ValueKey('visit ${selected!.id}'),
-                item: selected!,
-              )
-            : null;
+        ? SelectedAppointmentCard(
+            key: ValueKey('visit ${selected!.id}'),
+            item: selected!,
+          )
+        : null;
 
     return SingleChildScrollView(
       child: Column(

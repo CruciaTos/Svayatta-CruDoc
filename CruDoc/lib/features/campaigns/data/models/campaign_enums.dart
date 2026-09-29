@@ -147,8 +147,10 @@ enum CampaignChannel {
     }
   }
 
-  bool get includesEmail => this == CampaignChannel.email || this == CampaignChannel.both;
-  bool get includesWhatsApp => this == CampaignChannel.whatsapp || this == CampaignChannel.both;
+  bool get includesEmail =>
+      this == CampaignChannel.email || this == CampaignChannel.both;
+  bool get includesWhatsApp =>
+      this == CampaignChannel.whatsapp || this == CampaignChannel.both;
 
   static CampaignChannel fromString(String? val) {
     if (val == null) return CampaignChannel.both;

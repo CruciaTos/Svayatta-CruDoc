@@ -40,7 +40,8 @@ class RadAiSecondReadPanel extends ConsumerStatefulWidget {
   final VoidCallback? onClose;
 
   @override
-  ConsumerState<RadAiSecondReadPanel> createState() => _RadAiSecondReadPanelState();
+  ConsumerState<RadAiSecondReadPanel> createState() =>
+      _RadAiSecondReadPanelState();
 }
 
 class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
@@ -106,14 +107,17 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
         'findings': [for (final f in findings) f.toJson()],
       };
 
-      final updated = widget.study.copyWith(aiReads: [...widget.study.aiReads, run]);
+      final updated = widget.study.copyWith(
+        aiReads: [...widget.study.aiReads, run],
+      );
       final ctl = ref.read(radiologyProvider);
       await ctl.saveStudy(updated);
       await ctl.log(
         'Ran AI second read',
         targetKind: 'study',
         targetId: widget.study.id,
-        detail: '${findings.length} findings from ${GeminiJsonClient.fallbackModel}',
+        detail:
+            '${findings.length} findings from ${GeminiJsonClient.fallbackModel}',
       );
       if (mounted) {
         radToast(context, 'AI second read: ${findings.length} findings found');
@@ -165,8 +169,12 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
     if (updatedFinding != null) {
       final action = status == 'accepted'
           ? 'Accepted AI finding'
-          : (status == 'rejected' ? 'Rejected AI finding' : 'Edited AI finding');
-      final toothInfo = updatedFinding.tooth.isNotEmpty ? 'Tooth ${updatedFinding.tooth}: ' : '';
+          : (status == 'rejected'
+                ? 'Rejected AI finding'
+                : 'Edited AI finding');
+      final toothInfo = updatedFinding.tooth.isNotEmpty
+          ? 'Tooth ${updatedFinding.tooth}: '
+          : '';
       await ctl.log(
         action,
         targetKind: 'study',
@@ -250,7 +258,8 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
     final on = ref.watch(radSettingsProvider).value?.ai('secondRead') ?? false;
     final aiProvider = ref.watch(radAiProviderProvider);
     final connected = aiProvider.connected;
-    final numbering = ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final showMarks = ref.watch(radShowAiMarksProvider);
     final latestRun = _latestRun();
     final findings = _findings(latestRun);
@@ -267,7 +276,10 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('AI second read', style: CruType.headline.tint(c.label)),
-                  Text('A second look at this image', style: CruType.caption.tint(c.label2)),
+                  Text(
+                    'A second look at this image',
+                    style: CruType.caption.tint(c.label2),
+                  ),
                 ],
               ),
             ),
@@ -292,7 +304,8 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
         else if (!connected) ...[
           const RadNotConnected(
             title: 'No AI key connected',
-            body: 'Once a key is connected, this image is de-identified and checked for '
+            body:
+                'Once a key is connected, this image is de-identified and checked for '
                 'the findings below, for you to confirm or reject. Nothing leaves this '
                 'computer until then.',
           ),
@@ -335,7 +348,8 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
                 _AiToggle(
                   label: 'Show AI marks',
                   value: showMarks,
-                  onChanged: (v) => ref.read(radShowAiMarksProvider.notifier).state = v,
+                  onChanged: (v) =>
+                      ref.read(radShowAiMarksProvider.notifier).state = v,
                 ),
               ],
             ),
@@ -343,7 +357,10 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
             for (final kind in RadAiKind.values)
               if (findings.any((f) => f.kind == kind)) ...[
                 Padding(
-                  padding: const EdgeInsets.only(top: CruSpace.s12, bottom: CruSpace.s8),
+                  padding: const EdgeInsets.only(
+                    top: CruSpace.s12,
+                    bottom: CruSpace.s8,
+                  ),
                   child: Text(
                     kind.label,
                     style: CruType.groupLabel.tint(c.label2),
@@ -361,7 +378,10 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
                             children: [
                               CruIcon(CruIcons.sparkle, size: 14, color: c.ai),
                               const SizedBox(width: CruSpace.s4),
-                              Text('AI suggestion', style: CruType.micro.w600.tint(c.ai)),
+                              Text(
+                                'AI suggestion',
+                                style: CruType.micro.w600.tint(c.ai),
+                              ),
                               const Spacer(),
                               CruPill(
                                 text: '${(f.confidence * 100).round()}%',
@@ -444,8 +464,14 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
           ],
         ],
         Padding(
-          padding: const EdgeInsets.only(top: CruSpace.s20, bottom: CruSpace.s4),
-          child: Text('What it checks', style: CruType.groupLabel.tint(c.label2)),
+          padding: const EdgeInsets.only(
+            top: CruSpace.s20,
+            bottom: CruSpace.s4,
+          ),
+          child: Text(
+            'What it checks',
+            style: CruType.groupLabel.tint(c.label2),
+          ),
         ),
         for (final cat in radAiCategories)
           Padding(
@@ -455,7 +481,10 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
                 Container(
                   width: CruSize.smallDot,
                   height: CruSize.smallDot,
-                  decoration: ShapeDecoration(color: c.ai, shape: const CircleBorder()),
+                  decoration: ShapeDecoration(
+                    color: c.ai,
+                    shape: const CircleBorder(),
+                  ),
                 ),
                 const SizedBox(width: CruSpace.s10),
                 Expanded(
@@ -475,7 +504,6 @@ class _RadAiSecondReadPanelState extends ConsumerState<RadAiSecondReadPanel> {
   }
 }
 
-
 // ───────────────────────────── Shared AI pieces ─────────────────────────────
 
 /// The violet AI mark: a sparkle on the AI tint.
@@ -489,7 +517,10 @@ class RadAiMark extends StatelessWidget {
       width: CruSize.iconTile,
       height: CruSize.iconTile,
       alignment: Alignment.center,
-      decoration: ShapeDecoration(color: c.aiTint, shape: cruShape(CruRadius.iconTile)),
+      decoration: ShapeDecoration(
+        color: c.aiTint,
+        shape: cruShape(CruRadius.iconTile),
+      ),
       child: CruIcon(CruIcons.sparkle, size: 18, strokeWidth: 1.8, color: c.ai),
     );
   }
@@ -498,7 +529,12 @@ class RadAiMark extends StatelessWidget {
 /// A violet AI action ("Run AI second read", "AI place landmarks"). With
 /// no [onPressed] it shows dimmed: it can't run until a key is connected.
 class RadAiActionButton extends StatelessWidget {
-  const RadAiActionButton({super.key, required this.label, this.onPressed, this.expand = false});
+  const RadAiActionButton({
+    super.key,
+    required this.label,
+    this.onPressed,
+    this.expand = false,
+  });
 
   final String label;
   final VoidCallback? onPressed;
@@ -528,7 +564,12 @@ class RadAiActionButton extends StatelessWidget {
             mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CruIcon(CruIcons.sparkle, size: 16, strokeWidth: 1.8, color: c.ai),
+              CruIcon(
+                CruIcons.sparkle,
+                size: 16,
+                strokeWidth: 1.8,
+                color: c.ai,
+              ),
               const SizedBox(width: CruSpace.s6),
               Flexible(
                 child: Text(
@@ -552,15 +593,28 @@ const _aiSwitches = <({String key, String title, String detail})>[
   (
     key: 'secondRead',
     title: 'AI second read',
-    detail: 'Checks 2D images for caries, periapical lesions, bone loss and more, for you to confirm.'
+    detail:
+        'Checks 2D images for caries, periapical lesions, bone loss and more, for you to confirm.',
   ),
-  (key: 'cbct', title: 'CBCT AI', detail: 'Segments teeth, the mandibular canal and the airway in CBCT.'),
-  (key: 'ceph', title: 'Ceph landmarks', detail: 'Places cephalometric landmarks for you to adjust.'),
-  (key: 'draft', title: 'Draft the report', detail: 'Writes a first draft from your findings and measurements.'),
+  (
+    key: 'cbct',
+    title: 'CBCT AI',
+    detail: 'Segments teeth, the mandibular canal and the airway in CBCT.',
+  ),
+  (
+    key: 'ceph',
+    title: 'Ceph landmarks',
+    detail: 'Places cephalometric landmarks for you to adjust.',
+  ),
+  (
+    key: 'draft',
+    title: 'Draft the report',
+    detail: 'Writes a first draft from your findings and measurements.',
+  ),
   (
     key: 'differential',
     title: 'Differential diagnosis',
-    detail: 'Suggests differentials for a lesion from its description.'
+    detail: 'Suggests differentials for a lesion from its description.',
   ),
 ];
 
@@ -579,7 +633,8 @@ class RadAiSwitches extends ConsumerWidget {
       children: [
         const RadNotConnected(
           title: 'No AI key connected',
-          body: 'The tools you switch on here run once an AI key is connected. '
+          body:
+              'The tools you switch on here run once an AI key is connected. '
               'Images are de-identified before they are sent.',
         ),
         const SizedBox(height: CruSpace.s8),
@@ -593,9 +648,15 @@ class RadAiSwitches extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(_aiSwitches[i].title, style: CruType.callout.tint(c.label)),
+                      Text(
+                        _aiSwitches[i].title,
+                        style: CruType.callout.tint(c.label),
+                      ),
                       const SizedBox(height: CruSpace.s2),
-                      Text(_aiSwitches[i].detail, style: CruType.caption.tint(c.label2)),
+                      Text(
+                        _aiSwitches[i].detail,
+                        style: CruType.caption.tint(c.label2),
+                      ),
                     ],
                   ),
                 ),
@@ -603,7 +664,8 @@ class RadAiSwitches extends ConsumerWidget {
                 _AiToggle(
                   label: _aiSwitches[i].title,
                   value: settings.ai(_aiSwitches[i].key),
-                  onChanged: (v) => _set(ref, _aiSwitches[i].key, _aiSwitches[i].title, v),
+                  onChanged: (v) =>
+                      _set(ref, _aiSwitches[i].key, _aiSwitches[i].title, v),
                 ),
               ],
             ),
@@ -617,13 +679,21 @@ class RadAiSwitches extends ConsumerWidget {
     final rad = ref.read(radiologyProvider);
     final s = await ref.read(radSettingsProvider.future);
     await rad.saveSettings(s.copyWith(aiEnabled: {...s.aiEnabled, key: on}));
-    await rad.log(on ? 'Turned on AI' : 'Turned off AI', targetKind: 'settings', detail: title);
+    await rad.log(
+      on ? 'Turned on AI' : 'Turned off AI',
+      targetKind: 'settings',
+      detail: title,
+    );
   }
 }
 
 /// A switch in the AI violet.
 class _AiToggle extends StatelessWidget {
-  const _AiToggle({required this.label, required this.value, required this.onChanged});
+  const _AiToggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
 
   final String label;
   final bool value;
@@ -645,7 +715,9 @@ class _AiToggle extends StatelessWidget {
           padding: const EdgeInsets.all(CruSpace.s2),
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           decoration: ShapeDecoration(
-            color: value ? c.ai : (hovered ? cruHoverShade(c.track, c) : c.track),
+            color: value
+                ? c.ai
+                : (hovered ? cruHoverShade(c.track, c) : c.track),
             shape: const StadiumBorder(),
           ),
           child: Container(
@@ -654,7 +726,7 @@ class _AiToggle extends StatelessWidget {
             decoration: ShapeDecoration(
               color: c.surface,
               shape: const CircleBorder(),
-              shadows: c.segmentShadow,
+              shadows: const [],
             ),
           ),
         ),

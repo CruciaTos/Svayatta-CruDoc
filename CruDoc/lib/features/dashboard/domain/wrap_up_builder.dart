@@ -35,24 +35,29 @@ WrapUpData buildWrapUp({
   required List<Patient> patients,
 }) {
   final tomorrow = DateTime(now.year, now.month, now.day + 1);
-  final tomorrows = visits
-      .where((v) =>
-          !v.isDeleted &&
-          v.status != VisitStatus.cancelled &&
-          v.scheduledStart.year == tomorrow.year &&
-          v.scheduledStart.month == tomorrow.month &&
-          v.scheduledStart.day == tomorrow.day)
-      .toList()
-    ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
+  final tomorrows =
+      visits
+          .where(
+            (v) =>
+                !v.isDeleted &&
+                v.status != VisitStatus.cancelled &&
+                v.scheduledStart.year == tomorrow.year &&
+                v.scheduledStart.month == tomorrow.month &&
+                v.scheduledStart.day == tomorrow.day,
+          )
+          .toList()
+        ..sort((a, b) => a.scheduledStart.compareTo(b.scheduledStart));
 
   final byId = {for (final p in patients) p.id: p};
   final draftPatientIds = <String>{};
   for (final n in notes) {
-    if (n.status == ConsultationNoteStatus.draft) draftPatientIds.add(n.patientId);
+    if (n.status == ConsultationNoteStatus.draft)
+      draftPatientIds.add(n.patientId);
   }
   final draftNames = [
     for (final id in draftPatientIds)
-      if ((byId[id]?.fullName.trim() ?? '').isNotEmpty) byId[id]!.fullName.trim(),
+      if ((byId[id]?.fullName.trim() ?? '').isNotEmpty)
+        byId[id]!.fullName.trim(),
   ]..sort();
 
   return WrapUpData(

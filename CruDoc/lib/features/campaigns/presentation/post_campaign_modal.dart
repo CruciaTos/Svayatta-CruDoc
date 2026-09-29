@@ -53,7 +53,8 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
   final PatientRepository _patientRepository = PatientRepository();
   final CampaignDispatchService _dispatchService = CampaignDispatchService();
 
-  int _currentStep = 0; // 0: Compose, 1: Audience & Channels, 2: Preview, 3: Dispatching
+  int _currentStep =
+      0; // 0: Compose, 1: Audience & Channels, 2: Preview, 3: Dispatching
 
   // Step 1: Content
   final _titleController = TextEditingController();
@@ -91,7 +92,8 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
   @override
   void initState() {
     super.initState();
-    _selectedCategory = widget.initialCategory ?? CampaignCategory.generalAnnouncement;
+    _selectedCategory =
+        widget.initialCategory ?? CampaignCategory.generalAnnouncement;
     _loadInitialData();
   }
 
@@ -108,7 +110,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        final profileSnap = await DoctorProfileHelper.watchDoctorProfile(user).first;
+        final profileSnap = await DoctorProfileHelper.watchDoctorProfile(
+          user,
+        ).first;
         if (profileSnap != null) {
           final dName = DoctorProfileHelper.formatDoctorName(user, profileSnap);
           final cName = DoctorProfileHelper.formatClinicName(user, profileSnap);
@@ -164,7 +168,8 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
     );
     _messageController.text = newText;
     _messageController.selection = TextSelection.collapsed(
-      offset: (selection.start < 0 ? text.length : selection.start) + token.length,
+      offset:
+          (selection.start < 0 ? text.length : selection.start) + token.length,
     );
   }
 
@@ -176,7 +181,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
     if (targetList.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('No eligible patients found for the selected audience.'),
+          content: Text(
+            'No eligible patients found for the selected audience.',
+          ),
           backgroundColor: Colors.red,
         ),
       );
@@ -262,13 +269,7 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
@@ -276,7 +277,7 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           children: [
             // Modal Header with Steps Indicator
             _buildModalHeader(),
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1),
 
             // Dynamic Step Body
             Expanded(
@@ -286,7 +287,7 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
             ),
 
             // Modal Footer Buttons
-            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const Divider(height: 1),
             _buildModalFooter(),
           ],
         ),
@@ -308,7 +309,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               ),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.campaign_rounded, color: Colors.white, size: 22),
+            child: const Icon(
+              Icons.campaign_rounded,
+              color: Colors.white,
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -364,7 +369,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
             shape: BoxShape.circle,
             color: isDone
                 ? const Color(0xFF10B981)
-                : (isActive ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
+                : (isActive
+                      ? const Color(0xFF2563EB)
+                      : const Color(0xFFE2E8F0)),
           ),
           child: Center(
             child: isDone
@@ -428,7 +435,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           // Category selector pills
           const Text(
             'Campaign Category',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -440,7 +451,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                 label: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(category.icon, size: 16, color: isSelected ? Colors.white : category.color),
+                    Icon(
+                      category.icon,
+                      size: 16,
+                      color: isSelected ? Colors.white : category.color,
+                    ),
                     const SizedBox(width: 6),
                     Text(category.label),
                   ],
@@ -456,7 +471,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                   side: BorderSide(
-                    color: isSelected ? category.color : const Color(0xFFE2E8F0),
+                    color: isSelected
+                        ? category.color
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 onSelected: (_) => setState(() => _selectedCategory = category),
@@ -469,24 +486,32 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           // Title
           const Text(
             'Campaign Title / Subject *',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
             controller: _titleController,
             decoration: InputDecoration(
-              hintText: 'e.g. Free Blood Sugar & Diabetes Screening Camp this Sunday',
+              hintText:
+                  'e.g. Free Blood Sugar & Diabetes Screening Camp this Sunday',
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Colors.transparent),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Colors.transparent),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
             ),
           ),
 
@@ -497,12 +522,20 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
             children: [
               const Text(
                 'Campaign Message / Body *',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF334155),
+                ),
               ),
               const Spacer(),
               const Text(
                 'Insert Tag: ',
-                style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF64748B),
+                  fontWeight: FontWeight.w600,
+                ),
               ),
               _buildTagPill('+ Patient Name', '{{patient_name}}'),
               const SizedBox(width: 6),
@@ -516,16 +549,17 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
             controller: _messageController,
             maxLines: 7,
             decoration: InputDecoration(
-              hintText: 'Dear {{patient_name}},\n\nWe are pleased to invite you to our comprehensive health checkup camp at {{clinic_name}}...\n\nStay healthy,\n{{doctor_name}}',
+              hintText:
+                  'Dear {{patient_name}},\n\nWe are pleased to invite you to our comprehensive health checkup camp at {{clinic_name}}...\n\nStay healthy,\n{{doctor_name}}',
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Colors.transparent),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Colors.transparent),
               ),
               contentPadding: const EdgeInsets.all(16),
             ),
@@ -536,25 +570,37 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           // Banner Image URL (Optional)
           const Text(
             'Banner Image URL (Optional)',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
           const SizedBox(height: 6),
           TextField(
             controller: _mediaUrlController,
             decoration: InputDecoration(
-              hintText: 'https://example.com/banner.jpg (Included in Email header & WhatsApp media)',
-              prefixIcon: const Icon(Icons.image_outlined, size: 20, color: Color(0xFF64748B)),
+              hintText:
+                  'https://example.com/banner.jpg (Included in Email header & WhatsApp media)',
+              prefixIcon: const Icon(
+                Icons.image_outlined,
+                size: 20,
+                color: Color(0xFF64748B),
+              ),
               filled: true,
               fillColor: const Color(0xFFF8FAFC),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Colors.transparent),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                borderSide: const BorderSide(color: Colors.transparent),
               ),
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
             ),
           ),
         ],
@@ -590,8 +636,12 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
   // ===========================================================================
   Widget _buildStep2Audience() {
     final eligibleCount = _filteredAudience.length;
-    final emailEligible = _filteredAudience.where((p) => CampaignAudienceHelper.isValidEmail(p.email)).length;
-    final waEligible = _filteredAudience.where((p) => WhatsAppTemplateService.isValidWhatsAppPhone(p.phone)).length;
+    final emailEligible = _filteredAudience
+        .where((p) => CampaignAudienceHelper.isValidEmail(p.email))
+        .length;
+    final waEligible = _filteredAudience
+        .where((p) => WhatsAppTemplateService.isValidWhatsAppPhone(p.phone))
+        .length;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -601,7 +651,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           // Cohort Selector
           const Text(
             'Target Patient Cohort',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -613,12 +667,19 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                 onTap: () => setState(() => _selectedAudienceType = type),
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                    color: isSelected
+                        ? const Color(0xFFEFF6FF)
+                        : const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0),
+                      color: isSelected
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFFE2E8F0),
                       width: isSelected ? 1.5 : 1,
                     ),
                   ),
@@ -626,17 +687,25 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+                        isSelected
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_off,
                         size: 16,
-                        color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF94A3B8),
+                        color: isSelected
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFF94A3B8),
                       ),
                       const SizedBox(width: 8),
                       Text(
                         type.label,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                          color: isSelected ? const Color(0xFF1E40AF) : const Color(0xFF334155),
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: isSelected
+                              ? const Color(0xFF1E40AF)
+                              : const Color(0xFF334155),
                         ),
                       ),
                     ],
@@ -662,7 +731,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                 children: [
                   const Text(
                     'Filter by Diagnosis / Medical Tag:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF334155),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   TextField(
@@ -675,24 +748,37 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                       fillColor: Colors.white,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(10),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                        borderSide: const BorderSide(color: Colors.transparent),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
-                    children: ['Diabetes', 'Hypertension', 'Asthma', 'Cardiac', 'Thyroid'].map((cond) {
-                      return ActionChip(
-                        label: Text(cond),
-                        labelStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                        onPressed: () {
-                          _conditionFilterController.text = cond;
-                          setState(() {});
-                        },
-                      );
-                    }).toList(),
+                    children:
+                        [
+                          'Diabetes',
+                          'Hypertension',
+                          'Asthma',
+                          'Cardiac',
+                          'Thyroid',
+                        ].map((cond) {
+                          return ActionChip(
+                            label: Text(cond),
+                            labelStyle: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            onPressed: () {
+                              _conditionFilterController.text = cond;
+                              setState(() {});
+                            },
+                          );
+                        }).toList(),
                   ),
                 ],
               ),
@@ -710,16 +796,26 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               ),
               child: Row(
                 children: [
-                  const Text('Select Gender: ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  const Text(
+                    'Select Gender: ',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
                   const SizedBox(width: 12),
                   DropdownButton<String>(
                     value: _selectedGender,
                     items: const [
-                      DropdownMenuItem(value: 'all', child: Text('All Genders')),
-                      DropdownMenuItem(value: 'female', child: Text('Female Only')),
+                      DropdownMenuItem(
+                        value: 'all',
+                        child: Text('All Genders'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'female',
+                        child: Text('Female Only'),
+                      ),
                       DropdownMenuItem(value: 'male', child: Text('Male Only')),
                     ],
-                    onChanged: (val) => setState(() => _selectedGender = val ?? 'all'),
+                    onChanged: (val) =>
+                        setState(() => _selectedGender = val ?? 'all'),
                   ),
                 ],
               ),
@@ -738,7 +834,10 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Select Age Bracket:', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                  const Text(
+                    'Select Age Bracket:',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -770,16 +869,22 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                     children: [
                       const Text(
                         'Select Specific Patients:',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
                       ),
                       const Spacer(),
                       TextButton(
                         onPressed: () {
                           setState(() {
-                            if (_selectedPatientIds.length == _allPatients.length) {
+                            if (_selectedPatientIds.length ==
+                                _allPatients.length) {
                               _selectedPatientIds.clear();
                             } else {
-                              _selectedPatientIds.addAll(_allPatients.map((p) => p.id));
+                              _selectedPatientIds.addAll(
+                                _allPatients.map((p) => p.id),
+                              );
                             }
                           });
                         },
@@ -793,14 +898,21 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                   ),
                   const SizedBox(height: 6),
                   TextField(
-                    onChanged: (q) => setState(() => _patientSearchQuery = q.trim().toLowerCase()),
+                    onChanged: (q) => setState(
+                      () => _patientSearchQuery = q.trim().toLowerCase(),
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Search patients by name or phone...',
                       prefixIcon: const Icon(Icons.search, size: 18),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -809,31 +921,47 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                     child: ListView(
                       shrinkWrap: true,
                       children: _allPatients
-                          .where((p) =>
-                              _patientSearchQuery.isEmpty ||
-                              p.fullName.toLowerCase().contains(_patientSearchQuery) ||
-                              p.phone.contains(_patientSearchQuery))
+                          .where(
+                            (p) =>
+                                _patientSearchQuery.isEmpty ||
+                                p.fullName.toLowerCase().contains(
+                                  _patientSearchQuery,
+                                ) ||
+                                p.phone.contains(_patientSearchQuery),
+                          )
                           .map((patient) {
-                        final isChecked = _selectedPatientIds.contains(patient.id);
-                        return CheckboxListTile(
-                          dense: true,
-                          value: isChecked,
-                          title: Text(patient.fullName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                          subtitle: Text(
-                            '${patient.phone} • ${patient.email.isNotEmpty ? patient.email : "No Email"}',
-                            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                          ),
-                          onChanged: (val) {
-                            setState(() {
-                              if (val == true) {
-                                _selectedPatientIds.add(patient.id);
-                              } else {
-                                _selectedPatientIds.remove(patient.id);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
+                            final isChecked = _selectedPatientIds.contains(
+                              patient.id,
+                            );
+                            return CheckboxListTile(
+                              dense: true,
+                              value: isChecked,
+                              title: Text(
+                                patient.fullName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${patient.phone} • ${patient.email.isNotEmpty ? patient.email : "No Email"}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              onChanged: (val) {
+                                setState(() {
+                                  if (val == true) {
+                                    _selectedPatientIds.add(patient.id);
+                                  } else {
+                                    _selectedPatientIds.remove(patient.id);
+                                  }
+                                });
+                              },
+                            );
+                          })
+                          .toList(),
                     ),
                   ),
                 ],
@@ -854,7 +982,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
             ),
             child: Row(
               children: [
-                const Icon(Icons.groups_rounded, color: Color(0xFF16A34A), size: 28),
+                const Icon(
+                  Icons.groups_rounded,
+                  color: Color(0xFF16A34A),
+                  size: 28,
+                ),
                 const SizedBox(width: 14),
                 Expanded(
                   child: Column(
@@ -871,7 +1003,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                       const SizedBox(height: 2),
                       Text(
                         '📧 $emailEligible with verified Email  •  💬 $waEligible with valid WhatsApp number',
-                        style: const TextStyle(fontSize: 12, color: Color(0xFF166534), fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF166534),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -885,7 +1021,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           // Communication Channels
           const Text(
             'Broadcast Channels *',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: Color(0xFF334155)),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF334155),
+            ),
           ),
           const SizedBox(height: 10),
           Row(
@@ -893,14 +1033,29 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               Expanded(
                 child: CheckboxListTile(
                   value: _enableEmail,
-                  tileColor: _enableEmail ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                  tileColor: _enableEmail
+                      ? const Color(0xFFEFF6FF)
+                      : const Color(0xFFF8FAFC),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: _enableEmail ? const Color(0xFF2563EB) : const Color(0xFFE2E8F0)),
+                    side: BorderSide(
+                      color: _enableEmail
+                          ? const Color(0xFF2563EB)
+                          : const Color(0xFFE2E8F0),
+                    ),
                   ),
-                  secondary: const Icon(Icons.email_rounded, color: Color(0xFF2563EB)),
-                  title: const Text('Email Notification', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  subtitle: const Text('Rich HTML email with clinic header', style: TextStyle(fontSize: 11)),
+                  secondary: const Icon(
+                    Icons.email_rounded,
+                    color: Color(0xFF2563EB),
+                  ),
+                  title: const Text(
+                    'Email Notification',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  subtitle: const Text(
+                    'Rich HTML email with clinic header',
+                    style: TextStyle(fontSize: 11),
+                  ),
                   onChanged: (val) {
                     if (val == false && !_enableWhatsApp) return;
                     setState(() => _enableEmail = val ?? true);
@@ -911,14 +1066,29 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               Expanded(
                 child: CheckboxListTile(
                   value: _enableWhatsApp,
-                  tileColor: _enableWhatsApp ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                  tileColor: _enableWhatsApp
+                      ? const Color(0xFFF0FDF4)
+                      : const Color(0xFFF8FAFC),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(color: _enableWhatsApp ? const Color(0xFF16A34A) : const Color(0xFFE2E8F0)),
+                    side: BorderSide(
+                      color: _enableWhatsApp
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFFE2E8F0),
+                    ),
                   ),
-                  secondary: const Icon(Icons.chat_rounded, color: Color(0xFF16A34A)),
-                  title: const Text('WhatsApp Message', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  subtitle: const Text('Direct mobile chat notification', style: TextStyle(fontSize: 11)),
+                  secondary: const Icon(
+                    Icons.chat_rounded,
+                    color: Color(0xFF16A34A),
+                  ),
+                  title: const Text(
+                    'WhatsApp Message',
+                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                  ),
+                  subtitle: const Text(
+                    'Direct mobile chat notification',
+                    style: TextStyle(fontSize: 11),
+                  ),
                   onChanged: (val) {
                     if (val == false && !_enableEmail) return;
                     setState(() => _enableWhatsApp = val ?? true);
@@ -971,7 +1141,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
       _messageController.text.trim().isNotEmpty
           ? _messageController.text.trim()
           : 'Campaign message content here...',
-      title: _titleController.text.trim().isNotEmpty ? _titleController.text.trim() : 'Campaign Title',
+      title: _titleController.text.trim().isNotEmpty
+          ? _titleController.text.trim()
+          : 'Campaign Title',
       patient: samplePatient,
       category: _selectedCategory,
       clinicName: _clinicName,
@@ -990,8 +1162,14 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               indicatorColor: Color(0xFF2563EB),
               indicatorWeight: 3,
               tabs: [
-                Tab(icon: Icon(Icons.email_outlined, size: 18), text: 'Email Preview'),
-                Tab(icon: Icon(Icons.chat_bubble_outline, size: 18), text: 'WhatsApp Preview'),
+                Tab(
+                  icon: Icon(Icons.email_outlined, size: 18),
+                  text: 'Email Preview',
+                ),
+                Tab(
+                  icon: Icon(Icons.chat_bubble_outline, size: 18),
+                  text: 'WhatsApp Preview',
+                ),
               ],
             ),
           ),
@@ -1008,9 +1186,7 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFE2E8F0)),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 4)),
-                        ],
+                        boxShadow: const [],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1019,8 +1195,12 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: const BoxDecoration(
-                              gradient: LinearGradient(colors: [Color(0xFF1E293B), Color(0xFF0F172A)]),
-                              borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                              gradient: LinearGradient(
+                                colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                              ),
+                              borderRadius: BorderRadius.vertical(
+                                top: Radius.circular(15),
+                              ),
                             ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1030,15 +1210,31 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                                   children: [
                                     Text(
                                       _clinicName,
-                                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
                                     ),
-                                    const Text('Patient Care & Health Advisory', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11)),
+                                    const Text(
+                                      'Patient Care & Health Advisory',
+                                      style: TextStyle(
+                                        color: Color(0xFF94A3B8),
+                                        fontSize: 11,
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 Chip(
-                                  label: Text(_selectedCategory.label.toUpperCase()),
+                                  label: Text(
+                                    _selectedCategory.label.toUpperCase(),
+                                  ),
                                   backgroundColor: Colors.white12,
-                                  labelStyle: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                                  labelStyle: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1050,8 +1246,14 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  _titleController.text.isNotEmpty ? _titleController.text : 'Campaign Title',
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                                  _titleController.text.isNotEmpty
+                                      ? _titleController.text
+                                      : 'Campaign Title',
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: Color(0xFF0F172A),
+                                  ),
                                 ),
                                 const SizedBox(height: 14),
                                 Text(
@@ -1063,7 +1265,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                                     clinicName: _clinicName,
                                     doctorName: _doctorName,
                                   ),
-                                  style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF334155)),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    height: 1.6,
+                                    color: Color(0xFF334155),
+                                  ),
                                 ),
                                 const SizedBox(height: 24),
                                 Container(
@@ -1071,13 +1277,31 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(8),
-                                    border: Border(left: BorderSide(color: _selectedCategory.color, width: 4)),
+                                    border: Border(
+                                      left: BorderSide(
+                                        color: _selectedCategory.color,
+                                        width: 4,
+                                      ),
+                                    ),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      Text(_doctorName, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                                      Text(_clinicName, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                      Text(
+                                        _doctorName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                      Text(
+                                        _clinicName,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          color: Color(0xFF64748B),
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1086,15 +1310,23 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                           ),
                           // Footer
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 24,
+                              vertical: 14,
+                            ),
                             decoration: const BoxDecoration(
                               color: Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
+                              borderRadius: BorderRadius.vertical(
+                                bottom: Radius.circular(15),
+                              ),
                             ),
                             child: Center(
                               child: Text(
                                 'Sent to ${samplePatient.fullName} • Official Healthcare Advisory',
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF94A3B8),
+                                ),
                               ),
                             ),
                           ),
@@ -1112,7 +1344,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                       constraints: const BoxConstraints(maxWidth: 420),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFE5DDD5), // WhatsApp chat background
+                        color: const Color(
+                          0xFFE5DDD5,
+                        ), // WhatsApp chat background
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: const Color(0xFFCBD5E1)),
                       ),
@@ -1123,11 +1357,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                           Container(
                             padding: const EdgeInsets.all(14),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDCF8C6), // WhatsApp bubble green
+                              color: const Color(
+                                0xFFDCF8C6,
+                              ), // WhatsApp bubble green
                               borderRadius: BorderRadius.circular(12),
-                              boxShadow: [
-                                BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 2)),
-                              ],
+                              boxShadow: const [],
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1146,9 +1380,19 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: const [
-                                      Text('Just now', style: TextStyle(fontSize: 10, color: Color(0xFF667781))),
+                                      Text(
+                                        'Just now',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF667781),
+                                        ),
+                                      ),
                                       SizedBox(width: 4),
-                                      Icon(Icons.done_all_rounded, size: 14, color: Color(0xFF53BDEB)),
+                                      Icon(
+                                        Icons.done_all_rounded,
+                                        size: 14,
+                                        color: Color(0xFF53BDEB),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -1173,7 +1417,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
   // ===========================================================================
   Widget _buildStep4DispatchProgress() {
     if (_isDispatching) {
-      final percent = _dispatchTotal > 0 ? (_dispatchProcessed / _dispatchTotal) : 0.0;
+      final percent = _dispatchTotal > 0
+          ? (_dispatchProcessed / _dispatchTotal)
+          : 0.0;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(40),
@@ -1191,7 +1437,11 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               const SizedBox(height: 24),
               const Text(
                 'Broadcasting Campaign...',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF0F172A),
+                ),
               ),
               const SizedBox(height: 8),
               Text(
@@ -1205,7 +1455,9 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                   value: percent,
                   minHeight: 8,
                   backgroundColor: const Color(0xFFE2E8F0),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF10B981)),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    Color(0xFF10B981),
+                  ),
                 ),
               ),
             ],
@@ -1221,14 +1473,26 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded, color: Color(0xFFDC2626), size: 56),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Color(0xFFDC2626),
+                size: 56,
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Dispatch Failed',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFFDC2626)),
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFFDC2626),
+                ),
               ),
               const SizedBox(height: 8),
-              Text(_dispatchError!, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey[700])),
+              Text(
+                _dispatchError!,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[700]),
+              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: () => setState(() => _currentStep = 2),
@@ -1254,12 +1518,20 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                 shape: BoxShape.circle,
                 color: Color(0xFFDCFCE7),
               ),
-              child: const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 54),
+              child: const Icon(
+                Icons.check_circle_rounded,
+                color: Color(0xFF16A34A),
+                size: 54,
+              ),
             ),
             const SizedBox(height: 20),
             const Text(
               'Campaign Published Successfully! 🎉',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A)),
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
             ),
             const SizedBox(height: 8),
             Text(
@@ -1270,9 +1542,17 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildMetricBadge('📧 Emails Sent', '${campaign?.emailsSent ?? 0}', const Color(0xFF2563EB)),
+                _buildMetricBadge(
+                  '📧 Emails Sent',
+                  '${campaign?.emailsSent ?? 0}',
+                  const Color(0xFF2563EB),
+                ),
                 const SizedBox(width: 16),
-                _buildMetricBadge('💬 WhatsApp Sent', '${campaign?.whatsAppSent ?? 0}', const Color(0xFF16A34A)),
+                _buildMetricBadge(
+                  '💬 WhatsApp Sent',
+                  '${campaign?.whatsAppSent ?? 0}',
+                  const Color(0xFF16A34A),
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -1283,8 +1563,13 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
           ],
@@ -1303,9 +1588,23 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
       ),
       child: Row(
         children: [
-          Text(label, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: color)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
           const SizedBox(width: 8),
-          Text(count, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: color)),
+          Text(
+            count,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
         ],
       ),
     );
@@ -1327,14 +1626,22 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               icon: const Icon(Icons.arrow_back_rounded, size: 16),
               label: const Text('Previous'),
               style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
           const Spacer(),
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           const SizedBox(width: 12),
           if (_currentStep < 2)
@@ -1343,13 +1650,17 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                 if (_currentStep == 0) {
                   if (_titleController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter a campaign title.')),
+                      const SnackBar(
+                        content: Text('Please enter a campaign title.'),
+                      ),
                     );
                     return;
                   }
                   if (_messageController.text.trim().isEmpty) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Please enter campaign message body.')),
+                      const SnackBar(
+                        content: Text('Please enter campaign message body.'),
+                      ),
                     );
                     return;
                   }
@@ -1361,8 +1672,13 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2563EB),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             )
           else
@@ -1373,8 +1689,13 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF16A34A),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
             ),
         ],

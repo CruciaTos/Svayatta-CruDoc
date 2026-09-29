@@ -35,13 +35,13 @@ final patientSummariesProvider = Provider<AsyncValue<List<PatientSummary>>>((
 /// One patient's summary (details screen, preview pane).
 final patientSummaryProvider =
     Provider.family<AsyncValue<PatientSummary?>, String>((ref, id) {
-  return ref.watch(patientSummariesProvider).whenData((all) {
-    for (final s in all) {
-      if (s.id == id) return s;
-    }
-    return null;
-  });
-});
+      return ref.watch(patientSummariesProvider).whenData((all) {
+        for (final s in all) {
+          if (s.id == id) return s;
+        }
+        return null;
+      });
+    });
 
 /// What the user has done on the Patients list. Kept for the session so
 /// coming back from Patient details (or another tab) restores it.
@@ -86,17 +86,16 @@ class PatientsListState {
     double? scrollOffset,
     int? limit,
     String? Function()? detailsId,
-  }) =>
-      PatientsListState(
-        filter: filter ?? this.filter,
-        sort: sort ?? this.sort,
-        query: query ?? this.query,
-        selectedId: selectedId != null ? selectedId() : this.selectedId,
-        paneOpen: paneOpen ?? this.paneOpen,
-        scrollOffset: scrollOffset ?? this.scrollOffset,
-        limit: limit ?? this.limit,
-        detailsId: detailsId != null ? detailsId() : this.detailsId,
-      );
+  }) => PatientsListState(
+    filter: filter ?? this.filter,
+    sort: sort ?? this.sort,
+    query: query ?? this.query,
+    selectedId: selectedId != null ? selectedId() : this.selectedId,
+    paneOpen: paneOpen ?? this.paneOpen,
+    scrollOffset: scrollOffset ?? this.scrollOffset,
+    limit: limit ?? this.limit,
+    detailsId: detailsId != null ? detailsId() : this.detailsId,
+  );
 }
 
 class PatientsListController extends Notifier<PatientsListState> {
@@ -125,20 +124,21 @@ class PatientsListController extends Notifier<PatientsListState> {
 
   /// Selects a row and opens the pane (split mode).
   void select(String id) => state = state.copyWith(
-        selectedId: () => id,
-        paneOpen: {...state.paneOpen, state.filter: true},
-      );
+    selectedId: () => id,
+    paneOpen: {...state.paneOpen, state.filter: true},
+  );
 
   /// × or Esc: back to table mode, remembered for this filter.
   void closePane() => state = state.copyWith(
-        selectedId: () => null,
-        paneOpen: {...state.paneOpen, state.filter: false},
-      );
+    selectedId: () => null,
+    paneOpen: {...state.paneOpen, state.filter: false},
+  );
 
   void showMore() =>
       state = state.copyWith(limit: state.limit + kPatientsPageSize);
 
-  void saveScroll(double offset) => state = state.copyWith(scrollOffset: offset);
+  void saveScroll(double offset) =>
+      state = state.copyWith(scrollOffset: offset);
 
   void openDetails(String id) => state = state.copyWith(detailsId: () => id);
 
@@ -147,8 +147,8 @@ class PatientsListController extends Notifier<PatientsListState> {
 
 final patientsListControllerProvider =
     NotifierProvider<PatientsListController, PatientsListState>(
-  PatientsListController.new,
-);
+      PatientsListController.new,
+    );
 
 /// Everything the Patients list renders for the current state.
 class PatientsListView {
@@ -197,7 +197,8 @@ final patientsListViewProvider = Provider<AsyncValue<PatientsListView>>((ref) {
     final counts = PatientsBuilder.counts(all);
     final firstWeek = all.length < kFirstWeekThreshold;
     // A chip with no patients is hidden, so its filter can't stay active.
-    final filter = firstWeek ||
+    final filter =
+        firstWeek ||
             (state.filter != PatientFilter.all && counts[state.filter] == 0)
         ? PatientFilter.all
         : state.filter;

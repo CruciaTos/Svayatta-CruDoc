@@ -27,7 +27,10 @@ class IosUpdateInstaller implements UpdateInstaller {
   bool get supportsInAppInstall => false;
 
   @override
-  Future<void> download(AppRelease release, void Function(UpdateProgress progress) onProgress) async {
+  Future<void> download(
+    AppRelease release,
+    void Function(UpdateProgress progress) onProgress,
+  ) async {
     final url = release.manifest?.platformFor(_platformKey)?.url;
     if (url == null || url.isEmpty) {
       throw const UpdateDownloadException(
@@ -38,7 +41,9 @@ class IosUpdateInstaller implements UpdateInstaller {
 
     final uri = Uri.tryParse(url);
     if (uri == null) {
-      throw const UpdateDownloadException('The iOS update URL in update.json could not be parsed.');
+      throw const UpdateDownloadException(
+        'The iOS update URL in update.json could not be parsed.',
+      );
     }
 
     _storeUri = uri;
@@ -55,12 +60,16 @@ class IosUpdateInstaller implements UpdateInstaller {
   Future<void> install() async {
     final uri = _storeUri;
     if (uri == null) {
-      throw const UpdateInstallException('No App Store/TestFlight URL to open.');
+      throw const UpdateInstallException(
+        'No App Store/TestFlight URL to open.',
+      );
     }
 
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened) {
-      throw const UpdateInstallException('Could not open the App Store/TestFlight link.');
+      throw const UpdateInstallException(
+        'Could not open the App Store/TestFlight link.',
+      );
     }
   }
 }

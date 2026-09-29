@@ -38,7 +38,9 @@ class DoctorEncryptionService {
   }
 
   static enc.Key _deriveKey(String doctorId) {
-    final digest = sha256.convert(utf8.encode('crudoc-doctor-profile::$doctorId'));
+    final digest = sha256.convert(
+      utf8.encode('crudoc-doctor-profile::$doctorId'),
+    );
     return enc.Key(Uint8List.fromList(digest.bytes));
   }
 }

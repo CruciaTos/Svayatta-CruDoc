@@ -141,10 +141,7 @@ class _SuperAdminDashboardScreenState
           CruIcon(CruIcons.warning, size: 18, color: c.amberText),
           const SizedBox(width: CruSpace.s12),
           Expanded(
-            child: Text(
-              message,
-              style: CruType.text.w500.tint(c.amberText),
-            ),
+            child: Text(message, style: CruType.text.w500.tint(c.amberText)),
           ),
         ],
       ),
@@ -173,7 +170,8 @@ class _SuperAdminDashboardScreenState
       ),
       _MetricItem(
         title: 'Monthly Run-Rate',
-        value: '₹${_formatCurrency(stats.monthlyRevenue > 0 ? stats.monthlyRevenue : 184500)}',
+        value:
+            '₹${_formatCurrency(stats.monthlyRevenue > 0 ? stats.monthlyRevenue : 184500)}',
         subtext: 'Subscriptions & Add-ons',
         icon: CruIcons.rupee,
         trend: '+18.2%',
@@ -181,7 +179,8 @@ class _SuperAdminDashboardScreenState
       ),
       _MetricItem(
         title: 'AI Clinical Scribe',
-        value: '${stats.ocrRequestsThisMonth > 0 ? stats.ocrRequestsThisMonth : 1420}',
+        value:
+            '${stats.ocrRequestsThisMonth > 0 ? stats.ocrRequestsThisMonth : 1420}',
         subtext: 'Gemini Sessions Processed',
         icon: CruIcons.mic,
         trend: '+34.1%',
@@ -200,10 +199,12 @@ class _SuperAdminDashboardScreenState
     if (isMobile) {
       return Column(
         children: metrics
-            .map((m) => Padding(
-                  padding: const EdgeInsets.only(bottom: CruSpace.s12),
-                  child: _buildMetricCard(context, m, loading),
-                ))
+            .map(
+              (m) => Padding(
+                padding: const EdgeInsets.only(bottom: CruSpace.s12),
+                child: _buildMetricCard(context, m, loading),
+              ),
+            )
             .toList(),
       );
     }
@@ -212,9 +213,7 @@ class _SuperAdminDashboardScreenState
       children: [
         for (var i = 0; i < metrics.length; i++) ...[
           if (i > 0) const SizedBox(width: CruSpace.s16),
-          Expanded(
-            child: _buildMetricCard(context, metrics[i], loading),
-          ),
+          Expanded(child: _buildMetricCard(context, metrics[i], loading)),
         ],
       ],
     );
@@ -268,20 +267,11 @@ class _SuperAdminDashboardScreenState
               child: LinearProgressIndicator(),
             )
           else ...[
-            Text(
-              item.value,
-              style: CruType.metric.tint(c.label),
-            ),
+            Text(item.value, style: CruType.metric.tint(c.label)),
             const SizedBox(height: CruSpace.s2),
-            Text(
-              item.title,
-              style: CruType.subhead.w600.tint(c.label),
-            ),
+            Text(item.title, style: CruType.subhead.w600.tint(c.label)),
             const SizedBox(height: CruSpace.s2),
-            Text(
-              item.subtext,
-              style: CruType.caption.tint(c.label3),
-            ),
+            Text(item.subtext, style: CruType.caption.tint(c.label3)),
           ],
         ],
       ),
@@ -310,10 +300,7 @@ class _SuperAdminDashboardScreenState
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 6,
-          child: _buildGrowthTrendCard(context, state),
-        ),
+        Expanded(flex: 6, child: _buildGrowthTrendCard(context, state)),
         const SizedBox(width: CruSpace.s16),
         Expanded(
           flex: 4,
@@ -362,12 +349,18 @@ class _SuperAdminDashboardScreenState
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: ShapeDecoration(
                   color: c.inset,
                   shape: cruShape(CruRadius.full),
                 ),
-                child: Text('Live Analytics', style: CruType.caption.w600.tint(c.label2)),
+                child: Text(
+                  'Live Analytics',
+                  style: CruType.caption.w600.tint(c.label2),
+                ),
               ),
             ],
           ),
@@ -380,7 +373,20 @@ class _SuperAdminDashboardScreenState
                   ? [10, 14, 18, 22, 28, 35, 42, 48, 56, 64, 75, 88]
                   : dataPoints,
               months: months.isEmpty
-                  ? ['Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
+                  ? [
+                      'Oct',
+                      'Nov',
+                      'Dec',
+                      'Jan',
+                      'Feb',
+                      'Mar',
+                      'Apr',
+                      'May',
+                      'Jun',
+                      'Jul',
+                      'Aug',
+                      'Sep',
+                    ]
                   : months,
               lineColor: c.accent,
               fillColor: c.accentTint,
@@ -438,8 +444,14 @@ class _SuperAdminDashboardScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Subscription Tiers', style: CruType.headline.tint(c.label)),
-                    Text('Active doctor tier distribution', style: CruType.caption.tint(c.label3)),
+                    Text(
+                      'Subscription Tiers',
+                      style: CruType.headline.tint(c.label),
+                    ),
+                    Text(
+                      'Active doctor tier distribution',
+                      style: CruType.caption.tint(c.label3),
+                    ),
                   ],
                 ),
               ),
@@ -487,13 +499,33 @@ class _SuperAdminDashboardScreenState
               Expanded(
                 child: Column(
                   children: [
-                    _buildTierLegendRow(c, 'Professional', '${planCounts[SubscriptionPlan.professional]}', c.accent),
+                    _buildTierLegendRow(
+                      c,
+                      'Professional',
+                      '${planCounts[SubscriptionPlan.professional]}',
+                      c.accent,
+                    ),
                     const SizedBox(height: CruSpace.s8),
-                    _buildTierLegendRow(c, 'Clinic (PACS)', '${planCounts[SubscriptionPlan.clinic]}', c.tealText),
+                    _buildTierLegendRow(
+                      c,
+                      'Clinic (PACS)',
+                      '${planCounts[SubscriptionPlan.clinic]}',
+                      c.tealText,
+                    ),
                     const SizedBox(height: CruSpace.s8),
-                    _buildTierLegendRow(c, 'Starter', '${planCounts[SubscriptionPlan.starter]}', c.label3),
+                    _buildTierLegendRow(
+                      c,
+                      'Starter',
+                      '${planCounts[SubscriptionPlan.starter]}',
+                      c.label3,
+                    ),
                     const SizedBox(height: CruSpace.s8),
-                    _buildTierLegendRow(c, 'Enterprise', '${planCounts[SubscriptionPlan.enterprise]}', c.green),
+                    _buildTierLegendRow(
+                      c,
+                      'Enterprise',
+                      '${planCounts[SubscriptionPlan.enterprise]}',
+                      c.green,
+                    ),
                   ],
                 ),
               ),
@@ -504,7 +536,12 @@ class _SuperAdminDashboardScreenState
     );
   }
 
-  Widget _buildTierLegendRow(CruColors c, String name, String count, Color color) {
+  Widget _buildTierLegendRow(
+    CruColors c,
+    String name,
+    String count,
+    Color color,
+  ) {
     return Row(
       children: [
         Container(
@@ -513,9 +550,7 @@ class _SuperAdminDashboardScreenState
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: CruSpace.s8),
-        Expanded(
-          child: Text(name, style: CruType.subhead.tint(c.label2)),
-        ),
+        Expanded(child: Text(name, style: CruType.subhead.tint(c.label2))),
         Text(count, style: CruType.subhead.w600.tabular.tint(c.label)),
       ],
     );
@@ -591,13 +626,22 @@ class _SuperAdminDashboardScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Platform Microservices & Sensor Bridge Health', style: CruType.headline.tint(c.label)),
-                    Text('Real-time infrastructure health, PACS nodes, and direct USB bridge status', style: CruType.caption.tint(c.label3)),
+                    Text(
+                      'Platform Microservices & Sensor Bridge Health',
+                      style: CruType.headline.tint(c.label),
+                    ),
+                    Text(
+                      'Real-time infrastructure health, PACS nodes, and direct USB bridge status',
+                      style: CruType.caption.tint(c.label3),
+                    ),
                   ],
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: ShapeDecoration(
                   color: c.greenTint,
                   shape: cruShape(CruRadius.full),
@@ -607,7 +651,10 @@ class _SuperAdminDashboardScreenState
                   children: [
                     const CruStatusDot(CruDotKind.done, size: 6),
                     const SizedBox(width: CruSpace.s6),
-                    Text('99.98% Operational', style: CruType.caption.w600.tint(c.greenText)),
+                    Text(
+                      '99.98% Operational',
+                      style: CruType.caption.w600.tint(c.greenText),
+                    ),
                   ],
                 ),
               ),
@@ -617,10 +664,12 @@ class _SuperAdminDashboardScreenState
           isMobile
               ? Column(
                   children: services
-                      .map((s) => Padding(
-                            padding: const EdgeInsets.only(bottom: CruSpace.s8),
-                            child: _buildServiceTile(c, s),
-                          ))
+                      .map(
+                        (s) => Padding(
+                          padding: const EdgeInsets.only(bottom: CruSpace.s8),
+                          child: _buildServiceTile(c, s),
+                        ),
+                      )
                       .toList(),
                 )
               : Row(
@@ -658,10 +707,7 @@ class _SuperAdminDashboardScreenState
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Text(
-                s.latency,
-                style: CruType.caption.tabular.tint(c.label3),
-              ),
+              Text(s.latency, style: CruType.caption.tabular.tint(c.label3)),
             ],
           ),
           const SizedBox(height: CruSpace.s8),
@@ -813,7 +859,11 @@ class _DashboardTrendPainter extends CustomPainter {
 
     for (int i = 0; i <= 3; i++) {
       final y = height - (height / 3 * i) + 8;
-      canvas.drawLine(const Offset(paddingLeft, 0), Offset(size.width, y), gridPaint);
+      canvas.drawLine(
+        const Offset(paddingLeft, 0),
+        Offset(size.width, y),
+        gridPaint,
+      );
     }
 
     final double stepX = width / (dataPoints.length - 1);
@@ -836,7 +886,10 @@ class _DashboardTrendPainter extends CustomPainter {
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        textPainter.paint(canvas, Offset(x - (textPainter.width / 2), size.height - 14));
+        textPainter.paint(
+          canvas,
+          Offset(x - (textPainter.width / 2), size.height - 14),
+        );
       }
     }
 
@@ -853,8 +906,22 @@ class _DashboardTrendPainter extends CustomPainter {
       final controlPoint1 = Offset(p1.dx + (p2.dx - p1.dx) / 2, p1.dy);
       final controlPoint2 = Offset(p1.dx + (p2.dx - p1.dx) / 2, p2.dy);
 
-      path.cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx, controlPoint2.dy, p2.dx, p2.dy);
-      fillPath.cubicTo(controlPoint1.dx, controlPoint1.dy, controlPoint2.dx, controlPoint2.dy, p2.dx, p2.dy);
+      path.cubicTo(
+        controlPoint1.dx,
+        controlPoint1.dy,
+        controlPoint2.dx,
+        controlPoint2.dy,
+        p2.dx,
+        p2.dy,
+      );
+      fillPath.cubicTo(
+        controlPoint1.dx,
+        controlPoint1.dy,
+        controlPoint2.dx,
+        controlPoint2.dy,
+        p2.dx,
+        p2.dy,
+      );
     }
 
     fillPath.lineTo(points.last.dx, height + 8);
@@ -870,7 +937,9 @@ class _DashboardTrendPainter extends CustomPainter {
     );
 
     final fillPaint = Paint()
-      ..shader = fillGradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      ..shader = fillGradient.createShader(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+      );
 
     canvas.drawPath(fillPath, fillPaint);
     canvas.drawPath(path, linePaint);
@@ -959,7 +1028,13 @@ class PlanDonutChartPainter extends CustomPainter {
     }
 
     if (professionalSweep > 0) {
-      canvas.drawArc(rect, startAngle, professionalSweep, false, paintProfessional);
+      canvas.drawArc(
+        rect,
+        startAngle,
+        professionalSweep,
+        false,
+        paintProfessional,
+      );
       startAngle += professionalSweep;
     }
 

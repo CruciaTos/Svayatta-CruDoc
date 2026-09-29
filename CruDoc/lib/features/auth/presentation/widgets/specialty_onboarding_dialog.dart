@@ -79,13 +79,7 @@ class _SpecialtyOnboardingContentState
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.18),
-                blurRadius: 40,
-                offset: const Offset(0, 16),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -93,8 +87,10 @@ class _SpecialtyOnboardingContentState
               // ── Header ──
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 24,
+                ),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
@@ -113,8 +109,11 @@ class _SpecialtyOnboardingContentState
                             color: const Color(0xFF00ACC1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(Icons.local_hospital_rounded,
-                              color: Colors.white, size: 20),
+                          child: const Icon(
+                            Icons.local_hospital_rounded,
+                            color: Colors.white,
+                            size: 20,
+                          ),
                         ),
                         const SizedBox(width: 12),
                         const Text(
@@ -156,13 +155,14 @@ class _SpecialtyOnboardingContentState
                     itemCount: DoctorSpecialty.all.length,
                     itemBuilder: (context, index) {
                       final spec = DoctorSpecialty.all[index];
-                      final isSelected = _selectedType != null &&
-                          DoctorSpecialty.ofType(_selectedType!)
-                              .isUnder(spec.type);
+                      final isSelected =
+                          _selectedType != null &&
+                          DoctorSpecialty.ofType(
+                            _selectedType!,
+                          ).isUnder(spec.type);
 
                       return GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedType = spec.type),
+                        onTap: () => setState(() => _selectedType = spec.type),
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 220),
                           curve: Curves.easeOut,
@@ -177,16 +177,7 @@ class _SpecialtyOnboardingContentState
                                   : const Color(0xFFE2E8F0),
                               width: isSelected ? 2.2 : 1.2,
                             ),
-                            boxShadow: isSelected
-                                ? [
-                                    BoxShadow(
-                                      color:
-                                          spec.accentColor.withValues(alpha: 0.18),
-                                      blurRadius: 12,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ]
-                                : [],
+                            boxShadow: const [],
                           ),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -236,8 +227,8 @@ class _SpecialtyOnboardingContentState
               // Dentist: General or a dental sub-specialty.
               if (_selectedType != null &&
                   DoctorSpecialty.subspecialtiesOf(
-                          DoctorSpecialty.ofType(_selectedType!).rootType)
-                      .isNotEmpty)
+                    DoctorSpecialty.ofType(_selectedType!).rootType,
+                  ).isNotEmpty)
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 4, 20, 4),
                   child: SubspecialtyRow(
@@ -253,20 +244,16 @@ class _SpecialtyOnboardingContentState
                   width: double.infinity,
                   height: 50,
                   child: ElevatedButton(
-                    onPressed:
-                        (_selectedType != null && !_isSaving)
-                            ? _handleConfirm
-                            : null,
+                    onPressed: (_selectedType != null && !_isSaving)
+                        ? _handleConfirm
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _selectedType != null
-                          ? DoctorSpecialty.ofType(_selectedType!)
-                              .accentColor
+                          ? DoctorSpecialty.ofType(_selectedType!).accentColor
                           : const Color(0xFF94A3B8),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor:
-                          const Color(0xFFE2E8F0),
-                      disabledForegroundColor:
-                          const Color(0xFF94A3B8),
+                      disabledBackgroundColor: const Color(0xFFE2E8F0),
+                      disabledForegroundColor: const Color(0xFF94A3B8),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),

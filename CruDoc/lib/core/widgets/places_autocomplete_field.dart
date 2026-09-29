@@ -155,11 +155,13 @@ class _PlacesAutocompleteFieldState
       if (details.formattedAddress.isNotEmpty) {
         widget.controller.text = details.formattedAddress;
       }
-      widget.onPlaceSelected?.call(PlaceSelection(
-        address: widget.controller.text,
-        latitude: details.latitude,
-        longitude: details.longitude,
-      ));
+      widget.onPlaceSelected?.call(
+        PlaceSelection(
+          address: widget.controller.text,
+          latitude: details.latitude,
+          longitude: details.longitude,
+        ),
+      );
     }
   }
 
@@ -176,8 +178,10 @@ class _PlacesAutocompleteFieldState
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
         ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 14,
+        ),
         suffixIcon: _loading
             ? const Padding(
                 padding: EdgeInsets.all(12),
@@ -187,8 +191,11 @@ class _PlacesAutocompleteFieldState
                   child: CircularProgressIndicator(strokeWidth: 2),
                 ),
               )
-            : const Icon(Icons.location_on_outlined,
-                size: 20, color: AppColors.silver),
+            : const Icon(
+                Icons.location_on_outlined,
+                size: 20,
+                color: AppColors.silver,
+              ),
       );
     }
 
@@ -218,8 +225,7 @@ class _PlacesAutocompleteFieldState
           width: 1.5,
         ),
       ),
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       suffixIcon: _loading
           ? const Padding(
               padding: EdgeInsets.all(12),
@@ -229,8 +235,11 @@ class _PlacesAutocompleteFieldState
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             )
-          : const Icon(Icons.location_on_outlined,
-              size: 20, color: AppColors.chartBarLight),
+          : const Icon(
+              Icons.location_on_outlined,
+              size: 20,
+              color: AppColors.chartBarLight,
+            ),
     );
   }
 
@@ -238,8 +247,7 @@ class _PlacesAutocompleteFieldState
   Widget build(BuildContext context) {
     // Start finding where the doctor is while they type.
     ref.watch(addressSearchOriginProvider);
-    final showSuggestions =
-        _predictions.isNotEmpty && !_suppressSuggestions;
+    final showSuggestions = _predictions.isNotEmpty && !_suppressSuggestions;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -265,13 +273,7 @@ class _PlacesAutocompleteFieldState
               border: Border.all(
                 color: AppColors.chartBarLight.withValues(alpha: 0.25),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
-                  blurRadius: 8,
-                  offset: const Offset(0, 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: ListView.separated(
               padding: EdgeInsets.zero,

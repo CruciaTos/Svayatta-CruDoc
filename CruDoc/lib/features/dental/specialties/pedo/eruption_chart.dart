@@ -36,8 +36,26 @@ const _milkMonths = {
   false: {1: (6, 10), 2: (10, 16), 3: (17, 23), 4: (14, 18), 5: (23, 31)},
 };
 const _permanentYears = {
-  true: {1: (7, 8), 2: (8, 9), 3: (11, 12), 4: (10, 11), 5: (10, 12), 6: (6, 7), 7: (12, 13), 8: (17, 21)},
-  false: {1: (6, 7), 2: (7, 8), 3: (9, 10), 4: (10, 12), 5: (11, 12), 6: (6, 7), 7: (11, 13), 8: (17, 21)},
+  true: {
+    1: (7, 8),
+    2: (8, 9),
+    3: (11, 12),
+    4: (10, 11),
+    5: (10, 12),
+    6: (6, 7),
+    7: (12, 13),
+    8: (17, 21),
+  },
+  false: {
+    1: (6, 7),
+    2: (7, 8),
+    3: (9, 10),
+    4: (10, 12),
+    5: (11, 12),
+    6: (6, 7),
+    7: (11, 13),
+    8: (17, 21),
+  },
 };
 
 bool _upper(String t) {
@@ -89,7 +107,9 @@ Map<String, (EruptionStatus, DateTime?)> eruptionTeethOf(DentalRecord? r) {
     if (v is! Map) continue;
     final s = EruptionStatus.fromName(v['status']);
     if (s == null) continue;
-    final at = v['date'] is int ? DateTime.fromMillisecondsSinceEpoch(v['date'] as int) : null;
+    final at = v['date'] is int
+        ? DateTime.fromMillisecondsSinceEpoch(v['date'] as int)
+        : null;
     out['${e.key}'] = (s, at);
   }
   return out;
@@ -136,7 +156,9 @@ Map<String, (EruptionStatus, DateTime?)> eruptionTeethOf(DentalRecord? r) {
       warn: true,
     );
   }
-  final erupted = teeth.values.where((v) => v.$1 == EruptionStatus.erupted).length;
+  final erupted = teeth.values
+      .where((v) => v.$1 == EruptionStatus.erupted)
+      .length;
   return (
     text: '$erupted erupted · updated ${DentalFormat.date(r!.updatedAt)}',
     warn: false,
@@ -150,11 +172,10 @@ Future<void> showEruptionDialog(
   BuildContext context,
   Patient patient, {
   DentalRecord? existing,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _EruptionDialog(patient: patient, existing: existing),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _EruptionDialog(patient: patient, existing: existing),
+);
 
 class _EruptionDialog extends ConsumerStatefulWidget {
   const _EruptionDialog({required this.patient, this.existing});
@@ -168,13 +189,66 @@ class _EruptionDialog extends ConsumerStatefulWidget {
 
 class _EruptionDialogState extends ConsumerState<_EruptionDialog> {
   late DentalRecord? _record = widget.existing;
-  late final Map<String, (EruptionStatus, DateTime?)> _teeth =
-      eruptionTeethOf(widget.existing);
+  late final Map<String, (EruptionStatus, DateTime?)> _teeth = eruptionTeethOf(
+    widget.existing,
+  );
 
-  static const _milkUpper = ['55', '54', '53', '52', '51', '61', '62', '63', '64', '65'];
-  static const _milkLower = ['85', '84', '83', '82', '81', '71', '72', '73', '74', '75'];
-  static const _permUpper = ['17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27'];
-  static const _permLower = ['47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37'];
+  static const _milkUpper = [
+    '55',
+    '54',
+    '53',
+    '52',
+    '51',
+    '61',
+    '62',
+    '63',
+    '64',
+    '65',
+  ];
+  static const _milkLower = [
+    '85',
+    '84',
+    '83',
+    '82',
+    '81',
+    '71',
+    '72',
+    '73',
+    '74',
+    '75',
+  ];
+  static const _permUpper = [
+    '17',
+    '16',
+    '15',
+    '14',
+    '13',
+    '12',
+    '11',
+    '21',
+    '22',
+    '23',
+    '24',
+    '25',
+    '26',
+    '27',
+  ];
+  static const _permLower = [
+    '47',
+    '46',
+    '45',
+    '44',
+    '43',
+    '42',
+    '41',
+    '31',
+    '32',
+    '33',
+    '34',
+    '35',
+    '36',
+    '37',
+  ];
 
   Future<void> _set(String tooth, EruptionStatus? s, {DateTime? on}) async {
     setState(() {
@@ -253,43 +327,46 @@ class _EruptionDialogState extends ConsumerState<_EruptionDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final numbering = ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
+    final numbering =
+        ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final months = ageInMonths(widget.patient.dateOfBirth, DateTime.now());
     final flags = eruptionFlags(_teeth, months);
 
     Widget chips(String label, List<String> teeth) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 84,
-                child: Text(label, style: CruType.subhead.tint(c.label2)),
-              ),
-              Expanded(
-                child: Wrap(
-                  spacing: CruSpace.s4,
-                  runSpacing: CruSpace.s4,
-                  children: [
-                    for (var i = 0; i < teeth.length; i++) ...[
-                      if (i == teeth.length ~/ 2) const SizedBox(width: CruSpace.s10),
-                      _ToothChip(
-                        label: toothLabel(teeth[i], numbering),
-                        status: _teeth[teeth[i]]?.$1,
-                        late: flags.late.contains(teeth[i]),
-                        tooltip: '${DentalChart.name(teeth[i])} · usually '
-                            '${eruptionWindowText(teeth[i])}'
-                            '${_teeth[teeth[i]] == null ? '' : '\n${_teeth[teeth[i]]!.$1.label}'
-                                '${_teeth[teeth[i]]!.$2 == null ? '' : ' · ${DentalFormat.date(_teeth[teeth[i]]!.$2!)}'}'}',
-                        onTap: () => _cycle(teeth[i]),
-                        onMenu: (at) => _menu(teeth[i], at),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ],
+      padding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 84,
+            child: Text(label, style: CruType.subhead.tint(c.label2)),
           ),
-        );
+          Expanded(
+            child: Wrap(
+              spacing: CruSpace.s4,
+              runSpacing: CruSpace.s4,
+              children: [
+                for (var i = 0; i < teeth.length; i++) ...[
+                  if (i == teeth.length ~/ 2)
+                    const SizedBox(width: CruSpace.s10),
+                  _ToothChip(
+                    label: toothLabel(teeth[i], numbering),
+                    status: _teeth[teeth[i]]?.$1,
+                    late: flags.late.contains(teeth[i]),
+                    tooltip:
+                        '${DentalChart.name(teeth[i])} · usually '
+                        '${eruptionWindowText(teeth[i])}'
+                        '${_teeth[teeth[i]] == null ? '' : '\n${_teeth[teeth[i]]!.$1.label}'
+                                  '${_teeth[teeth[i]]!.$2 == null ? '' : ' · ${DentalFormat.date(_teeth[teeth[i]]!.$2!)}'}'}',
+                    onTap: () => _cycle(teeth[i]),
+                    onMenu: (at) => _menu(teeth[i], at),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
 
     String line(String t, String why) =>
         '${toothLabel(t, numbering)} · ${DentalChart.name(t)} · $why';
@@ -297,7 +374,10 @@ class _EruptionDialogState extends ConsumerState<_EruptionDialog> {
     return DentalPanelDialog(
       title: 'Eruption chart',
       subtitle: '${widget.patient.fullName} · ${ageText(months)}',
-      leading: const CruIconTile(icon: DentalIcons.tooth, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: DentalIcons.tooth,
+        tone: CruTileTone.accent,
+      ),
       width: CruSize.formDialog,
       body: Padding(
         padding: const EdgeInsets.all(CruSpace.s8),
@@ -312,7 +392,12 @@ class _EruptionDialogState extends ConsumerState<_EruptionDialog> {
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _ToothChip(label: '', status: s, late: false, small: true),
+                      _ToothChip(
+                        label: '',
+                        status: s,
+                        late: false,
+                        small: true,
+                      ),
                       const SizedBox(width: CruSpace.s6),
                       Text(s.label, style: CruType.caption.tint(c.label2)),
                     ],
@@ -338,7 +423,9 @@ class _EruptionDialogState extends ConsumerState<_EruptionDialog> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
                 child: Text(
-                  _teeth.isEmpty ? 'Nothing charted yet.' : 'Nothing later than usual.',
+                  _teeth.isEmpty
+                      ? 'Nothing charted yet.'
+                      : 'Nothing later than usual.',
                   style: CruType.subhead.tint(c.label3),
                 ),
               ),
@@ -362,7 +449,10 @@ class _EruptionDialogState extends ConsumerState<_EruptionDialog> {
                     vertical: CruSpace.s2,
                   ),
                   child: Text(
-                    line(t, '${toothLabel(successorOf(t), numbering)} has come through'),
+                    line(
+                      t,
+                      '${toothLabel(successorOf(t), numbering)} has come through',
+                    ),
                     style: CruType.subhead.tint(c.amberText),
                   ),
                 ),
@@ -408,7 +498,11 @@ class _ToothChip extends StatelessWidget {
       EruptionStatus.erupting => (c.amberTint, c.amberText, BorderSide.none),
       EruptionStatus.erupted => (c.greenTint, c.greenText, BorderSide.none),
       EruptionStatus.exfoliated => (c.inset, c.label3, BorderSide.none),
-      EruptionStatus.missing => (c.surface, c.label3, BorderSide(color: c.label3)),
+      EruptionStatus.missing => (
+        c.surface,
+        c.label3,
+        BorderSide(color: c.label3),
+      ),
     };
     final chip = Container(
       width: small ? 16 : 40,
@@ -425,7 +519,9 @@ class _ToothChip extends StatelessWidget {
           ? null
           : Text(
               label,
-              style: CruType.caption.w600.tabular.tint(fg).copyWith(
+              style: CruType.caption.w600.tabular
+                  .tint(fg)
+                  .copyWith(
                     decoration: status == EruptionStatus.exfoliated
                         ? TextDecoration.lineThrough
                         : null,
@@ -440,7 +536,8 @@ class _ToothChip extends StatelessWidget {
         onSecondaryTapDown: (d) => onMenu?.call(d.globalPosition),
         child: CruPressable(
           onTap: onTap,
-          semanticLabel: '$label ${status?.label ?? 'not charted'}${late ? ', later than usual' : ''}',
+          semanticLabel:
+              '$label ${status?.label ?? 'not charted'}${late ? ', later than usual' : ''}',
           builder: (context, hovered) => chip,
         ),
       ),

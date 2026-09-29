@@ -22,9 +22,10 @@ class PhysioPhotosCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final recordsAsync = ref.watch(
-      patientRecordsProvider(
-        (patientId: patient.id, kind: RecKind.physioPhotoSet),
-      ),
+      patientRecordsProvider((
+        patientId: patient.id,
+        kind: RecKind.physioPhotoSet,
+      )),
     );
 
     return recordsAsync.when(
@@ -118,9 +119,8 @@ class PhysioPhotosCard extends ConsumerWidget {
                             onTap: () {
                               showDialog<void>(
                                 context: context,
-                                builder: (_) => PhysioPhotosDialog(
-                                  patient: patient,
-                                ),
+                                builder: (_) =>
+                                    PhysioPhotosDialog(patient: patient),
                               );
                             },
                             child: Container(
@@ -129,7 +129,9 @@ class PhysioPhotosCard extends ConsumerWidget {
                               margin: const EdgeInsets.only(right: CruSpace.s8),
                               decoration: BoxDecoration(
                                 color: c.surface,
-                                borderRadius: BorderRadius.circular(CruRadius.control),
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
                                 border: Border.all(color: c.hairline),
                               ),
                               clipBehavior: Clip.antiAlias,
@@ -149,10 +151,14 @@ class PhysioPhotosCard extends ConsumerWidget {
                                         horizontal: CruSpace.s4,
                                         vertical: CruSpace.s2,
                                       ),
-                                      color: Colors.black.withValues(alpha: 0.65),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.65,
+                                      ),
                                       child: Text(
                                         slot.title.split(' ').first,
-                                        style: CruType.micro.w600.tint(Colors.white),
+                                        style: CruType.micro.w600.tint(
+                                          Colors.white,
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),

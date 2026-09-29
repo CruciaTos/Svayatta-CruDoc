@@ -10,18 +10,64 @@ abstract final class DentalChart {
   /// Drawn as the dentist faces the patient: the patient's right is on
   /// the left.
   static const adultUpper = [
-    '18', '17', '16', '15', '14', '13', '12', '11',
-    '21', '22', '23', '24', '25', '26', '27', '28',
+    '18',
+    '17',
+    '16',
+    '15',
+    '14',
+    '13',
+    '12',
+    '11',
+    '21',
+    '22',
+    '23',
+    '24',
+    '25',
+    '26',
+    '27',
+    '28',
   ];
   static const adultLower = [
-    '48', '47', '46', '45', '44', '43', '42', '41',
-    '31', '32', '33', '34', '35', '36', '37', '38',
+    '48',
+    '47',
+    '46',
+    '45',
+    '44',
+    '43',
+    '42',
+    '41',
+    '31',
+    '32',
+    '33',
+    '34',
+    '35',
+    '36',
+    '37',
+    '38',
   ];
   static const childUpper = [
-    '55', '54', '53', '52', '51', '61', '62', '63', '64', '65',
+    '55',
+    '54',
+    '53',
+    '52',
+    '51',
+    '61',
+    '62',
+    '63',
+    '64',
+    '65',
   ];
   static const childLower = [
-    '85', '84', '83', '82', '81', '71', '72', '73', '74', '75',
+    '85',
+    '84',
+    '83',
+    '82',
+    '81',
+    '71',
+    '72',
+    '73',
+    '74',
+    '75',
   ];
 
   static final Set<String> _all = {
@@ -99,35 +145,35 @@ abstract final class DentalChart {
   }
 
   static String conditionLabel(ToothCondition c) => switch (c) {
-        ToothCondition.caries => 'Decay',
-        ToothCondition.fractured => 'Fractured',
-        ToothCondition.missing => 'Missing',
-        ToothCondition.unerupted => 'Not erupted',
-        ToothCondition.impacted => 'Impacted',
-        ToothCondition.restored => 'Restored',
-        ToothCondition.rootCanal => 'Root canal treated',
-      };
+    ToothCondition.caries => 'Decay',
+    ToothCondition.fractured => 'Fractured',
+    ToothCondition.missing => 'Missing',
+    ToothCondition.unerupted => 'Not erupted',
+    ToothCondition.impacted => 'Impacted',
+    ToothCondition.restored => 'Restored',
+    ToothCondition.rootCanal => 'Root canal treated',
+  };
 
   static String treatmentLabel(ToothTreatment t) => switch (t) {
-        ToothTreatment.filling => 'Filling',
-        ToothTreatment.extraction => 'Extraction',
-        ToothTreatment.crown => 'Crown',
-        ToothTreatment.bridge => 'Bridge',
-        ToothTreatment.implant => 'Implant',
-        ToothTreatment.scaling => 'Scaling',
-        ToothTreatment.rct => 'Root canal',
-      };
+    ToothTreatment.filling => 'Filling',
+    ToothTreatment.extraction => 'Extraction',
+    ToothTreatment.crown => 'Crown',
+    ToothTreatment.bridge => 'Bridge',
+    ToothTreatment.implant => 'Implant',
+    ToothTreatment.scaling => 'Scaling',
+    ToothTreatment.rct => 'Root canal',
+  };
 
   /// One letter per surface, as dentists write them (M, D, O, B, L, I, C).
   static String surfaceLetter(ToothSurface s) => switch (s) {
-        ToothSurface.mesial => 'M',
-        ToothSurface.distal => 'D',
-        ToothSurface.occlusal => 'O',
-        ToothSurface.buccal => 'B',
-        ToothSurface.lingual => 'L',
-        ToothSurface.incisal => 'I',
-        ToothSurface.cervical => 'C',
-      };
+    ToothSurface.mesial => 'M',
+    ToothSurface.distal => 'D',
+    ToothSurface.occlusal => 'O',
+    ToothSurface.buccal => 'B',
+    ToothSurface.lingual => 'L',
+    ToothSurface.incisal => 'I',
+    ToothSurface.cervical => 'C',
+  };
 
   static String surfaceLabel(ToothSurface s) =>
       '${s.name[0].toUpperCase()}${s.name.substring(1)}';
@@ -153,8 +199,7 @@ abstract final class DentalChart {
     return switch (condition(e.condition)) {
       ToothCondition.caries ||
       ToothCondition.fractured ||
-      ToothCondition.impacted =>
-        ToothState.needsCare,
+      ToothCondition.impacted => ToothState.needsCare,
       ToothCondition.missing => ToothState.missing,
       ToothCondition.unerupted => ToothState.notErupted,
       ToothCondition.restored || ToothCondition.rootCanal => ToothState.treated,
@@ -163,12 +208,12 @@ abstract final class DentalChart {
   }
 
   static String stateLabel(ToothState s) => switch (s) {
-        ToothState.healthy => 'Healthy',
-        ToothState.needsCare => 'Needs care',
-        ToothState.treated => 'Treated',
-        ToothState.missing => 'Missing',
-        ToothState.notErupted => 'Not erupted',
-      };
+    ToothState.healthy => 'Healthy',
+    ToothState.needsCare => 'Needs care',
+    ToothState.treated => 'Treated',
+    ToothState.missing => 'Missing',
+    ToothState.notErupted => 'Not erupted',
+  };
 
   /// "Decay · M, O · Filling"; "Healthy" when nothing was found.
   static String findingText(ToothChartEntryModel e) {
@@ -199,14 +244,14 @@ abstract final class DentalChart {
 
   /// Teeth with a plan item still to do (proposed or accepted).
   static Set<String> planned(List<TreatmentPlanLineItemModel> items) => {
-        for (final i in items)
-          if (!i.isDeleted &&
-              const {
-                TreatmentPlanItemStatus.proposed,
-                TreatmentPlanItemStatus.accepted,
-              }.contains(TreatmentPlanItemStatus.fromString(i.status)))
-            ...i.toothNumbers.map((t) => t.trim()),
-      };
+    for (final i in items)
+      if (!i.isDeleted &&
+          const {
+            TreatmentPlanItemStatus.proposed,
+            TreatmentPlanItemStatus.accepted,
+          }.contains(TreatmentPlanItemStatus.fromString(i.status)))
+        ...i.toothNumbers.map((t) => t.trim()),
+  };
 
   /// Reads "16, 17 21" as tooth numbers. [invalid] is the first word that
   /// isn't a tooth.

@@ -77,22 +77,32 @@ class _RadLesionCardState extends State<RadLesionCard> {
 
   @override
   void dispose() {
-    for (final t in [_location, _size, _shape, _borders, _internal, _effects, _notes]) {
+    for (final t in [
+      _location,
+      _size,
+      _shape,
+      _borders,
+      _internal,
+      _effects,
+      _notes,
+    ]) {
       t.dispose();
     }
     super.dispose();
   }
 
   void _emit() {
-    widget.onChanged(widget.lesion.copyWith(
-      location: _location.text.trim(),
-      sizeMm: _size.text.trim(),
-      shape: _shape.text.trim(),
-      borders: _borders.text.trim(),
-      internal: _internal.text.trim(),
-      effects: _effects.text.trim(),
-      notes: _notes.text.trim(),
-    ));
+    widget.onChanged(
+      widget.lesion.copyWith(
+        location: _location.text.trim(),
+        sizeMm: _size.text.trim(),
+        shape: _shape.text.trim(),
+        borders: _borders.text.trim(),
+        internal: _internal.text.trim(),
+        effects: _effects.text.trim(),
+        notes: _notes.text.trim(),
+      ),
+    );
   }
 
   void _toggle(TextEditingController t, String term) {
@@ -107,7 +117,8 @@ class _RadLesionCardState extends State<RadLesionCard> {
     String? hint,
   }) {
     final c = context.cru;
-    if (widget.readOnly && t.text.trim().isEmpty) return const SizedBox.shrink();
+    if (widget.readOnly && t.text.trim().isEmpty)
+      return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: CruSpace.s14),
       child: Column(
@@ -153,19 +164,35 @@ class _RadLesionCardState extends State<RadLesionCard> {
     final c = context.cru;
     final location = _location.text.trim();
     return Container(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s16, CruSpace.s14, CruSpace.s16, CruSpace.s16),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s16,
+        CruSpace.s14,
+        CruSpace.s16,
+        CruSpace.s16,
+      ),
       decoration: ShapeDecoration(
         color: c.surface,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: c.separator)),
+        shape: cruShape(
+          CruRadius.control,
+          side: BorderSide(color: c.separator),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              CruIcon(RadReportIcons.lesion, size: 18, strokeWidth: 1.8, color: c.label2),
+              CruIcon(
+                RadReportIcons.lesion,
+                size: 18,
+                strokeWidth: 1.8,
+                color: c.label2,
+              ),
               const SizedBox(width: CruSpace.s8),
-              Text('Lesion ${widget.index + 1}', style: CruType.callout.tint(c.label)),
+              Text(
+                'Lesion ${widget.index + 1}',
+                style: CruType.callout.tint(c.label),
+              ),
               if (location.isNotEmpty) ...[
                 const SizedBox(width: CruSpace.s8),
                 Expanded(
@@ -197,7 +224,11 @@ class _RadLesionCardState extends State<RadLesionCard> {
               child: CruFieldRow(
                 flex: const [3, 2],
                 children: [
-                  _field('Location', _location, hint: 'Left mandibular body, periapical to 36'),
+                  _field(
+                    'Location',
+                    _location,
+                    hint: 'Left mandibular body, periapical to 36',
+                  ),
                   _field('Size (mm)', _size, hint: '12 × 9 × 8'),
                 ],
               ),
@@ -205,8 +236,16 @@ class _RadLesionCardState extends State<RadLesionCard> {
           if (widget.readOnly) _field('Size (mm)', _size),
           _field('Shape', _shape, chips: RadLesionTerms.shape),
           _field('Borders', _borders, chips: RadLesionTerms.borders),
-          _field('Internal structure', _internal, chips: RadLesionTerms.internal),
-          _field('Effects on surrounding structures', _effects, chips: RadLesionTerms.effects),
+          _field(
+            'Internal structure',
+            _internal,
+            chips: RadLesionTerms.internal,
+          ),
+          _field(
+            'Effects on surrounding structures',
+            _effects,
+            chips: RadLesionTerms.effects,
+          ),
           _field('Notes', _notes, hint: 'Anything else about this lesion'),
           if (widget.showAiDifferential) ...[
             const SizedBox(height: CruSpace.s16),
@@ -221,9 +260,17 @@ class _RadLesionCardState extends State<RadLesionCard> {
                 children: [
                   Row(
                     children: [
-                      CruIcon(CruIcons.sparkle, size: 15, strokeWidth: 1.8, color: c.ai),
+                      CruIcon(
+                        CruIcons.sparkle,
+                        size: 15,
+                        strokeWidth: 1.8,
+                        color: c.ai,
+                      ),
                       const SizedBox(width: CruSpace.s6),
-                      Text('AI differential', style: CruType.subhead.w600.tint(c.ai)),
+                      Text(
+                        'AI differential',
+                        style: CruType.subhead.w600.tint(c.ai),
+                      ),
                     ],
                   ),
                   const SizedBox(height: CruSpace.s4),
@@ -235,7 +282,8 @@ class _RadLesionCardState extends State<RadLesionCard> {
                   const SizedBox(height: CruSpace.s10),
                   const RadAiPending(
                     label: 'Suggest differential',
-                    explain: 'Suggests a differential diagnosis for this lesion.',
+                    explain:
+                        'Suggests a differential diagnosis for this lesion.',
                   ),
                 ],
               ),

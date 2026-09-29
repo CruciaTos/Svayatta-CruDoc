@@ -9,7 +9,8 @@ class UpdatePreferences {
 
   static const String _kLastCheckedAtKey = 'crudoc.update.last_checked_at';
   static const String _kSkippedVersionKey = 'crudoc.update.skipped_version';
-  static const String _kLastNotifiedVersionKey = 'crudoc.update.last_notified_version';
+  static const String _kLastNotifiedVersionKey =
+      'crudoc.update.last_notified_version';
 
   /// When the last startup/manual check completed, or null if
   /// [checkForUpdate] has never run on this device.

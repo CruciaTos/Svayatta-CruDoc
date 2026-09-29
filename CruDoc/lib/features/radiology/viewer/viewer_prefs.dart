@@ -30,18 +30,18 @@ enum RadTool {
   /// The annotation it draws; null for navigation tools. Calibrate draws
   /// a length line that becomes the calibration, not an annotation.
   RadAnnoKind? get kind => switch (this) {
-        length || calibrate => RadAnnoKind.length,
-        angle => RadAnnoKind.angle,
-        polygon => RadAnnoKind.polygon,
-        ellipse => RadAnnoKind.ellipse,
-        rect => RadAnnoKind.rect,
-        polyline => RadAnnoKind.polyline,
-        arrow => RadAnnoKind.arrow,
-        text => RadAnnoKind.text,
-        freehand => RadAnnoKind.freehand,
-        tooth => RadAnnoKind.toothLabel,
-        _ => null,
-      };
+    length || calibrate => RadAnnoKind.length,
+    angle => RadAnnoKind.angle,
+    polygon => RadAnnoKind.polygon,
+    ellipse => RadAnnoKind.ellipse,
+    rect => RadAnnoKind.rect,
+    polyline => RadAnnoKind.polyline,
+    arrow => RadAnnoKind.arrow,
+    text => RadAnnoKind.text,
+    freehand => RadAnnoKind.freehand,
+    tooth => RadAnnoKind.toothLabel,
+    _ => null,
+  };
 
   bool get draws => kind != null;
 
@@ -134,7 +134,8 @@ enum RadViewerAction {
   final RadActionGroup group;
 
   /// The tool this action picks, if it's a tool.
-  RadTool? get tool => group == RadActionGroup.tools ? RadTool.fromName(name) : null;
+  RadTool? get tool =>
+      group == RadActionGroup.tools ? RadTool.fromName(name) : null;
 }
 
 /// The name a key press is stored under: the printed character in
@@ -224,14 +225,23 @@ class RadViewerPrefs {
     final states = <String, Map<String, dynamic>>{};
     for (final e in v.entries) {
       if (e.key.startsWith('v2d.state.') && e.value is Map) {
-        states[e.key.substring('v2d.state.'.length)] = Map<String, dynamic>.from(e.value as Map);
+        states[e.key.substring('v2d.state.'.length)] =
+            Map<String, dynamic>.from(e.value as Map);
       }
     }
     final width = v[panelWidthKey];
     return RadViewerPrefs(
-      keys: keys is Map ? {for (final e in keys.entries) '${e.key}': '${e.value}'} : const {},
-      right: RadDragAction.fromName(mouse is Map ? mouse['right'] : null, RadDragAction.window),
-      middle: RadDragAction.fromName(mouse is Map ? mouse['middle'] : null, RadDragAction.pan),
+      keys: keys is Map
+          ? {for (final e in keys.entries) '${e.key}': '${e.value}'}
+          : const {},
+      right: RadDragAction.fromName(
+        mouse is Map ? mouse['right'] : null,
+        RadDragAction.window,
+      ),
+      middle: RadDragAction.fromName(
+        mouse is Map ? mouse['middle'] : null,
+        RadDragAction.pan,
+      ),
       wheel: RadWheelAction.fromName(mouse is Map ? mouse['wheel'] : null),
       presets: presets is List
           ? [for (final p in presets) ?RadWindowPreset.fromJson(p)]
@@ -256,12 +266,15 @@ class RadViewerPrefs {
 
   Map<String, dynamic> stateFor(RadModality m) => states[m.name] ?? const {};
 
-  Map<String, dynamic> mouseJson({RadDragAction? right, RadDragAction? middle, RadWheelAction? wheel}) =>
-      {
-        'right': (right ?? this.right).name,
-        'middle': (middle ?? this.middle).name,
-        'wheel': (wheel ?? this.wheel).name,
-      };
+  Map<String, dynamic> mouseJson({
+    RadDragAction? right,
+    RadDragAction? middle,
+    RadWheelAction? wheel,
+  }) => {
+    'right': (right ?? this.right).name,
+    'middle': (middle ?? this.middle).name,
+    'wheel': (wheel ?? this.wheel).name,
+  };
 
   RadViewerPrefs copyWith({
     Map<String, String>? keys,
@@ -273,16 +286,15 @@ class RadViewerPrefs {
     bool? panelOpen,
     bool? thumbs,
     Map<String, Map<String, dynamic>>? states,
-  }) =>
-      RadViewerPrefs(
-        keys: keys ?? this.keys,
-        right: right ?? this.right,
-        middle: middle ?? this.middle,
-        wheel: wheel ?? this.wheel,
-        presets: presets ?? this.presets,
-        panelWidth: panelWidth ?? this.panelWidth,
-        panelOpen: panelOpen ?? this.panelOpen,
-        thumbs: thumbs ?? this.thumbs,
-        states: states ?? this.states,
-      );
+  }) => RadViewerPrefs(
+    keys: keys ?? this.keys,
+    right: right ?? this.right,
+    middle: middle ?? this.middle,
+    wheel: wheel ?? this.wheel,
+    presets: presets ?? this.presets,
+    panelWidth: panelWidth ?? this.panelWidth,
+    panelOpen: panelOpen ?? this.panelOpen,
+    thumbs: thumbs ?? this.thumbs,
+    states: states ?? this.states,
+  );
 }

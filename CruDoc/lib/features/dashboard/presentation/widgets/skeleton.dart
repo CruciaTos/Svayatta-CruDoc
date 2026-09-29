@@ -25,7 +25,9 @@ class SkeletonBox extends StatelessWidget {
         color: context.cru.inset,
         shape: circle
             ? const CircleBorder()
-            : cruShape(height / 2 > CruRadius.keycap ? CruRadius.keycap : height / 2),
+            : cruShape(
+                height / 2 > CruRadius.keycap ? CruRadius.keycap : height / 2,
+              ),
       ),
     );
   }
@@ -33,7 +35,11 @@ class SkeletonBox extends StatelessWidget {
 
 /// A card-shaped skeleton with a title bar and [rows] row placeholders.
 class SkeletonCard extends StatelessWidget {
-  const SkeletonCard({super.key, this.rows = 3, this.rowHeight = CruSize.scheduleRow});
+  const SkeletonCard({
+    super.key,
+    this.rows = 3,
+    this.rowHeight = CruSize.scheduleRow,
+  });
 
   final int rows;
   final double rowHeight;

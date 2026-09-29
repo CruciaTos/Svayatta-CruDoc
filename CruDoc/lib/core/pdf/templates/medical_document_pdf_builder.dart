@@ -12,7 +12,9 @@ class MedicalDocumentPdfBuilder {
   List<pw.Widget> build(PdfMedicalDocumentData data) {
     return switch (data) {
       PdfInvoiceDocumentData invoice => _buildInvoice(invoice),
-      PdfPrescriptionDocumentData prescription => _buildPrescription(prescription),
+      PdfPrescriptionDocumentData prescription => _buildPrescription(
+        prescription,
+      ),
       PdfMedicalReportDocumentData report => _buildReport(report),
       _ => [pw.Text('Unsupported document type')],
     };
@@ -68,7 +70,9 @@ class MedicalDocumentPdfBuilder {
     return [
       template.patientSummary(data.patient),
       template.sectionTitle(data.reportTitle),
-      ...data.sections.where((section) => section.content.trim().isNotEmpty).map(
+      ...data.sections
+          .where((section) => section.content.trim().isNotEmpty)
+          .map(
             (section) => pw.Container(
               margin: const pw.EdgeInsets.only(bottom: 10),
               padding: const pw.EdgeInsets.all(11),
@@ -79,7 +83,10 @@ class MedicalDocumentPdfBuilder {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text(section.title, style: template.theme.sectionTitleStyle),
+                  pw.Text(
+                    section.title,
+                    style: template.theme.sectionTitleStyle,
+                  ),
                   pw.SizedBox(height: 6),
                   pw.Text(section.content, style: template.theme.bodyStyle),
                 ],
@@ -146,7 +153,13 @@ class MedicalDocumentPdfBuilder {
         .toList();
 
     return pw.TableHelper.fromTextArray(
-      headers: const ['Medicine', 'Dosage', 'Frequency', 'Duration', 'Instructions'],
+      headers: const [
+        'Medicine',
+        'Dosage',
+        'Frequency',
+        'Duration',
+        'Instructions',
+      ],
       data: rows.isEmpty ? const [[]] : rows,
       headerDecoration: pw.BoxDecoration(color: template.theme.accentColor),
       headerStyle: pw.TextStyle(
@@ -181,11 +194,18 @@ class MedicalDocumentPdfBuilder {
         children: [
           _totalRow('Subtotal', _money(totals.subtotal)),
           _totalRow('Discount', '- ${_money(totals.discountAmount)}'),
-          _totalRow('Tax / GST (${totals.taxPercent.toStringAsFixed(2)}%)', _money(totals.taxAmount)),
+          _totalRow(
+            'Tax / GST (${totals.taxPercent.toStringAsFixed(2)}%)',
+            _money(totals.taxAmount),
+          ),
           pw.Divider(color: template.theme.borderColor, height: 16),
           _totalRow('Grand Total', _money(totals.grandTotal), isStrong: true),
           _totalRow('Paid (${totals.paymentMode})', _money(totals.paidAmount)),
-          _totalRow('Balance Due', _money(totals.balanceDue), isStrong: totals.balanceDue > 0),
+          _totalRow(
+            'Balance Due',
+            _money(totals.balanceDue),
+            isStrong: totals.balanceDue > 0,
+          ),
         ],
       ),
     );
@@ -200,13 +220,17 @@ class MedicalDocumentPdfBuilder {
           pw.Expanded(
             child: pw.Text(
               label,
-              style: isStrong ? template.theme.sectionTitleStyle : template.theme.bodyStyle,
+              style: isStrong
+                  ? template.theme.sectionTitleStyle
+                  : template.theme.bodyStyle,
             ),
           ),
           pw.Text(
             value,
             style: pw.TextStyle(
-              color: isStrong ? template.theme.accentColor : template.theme.darkTextColor,
+              color: isStrong
+                  ? template.theme.accentColor
+                  : template.theme.darkTextColor,
               fontSize: isStrong ? 11 : 9.5,
               fontWeight: isStrong ? pw.FontWeight.bold : pw.FontWeight.normal,
             ),

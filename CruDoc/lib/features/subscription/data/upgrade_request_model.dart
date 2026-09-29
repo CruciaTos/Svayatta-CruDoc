@@ -72,18 +72,21 @@ class UpgradeRequest {
     return UpgradeRequest.fromMap(data, id: doc.id);
   }
 
-  factory UpgradeRequest.fromMap(Map<String, dynamic> map, {required String id}) {
+  factory UpgradeRequest.fromMap(
+    Map<String, dynamic> map, {
+    required String id,
+  }) {
     return UpgradeRequest(
       id: id,
       doctorId: map['doctorId'] as String? ?? '',
       doctorName: map['doctorName'] as String? ?? '',
       doctorEmail: map['doctorEmail'] as String? ?? '',
-      requestedModules: (map['requestedModules'] as List<dynamic>?)
+      requestedModules:
+          (map['requestedModules'] as List<dynamic>?)
               ?.map((e) => e as String)
               .toList() ??
           [],
-      totalMonthlyPrice:
-          (map['totalMonthlyPrice'] as num?)?.toDouble() ?? 0.0,
+      totalMonthlyPrice: (map['totalMonthlyPrice'] as num?)?.toDouble() ?? 0.0,
       currentPlan: map['currentPlan'] as String? ?? 'starter',
       status: UpgradeRequestStatus.fromValue(map['status'] as String?),
       adminNotes: map['adminNotes'] as String?,
@@ -108,8 +111,9 @@ class UpgradeRequest {
       'adminNotes': adminNotes,
       'rejectionReason': rejectionReason,
       'createdAt': Timestamp.fromDate(createdAt),
-      'processedAt':
-          processedAt != null ? Timestamp.fromDate(processedAt!) : null,
+      'processedAt': processedAt != null
+          ? Timestamp.fromDate(processedAt!)
+          : null,
       'processedBy': processedBy,
     };
   }

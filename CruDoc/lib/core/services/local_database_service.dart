@@ -46,12 +46,15 @@ class LocalDatabaseService extends ChangeNotifier {
 
   Future<sqflite_common.Database> get database async {
     if (kIsWeb) {
-      throw UnsupportedError('SQLite is disabled on Web. Repositories read directly from Cloud Firestore on Web.');
+      throw UnsupportedError(
+        'SQLite is disabled on Web. Repositories read directly from Cloud Firestore on Web.',
+      );
     }
 
     String requestedDoctorId = 'signed_out';
     try {
-      requestedDoctorId = FirebaseAuth.instance.currentUser?.uid ?? 'signed_out';
+      requestedDoctorId =
+          FirebaseAuth.instance.currentUser?.uid ?? 'signed_out';
     } catch (_) {
       requestedDoctorId = 'signed_out';
     }
@@ -104,21 +107,21 @@ class LocalDatabaseService extends ChangeNotifier {
     final passphrase = await _getOrCreatePassphrase();
 
     Future<sqflite_common.Database> open() => sqlcipher.openDatabase(
-          dbPath,
-          password: passphrase,
-          version: _databaseVersion,
-          onConfigure: (db) async {
-            await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
-          },
-          onCreate: (db, version) async {
-            await _createSchema(SqlCipherDatabase(db));
-          },
-          onOpen: (db) async {
-            final localDb = SqlCipherDatabase(db);
-            await localDb.execute('PRAGMA foreign_keys = ON');
-            await _runGuardedMigrations(localDb);
-          },
-        );
+      dbPath,
+      password: passphrase,
+      version: _databaseVersion,
+      onConfigure: (db) async {
+        await SqlCipherDatabase(db).execute('PRAGMA foreign_keys = ON');
+      },
+      onCreate: (db, version) async {
+        await _createSchema(SqlCipherDatabase(db));
+      },
+      onOpen: (db) async {
+        final localDb = SqlCipherDatabase(db);
+        await localDb.execute('PRAGMA foreign_keys = ON');
+        await _runGuardedMigrations(localDb);
+      },
+    );
 
     try {
       return await open();
@@ -308,21 +311,13 @@ class LocalDatabaseService extends ChangeNotifier {
         table: 'pending_payments',
         columns: _pendingPaymentsColumns,
       );
-      await _ensureColumns(
-        txn,
-        table: 'medicines',
-        columns: _medicinesColumns,
-      );
+      await _ensureColumns(txn, table: 'medicines', columns: _medicinesColumns);
       await _ensureColumns(
         txn,
         table: 'stock_transactions',
         columns: _stockTransactionsColumns,
       );
-      await _ensureColumns(
-        txn,
-        table: 'email_log',
-        columns: _emailLogColumns,
-      );
+      await _ensureColumns(txn, table: 'email_log', columns: _emailLogColumns);
       await _ensureColumns(
         txn,
         table: 'consultation_notes',
@@ -859,7 +854,10 @@ class LocalDatabaseService extends ChangeNotifier {
     }
   }
 
-  Future<Set<String>> _columnNames(LocalDatabaseExecutor db, String table) async {
+  Future<Set<String>> _columnNames(
+    LocalDatabaseExecutor db,
+    String table,
+  ) async {
     final rows = await db.rawQuery('PRAGMA table_info($table)');
     return rows.map((row) => row['name'] as String).toSet();
   }
@@ -1151,7 +1149,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'lastSyncedAt': 'lastSyncedAt INTEGER',
   };
 
-  Future<void> _createHomeopathyCaseSheetsTable(LocalDatabaseExecutor db) async {
+  Future<void> _createHomeopathyCaseSheetsTable(
+    LocalDatabaseExecutor db,
+  ) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS homeopathy_case_sheets (
         id TEXT PRIMARY KEY,
@@ -1210,7 +1210,8 @@ class LocalDatabaseService extends ChangeNotifier {
     'priority': "priority TEXT NOT NULL DEFAULT 'normal'",
     'consultationReason': "consultationReason TEXT NOT NULL DEFAULT ''",
     'referralSource': "referralSource TEXT NOT NULL DEFAULT ''",
-    'priorHomeopathyExperience': "priorHomeopathyExperience TEXT NOT NULL DEFAULT ''",
+    'priorHomeopathyExperience':
+        "priorHomeopathyExperience TEXT NOT NULL DEFAULT ''",
     'patientPerceivedCause': "patientPerceivedCause TEXT NOT NULL DEFAULT ''",
     'overview': "overview TEXT NOT NULL DEFAULT '{}'",
     'chiefComplaint': "chiefComplaint TEXT NOT NULL DEFAULT '{}'",
@@ -1243,7 +1244,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'lastSyncedAt': 'lastSyncedAt INTEGER',
   };
 
-  Future<void> _createDentalProcedureCatalogTable(LocalDatabaseExecutor db) async {
+  Future<void> _createDentalProcedureCatalogTable(
+    LocalDatabaseExecutor db,
+  ) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS dental_procedure_catalog (
         id TEXT PRIMARY KEY,
@@ -1274,7 +1277,8 @@ class LocalDatabaseService extends ChangeNotifier {
     'category': "category TEXT NOT NULL DEFAULT 'general'",
     'defaultPrice': 'defaultPrice REAL',
     'defaultDurationMinutes': 'defaultDurationMinutes INTEGER',
-    'requiresToothSelection': 'requiresToothSelection INTEGER NOT NULL DEFAULT 1',
+    'requiresToothSelection':
+        'requiresToothSelection INTEGER NOT NULL DEFAULT 1',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
@@ -1457,7 +1461,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'lastSyncedAt': 'lastSyncedAt INTEGER',
   };
 
-  Future<void> _createSterilizationLogEntriesTable(LocalDatabaseExecutor db) async {
+  Future<void> _createSterilizationLogEntriesTable(
+    LocalDatabaseExecutor db,
+  ) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS sterilization_log_entries (
         id TEXT PRIMARY KEY,
@@ -1494,7 +1500,9 @@ class LocalDatabaseService extends ChangeNotifier {
     'lastSyncedAt': 'lastSyncedAt INTEGER',
   };
 
-  Future<void> _createTreatmentPlanLineItemsTable(LocalDatabaseExecutor db) async {
+  Future<void> _createTreatmentPlanLineItemsTable(
+    LocalDatabaseExecutor db,
+  ) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS treatment_plan_line_items (
         id TEXT PRIMARY KEY,

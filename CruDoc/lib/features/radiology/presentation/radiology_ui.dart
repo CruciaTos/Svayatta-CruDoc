@@ -79,7 +79,9 @@ abstract final class RadIcons {
   );
 
   /// Phrase library: text that expands.
-  static const phrase = CruIconData('M4 7h16M4 12h10M4 17h7M16 14.5l3 2.5-3 2.5');
+  static const phrase = CruIconData(
+    'M4 7h16M4 12h10M4 17h7M16 14.5l3 2.5-3 2.5',
+  );
 
   static const eye = CruIconData(
     'M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z',
@@ -113,7 +115,8 @@ abstract final class RadFormat {
   static String date(DateTime d) => DateFormat('d MMM yyyy').format(d);
   static String shortDate(DateTime d) => DateFormat('d MMM').format(d);
   static String time(DateTime d) => DateFormat('h:mm a').format(d);
-  static String dateTime(DateTime d) => DateFormat('d MMM yyyy, h:mm a').format(d);
+  static String dateTime(DateTime d) =>
+      DateFormat('d MMM yyyy, h:mm a').format(d);
 
   /// "5 min ago", "3h ago", "Yesterday", "12 Sep".
   static String ago(DateTime d, DateTime now) {
@@ -136,11 +139,16 @@ abstract final class RadFormat {
   /// Turnaround text and whether it's late or close: "Due in 5h",
   /// "Overdue 2h", "Signed".
   static ({String text, bool late, bool soon}) due(RadStudy s, DateTime now) {
-    if (!s.status.isOpen) return (text: s.status.label, late: false, soon: false);
+    if (!s.status.isOpen)
+      return (text: s.status.label, late: false, soon: false);
     final due = s.dueAt;
     if (due == null) return (text: 'No due time', late: false, soon: false);
     if (now.isAfter(due)) {
-      return (text: 'Overdue ${_span(now.difference(due))}', late: true, soon: false);
+      return (
+        text: 'Overdue ${_span(now.difference(due))}',
+        late: true,
+        soon: false,
+      );
     }
     final left = due.difference(now);
     return (text: 'Due in ${_span(left)}', late: false, soon: left.inHours < 4);
@@ -152,7 +160,9 @@ abstract final class RadFormat {
     final dob = s.patientDob;
     if (dob != null) {
       var y = now.year - dob.year;
-      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) y--;
+      if (now.month < dob.month ||
+          (now.month == dob.month && now.day < dob.day))
+        y--;
       parts.add('$y y');
     }
     if (s.patientSex.isNotEmpty) parts.add(s.patientSex);
@@ -162,12 +172,16 @@ abstract final class RadFormat {
   static String bytes(int b) {
     if (b < 1024) return '$b B';
     if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(0)} KB';
-    if (b < 1024 * 1024 * 1024) return '${(b / 1024 / 1024).toStringAsFixed(1)} MB';
+    if (b < 1024 * 1024 * 1024)
+      return '${(b / 1024 / 1024).toStringAsFixed(1)} MB';
     return '${(b / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
   }
 
-  static String rupees(double v) =>
-      NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0).format(v);
+  static String rupees(double v) => NumberFormat.currency(
+    locale: 'en_IN',
+    symbol: '₹',
+    decimalDigits: 0,
+  ).format(v);
 
   /// "1 image", "320 images".
   static String images(int n) => n == 1 ? '1 image' : '$n images';
@@ -176,37 +190,71 @@ abstract final class RadFormat {
 /// New (teal), Reading (amber: waiting on you), Draft/Preliminary (grey),
 /// Final and Sent (green: done).
 Widget radStatusPill(CruColors c, RadStudyStatus s) => switch (s) {
-      RadStudyStatus.newStudy =>
-        CruPill(text: 'New', background: c.tealTint, foreground: c.tealText),
-      RadStudyStatus.reading =>
-        CruPill(text: 'Reading', background: c.amberTint, foreground: c.amberText),
-      RadStudyStatus.draft =>
-        CruPill(text: 'Draft', background: c.inset, foreground: c.label2),
-      RadStudyStatus.preliminary =>
-        CruPill(text: 'Preliminary', background: c.inset, foreground: c.label),
-      RadStudyStatus.finalised =>
-        CruPill(text: 'Final', background: c.greenTint, foreground: c.greenText),
-      RadStudyStatus.delivered =>
-        CruPill(text: 'Sent', background: c.greenTint, foreground: c.greenText),
-    };
+  RadStudyStatus.newStudy => CruPill(
+    text: 'New',
+    background: c.tealTint,
+    foreground: c.tealText,
+  ),
+  RadStudyStatus.reading => CruPill(
+    text: 'Reading',
+    background: c.amberTint,
+    foreground: c.amberText,
+  ),
+  RadStudyStatus.draft => CruPill(
+    text: 'Draft',
+    background: c.inset,
+    foreground: c.label2,
+  ),
+  RadStudyStatus.preliminary => CruPill(
+    text: 'Preliminary',
+    background: c.inset,
+    foreground: c.label,
+  ),
+  RadStudyStatus.finalised => CruPill(
+    text: 'Final',
+    background: c.greenTint,
+    foreground: c.greenText,
+  ),
+  RadStudyStatus.delivered => CruPill(
+    text: 'Sent',
+    background: c.greenTint,
+    foreground: c.greenText,
+  ),
+};
 
 /// Routine shows nothing; Urgent amber; STAT red (a patient-safety
 /// matter: the referrer needs it now).
 Widget? radPriorityPill(CruColors c, RadPriority p) => switch (p) {
-      RadPriority.routine => null,
-      RadPriority.urgent =>
-        CruPill(text: 'Urgent', background: c.amberTint, foreground: c.amberText),
-      RadPriority.stat => CruPill(text: 'STAT', background: c.redTint, foreground: c.redText),
-    };
+  RadPriority.routine => null,
+  RadPriority.urgent => CruPill(
+    text: 'Urgent',
+    background: c.amberTint,
+    foreground: c.amberText,
+  ),
+  RadPriority.stat => CruPill(
+    text: 'STAT',
+    background: c.redTint,
+    foreground: c.redText,
+  ),
+};
 
 Widget radReportStatusPill(CruColors c, RadReportStatus s) => switch (s) {
-      RadReportStatus.draft =>
-        CruPill(text: 'Draft', background: c.inset, foreground: c.label2),
-      RadReportStatus.preliminary =>
-        CruPill(text: 'Preliminary', background: c.amberTint, foreground: c.amberText),
-      RadReportStatus.finalised =>
-        CruPill(text: 'Final', background: c.greenTint, foreground: c.greenText),
-    };
+  RadReportStatus.draft => CruPill(
+    text: 'Draft',
+    background: c.inset,
+    foreground: c.label2,
+  ),
+  RadReportStatus.preliminary => CruPill(
+    text: 'Preliminary',
+    background: c.amberTint,
+    foreground: c.amberText,
+  ),
+  RadReportStatus.finalised => CruPill(
+    text: 'Final',
+    background: c.greenTint,
+    foreground: c.greenText,
+  ),
+};
 
 /// The study type as a small badge: "CBCT", "OPG".
 class RadModalityBadge extends StatelessWidget {
@@ -264,10 +312,12 @@ class RadNotConnected extends StatelessWidget {
           CruIcon(icon, size: 14, strokeWidth: 2, color: c.label3),
           const SizedBox(width: CruSpace.s6),
           Flexible(
-            child: Text(title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: CruType.caption.w500.tint(c.label2)),
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CruType.caption.w500.tint(c.label2),
+            ),
           ),
         ],
       );
@@ -304,10 +354,12 @@ void radToast(BuildContext context, String message) {
   final messenger = ScaffoldMessenger.maybeOf(context);
   messenger
     ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(message),
-      behavior: SnackBarBehavior.floating,
-      width: 420,
-      duration: const Duration(seconds: 3),
-    ));
+    ..showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        width: 420,
+        duration: const Duration(seconds: 3),
+      ),
+    );
 }

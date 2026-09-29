@@ -6,8 +6,6 @@ import 'package:doctor_management_app/features/dashboard/presentation/dashboard_
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/side_cards.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// Evening only; replaces Needs attention and Insights.
-///
 /// Shows what the records support: AI Scribe drafts still to review and
 /// tomorrow's bookings. "Close the day" is not shown because no end-of-day
 /// workflow exists to run (GAP).
@@ -34,8 +32,10 @@ class WrapUpCard extends StatelessWidget {
               children: [
                 Semantics(
                   header: true,
-                  child: Text('Wrap up the day',
-                      style: CruType.headline.tint(c.label)),
+                  child: Text(
+                    'Wrap up the day',
+                    style: CruType.headline.tint(c.label),
+                  ),
                 ),
                 const SizedBox(height: CruSpace.s2),
                 Text(
@@ -52,7 +52,8 @@ class WrapUpCard extends StatelessWidget {
               ActionRow(
                 icon: CruIcons.pen,
                 tone: CruTileTone.accent,
-                title: '${DashFormat.plural(data.draftNames.length, 'scribe note')}'
+                title:
+                    '${DashFormat.plural(data.draftNames.length, 'scribe note')}'
                     ' to review',
                 subtitle: DashFormat.names(data.draftNames, max: 3),
                 actionLabel: 'Review',

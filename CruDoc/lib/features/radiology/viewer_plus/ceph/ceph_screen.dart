@@ -25,7 +25,11 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// their norms. The tracing saves as you go (`extras['ceph'][imageId]`)
 /// and its values join the report's measurements.
 class RadCephScreen extends ConsumerStatefulWidget {
-  const RadCephScreen({super.key, required this.studyId, required this.imageId});
+  const RadCephScreen({
+    super.key,
+    required this.studyId,
+    required this.imageId,
+  });
 
   final String studyId;
   final String imageId;
@@ -37,8 +41,8 @@ class RadCephScreen extends ConsumerStatefulWidget {
 /// Landmarks and skips at one moment, for undo.
 class _Snapshot {
   _Snapshot(Map<String, Offset> points, Set<String> skipped)
-      : points = Map.of(points),
-        skipped = Set.of(skipped);
+    : points = Map.of(points),
+      skipped = Set.of(skipped);
 
   final Map<String, Offset> points;
   final Set<String> skipped;
@@ -147,15 +151,21 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
 
   void _applyPrefs(Map<String, dynamic> v) {
     final left = v['plus.ceph.left'], right = v['plus.ceph.right'];
-    if (left is num) _leftWidth = left.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
-    if (right is num) _rightWidth = right.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
+    if (left is num)
+      _leftWidth = left.toDouble().clamp(PlusSize.panelMin, PlusSize.panelMax);
+    if (right is num)
+      _rightWidth = right.toDouble().clamp(
+        PlusSize.panelMin,
+        PlusSize.panelMax,
+      );
     final analysis = v['plus.ceph.analysis'];
     if (analysis is String) _analysis = cephAnalysis(analysis).key;
     if (v['plus.ceph.planes'] is bool) _planes = v['plus.ceph.planes'] as bool;
     if (v['plus.ceph.labels'] is bool) _labels = v['plus.ceph.labels'] as bool;
   }
 
-  void _savePref(String key, Object value) => unawaited(_rad.saveViewerPrefs({key: value}));
+  void _savePref(String key, Object value) =>
+      unawaited(_rad.saveViewerPrefs({key: value}));
 
   /// The saved tracing of this image, if any.
   void _restore(RadStudy s) {
@@ -167,7 +177,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
         for (final e in landmarks.entries) {
           final v = e.value;
           if (v is List && v.length >= 2 && v[0] is num && v[1] is num) {
-            _points['${e.key}'] = Offset((v[0] as num).toDouble(), (v[1] as num).toDouble());
+            _points['${e.key}'] = Offset(
+              (v[0] as num).toDouble(),
+              (v[1] as num).toDouble(),
+            );
           }
         }
       }
@@ -267,7 +280,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     setState(() {});
     _dirty = true;
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: 700), () => unawaited(_write(_saveNow)));
+    _saveTimer = Timer(
+      const Duration(milliseconds: 700),
+      () => unawaited(_write(_saveNow)),
+    );
   }
 
   void _skip() {
@@ -347,7 +363,8 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
 
   /// Whether [id] had a point before this drag (then it's a move, and
   /// placement doesn't advance).
-  bool _placedBefore(String id) => _undo.isNotEmpty && _undo.last.points.containsKey(id);
+  bool _placedBefore(String id) =>
+      _undo.isNotEmpty && _undo.last.points.containsKey(id);
 
   void _move(Offset p) {
     if (_ruler) {
@@ -424,10 +441,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
   }
 
   void _cancelRuler() => setState(() {
-        _ruler = false;
-        _rulerA = null;
-        _rulerB = null;
-      });
+    _ruler = false;
+    _rulerA = null;
+    _rulerB = null;
+  });
 
   Future<void> _finishRuler() async {
     final a = _rulerA, b = _rulerB;
@@ -439,7 +456,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
       });
       return;
     }
-    final mm = await showDialog<double>(context: context, builder: (_) => _RulerDialog(px: px));
+    final mm = await showDialog<double>(
+      context: context,
+      builder: (_) => _RulerDialog(px: px),
+    );
     if (!mounted) return;
     _cancelRuler();
     if (mm == null) return;
@@ -448,7 +468,9 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
         final fresh = await _repo.study(widget.studyId);
         if (fresh == null) return;
         await _rad.saveStudy(
-          fresh.copyWith(calibration: {...fresh.calibration, widget.imageId: mm / px}),
+          fresh.copyWith(
+            calibration: {...fresh.calibration, widget.imageId: mm / px},
+          ),
           auditAction: 'Calibrated image',
           detail: '${mm.toStringAsFixed(1)} mm over ${px.round()} px',
         );
@@ -456,7 +478,11 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
       // Millimetre values can be worked out now: refresh the saved ones.
       _dirty = true;
       unawaited(_write(_saveNow));
-      if (mounted) radToast(context, 'Scale set: ${(mm / px).toStringAsFixed(3)} mm per pixel');
+      if (mounted)
+        radToast(
+          context,
+          'Scale set: ${(mm / px).toStringAsFixed(3)} mm per pixel',
+        );
     } catch (_) {
       if (mounted) radToast(context, "Couldn't save the scale");
     }
@@ -542,13 +568,15 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     final fresh = await _repo.study(widget.studyId);
     if (fresh == null) return;
     final a = cephAnalysis(_analysis);
-    final mmPerPx = RadMeasure.mmPerPx(fresh, widget.imageId) ?? _raster?.px.pixelSpacingMm;
+    final mmPerPx =
+        RadMeasure.mmPerPx(fresh, widget.imageId) ?? _raster?.px.pixelSpacingMm;
     final values = [
       for (final v in cephValues(a, _points, mmPerPx))
         if (v.value != null) v,
     ];
     final ceph = <String, dynamic>{
-      if (fresh.extras['ceph'] is Map) ...Map<String, dynamic>.from(fresh.extras['ceph'] as Map),
+      if (fresh.extras['ceph'] is Map)
+        ...Map<String, dynamic>.from(fresh.extras['ceph'] as Map),
       widget.imageId: {
         'landmarks': {
           for (final e in _points.entries)
@@ -590,7 +618,9 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
         },
     ];
     await _rad.saveStudy(
-      fresh.copyWith(extras: {...fresh.extras, 'ceph': ceph, 'reportMeasurements': rows}),
+      fresh.copyWith(
+        extras: {...fresh.extras, 'ceph': ceph, 'reportMeasurements': rows},
+      ),
       auditAction: _audited ? null : 'Traced ceph',
       detail: a.name,
     );
@@ -613,7 +643,11 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     if (img == null) return null;
     final unit = math.max(1.0, math.max(img.width, img.height) / 900);
     return plusRenderPng(img.width, img.height, (canvas) {
-      canvas.drawImage(img, Offset.zero, Paint()..filterQuality = FilterQuality.medium);
+      canvas.drawImage(
+        img,
+        Offset.zero,
+        Paint()..filterQuality = FilterQuality.medium,
+      );
       paintCephTracing(
         canvas,
         points: _points,
@@ -633,7 +667,14 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     try {
       final path = await plusSavePngAs(png, plusFileName(s, 'ceph tracing'));
       if (path == null) return;
-      unawaited(_rad.log('Exported ceph tracing', targetKind: 'study', targetId: s.id, detail: path));
+      unawaited(
+        _rad.log(
+          'Exported ceph tracing',
+          targetKind: 'study',
+          targetId: s.id,
+          detail: path,
+        ),
+      );
       if (mounted) radToast(context, 'Tracing saved');
     } catch (_) {
       if (mounted) radToast(context, "Couldn't save the picture");
@@ -648,8 +689,13 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
       await _write(() async {
         final fresh = await _repo.study(widget.studyId);
         if (fresh == null) return;
-        final key = await plusWriteKeyImage(_rad, fresh,
-            imageId: widget.imageId, png: png, caption: caption);
+        final key = await plusWriteKeyImage(
+          _rad,
+          fresh,
+          imageId: widget.imageId,
+          png: png,
+          caption: caption,
+        );
         await _rad.saveStudy(
           fresh.copyWith(keyImages: [...fresh.keyImages, key]),
           auditAction: 'Marked key image',
@@ -687,11 +733,13 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
               subtitle: s == null
                   ? ''
                   : '${s.patientName} · ${plusImageLabel(s, widget.imageId)} · '
-                      '${RadFormat.date(s.studyDate)}',
+                        '${RadFormat.date(s.studyDate)}',
               actions: [
                 if (_savedAt != null)
-                  Text('Saved ${RadFormat.time(_savedAt!)}',
-                      style: CruType.caption.tabular.tint(c.label3)),
+                  Text(
+                    'Saved ${RadFormat.time(_savedAt!)}',
+                    style: CruType.caption.tabular.tint(c.label3),
+                  ),
                 CruButton(
                   label: 'Export PNG',
                   kind: CruButtonKind.secondary,
@@ -739,12 +787,18 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
   Widget _stage(bool ready) {
     final cur = _current == null ? null : cephLandmark(_current!);
     final (String title, String body) = _ruler
-        ? ('Draw the ruler', 'Drag across a known length, such as the marks on the nasal rod.')
+        ? (
+            'Draw the ruler',
+            'Drag across a known length, such as the marks on the nasal rod.',
+          )
         : cur != null
-            ? ('${_points.containsKey(cur.id) ? 'Move' : 'Place'} ${cur.name} (${cur.id})', cur.hint)
-            : _nextAfter(null) == null
-                ? ('Tracing complete', 'Drag any point to adjust it.')
-                : ('Pick a landmark', 'Choose one in the list to place or move it.');
+        ? (
+            '${_points.containsKey(cur.id) ? 'Move' : 'Place'} ${cur.name} (${cur.id})',
+            cur.hint,
+          )
+        : _nextAfter(null) == null
+        ? ('Tracing complete', 'Drag any point to adjust it.')
+        : ('Pick a landmark', 'Choose one in the list to place or move it.');
     return PlusCanvas(
       view: _view,
       repaint: Listenable.merge([_tick, _image]),
@@ -757,63 +811,76 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
       onHover: _hoverAt,
       cursor: _hover != null
           ? SystemMouseCursors.move
-          : (_ruler || _current != null ? SystemMouseCursors.precise : SystemMouseCursors.basic),
+          : (_ruler || _current != null
+                ? SystemMouseCursors.precise
+                : SystemMouseCursors.basic),
       overlays: [
         if (!ready)
-          PlusStageMessage(title: _error ?? 'Opening the image…', loading: _error == null)
+          PlusStageMessage(
+            title: _error ?? 'Opening the image…',
+            loading: _error == null,
+          )
         else ...[
           Positioned(
             left: CruSpace.s16,
             top: CruSpace.s16,
-            child: IgnorePointer(child: PlusStageNote(title: title, body: body)),
+            child: IgnorePointer(
+              child: PlusStageNote(title: title, body: body),
+            ),
           ),
           Positioned(
             right: CruSpace.s16,
             top: CruSpace.s16,
-            child: PlusStageBar(children: [
-              PlusStageButton(
-                icon: PlusIcons.undo,
-                tooltip: 'Undo (Ctrl+Z)',
-                onTap: _undo.isEmpty ? null : _undoOnce,
-              ),
-              PlusStageButton(
-                icon: PlusIcons.redo,
-                tooltip: 'Redo (Ctrl+Y)',
-                onTap: _redo.isEmpty ? null : _redoOnce,
-              ),
-              const PlusStageDivider(),
-              PlusStageButton(icon: PlusIcons.fit, tooltip: 'Fit (F)', onTap: _view.fit),
-              PlusStageButton(
-                icon: PlusIcons.invert,
-                tooltip: 'Invert (I)',
-                active: _invert,
-                onTap: _toggleInvert,
-              ),
-              PlusStageButton(
-                icon: PlusIcons.resetWindow,
-                tooltip: 'Reset brightness and contrast',
-                onTap: _resetWindow,
-              ),
-              const PlusStageDivider(),
-              PlusStageButton(
-                icon: PlusIcons.planes,
-                tooltip: 'Planes and lines (P)',
-                active: _planes,
-                onTap: _togglePlanes,
-              ),
-              PlusStageButton(
-                icon: PlusIcons.labels,
-                tooltip: 'Landmark names (L)',
-                active: _labels,
-                onTap: _toggleLabels,
-              ),
-              PlusStageButton(
-                icon: PlusIcons.ruler,
-                tooltip: 'Ruler: set the scale (R)',
-                active: _ruler,
-                onTap: _ruler ? _cancelRuler : _startRuler,
-              ),
-            ]),
+            child: PlusStageBar(
+              children: [
+                PlusStageButton(
+                  icon: PlusIcons.undo,
+                  tooltip: 'Undo (Ctrl+Z)',
+                  onTap: _undo.isEmpty ? null : _undoOnce,
+                ),
+                PlusStageButton(
+                  icon: PlusIcons.redo,
+                  tooltip: 'Redo (Ctrl+Y)',
+                  onTap: _redo.isEmpty ? null : _redoOnce,
+                ),
+                const PlusStageDivider(),
+                PlusStageButton(
+                  icon: PlusIcons.fit,
+                  tooltip: 'Fit (F)',
+                  onTap: _view.fit,
+                ),
+                PlusStageButton(
+                  icon: PlusIcons.invert,
+                  tooltip: 'Invert (I)',
+                  active: _invert,
+                  onTap: _toggleInvert,
+                ),
+                PlusStageButton(
+                  icon: PlusIcons.resetWindow,
+                  tooltip: 'Reset brightness and contrast',
+                  onTap: _resetWindow,
+                ),
+                const PlusStageDivider(),
+                PlusStageButton(
+                  icon: PlusIcons.planes,
+                  tooltip: 'Planes and lines (P)',
+                  active: _planes,
+                  onTap: _togglePlanes,
+                ),
+                PlusStageButton(
+                  icon: PlusIcons.labels,
+                  tooltip: 'Landmark names (L)',
+                  active: _labels,
+                  onTap: _toggleLabels,
+                ),
+                PlusStageButton(
+                  icon: PlusIcons.ruler,
+                  tooltip: 'Ruler: set the scale (R)',
+                  active: _ruler,
+                  onTap: _ruler ? _cancelRuler : _startRuler,
+                ),
+              ],
+            ),
           ),
           Positioned(
             left: CruSpace.s16,
@@ -863,11 +930,17 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
       final tp = TextPainter(
         text: TextSpan(
           text: '${(b - a).distance.round()} px',
-          style: CruType.micro.tabular.copyWith(color: ink.amberText, shadows: PlusStage.textShadow),
+          style: CruType.micro.tabular.copyWith(
+            color: ink.amberText,
+            shadows: const [],
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      tp.paint(canvas, (sa + sb) / 2 + const Offset(CruSpace.s8, -CruSpace.s20));
+      tp.paint(
+        canvas,
+        (sa + sb) / 2 + const Offset(CruSpace.s8, -CruSpace.s20),
+      );
     }
     plusPaintScaleBar(canvas, size, _view, _mmPerPx);
   }
@@ -879,16 +952,29 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     final total = cephLandmarks.length;
     final cur = _current == null ? null : cephLandmark(_current!);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s16, CruSpace.s16, CruSpace.s12, CruSpace.s24),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s16,
+        CruSpace.s16,
+        CruSpace.s12,
+        CruSpace.s24,
+      ),
       children: [
         Row(
           children: [
-            Expanded(child: Text('Landmarks', style: CruType.headline.tint(c.label))),
-            Text('$placed of $total', style: CruType.subhead.tabular.tint(c.label2)),
+            Expanded(
+              child: Text('Landmarks', style: CruType.headline.tint(c.label)),
+            ),
+            Text(
+              '$placed of $total',
+              style: CruType.subhead.tabular.tint(c.label2),
+            ),
           ],
         ),
         const SizedBox(height: CruSpace.s10),
-        CruProgressBar(value: placed / total, semanticLabel: 'Landmarks placed'),
+        CruProgressBar(
+          value: placed / total,
+          semanticLabel: 'Landmarks placed',
+        ),
         const SizedBox(height: CruSpace.s16),
         _currentCard(c, cur),
         const SizedBox(height: CruSpace.s12),
@@ -937,7 +1023,9 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
         children: [
           if (cur == null) ...[
             Text(
-              _nextAfter(null) == null ? 'All landmarks placed' : 'Pick a landmark',
+              _nextAfter(null) == null
+                  ? 'All landmarks placed'
+                  : 'Pick a landmark',
               style: CruType.callout.tint(c.label),
             ),
             const SizedBox(height: CruSpace.s2),
@@ -948,10 +1036,15 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
               style: CruType.caption.tint(c.label2),
             ),
           ] else ...[
-            Text(placed ? 'Adjusting' : 'Now placing',
-                style: CruType.micro.tint(c.accentText)),
+            Text(
+              placed ? 'Adjusting' : 'Now placing',
+              style: CruType.micro.tint(c.accentText),
+            ),
             const SizedBox(height: CruSpace.s4),
-            Text('${cur.name} (${cur.id})', style: CruType.callout.tint(c.label)),
+            Text(
+              '${cur.name} (${cur.id})',
+              style: CruType.callout.tint(c.label),
+            ),
             const SizedBox(height: CruSpace.s2),
             Text(cur.hint, style: CruType.caption.tint(c.label2)),
             const SizedBox(height: CruSpace.s12),
@@ -974,8 +1067,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
               ],
             ),
             const SizedBox(height: CruSpace.s10),
-            Text('N skips · arrows nudge (Shift ×10) · Del clears',
-                style: CruType.micro.tint(c.label3)),
+            Text(
+              'N skips · arrows nudge (Shift ×10) · Del clears',
+              style: CruType.micro.tint(c.label3),
+            ),
           ],
         ],
       ),
@@ -992,7 +1087,12 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
     final done = values.where((v) => v.value != null).length;
     final fromRuler = s != null && s.calibration.containsKey(widget.imageId);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s12, CruSpace.s16, CruSpace.s16, CruSpace.s24),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        CruSpace.s16,
+        CruSpace.s16,
+        CruSpace.s24,
+      ),
       children: [
         Text('Analysis', style: CruType.headline.tint(c.label)),
         const SizedBox(height: CruSpace.s12),
@@ -1031,11 +1131,17 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
         else
           Container(
             padding: const EdgeInsets.all(CruSpace.s14),
-            decoration: ShapeDecoration(color: c.amberTint, shape: cruShape(CruRadius.control)),
+            decoration: ShapeDecoration(
+              color: c.amberTint,
+              shape: cruShape(CruRadius.control),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Not calibrated', style: CruType.subhead.w600.tint(c.amberText)),
+                Text(
+                  'Not calibrated',
+                  style: CruType.subhead.w600.tint(c.amberText),
+                ),
                 const SizedBox(height: CruSpace.s2),
                 Text(
                   'Draw a ruler over a known length to get the millimetre values.',
@@ -1053,7 +1159,10 @@ class _RadCephScreenState extends ConsumerState<RadCephScreen> {
           ),
         PlusPanelLabel(
           'Values',
-          trailing: Text('$done of ${values.length}', style: CruType.caption.tabular.tint(c.label3)),
+          trailing: Text(
+            '$done of ${values.length}',
+            style: CruType.caption.tabular.tint(c.label3),
+          ),
         ),
         for (var i = 0; i < values.length; i++) ...[
           if (i > 0) const CruSeparator(),
@@ -1094,8 +1203,16 @@ class _LandmarkRow extends StatelessWidget {
         width: PlusSize.landmarkDot,
         height: PlusSize.landmarkDot,
         alignment: Alignment.center,
-        decoration: ShapeDecoration(color: c.greenTint, shape: const CircleBorder()),
-        child: CruIcon(CruIcons.check, size: 13, strokeWidth: 2.4, color: c.greenText),
+        decoration: ShapeDecoration(
+          color: c.greenTint,
+          shape: const CircleBorder(),
+        ),
+        child: CruIcon(
+          CruIcons.check,
+          size: 13,
+          strokeWidth: 2.4,
+          color: c.greenText,
+        ),
       );
     } else {
       status = Container(
@@ -1103,7 +1220,10 @@ class _LandmarkRow extends StatelessWidget {
         height: PlusSize.landmarkDot,
         decoration: ShapeDecoration(
           shape: CircleBorder(
-            side: BorderSide(color: current ? c.accent : c.track, width: current ? 2 : 1.5),
+            side: BorderSide(
+              color: current ? c.accent : c.track,
+              width: current ? 2 : 1.5,
+            ),
           ),
         ),
       );
@@ -1112,7 +1232,12 @@ class _LandmarkRow extends StatelessWidget {
       selected: current,
       child: CruPressable(
         onTap: onTap,
-        semanticLabel: '${landmark.name}, ${placed ? 'placed' : skipped ? 'skipped' : 'not placed'}',
+        semanticLabel:
+            '${landmark.name}, ${placed
+                ? 'placed'
+                : skipped
+                ? 'skipped'
+                : 'not placed'}',
         builder: (context, hovered) => AnimatedContainer(
           duration: CruMotion.of(context, CruMotion.fast),
           curve: CruMotion.curve,
@@ -1122,8 +1247,8 @@ class _LandmarkRow extends StatelessWidget {
             color: current
                 ? c.accentWash
                 : hovered
-                    ? c.hoverFill
-                    : c.hoverFill.withValues(alpha: 0),
+                ? c.hoverFill
+                : c.hoverFill.withValues(alpha: 0),
             shape: cruShape(CruRadius.control),
           ),
           child: Row(
@@ -1142,7 +1267,8 @@ class _LandmarkRow extends StatelessWidget {
                   style: CruType.caption.tint(c.label2),
                 ),
               ),
-              if (skipped && !placed) Text('Skipped', style: CruType.micro.tint(c.label3)),
+              if (skipped && !placed)
+                Text('Skipped', style: CruType.micro.tint(c.label3)),
             ],
           ),
         ),
@@ -1164,8 +1290,8 @@ class _ValueRow extends StatelessWidget {
     final note = has
         ? m.detail
         : v.needsScale
-            ? 'Needs the scale'
-            : 'Needs ${v.missing.join(', ')}';
+        ? 'Needs the scale'
+        : 'Needs ${v.missing.join(', ')}';
     final dev = v.deviation;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s10),
@@ -1177,10 +1303,12 @@ class _ValueRow extends StatelessWidget {
               children: [
                 Text(m.name, style: CruType.callout.tint(c.label)),
                 const SizedBox(height: CruSpace.s2),
-                Text(note,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: CruType.caption.tint(has ? c.label2 : c.label3)),
+                Text(
+                  note,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: CruType.caption.tint(has ? c.label2 : c.label3),
+                ),
               ],
             ),
           ),
@@ -1194,13 +1322,15 @@ class _ValueRow extends StatelessWidget {
                   !has
                       ? c.label3
                       : v.outside
-                          ? c.amberText
-                          : c.label,
+                      ? c.amberText
+                      : c.label,
                 ),
               ),
               if (m.mean != null)
-                Text('${m.normText}${m.unit.suffix}',
-                    style: CruType.micro.tabular.tint(c.label3)),
+                Text(
+                  '${m.normText}${m.unit.suffix}',
+                  style: CruType.micro.tabular.tint(c.label3),
+                ),
             ],
           ),
           const SizedBox(width: CruSpace.s12),
@@ -1210,7 +1340,8 @@ class _ValueRow extends StatelessWidget {
             child: dev == null
                 ? null
                 : Semantics(
-                    label: '${dev.abs().toStringAsFixed(1)} SD '
+                    label:
+                        '${dev.abs().toStringAsFixed(1)} SD '
                         '${dev < 0 ? 'below' : 'above'} the norm',
                     child: CustomPaint(
                       painter: _DeviationPainter(
@@ -1253,11 +1384,17 @@ class _DeviationPainter extends CustomPainter {
     double x(double d) => size.width / 2 + d.clamp(-3.0, 3.0) / 3 * half;
     canvas
       ..drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTRB(0, mid - 2, size.width, mid + 2), r),
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(0, mid - 2, size.width, mid + 2),
+          r,
+        ),
         Paint()..color = track,
       )
       ..drawRRect(
-        RRect.fromRectAndRadius(Rect.fromLTRB(x(-1), mid - 2, x(1), mid + 2), r),
+        RRect.fromRectAndRadius(
+          Rect.fromLTRB(x(-1), mid - 2, x(1), mid + 2),
+          r,
+        ),
         Paint()..color = band,
       )
       ..drawLine(
@@ -1322,7 +1459,9 @@ class _RulerDialogState extends State<_RulerDialog> {
               hint: '10',
               autofocus: true,
               tabular: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               textInputAction: TextInputAction.done,
               onSubmitted: (_) => _done(),
             ),

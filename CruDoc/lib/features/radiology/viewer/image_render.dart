@@ -67,7 +67,12 @@ class RadRgba {
 
 /// Renders grayscale [values] (or the colour picture in [px]) through
 /// the display settings.
-RadRgba renderDisplay(RadPixels px, Float32List values, RadDisplay d, {int step = 1}) {
+RadRgba renderDisplay(
+  RadPixels px,
+  Float32List values,
+  RadDisplay d, {
+  int step = 1,
+}) {
   final w = px.width, h = px.height;
   final ow = (w + step - 1) ~/ step, oh = (h + step - 1) ~/ step;
   final rgba = px.rgba;
@@ -92,7 +97,15 @@ RadRgba renderDisplay(RadPixels px, Float32List values, RadDisplay d, {int step 
 
 /// Colour pictures keep their colours: the window acts as brightness and
 /// contrast on each channel (values are 0–255).
-RadRgba _renderColour(Uint8List rgba, int w, int h, int ow, int oh, RadDisplay d, int step) {
+RadRgba _renderColour(
+  Uint8List rgba,
+  int w,
+  int h,
+  int ow,
+  int oh,
+  RadDisplay d,
+  int step,
+) {
   final table = Uint8List(256);
   final width = d.width <= 0 ? 1.0 : d.width;
   for (var v = 0; v < 256; v++) {
@@ -119,7 +132,13 @@ RadRgba _renderColour(Uint8List rgba, int w, int h, int ow, int oh, RadDisplay d
 /// Uploads RGBA bytes as a GPU image.
 Future<ui.Image> radImageFromRgba(RadRgba r) {
   final done = Completer<ui.Image>();
-  ui.decodeImageFromPixels(r.bytes, r.width, r.height, ui.PixelFormat.rgba8888, done.complete);
+  ui.decodeImageFromPixels(
+    r.bytes,
+    r.width,
+    r.height,
+    ui.PixelFormat.rgba8888,
+    done.complete,
+  );
   return done.future;
 }
 
@@ -133,7 +152,12 @@ int radPreviewStep(int width, int height) {
 /// A window preset, stored relative to the image's 0.5–99.5 percentile
 /// range so it suits any image (a 12-bit IOPA and an 8-bit photo alike).
 class RadWindowPreset {
-  const RadWindowPreset(this.name, this.center, this.width, {this.custom = false});
+  const RadWindowPreset(
+    this.name,
+    this.center,
+    this.width, {
+    this.custom = false,
+  });
 
   final String name;
 
@@ -152,10 +176,20 @@ class RadWindowPreset {
   }
 
   /// The current window as a preset of [px].
-  static RadWindowPreset fromWindow(String name, RadPixels px, double center, double width) {
+  static RadWindowPreset fromWindow(
+    String name,
+    RadPixels px,
+    double center,
+    double width,
+  ) {
     final range = (px.highPct - px.lowPct).abs();
     final r = range <= 0 ? 1.0 : range;
-    return RadWindowPreset(name, (center - px.lowPct) / r, width / r, custom: true);
+    return RadWindowPreset(
+      name,
+      (center - px.lowPct) / r,
+      width / r,
+      custom: true,
+    );
   }
 
   Map<String, dynamic> toJson() => {'name': name, 'c': center, 'w': width};

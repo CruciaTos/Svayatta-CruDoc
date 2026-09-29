@@ -95,7 +95,9 @@ class _HistoryRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s10),
       decoration: separator
-          ? BoxDecoration(border: Border(bottom: BorderSide(color: c.separator)))
+          ? BoxDecoration(
+              border: Border(bottom: BorderSide(color: c.separator)),
+            )
           : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,9 +110,9 @@ class _HistoryRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: (emphasis ? CruType.text.w500 : CruType.text)
-                  .tabular
-                  .tint(c.label),
+              style: (emphasis ? CruType.text.w500 : CruType.text).tabular.tint(
+                c.label,
+              ),
             ),
           ),
         ],

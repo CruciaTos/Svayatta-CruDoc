@@ -45,10 +45,10 @@ class SupportTicketModel {
     this.resolvedBy,
     this.resolution,
     this.isArchived = false,
-  })  : createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now(),
-        messages = messages ?? [],
-        internalNotes = internalNotes ?? [];
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now(),
+       messages = messages ?? [],
+       internalNotes = internalNotes ?? [];
 
   factory SupportTicketModel.fromJson(Map<String, dynamic> json, String id) {
     return SupportTicketModel(
@@ -75,11 +75,13 @@ class SupportTicketModel {
       updatedAt: (json['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       assignedTo: json['assignedTo'] as String?,
       assignedToName: json['assignedToName'] as String?,
-      messages: (json['messages'] as List<dynamic>?)
+      messages:
+          (json['messages'] as List<dynamic>?)
               ?.map((e) => TicketMessage.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],
-      internalNotes: (json['internalNotes'] as List<dynamic>?)
+      internalNotes:
+          (json['internalNotes'] as List<dynamic>?)
               ?.map((e) => TicketNote.fromJson(e as Map<String, dynamic>))
               .toList() ??
           [],

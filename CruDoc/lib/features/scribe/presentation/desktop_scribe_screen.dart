@@ -101,7 +101,10 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
     if (session?.phase == ScribeSessionPhase.done &&
         draft != null &&
         _form == null) {
-      setState(() => _form = session?.takeActiveDraftForm() ?? ScribeDraftFormController(draft));
+      setState(
+        () => _form =
+            session?.takeActiveDraftForm() ?? ScribeDraftFormController(draft),
+      );
     } else {
       setState(() {});
     }
@@ -279,7 +282,8 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
 
   Widget _buildSessionBody() {
     final session = _session;
-    final isLiveRecording = session != null &&
+    final isLiveRecording =
+        session != null &&
         (session.phase == ScribeSessionPhase.recording ||
             session.phase == ScribeSessionPhase.paused);
 
@@ -290,14 +294,9 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                SizedBox(
-                  width: 300,
-                  child: _buildVisitList(scrollable: true),
-                ),
+                SizedBox(width: 300, child: _buildVisitList(scrollable: true)),
                 const SizedBox(width: 20),
-                Expanded(
-                  child: _buildLiveRecordingWorkspace(session),
-                ),
+                Expanded(child: _buildLiveRecordingWorkspace(session)),
               ],
             );
           }
@@ -446,8 +445,11 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.lock_outline_rounded,
-                            size: 13, color: _p.hint),
+                        Icon(
+                          Icons.lock_outline_rounded,
+                          size: 13,
+                          color: _p.hint,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'Locked',
@@ -563,11 +565,16 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
             child: Row(
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.35)),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.35),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -619,7 +626,11 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                 const SizedBox(width: 14),
                 TextButton.icon(
                   onPressed: () => _simulateSampleConsultation(session),
-                  icon: Icon(Icons.auto_fix_high_rounded, size: 16, color: _p.accent),
+                  icon: Icon(
+                    Icons.auto_fix_high_rounded,
+                    size: 16,
+                    color: _p.accent,
+                  ),
                   label: Text(
                     'Simulate Turn',
                     style: TextStyle(
@@ -630,13 +641,18 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                   ),
                   style: TextButton.styleFrom(
                     backgroundColor: _p.accentSoft,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 10),
                 IconButton(
                   tooltip: paused ? 'Resume recording' : 'Pause recording',
-                  icon: Icon(paused ? Icons.play_arrow_rounded : Icons.pause_rounded),
+                  icon: Icon(
+                    paused ? Icons.play_arrow_rounded : Icons.pause_rounded,
+                  ),
                   color: _p.textPrimary,
                   onPressed: paused ? session.resume : session.pause,
                 ),
@@ -655,8 +671,14 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                   style: FilledButton.styleFrom(
                     backgroundColor: _p.primary,
                     foregroundColor: Colors.white,
-                    textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                   ),
                 ),
               ],
@@ -673,7 +695,9 @@ class _DesktopScribeScreenState extends ConsumerState<DesktopScribeScreen> {
                       existingDiagnoses: _patient?.diagnosis ?? const [],
                     ),
                   )
-                : const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                : const Center(
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
           ),
         ],
       ),

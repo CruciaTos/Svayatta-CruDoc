@@ -37,7 +37,9 @@ class SubspecialtyRow extends StatelessWidget {
               curve: Curves.easeOut,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                color: on ? spec.accentColor : Colors.white.withValues(alpha: 0.9),
+                color: on
+                    ? spec.accentColor
+                    : Colors.white.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: on ? spec.accentColor : const Color(0xFFE2E8F0),
@@ -47,8 +49,11 @@ class SubspecialtyRow extends StatelessWidget {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(spec.icon,
-                      size: 14, color: on ? Colors.white : spec.accentColor),
+                  Icon(
+                    spec.icon,
+                    size: 14,
+                    color: on ? Colors.white : spec.accentColor,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     text,
@@ -70,8 +75,9 @@ class SubspecialtyRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment:
-            center ? MainAxisAlignment.center : MainAxisAlignment.start,
+        mainAxisAlignment: center
+            ? MainAxisAlignment.center
+            : MainAxisAlignment.start,
         children: [
           Padding(
             padding: const EdgeInsets.only(right: 10),

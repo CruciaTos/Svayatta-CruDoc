@@ -25,8 +25,11 @@ enum ScheduleStatus {
 
   /// Still expected to be seen today.
   bool get isOpen =>
-      this == inConsultation || this == called || this == waiting ||
-      this == booked || this == skipped;
+      this == inConsultation ||
+      this == called ||
+      this == waiting ||
+      this == booked ||
+      this == skipped;
 }
 
 /// One row in Today's schedule: a booked visit, a queue token, or both

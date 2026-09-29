@@ -16,7 +16,8 @@ class DentalInventoryScreen extends ConsumerStatefulWidget {
   const DentalInventoryScreen({super.key});
 
   @override
-  ConsumerState<DentalInventoryScreen> createState() => _DentalInventoryScreenState();
+  ConsumerState<DentalInventoryScreen> createState() =>
+      _DentalInventoryScreenState();
 }
 
 class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
@@ -82,7 +83,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                       initialValue: category,
                       decoration: const InputDecoration(labelText: 'Category'),
                       items: _dentalCategories
-                          .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                          .map(
+                            (c) => DropdownMenuItem(value: c, child: Text(c)),
+                          )
                           .toList(),
                       onChanged: (val) {
                         if (val != null) setDialogState(() => category = val);
@@ -91,9 +94,13 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: unit,
-                      decoration: const InputDecoration(labelText: 'Packaging Unit'),
+                      decoration: const InputDecoration(
+                        labelText: 'Packaging Unit',
+                      ),
                       items: _dentalUnits
-                          .map((u) => DropdownMenuItem(value: u, child: Text(u)))
+                          .map(
+                            (u) => DropdownMenuItem(value: u, child: Text(u)),
+                          )
                           .toList(),
                       onChanged: (val) {
                         if (val != null) setDialogState(() => unit = val);
@@ -106,7 +113,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           child: TextField(
                             controller: stockController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Initial Stock *'),
+                            decoration: const InputDecoration(
+                              labelText: 'Initial Stock *',
+                            ),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -114,7 +123,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           child: TextField(
                             controller: thresholdController,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(labelText: 'Low Alert Limit'),
+                            decoration: const InputDecoration(
+                              labelText: 'Low Alert Limit',
+                            ),
                           ),
                         ),
                       ],
@@ -122,7 +133,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Unit Cost (₹) (Optional)',
                         hintText: 'e.g. 150',
@@ -194,7 +207,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
     final repo = ref.read(inventoryRepositoryProvider);
     await repo.recordTransaction(
       medicineId: med.id,
-      type: delta >= 0 ? StockTransactionType.restock : StockTransactionType.dispense,
+      type: delta >= 0
+          ? StockTransactionType.restock
+          : StockTransactionType.dispense,
       quantity: delta.abs(),
       note: delta >= 0 ? 'Manual restock' : 'Chairside procedure usage',
     );
@@ -250,7 +265,8 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                     controller: noteController,
                     decoration: const InputDecoration(
                       labelText: 'Reason / Audit Note',
-                      hintText: 'e.g. Received shipment, expired batch, physical count correction',
+                      hintText:
+                          'e.g. Received shipment, expired batch, physical count correction',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -280,7 +296,9 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
       final repo = ref.read(inventoryRepositoryProvider);
       await repo.recordTransaction(
         medicineId: med.id,
-        type: isRestock ? StockTransactionType.restock : StockTransactionType.dispense,
+        type: isRestock
+            ? StockTransactionType.restock
+            : StockTransactionType.dispense,
         quantity: qty,
         note: noteController.text.trim().isNotEmpty
             ? noteController.text.trim()
@@ -327,12 +345,18 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           children: [
                             Text(
                               med.name,
-                              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '${med.category} • ${med.unit}',
-                              style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF64748B),
+                              ),
                             ),
                           ],
                         ),
@@ -365,38 +389,72 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           children: [
                             Column(
                               children: [
-                                const Text('Current Stock', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                const Text(
+                                  'Current Stock',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${med.currentStock} ${med.unit}',
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
-                                    color: med.isLowStock ? Colors.red : const Color(0xFF0F172A),
+                                    color: med.isLowStock
+                                        ? Colors.red
+                                        : const Color(0xFF0F172A),
                                   ),
                                 ),
                               ],
                             ),
-                            Container(width: 1, height: 32, color: const Color(0xFFE2E8F0)),
+                            Container(
+                              width: 1,
+                              height: 32,
+                              color: const Color(0xFFE2E8F0),
+                            ),
                             Column(
                               children: [
-                                const Text('Min. Reorder', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                const Text(
+                                  'Min. Reorder',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${med.reorderThreshold} ${med.unit}',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
                             if (med.unitPrice != null) ...[
-                              Container(width: 1, height: 32, color: const Color(0xFFE2E8F0)),
+                              Container(
+                                width: 1,
+                                height: 32,
+                                color: const Color(0xFFE2E8F0),
+                              ),
                               Column(
                                 children: [
-                                  const Text('Unit Cost', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                                  const Text(
+                                    'Unit Cost',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
                                     '₹${med.unitPrice!.toStringAsFixed(0)}',
-                                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -427,14 +485,19 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                       // Transaction history
                       const Text(
                         'Audit Trail & Stock History',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1E293B)),
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
                       const SizedBox(height: 8),
 
                       FutureBuilder<List<StockTransactionModel>>(
                         future: repo.getTransactionsForMedicine(med.id),
                         builder: (context, snapshot) {
-                          if (snapshot.connectionState == ConnectionState.waiting) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
                             return const Padding(
                               padding: EdgeInsets.all(24),
                               child: Center(child: CircularProgressIndicator()),
@@ -446,7 +509,10 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                               padding: EdgeInsets.symmetric(vertical: 16),
                               child: Text(
                                 'No stock movements recorded yet.',
-                                style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF94A3B8),
+                                ),
                               ),
                             );
                           }
@@ -455,32 +521,46 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: txs.length,
-                            separatorBuilder: (context, i) => const Divider(height: 1),
+                            separatorBuilder: (context, i) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, i) {
                               final tx = txs[i];
-                              final isIncrease = tx.type == StockTransactionType.restock;
+                              final isIncrease =
+                                  tx.type == StockTransactionType.restock;
                               return ListTile(
                                 dense: true,
                                 contentPadding: EdgeInsets.zero,
                                 leading: Icon(
-                                  isIncrease ? Icons.arrow_downward : Icons.arrow_upward,
+                                  isIncrease
+                                      ? Icons.arrow_downward
+                                      : Icons.arrow_upward,
                                   color: isIncrease ? Colors.green : Colors.red,
                                   size: 18,
                                 ),
                                 title: Text(
                                   tx.note ?? tx.type.name.toUpperCase(),
-                                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
                                 ),
                                 subtitle: Text(
-                                  DateFormat('dd MMM yyyy, hh:mm a').format(tx.createdAt),
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  DateFormat(
+                                    'dd MMM yyyy, hh:mm a',
+                                  ).format(tx.createdAt),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF64748B),
+                                  ),
                                 ),
                                 trailing: Text(
                                   '${isIncrease ? '+' : '-'}${tx.quantity} (${tx.resultingStock} left)',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
-                                    color: isIncrease ? Colors.green : Colors.red,
+                                    color: isIncrease
+                                        ? Colors.green
+                                        : Colors.red,
                                   ),
                                 ),
                               );
@@ -504,7 +584,8 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
       if (!item.isActive) return false;
       if (_dentalOnly) {
         final cat = item.category.toLowerCase();
-        final isDental = cat.contains('dental') ||
+        final isDental =
+            cat.contains('dental') ||
             cat == 'consumable' ||
             cat == 'restorative' ||
             cat == 'anesthetic';
@@ -569,7 +650,10 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                     : null,
                 filled: true,
                 fillColor: const Color(0xFFF1F5F9),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  vertical: 0,
+                  horizontal: 12,
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none,
@@ -587,7 +671,8 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
           Expanded(
             child: inventoryAsync.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => Center(child: Text('Error loading inventory: $err')),
+              error: (err, _) =>
+                  Center(child: Text('Error loading inventory: $err')),
               data: (allItems) {
                 final items = _filterList(allItems);
                 final lowStockCount = items.where((i) => i.isLowStock).length;
@@ -596,25 +681,39 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                   children: [
                     // Summary header bar
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 10,
+                      ),
                       color: const Color(0xFFF8FAFC),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             '${items.length} items (${_dentalOnly ? 'Dental' : 'All'})',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF64748B),
+                            ),
                           ),
                           if (lowStockCount > 0)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
                               decoration: BoxDecoration(
                                 color: const Color(0xFFFEE2E2),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
                                 '$lowStockCount Low Stock',
-                                style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF991B1B)),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF991B1B),
+                                ),
                               ),
                             ),
                         ],
@@ -629,20 +728,32 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              const Icon(Icons.inventory_2_outlined, size: 48, color: Color(0xFF94A3B8)),
+                              const Icon(
+                                Icons.inventory_2_outlined,
+                                size: 48,
+                                color: Color(0xFF94A3B8),
+                              ),
                               const SizedBox(height: 12),
                               const Text(
                                 'No dental consumables found',
-                                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                               const SizedBox(height: 8),
                               const Text(
                                 'Add composite, anesthetic, burs, or sterilization pouches.',
-                                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF64748B),
+                                ),
                               ),
                               const SizedBox(height: 16),
                               FilledButton.icon(
-                                style: FilledButton.styleFrom(backgroundColor: _accentTeal),
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: _accentTeal,
+                                ),
                                 icon: const Icon(Icons.add),
                                 label: const Text('Add Consumable'),
                                 onPressed: _openAddConsumableDialog,
@@ -656,24 +767,39 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                         child: ListView.separated(
                           padding: const EdgeInsets.only(bottom: 80, top: 4),
                           itemCount: items.length,
-                          separatorBuilder: (context, sepIndex) => const Divider(height: 1, indent: 16, endIndent: 16),
+                          separatorBuilder: (context, sepIndex) =>
+                              const Divider(
+                                height: 1,
+                                indent: 16,
+                                endIndent: 16,
+                              ),
                           itemBuilder: (context, idx) {
                             final item = items[idx];
                             return ListTile(
                               onTap: () => _showItemDetailsDialog(item),
                               title: Text(
                                 item.name,
-                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 14,
+                                ),
                               ),
                               subtitle: Row(
                                 children: [
                                   Text(
                                     '${item.category} • ${item.unit}',
-                                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: Color(0xFF64748B),
+                                    ),
                                   ),
                                   if (item.isLowStock) ...[
                                     const SizedBox(width: 6),
-                                    const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
+                                    const Icon(
+                                      Icons.warning_amber_rounded,
+                                      size: 14,
+                                      color: Colors.orange,
+                                    ),
                                   ],
                                 ],
                               ),
@@ -689,24 +815,35 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                                         style: TextStyle(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 14,
-                                          color: item.isLowStock ? Colors.red : const Color(0xFF0F172A),
+                                          color: item.isLowStock
+                                              ? Colors.red
+                                              : const Color(0xFF0F172A),
                                         ),
                                       ),
                                       Text(
                                         'Min: ${item.reorderThreshold}',
-                                        style: const TextStyle(fontSize: 10, color: Color(0xFF94A3B8)),
+                                        style: const TextStyle(
+                                          fontSize: 10,
+                                          color: Color(0xFF94A3B8),
+                                        ),
                                       ),
                                     ],
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                      size: 20,
+                                    ),
                                     color: Colors.redAccent,
                                     tooltip: 'Dispense 1',
                                     onPressed: () => _adjustStock(item, -1),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      size: 20,
+                                    ),
                                     color: _accentTeal,
                                     tooltip: 'Restock 1',
                                     onPressed: () => _adjustStock(item, 1),

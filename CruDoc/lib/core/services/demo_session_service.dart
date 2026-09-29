@@ -20,7 +20,9 @@ class DemoSessionService {
     false,
   );
 
-  static final ValueNotifier<int> sessionRevisionNotifier = ValueNotifier<int>(0);
+  static final ValueNotifier<int> sessionRevisionNotifier = ValueNotifier<int>(
+    0,
+  );
 
   static final ValueNotifier<DoctorSpecialty> specialtyNotifier =
       ValueNotifier<DoctorSpecialty>(DoctorSpecialty.defaultSpecialty);

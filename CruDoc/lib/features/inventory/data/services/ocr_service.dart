@@ -39,14 +39,14 @@ class OcrMedicineResult {
       quantity == null;
 
   int get filledFieldCount => [
-        name,
-        category,
-        batchNumber,
-        expiryDate,
-        unitPrice,
-        supplierName,
-        quantity,
-      ].where((v) => v != null).length;
+    name,
+    category,
+    batchNumber,
+    expiryDate,
+    unitPrice,
+    supplierName,
+    quantity,
+  ].where((v) => v != null).length;
 }
 
 /// Performs on-device OCR using Google ML Kit (on mobile) or PaddleOCR (on desktop)
@@ -58,23 +58,23 @@ class OcrService {
   TextRecognizer? _recognizer;
 
   TextRecognizer get recognizer {
-    _recognizer ??= TextRecognizer(
-      script: TextRecognitionScript.latin,
-    );
+    _recognizer ??= TextRecognizer(script: TextRecognitionScript.latin);
     return _recognizer!;
   }
 
   /// Scans [imageFile] and returns extracted medicine fields.
   Future<OcrMedicineResult> scanMedicineReceipt(XFile imageFile) async {
-    final bool isDesktop = !kIsWeb &&
-        (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+    final bool isDesktop =
+        !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
     if (isDesktop || kIsWeb) {
-      final paddleResult = await PaddleOcrService.instance.scanInvoice(imageFile);
-      
+      final paddleResult = await PaddleOcrService.instance.scanInvoice(
+        imageFile,
+      );
+
       String? name;
       double? price;
-      
+
       if (paddleResult.medicines.isNotEmpty) {
         name = paddleResult.medicines[0].name;
         price = paddleResult.medicines[0].price;
@@ -82,7 +82,7 @@ class OcrService {
         name = paddleResult.treatments[0].name;
         price = paddleResult.treatments[0].price;
       }
-      
+
       final rawText = paddleResult.rawText ?? '';
       final allLines = rawText.split('\n');
 
@@ -98,7 +98,9 @@ class OcrService {
       );
     } else {
       final inputImage = InputImage.fromFilePath(imageFile.path);
-      final RecognizedText recognised = await recognizer.processImage(inputImage);
+      final RecognizedText recognised = await recognizer.processImage(
+        inputImage,
+      );
 
       final allLines = <String>[];
       for (final block in recognised.blocks) {
@@ -313,9 +315,12 @@ class OcrService {
   }
 
   String _toTitleCase(String s) {
-    return s.split(' ').map((w) {
-      if (w.isEmpty) return w;
-      return w[0].toUpperCase() + w.substring(1).toLowerCase();
-    }).join(' ');
+    return s
+        .split(' ')
+        .map((w) {
+          if (w.isEmpty) return w;
+          return w[0].toUpperCase() + w.substring(1).toLowerCase();
+        })
+        .join(' ');
   }
 }

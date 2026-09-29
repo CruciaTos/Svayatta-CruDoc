@@ -93,8 +93,9 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
   }
 
   Future<void> _handleDemoDevLogin() async {
-    final success =
-        await ref.read(superAdminAuthProvider.notifier).loginDemoDev();
+    final success = await ref
+        .read(superAdminAuthProvider.notifier)
+        .loginDemoDev();
     if (success && mounted) {
       context.go('/admin');
     }
@@ -178,7 +179,7 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
                                 : c.hairline,
                           ),
                         ),
-                        shadows: c.cardShadow,
+                        shadows: const [],
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -311,11 +312,14 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
               ),
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  _obscurePassword
+                      ? Icons.visibility_off_outlined
+                      : Icons.visibility_outlined,
                   size: 18,
                   color: c.label3,
                 ),
-                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
               ),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(CruRadius.control),
@@ -360,7 +364,10 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
             padding: const EdgeInsets.all(14),
             decoration: ShapeDecoration(
               color: c.inset,
-              shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+              shape: cruShape(
+                CruRadius.control,
+                side: BorderSide(color: c.hairline),
+              ),
             ),
             child: Column(
               children: [
@@ -456,8 +463,14 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
         if (authState.errorMessage != null) ...[
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: ShapeDecoration(color: c.redTint, shape: cruShape(CruRadius.control)),
-            child: Text(authState.errorMessage!, style: CruType.caption.w600.tint(c.redText)),
+            decoration: ShapeDecoration(
+              color: c.redTint,
+              shape: cruShape(CruRadius.control),
+            ),
+            child: Text(
+              authState.errorMessage!,
+              style: CruType.caption.w600.tint(c.redText),
+            ),
           ),
           const SizedBox(height: CruSpace.s16),
         ],
@@ -504,7 +517,8 @@ class _SuperAdminLoginScreenState extends ConsumerState<SuperAdminLoginScreen> {
         Center(
           child: CruPressable(
             onTap: () => setState(() => _is2FAMode = false),
-            builder: (ctx, hovered) => Text('Back to Login', style: CruType.caption.tint(c.label2)),
+            builder: (ctx, hovered) =>
+                Text('Back to Login', style: CruType.caption.tint(c.label2)),
           ),
         ),
       ],

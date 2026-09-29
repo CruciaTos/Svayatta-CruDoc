@@ -28,12 +28,12 @@ enum ChartLayer {
   all;
 
   String get label => switch (this) {
-        dental => 'Dental',
-        plan => 'Plan',
-        perio => 'Perio',
-        endo => 'Endo',
-        all => 'All',
-      };
+    dental => 'Dental',
+    plan => 'Plan',
+    perio => 'Perio',
+    endo => 'Endo',
+    all => 'All',
+  };
 
   bool get showsPlan => this == plan || this == all;
   bool get showsPerio => this == perio || this == all;
@@ -54,12 +54,12 @@ class EndoState {
   });
 
   factory EndoState.of(DentalRecord r) => EndoState(
-        record: r,
-        obturated: r.str('status') == 'obturated',
-        canals: r.data['canals'] is List ? (r.data['canals'] as List).length : 0,
-        pulpal: r.str('pulpal'),
-        periapical: r.str('periapical'),
-      );
+    record: r,
+    obturated: r.str('status') == 'obturated',
+    canals: r.data['canals'] is List ? (r.data['canals'] as List).length : 0,
+    pulpal: r.str('pulpal'),
+    periapical: r.str('periapical'),
+  );
 
   final DentalRecord record;
   final bool obturated;
@@ -77,10 +77,10 @@ class EndoState {
 
   /// "Obturated · 3 canals", "In progress · Pulp necrosis".
   String get summary => [
-        obturated ? 'Obturated' : 'In progress',
-        if (canals > 0) '$canals canal${canals == 1 ? '' : 's'}',
-        if (!obturated && pulpal.isNotEmpty) pulpal,
-      ].join(' · ');
+    obturated ? 'Obturated' : 'In progress',
+    if (canals > 0) '$canals canal${canals == 1 ? '' : 's'}',
+    if (!obturated && pulpal.isNotEmpty) pulpal,
+  ].join(' · ');
 }
 
 /// Everything the charts need to draw one tooth.
@@ -160,11 +160,14 @@ class ToothVisual {
         final p = perio;
         if (!charted || p == null) return null;
         final depths = p.pd.whereType<int>();
-        final deepest = depths.isEmpty ? null : depths.reduce((a, b) => a > b ? a : b);
+        final deepest = depths.isEmpty
+            ? null
+            : depths.reduce((a, b) => a > b ? a : b);
         final bleeding = p.bop.where((b) => b).length;
         return [
           if (deepest != null) 'Deepest pocket $deepest mm',
-          if (bleeding > 0) 'bleeds at $bleeding site${bleeding == 1 ? '' : 's'}',
+          if (bleeding > 0)
+            'bleeds at $bleeding site${bleeding == 1 ? '' : 's'}',
           if ((p.mobility ?? 0) > 0) 'mobility ${p.mobility}',
         ].join(' · ');
       case ChartLayer.endo:
@@ -176,7 +179,8 @@ class ToothVisual {
             : ' · ${surfaces.map(DentalChart.surfaceLetter).join(', ')}';
         final parts = [
           if (found != null) '$found$s',
-          if (layer == ChartLayer.all && isPlanned) 'Planned: ${planned.join(', ')}',
+          if (layer == ChartLayer.all && isPlanned)
+            'Planned: ${planned.join(', ')}',
         ];
         return parts.isEmpty ? null : parts.join(' · ');
     }
@@ -185,11 +189,13 @@ class ToothVisual {
   /// How the tooth is drawn in [layer].
   ToothLook look(ChartLayer layer) {
     final spec = ToothSpec.of(number);
-    final back = spec.kind == ToothKind.premolar || spec.kind == ToothKind.molar;
+    final back =
+        spec.kind == ToothKind.premolar || spec.kind == ToothKind.molar;
     Set<ToothSurface> where() => surfaces.isNotEmpty
         ? surfaces.toSet()
         : {back ? ToothSurface.occlusal : ToothSurface.buccal};
-    final pulp = !missing &&
+    final pulp =
+        !missing &&
         !implant &&
         (layer == ChartLayer.endo ||
             (layer == ChartLayer.all && (endo != null || rootCanal)));
@@ -209,8 +215,8 @@ class ToothVisual {
       canals: endo == null
           ? CanalState.none
           : endo!.obturated
-              ? CanalState.obturated
-              : CanalState.inProgress,
+          ? CanalState.obturated
+          : CanalState.inProgress,
       lesion: pulp && (endo?.lesion ?? false),
       inflamed: pulp && (endo?.inflamed ?? false),
     );
@@ -260,7 +266,12 @@ class ToothChartData {
       if (t.isNotEmpty) endoOf.putIfAbsent(t, () => EndoState.of(r));
     }
     final teeth = <String, ToothVisual>{};
-    for (final n in {...latest.keys, ...planned.keys, ...perio.keys, ...endoOf.keys}) {
+    for (final n in {
+      ...latest.keys,
+      ...planned.keys,
+      ...perio.keys,
+      ...endoOf.keys,
+    }) {
       final e = latest[n];
       teeth[n] = ToothVisual(
         number: n,
@@ -286,11 +297,9 @@ class ToothChartData {
       _teeth[n] ?? ToothVisual(number: n, state: ToothState.healthy);
 
   bool get hasPrimary => _teeth.keys.any(DentalChart.isPrimary);
-  bool get hasPermanent =>
-      _teeth.keys.any((t) => !DentalChart.isPrimary(t));
+  bool get hasPermanent => _teeth.keys.any((t) => !DentalChart.isPrimary(t));
 
-  int count(ToothState s) =>
-      _teeth.values.where((t) => t.state == s).length;
+  int count(ToothState s) => _teeth.values.where((t) => t.state == s).length;
 
   int get plannedTeeth => _teeth.values.where((t) => t.isPlanned).length;
 

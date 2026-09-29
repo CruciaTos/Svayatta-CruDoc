@@ -32,8 +32,8 @@ const _maxPanel = 460.0;
 /// One heading of the report being written.
 class _Section {
   _Section(RadReportSection s)
-      : title = TextEditingController(text: s.title),
-        body = TextEditingController(text: s.body);
+    : title = TextEditingController(text: s.title),
+      body = TextEditingController(text: s.body);
 
   final String key = radId('sec_');
   final TextEditingController title;
@@ -59,7 +59,8 @@ class RadReportEditorScreen extends ConsumerStatefulWidget {
   final String studyId;
 
   @override
-  ConsumerState<RadReportEditorScreen> createState() => _RadReportEditorScreenState();
+  ConsumerState<RadReportEditorScreen> createState() =>
+      _RadReportEditorScreenState();
 }
 
 class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
@@ -124,7 +125,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
   static String _defaultTitle(RadStudy s) {
     final q = s.clinicalQuestion.trim();
-    return q.isEmpty ? '${s.modality.label} report' : '${s.modality.label} report — $q';
+    return q.isEmpty
+        ? '${s.modality.label} report'
+        : '${s.modality.label} report — $q';
   }
 
   static int? _age(RadStudy s) {
@@ -132,7 +135,8 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     if (dob == null) return null;
     final now = DateTime.now();
     var y = now.year - dob.year;
-    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) y--;
+    if (now.month < dob.month || (now.month == dob.month && now.day < dob.day))
+      y--;
     return y;
   }
 
@@ -179,7 +183,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     if (existing != null && !existing.isSigned) {
       final fresh = [
         for (final k in s.keyImages)
-          if (k.createdAt.isAfter(existing.updatedAt) && !_keyIds.contains(k.id)) k.id,
+          if (k.createdAt.isAfter(existing.updatedAt) &&
+              !_keyIds.contains(k.id))
+            k.id,
       ];
       if (fresh.isNotEmpty) {
         _keyIds.addAll(fresh);
@@ -191,19 +197,19 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   // ───────────────────────────── Saving ─────────────────────────────
 
   RadReport _compose() => _report!.copyWith(
-        title: _title.text.trim(),
-        technique: _technique.text.trim(),
-        sections: [
-          for (final s in _sections)
-            RadReportSection(title: s.title.text.trim(), body: s.body.text.trim()),
-        ],
-        impression: _impression.text.trim(),
-        recommendations: _recommendations.text.trim(),
-        toothFindings: {..._teeth},
-        lesions: [..._lesions],
-        keyImageIds: [..._keyIds],
-        measurementIds: [..._measureIds],
-      );
+    title: _title.text.trim(),
+    technique: _technique.text.trim(),
+    sections: [
+      for (final s in _sections)
+        RadReportSection(title: s.title.text.trim(), body: s.body.text.trim()),
+    ],
+    impression: _impression.text.trim(),
+    recommendations: _recommendations.text.trim(),
+    toothFindings: {..._teeth},
+    lesions: [..._lesions],
+    keyImageIds: [..._keyIds],
+    measurementIds: [..._measureIds],
+  );
 
   /// Marks unsaved edits and restarts the autosave timer. Doesn't rebuild
   /// (safe to call while building).
@@ -247,10 +253,14 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     _dirty = false;
     setState(() => _state = _SaveState.saving);
     try {
-      await _rad.saveReport(r, auditAction: audit ?? (_persisted ? null : 'Started report'));
+      await _rad.saveReport(
+        r,
+        auditAction: audit ?? (_persisted ? null : 'Started report'),
+      );
       _persisted = true;
       _savedAt = DateTime.now();
-      if (mounted) setState(() => _state = _dirty ? _SaveState.pending : _SaveState.saved);
+      if (mounted)
+        setState(() => _state = _dirty ? _SaveState.pending : _SaveState.saved);
     } catch (_) {
       _dirty = true;
       if (mounted) setState(() => _state = _SaveState.failed);
@@ -277,7 +287,8 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
   String _me() {
     final s = ref.read(radSettingsProvider).value;
-    if (s != null && s.signatureName.trim().isNotEmpty) return s.signatureName.trim();
+    if (s != null && s.signatureName.trim().isNotEmpty)
+      return s.signatureName.trim();
     return ref.read(doctorIdentityProvider).fullName ?? '';
   }
 
@@ -298,7 +309,12 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
         signedBy: signedBy,
         versions: [
           ...base.versions,
-          RadReportVersion(at: now, status: status, snapshot: base.toPlainText(), by: by),
+          RadReportVersion(
+            at: now,
+            status: status,
+            snapshot: base.toPlainText(),
+            by: by,
+          ),
         ],
       );
       _dictating = null;
@@ -306,8 +322,11 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     await _save(audit: audit);
   }
 
-  Future<void> _markPreliminary() =>
-      _setStatus(RadReportStatus.preliminary, audit: 'Marked preliminary', by: _me());
+  Future<void> _markPreliminary() => _setStatus(
+    RadReportStatus.preliminary,
+    audit: 'Marked preliminary',
+    by: _me(),
+  );
 
   Future<void> _sign() async {
     if (_impression.text.trim().isEmpty) {
@@ -333,21 +352,31 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     final by = _me();
     final now = DateTime.now();
     final r = _report!;
-    final withText = r.copyWith(addenda: [...r.addenda, RadAddendum(at: now, text: text, by: by)]);
+    final withText = r.copyWith(
+      addenda: [
+        ...r.addenda,
+        RadAddendum(at: now, text: text, by: by),
+      ],
+    );
     setState(() {
-      _report = withText.copyWith(versions: [
-        ...withText.versions,
-        RadReportVersion(
-          at: now,
-          status: withText.status,
-          snapshot: withText.toPlainText(),
-          by: by,
-        ),
-      ]);
+      _report = withText.copyWith(
+        versions: [
+          ...withText.versions,
+          RadReportVersion(
+            at: now,
+            status: withText.status,
+            snapshot: withText.toPlainText(),
+            by: by,
+          ),
+        ],
+      );
     });
     await _save(audit: 'Added addendum');
     if (mounted && _report!.sharedAt != null) {
-      radToast(context, 'Addendum added. Send the report again so the referrer has it.');
+      radToast(
+        context,
+        'Addendum added. Send the report again so the referrer has it.',
+      );
     }
   }
 
@@ -361,21 +390,28 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       referrer: referrer,
       onShared: (via) async {
         if (!mounted) return;
-        setState(() => _report = _report!.copyWith(sharedAt: DateTime.now(), sharedVia: via));
+        setState(
+          () => _report = _report!.copyWith(
+            sharedAt: DateTime.now(),
+            sharedVia: via,
+          ),
+        );
         await _save(audit: 'Sent by $via');
       },
     );
   }
 
   Future<void> _applyTemplate(RadTemplate t) async {
-    final hasText = _technique.text.trim().isNotEmpty ||
+    final hasText =
+        _technique.text.trim().isNotEmpty ||
         _impression.text.trim().isNotEmpty ||
         _sections.any((s) => s.body.text.trim().isNotEmpty);
     if (hasText) {
       final ok = await confirmDental(
         context,
         title: 'Switch to ${t.name}?',
-        body: "Technique, sections and impression take the template's wording. The title, "
+        body:
+            "Technique, sections and impression take the template's wording. The title, "
             'teeth, lesions and recommendations stay.',
         action: 'Switch',
       );
@@ -388,8 +424,12 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       _disposeLater(_sections);
       _sections
         ..clear()
-        ..addAll((t.sections.isEmpty ? const [RadReportSection(title: 'Findings')] : t.sections)
-            .map(_Section.new));
+        ..addAll(
+          (t.sections.isEmpty
+                  ? const [RadReportSection(title: 'Findings')]
+                  : t.sections)
+              .map(_Section.new),
+        );
       _dictating = null;
       _markDirty();
     });
@@ -401,7 +441,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       _sections.add(s);
       _markDirty();
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => s.titleFocus.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => s.titleFocus.requestFocus(),
+    );
   }
 
   Future<void> _sectionAction(int i, _SectionAction a) async {
@@ -419,8 +461,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
         if (s.body.text.trim().isNotEmpty) {
           final ok = await confirmDental(
             context,
-            title: 'Remove ${s.title.text.trim().isEmpty ? 'this section' : s.title.text.trim()}?',
-            body: 'The section and what you wrote in it are taken out of the report.',
+            title:
+                'Remove ${s.title.text.trim().isEmpty ? 'this section' : s.title.text.trim()}?',
+            body:
+                'The section and what you wrote in it are taken out of the report.',
             action: 'Remove',
           );
           if (!ok || !mounted) return;
@@ -450,7 +494,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   }
 
   void _addAcceptedAiFindings(RadStudy study) {
-    final toothPattern = RegExp(r'\b(1[1-8]|2[1-8]|3[1-8]|4[1-8]|5[1-5]|6[1-5]|7[1-5]|8[1-5])\b');
+    final toothPattern = RegExp(
+      r'\b(1[1-8]|2[1-8]|3[1-8]|4[1-8]|5[1-5]|6[1-5]|7[1-5]|8[1-5])\b',
+    );
     final updatedTeeth = Map<String, String>.from(_teeth);
     final generalFindings = <String>[];
 
@@ -495,7 +541,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
         }
         final existingBody = findingsSec.body.text.trim();
         final addition = generalFindings.join('\n');
-        findingsSec.body.text = existingBody.isEmpty ? addition : '$existingBody\n$addition';
+        findingsSec.body.text = existingBody.isEmpty
+            ? addition
+            : '$existingBody\n$addition';
       }
       _markDirty();
     });
@@ -523,7 +571,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
     // A change made elsewhere (the viewer ticking "include in report")
     // updates the two lists it can touch.
-    ref.listen<RadReport?>(radReportForStudyProvider(widget.studyId), (_, next) {
+    ref.listen<RadReport?>(radReportForStudyProvider(widget.studyId), (
+      _,
+      next,
+    ) {
       final known = _lastKnown;
       if (next == null || _report == null || known == null) return;
       if (!next.updatedAt.isAfter(known)) return;
@@ -536,10 +587,15 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
     final study = studyAsync.value;
     if (_report == null) {
-      final ready = studyAsync.hasValue &&
+      final ready =
+          studyAsync.hasValue &&
           reportsAsync.hasValue &&
           (templatesAsync.hasValue || templatesAsync.hasError);
-      if (!ready) return _shell(c, Text('Opening the report…', style: CruType.subhead.tint(c.label3)));
+      if (!ready)
+        return _shell(
+          c,
+          Text('Opening the report…', style: CruType.subhead.tint(c.label3)),
+        );
       if (study == null) {
         return _shell(
           c,
@@ -548,7 +604,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
             title: "This study isn't here any more",
             body: 'It may have been deleted from the worklist.',
             actions: [
-              CruButton(label: 'Back', onPressed: () => Navigator.of(context).pop()),
+              CruButton(
+                label: 'Back',
+                onPressed: () => Navigator.of(context).pop(),
+              ),
             ],
           ),
         );
@@ -560,7 +619,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       );
     }
     if (study == null) {
-      return _shell(c, Text('Opening the report…', style: CruType.subhead.tint(c.label3)));
+      return _shell(
+        c,
+        Text('Opening the report…', style: CruType.subhead.tint(c.label3)),
+      );
     }
 
     final settings = settingsAsync.value ?? const RadSettings();
@@ -635,19 +697,30 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                                 _markDirty();
                               }),
                               onIncludeAllMeasurements: () => setState(() {
-                                _measureIds = {..._measureIds, ...rows.map((r) => r.id)}.toList();
+                                _measureIds = {
+                                  ..._measureIds,
+                                  ...rows.map((r) => r.id),
+                                }.toList();
                                 _markDirty();
                               }),
-                              onOpenViewer: (imageId) =>
-                                  openRadStudy(context, ref, study, imageId: imageId),
+                              onOpenViewer: (imageId) => openRadStudy(
+                                context,
+                                ref,
+                                study,
+                                imageId: imageId,
+                              ),
                             ),
                           ),
                         ),
                         _Resizer(
                           onDrag: (dx) => setState(
-                            () => _panelWidth = (_panelWidth + dx).clamp(_minPanel, _maxPanel),
+                            () => _panelWidth = (_panelWidth + dx).clamp(
+                              _minPanel,
+                              _maxPanel,
+                            ),
                           ),
-                          onEnd: () => _rad.saveViewerPrefs({_prefWidth: _panelWidth}),
+                          onEnd: () =>
+                              _rad.saveViewerPrefs({_prefWidth: _panelWidth}),
                         ),
                       ],
                       Expanded(
@@ -663,9 +736,18 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                                 ),
                                 child: Center(
                                   child: ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 880),
-                                    child: _document(c, study, referrer, settings, templates,
-                                        phrases, rows),
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 880,
+                                    ),
+                                    child: _document(
+                                      c,
+                                      study,
+                                      referrer,
+                                      settings,
+                                      templates,
+                                      phrases,
+                                      rows,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -687,24 +769,24 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
   /// Loading and missing-study frame: a back button and a message.
   Widget _shell(CruColors c, Widget child) => Scaffold(
-        backgroundColor: c.canvas,
-        body: Stack(
-          children: [
-            Center(child: child),
-            Positioned(
-              left: CruSpace.s16,
-              top: CruSpace.s12,
-              child: CruIconButton(
-                icon: CruIcons.chevronLeft,
-                size: CruSize.control,
-                semanticLabel: 'Back',
-                tooltip: 'Back',
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ),
-          ],
+    backgroundColor: c.canvas,
+    body: Stack(
+      children: [
+        Center(child: child),
+        Positioned(
+          left: CruSpace.s16,
+          top: CruSpace.s12,
+          child: CruIconButton(
+            icon: CruIcons.chevronLeft,
+            size: CruSize.control,
+            semanticLabel: 'Back',
+            tooltip: 'Back',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _topBar(CruColors c, RadStudy s, RadReferrer? referrer) {
     final line = [
@@ -747,7 +829,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                   children: [
                     Flexible(
                       child: Text(
-                        s.patientName.isEmpty ? 'Unnamed patient' : s.patientName,
+                        s.patientName.isEmpty
+                            ? 'Unnamed patient'
+                            : s.patientName,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: CruType.headline.tint(c.label),
@@ -772,7 +856,11 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           const SizedBox(width: CruSpace.s16),
           _CriticalButton(
             critical: s.critical,
-            onPressed: () => showRadCriticalDialog(context, studyId: s.id, referrer: referrer),
+            onPressed: () => showRadCriticalDialog(
+              context,
+              studyId: s.id,
+              referrer: referrer,
+            ),
           ),
           const SizedBox(width: CruSpace.s8),
           CruButton(
@@ -798,18 +886,24 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     if (_locked) return const SizedBox.shrink();
     return switch (_state) {
       _SaveState.failed => CruLink(
-          label: "Couldn't save · Retry",
-          color: c.amberText,
-          onPressed: _save,
-        ),
-      _SaveState.saving => Text('Saving…', style: CruType.caption.tint(c.label3)),
-      _SaveState.pending => Text('Unsaved changes', style: CruType.caption.tint(c.label3)),
+        label: "Couldn't save · Retry",
+        color: c.amberText,
+        onPressed: _save,
+      ),
+      _SaveState.saving => Text(
+        'Saving…',
+        style: CruType.caption.tint(c.label3),
+      ),
+      _SaveState.pending => Text(
+        'Unsaved changes',
+        style: CruType.caption.tint(c.label3),
+      ),
       _SaveState.saved => Text(
-          _persisted
-              ? 'Saved ${RadFormat.time(_savedAt ?? _report!.updatedAt)}'
-              : 'Saves as you type',
-          style: CruType.caption.tabular.tint(c.label3),
-        ),
+        _persisted
+            ? 'Saved ${RadFormat.time(_savedAt ?? _report!.updatedAt)}'
+            : 'Saves as you type',
+        style: CruType.caption.tabular.tint(c.label3),
+      ),
     };
   }
 
@@ -817,12 +911,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     final r = _report!;
     final text = switch (r.status) {
       RadReportStatus.draft => 'Saves as you type. Ctrl + S saves now.',
-      RadReportStatus.preliminary => 'Preliminary: still editable. Sign it when final.',
-      RadReportStatus.finalised => '${[
-          'Signed',
-          if (r.signedBy.isNotEmpty) 'by ${r.signedBy}',
-          if (r.signedAt != null) RadFormat.dateTime(r.signedAt!),
-        ].join(' ')}. Locked; an addendum adds to it.',
+      RadReportStatus.preliminary =>
+        'Preliminary: still editable. Sign it when final.',
+      RadReportStatus.finalised =>
+        '${['Signed', if (r.signedBy.isNotEmpty) 'by ${r.signedBy}', if (r.signedAt != null) RadFormat.dateTime(r.signedAt!)].join(' ')}. Locked; an addendum adds to it.',
     };
     return Container(
       height: 64,
@@ -836,7 +928,12 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           radReportStatusPill(c, r.status),
           const SizedBox(width: CruSpace.s10),
           if (_locked) ...[
-            CruIcon(RadReportIcons.lock, size: 15, strokeWidth: 1.9, color: c.label3),
+            CruIcon(
+              RadReportIcons.lock,
+              size: 15,
+              strokeWidth: 1.9,
+              color: c.label3,
+            ),
             const SizedBox(width: CruSpace.s6),
           ],
           Expanded(
@@ -893,9 +990,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     final ceph = radCephTables(study);
 
     Widget mic(String id, FocusNode focus) => RadDictationButton(
-          active: _dictating == id,
-          onPressed: () => _toggleDictation(id, focus),
-        );
+      active: _dictating == id,
+      onPressed: () => _toggleDictation(id, focus),
+    );
 
     final blocks = <Widget>[
       if (!locked || r.technique.trim().isNotEmpty)
@@ -906,7 +1003,8 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
             phrases: phrases,
             readOnly: locked,
             minLines: 1,
-            hint: 'Field of view, voxel size, exposure, reconstructions reviewed',
+            hint:
+                'Field of view, voxel size, exposure, reconstructions reviewed',
             onChanged: _changed,
           ),
         ),
@@ -918,7 +1016,11 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           padding: const EdgeInsets.only(bottom: CruSpace.s8),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: CruCapsuleButton(label: 'Add section', icon: CruIcons.plus, onPressed: _addSection),
+            child: CruCapsuleButton(
+              label: 'Add section',
+              icon: CruIcons.plus,
+              onPressed: _addSection,
+            ),
           ),
         ),
       if (!locked || _teeth.isNotEmpty)
@@ -948,7 +1050,7 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           title: const Text('Lesions'),
           caption: _lesions.isEmpty && !locked
               ? 'Describe each lesion with the standard checklist: location, size, shape, '
-                  'borders, internal structure and effects.'
+                    'borders, internal structure and effects.'
               : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -989,7 +1091,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       if (included.isNotEmpty)
         RadBlock(
           title: const Text('Measurements'),
-          caption: locked ? null : 'Choose which go in the report in the study panel.',
+          caption: locked
+              ? null
+              : 'Choose which go in the report in the study panel.',
           child: Column(
             children: [
               for (var i = 0; i < included.length; i++) ...[
@@ -998,9 +1102,17 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                   padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
                   child: Row(
                     children: [
-                      Expanded(child: Text(included[i].label, style: CruType.note.tint(c.label))),
+                      Expanded(
+                        child: Text(
+                          included[i].label,
+                          style: CruType.note.tint(c.label),
+                        ),
+                      ),
                       const SizedBox(width: CruSpace.s12),
-                      Text(included[i].value, style: CruType.callout.tabular.tint(c.label)),
+                      Text(
+                        included[i].value,
+                        style: CruType.callout.tabular.tint(c.label),
+                      ),
                     ],
                   ),
                 ),
@@ -1010,10 +1122,13 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
         ),
       for (final t in ceph)
         RadBlock(
-          title: Text(t.analysis.isEmpty
-              ? 'Cephalometric analysis'
-              : 'Cephalometric analysis · ${t.analysis}'),
-          caption: 'From the ceph tracing. Amber: more than one standard deviation from the norm.',
+          title: Text(
+            t.analysis.isEmpty
+                ? 'Cephalometric analysis'
+                : 'Cephalometric analysis · ${t.analysis}',
+          ),
+          caption:
+              'From the ceph tracing. Amber: more than one standard deviation from the norm.',
           child: _CephTableView(t),
         ),
       RadBlock(
@@ -1033,7 +1148,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
       if (!locked || r.recommendations.trim().isNotEmpty)
         RadBlock(
           title: const Text('Recommendations'),
-          trailing: locked ? const [] : [mic('recommendations', _recommendationsFocus)],
+          trailing: locked
+              ? const []
+              : [mic('recommendations', _recommendationsFocus)],
           child: RadTextArea(
             controller: _recommendations,
             focusNode: _recommendationsFocus,
@@ -1042,7 +1159,9 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
             minLines: 1,
             hint: 'Further imaging, referral or follow-up',
             onChanged: _changed,
-            below: _dictating == 'recommendations' ? const RadDictationNote() : null,
+            below: _dictating == 'recommendations'
+                ? const RadDictationNote()
+                : null,
           ),
         ),
       if (r.addenda.isNotEmpty)
@@ -1058,7 +1177,10 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        [RadFormat.dateTime(a.at), if (a.by.isNotEmpty) a.by].join(' · '),
+                        [
+                          RadFormat.dateTime(a.at),
+                          if (a.by.isNotEmpty) a.by,
+                        ].join(' · '),
                         style: CruType.caption.tabular.tint(c.label3),
                       ),
                       const SizedBox(height: CruSpace.s2),
@@ -1073,7 +1195,12 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
 
     return CruCard(
       semanticLabel: 'Report',
-      padding: const EdgeInsets.fromLTRB(CruSpace.s32, CruSpace.s24, CruSpace.s32, CruSpace.s12),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s32,
+        CruSpace.s24,
+        CruSpace.s32,
+        CruSpace.s12,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1089,7 +1216,8 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                 if (settings.ai('draft'))
                   const RadAiPending(
                     label: 'Draft with AI',
-                    explain: 'Writes a first draft from the images and your measurements '
+                    explain:
+                        'Writes a first draft from the images and your measurements '
                         'for you to edit.',
                   ),
               ],
@@ -1114,7 +1242,8 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
               ),
             ),
           for (var i = 0; i < blocks.length; i++) ...[
-            if (i > 0 && blocks[i] is RadBlock && blocks[i - 1] is RadBlock) const CruSeparator(),
+            if (i > 0 && blocks[i] is RadBlock && blocks[i - 1] is RadBlock)
+              const CruSeparator(),
             blocks[i],
           ],
         ],
@@ -1123,8 +1252,15 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   }
 
   Future<void> _removeLesion(RadLesion l) async {
-    final written = [l.location, l.sizeMm, l.shape, l.borders, l.internal, l.effects, l.notes]
-        .any((e) => e.trim().isNotEmpty);
+    final written = [
+      l.location,
+      l.sizeMm,
+      l.shape,
+      l.borders,
+      l.internal,
+      l.effects,
+      l.notes,
+    ].any((e) => e.trim().isNotEmpty);
     if (written) {
       final ok = await confirmDental(
         context,
@@ -1172,17 +1308,26 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
                 tooltip: 'Section',
                 onSelected: (a) => _sectionAction(i, a),
                 color: c.surface,
-                shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
+                shape: cruShape(
+                  CruRadius.control,
+                  side: BorderSide(color: c.hairline),
+                ),
                 itemBuilder: (_) => [
                   radMenuItem(c, _SectionAction.up, 'Move up', enabled: i > 0),
-                  radMenuItem(c, _SectionAction.down, 'Move down',
-                      enabled: i < _sections.length - 1),
+                  radMenuItem(
+                    c,
+                    _SectionAction.down,
+                    'Move down',
+                    enabled: i < _sections.length - 1,
+                  ),
                   radMenuItem(c, _SectionAction.remove, 'Remove section'),
                 ],
                 child: SizedBox(
                   width: CruSize.rowCapsule,
                   height: CruSize.rowCapsule,
-                  child: Center(child: CruIcon(CruIcons.more, size: 16, color: c.label3)),
+                  child: Center(
+                    child: CruIcon(CruIcons.more, size: 16, color: c.label3),
+                  ),
                 ),
               ),
             ],
@@ -1198,8 +1343,14 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
     );
   }
 
-  Widget _templatePicker(CruColors c, RadStudy study, List<RadTemplate> templates) {
-    final current = templates.where((t) => t.id == _report!.templateId).firstOrNull;
+  Widget _templatePicker(
+    CruColors c,
+    RadStudy study,
+    List<RadTemplate> templates,
+  ) {
+    final current = templates
+        .where((t) => t.id == _report!.templateId)
+        .firstOrNull;
     final ordered = [
       ...templates.where((t) => t.modality == study.modality),
       ...templates.where((t) => t.modality != study.modality),
@@ -1215,17 +1366,27 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
           radMenuItem(
             c,
             t,
-            t.modality == study.modality ? t.name : '${t.name} · ${t.modality.short}',
+            t.modality == study.modality
+                ? t.name
+                : '${t.name} · ${t.modality.short}',
           ),
       ],
       child: Container(
         height: CruSize.control,
         padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-        decoration: ShapeDecoration(color: c.inset, shape: cruShape(CruRadius.control)),
+        decoration: ShapeDecoration(
+          color: c.inset,
+          shape: cruShape(CruRadius.control),
+        ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CruIcon(RadIcons.template, size: 16, strokeWidth: 1.9, color: c.label3),
+            CruIcon(
+              RadIcons.template,
+              size: 16,
+              strokeWidth: 1.9,
+              color: c.label3,
+            ),
             const SizedBox(width: CruSpace.s8),
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 320),
@@ -1247,8 +1408,16 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
   Widget _criticalStrip(CruColors c, RadStudy s, RadReferrer? referrer) {
     final told = s.criticalLog.isEmpty ? null : s.criticalLog.last;
     return Container(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s14, CruSpace.s10, CruSpace.s10, CruSpace.s10),
-      decoration: ShapeDecoration(color: c.redTint, shape: cruShape(CruRadius.control)),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s14,
+        CruSpace.s10,
+        CruSpace.s10,
+        CruSpace.s10,
+      ),
+      decoration: ShapeDecoration(
+        color: c.redTint,
+        shape: cruShape(CruRadius.control),
+      ),
       child: Row(
         children: [
           CruIcon(RadIcons.flag, size: 16, strokeWidth: 2, color: c.redText),
@@ -1258,14 +1427,18 @@ class _RadReportEditorScreenState extends ConsumerState<RadReportEditorScreen> {
               told == null
                   ? 'Critical finding · the referrer has not been told yet'
                   : 'Critical finding · told ${RadFormat.dateTime(told.at)}'
-                      '${told.contacted.isEmpty ? '' : ' (${told.contacted})'}',
+                        '${told.contacted.isEmpty ? '' : ' (${told.contacted})'}',
               style: CruType.subhead.w600.tabular.tint(c.redText),
             ),
           ),
           CruCapsuleButton(
             label: told == null ? 'Tell the referrer' : 'Open',
             kind: CruCapsuleKind.surface,
-            onPressed: () => showRadCriticalDialog(context, studyId: s.id, referrer: referrer),
+            onPressed: () => showRadCriticalDialog(
+              context,
+              studyId: s.id,
+              referrer: referrer,
+            ),
           ),
         ],
       ),
@@ -1287,7 +1460,9 @@ class _CriticalButton extends StatelessWidget {
     return CruPressable(
       onTap: onPressed,
       semanticLabel: critical ? 'Critical finding' : 'Flag a critical finding',
-      tooltip: critical ? 'Critical finding: tell the referrer' : 'Flag a critical finding',
+      tooltip: critical
+          ? 'Critical finding: tell the referrer'
+          : 'Flag a critical finding',
       builder: (context, hovered) {
         final fill = critical ? c.redTint : c.surface;
         return AnimatedContainer(
@@ -1301,16 +1476,23 @@ class _CriticalButton extends StatelessWidget {
               CruRadius.control,
               side: critical ? BorderSide.none : BorderSide(color: c.hairline),
             ),
-            shadows: critical ? null : c.cardShadow,
+            shadows: const [],
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CruIcon(RadIcons.flag, size: 16, strokeWidth: 1.9, color: critical ? c.redText : c.label2),
+              CruIcon(
+                RadIcons.flag,
+                size: 16,
+                strokeWidth: 1.9,
+                color: critical ? c.redText : c.label2,
+              ),
               const SizedBox(width: CruSpace.s6),
               Text(
                 critical ? 'Critical' : 'Flag critical',
-                style: (critical ? CruType.text.w600 : CruType.text.w500).tint(fg),
+                style: (critical ? CruType.text.w600 : CruType.text.w500).tint(
+                  fg,
+                ),
               ),
             ],
           ),
@@ -1358,8 +1540,10 @@ class _CephTableView extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     const col = 110.0;
-    Widget right(String text, TextStyle style) =>
-        SizedBox(width: col, child: Text(text, textAlign: TextAlign.right, style: style));
+    Widget right(String text, TextStyle style) => SizedBox(
+      width: col,
+      child: Text(text, textAlign: TextAlign.right, style: style),
+    );
     final head = CruType.caption.w500.tint(c.label3);
     return Column(
       children: [
@@ -1377,12 +1561,19 @@ class _CephTableView extends StatelessWidget {
             padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
             child: Row(
               children: [
-                Expanded(child: Text(row.name, style: CruType.subhead.tint(c.label))),
+                Expanded(
+                  child: Text(row.name, style: CruType.subhead.tint(c.label)),
+                ),
                 right(
                   row.value,
-                  CruType.subhead.w600.tabular.tint(row.deviates ? c.amberText : c.label),
+                  CruType.subhead.w600.tabular.tint(
+                    row.deviates ? c.amberText : c.label,
+                  ),
                 ),
-                right(row.norm.isEmpty ? '—' : row.norm, CruType.subhead.tabular.tint(c.label2)),
+                right(
+                  row.norm.isEmpty ? '—' : row.norm,
+                  CruType.subhead.tabular.tint(c.label2),
+                ),
               ],
             ),
           ),

@@ -46,7 +46,9 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
     var after = latest.start;
     if (after.isBefore(now)) {
       final s = ApptsBuilder.snap(now);
-      after = s.isBefore(now) ? s.add(const Duration(minutes: kApptSnapMinutes)) : s;
+      after = s.isBefore(now)
+          ? s.add(const Duration(minutes: kApptSnapMinutes))
+          : s;
     }
     final slot = ApptsBuilder.nextFreeSlot(
       dayItems: widget.dayItems,
@@ -168,7 +170,8 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
           ),
           const SizedBox(height: CruSpace.s8),
           for (var i = 0; i < g.items.length; i++) ...[
-            if (i > 0) const CruSeparator(indent: CruSize.monogramList + CruSpace.s12),
+            if (i > 0)
+              const CruSeparator(indent: CruSize.monogramList + CruSpace.s12),
             OverlapVisitRow(item: g.items[i], now: now),
           ],
           if (suggestion != null) ...[
@@ -316,13 +319,16 @@ class _CheckRow extends StatelessWidget {
                 border: value ? null : Border.all(color: c.label3),
               ),
               child: value
-                  ? CruIcon(CruIcons.check, size: 13, strokeWidth: 2.6, color: c.onAccent)
+                  ? CruIcon(
+                      CruIcons.check,
+                      size: 13,
+                      strokeWidth: 2.6,
+                      color: c.onAccent,
+                    )
                   : null,
             ),
             const SizedBox(width: CruSpace.s8),
-            Expanded(
-              child: Text(label, style: CruType.subhead.tint(c.label)),
-            ),
+            Expanded(child: Text(label, style: CruType.subhead.tint(c.label))),
           ],
         ),
       ),

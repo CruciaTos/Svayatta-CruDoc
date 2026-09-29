@@ -108,14 +108,21 @@ class _SuperAdminAnalyticsScreenState
 
     final doctors = doctorState.doctors;
     final totalDoctors = doctors.length;
-    final activeDoctors =
-        doctors.where((d) => d.status == DoctorStatus.active).length;
-    final totalPatients =
-        doctors.fold<int>(0, (sum, d) => sum + d.patientCount);
-    final totalStorageGB =
-        doctors.fold<double>(0.0, (sum, d) => sum + d.storageUsedGB);
-    final totalMonthlyRevenue =
-        doctors.fold<double>(0.0, (sum, d) => sum + _calculateDoctorMonthlyRate(d));
+    final activeDoctors = doctors
+        .where((d) => d.status == DoctorStatus.active)
+        .length;
+    final totalPatients = doctors.fold<int>(
+      0,
+      (sum, d) => sum + d.patientCount,
+    );
+    final totalStorageGB = doctors.fold<double>(
+      0.0,
+      (sum, d) => sum + d.storageUsedGB,
+    );
+    final totalMonthlyRevenue = doctors.fold<double>(
+      0.0,
+      (sum, d) => sum + _calculateDoctorMonthlyRate(d),
+    );
 
     final Map<FeatureModule, int> moduleAdoption = {};
     for (final module in FeatureModule.values) {
@@ -151,7 +158,10 @@ class _SuperAdminAnalyticsScreenState
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Platform Growth & Analytics', style: CruType.largeTitle.tint(c.label)),
+                    Text(
+                      'Platform Growth & Analytics',
+                      style: CruType.largeTitle.tint(c.label),
+                    ),
                     const SizedBox(height: CruSpace.s4),
                     Text(
                       'Cross-tenant usage statistics, revenue projections, feature penetration, and cloud storage consumption.',
@@ -164,7 +174,9 @@ class _SuperAdminAnalyticsScreenState
                 label: 'Refresh',
                 kind: CruButtonKind.secondary,
                 icon: CruIcons.sparkle,
-                onPressed: () => ref.read(doctorListProvider.notifier).loadDoctors(refresh: true),
+                onPressed: () => ref
+                    .read(doctorListProvider.notifier)
+                    .loadDoctors(refresh: true),
               ),
             ],
           ),
@@ -172,7 +184,15 @@ class _SuperAdminAnalyticsScreenState
           const SizedBox(height: CruSpace.s20),
 
           // 2. High-Impact KPI Cards Row
-          _buildKPIRow(context, totalDoctors, activeDoctors, totalMonthlyRevenue, totalPatients, totalStorageGB, isMobile),
+          _buildKPIRow(
+            context,
+            totalDoctors,
+            activeDoctors,
+            totalMonthlyRevenue,
+            totalPatients,
+            totalStorageGB,
+            isMobile,
+          ),
 
           const SizedBox(height: CruSpace.s24),
 
@@ -187,7 +207,12 @@ class _SuperAdminAnalyticsScreenState
           const SizedBox(height: CruSpace.s24),
 
           // 5. Tenant Usage Directory Table
-          _buildDoctorUsageTable(context, filteredDoctors, doctorState.isLoading, isMobile),
+          _buildDoctorUsageTable(
+            context,
+            filteredDoctors,
+            doctorState.isLoading,
+            isMobile,
+          ),
         ],
       ),
     );
@@ -216,7 +241,8 @@ class _SuperAdminAnalyticsScreenState
       ),
       _KPI(
         title: 'Monthly Add-on Runrate',
-        value: '₹${(totalRevenue > 0 ? totalRevenue * 83 : 48500).toStringAsFixed(0)}',
+        value:
+            '₹${(totalRevenue > 0 ? totalRevenue * 83 : 48500).toStringAsFixed(0)}',
         subtitle: 'Recurring Module Subscriptions',
         icon: CruIcons.rupee,
       ),
@@ -237,10 +263,12 @@ class _SuperAdminAnalyticsScreenState
     if (isMobile) {
       return Column(
         children: kpis
-            .map((k) => Padding(
-                  padding: const EdgeInsets.only(bottom: CruSpace.s12),
-                  child: _buildKPICard(c, k),
-                ))
+            .map(
+              (k) => Padding(
+                padding: const EdgeInsets.only(bottom: CruSpace.s12),
+                child: _buildKPICard(c, k),
+              ),
+            )
             .toList(),
       );
     }
@@ -307,10 +335,22 @@ class _SuperAdminAnalyticsScreenState
     ];
     final months = ['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'];
 
-    final activeCount = doctors.where((d) => d.status == DoctorStatus.active).length;
-    final trialCount = doctors.where((d) => d.status == DoctorStatus.trial).length;
-    final pendingCount = doctors.where((d) => d.status == DoctorStatus.pending).length;
-    final suspendedCount = doctors.where((d) => d.status == DoctorStatus.suspended || d.status == DoctorStatus.expired).length;
+    final activeCount = doctors
+        .where((d) => d.status == DoctorStatus.active)
+        .length;
+    final trialCount = doctors
+        .where((d) => d.status == DoctorStatus.trial)
+        .length;
+    final pendingCount = doctors
+        .where((d) => d.status == DoctorStatus.pending)
+        .length;
+    final suspendedCount = doctors
+        .where(
+          (d) =>
+              d.status == DoctorStatus.suspended ||
+              d.status == DoctorStatus.expired,
+        )
+        .length;
     final total = doctors.isEmpty ? 1 : doctors.length;
 
     final trendCard = CruCard(
@@ -322,11 +362,17 @@ class _SuperAdminAnalyticsScreenState
             children: [
               CruIcon(CruIcons.sparkle, size: 18, color: c.accentText),
               const SizedBox(width: CruSpace.s8),
-              Text('Monthly Recurring Runrate Trend', style: CruType.headline.tint(c.label)),
+              Text(
+                'Monthly Recurring Runrate Trend',
+                style: CruType.headline.tint(c.label),
+              ),
             ],
           ),
           const SizedBox(height: CruSpace.s4),
-          Text('6-Month projected addon expansion', style: CruType.caption.tint(c.label3)),
+          Text(
+            '6-Month projected addon expansion',
+            style: CruType.caption.tint(c.label3),
+          ),
           const SizedBox(height: CruSpace.s24),
           SizedBox(
             height: 160,
@@ -351,11 +397,17 @@ class _SuperAdminAnalyticsScreenState
             children: [
               CruIcon(CruIcons.patients, size: 18, color: c.accentText),
               const SizedBox(width: CruSpace.s8),
-              Text('Account Status Ratio', style: CruType.headline.tint(c.label)),
+              Text(
+                'Account Status Ratio',
+                style: CruType.headline.tint(c.label),
+              ),
             ],
           ),
           const SizedBox(height: CruSpace.s4),
-          Text('Active vs Trial vs Suspended Doctors', style: CruType.caption.tint(c.label3)),
+          Text(
+            'Active vs Trial vs Suspended Doctors',
+            style: CruType.caption.tint(c.label3),
+          ),
           const SizedBox(height: CruSpace.s20),
           Row(
             children: [
@@ -385,7 +437,12 @@ class _SuperAdminAnalyticsScreenState
                     const SizedBox(height: CruSpace.s8),
                     _buildLegendItem(c, 'Pending', '$pendingCount', c.accent),
                     const SizedBox(height: CruSpace.s8),
-                    _buildLegendItem(c, 'Suspended', '$suspendedCount', c.redText),
+                    _buildLegendItem(
+                      c,
+                      'Suspended',
+                      '$suspendedCount',
+                      c.redText,
+                    ),
                   ],
                 ),
               ),
@@ -415,7 +472,12 @@ class _SuperAdminAnalyticsScreenState
     );
   }
 
-  Widget _buildLegendItem(CruColors c, String title, String count, Color color) {
+  Widget _buildLegendItem(
+    CruColors c,
+    String title,
+    String count,
+    Color color,
+  ) {
     return Row(
       children: [
         Container(
@@ -449,17 +511,25 @@ class _SuperAdminAnalyticsScreenState
             children: [
               CruIcon(CruIcons.flask, size: 18, color: c.accentText),
               const SizedBox(width: CruSpace.s8),
-              Text('Feature Module Market Penetration', style: CruType.headline.tint(c.label)),
+              Text(
+                'Feature Module Market Penetration',
+                style: CruType.headline.tint(c.label),
+              ),
             ],
           ),
           const SizedBox(height: CruSpace.s4),
-          Text('Adoption percentages across all registered doctor and dental specialty accounts', style: CruType.caption.tint(c.label3)),
+          Text(
+            'Adoption percentages across all registered doctor and dental specialty accounts',
+            style: CruType.caption.tint(c.label3),
+          ),
           const SizedBox(height: CruSpace.s20),
           for (final module in FeatureModule.values) ...[
             Builder(
               builder: (ctx) {
                 final count = moduleAdoption[module] ?? 0;
-                final ratio = totalDoctors > 0 ? (count / totalDoctors).clamp(0.0, 1.0) : 0.0;
+                final ratio = totalDoctors > 0
+                    ? (count / totalDoctors).clamp(0.0, 1.0)
+                    : 0.0;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: CruSpace.s14),
                   child: Column(
@@ -470,9 +540,15 @@ class _SuperAdminAnalyticsScreenState
                         children: [
                           Row(
                             children: [
-                              Text(module.label, style: CruType.subhead.w600.tint(c.label)),
+                              Text(
+                                module.label,
+                                style: CruType.subhead.w600.tint(c.label),
+                              ),
                               const SizedBox(width: CruSpace.s8),
-                              Text(module.description, style: CruType.caption.tint(c.label3)),
+                              Text(
+                                module.description,
+                                style: CruType.caption.tint(c.label3),
+                              ),
                             ],
                           ),
                           Text(
@@ -520,8 +596,14 @@ class _SuperAdminAnalyticsScreenState
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Tenant Activity Directory', style: CruType.headline.tint(c.label)),
-                      Text('Per-clinic patient volume, storage metrics, and module activation', style: CruType.caption.tint(c.label3)),
+                      Text(
+                        'Tenant Activity Directory',
+                        style: CruType.headline.tint(c.label),
+                      ),
+                      Text(
+                        'Per-clinic patient volume, storage metrics, and module activation',
+                        style: CruType.caption.tint(c.label3),
+                      ),
                     ],
                   ),
                 ),
@@ -539,9 +621,15 @@ class _SuperAdminAnalyticsScreenState
                       fillColor: c.inset,
                       prefixIcon: Padding(
                         padding: const EdgeInsets.all(8),
-                        child: CruIcon(CruIcons.search, size: 14, color: c.label3),
+                        child: CruIcon(
+                          CruIcons.search,
+                          size: 14,
+                          color: c.label3,
+                        ),
                       ),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 10),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(CruRadius.control),
                         borderSide: BorderSide(color: c.hairline),
@@ -558,22 +646,58 @@ class _SuperAdminAnalyticsScreenState
               color: c.inset,
               child: Row(
                 children: [
-                  Expanded(flex: 3, child: Text('DOCTOR', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('SPECIALTY', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('PATIENTS', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('STORAGE', style: CruType.groupLabel.tint(c.label3))),
-                  Expanded(flex: 2, child: Text('ACTIVE MODULES', style: CruType.groupLabel.tint(c.label3))),
+                  Expanded(
+                    flex: 3,
+                    child: Text(
+                      'DOCTOR',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'SPECIALTY',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'PATIENTS',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'STORAGE',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: Text(
+                      'ACTIVE MODULES',
+                      style: CruType.groupLabel.tint(c.label3),
+                    ),
+                  ),
                 ],
               ),
             ),
           Divider(height: 1, color: c.hairline),
           if (isLoading && doctors.isEmpty)
-            const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+            const Padding(
+              padding: EdgeInsets.all(32),
+              child: Center(child: CircularProgressIndicator()),
+            )
           else if (doctors.isEmpty)
             Padding(
               padding: const EdgeInsets.all(32),
               child: Center(
-                child: Text('No tenants matching query', style: CruType.text.tint(c.label3)),
+                child: Text(
+                  'No tenants matching query',
+                  style: CruType.text.tint(c.label3),
+                ),
               ),
             )
           else
@@ -585,21 +709,37 @@ class _SuperAdminAnalyticsScreenState
               itemBuilder: (ctx, index) {
                 final d = doctors[index];
                 return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 14,
+                  ),
                   child: Row(
                     children: [
                       Expanded(
                         flex: 3,
                         child: Row(
                           children: [
-                            CruMonogram(name: d.name, size: 30, background: c.track),
+                            CruMonogram(
+                              name: d.name,
+                              size: 30,
+                            ),
                             const SizedBox(width: CruSpace.s10),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(d.name, style: CruType.row.tint(c.label), overflow: TextOverflow.ellipsis),
-                                  Text(d.clinicName.isNotEmpty ? d.clinicName : d.email, style: CruType.caption.tint(c.label3), overflow: TextOverflow.ellipsis),
+                                  Text(
+                                    d.name,
+                                    style: CruType.row.tint(c.label),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    d.clinicName.isNotEmpty
+                                        ? d.clinicName
+                                        : d.email,
+                                    style: CruType.caption.tint(c.label3),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ],
                               ),
                             ),
@@ -608,27 +748,43 @@ class _SuperAdminAnalyticsScreenState
                       ),
                       Expanded(
                         flex: 2,
-                        child: Text(d.specialization.isNotEmpty ? d.specialization : 'General', style: CruType.caption.tint(c.label2)),
+                        child: Text(
+                          d.specialization.isNotEmpty
+                              ? d.specialization
+                              : 'General',
+                          style: CruType.caption.tint(c.label2),
+                        ),
                       ),
                       Expanded(
                         flex: 2,
-                        child: Text('${d.patientCount} patients', style: CruType.caption.tabular.tint(c.label)),
+                        child: Text(
+                          '${d.patientCount} patients',
+                          style: CruType.caption.tabular.tint(c.label),
+                        ),
                       ),
                       Expanded(
                         flex: 2,
-                        child: Text('${d.storageUsedGB.toStringAsFixed(1)} GB', style: CruType.caption.tabular.tint(c.label)),
+                        child: Text(
+                          '${d.storageUsedGB.toStringAsFixed(1)} GB',
+                          style: CruType.caption.tabular.tint(c.label),
+                        ),
                       ),
                       Expanded(
                         flex: 2,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: ShapeDecoration(
                             color: c.accentTint,
                             shape: cruShape(CruRadius.full),
                           ),
                           child: Text(
                             '${d.enabledModules.length} enabled',
-                            style: CruType.caption.w600.tabular.tint(c.accentText),
+                            style: CruType.caption.w600.tabular.tint(
+                              c.accentText,
+                            ),
                           ),
                         ),
                       ),
@@ -718,7 +874,10 @@ class _TrendChartPainter extends CustomPainter {
       ..color = lineColor
       ..style = PaintingStyle.fill;
 
-    final double maxVal = (points.reduce((a, b) => a > b ? a : b) * 1.2).clamp(10.0, double.infinity);
+    final double maxVal = (points.reduce((a, b) => a > b ? a : b) * 1.2).clamp(
+      10.0,
+      double.infinity,
+    );
     const double paddingLeft = 36;
     const double paddingBottom = 24;
     final double width = size.width - paddingLeft;
@@ -726,7 +885,11 @@ class _TrendChartPainter extends CustomPainter {
 
     for (int i = 0; i <= 2; i++) {
       final y = height - (height / 2 * i);
-      canvas.drawLine(const Offset(paddingLeft, 0), Offset(size.width, y), gridPaint);
+      canvas.drawLine(
+        const Offset(paddingLeft, 0),
+        Offset(size.width, y),
+        gridPaint,
+      );
     }
 
     final double stepX = width / (points.length - 1);
@@ -740,11 +903,18 @@ class _TrendChartPainter extends CustomPainter {
       final textPainter = TextPainter(
         text: TextSpan(
           text: months[i],
-          style: const TextStyle(color: Color(0xFF888888), fontSize: 10, fontWeight: FontWeight.w500),
+          style: const TextStyle(
+            color: Color(0xFF888888),
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      textPainter.paint(canvas, Offset(x - (textPainter.width / 2), size.height - 14));
+      textPainter.paint(
+        canvas,
+        Offset(x - (textPainter.width / 2), size.height - 14),
+      );
     }
 
     final path = Path();
@@ -769,11 +939,16 @@ class _TrendChartPainter extends CustomPainter {
     final fillGradient = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [fillColor.withValues(alpha: 0.3), fillColor.withValues(alpha: 0.0)],
+      colors: [
+        fillColor.withValues(alpha: 0.3),
+        fillColor.withValues(alpha: 0.0),
+      ],
     );
 
     final fillPaint = Paint()
-      ..shader = fillGradient.createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+      ..shader = fillGradient.createShader(
+        Rect.fromLTWH(0, 0, size.width, size.height),
+      );
 
     canvas.drawPath(fillPath, fillPaint);
     canvas.drawPath(path, linePaint);

@@ -53,7 +53,10 @@ class MonthGrid extends StatelessWidget {
         if (i > 0) children.add(const SizedBox(width: MonthMetrics.gap));
         children.add(Expanded(child: cells[i]));
       }
-      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: children);
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      );
     }
 
     return Column(
@@ -86,7 +89,8 @@ class MonthGrid extends StatelessWidget {
                         key: ValueKey(d),
                         date: d,
                         kind: _kind(d),
-                        selected: d == selected &&
+                        selected:
+                            d == selected &&
                             _kind(d) != MonthTileKind.otherMonth,
                         onSelect: () => onSelect(d),
                         onOpen: () => onOpen(d),

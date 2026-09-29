@@ -42,9 +42,9 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     // Watch the filtered patients provider with the current search query
@@ -60,13 +60,7 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x1A000000),
-                blurRadius: 32,
-                offset: Offset(0, 16),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -74,7 +68,10 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
               children: [
                 // Header
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 16,
+                  ),
                   color: const Color(0xFFF8FAFC),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -105,101 +102,101 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
                         ],
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close_rounded, color: Color(0xFF64748B), size: 20),
+                        icon: const Icon(
+                          Icons.close_rounded,
+                          color: Color(0xFF64748B),
+                          size: 20,
+                        ),
                         onPressed: () => Navigator.of(context).pop(),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1, color: Color(0xFFE2E8F0)),
+                const Divider(height: 1),
 
-          // Search field
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-            child: TextField(
-              controller: _searchController,
-              autofocus: true,
-              onChanged: (value) {
-                setState(() => _searchQuery = value);
-                // Update the search query provider to filter patients
-                ref.read(searchQueryProvider.notifier).state = value;
-              },
-              decoration: InputDecoration(
-                hintText: 'Search by name, phone, or diagnosis…',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 10),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-
-          // Patient list
-          Expanded(
-            child: patientsAsync.when(
-              loading: () => const Center(
-                child: CircularProgressIndicator(),
-              ),
-              error: (error, stack) => Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Text(
-                    'Error loading patients: $error',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Color(0xFFDC2626)),
-                  ),
-                ),
-              ),
-              data: (patients) {
-                if (patients.isEmpty) {
-                  return Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Text(
-                        _searchQuery.isEmpty
-                            ? 'No patients yet. Create one to get started.'
-                            : 'No patients match "$_searchQuery".',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.grey[600]),
+                // Search field
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                  child: TextField(
+                    controller: _searchController,
+                    autofocus: true,
+                    onChanged: (value) {
+                      setState(() => _searchQuery = value);
+                      // Update the search query provider to filter patients
+                      ref.read(searchQueryProvider.notifier).state = value;
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Search by name, phone, or diagnosis…',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                  );
-                }
+                  ),
+                ),
 
-                return ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: patients.length,
-                  itemBuilder: (context, index) {
-                    final patient = patients[index];
-                    return _PatientListItem(
-                      patient: patient,
-                      onTap: () =>
-                          Navigator.of(context).pop<Patient>(patient),
-                    );
-                  },
-                );
-              },
+                // Patient list
+                Expanded(
+                  child: patientsAsync.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, stack) => Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Text(
+                          'Error loading patients: $error',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Color(0xFFDC2626)),
+                        ),
+                      ),
+                    ),
+                    data: (patients) {
+                      if (patients.isEmpty) {
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(20),
+                            child: Text(
+                              _searchQuery.isEmpty
+                                  ? 'No patients yet. Create one to get started.'
+                                  : 'No patients match "$_searchQuery".',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey[600]),
+                            ),
+                          ),
+                        );
+                      }
+
+                      return ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: patients.length,
+                        itemBuilder: (context, index) {
+                          final patient = patients[index];
+                          return _PatientListItem(
+                            patient: patient,
+                            onTap: () =>
+                                Navigator.of(context).pop<Patient>(patient),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-              ),
-            ],
           ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _PatientListItem extends StatelessWidget {
   final Patient patient;
   final VoidCallback onTap;
 
-  const _PatientListItem({
-    required this.patient,
-    required this.onTap,
-  });
+  const _PatientListItem({required this.patient, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -234,19 +231,13 @@ class _PatientListItem extends StatelessWidget {
           if (diagnosis.isNotEmpty)
             Text(
               diagnosis,
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.grey[600], fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           Text(
             'Added $createdDate',
-            style: TextStyle(
-              color: Colors.grey[500],
-              fontSize: 11,
-            ),
+            style: TextStyle(color: Colors.grey[500], fontSize: 11),
           ),
         ],
       ),

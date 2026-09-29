@@ -134,24 +134,23 @@ class _Form {
     double? trunk,
     double? curve,
     double? flare,
-  }) =>
-      _Form(
-        edge: edge,
-        contactM: contactM,
-        contactD: contactD,
-        cervix: cervix ?? this.cervix,
-        cejSide: cejSide,
-        cejDip: cejDip ?? this.cejDip,
-        legs: legs ?? this.legs,
-        sep: sep ?? this.sep,
-        leg: leg ?? this.leg,
-        trunk: trunk ?? this.trunk,
-        curve: curve ?? this.curve,
-        flare: flare ?? this.flare,
-        back: back,
-        grooves: grooves,
-        ridge: ridge,
-      );
+  }) => _Form(
+    edge: edge,
+    contactM: contactM,
+    contactD: contactD,
+    cervix: cervix ?? this.cervix,
+    cejSide: cejSide,
+    cejDip: cejDip ?? this.cejDip,
+    legs: legs ?? this.legs,
+    sep: sep ?? this.sep,
+    leg: leg ?? this.leg,
+    trunk: trunk ?? this.trunk,
+    curve: curve ?? this.curve,
+    flare: flare ?? this.flare,
+    back: back,
+    grooves: grooves,
+    ridge: ridge,
+  );
 }
 
 /// The biting surface seen from above, as fractions of the half-widths
@@ -182,8 +181,9 @@ class _Occ {
   final Offset? cingulum;
 }
 
-List<Offset> _pts(List<double> v) =>
-    [for (var i = 0; i < v.length; i += 2) Offset(v[i], v[i + 1])];
+List<Offset> _pts(List<double> v) => [
+  for (var i = 0; i < v.length; i += 2) Offset(v[i], v[i + 1]),
+];
 
 _Form _formOf(ToothSpec s) {
   if (!s.primary) return _permanent(s.upper, s.position);
@@ -216,222 +216,411 @@ _Form _permanent(bool upper, int p) {
   if (upper) {
     return switch (p) {
       1 => _Form(
-          edge: _pts([-0.94, 0.11, -0.72, 0.035, -0.35, 0.004, 0.2, 0, 0.66, 0.006, 0.93, 0.04]),
-          contactM: 0.12,
-          contactD: 0.22,
-          cervix: 0.76,
-          cejSide: 0.88,
-          cejDip: 0.13,
-          leg: 0.74,
-          curve: 0.05,
-          grooves: [
-            _pts([0.36, 0.05, 0.33, 0.22, 0.3, 0.42]),
-            _pts([-0.36, 0.05, -0.33, 0.22, -0.3, 0.42]),
-          ],
-        ),
+        edge: _pts([
+          -0.94,
+          0.11,
+          -0.72,
+          0.035,
+          -0.35,
+          0.004,
+          0.2,
+          0,
+          0.66,
+          0.006,
+          0.93,
+          0.04,
+        ]),
+        contactM: 0.12,
+        contactD: 0.22,
+        cervix: 0.76,
+        cejSide: 0.88,
+        cejDip: 0.13,
+        leg: 0.74,
+        curve: 0.05,
+        grooves: [
+          _pts([0.36, 0.05, 0.33, 0.22, 0.3, 0.42]),
+          _pts([-0.36, 0.05, -0.33, 0.22, -0.3, 0.42]),
+        ],
+      ),
       2 => _Form(
-          edge: _pts([-0.9, 0.18, -0.62, 0.05, -0.2, 0, 0.35, 0, 0.72, 0.04, 0.94, 0.12]),
-          contactM: 0.18,
-          contactD: 0.3,
-          cervix: 0.72,
-          cejSide: 0.88,
-          cejDip: 0.12,
-          leg: 0.7,
-          curve: 0.14,
-          grooves: [
-            _pts([0.34, 0.06, 0.3, 0.4]),
-            _pts([-0.34, 0.07, -0.3, 0.4]),
-          ],
-        ),
+        edge: _pts([
+          -0.9,
+          0.18,
+          -0.62,
+          0.05,
+          -0.2,
+          0,
+          0.35,
+          0,
+          0.72,
+          0.04,
+          0.94,
+          0.12,
+        ]),
+        contactM: 0.18,
+        contactD: 0.3,
+        cervix: 0.72,
+        cejSide: 0.88,
+        cejDip: 0.12,
+        leg: 0.7,
+        curve: 0.14,
+        grooves: [
+          _pts([0.34, 0.06, 0.3, 0.4]),
+          _pts([-0.34, 0.07, -0.3, 0.4]),
+        ],
+      ),
       3 => _Form(
-          edge: _pts([-0.99, 0.38, -0.68, 0.22, -0.3, 0.08, 0.06, 0, 0.4, 0.09, 0.74, 0.19, 0.98, 0.27]),
-          contactM: 0.3,
-          contactD: 0.42,
-          cervix: 0.7,
-          cejSide: 0.88,
-          cejDip: 0.12,
-          leg: 0.72,
-          curve: 0.07,
-          ridge: 0.06,
-        ),
+        edge: _pts([
+          -0.99,
+          0.38,
+          -0.68,
+          0.22,
+          -0.3,
+          0.08,
+          0.06,
+          0,
+          0.4,
+          0.09,
+          0.74,
+          0.19,
+          0.98,
+          0.27,
+        ]),
+        contactM: 0.3,
+        contactD: 0.42,
+        cervix: 0.7,
+        cejSide: 0.88,
+        cejDip: 0.12,
+        leg: 0.72,
+        curve: 0.07,
+        ridge: 0.06,
+      ),
       4 => _Form(
-          edge: _pts([-0.98, 0.3, -0.62, 0.12, -0.18, 0, 0.3, 0.09, 0.72, 0.2, 0.99, 0.29]),
-          contactM: 0.3,
-          contactD: 0.32,
-          cervix: 0.7,
-          cejSide: 0.9,
-          cejDip: 0.07,
-          legs: 2,
-          sep: 0.31,
-          leg: 0.31,
-          trunk: 0.5,
-          curve: 0.05,
-          ridge: -0.18,
-        ),
+        edge: _pts([
+          -0.98,
+          0.3,
+          -0.62,
+          0.12,
+          -0.18,
+          0,
+          0.3,
+          0.09,
+          0.72,
+          0.2,
+          0.99,
+          0.29,
+        ]),
+        contactM: 0.3,
+        contactD: 0.32,
+        cervix: 0.7,
+        cejSide: 0.9,
+        cejDip: 0.07,
+        legs: 2,
+        sep: 0.31,
+        leg: 0.31,
+        trunk: 0.5,
+        curve: 0.05,
+        ridge: -0.18,
+      ),
       5 => _Form(
-          edge: _pts([-0.98, 0.27, -0.55, 0.09, -0.05, 0, 0.5, 0.08, 0.98, 0.25]),
-          contactM: 0.28,
-          contactD: 0.3,
-          cervix: 0.7,
-          cejSide: 0.9,
-          cejDip: 0.06,
-          leg: 0.66,
-          curve: 0.08,
-          ridge: -0.05,
-        ),
+        edge: _pts([-0.98, 0.27, -0.55, 0.09, -0.05, 0, 0.5, 0.08, 0.98, 0.25]),
+        contactM: 0.28,
+        contactD: 0.3,
+        cervix: 0.7,
+        cejSide: 0.9,
+        cejDip: 0.06,
+        leg: 0.66,
+        curve: 0.08,
+        ridge: -0.05,
+      ),
       6 => _Form(
-          edge: _pts([-0.98, 0.26, -0.8, 0.1, -0.5, 0.01, -0.2, 0.08, -0.06, 0.15, 0.08, 0.08, 0.42, 0, 0.78, 0.08, 0.99, 0.22]),
-          contactM: 0.25,
-          contactD: 0.3,
-          cervix: 0.8,
-          cejSide: 0.92,
-          cejDip: 0.05,
-          legs: 2,
-          sep: 0.5,
-          leg: 0.3,
-          trunk: 0.3,
-          curve: 0.12,
-          back: true,
-          grooves: [_pts([-0.06, 0.15, -0.04, 0.32, -0.02, 0.5])],
-        ),
+        edge: _pts([
+          -0.98,
+          0.26,
+          -0.8,
+          0.1,
+          -0.5,
+          0.01,
+          -0.2,
+          0.08,
+          -0.06,
+          0.15,
+          0.08,
+          0.08,
+          0.42,
+          0,
+          0.78,
+          0.08,
+          0.99,
+          0.22,
+        ]),
+        contactM: 0.25,
+        contactD: 0.3,
+        cervix: 0.8,
+        cejSide: 0.92,
+        cejDip: 0.05,
+        legs: 2,
+        sep: 0.5,
+        leg: 0.3,
+        trunk: 0.3,
+        curve: 0.12,
+        back: true,
+        grooves: [
+          _pts([-0.06, 0.15, -0.04, 0.32, -0.02, 0.5]),
+        ],
+      ),
       7 => _Form(
-          edge: _pts([-0.97, 0.28, -0.76, 0.12, -0.52, 0.05, -0.28, 0.1, -0.16, 0.16, 0, 0.08, 0.38, 0, 0.76, 0.08, 0.99, 0.22]),
-          contactM: 0.26,
-          contactD: 0.32,
-          cervix: 0.8,
-          cejSide: 0.92,
-          cejDip: 0.05,
-          legs: 2,
-          sep: 0.42,
-          leg: 0.3,
-          trunk: 0.38,
-          curve: 0.2,
-          back: true,
-          grooves: [_pts([-0.16, 0.16, -0.14, 0.32, -0.12, 0.48])],
-        ),
+        edge: _pts([
+          -0.97,
+          0.28,
+          -0.76,
+          0.12,
+          -0.52,
+          0.05,
+          -0.28,
+          0.1,
+          -0.16,
+          0.16,
+          0,
+          0.08,
+          0.38,
+          0,
+          0.76,
+          0.08,
+          0.99,
+          0.22,
+        ]),
+        contactM: 0.26,
+        contactD: 0.32,
+        cervix: 0.8,
+        cejSide: 0.92,
+        cejDip: 0.05,
+        legs: 2,
+        sep: 0.42,
+        leg: 0.3,
+        trunk: 0.38,
+        curve: 0.2,
+        back: true,
+        grooves: [
+          _pts([-0.16, 0.16, -0.14, 0.32, -0.12, 0.48]),
+        ],
+      ),
       _ => _Form(
-          edge: _pts([-0.93, 0.32, -0.66, 0.12, -0.35, 0.05, -0.15, 0.12, 0.12, 0.03, 0.5, 0, 0.86, 0.12]),
-          contactM: 0.28,
-          contactD: 0.4,
-          cervix: 0.78,
-          cejSide: 0.9,
-          cejDip: 0.05,
-          legs: 2,
-          sep: 0.3,
-          leg: 0.32,
-          trunk: 0.55,
-          curve: 0.28,
-          grooves: [_pts([-0.15, 0.12, -0.12, 0.26, -0.1, 0.4])],
-        ),
+        edge: _pts([
+          -0.93,
+          0.32,
+          -0.66,
+          0.12,
+          -0.35,
+          0.05,
+          -0.15,
+          0.12,
+          0.12,
+          0.03,
+          0.5,
+          0,
+          0.86,
+          0.12,
+        ]),
+        contactM: 0.28,
+        contactD: 0.4,
+        cervix: 0.78,
+        cejSide: 0.9,
+        cejDip: 0.05,
+        legs: 2,
+        sep: 0.3,
+        leg: 0.32,
+        trunk: 0.55,
+        curve: 0.28,
+        grooves: [
+          _pts([-0.15, 0.12, -0.12, 0.26, -0.1, 0.4]),
+        ],
+      ),
     };
   }
   return switch (p) {
     1 => _Form(
-        edge: _pts([-0.93, 0.03, -0.5, 0, 0.5, 0, 0.93, 0.02]),
-        contactM: 0.1,
-        contactD: 0.12,
-        cervix: 0.72,
-        cejSide: 0.88,
-        cejDip: 0.1,
-        leg: 0.66,
-        curve: 0.04,
-        grooves: [
-          _pts([0.3, 0.06, 0.28, 0.36]),
-          _pts([-0.3, 0.06, -0.28, 0.36]),
-        ],
-      ),
+      edge: _pts([-0.93, 0.03, -0.5, 0, 0.5, 0, 0.93, 0.02]),
+      contactM: 0.1,
+      contactD: 0.12,
+      cervix: 0.72,
+      cejSide: 0.88,
+      cejDip: 0.1,
+      leg: 0.66,
+      curve: 0.04,
+      grooves: [
+        _pts([0.3, 0.06, 0.28, 0.36]),
+        _pts([-0.3, 0.06, -0.28, 0.36]),
+      ],
+    ),
     2 => _Form(
-        edge: _pts([-0.92, 0.06, -0.5, 0, 0.5, 0, 0.94, 0.03]),
-        contactM: 0.12,
-        contactD: 0.18,
-        cervix: 0.72,
-        cejSide: 0.88,
-        cejDip: 0.1,
-        leg: 0.68,
-        curve: 0.06,
-        grooves: [
-          _pts([0.3, 0.06, 0.28, 0.36]),
-          _pts([-0.3, 0.07, -0.28, 0.36]),
-        ],
-      ),
+      edge: _pts([-0.92, 0.06, -0.5, 0, 0.5, 0, 0.94, 0.03]),
+      contactM: 0.12,
+      contactD: 0.18,
+      cervix: 0.72,
+      cejSide: 0.88,
+      cejDip: 0.1,
+      leg: 0.68,
+      curve: 0.06,
+      grooves: [
+        _pts([0.3, 0.06, 0.28, 0.36]),
+        _pts([-0.3, 0.07, -0.28, 0.36]),
+      ],
+    ),
     3 => _Form(
-        edge: _pts([-0.99, 0.32, -0.6, 0.15, -0.2, 0.04, 0.14, 0, 0.52, 0.08, 0.92, 0.16]),
-        contactM: 0.18,
-        contactD: 0.36,
-        cervix: 0.7,
-        cejSide: 0.9,
-        cejDip: 0.1,
-        leg: 0.7,
-        curve: 0.06,
-        ridge: 0.12,
-      ),
+      edge: _pts([
+        -0.99,
+        0.32,
+        -0.6,
+        0.15,
+        -0.2,
+        0.04,
+        0.14,
+        0,
+        0.52,
+        0.08,
+        0.92,
+        0.16,
+      ]),
+      contactM: 0.18,
+      contactD: 0.36,
+      cervix: 0.7,
+      cejSide: 0.9,
+      cejDip: 0.1,
+      leg: 0.7,
+      curve: 0.06,
+      ridge: 0.12,
+    ),
     4 => _Form(
-        edge: _pts([-0.97, 0.34, -0.55, 0.13, -0.05, 0, 0.45, 0.11, 0.96, 0.3]),
-        contactM: 0.32,
-        contactD: 0.34,
-        cervix: 0.66,
-        cejSide: 0.9,
-        cejDip: 0.07,
-        leg: 0.62,
-        curve: 0.07,
-        ridge: -0.04,
-      ),
+      edge: _pts([-0.97, 0.34, -0.55, 0.13, -0.05, 0, 0.45, 0.11, 0.96, 0.3]),
+      contactM: 0.32,
+      contactD: 0.34,
+      cervix: 0.66,
+      cejSide: 0.9,
+      cejDip: 0.07,
+      leg: 0.62,
+      curve: 0.07,
+      ridge: -0.04,
+    ),
     5 => _Form(
-        edge: _pts([-0.98, 0.28, -0.52, 0.09, 0, 0.02, 0.52, 0.08, 0.98, 0.26]),
-        contactM: 0.3,
-        contactD: 0.3,
-        cervix: 0.68,
-        cejSide: 0.9,
-        cejDip: 0.06,
-        leg: 0.64,
-        curve: 0.08,
-        ridge: 0,
-      ),
+      edge: _pts([-0.98, 0.28, -0.52, 0.09, 0, 0.02, 0.52, 0.08, 0.98, 0.26]),
+      contactM: 0.3,
+      contactD: 0.3,
+      cervix: 0.68,
+      cejSide: 0.9,
+      cejDip: 0.06,
+      leg: 0.64,
+      curve: 0.08,
+      ridge: 0,
+    ),
     6 => _Form(
-        edge: _pts([-0.99, 0.25, -0.86, 0.11, -0.68, 0.06, -0.52, 0.12, -0.34, 0.04, -0.1, 0, 0.12, 0.06, 0.22, 0.12, 0.36, 0.05, 0.58, 0, 0.86, 0.08, 1, 0.2]),
-        contactM: 0.22,
-        contactD: 0.28,
-        cervix: 0.84,
-        cejSide: 0.9,
-        cejDip: 0.05,
-        legs: 2,
-        sep: 0.54,
-        leg: 0.3,
-        trunk: 0.22,
-        curve: 0.1,
-        grooves: [
-          _pts([0.22, 0.12, 0.21, 0.3, 0.2, 0.5]),
-          _pts([-0.52, 0.12, -0.51, 0.28, -0.5, 0.45]),
-        ],
-      ),
+      edge: _pts([
+        -0.99,
+        0.25,
+        -0.86,
+        0.11,
+        -0.68,
+        0.06,
+        -0.52,
+        0.12,
+        -0.34,
+        0.04,
+        -0.1,
+        0,
+        0.12,
+        0.06,
+        0.22,
+        0.12,
+        0.36,
+        0.05,
+        0.58,
+        0,
+        0.86,
+        0.08,
+        1,
+        0.2,
+      ]),
+      contactM: 0.22,
+      contactD: 0.28,
+      cervix: 0.84,
+      cejSide: 0.9,
+      cejDip: 0.05,
+      legs: 2,
+      sep: 0.54,
+      leg: 0.3,
+      trunk: 0.22,
+      curve: 0.1,
+      grooves: [
+        _pts([0.22, 0.12, 0.21, 0.3, 0.2, 0.5]),
+        _pts([-0.52, 0.12, -0.51, 0.28, -0.5, 0.45]),
+      ],
+    ),
     7 => _Form(
-        edge: _pts([-0.98, 0.24, -0.72, 0.07, -0.42, 0, -0.1, 0.08, 0.02, 0.14, 0.15, 0.07, 0.48, 0, 0.8, 0.07, 0.99, 0.2]),
-        contactM: 0.22,
-        contactD: 0.28,
-        cervix: 0.84,
-        cejSide: 0.9,
-        cejDip: 0.05,
-        legs: 2,
-        sep: 0.46,
-        leg: 0.3,
-        trunk: 0.3,
-        curve: 0.18,
-        grooves: [_pts([0.02, 0.14, 0.02, 0.32, 0.02, 0.5])],
-      ),
+      edge: _pts([
+        -0.98,
+        0.24,
+        -0.72,
+        0.07,
+        -0.42,
+        0,
+        -0.1,
+        0.08,
+        0.02,
+        0.14,
+        0.15,
+        0.07,
+        0.48,
+        0,
+        0.8,
+        0.07,
+        0.99,
+        0.2,
+      ]),
+      contactM: 0.22,
+      contactD: 0.28,
+      cervix: 0.84,
+      cejSide: 0.9,
+      cejDip: 0.05,
+      legs: 2,
+      sep: 0.46,
+      leg: 0.3,
+      trunk: 0.3,
+      curve: 0.18,
+      grooves: [
+        _pts([0.02, 0.14, 0.02, 0.32, 0.02, 0.5]),
+      ],
+    ),
     _ => _Form(
-        edge: _pts([-0.95, 0.28, -0.66, 0.08, -0.3, 0.02, -0.05, 0.1, 0.2, 0.03, 0.55, 0, 0.88, 0.12]),
-        contactM: 0.24,
-        contactD: 0.34,
-        cervix: 0.8,
-        cejSide: 0.9,
-        cejDip: 0.05,
-        legs: 2,
-        sep: 0.32,
-        leg: 0.32,
-        trunk: 0.45,
-        curve: 0.3,
-        grooves: [_pts([-0.05, 0.1, -0.04, 0.26, -0.03, 0.42])],
-      ),
+      edge: _pts([
+        -0.95,
+        0.28,
+        -0.66,
+        0.08,
+        -0.3,
+        0.02,
+        -0.05,
+        0.1,
+        0.2,
+        0.03,
+        0.55,
+        0,
+        0.88,
+        0.12,
+      ]),
+      contactM: 0.24,
+      contactD: 0.34,
+      cervix: 0.8,
+      cejSide: 0.9,
+      cejDip: 0.05,
+      legs: 2,
+      sep: 0.32,
+      leg: 0.32,
+      trunk: 0.45,
+      curve: 0.3,
+      grooves: [
+        _pts([-0.05, 0.1, -0.04, 0.26, -0.03, 0.42]),
+      ],
+    ),
   };
 }
 
@@ -447,150 +636,538 @@ _Occ _occOf(ToothSpec s) {
   if (s.upper) {
     return switch (p) {
       1 => _Occ(
-          outline: _pts([0.96, -0.46, 0.74, -0.86, 0.25, -1, -0.3, -0.98, -0.76, -0.84, -0.97, -0.44, -0.8, 0.18, -0.45, 0.72, 0, 1, 0.45, 0.72, 0.8, 0.18]),
-          incisal: _pts([-0.88, -0.55, -0.3, -0.66, 0.3, -0.66, 0.9, -0.57]),
-          cingulum: const Offset(0, 0.64),
-        ),
+        outline: _pts([
+          0.96,
+          -0.46,
+          0.74,
+          -0.86,
+          0.25,
+          -1,
+          -0.3,
+          -0.98,
+          -0.76,
+          -0.84,
+          -0.97,
+          -0.44,
+          -0.8,
+          0.18,
+          -0.45,
+          0.72,
+          0,
+          1,
+          0.45,
+          0.72,
+          0.8,
+          0.18,
+        ]),
+        incisal: _pts([-0.88, -0.55, -0.3, -0.66, 0.3, -0.66, 0.9, -0.57]),
+        cingulum: const Offset(0, 0.64),
+      ),
       2 => _Occ(
-          outline: _pts([0.95, -0.4, 0.7, -0.86, 0.2, -1, -0.3, -0.97, -0.75, -0.8, -0.96, -0.36, -0.78, 0.25, -0.4, 0.76, 0, 1, 0.42, 0.76, 0.8, 0.25]),
-          incisal: _pts([-0.84, -0.5, -0.3, -0.62, 0.3, -0.62, 0.86, -0.52]),
-          cingulum: const Offset(0, 0.62),
-        ),
+        outline: _pts([
+          0.95,
+          -0.4,
+          0.7,
+          -0.86,
+          0.2,
+          -1,
+          -0.3,
+          -0.97,
+          -0.75,
+          -0.8,
+          -0.96,
+          -0.36,
+          -0.78,
+          0.25,
+          -0.4,
+          0.76,
+          0,
+          1,
+          0.42,
+          0.76,
+          0.8,
+          0.25,
+        ]),
+        incisal: _pts([-0.84, -0.5, -0.3, -0.62, 0.3, -0.62, 0.86, -0.52]),
+        cingulum: const Offset(0, 0.62),
+      ),
       3 => _Occ(
-          outline: _pts([1, -0.22, 0.66, -0.74, 0.12, -1, -0.45, -0.82, -0.98, -0.26, -0.78, 0.3, -0.36, 0.8, 0.04, 1, 0.4, 0.8, 0.8, 0.32]),
-          cusps: [(0.05, -0.36, 0.55)],
-          ridges: [
-            _pts([0.05, -0.36, 0.5, -0.3, 0.92, -0.24]),
-            _pts([0.05, -0.36, -0.45, -0.32, -0.9, -0.28]),
-            _pts([0.05, -0.36, 0.04, 0.2, 0.03, 0.72]),
-          ],
-        ),
+        outline: _pts([
+          1,
+          -0.22,
+          0.66,
+          -0.74,
+          0.12,
+          -1,
+          -0.45,
+          -0.82,
+          -0.98,
+          -0.26,
+          -0.78,
+          0.3,
+          -0.36,
+          0.8,
+          0.04,
+          1,
+          0.4,
+          0.8,
+          0.8,
+          0.32,
+        ]),
+        cusps: [(0.05, -0.36, 0.55)],
+        ridges: [
+          _pts([0.05, -0.36, 0.5, -0.3, 0.92, -0.24]),
+          _pts([0.05, -0.36, -0.45, -0.32, -0.9, -0.28]),
+          _pts([0.05, -0.36, 0.04, 0.2, 0.03, 0.72]),
+        ],
+      ),
       4 => _Occ(
-          outline: _pts([1, -0.02, 0.9, -0.62, 0.52, -0.95, 0, -1, -0.52, -0.95, -0.9, -0.62, -1, -0.02, -0.86, 0.6, -0.45, 0.94, 0.05, 1, 0.5, 0.93, 0.88, 0.58]),
-          cusps: [(0, -0.46, 0.55), (0.08, 0.5, 0.45)],
-          grooves: [
-            _pts([0.66, 0.02, 0.3, -0.03, -0.3, -0.03, -0.66, 0.02]),
-            _pts([0.66, 0.02, 0.98, 0.06]),
-          ],
-          pits: _pts([0.66, 0.02, -0.66, 0.02]),
-        ),
+        outline: _pts([
+          1,
+          -0.02,
+          0.9,
+          -0.62,
+          0.52,
+          -0.95,
+          0,
+          -1,
+          -0.52,
+          -0.95,
+          -0.9,
+          -0.62,
+          -1,
+          -0.02,
+          -0.86,
+          0.6,
+          -0.45,
+          0.94,
+          0.05,
+          1,
+          0.5,
+          0.93,
+          0.88,
+          0.58,
+        ]),
+        cusps: [(0, -0.46, 0.55), (0.08, 0.5, 0.45)],
+        grooves: [
+          _pts([0.66, 0.02, 0.3, -0.03, -0.3, -0.03, -0.66, 0.02]),
+          _pts([0.66, 0.02, 0.98, 0.06]),
+        ],
+        pits: _pts([0.66, 0.02, -0.66, 0.02]),
+      ),
       5 => _Occ(
-          outline: _pts([1, 0, 0.88, -0.64, 0.48, -0.96, 0, -1, -0.48, -0.96, -0.88, -0.64, -1, 0, -0.88, 0.62, -0.48, 0.96, 0, 1, 0.48, 0.96, 0.88, 0.62]),
-          cusps: [(0, -0.44, 0.5), (0, 0.46, 0.48)],
-          grooves: [
-            _pts([0.48, 0, 0, 0.02, -0.48, 0]),
-            _pts([0.2, 0.01, 0.35, -0.22]),
-            _pts([-0.2, 0.01, -0.35, 0.22]),
-          ],
-          pits: _pts([0.48, 0, -0.48, 0]),
-        ),
+        outline: _pts([
+          1,
+          0,
+          0.88,
+          -0.64,
+          0.48,
+          -0.96,
+          0,
+          -1,
+          -0.48,
+          -0.96,
+          -0.88,
+          -0.64,
+          -1,
+          0,
+          -0.88,
+          0.62,
+          -0.48,
+          0.96,
+          0,
+          1,
+          0.48,
+          0.96,
+          0.88,
+          0.62,
+        ]),
+        cusps: [(0, -0.44, 0.5), (0, 0.46, 0.48)],
+        grooves: [
+          _pts([0.48, 0, 0, 0.02, -0.48, 0]),
+          _pts([0.2, 0.01, 0.35, -0.22]),
+          _pts([-0.2, 0.01, -0.35, 0.22]),
+        ],
+        pits: _pts([0.48, 0, -0.48, 0]),
+      ),
       6 => _Occ(
-          outline: _pts([1, 0, 0.97, -0.55, 0.72, -0.94, 0.1, -1, -0.55, -0.96, -0.94, -0.62, -1, -0.05, -0.9, 0.5, -0.56, 0.9, -0.02, 1, 0.52, 0.96, 0.88, 0.62]),
-          cusps: [(0.46, -0.5, 0.42), (-0.44, -0.52, 0.36), (0.36, 0.42, 0.5), (-0.5, 0.56, 0.32)],
-          grooves: [
-            _pts([0.72, -0.06, 0.38, -0.04, 0.04, 0]),
-            _pts([0.04, 0, -0.02, -0.48, 0.02, -0.98]),
-            _pts([-0.66, 0.1, -0.42, 0.36, -0.16, 0.98]),
-            _pts([0.04, 0, -0.14, 0.12]),
-          ],
-          ridges: [_pts([0.3, 0.36, -0.06, -0.06, -0.38, -0.44])],
-          pits: _pts([0.72, -0.06, 0.04, 0, -0.66, 0.1]),
-        ),
+        outline: _pts([
+          1,
+          0,
+          0.97,
+          -0.55,
+          0.72,
+          -0.94,
+          0.1,
+          -1,
+          -0.55,
+          -0.96,
+          -0.94,
+          -0.62,
+          -1,
+          -0.05,
+          -0.9,
+          0.5,
+          -0.56,
+          0.9,
+          -0.02,
+          1,
+          0.52,
+          0.96,
+          0.88,
+          0.62,
+        ]),
+        cusps: [
+          (0.46, -0.5, 0.42),
+          (-0.44, -0.52, 0.36),
+          (0.36, 0.42, 0.5),
+          (-0.5, 0.56, 0.32),
+        ],
+        grooves: [
+          _pts([0.72, -0.06, 0.38, -0.04, 0.04, 0]),
+          _pts([0.04, 0, -0.02, -0.48, 0.02, -0.98]),
+          _pts([-0.66, 0.1, -0.42, 0.36, -0.16, 0.98]),
+          _pts([0.04, 0, -0.14, 0.12]),
+        ],
+        ridges: [
+          _pts([0.3, 0.36, -0.06, -0.06, -0.38, -0.44]),
+        ],
+        pits: _pts([0.72, -0.06, 0.04, 0, -0.66, 0.1]),
+      ),
       7 => _Occ(
-          outline: _pts([1, 0, 0.96, -0.52, 0.7, -0.94, 0.08, -1, -0.56, -0.9, -0.95, -0.5, -0.96, 0.15, -0.74, 0.7, -0.28, 0.98, 0.32, 0.98, 0.84, 0.64]),
-          cusps: [(0.45, -0.5, 0.42), (-0.4, -0.5, 0.34), (0.34, 0.4, 0.5), (-0.52, 0.45, 0.22)],
-          grooves: [
-            _pts([0.72, -0.05, 0.38, -0.03, 0.04, 0]),
-            _pts([0.04, 0, -0.02, -0.5, 0, -0.98]),
-            _pts([-0.6, 0.1, -0.4, 0.3, -0.2, 0.95]),
-          ],
-          ridges: [_pts([0.28, 0.34, -0.06, -0.04, -0.34, -0.42])],
-          pits: _pts([0.72, -0.05, 0.04, 0, -0.6, 0.1]),
-        ),
+        outline: _pts([
+          1,
+          0,
+          0.96,
+          -0.52,
+          0.7,
+          -0.94,
+          0.08,
+          -1,
+          -0.56,
+          -0.9,
+          -0.95,
+          -0.5,
+          -0.96,
+          0.15,
+          -0.74,
+          0.7,
+          -0.28,
+          0.98,
+          0.32,
+          0.98,
+          0.84,
+          0.64,
+        ]),
+        cusps: [
+          (0.45, -0.5, 0.42),
+          (-0.4, -0.5, 0.34),
+          (0.34, 0.4, 0.5),
+          (-0.52, 0.45, 0.22),
+        ],
+        grooves: [
+          _pts([0.72, -0.05, 0.38, -0.03, 0.04, 0]),
+          _pts([0.04, 0, -0.02, -0.5, 0, -0.98]),
+          _pts([-0.6, 0.1, -0.4, 0.3, -0.2, 0.95]),
+        ],
+        ridges: [
+          _pts([0.28, 0.34, -0.06, -0.04, -0.34, -0.42]),
+        ],
+        pits: _pts([0.72, -0.05, 0.04, 0, -0.6, 0.1]),
+      ),
       _ => _Occ(
-          outline: _pts([1, -0.02, 0.9, -0.6, 0.5, -0.96, -0.1, -1, -0.66, -0.8, -0.98, -0.25, -0.86, 0.42, -0.4, 0.9, 0.2, 0.98, 0.72, 0.72]),
-          cusps: [(0.4, -0.45, 0.42), (-0.38, -0.42, 0.36), (0.18, 0.45, 0.5)],
-          grooves: [
-            _pts([0.62, -0.08, 0.05, 0, -0.55, 0.05]),
-            _pts([0.05, 0, 0, -0.95]),
-            _pts([0.05, 0, -0.3, 0.45, -0.4, 0.85]),
-          ],
-          pits: _pts([0.62, -0.08, 0.05, 0, -0.55, 0.05]),
-        ),
+        outline: _pts([
+          1,
+          -0.02,
+          0.9,
+          -0.6,
+          0.5,
+          -0.96,
+          -0.1,
+          -1,
+          -0.66,
+          -0.8,
+          -0.98,
+          -0.25,
+          -0.86,
+          0.42,
+          -0.4,
+          0.9,
+          0.2,
+          0.98,
+          0.72,
+          0.72,
+        ]),
+        cusps: [(0.4, -0.45, 0.42), (-0.38, -0.42, 0.36), (0.18, 0.45, 0.5)],
+        grooves: [
+          _pts([0.62, -0.08, 0.05, 0, -0.55, 0.05]),
+          _pts([0.05, 0, 0, -0.95]),
+          _pts([0.05, 0, -0.3, 0.45, -0.4, 0.85]),
+        ],
+        pits: _pts([0.62, -0.08, 0.05, 0, -0.55, 0.05]),
+      ),
     };
   }
   return switch (p) {
     1 => _Occ(
-        outline: _pts([0.96, -0.46, 0.66, -0.88, 0, -1, -0.66, -0.88, -0.96, -0.46, -0.9, 0.16, -0.56, 0.74, 0, 1, 0.56, 0.74, 0.9, 0.16]),
-        incisal: _pts([-0.86, -0.4, 0, -0.48, 0.86, -0.4]),
-        cingulum: const Offset(0, 0.6),
-      ),
+      outline: _pts([
+        0.96,
+        -0.46,
+        0.66,
+        -0.88,
+        0,
+        -1,
+        -0.66,
+        -0.88,
+        -0.96,
+        -0.46,
+        -0.9,
+        0.16,
+        -0.56,
+        0.74,
+        0,
+        1,
+        0.56,
+        0.74,
+        0.9,
+        0.16,
+      ]),
+      incisal: _pts([-0.86, -0.4, 0, -0.48, 0.86, -0.4]),
+      cingulum: const Offset(0, 0.6),
+    ),
     2 => _Occ(
-        outline: _pts([0.96, -0.44, 0.66, -0.88, 0, -1, -0.7, -0.86, -0.98, -0.42, -0.9, 0.2, -0.54, 0.76, 0.02, 1, 0.56, 0.72, 0.9, 0.14]),
-        incisal: _pts([-0.88, -0.36, 0, -0.46, 0.86, -0.42]),
-        cingulum: const Offset(0, 0.6),
-      ),
+      outline: _pts([
+        0.96,
+        -0.44,
+        0.66,
+        -0.88,
+        0,
+        -1,
+        -0.7,
+        -0.86,
+        -0.98,
+        -0.42,
+        -0.9,
+        0.2,
+        -0.54,
+        0.76,
+        0.02,
+        1,
+        0.56,
+        0.72,
+        0.9,
+        0.14,
+      ]),
+      incisal: _pts([-0.88, -0.36, 0, -0.46, 0.86, -0.42]),
+      cingulum: const Offset(0, 0.6),
+    ),
     3 => _Occ(
-        outline: _pts([1, -0.24, 0.62, -0.8, 0.1, -1, -0.5, -0.82, -0.98, -0.3, -0.8, 0.34, -0.36, 0.84, 0.06, 1, 0.44, 0.8, 0.82, 0.3]),
-        cusps: [(0.1, -0.34, 0.5)],
-        ridges: [
-          _pts([0.1, -0.34, 0.52, -0.3, 0.94, -0.26]),
-          _pts([0.1, -0.34, -0.42, -0.34, -0.92, -0.32]),
-          _pts([0.1, -0.34, 0.08, 0.2, 0.06, 0.72]),
-        ],
-      ),
+      outline: _pts([
+        1,
+        -0.24,
+        0.62,
+        -0.8,
+        0.1,
+        -1,
+        -0.5,
+        -0.82,
+        -0.98,
+        -0.3,
+        -0.8,
+        0.34,
+        -0.36,
+        0.84,
+        0.06,
+        1,
+        0.44,
+        0.8,
+        0.82,
+        0.3,
+      ]),
+      cusps: [(0.1, -0.34, 0.5)],
+      ridges: [
+        _pts([0.1, -0.34, 0.52, -0.3, 0.94, -0.26]),
+        _pts([0.1, -0.34, -0.42, -0.34, -0.92, -0.32]),
+        _pts([0.1, -0.34, 0.08, 0.2, 0.06, 0.72]),
+      ],
+    ),
     4 => _Occ(
-        outline: _pts([1, -0.12, 0.82, -0.7, 0.36, -1, -0.34, -1, -0.82, -0.7, -1, -0.12, -0.72, 0.5, -0.28, 0.9, 0.3, 0.9, 0.72, 0.5]),
-        cusps: [(0, -0.3, 0.64), (0.04, 0.58, 0.3)],
-        ridges: [_pts([0, -0.3, 0.02, 0.1, 0.04, 0.52])],
-        grooves: [
-          _pts([0.44, 0.12, 0.68, 0.28]),
-          _pts([-0.44, 0.12, -0.68, 0.28]),
-        ],
-        pits: _pts([0.44, 0.12, -0.44, 0.12]),
-      ),
+      outline: _pts([
+        1,
+        -0.12,
+        0.82,
+        -0.7,
+        0.36,
+        -1,
+        -0.34,
+        -1,
+        -0.82,
+        -0.7,
+        -1,
+        -0.12,
+        -0.72,
+        0.5,
+        -0.28,
+        0.9,
+        0.3,
+        0.9,
+        0.72,
+        0.5,
+      ]),
+      cusps: [(0, -0.3, 0.64), (0.04, 0.58, 0.3)],
+      ridges: [
+        _pts([0, -0.3, 0.02, 0.1, 0.04, 0.52]),
+      ],
+      grooves: [
+        _pts([0.44, 0.12, 0.68, 0.28]),
+        _pts([-0.44, 0.12, -0.68, 0.28]),
+      ],
+      pits: _pts([0.44, 0.12, -0.44, 0.12]),
+    ),
     5 => _Occ(
-        outline: _pts([1, -0.1, 0.86, -0.72, 0.36, -1, -0.36, -1, -0.86, -0.72, -1, -0.1, -0.9, 0.55, -0.46, 0.95, 0.46, 0.95, 0.9, 0.55]),
-        cusps: [(0, -0.42, 0.52), (0.44, 0.5, 0.32), (-0.42, 0.52, 0.28)],
-        grooves: [
-          _pts([0.6, -0.02, 0.02, 0.12, -0.6, -0.02]),
-          _pts([0.02, 0.12, 0.06, 0.92]),
-        ],
-        pits: _pts([0.02, 0.12, 0.6, -0.02, -0.6, -0.02]),
-      ),
+      outline: _pts([
+        1,
+        -0.1,
+        0.86,
+        -0.72,
+        0.36,
+        -1,
+        -0.36,
+        -1,
+        -0.86,
+        -0.72,
+        -1,
+        -0.1,
+        -0.9,
+        0.55,
+        -0.46,
+        0.95,
+        0.46,
+        0.95,
+        0.9,
+        0.55,
+      ]),
+      cusps: [(0, -0.42, 0.52), (0.44, 0.5, 0.32), (-0.42, 0.52, 0.28)],
+      grooves: [
+        _pts([0.6, -0.02, 0.02, 0.12, -0.6, -0.02]),
+        _pts([0.02, 0.12, 0.06, 0.92]),
+      ],
+      pits: _pts([0.02, 0.12, 0.6, -0.02, -0.6, -0.02]),
+    ),
     6 => _Occ(
-        outline: _pts([1, -0.14, 0.86, -0.8, 0.34, -1, -0.3, -0.98, -0.8, -0.76, -1, -0.2, -0.92, 0.5, -0.52, 0.95, 0.24, 1, 0.8, 0.86, 1, 0.36]),
-        cusps: [(0.52, -0.5, 0.38), (-0.06, -0.55, 0.36), (-0.64, -0.3, 0.28), (0.5, 0.5, 0.38), (-0.32, 0.52, 0.36)],
-        grooves: [
-          _pts([0.76, 0, 0.26, 0.06, -0.06, 0.02, -0.42, 0.06, -0.74, 0.02]),
-          _pts([0.26, 0.06, 0.2, -0.5, 0.22, -0.97]),
-          _pts([-0.42, 0.06, -0.44, -0.44, -0.56, -0.86]),
-          _pts([-0.06, 0.02, 0.04, 0.5, 0.08, 0.99]),
-        ],
-        pits: _pts([0.76, 0, -0.06, 0.02, -0.74, 0.02]),
-      ),
+      outline: _pts([
+        1,
+        -0.14,
+        0.86,
+        -0.8,
+        0.34,
+        -1,
+        -0.3,
+        -0.98,
+        -0.8,
+        -0.76,
+        -1,
+        -0.2,
+        -0.92,
+        0.5,
+        -0.52,
+        0.95,
+        0.24,
+        1,
+        0.8,
+        0.86,
+        1,
+        0.36,
+      ]),
+      cusps: [
+        (0.52, -0.5, 0.38),
+        (-0.06, -0.55, 0.36),
+        (-0.64, -0.3, 0.28),
+        (0.5, 0.5, 0.38),
+        (-0.32, 0.52, 0.36),
+      ],
+      grooves: [
+        _pts([0.76, 0, 0.26, 0.06, -0.06, 0.02, -0.42, 0.06, -0.74, 0.02]),
+        _pts([0.26, 0.06, 0.2, -0.5, 0.22, -0.97]),
+        _pts([-0.42, 0.06, -0.44, -0.44, -0.56, -0.86]),
+        _pts([-0.06, 0.02, 0.04, 0.5, 0.08, 0.99]),
+      ],
+      pits: _pts([0.76, 0, -0.06, 0.02, -0.74, 0.02]),
+    ),
     7 => _Occ(
-        outline: _pts([1, -0.1, 0.88, -0.8, 0.3, -1, -0.36, -1, -0.88, -0.78, -1, -0.1, -0.9, 0.62, -0.36, 1, 0.36, 1, 0.9, 0.64]),
-        cusps: [(0.48, -0.5, 0.42), (-0.46, -0.5, 0.4), (0.48, 0.5, 0.42), (-0.46, 0.5, 0.4)],
-        grooves: [
-          _pts([0.76, 0, 0, 0.02, -0.76, 0]),
-          _pts([0, 0.02, 0, -0.97]),
-          _pts([0, 0.02, 0, 0.97]),
-        ],
-        pits: _pts([0.76, 0, 0, 0.02, -0.76, 0]),
-      ),
+      outline: _pts([
+        1,
+        -0.1,
+        0.88,
+        -0.8,
+        0.3,
+        -1,
+        -0.36,
+        -1,
+        -0.88,
+        -0.78,
+        -1,
+        -0.1,
+        -0.9,
+        0.62,
+        -0.36,
+        1,
+        0.36,
+        1,
+        0.9,
+        0.64,
+      ]),
+      cusps: [
+        (0.48, -0.5, 0.42),
+        (-0.46, -0.5, 0.4),
+        (0.48, 0.5, 0.42),
+        (-0.46, 0.5, 0.4),
+      ],
+      grooves: [
+        _pts([0.76, 0, 0, 0.02, -0.76, 0]),
+        _pts([0, 0.02, 0, -0.97]),
+        _pts([0, 0.02, 0, 0.97]),
+      ],
+      pits: _pts([0.76, 0, 0, 0.02, -0.76, 0]),
+    ),
     _ => _Occ(
-        outline: _pts([1, -0.1, 0.84, -0.78, 0.3, -1, -0.4, -0.96, -0.9, -0.66, -0.98, 0, -0.84, 0.66, -0.34, 1, 0.36, 0.98, 0.88, 0.66]),
-        cusps: [(0.46, -0.48, 0.4), (-0.44, -0.46, 0.38), (0.44, 0.5, 0.4), (-0.42, 0.5, 0.36)],
-        grooves: [
-          _pts([0.74, 0, 0.3, 0.04, 0, 0.02, -0.3, 0, -0.72, 0.02]),
-          _pts([0, 0.02, 0.02, -0.96]),
-          _pts([0, 0.02, -0.02, 0.96]),
-          _pts([0.3, 0.04, 0.42, -0.36]),
-          _pts([-0.3, 0, -0.36, 0.38]),
-        ],
-        pits: _pts([0.74, 0, 0, 0.02, -0.72, 0.02]),
-      ),
+      outline: _pts([
+        1,
+        -0.1,
+        0.84,
+        -0.78,
+        0.3,
+        -1,
+        -0.4,
+        -0.96,
+        -0.9,
+        -0.66,
+        -0.98,
+        0,
+        -0.84,
+        0.66,
+        -0.34,
+        1,
+        0.36,
+        0.98,
+        0.88,
+        0.66,
+      ]),
+      cusps: [
+        (0.46, -0.48, 0.4),
+        (-0.44, -0.46, 0.38),
+        (0.44, 0.5, 0.4),
+        (-0.42, 0.5, 0.36),
+      ],
+      grooves: [
+        _pts([0.74, 0, 0.3, 0.04, 0, 0.02, -0.3, 0, -0.72, 0.02]),
+        _pts([0, 0.02, 0.02, -0.96]),
+        _pts([0, 0.02, -0.02, 0.96]),
+        _pts([0.3, 0.04, 0.42, -0.36]),
+        _pts([-0.3, 0, -0.36, 0.38]),
+      ],
+      pits: _pts([0.74, 0, 0, 0.02, -0.72, 0.02]),
+    ),
   };
 }
 
@@ -608,8 +1185,7 @@ class BuccalShape {
     required double k,
     required double cx,
     required double edgeY,
-  }) =>
-      BuccalShape._(spec, k, cx, edgeY, _formOf(spec));
+  }) => BuccalShape._(spec, k, cx, edgeY, _formOf(spec));
 
   final ToothSpec spec;
 
@@ -624,7 +1200,8 @@ class BuccalShape {
   double get _w => spec.md / 2;
   double get _ch => spec.crown;
   double get _rl => spec.root;
-  bool get front => spec.kind != ToothKind.premolar && spec.kind != ToothKind.molar;
+  bool get front =>
+      spec.kind != ToothKind.premolar && spec.kind != ToothKind.molar;
 
   /// Screen point of a model point (mm; x mesial, y rootwards).
   Offset at(double x, double y) =>
@@ -649,9 +1226,9 @@ class BuccalShape {
     final f = _f;
     final w = _w, ch = _ch;
     Offset side(double contact, double t, double sign) => Offset(
-          sign * (1 - (1 - f.cervix) * math.pow(t, 1.15)) * w,
-          (contact + (f.cejSide - contact) * t) * ch,
-        );
+      sign * (1 - (1 - f.cervix) * math.pow(t, 1.15)) * w,
+      (contact + (f.cejSide - contact) * t) * ch,
+    );
     // Up the mesial side, over the biting edge, down the distal side.
     final over = [
       _neckM,
@@ -709,7 +1286,8 @@ class BuccalShape {
   /// +1 for the mesial leg, -1 for the distal one.
   Offset _legC(int side, double t) {
     final yF = _neck + _f.trunk * _rl;
-    final x = side * _f.sep * _w +
+    final x =
+        side * _f.sep * _w +
         side * _f.flare * _w * math.pow(t, 1.4) +
         _curveAt(t);
     return Offset(x, yF + t * _rl * (1 - _f.trunk));
@@ -727,14 +1305,18 @@ class BuccalShape {
         _neckM,
         for (final t in ts) Offset(_curveAt(t) + half(t), _neck + t * _rl),
         Offset(_curveAt(1), _neck + _rl),
-        for (final t in ts.reversed) Offset(_curveAt(t) - half(t), _neck + t * _rl),
+        for (final t in ts.reversed)
+          Offset(_curveAt(t) - half(t), _neck + t * _rl),
         _neckD,
       ];
     }
     const down = [0.3, 0.6, 0.85, 0.96];
     const up = [0.85, 0.6, 0.3];
     final m0 = _legC(1, 0), d0 = _legC(-1, 0);
-    final crotch = Offset(((m0.dx - _legHalf(0)) + (d0.dx + _legHalf(0))) / 2, m0.dy);
+    final crotch = Offset(
+      ((m0.dx - _legHalf(0)) + (d0.dx + _legHalf(0))) / 2,
+      m0.dy,
+    );
     return [
       _neckM,
       if (_f.trunk > 0.18) Offset(m0.dx + _legHalf(0), m0.dy),
@@ -778,7 +1360,8 @@ class BuccalShape {
               Offset(x(0) + r0, yTop - _ch * 0.2),
               for (final t in ts) Offset(x(t) + half(t), yTop + t * len),
               Offset(x(1), yTop + len),
-              for (final t in ts.reversed) Offset(x(t) - half(t), yTop + t * len),
+              for (final t in ts.reversed)
+                Offset(x(t) - half(t), yTop + t * len),
               Offset(x(0) - r0, yTop - _ch * 0.2),
             ])
               at(p.dx, p.dy),
@@ -818,8 +1401,7 @@ class BuccalShape {
         ];
 
   /// Width of a root (a leg of it) near the neck, in pixels.
-  double get rootThickness =>
-      (_f.legs == 1 ? _r0 * 2 : _f.leg * _w * 2) * k;
+  double get rootThickness => (_f.legs == 1 ? _r0 * 2 : _f.leg * _w * 2) * k;
 
   /// The pulp chamber inside the crown.
   late final Path chamber = () {
@@ -865,19 +1447,22 @@ class BuccalShape {
   Rect? surfaceArea(ToothSurface s) {
     final w = _w, ch = _ch;
     Rect ellipse(double x, double y, double rx, double ry) => Rect.fromCenter(
-          center: at(x, y),
-          width: rx * 2 * k,
-          height: ry * 2 * k,
-        );
+      center: at(x, y),
+      width: rx * 2 * k,
+      height: ry * 2 * k,
+    );
     return switch (s) {
       ToothSurface.mesial => ellipse(0.7 * w, 0.3 * ch, 0.34 * w, 0.36 * ch),
       ToothSurface.distal => ellipse(-0.7 * w, 0.32 * ch, 0.34 * w, 0.36 * ch),
       ToothSurface.buccal => ellipse(0, 0.56 * ch, 0.42 * w, 0.24 * ch),
       ToothSurface.occlusal ||
-      ToothSurface.incisal =>
-        ellipse(0, 0.02 * ch, 0.8 * w, 0.14 * ch),
-      ToothSurface.cervical =>
-        ellipse(0, cejY(0) - 0.1 * ch, 0.64 * w, 0.1 * ch),
+      ToothSurface.incisal => ellipse(0, 0.02 * ch, 0.8 * w, 0.14 * ch),
+      ToothSurface.cervical => ellipse(
+        0,
+        cejY(0) - 0.1 * ch,
+        0.64 * w,
+        0.1 * ch,
+      ),
       ToothSurface.lingual => null,
     };
   }
@@ -928,7 +1513,11 @@ class BuccalShape {
 
   /// Gum sites on the cheek side (distal, middle, mesial), at the neck.
   Offset site(int i) {
-    final x = switch (i) { 0 => -0.62 * _w, 1 => 0.0, _ => 0.62 * _w };
+    final x = switch (i) {
+      0 => -0.62 * _w,
+      1 => 0.0,
+      _ => 0.62 * _w,
+    };
     return at(x, cejY(x));
   }
 }
@@ -938,8 +1527,11 @@ class BuccalShape {
 class OcclusalShape {
   OcclusalShape._(this.spec, this.k, this.center, this._o);
 
-  factory OcclusalShape.of(ToothSpec spec, {required double k, required Offset center}) =>
-      OcclusalShape._(spec, k, center, _occOf(spec));
+  factory OcclusalShape.of(
+    ToothSpec spec, {
+    required double k,
+    required Offset center,
+  }) => OcclusalShape._(spec, k, center, _occOf(spec));
 
   final ToothSpec spec;
   final double k;
@@ -950,15 +1542,18 @@ class OcclusalShape {
   bool get upper => spec.upper;
   double get _a => spec.md / 2;
   double get _b => spec.bl / 2;
-  bool get front => spec.kind != ToothKind.premolar && spec.kind != ToothKind.molar;
+  bool get front =>
+      spec.kind != ToothKind.premolar && spec.kind != ToothKind.molar;
 
   /// Screen point of a model point (fractions of the half-widths).
   Offset at(double x, double y) => Offset(
-        center.dx + (mirror ? -x : x) * _a * k,
-        center.dy + (upper ? y : -y) * _b * k,
-      );
+    center.dx + (mirror ? -x : x) * _a * k,
+    center.dy + (upper ? y : -y) * _b * k,
+  );
 
-  late final Path outline = smoothClosed([for (final p in _o.outline) at(p.dx, p.dy)]);
+  late final Path outline = smoothClosed([
+    for (final p in _o.outline) at(p.dx, p.dy),
+  ]);
   late final Rect rect = outline.getBounds();
 
   late final List<(Offset, double)> cusps = [
@@ -971,33 +1566,40 @@ class OcclusalShape {
     for (final g in _o.ridges) [for (final p in g) at(p.dx, p.dy)],
   ];
   late final List<Offset> pits = [for (final p in _o.pits) at(p.dx, p.dy)];
-  late final List<Offset>? incisal =
-      _o.incisal == null ? null : [for (final p in _o.incisal!) at(p.dx, p.dy)];
-  late final Offset? cingulum =
-      _o.cingulum == null ? null : at(_o.cingulum!.dx, _o.cingulum!.dy);
+  late final List<Offset>? incisal = _o.incisal == null
+      ? null
+      : [for (final p in _o.incisal!) at(p.dx, p.dy)];
+  late final Offset? cingulum = _o.cingulum == null
+      ? null
+      : at(_o.cingulum!.dx, _o.cingulum!.dy);
 
   /// Where each surface sits on the biting-surface view.
   Path? surfaceArea(ToothSurface s) {
     Path ellipse(double x, double y, double rx, double ry) => Path()
-      ..addOval(Rect.fromCenter(
-        center: at(x, y),
-        width: rx * 2 * _a * k,
-        height: ry * 2 * _b * k,
-      ));
+      ..addOval(
+        Rect.fromCenter(
+          center: at(x, y),
+          width: rx * 2 * _a * k,
+          height: ry * 2 * _b * k,
+        ),
+      );
     final edgeY = _o.incisal == null
         ? -0.5
-        : _o.incisal!.map((p) => p.dy).reduce((a, b) => a + b) / _o.incisal!.length;
+        : _o.incisal!.map((p) => p.dy).reduce((a, b) => a + b) /
+              _o.incisal!.length;
     final area = switch (s) {
-      ToothSurface.occlusal || ToothSurface.incisal => front
-          ? ellipse(0, edgeY, 0.86, 0.17)
-          : ellipse(0, 0.02, 0.5, 0.36),
+      ToothSurface.occlusal || ToothSurface.incisal =>
+        front ? ellipse(0, edgeY, 0.86, 0.17) : ellipse(0, 0.02, 0.5, 0.36),
       ToothSurface.mesial => ellipse(0.78, 0, 0.4, 0.42),
       ToothSurface.distal => ellipse(-0.78, 0, 0.4, 0.42),
       ToothSurface.buccal => ellipse(0, -0.8, 0.6, 0.28),
-      ToothSurface.lingual => front ? ellipse(0, 0.28, 0.42, 0.34) : ellipse(0, 0.8, 0.56, 0.28),
+      ToothSurface.lingual =>
+        front ? ellipse(0, 0.28, 0.42, 0.34) : ellipse(0, 0.8, 0.56, 0.28),
       ToothSurface.cervical => null,
     };
-    return area == null ? null : Path.combine(PathOperation.intersect, area, outline);
+    return area == null
+        ? null
+        : Path.combine(PathOperation.intersect, area, outline);
   }
 
   /// A crack across the surface.
@@ -1050,7 +1652,13 @@ void appendSmooth(Path path, List<Offset> p) {
 }
 
 /// Strokes [path] in dashes.
-void dashPath(Canvas canvas, Path path, Paint paint, {double dash = 4, double gap = 3}) {
+void dashPath(
+  Canvas canvas,
+  Path path,
+  Paint paint, {
+  double dash = 4,
+  double gap = 3,
+}) {
   for (final m in path.computeMetrics()) {
     var d = 0.0;
     while (d < m.length) {
@@ -1074,7 +1682,12 @@ abstract final class ToothArt {
   // ---------------------------------------------------------- buccal
 
   /// The cheek-side view of one tooth.
-  static void buccal(Canvas canvas, BuccalShape s, ToothLook look, CruColors c) {
+  static void buccal(
+    Canvas canvas,
+    BuccalShape s,
+    ToothLook look,
+    CruColors c,
+  ) {
     canvas.save();
     _pose(canvas, s, look);
     if (look.missing) {
@@ -1098,11 +1711,20 @@ abstract final class ToothArt {
     } else {
       if (s.backRoot != null) _root(canvas, s.backRoot!, s, c, back: true);
       _root(canvas, s.roots, s, c);
-      if (look.rootCanal && !look.pulp) _canals(canvas, s, c, c.greenText, clip: s.roots);
+      if (look.rootCanal && !look.pulp)
+        _canals(canvas, s, c, c.greenText, clip: s.roots);
     }
 
     // Crown.
-    _enamel(canvas, s.crown, s.crownRect, c, biteUp: !s.upper, front: s.front, k: s.k);
+    _enamel(
+      canvas,
+      s.crown,
+      s.crownRect,
+      c,
+      biteUp: !s.upper,
+      front: s.front,
+      k: s.k,
+    );
     _faceDetail(canvas, s, c);
     // The crown's shadow on the root just below the neck.
     if (!look.implant) {
@@ -1191,7 +1813,14 @@ abstract final class ToothArt {
         ..shader = ui.Gradient.linear(
           r.centerLeft,
           r.centerRight,
-          [c.enamelShade, c.enamelMid, c.enamel, c.enamel, c.enamelMid, c.enamelShade],
+          [
+            c.enamelShade,
+            c.enamelMid,
+            c.enamel,
+            c.enamel,
+            c.enamelMid,
+            c.enamelShade,
+          ],
           const [0, 0.16, 0.36, 0.5, 0.8, 1],
         ),
     );
@@ -1204,7 +1833,9 @@ abstract final class ToothArt {
           edge,
           neck,
           [
-            front ? c.enamelClear.withValues(alpha: 0.75) : _clear(c.enamelClear),
+            front
+                ? c.enamelClear.withValues(alpha: 0.75)
+                : _clear(c.enamelClear),
             _clear(c.enamelClear),
             _clear(c.enamelWarm),
             c.enamelWarm.withValues(alpha: 0.6),
@@ -1227,7 +1858,10 @@ abstract final class ToothArt {
       width: r.width * 0.26,
       height: r.height * 0.46,
     );
-    canvas.drawOval(g, _blurred(c.toothGloss.withValues(alpha: 0.85), r.width * 0.07));
+    canvas.drawOval(
+      g,
+      _blurred(c.toothGloss.withValues(alpha: 0.85), r.width * 0.07),
+    );
     canvas.restore();
   }
 
@@ -1257,10 +1891,22 @@ abstract final class ToothArt {
   }
 
   /// A root: warm, rounding away at every edge, lit down its middle.
-  static void _root(Canvas canvas, Path p, BuccalShape s, CruColors c, {bool back = false}) {
+  static void _root(
+    Canvas canvas,
+    Path p,
+    BuccalShape s,
+    CruColors c, {
+    bool back = false,
+  }) {
     final r = p.getBounds();
     final thick = s.rootThickness;
-    canvas.drawPath(p, Paint()..color = back ? Color.lerp(c.toothRoot, c.rootShade, 0.45)! : c.toothRoot);
+    canvas.drawPath(
+      p,
+      Paint()
+        ..color = back
+            ? Color.lerp(c.toothRoot, c.rootShade, 0.45)!
+            : c.toothRoot,
+    );
     canvas.save();
     canvas.clipPath(p);
     final neck = Offset(r.center.dx, s.upper ? r.bottom : r.top);
@@ -1268,11 +1914,10 @@ abstract final class ToothArt {
     canvas.drawRect(
       r,
       Paint()
-        ..shader = ui.Gradient.linear(
-          neck,
-          tip,
-          [_clear(c.rootShade), c.rootShade.withValues(alpha: 0.35)],
-        ),
+        ..shader = ui.Gradient.linear(neck, tip, [
+          _clear(c.rootShade),
+          c.rootShade.withValues(alpha: 0.35),
+        ]),
     );
     canvas.drawPath(
       p,
@@ -1282,7 +1927,9 @@ abstract final class ToothArt {
     );
     if (!back) {
       for (final axis in s.canals) {
-        final lit = [for (final q in axis.skip(1)) q.translate(-thick * 0.1, 0)];
+        final lit = [
+          for (final q in axis.skip(1)) q.translate(-thick * 0.1, 0),
+        ];
         canvas.drawPath(
           smoothOpen(lit),
           _blurred(c.rootLight.withValues(alpha: 0.9), thick * 0.1)
@@ -1355,21 +2002,45 @@ abstract final class ToothArt {
   }
 
   /// Canals filled (root canal treated), as tapering lines.
-  static void _canals(Canvas canvas, BuccalShape s, CruColors c, Color color, {Path? clip, bool dashed = false}) {
+  static void _canals(
+    Canvas canvas,
+    BuccalShape s,
+    CruColors c,
+    Color color, {
+    Path? clip,
+    bool dashed = false,
+  }) {
     canvas.save();
     if (clip != null) canvas.clipPath(clip);
     for (final axis in s.canals) {
-      _taper(canvas, smoothOpen(axis), color, s.k * 0.95, s.k * 0.3, dashed: dashed);
+      _taper(
+        canvas,
+        smoothOpen(axis),
+        color,
+        s.k * 0.95,
+        s.k * 0.3,
+        dashed: dashed,
+      );
     }
     canvas.restore();
   }
 
-  static void _taper(Canvas canvas, Path path, Color color, double from, double to, {bool dashed = false}) {
+  static void _taper(
+    Canvas canvas,
+    Path path,
+    Color color,
+    double from,
+    double to, {
+    bool dashed = false,
+  }) {
     const n = 14;
     for (final m in path.computeMetrics()) {
       for (var i = 0; i < n; i++) {
         if (dashed && i.isOdd) continue;
-        final seg = m.extractPath(m.length * i / n, m.length * (i + 1) / n + 0.3);
+        final seg = m.extractPath(
+          m.length * i / n,
+          m.length * (i + 1) / n + 0.3,
+        );
         canvas.drawPath(
           seg,
           Paint()
@@ -1393,19 +2064,28 @@ abstract final class ToothArt {
           a,
           r,
           Paint()
-            ..shader = ui.Gradient.radial(a, r, [
-              c.amber.withValues(alpha: 0.55),
-              c.amber.withValues(alpha: 0.28),
-              _clear(c.amber),
-            ], const [0, 0.55, 1]),
+            ..shader = ui.Gradient.radial(
+              a,
+              r,
+              [
+                c.amber.withValues(alpha: 0.55),
+                c.amber.withValues(alpha: 0.28),
+                _clear(c.amber),
+              ],
+              const [0, 0.55, 1],
+            ),
         );
       }
     }
-    final filled = look.canals == CanalState.obturated ||
+    final filled =
+        look.canals == CanalState.obturated ||
         (look.canals == CanalState.none && look.rootCanal);
     canvas.drawPath(
       s.chamber,
-      Paint()..color = filled ? c.greenText.withValues(alpha: 0.5) : tone.withValues(alpha: 0.6),
+      Paint()
+        ..color = filled
+            ? c.greenText.withValues(alpha: 0.5)
+            : tone.withValues(alpha: 0.6),
     );
     switch (look.canals) {
       case CanalState.obturated:
@@ -1414,23 +2094,31 @@ abstract final class ToothArt {
         _canals(canvas, s, c, tone.withValues(alpha: 0.7));
         _canals(canvas, s, c, c.amberText, dashed: true);
       case CanalState.none:
-        _canals(canvas, s, c, look.rootCanal ? c.greenText : tone.withValues(alpha: 0.7));
+        _canals(
+          canvas,
+          s,
+          c,
+          look.rootCanal ? c.greenText : tone.withValues(alpha: 0.7),
+        );
     }
   }
 
   /// A prosthetic crown: a glazed cap with its margin at the neck.
-  static void _cap(Canvas canvas, Path p, Rect r, CruColors c, double k, {List<Offset>? neck}) {
+  static void _cap(
+    Canvas canvas,
+    Path p,
+    Rect r,
+    CruColors c,
+    double k, {
+    List<Offset>? neck,
+  }) {
     canvas.drawPath(
       p,
       Paint()
-        ..shader = ui.Gradient.linear(
-          r.topLeft,
-          r.bottomRight,
-          [
-            c.restoration.withValues(alpha: 0.42),
-            c.restoration.withValues(alpha: 0.62),
-          ],
-        ),
+        ..shader = ui.Gradient.linear(r.topLeft, r.bottomRight, [
+          c.restoration.withValues(alpha: 0.42),
+          c.restoration.withValues(alpha: 0.62),
+        ]),
     );
     canvas.save();
     canvas.clipPath(p);
@@ -1439,7 +2127,10 @@ abstract final class ToothArt {
       width: r.width * 0.2,
       height: r.height * 0.4,
     );
-    canvas.drawOval(g, _blurred(c.toothGloss.withValues(alpha: 0.9), r.width * 0.05));
+    canvas.drawOval(
+      g,
+      _blurred(c.toothGloss.withValues(alpha: 0.9), r.width * 0.05),
+    );
     canvas.restore();
     canvas.drawPath(
       p,
@@ -1472,7 +2163,9 @@ abstract final class ToothArt {
       if (p == null) continue;
       out = out == null ? p : Path.combine(PathOperation.union, out, p);
     }
-    return out == null ? null : Path.combine(PathOperation.intersect, out, outline);
+    return out == null
+        ? null
+        : Path.combine(PathOperation.intersect, out, outline);
   }
 
   /// A filling: glossy, green-tinted material with a crisp margin.
@@ -1527,12 +2220,17 @@ abstract final class ToothArt {
       center,
       radius,
       Paint()
-        ..shader = ui.Gradient.radial(center, radius, [
-          c.caries.withValues(alpha: 0.95),
-          c.caries.withValues(alpha: 0.75),
-          c.amber.withValues(alpha: 0.35),
-          _clear(c.amber),
-        ], const [0, 0.35, 0.7, 1]),
+        ..shader = ui.Gradient.radial(
+          center,
+          radius,
+          [
+            c.caries.withValues(alpha: 0.95),
+            c.caries.withValues(alpha: 0.75),
+            c.amber.withValues(alpha: 0.35),
+            _clear(c.amber),
+          ],
+          const [0, 0.35, 0.7, 1],
+        ),
     );
     canvas.restore();
   }
@@ -1558,7 +2256,12 @@ abstract final class ToothArt {
   }
 
   /// Planned work: dashed Ink outlines of what will be done.
-  static void _plannedBuccal(Canvas canvas, BuccalShape s, ToothLook look, CruColors c) {
+  static void _plannedBuccal(
+    Canvas canvas,
+    BuccalShape s,
+    ToothLook look,
+    CruColors c,
+  ) {
     if (look.planned.isEmpty) return;
     final ink = Paint()
       ..style = PaintingStyle.stroke
@@ -1570,7 +2273,9 @@ abstract final class ToothArt {
       switch (t) {
         case ToothTreatment.filling:
           final area = _areas(
-            (look.decay.isNotEmpty ? look.decay : {_mainSurface(s.spec)}).map(s.surfaceArea),
+            (look.decay.isNotEmpty ? look.decay : {_mainSurface(s.spec)}).map(
+              s.surfaceArea,
+            ),
             s.crown,
           );
           if (area != null) {
@@ -1584,7 +2289,13 @@ abstract final class ToothArt {
           canvas.save();
           canvas.clipPath(s.roots);
           for (final axis in s.canals) {
-            dashPath(canvas, smoothOpen(axis), ink..strokeWidth = math.max(1.6, s.k * 0.4), dash: 3, gap: 2.5);
+            dashPath(
+              canvas,
+              smoothOpen(axis),
+              ink..strokeWidth = math.max(1.6, s.k * 0.4),
+              dash: 3,
+              gap: 2.5,
+            );
           }
           canvas.restore();
         case ToothTreatment.implant:
@@ -1607,17 +2318,26 @@ abstract final class ToothArt {
   /// The surface a filling goes on when none was recorded.
   static ToothSurface _mainSurface(ToothSpec s) =>
       s.kind == ToothKind.premolar || s.kind == ToothKind.molar
-          ? ToothSurface.occlusal
-          : ToothSurface.buccal;
+      ? ToothSurface.occlusal
+      : ToothSurface.buccal;
 
   // -------------------------------------------------------- occlusal
 
   /// The biting surface of one tooth.
-  static void occlusal(Canvas canvas, OcclusalShape s, ToothLook look, CruColors c) {
+  static void occlusal(
+    Canvas canvas,
+    OcclusalShape s,
+    ToothLook look,
+    CruColors c,
+  ) {
     if (look.missing) {
       _ghost(canvas, [s.outline], c);
       if (look.implant) {
-        canvas.drawCircle(s.rect.center, s.rect.shortestSide * 0.22, Paint()..color = c.implantMetal);
+        canvas.drawCircle(
+          s.rect.center,
+          s.rect.shortestSide * 0.22,
+          Paint()..color = c.implantMetal,
+        );
       }
       _plannedOcclusal(canvas, s, look, c);
       return;
@@ -1690,20 +2410,26 @@ abstract final class ToothArt {
         tip.translate(rad * 0.3, rad * 0.34),
         rad * 1.05,
         Paint()
-          ..shader = ui.Gradient.radial(tip.translate(rad * 0.3, rad * 0.34), rad * 1.05, [
-            c.toothShadow.withValues(alpha: 0.24),
-            _clear(c.toothShadow),
-          ]),
+          ..shader = ui.Gradient.radial(
+            tip.translate(rad * 0.3, rad * 0.34),
+            rad * 1.05,
+            [c.toothShadow.withValues(alpha: 0.24), _clear(c.toothShadow)],
+          ),
       );
       canvas.drawCircle(
         tip.translate(-rad * 0.14, -rad * 0.16),
         rad * 1.1,
         Paint()
-          ..shader = ui.Gradient.radial(tip.translate(-rad * 0.14, -rad * 0.16), rad * 1.1, [
-            c.toothGloss.withValues(alpha: 0.95),
-            c.toothGloss.withValues(alpha: 0.45),
-            _clear(c.toothGloss),
-          ], const [0, 0.45, 1]),
+          ..shader = ui.Gradient.radial(
+            tip.translate(-rad * 0.14, -rad * 0.16),
+            rad * 1.1,
+            [
+              c.toothGloss.withValues(alpha: 0.95),
+              c.toothGloss.withValues(alpha: 0.45),
+              _clear(c.toothGloss),
+            ],
+            const [0, 0.45, 1],
+          ),
       );
     }
     for (final ridge in s.ridges) {
@@ -1717,7 +2443,10 @@ abstract final class ToothArt {
     }
     // Front teeth: the hollow behind the edge, the edge, the bulge.
     if (s.incisal != null) {
-      final fossa = Offset(r.center.dx, (s.incisal!.first.dy + s.cingulum!.dy) / 2);
+      final fossa = Offset(
+        r.center.dx,
+        (s.incisal!.first.dy + s.cingulum!.dy) / 2,
+      );
       final fr = r.width * 0.36;
       canvas.drawCircle(
         fossa,
@@ -1781,7 +2510,11 @@ abstract final class ToothArt {
       );
     }
     for (final pit in s.pits) {
-      canvas.drawCircle(pit, math.max(0.8, k * 0.24), _blurred(c.fissure.withValues(alpha: 0.5), k * 0.12));
+      canvas.drawCircle(
+        pit,
+        math.max(0.8, k * 0.24),
+        _blurred(c.fissure.withValues(alpha: 0.5), k * 0.12),
+      );
     }
     // Rounding away at the outline.
     canvas.drawPath(
@@ -1819,16 +2552,26 @@ abstract final class ToothArt {
       at,
       r,
       Paint()
-        ..shader = ui.Gradient.radial(at, r, [
-          c.caries.withValues(alpha: 0.95),
-          c.amber.withValues(alpha: 0.35),
-          _clear(c.amber),
-        ], const [0, 0.55, 1]),
+        ..shader = ui.Gradient.radial(
+          at,
+          r,
+          [
+            c.caries.withValues(alpha: 0.95),
+            c.amber.withValues(alpha: 0.35),
+            _clear(c.amber),
+          ],
+          const [0, 0.55, 1],
+        ),
     );
     canvas.restore();
   }
 
-  static void _plannedOcclusal(Canvas canvas, OcclusalShape s, ToothLook look, CruColors c) {
+  static void _plannedOcclusal(
+    Canvas canvas,
+    OcclusalShape s,
+    ToothLook look,
+    CruColors c,
+  ) {
     if (look.planned.isEmpty) return;
     final ink = Paint()
       ..style = PaintingStyle.stroke
@@ -1840,7 +2583,9 @@ abstract final class ToothArt {
       switch (t) {
         case ToothTreatment.filling:
           final area = _areas(
-            (look.decay.isNotEmpty ? look.decay : {_mainSurface(s.spec)}).map(s.surfaceArea),
+            (look.decay.isNotEmpty ? look.decay : {_mainSurface(s.spec)}).map(
+              s.surfaceArea,
+            ),
             s.outline,
           );
           if (area != null) {
@@ -1848,9 +2593,9 @@ abstract final class ToothArt {
             dashPath(canvas, area, ink, dash: 3, gap: 2.5);
           }
         case ToothTreatment.crown ||
-              ToothTreatment.bridge ||
-              ToothTreatment.implant ||
-              null:
+            ToothTreatment.bridge ||
+            ToothTreatment.implant ||
+            null:
           canvas.drawPath(s.outline, wash);
           dashPath(canvas, s.outline, ink);
         case ToothTreatment.extraction:
@@ -1861,7 +2606,12 @@ abstract final class ToothArt {
           canvas.drawCircle(s.rect.center, s.rect.shortestSide * 0.16, wash);
           dashPath(
             canvas,
-            Path()..addOval(Rect.fromCircle(center: s.rect.center, radius: s.rect.shortestSide * 0.16)),
+            Path()..addOval(
+              Rect.fromCircle(
+                center: s.rect.center,
+                radius: s.rect.shortestSide * 0.16,
+              ),
+            ),
             ink,
             dash: 2.5,
             gap: 2,
@@ -1898,7 +2648,9 @@ abstract final class ToothArt {
     canvas.drawPath(
       smoothClosed([...margin, ...pocket.reversed]),
       Paint()
-        ..color = deep ? c.amber.withValues(alpha: 0.42) : c.gum.withValues(alpha: 0.32),
+        ..color = deep
+            ? c.amber.withValues(alpha: 0.42)
+            : c.gum.withValues(alpha: 0.32),
     );
     canvas.drawPath(
       smoothOpen(pocket),
@@ -1916,7 +2668,10 @@ abstract final class ToothArt {
         ..lineTo(f.dx - 4, f.dy + s.rootward * 1.4)
         ..lineTo(f.dx + 4, f.dy + s.rootward * 1.4)
         ..close();
-      canvas.drawPath(t, Paint()..color = furcation! >= 2 ? c.amberText : c.surface);
+      canvas.drawPath(
+        t,
+        Paint()..color = furcation! >= 2 ? c.amberText : c.surface,
+      );
       canvas.drawPath(
         t,
         Paint()
@@ -1966,7 +2721,13 @@ abstract final class ToothArt {
   // ------------------------------------------------------------ rings
 
   /// Hover and selection: a soft Ink glow around the tooth.
-  static void ring(Canvas canvas, Path outline, CruColors c, {required bool selected, required double k}) {
+  static void ring(
+    Canvas canvas,
+    Path outline,
+    CruColors c, {
+    required bool selected,
+    required double k,
+  }) {
     if (selected) {
       canvas.drawPath(
         outline,

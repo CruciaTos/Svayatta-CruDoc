@@ -39,23 +39,36 @@ Future<ui.Image?> radRenderPaneView(
     full,
     Rect.fromLTWH(0, 0, full.width.toDouble(), full.height.toDouble()),
     Rect.fromLTWH(0, 0, px.width.toDouble(), px.height.toDouble()),
-    Paint()..filterQuality = pane.zoom >= 2.5 ? FilterQuality.none : FilterQuality.high,
+    Paint()
+      ..filterQuality = pane.zoom >= 2.5
+          ? FilterQuality.none
+          : FilterQuality.high,
   );
   canvas.restore();
   if (withAnnotations) {
-    RadAnnotationPainter(toScreen: pane.pointToScreen, mmPerPx: mmPerPx, roi: roi, px: px)
-        .paintAll(canvas, annotations);
-    if (mmPerPx != null && pane.zoom > 0) radPaintScaleBar(canvas, size, mmPerPx / pane.zoom);
+    RadAnnotationPainter(
+      toScreen: pane.pointToScreen,
+      mmPerPx: mmPerPx,
+      roi: roi,
+      px: px,
+    ).paintAll(canvas, annotations);
+    if (mmPerPx != null && pane.zoom > 0)
+      radPaintScaleBar(canvas, size, mmPerPx / pane.zoom);
   }
   final picture = rec.endRecording();
-  final out = await picture.toImage((size.width * ratio).round(), (size.height * ratio).round());
+  final out = await picture.toImage(
+    (size.width * ratio).round(),
+    (size.height * ratio).round(),
+  );
   picture.dispose();
   full.dispose();
   return out;
 }
 
 Future<Uint8List?> radEncodePng(ui.Image image) async =>
-    (await image.toByteData(format: ui.ImageByteFormat.png))?.buffer.asUint8List();
+    (await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    ))?.buffer.asUint8List();
 
 /// JPEG at quality 92, encoded off the UI thread.
 Future<Uint8List?> radEncodeJpg(ui.Image image) async {
@@ -64,18 +77,23 @@ Future<Uint8List?> radEncodeJpg(ui.Image image) async {
   return _encodeJpg(raw.buffer, image.width, image.height);
 }
 
-Future<Uint8List> _encodeJpg(ByteBuffer rgba, int w, int h) => Isolate.run(() => img.encodeJpg(
-      img.Image.fromBytes(width: w, height: h, bytes: rgba, numChannels: 4),
-      quality: 92,
-    ));
+Future<Uint8List> _encodeJpg(ByteBuffer rgba, int w, int h) => Isolate.run(
+  () => img.encodeJpg(
+    img.Image.fromBytes(width: w, height: h, bytes: rgba, numChannels: 4),
+    quality: 92,
+  ),
+);
 
 /// A file-name-safe version of [s].
-String radSafeName(String s) =>
-    s.trim().replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_').replaceAll(RegExp(r'_+'), '_');
+String radSafeName(String s) => s
+    .trim()
+    .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '_')
+    .replaceAll(RegExp(r'_+'), '_');
 
 /// "Priya_Shah_OPG_2025-03-12".
-String radExportName(RadStudy s) =>
-    radSafeName('${s.patientName} ${s.modality.short} ${DateFormat('yyyy-MM-dd').format(s.studyDate)}');
+String radExportName(RadStudy s) => radSafeName(
+  '${s.patientName} ${s.modality.short} ${DateFormat('yyyy-MM-dd').format(s.studyDate)}',
+);
 
 /// Asks where to save [bytes]; returns the path, or null if cancelled.
 Future<String?> radSaveBytes({
@@ -111,7 +129,12 @@ Future<RadKeyImage?> radWriteKeyImage(
   required double? mmPerPx,
   RadRoiCache? roi,
 }) async {
-  final view = await radRenderPaneView(pane, annotations: annotations, mmPerPx: mmPerPx, roi: roi);
+  final view = await radRenderPaneView(
+    pane,
+    annotations: annotations,
+    mmPerPx: mmPerPx,
+    roi: roi,
+  );
   if (view == null) return null;
   final png = await radEncodePng(view);
   view.dispose();
@@ -121,14 +144,21 @@ Future<RadKeyImage?> radWriteKeyImage(
   final f = await ctl.fileOf(study, rel);
   await f.parent.create(recursive: true);
   await f.writeAsBytes(png, flush: true);
-  return RadKeyImage(id: id, imageId: pane.imageId, pngPath: rel, createdAt: DateTime.now());
+  return RadKeyImage(
+    id: id,
+    imageId: pane.imageId,
+    pngPath: rel,
+    createdAt: DateTime.now(),
+  );
 }
 
 /// A de-identified copy of a DICOM file (patient name, ID, birth date,
 /// institution and staff removed). Null for big-endian files.
 Future<Uint8List?> radAnonymisedDicom(File f) {
   final path = f.path;
-  return Isolate.run(() => DicomFile.parse(File(path).readAsBytesSync()).anonymised());
+  return Isolate.run(
+    () => DicomFile.parse(File(path).readAsBytesSync()).anonymised(),
+  );
 }
 
 /// Header values for the Image info tab, read off the UI thread. Missing
@@ -157,7 +187,8 @@ Future<List<(String, String)>> radDicomHeader(File f) {
     add('Series number', nums(DicomTag.seriesNumber));
     add('Instance', nums(DicomTag.instanceNumber));
     final acquired = d.date(DicomTag.acquisitionDate);
-    if (acquired != null) add('Acquired', DateFormat('d MMM yyyy').format(acquired));
+    if (acquired != null)
+      add('Acquired', DateFormat('d MMM yyyy').format(acquired));
     add('Body part', d.string(DicomTag.bodyPart));
     add('Transfer syntax', DicomSyntax.name(d.transferSyntax));
     add('Photometric', d.photometric);
@@ -169,7 +200,10 @@ Future<List<(String, String)>> radDicomHeader(File f) {
     add('Slice thickness', nums(DicomTag.sliceThickness, unit: ' mm'));
     add('Window centre', nums(DicomTag.windowCenter));
     add('Window width', nums(DicomTag.windowWidth));
-    add('Rescale', d.has(DicomTag.rescaleSlope) ? '× ${d.slope} + ${d.intercept}' : null);
+    add(
+      'Rescale',
+      d.has(DicomTag.rescaleSlope) ? '× ${d.slope} + ${d.intercept}' : null,
+    );
     add('Tube voltage', nums(DicomTag.kvp, unit: ' kVp'));
     add('Tube current', nums(DicomTag.tubeCurrent, unit: ' mA'));
     add('Exposure time', nums(DicomTag.exposureTime, unit: ' ms'));

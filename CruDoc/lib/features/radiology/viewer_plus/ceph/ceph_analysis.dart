@@ -32,41 +32,157 @@ class CephLandmark {
 /// In the order the guided placement asks for them.
 const cephLandmarks = <CephLandmark>[
   CephLandmark('S', 'Sella', 'Centre of the sella turcica', CephGroup.cranial),
-  CephLandmark('N', 'Nasion', 'Most anterior point of the frontonasal suture', CephGroup.cranial),
-  CephLandmark('Or', 'Orbitale', 'Lowest point on the inferior margin of the orbit', CephGroup.cranial),
-  CephLandmark('Po', 'Porion', 'Top of the external auditory meatus', CephGroup.cranial),
-  CephLandmark('Ba', 'Basion', 'Lowest, most anterior point of the foramen magnum', CephGroup.cranial),
-  CephLandmark('Ar', 'Articulare', 'Where the back of the ramus crosses the cranial base',
-      CephGroup.cranial),
-  CephLandmark('Co', 'Condylion', 'Most superior-posterior point of the condyle', CephGroup.cranial),
-  CephLandmark('Pt', 'Pterygoid point',
-      'Top-back of the pterygomaxillary fissure (11 o\'clock)', CephGroup.cranial),
-  CephLandmark('ANS', 'Anterior nasal spine', 'Tip of the anterior nasal spine', CephGroup.maxilla),
-  CephLandmark('PNS', 'Posterior nasal spine', 'Tip of the posterior nasal spine', CephGroup.maxilla),
-  CephLandmark('A', 'Point A', 'Deepest point of the anterior maxillary concavity',
-      CephGroup.maxilla),
-  CephLandmark('U1T', 'Upper incisor tip', 'Incisal edge of the most prominent upper incisor',
-      CephGroup.teeth),
-  CephLandmark('U1A', 'Upper incisor apex', 'Root apex of the same upper incisor', CephGroup.teeth),
-  CephLandmark('L1T', 'Lower incisor tip', 'Incisal edge of the most prominent lower incisor',
-      CephGroup.teeth),
-  CephLandmark('L1A', 'Lower incisor apex', 'Root apex of the same lower incisor', CephGroup.teeth),
-  CephLandmark('Mo', 'Molar occlusion', 'Where the first molars\' cusps meet (occlusal plane)',
-      CephGroup.teeth),
-  CephLandmark('B', 'Point B', 'Deepest point of the anterior mandibular concavity',
-      CephGroup.mandible),
-  CephLandmark('Pog', 'Pogonion', 'Most anterior point of the bony chin', CephGroup.mandible),
-  CephLandmark('Gn', 'Gnathion', 'Midway between pogonion and menton', CephGroup.mandible),
-  CephLandmark('Me', 'Menton', 'Lowest point of the symphysis', CephGroup.mandible),
-  CephLandmark('Go', 'Gonion', 'Most posterior-inferior point of the mandibular angle',
-      CephGroup.mandible),
+  CephLandmark(
+    'N',
+    'Nasion',
+    'Most anterior point of the frontonasal suture',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'Or',
+    'Orbitale',
+    'Lowest point on the inferior margin of the orbit',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'Po',
+    'Porion',
+    'Top of the external auditory meatus',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'Ba',
+    'Basion',
+    'Lowest, most anterior point of the foramen magnum',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'Ar',
+    'Articulare',
+    'Where the back of the ramus crosses the cranial base',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'Co',
+    'Condylion',
+    'Most superior-posterior point of the condyle',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'Pt',
+    'Pterygoid point',
+    'Top-back of the pterygomaxillary fissure (11 o\'clock)',
+    CephGroup.cranial,
+  ),
+  CephLandmark(
+    'ANS',
+    'Anterior nasal spine',
+    'Tip of the anterior nasal spine',
+    CephGroup.maxilla,
+  ),
+  CephLandmark(
+    'PNS',
+    'Posterior nasal spine',
+    'Tip of the posterior nasal spine',
+    CephGroup.maxilla,
+  ),
+  CephLandmark(
+    'A',
+    'Point A',
+    'Deepest point of the anterior maxillary concavity',
+    CephGroup.maxilla,
+  ),
+  CephLandmark(
+    'U1T',
+    'Upper incisor tip',
+    'Incisal edge of the most prominent upper incisor',
+    CephGroup.teeth,
+  ),
+  CephLandmark(
+    'U1A',
+    'Upper incisor apex',
+    'Root apex of the same upper incisor',
+    CephGroup.teeth,
+  ),
+  CephLandmark(
+    'L1T',
+    'Lower incisor tip',
+    'Incisal edge of the most prominent lower incisor',
+    CephGroup.teeth,
+  ),
+  CephLandmark(
+    'L1A',
+    'Lower incisor apex',
+    'Root apex of the same lower incisor',
+    CephGroup.teeth,
+  ),
+  CephLandmark(
+    'Mo',
+    'Molar occlusion',
+    'Where the first molars\' cusps meet (occlusal plane)',
+    CephGroup.teeth,
+  ),
+  CephLandmark(
+    'B',
+    'Point B',
+    'Deepest point of the anterior mandibular concavity',
+    CephGroup.mandible,
+  ),
+  CephLandmark(
+    'Pog',
+    'Pogonion',
+    'Most anterior point of the bony chin',
+    CephGroup.mandible,
+  ),
+  CephLandmark(
+    'Gn',
+    'Gnathion',
+    'Midway between pogonion and menton',
+    CephGroup.mandible,
+  ),
+  CephLandmark(
+    'Me',
+    'Menton',
+    'Lowest point of the symphysis',
+    CephGroup.mandible,
+  ),
+  CephLandmark(
+    'Go',
+    'Gonion',
+    'Most posterior-inferior point of the mandibular angle',
+    CephGroup.mandible,
+  ),
   CephLandmark('Prn', 'Pronasale', 'Tip of the nose', CephGroup.soft),
-  CephLandmark('Cm', 'Columella', 'Most anterior point of the columella', CephGroup.soft),
-  CephLandmark('Sn', 'Subnasale', 'Where the columella meets the upper lip', CephGroup.soft),
-  CephLandmark('Ls', 'Labrale superius', 'Most anterior point of the upper lip', CephGroup.soft),
-  CephLandmark('Li', 'Labrale inferius', 'Most anterior point of the lower lip', CephGroup.soft),
-  CephLandmark("Pog'", 'Soft-tissue pogonion', 'Most anterior point of the soft-tissue chin',
-      CephGroup.soft),
+  CephLandmark(
+    'Cm',
+    'Columella',
+    'Most anterior point of the columella',
+    CephGroup.soft,
+  ),
+  CephLandmark(
+    'Sn',
+    'Subnasale',
+    'Where the columella meets the upper lip',
+    CephGroup.soft,
+  ),
+  CephLandmark(
+    'Ls',
+    'Labrale superius',
+    'Most anterior point of the upper lip',
+    CephGroup.soft,
+  ),
+  CephLandmark(
+    'Li',
+    'Labrale inferius',
+    'Most anterior point of the lower lip',
+    CephGroup.soft,
+  ),
+  CephLandmark(
+    "Pog'",
+    'Soft-tissue pogonion',
+    'Most anterior point of the soft-tissue chin',
+    CephGroup.soft,
+  ),
 ];
 
 CephLandmark? cephLandmark(String id) {
@@ -84,7 +200,8 @@ double _dot(Offset a, Offset b) => a.dx * b.dx + a.dy * b.dy;
 
 /// Placed landmarks in the face frame, with the helpers the analyses use.
 class CephGeometry {
-  CephGeometry(Map<String, Offset> points, this.mmPerPx) : _p = _faceFrame(points);
+  CephGeometry(Map<String, Offset> points, this.mmPerPx)
+    : _p = _faceFrame(points);
 
   final Map<String, Offset> _p;
 
@@ -93,7 +210,10 @@ class CephGeometry {
 
   Offset operator [](String id) => _p[id]!;
 
-  List<String> missing(List<String> ids) => [for (final id in ids) if (!_p.containsKey(id)) id];
+  List<String> missing(List<String> ids) => [
+    for (final id in ids)
+      if (!_p.containsKey(id)) id,
+  ];
 
   /// The front of the occlusal plane: between the incisal tips.
   Offset get incisal => (this['U1T'] + this['L1T']) / 2;
@@ -104,11 +224,13 @@ class CephGeometry {
   double? mm(double px) => mmPerPx == null ? null : px * mmPerPx!;
 
   /// The angle between two directions, 0–180°.
-  static double between(Offset a, Offset b) => _deg(math.atan2(_cross(a, b).abs(), _dot(a, b)));
+  static double between(Offset a, Offset b) =>
+      _deg(math.atan2(_cross(a, b).abs(), _dot(a, b)));
 
   /// How far [b] is turned from [a], in degrees; positive when it turns
   /// downwards (clockwise on screen, where y points down).
-  static double turn(Offset a, Offset b) => _deg(math.atan2(_cross(a, b), _dot(a, b)));
+  static double turn(Offset a, Offset b) =>
+      _deg(math.atan2(_cross(a, b), _dot(a, b)));
 
   /// How far the top of line [v] leans forward of line [ref], in degrees.
   static double lean(Offset ref, Offset v) {
@@ -139,7 +261,12 @@ class CephGeometry {
   /// The profile faces left when Nasion is left of Sella (or Orbitale
   /// left of Porion, or Menton left of Gonion).
   static bool _facesLeft(Map<String, Offset> p) {
-    for (final (back, front) in const [('S', 'N'), ('Po', 'Or'), ('Go', 'Me'), ('PNS', 'ANS')]) {
+    for (final (back, front) in const [
+      ('S', 'N'),
+      ('Po', 'Or'),
+      ('Go', 'Me'),
+      ('PNS', 'ANS'),
+    ]) {
       final a = p[back], b = p[front];
       if (a != null && b != null) return b.dx < a.dx;
     }
@@ -199,7 +326,8 @@ class CephMeasure {
   String get normText => mean == null ? '' : '${_num(mean!)} ± ${_num(sd!)}';
 }
 
-String _num(double v) => v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
+String _num(double v) =>
+    v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1);
 
 class CephAnalysis {
   const CephAnalysis({
@@ -217,7 +345,12 @@ class CephAnalysis {
 
 /// A worked-out value.
 class CephValue {
-  const CephValue(this.measure, this.value, this.missing, {this.needsScale = false});
+  const CephValue(
+    this.measure,
+    this.value,
+    this.missing, {
+    this.needsScale = false,
+  });
 
   final CephMeasure measure;
   final double? value;
@@ -239,10 +372,15 @@ class CephValue {
   bool get outside => (deviation?.abs() ?? 0) > 1;
 
   /// "83.1°", "4.2 mm".
-  String get text => value == null ? '' : '${value!.toStringAsFixed(1)}${measure.unit.suffix}';
+  String get text =>
+      value == null ? '' : '${value!.toStringAsFixed(1)}${measure.unit.suffix}';
 }
 
-List<CephValue> cephValues(CephAnalysis a, Map<String, Offset> points, double? mmPerPx) {
+List<CephValue> cephValues(
+  CephAnalysis a,
+  Map<String, Offset> points,
+  double? mmPerPx,
+) {
   final g = CephGeometry(points, mmPerPx);
   return [
     for (final m in a.measures)
@@ -259,19 +397,26 @@ List<CephValue> cephValues(CephAnalysis a, Map<String, Offset> points, double? m
 
 double _sna(CephGeometry g) => g.angleAt('S', 'N', 'A');
 double _snb(CephGeometry g) => g.angleAt('S', 'N', 'B');
-double _fma(CephGeometry g) => CephGeometry.turn(g['Or'] - g['Po'], g['Me'] - g['Go']);
-double _impa(CephGeometry g) => CephGeometry.between(g['L1T'] - g['L1A'], g['Go'] - g['Me']);
+double _fma(CephGeometry g) =>
+    CephGeometry.turn(g['Or'] - g['Po'], g['Me'] - g['Go']);
+double _impa(CephGeometry g) =>
+    CephGeometry.between(g['L1T'] - g['L1A'], g['Go'] - g['Me']);
 double _interincisal(CephGeometry g) =>
     CephGeometry.between(g['U1A'] - g['U1T'], g['L1A'] - g['L1T']);
-double _facialAngle(CephGeometry g) => CephGeometry.between(g['Po'] - g['Or'], g['Pog'] - g['N']);
+double _facialAngle(CephGeometry g) =>
+    CephGeometry.between(g['Po'] - g['Or'], g['Pog'] - g['N']);
 double _facialAxis(CephGeometry g) =>
     180 - CephGeometry.between(g['N'] - g['Ba'], g['Gn'] - g['Pt']);
-double? _l1APog(CephGeometry g) => g.mm(CephGeometry.ahead(g['L1T'], g['A'], g['Pog']));
+double? _l1APog(CephGeometry g) =>
+    g.mm(CephGeometry.ahead(g['L1T'], g['A'], g['Pog']));
 
 /// Wits: A and B projected onto the occlusal plane (molar occlusion to
 /// the incisor overlap); positive when A projects ahead of B.
 double? _wits(CephGeometry g) {
-  final inc = Offset((g['U1T'].dx + g['L1T'].dx) / 2, (g['U1T'].dy + g['L1T'].dy) / 2);
+  final inc = Offset(
+    (g['U1T'].dx + g['L1T'].dx) / 2,
+    (g['U1T'].dy + g['L1T'].dy) / 2,
+  );
   final dir = inc - g['Mo'];
   final len = dir.distance;
   if (len == 0) return null;
@@ -285,26 +430,26 @@ const _u1 = ['U1T', 'U1A'];
 const _l1 = ['L1T', 'L1A'];
 
 CephMeasure _mandibularPlane(String key, double mean, double sd) => CephMeasure(
-      key: key,
-      name: 'FH – Mandibular plane',
-      detail: 'Frankfort horizontal to Go–Me',
-      unit: CephUnit.deg,
-      mean: mean,
-      sd: sd,
-      needs: [..._fh, ..._mp],
-      compute: _fma,
-    );
+  key: key,
+  name: 'FH – Mandibular plane',
+  detail: 'Frankfort horizontal to Go–Me',
+  unit: CephUnit.deg,
+  mean: mean,
+  sd: sd,
+  needs: [..._fh, ..._mp],
+  compute: _fma,
+);
 
 CephMeasure _interincisalAngle(double mean, double sd) => CephMeasure(
-      key: 'II',
-      name: 'Interincisal angle',
-      detail: 'Upper to lower incisor axis',
-      unit: CephUnit.deg,
-      mean: mean,
-      sd: sd,
-      needs: [..._u1, ..._l1],
-      compute: _interincisal,
-    );
+  key: 'II',
+  name: 'Interincisal angle',
+  detail: 'Upper to lower incisor axis',
+  unit: CephUnit.deg,
+  mean: mean,
+  sd: sd,
+  needs: [..._u1, ..._l1],
+  compute: _interincisal,
+);
 
 const _facialAxisNeeds = ['Ba', 'N', 'Pt', 'Gn'];
 
@@ -374,7 +519,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 22,
         sd: 5,
         needs: const ['N', 'A', ..._u1],
-        compute: (g) => -CephGeometry.lean(g['N'] - g['A'], g['U1A'] - g['U1T']),
+        compute: (g) =>
+            -CephGeometry.lean(g['N'] - g['A'], g['U1A'] - g['U1T']),
       ),
       CephMeasure(
         key: 'U1_NA_mm',
@@ -415,7 +561,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 103,
         sd: 6,
         needs: const ['S', 'N', 'U1T', 'U1A'],
-        compute: (g) => 180 - CephGeometry.between(g['U1T'] - g['U1A'], g['N'] - g['S']),
+        compute: (g) =>
+            180 - CephGeometry.between(g['U1T'] - g['U1A'], g['N'] - g['S']),
       ),
       const CephMeasure(
         key: 'Wits',
@@ -454,7 +601,9 @@ final List<CephAnalysis> cephAnalyses = [
         needs: const ['N', 'A', 'Pog'],
         compute: (g) {
           final bend = 180 - g.angleAt('N', 'A', 'Pog');
-          return CephGeometry.ahead(g['A'], g['N'], g['Pog']) < 0 ? -bend : bend;
+          return CephGeometry.ahead(g['A'], g['N'], g['Pog']) < 0
+              ? -bend
+              : bend;
         },
       ),
       CephMeasure(
@@ -486,7 +635,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 9.3,
         sd: 3.8,
         needs: const [..._fh, 'U1T', 'L1T', 'Mo'],
-        compute: (g) => CephGeometry.turn(g['Or'] - g['Po'], g.incisal - g['Mo']),
+        compute: (g) =>
+            CephGeometry.turn(g['Or'] - g['Po'], g.incisal - g['Mo']),
       ),
       _interincisalAngle(135.4, 5.8),
       CephMeasure(
@@ -497,7 +647,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 14.5,
         sd: 3.5,
         needs: const [..._l1, 'U1T', 'Mo'],
-        compute: (g) => CephGeometry.between(g['L1T'] - g['L1A'], g['Mo'] - g.incisal) - 90,
+        compute: (g) =>
+            CephGeometry.between(g['L1T'] - g['L1A'], g['Mo'] - g.incisal) - 90,
       ),
       const CephMeasure(
         key: 'L1_MP',
@@ -552,7 +703,8 @@ final List<CephAnalysis> cephAnalyses = [
   CephAnalysis(
     key: 'mcnamara',
     name: 'McNamara',
-    detail: 'Jaws against the Nasion perpendicular; lengths depend on face size',
+    detail:
+        'Jaws against the Nasion perpendicular; lengths depend on face size',
     measures: [
       CephMeasure(
         key: 'A_Nperp',
@@ -562,7 +714,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 1,
         sd: 2,
         needs: const [..._fh, 'N', 'A'],
-        compute: (g) => g.mm(CephGeometry.ahead(g['A'], g['N'], g['N'] + g.down)),
+        compute: (g) =>
+            g.mm(CephGeometry.ahead(g['A'], g['N'], g['N'] + g.down)),
       ),
       CephMeasure(
         key: 'Pog_Nperp',
@@ -572,7 +725,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: -1,
         sd: 3,
         needs: const [..._fh, 'N', 'Pog'],
-        compute: (g) => g.mm(CephGeometry.ahead(g['Pog'], g['N'], g['N'] + g.down)),
+        compute: (g) =>
+            g.mm(CephGeometry.ahead(g['Pog'], g['N'], g['N'] + g.down)),
       ),
       CephMeasure(
         key: 'CoA',
@@ -596,7 +750,8 @@ final List<CephAnalysis> cephAnalyses = [
         detail: 'Co–Gn minus Co–A; compare with the size table',
         unit: CephUnit.mm,
         needs: const ['Co', 'A', 'Gn'],
-        compute: (g) => g.mm((g['Gn'] - g['Co']).distance - (g['A'] - g['Co']).distance),
+        compute: (g) =>
+            g.mm((g['Gn'] - g['Co']).distance - (g['A'] - g['Co']).distance),
       ),
       CephMeasure(
         key: 'LAFH',
@@ -625,7 +780,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 5,
         sd: 1,
         needs: const [..._fh, 'A', 'U1T'],
-        compute: (g) => g.mm(CephGeometry.ahead(g['U1T'], g['A'], g['A'] + g.down)),
+        compute: (g) =>
+            g.mm(CephGeometry.ahead(g['U1T'], g['A'], g['A'] + g.down)),
       ),
       const CephMeasure(
         key: 'L1_APog',
@@ -703,7 +859,8 @@ final List<CephAnalysis> cephAnalyses = [
         mean: 22,
         sd: 4,
         needs: const [..._l1, 'A', 'Pog'],
-        compute: (g) => CephGeometry.lean(g['A'] - g['Pog'], g['L1T'] - g['L1A']),
+        compute: (g) =>
+            CephGeometry.lean(g['A'] - g['Pog'], g['L1T'] - g['L1A']),
       ),
       _interincisalAngle(130, 6),
       CephMeasure(
@@ -730,8 +887,10 @@ final List<CephAnalysis> cephAnalyses = [
   ),
 ];
 
-CephAnalysis cephAnalysis(String key) =>
-    cephAnalyses.firstWhere((a) => a.key == key, orElse: () => cephAnalyses.first);
+CephAnalysis cephAnalysis(String key) => cephAnalyses.firstWhere(
+  (a) => a.key == key,
+  orElse: () => cephAnalyses.first,
+);
 
 // ───────────────────────────── Tracing lines ─────────────────────────────
 
@@ -752,14 +911,16 @@ List<CephLine> cephLines(String analysisKey, Map<String, Offset> p) {
   final out = <CephLine>[];
   void line(String a, String b, String label, {bool analysis = false}) {
     final pa = p[a], pb = p[b];
-    if (pa != null && pb != null) out.add(CephLine(pa, pb, label, analysis: analysis));
+    if (pa != null && pb != null)
+      out.add(CephLine(pa, pb, label, analysis: analysis));
   }
 
   line('S', 'N', 'SN');
   line('Po', 'Or', 'FH');
   line('PNS', 'ANS', 'PP');
   final u1t = p['U1T'], l1t = p['L1T'], mo = p['Mo'];
-  if (u1t != null && l1t != null && mo != null) out.add(CephLine(mo, (u1t + l1t) / 2, 'OP'));
+  if (u1t != null && l1t != null && mo != null)
+    out.add(CephLine(mo, (u1t + l1t) / 2, 'OP'));
   line('Go', 'Me', 'MP');
   line('U1A', 'U1T', 'U1');
   line('L1A', 'L1T', 'L1');
@@ -780,7 +941,10 @@ List<CephLine> cephLines(String analysisKey, Map<String, Offset> p) {
         final down = _perpDown(po, or) * (or - po).distance * 1.6;
         final n = p['N'], a = p['A'];
         if (n != null) out.add(CephLine(n, n + down, 'N⊥', analysis: true));
-        if (a != null) out.add(CephLine(a - down * 0.25, a + down * 0.25, 'A⊥', analysis: true));
+        if (a != null)
+          out.add(
+            CephLine(a - down * 0.25, a + down * 0.25, 'A⊥', analysis: true),
+          );
       }
       line('Ba', 'N', 'Ba-N', analysis: true);
       line('Pt', 'Gn', 'Pt-Gn', analysis: true);
@@ -799,6 +963,6 @@ List<CephLine> cephLines(String analysisKey, Map<String, Offset> p) {
 
 /// The soft-tissue profile, nose to chin, through the points placed.
 List<Offset> cephProfile(Map<String, Offset> p) => [
-      for (final id in const ['Prn', 'Cm', 'Sn', 'Ls', 'Li', "Pog'"])
-        if (p[id] != null) p[id]!,
-    ];
+  for (final id in const ['Prn', 'Cm', 'Sn', 'Ls', 'Li', "Pog'"])
+    if (p[id] != null) p[id]!,
+];

@@ -27,9 +27,7 @@ class SuperAdminAuthGuard extends ConsumerWidget {
     }
 
     if (authState.isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return child;

@@ -15,10 +15,12 @@ abstract final class DentalPlan {
     List<TreatmentPlanLineItemModel> all,
   ) =>
       all
-          .where((i) =>
-              !i.isDeleted &&
-              TreatmentPlanItemStatus.fromString(i.status) !=
-                  TreatmentPlanItemStatus.declined)
+          .where(
+            (i) =>
+                !i.isDeleted &&
+                TreatmentPlanItemStatus.fromString(i.status) !=
+                    TreatmentPlanItemStatus.declined,
+          )
           .toList()
         ..sort((a, b) => a.sequence.compareTo(b.sequence));
 
@@ -29,25 +31,19 @@ abstract final class DentalPlan {
   /// Null when there are no active items.
   static PlanProgress? progress(List<TreatmentPlanLineItemModel> items) =>
       items.isEmpty
-          ? null
-          : PlanProgress(
-              done: items.where(isDone).length,
-              total: items.length,
-            );
+      ? null
+      : PlanProgress(done: items.where(isDone).length, total: items.length);
 
   /// "Tooth 13" / "Teeth 13, 14"; null when no teeth are recorded.
   static String? teeth(Iterable<String> numbers) {
-    final list = numbers
-        .map((t) => t.trim())
-        .where((t) => t.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort((a, b) {
-        final x = int.tryParse(a);
-        final y = int.tryParse(b);
-        if (x != null && y != null) return x.compareTo(y);
-        return a.compareTo(b);
-      });
+    final list =
+        numbers.map((t) => t.trim()).where((t) => t.isNotEmpty).toSet().toList()
+          ..sort((a, b) {
+            final x = int.tryParse(a);
+            final y = int.tryParse(b);
+            if (x != null && y != null) return x.compareTo(y);
+            return a.compareTo(b);
+          });
     if (list.isEmpty) return null;
     return '${list.length == 1 ? 'Tooth' : 'Teeth'} ${list.join(', ')}';
   }
@@ -66,11 +62,13 @@ abstract final class DentalPlan {
         state = TreatmentStepState.future;
       }
       final name = i.procedureName.trim();
-      steps.add(TreatmentStep(
-        title: name.isEmpty ? 'Procedure' : name,
-        subtitle: _stepSubtitle(i),
-        state: state,
-      ));
+      steps.add(
+        TreatmentStep(
+          title: name.isEmpty ? 'Procedure' : name,
+          subtitle: _stepSubtitle(i),
+          state: state,
+        ),
+      );
     }
     return steps;
   }

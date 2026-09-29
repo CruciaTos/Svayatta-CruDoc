@@ -57,8 +57,9 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final child = _child ?? _defaultChild(data);
     // 3D shows findings or the plan; the other layers are chart-only.
-    final layer =
-        _threeD && _layer != ChartLayer.plan ? ChartLayer.dental : _layer;
+    final layer = _threeD && _layer != ChartLayer.plan
+        ? ChartLayer.dental
+        : _layer;
 
     final counts = [
       if (data.count(ToothState.needsCare) > 0)
@@ -94,9 +95,10 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         CruSegmentedControl<ChartLayer>(
           semanticLabel: 'Show',
           segments: [
-            for (final l in _threeD
-                ? const [ChartLayer.dental, ChartLayer.plan]
-                : ChartLayer.values)
+            for (final l
+                in _threeD
+                    ? const [ChartLayer.dental, ChartLayer.plan]
+                    : ChartLayer.values)
               CruSegment(l, l.label),
           ],
           selected: layer,
@@ -104,10 +106,7 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ),
         CruSegmentedControl<bool>(
           semanticLabel: 'View',
-          segments: const [
-            CruSegment(false, 'Chart'),
-            CruSegment(true, '3D'),
-          ],
+          segments: const [CruSegment(false, 'Chart'), CruSegment(true, '3D')],
           selected: _threeD,
           onChanged: (v) => setState(() => _threeD = v),
         ),
@@ -153,8 +152,10 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                         selected: _selected,
                         onSelect: (t) => setState(() => _selected = t),
                         onOpen: _open,
-                        height:
-                            (constraints.maxWidth * 0.62).clamp(380.0, 540.0),
+                        height: (constraints.maxWidth * 0.62).clamp(
+                          380.0,
+                          540.0,
+                        ),
                         numbering: numbering,
                       )
                     : ToothChart2D(
@@ -310,24 +311,22 @@ class _StateLegend extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     Widget item(Color dot, String label, {bool ring = false}) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 10,
-              height: 10,
-              decoration: ShapeDecoration(
-                color: ring ? c.surface : dot,
-                shape: CircleBorder(
-                  side: ring
-                      ? BorderSide(color: dot, width: 1.5)
-                      : BorderSide.none,
-                ),
-              ),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: ShapeDecoration(
+            color: ring ? c.surface : dot,
+            shape: CircleBorder(
+              side: ring ? BorderSide(color: dot, width: 1.5) : BorderSide.none,
             ),
-            const SizedBox(width: CruSpace.s6),
-            Text(label, style: CruType.caption.tint(c.label2)),
-          ],
-        );
+          ),
+        ),
+        const SizedBox(width: CruSpace.s6),
+        Text(label, style: CruType.caption.tint(c.label2)),
+      ],
+    );
     return Wrap(
       spacing: CruSpace.s14,
       runSpacing: CruSpace.s6,
@@ -363,11 +362,13 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final logs = [
-      ...(ref.watch(patientProcedureLogProvider(widget.patient.id)).value ??
-          const <DentalProcedureLogModel>[])
-    ].where((l) => !l.isDeleted).toList()
-      ..sort((a, b) => b.performedAt.compareTo(a.performedAt));
+    final logs =
+        [
+          ...(ref.watch(patientProcedureLogProvider(widget.patient.id)).value ??
+              const <DentalProcedureLogModel>[]),
+        ].where((l) => !l.isDeleted).toList()..sort(
+          (a, b) => b.performedAt.compareTo(a.performedAt),
+        );
     final shown = _all ? logs : logs.take(5).toList();
     return CruCard(
       semanticLabel: 'Procedures',
@@ -380,7 +381,10 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
               Expanded(
                 child: Semantics(
                   header: true,
-                  child: Text('Procedures', style: CruType.headline.tint(c.label)),
+                  child: Text(
+                    'Procedures',
+                    style: CruType.headline.tint(c.label),
+                  ),
                 ),
               ),
               CruCapsuleButton(
@@ -406,8 +410,11 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
               DentalListRow(
                 semanticLabel: shown[i].procedureName,
                 minHeight: 52,
-                onTap: () => showProcedureLogDialog(context,
-                    patient: widget.patient, existing: shown[i]),
+                onTap: () => showProcedureLogDialog(
+                  context,
+                  patient: widget.patient,
+                  existing: shown[i],
+                ),
                 child: Row(
                   children: [
                     Expanded(
@@ -442,7 +449,10 @@ class _DentalProceduresCardState extends ConsumerState<DentalProceduresCard> {
             ],
             if (logs.length > 5)
               Padding(
-                padding: const EdgeInsets.only(top: CruSpace.s6, left: CruSpace.s12),
+                padding: const EdgeInsets.only(
+                  top: CruSpace.s6,
+                  left: CruSpace.s12,
+                ),
                 child: CruLink(
                   label: _all ? 'Show fewer' : 'Show all ${logs.length}',
                   onPressed: () => setState(() => _all = !_all),
@@ -475,7 +485,10 @@ class NoPlanCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Treatment plan', style: CruType.callout.w600.tint(c.label)),
+                Text(
+                  'Treatment plan',
+                  style: CruType.callout.w600.tint(c.label),
+                ),
                 Text(
                   'No plan yet. List the procedures you recommend, with teeth '
                   'and fees.',

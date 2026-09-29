@@ -52,7 +52,8 @@ abstract final class PatientsBuilder {
       }
     }
     // A past booking only counts as overdue if nothing was done since.
-    final overdue = next == null &&
+    final overdue =
+        next == null &&
             unrecorded != null &&
             (last == null ||
                 last.scheduledStart.isBefore(unrecorded.scheduledStart))
@@ -61,9 +62,11 @@ abstract final class PatientsBuilder {
 
     final today = _day(now);
     final seenToday = last != null && _day(last.scheduledStart) == today;
-    final seen7 = last != null &&
-        !_day(last.scheduledStart)
-            .isBefore(today.subtract(const Duration(days: 6)));
+    final seen7 =
+        last != null &&
+        !_day(
+          last.scheduledStart,
+        ).isBefore(today.subtract(const Duration(days: 6)));
 
     return PatientSummary(
       patient: p,
@@ -83,19 +86,19 @@ abstract final class PatientsBuilder {
   }
 
   static bool matches(PatientSummary s, PatientFilter f) => switch (f) {
-        PatientFilter.all => true,
-        PatientFilter.last7Days => s.seenWithin7Days,
-        PatientFilter.followUpOverdue => s.followUpOverdue,
-        PatientFilter.balanceDue => s.hasBalance,
-        PatientFilter.inTreatment => s.inTreatment,
-        PatientFilter.newThisMonth => s.isNewThisMonth,
-      };
+    PatientFilter.all => true,
+    PatientFilter.last7Days => s.seenWithin7Days,
+    PatientFilter.followUpOverdue => s.followUpOverdue,
+    PatientFilter.balanceDue => s.hasBalance,
+    PatientFilter.inTreatment => s.inTreatment,
+    PatientFilter.newThisMonth => s.isNewThisMonth,
+  };
 
   /// Live chip counts (before search).
   static Map<PatientFilter, int> counts(List<PatientSummary> all) => {
-        for (final f in PatientFilter.values)
-          f: all.where((s) => matches(s, f)).length,
-      };
+    for (final f in PatientFilter.values)
+      f: all.where((s) => matches(s, f)).length,
+  };
 
   /// Name, phone (spaces ignored), patient ID or condition.
   static bool matchesQuery(PatientSummary s, String query) {
@@ -118,10 +121,10 @@ abstract final class PatientsBuilder {
 
   /// The default sort a filter opens with.
   static PatientSort defaultSort(PatientFilter f) => switch (f) {
-        PatientFilter.balanceDue => PatientSort.amountDue,
-        PatientFilter.followUpOverdue => PatientSort.mostOverdue,
-        _ => PatientSort.lastVisit,
-      };
+    PatientFilter.balanceDue => PatientSort.amountDue,
+    PatientFilter.followUpOverdue => PatientSort.mostOverdue,
+    _ => PatientSort.lastVisit,
+  };
 
   static List<PatientSummary> apply(
     List<PatientSummary> all, {
@@ -149,29 +152,27 @@ abstract final class PatientsBuilder {
       PatientSort.lastVisit => byLast,
       PatientSort.name => byName,
       PatientSort.amountDue => (a, b) {
-          final c = b.balance.compareTo(a.balance);
-          return c != 0 ? c : byName(a, b);
-        },
+        final c = b.balance.compareTo(a.balance);
+        return c != 0 ? c : byName(a, b);
+      },
       PatientSort.mostOverdue => (a, b) {
-          final oa = a.overdueSince;
-          final ob = b.overdueSince;
-          if (oa == null && ob == null) return byLast(a, b);
-          if (oa == null) return 1;
-          if (ob == null) return -1;
-          return oa.compareTo(ob);
-        },
-      PatientSort.newest => (a, b) =>
-          b.patient.createdAt.compareTo(a.patient.createdAt),
+        final oa = a.overdueSince;
+        final ob = b.overdueSince;
+        if (oa == null && ob == null) return byLast(a, b);
+        if (oa == null) return 1;
+        if (ob == null) return -1;
+        return oa.compareTo(ob);
+      },
+      PatientSort.newest => (a, b) => b.patient.createdAt.compareTo(
+        a.patient.createdAt,
+      ),
     });
     return rows;
   }
 
   /// "Seen today" / "Past 7 days" / "Earlier" when sorted by last visit;
   /// otherwise one untitled group. Empty groups are dropped.
-  static List<PatientGroup> group(
-    List<PatientSummary> rows,
-    PatientSort sort,
-  ) {
+  static List<PatientGroup> group(List<PatientSummary> rows, PatientSort sort) {
     if (rows.isEmpty) return const [];
     if (sort != PatientSort.lastVisit) {
       return [PatientGroup(title: null, rows: rows)];
@@ -216,9 +217,10 @@ abstract final class PatientsBuilder {
         VisitStatus.completed => VisitRowStatus.done,
         VisitStatus.cancelled => VisitRowStatus.cancelled,
         VisitStatus.missed => VisitRowStatus.missed,
-        VisitStatus.scheduled => v.scheduledStart.isAfter(now)
-            ? VisitRowStatus.booked
-            : VisitRowStatus.notRecorded,
+        VisitStatus.scheduled =>
+          v.scheduledStart.isAfter(now)
+              ? VisitRowStatus.booked
+              : VisitRowStatus.notRecorded,
       };
 
   static int daysSince(DateTime t, DateTime now) =>

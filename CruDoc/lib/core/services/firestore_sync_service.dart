@@ -70,26 +70,26 @@ class FirestoreSyncService {
     if (_isStarted) return;
     _isStarted = true;
 
-    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
-      (dynamic result) {
-        try {
-          if (result is ConnectivityResult) {
-            if (result != ConnectivityResult.none) unawaited(synchronize());
-            return;
-          }
-          if (result is List<ConnectivityResult>) {
-            if (result.any((r) => r != ConnectivityResult.none)) {
-              unawaited(synchronize());
-            }
-            return;
-          }
-          // Unknown payload shape — conservatively attempt synchronization.
-          unawaited(synchronize());
-        } catch (_) {
-          // Swallow listener errors to avoid crashing the subscription.
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((
+      dynamic result,
+    ) {
+      try {
+        if (result is ConnectivityResult) {
+          if (result != ConnectivityResult.none) unawaited(synchronize());
+          return;
         }
-      },
-    );
+        if (result is List<ConnectivityResult>) {
+          if (result.any((r) => r != ConnectivityResult.none)) {
+            unawaited(synchronize());
+          }
+          return;
+        }
+        // Unknown payload shape — conservatively attempt synchronization.
+        unawaited(synchronize());
+      } catch (_) {
+        // Swallow listener errors to avoid crashing the subscription.
+      }
+    });
 
     final doctorId = _currentDoctorId;
     if (doctorId != null) {
@@ -122,22 +122,29 @@ class FirestoreSyncService {
           .where('doctorId', isEqualTo: doctorId)
           .snapshots()
           .listen((snapshot) async {
-        for (final change in snapshot.docChanges) {
-          try {
-            final doc = change.doc;
-            if (change.type == DocumentChangeType.removed) {
-              await _applyRemoteDeletion(collection, doc.id, doctorId);
-            } else {
-              final data = doc.data();
-              if (data == null) continue;
-              await _upsertDownloadedRow(collection, doc.id, data, doctorId);
+            for (final change in snapshot.docChanges) {
+              try {
+                final doc = change.doc;
+                if (change.type == DocumentChangeType.removed) {
+                  await _applyRemoteDeletion(collection, doc.id, doctorId);
+                } else {
+                  final data = doc.data();
+                  if (data == null) continue;
+                  await _upsertDownloadedRow(
+                    collection,
+                    doc.id,
+                    data,
+                    doctorId,
+                  );
+                }
+              } catch (e, st) {
+                // Swallow individual doc handling errors so the listener continues.
+                debugPrint(
+                  'Live sync doc update failed in $collection: $e\n$st',
+                );
+              }
             }
-          } catch (e, st) {
-            // Swallow individual doc handling errors so the listener continues.
-            debugPrint('Live sync doc update failed in $collection: $e\n$st');
-          }
-        }
-      });
+          });
       _liveSubscriptions.add(sub);
     }
 
@@ -147,33 +154,33 @@ class FirestoreSyncService {
           .where('doctorId', isEqualTo: doctorId)
           .snapshots()
           .listen((snapshot) async {
-        for (final change in snapshot.docChanges) {
-          try {
-            final doc = change.doc;
-            if (change.type == DocumentChangeType.removed) {
-              await _applyRemoteDeletion(
-                firestoreCollection,
-                doc.id,
-                doctorId,
-                sqliteTable: 'visits',
-              );
-            } else {
-              final data = doc.data();
-              if (data == null) continue;
-              await _upsertDownloadedRow(
-                firestoreCollection,
-                doc.id,
-                data,
-                doctorId,
-                sqliteTable: 'visits',
-              );
+            for (final change in snapshot.docChanges) {
+              try {
+                final doc = change.doc;
+                if (change.type == DocumentChangeType.removed) {
+                  await _applyRemoteDeletion(
+                    firestoreCollection,
+                    doc.id,
+                    doctorId,
+                    sqliteTable: 'visits',
+                  );
+                } else {
+                  final data = doc.data();
+                  if (data == null) continue;
+                  await _upsertDownloadedRow(
+                    firestoreCollection,
+                    doc.id,
+                    data,
+                    doctorId,
+                    sqliteTable: 'visits',
+                  );
+                }
+              } catch (e, st) {
+                // Swallow per-doc errors so listener stays alive.
+                debugPrint('Live sync doc update failed in visits: $e\n$st');
+              }
             }
-          } catch (e, st) {
-            // Swallow per-doc errors so listener stays alive.
-            debugPrint('Live sync doc update failed in visits: $e\n$st');
-          }
-        }
-      });
+          });
       _liveSubscriptions.add(sub);
     }
   }
@@ -285,7 +292,10 @@ class FirestoreSyncService {
   ///
   /// Soft-deletes are broadcast to **both** collections so a document is
   /// cleaned up even if its type changed between creation and deletion.
-  Future<void> _uploadPendingVisits(LocalDatabaseExecutor db, String doctorId) async {
+  Future<void> _uploadPendingVisits(
+    LocalDatabaseExecutor db,
+    String doctorId,
+  ) async {
     final rows = await db.query(
       'visits',
       where: 'syncStatus = ?',
@@ -300,7 +310,6 @@ class FirestoreSyncService {
     final uploadedIds = <String>[];
     var currentBatch = _firestore.batch();
     var batchCount = 0;
-
 
     Future<void> commitCurrentBatch() async {
       if (batchCount == 0) return;
@@ -318,8 +327,9 @@ class FirestoreSyncService {
       if (rowDoctorId != null && rowDoctorId != doctorId) continue;
 
       final visitType = row['visitType'] as String? ?? 'clinic';
-      final targetCollection =
-          visitType == 'home' ? 'visitations' : 'appointments';
+      final targetCollection = visitType == 'home'
+          ? 'visitations'
+          : 'appointments';
       final pendingDelete = row['pendingDelete'] == 1;
 
       if (pendingDelete) {
@@ -473,7 +483,9 @@ class FirestoreSyncService {
           'doctorId': doctorId,
           'date': _timestampFromMillis(row['date']),
           'description': FieldCipher.encrypt(row['description'] as String?),
-          'amount': FieldCipher.encrypt(((row['amount'] as num?)?.toDouble() ?? 0).toString()),
+          'amount': FieldCipher.encrypt(
+            ((row['amount'] as num?)?.toDouble() ?? 0).toString(),
+          ),
           'type': row['type'] as String? ?? 'miscellaneous',
           'kind': row['kind'] as String? ?? 'income',
           'payer': row['payer'] == null
@@ -490,7 +502,9 @@ class FirestoreSyncService {
           'doctorId': doctorId,
           'date': _timestampFromMillis(row['date']),
           'description': FieldCipher.encrypt(row['description'] as String?),
-          'amount': FieldCipher.encrypt(((row['amount'] as num?)?.toDouble() ?? 0).toString()),
+          'amount': FieldCipher.encrypt(
+            ((row['amount'] as num?)?.toDouble() ?? 0).toString(),
+          ),
           'isPaid': row['isPaid'] == 1,
           'payer': row['payer'] == null
               ? null
@@ -632,7 +646,12 @@ class FirestoreSyncService {
     try {
       final doc = await _firestore.collection('patients').doc(patientId).get();
       if (doc.exists && doc.data() != null) {
-        final patientRow = _sqliteRowFor('patients', doc.id, doc.data()!, doctorId);
+        final patientRow = _sqliteRowFor(
+          'patients',
+          doc.id,
+          doc.data()!,
+          doctorId,
+        );
         await db.insert(
           'patients',
           patientRow,
@@ -642,37 +661,35 @@ class FirestoreSyncService {
         return;
       }
     } catch (e) {
-      debugPrint('[FirestoreSync] Could not fetch missing parent patient $patientId from Firestore: $e');
+      debugPrint(
+        '[FirestoreSync] Could not fetch missing parent patient $patientId from Firestore: $e',
+      );
     }
 
     // Fallback: If patient document cannot be fetched from Firestore, create an archived minimal stub
     // to satisfy the SQLite foreign key constraint without displaying dummy data in the UI.
     final now = DateTime.now().millisecondsSinceEpoch;
     try {
-      await db.insert(
-        'patients',
-        {
-          'id': patientId,
-          'doctorId': doctorId,
-          'firstName': 'Patient',
-          'lastName': '',
-          'phone': '',
-          'email': '',
-          'gender': '',
-          'dateOfBirth': now,
-          'diagnosis': '[]',
-          'notes': '',
-          'packageBalance': 0.0,
-          'isArchived': 1,
-          'isActive': 1,
-          'createdAt': now,
-          'updatedAt': 0,
-          'syncStatus': 'synced',
-          'pendingDelete': 0,
-          'lastSyncedAt': 0,
-        },
-        conflictAlgorithm: LocalConflictAlgorithm.ignore,
-      );
+      await db.insert('patients', {
+        'id': patientId,
+        'doctorId': doctorId,
+        'firstName': 'Patient',
+        'lastName': '',
+        'phone': '',
+        'email': '',
+        'gender': '',
+        'dateOfBirth': now,
+        'diagnosis': '[]',
+        'notes': '',
+        'packageBalance': 0.0,
+        'isArchived': 1,
+        'isActive': 1,
+        'createdAt': now,
+        'updatedAt': 0,
+        'syncStatus': 'synced',
+        'pendingDelete': 0,
+        'lastSyncedAt': 0,
+      }, conflictAlgorithm: LocalConflictAlgorithm.ignore);
     } catch (_) {}
   }
 
@@ -708,7 +725,11 @@ class FirestoreSyncService {
       // Exception: If local row is an un-synced stub (updatedAt <= 0), always overwrite.
       final localUpdatedAt = (local['updatedAt'] as num?)?.toInt() ?? 0;
       final remoteUpdatedAt = _timestampToMillis(data['updatedAt']);
-      final isStub = localUpdatedAt <= 0 || (table == 'patients' && local['isArchived'] == 1 && local['firstName'] == 'Patient');
+      final isStub =
+          localUpdatedAt <= 0 ||
+          (table == 'patients' &&
+              local['isArchived'] == 1 &&
+              local['firstName'] == 'Patient');
       if (!isStub && remoteUpdatedAt > 0 && localUpdatedAt > remoteUpdatedAt) {
         // Local is newer — keep it.
         return;
@@ -725,12 +746,7 @@ class FirestoreSyncService {
     }
 
     if (existing.isNotEmpty) {
-      await db.update(
-        table,
-        row,
-        where: 'id = ?',
-        whereArgs: [id],
-      );
+      await db.update(table, row, where: 'id = ?', whereArgs: [id]);
     } else {
       await db.insert(
         table,
@@ -834,9 +850,14 @@ class FirestoreSyncService {
           'id': id,
           'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+          'description': FieldCipher.decrypt(
+            data['description'] as String? ?? '',
+          ),
           'amount': data['amount'] is String
-              ? (double.tryParse(FieldCipher.decrypt(data['amount'] as String)) ?? 0)
+              ? (double.tryParse(
+                      FieldCipher.decrypt(data['amount'] as String),
+                    ) ??
+                    0)
               : ((data['amount'] as num?)?.toDouble() ?? 0),
           'type': data['type'] as String? ?? 'miscellaneous',
           'kind': data['kind'] as String? ?? 'income',
@@ -858,9 +879,14 @@ class FirestoreSyncService {
           'id': id,
           'doctorId': doctorId,
           'date': _timestampToMillis(data['date'], fallback: now),
-          'description': FieldCipher.decrypt(data['description'] as String? ?? ''),
+          'description': FieldCipher.decrypt(
+            data['description'] as String? ?? '',
+          ),
           'amount': data['amount'] is String
-              ? (double.tryParse(FieldCipher.decrypt(data['amount'] as String)) ?? 0)
+              ? (double.tryParse(
+                      FieldCipher.decrypt(data['amount'] as String),
+                    ) ??
+                    0)
               : ((data['amount'] as num?)?.toDouble() ?? 0),
           'isPaid': (data['isPaid'] as bool? ?? false) ? 1 : 0,
           'payer': data['payer'] == null
@@ -886,8 +912,7 @@ class FirestoreSyncService {
           'category': data['category'] as String? ?? '',
           'unit': data['unit'] as String? ?? '',
           'currentStock': (data['currentStock'] as num?)?.toInt() ?? 0,
-          'reorderThreshold':
-              (data['reorderThreshold'] as num?)?.toInt() ?? 10,
+          'reorderThreshold': (data['reorderThreshold'] as num?)?.toInt() ?? 10,
           'goodStockLevel': (data['goodStockLevel'] as num?)?.toInt(),
           'unitPrice': (data['unitPrice'] as num?)?.toDouble(),
           'supplierName': data['supplierName'] as String?,
@@ -944,7 +969,10 @@ class FirestoreSyncService {
               : _timestampToMillis(data['calledAt'], fallback: now),
           'consultationStartedAt': data['consultationStartedAt'] == null
               ? null
-              : _timestampToMillis(data['consultationStartedAt'], fallback: now),
+              : _timestampToMillis(
+                  data['consultationStartedAt'],
+                  fallback: now,
+                ),
           'completedAt': data['completedAt'] == null
               ? null
               : _timestampToMillis(data['completedAt'], fallback: now),

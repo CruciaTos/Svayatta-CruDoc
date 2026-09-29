@@ -80,19 +80,22 @@ class AppointmentsWeekView extends ConsumerWidget {
       if (i > 0) {
         grid.add(WeekBreakBand(from: sessions[i - 1].end, to: s.start));
       }
-      grid.add(WeekSessionGrid(
-        startMinute: start,
-        endMinute: end,
-        days: days,
-        groupsByDay: {
-          for (final e in groups.entries) e.key: e.value.where(inSession).toList(),
-        },
-        today: today,
-        now: now,
-        onOpenVisit: (day, item) => ref
-            .read(apptsControllerProvider.notifier)
-            .openDay(day, visitId: item.id),
-      ));
+      grid.add(
+        WeekSessionGrid(
+          startMinute: start,
+          endMinute: end,
+          days: days,
+          groupsByDay: {
+            for (final e in groups.entries)
+              e.key: e.value.where(inSession).toList(),
+          },
+          today: today,
+          now: now,
+          onOpenVisit: (day, item) => ref
+              .read(apptsControllerProvider.notifier)
+              .openDay(day, visitId: item.id),
+        ),
+      );
     }
 
     return Align(

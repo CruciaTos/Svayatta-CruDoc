@@ -18,11 +18,10 @@ Future<RadReferrer?> showRadReferrerDialog(
   BuildContext context, {
   RadReferrer? existing,
   String initialName = '',
-}) =>
-    showDialog<RadReferrer>(
-      context: context,
-      builder: (_) => _ReferrerDialog(existing: existing, initialName: initialName),
-    );
+}) => showDialog<RadReferrer>(
+  context: context,
+  builder: (_) => _ReferrerDialog(existing: existing, initialName: initialName),
+);
 
 class _ReferrerDialog extends ConsumerStatefulWidget {
   const _ReferrerDialog({required this.existing, required this.initialName});
@@ -36,8 +35,12 @@ class _ReferrerDialog extends ConsumerStatefulWidget {
 
 class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
   final _form = GlobalKey<FormState>();
-  late final _name = TextEditingController(text: widget.existing?.name ?? widget.initialName);
-  late final _clinic = TextEditingController(text: widget.existing?.clinic ?? '');
+  late final _name = TextEditingController(
+    text: widget.existing?.name ?? widget.initialName,
+  );
+  late final _clinic = TextEditingController(
+    text: widget.existing?.clinic ?? '',
+  );
   late final _phone = TextEditingController(text: widget.existing?.phone ?? '');
   late final _email = TextEditingController(text: widget.existing?.email ?? '');
   late final _city = TextEditingController(text: widget.existing?.city ?? '');
@@ -96,7 +99,8 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
     final ok = await confirmDental(
       context,
       title: 'Delete ${e.name}?',
-      body: 'Their studies stay on the worklist; they just no longer show who referred them.',
+      body:
+          'Their studies stay on the worklist; they just no longer show who referred them.',
       action: 'Delete',
     );
     if (!ok || !mounted) return;
@@ -109,7 +113,10 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
     return CruFormDialog(
       title: widget.existing == null ? 'Add referrer' : 'Edit referrer',
       subtitle: 'A dentist or clinic that sends scans to you',
-      leading: const CruIconTile(icon: RadIcons.referrer, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.referrer,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.existing == null ? 'Add referrer' : 'Save changes',
       onSubmit: _save,
       busy: _saving,
@@ -118,8 +125,9 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
       footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -128,71 +136,80 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
               title: 'Who',
               description: 'Printed on reports and statements.',
               children: [
-                CruFieldRow(children: [
-                  CruTextField(
-                    label: 'Name',
-                    controller: _name,
-                    autofocus: widget.existing == null,
-                    hint: 'Dr. Anjali Shah',
-                    textCapitalization: TextCapitalization.words,
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Add their name.' : null,
-                    onChanged: (_) => _edited(),
-                  ),
-                  CruTextField(
-                    label: 'Clinic',
-                    optional: true,
-                    controller: _clinic,
-                    hint: 'Smile Dental Care',
-                    textCapitalization: TextCapitalization.words,
-                    onChanged: (_) => _edited(),
-                  ),
-                ]),
-                CruFieldRow(children: [
-                  CruTextField(
-                    label: 'City',
-                    optional: true,
-                    controller: _city,
-                    textCapitalization: TextCapitalization.words,
-                    onChanged: (_) => _edited(),
-                  ),
-                  CruTextField(
-                    label: 'Registration no.',
-                    optional: true,
-                    controller: _reg,
-                    onChanged: (_) => _edited(),
-                  ),
-                ]),
+                CruFieldRow(
+                  children: [
+                    CruTextField(
+                      label: 'Name',
+                      controller: _name,
+                      autofocus: widget.existing == null,
+                      hint: 'Dr. Anjali Shah',
+                      textCapitalization: TextCapitalization.words,
+                      validator: (v) =>
+                          (v ?? '').trim().isEmpty ? 'Add their name.' : null,
+                      onChanged: (_) => _edited(),
+                    ),
+                    CruTextField(
+                      label: 'Clinic',
+                      optional: true,
+                      controller: _clinic,
+                      hint: 'Smile Dental Care',
+                      textCapitalization: TextCapitalization.words,
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
+                ),
+                CruFieldRow(
+                  children: [
+                    CruTextField(
+                      label: 'City',
+                      optional: true,
+                      controller: _city,
+                      textCapitalization: TextCapitalization.words,
+                      onChanged: (_) => _edited(),
+                    ),
+                    CruTextField(
+                      label: 'Registration no.',
+                      optional: true,
+                      controller: _reg,
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
+                ),
               ],
             ),
             CruFormSection(
               title: 'Contact',
               description: 'Where reports and urgent findings go.',
               children: [
-                CruFieldRow(children: [
-                  CruTextField(
-                    label: 'Phone / WhatsApp',
-                    optional: true,
-                    controller: _phone,
-                    keyboardType: TextInputType.phone,
-                    tabular: true,
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]'))],
-                    onChanged: (_) => _edited(),
-                  ),
-                  CruTextField(
-                    label: 'Email',
-                    optional: true,
-                    controller: _email,
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (v) {
-                      final t = (v ?? '').trim();
-                      if (t.isEmpty) return null;
-                      return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)
-                          ? null
-                          : 'Check the email address.';
-                    },
-                    onChanged: (_) => _edited(),
-                  ),
-                ]),
+                CruFieldRow(
+                  children: [
+                    CruTextField(
+                      label: 'Phone / WhatsApp',
+                      optional: true,
+                      controller: _phone,
+                      keyboardType: TextInputType.phone,
+                      tabular: true,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9+ ]')),
+                      ],
+                      onChanged: (_) => _edited(),
+                    ),
+                    CruTextField(
+                      label: 'Email',
+                      optional: true,
+                      controller: _email,
+                      keyboardType: TextInputType.emailAddress,
+                      validator: (v) {
+                        final t = (v ?? '').trim();
+                        if (t.isEmpty) return null;
+                        return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(t)
+                            ? null
+                            : 'Check the email address.';
+                      },
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
+                ),
                 CruTextField(
                   label: 'Notes',
                   optional: true,
@@ -205,7 +222,10 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
                 if (widget.existing != null)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: CruLink(label: 'Delete this referrer', onPressed: _delete),
+                    child: CruLink(
+                      label: 'Delete this referrer',
+                      onPressed: _delete,
+                    ),
                   ),
               ],
             ),
@@ -219,11 +239,13 @@ class _ReferrerDialogState extends ConsumerState<_ReferrerDialog> {
 // ============================================================ pickers
 
 /// Pick a referrer (or add one). Returns the referrer, or null.
-Future<RadReferrer?> pickRadReferrer(BuildContext context, {String? selectedId}) =>
-    showDialog<RadReferrer>(
-      context: context,
-      builder: (_) => _ReferrerPicker(selectedId: selectedId),
-    );
+Future<RadReferrer?> pickRadReferrer(
+  BuildContext context, {
+  String? selectedId,
+}) => showDialog<RadReferrer>(
+  context: context,
+  builder: (_) => _ReferrerPicker(selectedId: selectedId),
+);
 
 class _ReferrerPicker extends ConsumerStatefulWidget {
   const _ReferrerPicker({this.selectedId});
@@ -250,11 +272,13 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
     final all = ref.watch(radReferrersProvider).value ?? const <RadReferrer>[];
     final q = _q.trim().toLowerCase();
     final shown = all
-        .where((r) =>
-            q.isEmpty ||
-            r.name.toLowerCase().contains(q) ||
-            r.clinic.toLowerCase().contains(q) ||
-            r.city.toLowerCase().contains(q))
+        .where(
+          (r) =>
+              q.isEmpty ||
+              r.name.toLowerCase().contains(q) ||
+              r.clinic.toLowerCase().contains(q) ||
+              r.city.toLowerCase().contains(q),
+        )
         .toList();
     return DentalPanelDialog(
       title: 'Referred by',
@@ -264,7 +288,12 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s8, CruSpace.s8, CruSpace.s8),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              CruSpace.s8,
+              CruSpace.s8,
+              CruSpace.s8,
+            ),
             child: DentalSearchField(
               controller: _search,
               hint: 'Search name, clinic or city',
@@ -275,7 +304,9 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
             Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
               child: Text(
-                all.isEmpty ? 'No referrers yet. Add the first one.' : 'No one matches.',
+                all.isEmpty
+                    ? 'No referrers yet. Add the first one.'
+                    : 'No one matches.',
                 style: CruType.subhead.tint(c.label2),
               ),
             ),
@@ -295,14 +326,22 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
                         Text(r.name, style: CruType.callout.tint(c.label)),
                         if (r.clinic.isNotEmpty || r.city.isNotEmpty)
                           Text(
-                            [r.clinic, r.city].where((s) => s.isNotEmpty).join(' · '),
+                            [
+                              r.clinic,
+                              r.city,
+                            ].where((s) => s.isNotEmpty).join(' · '),
                             style: CruType.caption.tint(c.label2),
                           ),
                       ],
                     ),
                   ),
                   if (r.id == widget.selectedId)
-                    CruIcon(CruIcons.check, size: 16, strokeWidth: 2.2, color: c.label),
+                    CruIcon(
+                      CruIcons.check,
+                      size: 16,
+                      strokeWidth: 2.2,
+                      color: c.label,
+                    ),
                 ],
               ),
             ),
@@ -315,8 +354,12 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
             icon: CruIcons.plus,
             kind: CruButtonKind.secondary,
             onPressed: () async {
-              final added = await showRadReferrerDialog(context, initialName: _search.text.trim());
-              if (added != null && context.mounted) Navigator.of(context).pop(added);
+              final added = await showRadReferrerDialog(
+                context,
+                initialName: _search.text.trim(),
+              );
+              if (added != null && context.mounted)
+                Navigator.of(context).pop(added);
             },
           ),
           const Spacer(),
@@ -337,14 +380,21 @@ Future<Patient?> pickRadPatient(
   String initialQuery = '',
   String title = 'Link to a patient',
   String subtitle = 'The study shows on their record',
-}) =>
-    showDialog<Patient>(
-      context: context,
-      builder: (_) => _PatientPicker(initialQuery: initialQuery, title: title, subtitle: subtitle),
-    );
+}) => showDialog<Patient>(
+  context: context,
+  builder: (_) => _PatientPicker(
+    initialQuery: initialQuery,
+    title: title,
+    subtitle: subtitle,
+  ),
+);
 
 class _PatientPicker extends ConsumerStatefulWidget {
-  const _PatientPicker({required this.initialQuery, required this.title, required this.subtitle});
+  const _PatientPicker({
+    required this.initialQuery,
+    required this.title,
+    required this.subtitle,
+  });
 
   final String initialQuery;
   final String title;
@@ -371,7 +421,12 @@ class _PatientPickerState extends ConsumerState<_PatientPicker> {
     final q = _q.trim().toLowerCase();
     final shown = all
         .where((p) => !p.isArchived)
-        .where((p) => q.isEmpty || p.fullName.toLowerCase().contains(q) || p.phone.contains(q))
+        .where(
+          (p) =>
+              q.isEmpty ||
+              p.fullName.toLowerCase().contains(q) ||
+              p.phone.contains(q),
+        )
         .take(60)
         .toList();
     return DentalPanelDialog(
@@ -392,7 +447,10 @@ class _PatientPickerState extends ConsumerState<_PatientPicker> {
           if (shown.isEmpty)
             Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
-              child: Text('No patient matches.', style: CruType.subhead.tint(c.label2)),
+              child: Text(
+                'No patient matches.',
+                style: CruType.subhead.tint(c.label2),
+              ),
             ),
           for (final p in shown)
             DentalListRow(
@@ -404,7 +462,10 @@ class _PatientPickerState extends ConsumerState<_PatientPicker> {
                   CruMonogram(name: p.fullName, size: CruSize.monogramRow),
                   const SizedBox(width: CruSpace.s12),
                   Expanded(
-                    child: Text(p.fullName, style: CruType.callout.tint(c.label)),
+                    child: Text(
+                      p.fullName,
+                      style: CruType.callout.tint(c.label),
+                    ),
                   ),
                   Text(
                     [
@@ -451,21 +512,29 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
   Future<void> _saveFee(RadFee f) async {
     final amount = double.tryParse(_amounts[f.id]!.text.trim()) ?? f.amount;
     final label = _labels[f.id]!.text.trim();
-    await ref.read(radiologyProvider).saveFee(RadFee(
-          id: f.id,
-          label: label.isEmpty ? f.label : label,
-          modality: f.modality,
-          amount: amount,
-        ));
+    await ref
+        .read(radiologyProvider)
+        .saveFee(
+          RadFee(
+            id: f.id,
+            label: label.isEmpty ? f.label : label,
+            modality: f.modality,
+            amount: amount,
+          ),
+        );
   }
 
   Future<void> _add() async {
-    await ref.read(radiologyProvider).saveFee(RadFee(
-          id: radId('fee_'),
-          label: 'New study type',
-          modality: RadModality.other,
-          amount: 0,
-        ));
+    await ref
+        .read(radiologyProvider)
+        .saveFee(
+          RadFee(
+            id: radId('fee_'),
+            label: 'New study type',
+            modality: RadModality.other,
+            amount: 0,
+          ),
+        );
   }
 
   @override
@@ -475,7 +544,10 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
     return DentalPanelDialog(
       title: 'Reading fees',
       subtitle: 'Filled in when a study is added; you can change it per study',
-      leading: const CruIconTile(icon: CruIcons.rupee, tone: CruTileTone.neutral),
+      leading: const CruIconTile(
+        icon: CruIcons.rupee,
+        tone: CruTileTone.neutral,
+      ),
       body: fees == null
           ? const SizedBox(height: 120)
           : Column(
@@ -484,7 +556,9 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
                 for (final f in fees)
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: CruSpace.s8, vertical: CruSpace.s6),
+                      horizontal: CruSpace.s8,
+                      vertical: CruSpace.s6,
+                    ),
                     child: Row(
                       children: [
                         SizedBox(
@@ -492,12 +566,16 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
                           child: PopupMenuButton<RadModality>(
                             tooltip: 'Study type',
                             initialValue: f.modality,
-                            onSelected: (m) => ref.read(radiologyProvider).saveFee(RadFee(
-                                  id: f.id,
-                                  label: f.label,
-                                  modality: m,
-                                  amount: f.amount,
-                                )),
+                            onSelected: (m) => ref
+                                .read(radiologyProvider)
+                                .saveFee(
+                                  RadFee(
+                                    id: f.id,
+                                    label: f.label,
+                                    modality: m,
+                                    amount: f.amount,
+                                  ),
+                                ),
                             itemBuilder: (_) => [
                               for (final m in RadModality.values)
                                 PopupMenuItem(value: m, child: Text(m.label)),
@@ -509,7 +587,9 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
                         Expanded(
                           child: _InlineField(
                             controller: _labels.putIfAbsent(
-                                f.id, () => TextEditingController(text: f.label)),
+                              f.id,
+                              () => TextEditingController(text: f.label),
+                            ),
                             onDone: () => _saveFee(f),
                           ),
                         ),
@@ -520,10 +600,14 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
                             prefix: '₹',
                             tabular: true,
                             controller: _amounts.putIfAbsent(
-                                f.id,
-                                () => TextEditingController(
-                                    text: f.amount.toStringAsFixed(0))),
-                            formatters: [FilteringTextInputFormatter.digitsOnly],
+                              f.id,
+                              () => TextEditingController(
+                                text: f.amount.toStringAsFixed(0),
+                              ),
+                            ),
+                            formatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                            ],
                             onDone: () => _saveFee(f),
                           ),
                         ),
@@ -531,7 +615,8 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
                           icon: RadIcons.trash,
                           semanticLabel: 'Remove ${f.label}',
                           tooltip: 'Remove',
-                          onPressed: () => ref.read(radiologyProvider).deleteFee(f),
+                          onPressed: () =>
+                              ref.read(radiologyProvider).deleteFee(f),
                         ),
                       ],
                     ),
@@ -539,7 +624,10 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
                 if (fees.isEmpty)
                   Padding(
                     padding: const EdgeInsets.all(CruSpace.s16),
-                    child: Text('No fees yet.', style: CruType.subhead.tint(c.label2)),
+                    child: Text(
+                      'No fees yet.',
+                      style: CruType.subhead.tint(c.label2),
+                    ),
                   ),
               ],
             ),
@@ -552,7 +640,10 @@ class _FeesDialogState extends ConsumerState<_FeesDialog> {
             onPressed: _add,
           ),
           const Spacer(),
-          CruButton(label: 'Done', onPressed: () => Navigator.of(context).pop()),
+          CruButton(
+            label: 'Done',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ],
       ),
     );
@@ -603,7 +694,10 @@ class _InlineFieldState extends State<_InlineField> {
     return Container(
       height: CruSize.control,
       padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
-      decoration: ShapeDecoration(color: c.inset, shape: cruShape(CruRadius.control)),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
       alignment: Alignment.centerLeft,
       child: Row(
         children: [
@@ -618,7 +712,10 @@ class _InlineFieldState extends State<_InlineField> {
               inputFormatters: widget.formatters,
               style: style.tint(c.label),
               cursorColor: c.accent,
-              decoration: const InputDecoration(isCollapsed: true, border: InputBorder.none),
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                border: InputBorder.none,
+              ),
               onSubmitted: (_) => widget.onDone(),
             ),
           ),
@@ -648,53 +745,68 @@ class _AuditDialog extends ConsumerWidget {
     }
     return DentalPanelDialog(
       title: 'Audit log',
-      subtitle: 'Every study and report opened, changed, signed, exported or shared',
-      leading: const CruIconTile(icon: RadIcons.history, tone: CruTileTone.neutral),
+      subtitle:
+          'Every study and report opened, changed, signed, exported or shared',
+      leading: const CruIconTile(
+        icon: RadIcons.history,
+        tone: CruTileTone.neutral,
+      ),
       body: events == null
           ? const SizedBox(height: 120)
           : events.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(CruSpace.s16),
-                  child: Text('Nothing recorded yet.', style: CruType.subhead.tint(c.label2)),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (final g in groups.entries) ...[
-                      DentalGroupLabel(g.key),
-                      for (final e in g.value)
-                        Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: CruSpace.s12, vertical: CruSpace.s6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: 76,
-                                child: Text(RadFormat.time(e.at),
-                                    style: CruType.subhead.tabular.tint(c.label2)),
-                              ),
-                              Expanded(
-                                child: Text.rich(
-                                  TextSpan(children: [
-                                    TextSpan(
-                                        text: e.action,
-                                        style: CruType.subhead.w600.tint(c.label)),
-                                    if (e.detail.isNotEmpty)
-                                      TextSpan(
-                                          text: ' · ${e.detail}',
-                                          style: CruType.subhead.tint(c.label2)),
-                                  ]),
-                                ),
-                              ),
-                              if (e.by.isNotEmpty)
-                                Text(e.by, style: CruType.caption.tint(c.label3)),
-                            ],
+          ? Padding(
+              padding: const EdgeInsets.all(CruSpace.s16),
+              child: Text(
+                'Nothing recorded yet.',
+                style: CruType.subhead.tint(c.label2),
+              ),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final g in groups.entries) ...[
+                  DentalGroupLabel(g.key),
+                  for (final e in g.value)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CruSpace.s12,
+                        vertical: CruSpace.s6,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            width: 76,
+                            child: Text(
+                              RadFormat.time(e.at),
+                              style: CruType.subhead.tabular.tint(c.label2),
+                            ),
                           ),
-                        ),
-                    ],
-                  ],
-                ),
+                          Expanded(
+                            child: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: e.action,
+                                    style: CruType.subhead.w600.tint(c.label),
+                                  ),
+                                  if (e.detail.isNotEmpty)
+                                    TextSpan(
+                                      text: ' · ${e.detail}',
+                                      style: CruType.subhead.tint(c.label2),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (e.by.isNotEmpty)
+                            Text(e.by, style: CruType.caption.tint(c.label3)),
+                        ],
+                      ),
+                    ),
+                ],
+              ],
+            ),
     );
   }
 }
@@ -702,7 +814,11 @@ class _AuditDialog extends ConsumerWidget {
 // ============================================================ invoice
 
 /// Opens the clinic's invoice form for a study's reading fee.
-Future<void> invoiceRadStudy(BuildContext context, WidgetRef ref, RadStudy s) async {
+Future<void> invoiceRadStudy(
+  BuildContext context,
+  WidgetRef ref,
+  RadStudy s,
+) async {
   final patients = ref.read(patientsStreamProvider).value ?? const <Patient>[];
   Patient? patient;
   for (final p in patients) {
@@ -717,7 +833,9 @@ Future<void> invoiceRadStudy(BuildContext context, WidgetRef ref, RadStudy s) as
     initialNotes: 'Radiology report · ${RadFormat.date(s.studyDate)}',
   );
   if (invoice != null) {
-    await ref.read(radiologyProvider).saveStudy(
+    await ref
+        .read(radiologyProvider)
+        .saveStudy(
           s.copyWith(invoiced: true),
           auditAction: 'Invoiced',
           detail: s.patientName,
@@ -729,11 +847,14 @@ Future<void> invoiceRadStudy(BuildContext context, WidgetRef ref, RadStudy s) as
 
 /// Exposure values read from each study's DICOM files (kVp, mA, time,
 /// mAs, DAP): one patient's, or every study's when [patientId] is null.
-Future<void> showRadDoseLogDialog(BuildContext context, {String? patientId, String? name}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _DoseLogDialog(patientId: patientId, name: name),
-    );
+Future<void> showRadDoseLogDialog(
+  BuildContext context, {
+  String? patientId,
+  String? name,
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _DoseLogDialog(patientId: patientId, name: name),
+);
 
 class _DoseLogDialog extends ConsumerWidget {
   const _DoseLogDialog({this.patientId, this.name});
@@ -744,26 +865,32 @@ class _DoseLogDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final studies = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
-        .where((s) => patientId == null || s.patientId == patientId)
-        .toList()
-      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+    final studies =
+        (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+            .where((s) => patientId == null || s.patientId == patientId)
+            .toList()
+          ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
     final withDose = studies.where((s) => !s.dose.isEmpty).toList();
     final totalDap = withDose.fold<double>(0, (t, s) => t + (s.dose.dap ?? 0));
     String n(double? v, String unit, [int digits = 0]) =>
         v == null ? '—' : '${v.toStringAsFixed(digits)} $unit';
 
     Widget head(String t, double w, {bool right = false}) => SizedBox(
-          width: w,
-          child: Text(t,
-              textAlign: right ? TextAlign.right : TextAlign.left,
-              style: CruType.caption.w600.tint(c.label3)),
-        );
+      width: w,
+      child: Text(
+        t,
+        textAlign: right ? TextAlign.right : TextAlign.left,
+        style: CruType.caption.w600.tint(c.label3),
+      ),
+    );
 
     return DentalPanelDialog(
       title: 'Radiation dose log',
       subtitle: name == null ? 'Every study with exposure values' : name!,
-      leading: const CruIconTile(icon: RadIcons.dose, tone: CruTileTone.neutral),
+      leading: const CruIconTile(
+        icon: RadIcons.dose,
+        tone: CruTileTone.neutral,
+      ),
       width: CruSize.formDialog,
       body: withDose.isEmpty
           ? Padding(
@@ -780,46 +907,75 @@ class _DoseLogDialog extends ConsumerWidget {
               children: [
                 Padding(
                   padding: const EdgeInsets.fromLTRB(
-                      CruSpace.s12, CruSpace.s8, CruSpace.s12, CruSpace.s6),
-                  child: Row(children: [
-                    head('Date', 96),
-                    head('Study', 72),
-                    Expanded(child: head('Patient', 0)),
-                    head('kVp', 64, right: true),
-                    head('mA', 64, right: true),
-                    head('Time', 72, right: true),
-                    head('DAP', 96, right: true),
-                  ]),
+                    CruSpace.s12,
+                    CruSpace.s8,
+                    CruSpace.s12,
+                    CruSpace.s6,
+                  ),
+                  child: Row(
+                    children: [
+                      head('Date', 96),
+                      head('Study', 72),
+                      Expanded(child: head('Patient', 0)),
+                      head('kVp', 64, right: true),
+                      head('mA', 64, right: true),
+                      head('Time', 72, right: true),
+                      head('DAP', 96, right: true),
+                    ],
+                  ),
                 ),
                 for (final s in withDose)
                   Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: CruSpace.s12, vertical: CruSpace.s8),
+                      horizontal: CruSpace.s12,
+                      vertical: CruSpace.s8,
+                    ),
                     child: Row(
                       children: [
                         SizedBox(
                           width: 96,
-                          child: Text(RadFormat.date(s.studyDate),
-                              style: CruType.subhead.tabular.tint(c.label2)),
+                          child: Text(
+                            RadFormat.date(s.studyDate),
+                            style: CruType.subhead.tabular.tint(c.label2),
+                          ),
                         ),
-                        SizedBox(width: 72, child: Text(s.modality.short, style: CruType.subhead.tint(c.label))),
+                        SizedBox(
+                          width: 72,
+                          child: Text(
+                            s.modality.short,
+                            style: CruType.subhead.tint(c.label),
+                          ),
+                        ),
                         Expanded(
-                          child: Text(s.patientName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: CruType.subhead.tint(c.label)),
+                          child: Text(
+                            s.patientName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.subhead.tint(c.label),
+                          ),
                         ),
                         for (final (v, w) in [
                           (n(s.dose.kvp, ''), 64.0),
                           (n(s.dose.ma, '', 1), 64.0),
-                          (n(s.dose.exposureMs == null ? null : s.dose.exposureMs! / 1000, 's', 1), 72.0),
+                          (
+                            n(
+                              s.dose.exposureMs == null
+                                  ? null
+                                  : s.dose.exposureMs! / 1000,
+                              's',
+                              1,
+                            ),
+                            72.0,
+                          ),
                           (n(s.dose.dap, '', 2), 96.0),
                         ])
                           SizedBox(
                             width: w,
-                            child: Text(v.trim(),
-                                textAlign: TextAlign.right,
-                                style: CruType.subhead.tabular.tint(c.label)),
+                            child: Text(
+                              v.trim(),
+                              textAlign: TextAlign.right,
+                              style: CruType.subhead.tabular.tint(c.label),
+                            ),
                           ),
                       ],
                     ),

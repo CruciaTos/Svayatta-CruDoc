@@ -5,7 +5,8 @@ import '../config/app_constants.dart';
 
 /// Singleton service for Firebase initialization and core access.
 class SuperAdminFirebaseService {
-  static final SuperAdminFirebaseService _instance = SuperAdminFirebaseService._internal();
+  static final SuperAdminFirebaseService _instance =
+      SuperAdminFirebaseService._internal();
   factory SuperAdminFirebaseService() => _instance;
   SuperAdminFirebaseService._internal();
 
@@ -75,7 +76,9 @@ class SuperAdminFirebaseService {
   }
 
   /// Run a Firestore transaction.
-  Future<T> runTransaction<T>(Future<T> Function(Transaction transaction) handler) {
+  Future<T> runTransaction<T>(
+    Future<T> Function(Transaction transaction) handler,
+  ) {
     return _firestore.runTransaction(handler);
   }
 

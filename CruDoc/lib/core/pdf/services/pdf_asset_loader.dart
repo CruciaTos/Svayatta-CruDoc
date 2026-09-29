@@ -18,10 +18,13 @@ class PdfAssetLoader {
     final shouldCloseClient = _client == null;
 
     try {
-      final response = await client.get(uri).timeout(const Duration(seconds: 8));
+      final response = await client
+          .get(uri)
+          .timeout(const Duration(seconds: 8));
       if (response.statusCode < 200 || response.statusCode >= 300) return null;
       final contentType = response.headers['content-type'] ?? '';
-      if (contentType.isNotEmpty && !contentType.toLowerCase().startsWith('image/')) {
+      if (contentType.isNotEmpty &&
+          !contentType.toLowerCase().startsWith('image/')) {
         return null;
       }
       return response.bodyBytes.isEmpty ? null : response.bodyBytes;

@@ -25,7 +25,8 @@ class InventoryUsageBars extends StatelessWidget {
     final c = context.cru;
     final max = usage.fold<int>(0, (a, b) => a > b ? a : b);
     const labelGap = CruSpace.s4 + 1;
-    const barMax = InventorySize.usageChartHeight -
+    const barMax =
+        InventorySize.usageChartHeight -
         InventorySize.usageLabelHeight -
         labelGap;
     final last = usage.length - 1;
@@ -41,7 +42,8 @@ class InventoryUsageBars extends StatelessWidget {
             if (i > 0) const SizedBox(width: InventorySize.usageBarGap),
             Expanded(
               child: Semantics(
-                label: '${DashFormat.shortDate(days[i])}: '
+                label:
+                    '${DashFormat.shortDate(days[i])}: '
                     '${InventoryFormat.quantity(usage[i], unit)}',
                 excludeSemantics: true,
                 child: Column(
@@ -51,8 +53,10 @@ class InventoryUsageBars extends StatelessWidget {
                     _Bar(
                       height: usage[i] <= 0 || max <= 0
                           ? InventorySize.usageStub
-                          : (usage[i] / max * barMax)
-                              .clamp(CruSpace.s4, barMax),
+                          : (usage[i] / max * barMax).clamp(
+                              CruSpace.s4,
+                              barMax,
+                            ),
                       stub: usage[i] <= 0,
                       color: i == last
                           ? todayColor
@@ -64,11 +68,14 @@ class InventoryUsageBars extends StatelessWidget {
                       child: labelled.contains(i)
                           ? Text(
                               '${days[i].day}',
-                              style: (i == last
-                                      ? CruType.micro.w600
-                                      : CruType.micro)
-                                  .tabular
-                                  .tint(i == last ? c.accentText : c.label3),
+                              style:
+                                  (i == last
+                                          ? CruType.micro.w600
+                                          : CruType.micro)
+                                      .tabular
+                                      .tint(
+                                        i == last ? c.accentText : c.label3,
+                                      ),
                               textAlign: TextAlign.center,
                               maxLines: 1,
                               softWrap: false,

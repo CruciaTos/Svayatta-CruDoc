@@ -6,7 +6,8 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart' as vmodel;
+import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart'
+    as vmodel;
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/appointments/presentation/session_details_sheet.dart';
 import 'package:doctor_management_app/features/dashboard/data/models/activity_item.dart';
@@ -35,7 +36,6 @@ class BarData {
   });
 }
 
-
 // ---------- Home Dashboard Screen (Stateful for local UI state) ----------
 class HomeDashboardScreen extends StatefulWidget {
   const HomeDashboardScreen({super.key, this.onNavigateToTab});
@@ -51,7 +51,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   final RevenueRepository _revenueRepository = RevenueRepository();
   bool _isMonthly = true;
   int _selectedBarIndex = -1; // use current month/day if not yet selected
-  bool _hideRevenue = true; // eye-toggle to mask the revenue section (hidden by default)
+  bool _hideRevenue =
+      true; // eye-toggle to mask the revenue section (hidden by default)
 
   /// Builds bars for the current week view with fixed Mon‑Sun labels.
   /// Each bar shows the revenue of the **most recent occurrence** of that weekday.
@@ -89,7 +90,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     });
 
     final maxAmount = dailyAmounts.fold<double>(
-        0, (maxValue, entry) => entry.value > maxValue ? entry.value : maxValue);
+      0,
+      (maxValue, entry) => entry.value > maxValue ? entry.value : maxValue,
+    );
 
     return dailyAmounts.map((entry) {
       final amount = entry.value;
@@ -111,7 +114,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
     final months = List.generate(6, (index) {
       final monthDate = DateTime(today.year, today.month - 5 + index, 1);
       final amount = incomeEntries.fold<double>(0, (sum, entry) {
-        if (entry.date.year == monthDate.year && entry.date.month == monthDate.month) {
+        if (entry.date.year == monthDate.year &&
+            entry.date.month == monthDate.month) {
           return sum + entry.amount;
         }
         return sum;
@@ -134,7 +138,20 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
   }
 
   String _shortMonth(int month) {
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const labels = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
     return labels[month - 1];
   }
 
@@ -215,30 +232,49 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
       return WebDashboardView(onNavigateToTab: widget.onNavigateToTab);
     }
 
-
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: SafeArea(
         child: StreamBuilder<List<String>>(
           stream: DoctorFeatureGuard.watchEnabledModules(),
           builder: (context, modulesSnapshot) {
-            final enabledModules = modulesSnapshot.data ?? DoctorFeatureGuard.defaultModules;
-            final isRevenueEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'revenue');
-            final isInventoryEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'inventory');
-            final isPatientsEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'patients');
-            final isAppointmentsEnabled = DoctorFeatureGuard.isEnabled(enabledModules, 'appointments');
+            final enabledModules =
+                modulesSnapshot.data ?? DoctorFeatureGuard.defaultModules;
+            final isRevenueEnabled = DoctorFeatureGuard.isEnabled(
+              enabledModules,
+              'revenue',
+            );
+            final isInventoryEnabled = DoctorFeatureGuard.isEnabled(
+              enabledModules,
+              'inventory',
+            );
+            final isPatientsEnabled = DoctorFeatureGuard.isEnabled(
+              enabledModules,
+              'patients',
+            );
+            final isAppointmentsEnabled = DoctorFeatureGuard.isEnabled(
+              enabledModules,
+              'appointments',
+            );
 
             void showLockedNotice(String featureLabel) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
                   content: Row(
                     children: [
-                      const Icon(Icons.lock_rounded, color: Colors.amber, size: 18),
+                      const Icon(
+                        Icons.lock_rounded,
+                        color: Colors.amber,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '🔒 $featureLabel is disabled by Administrator.',
-                          style: const TextStyle(color: Colors.white, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     ],
@@ -246,7 +282,9 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   backgroundColor: AppColors.cardSurface,
                   duration: const Duration(seconds: 2),
                   behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               );
             }
@@ -263,9 +301,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       final profileData = profileSnapshot.data;
                       final currentUser = FirebaseAuth.instance.currentUser;
                       final doctorName = DoctorProfileHelper.formatDoctorName(
-                          currentUser, profileData);
-                      final specialty =
-                          DoctorProfileHelper.formatSpecialty(profileData);
+                        currentUser,
+                        profileData,
+                      );
+                      final specialty = DoctorProfileHelper.formatSpecialty(
+                        profileData,
+                      );
 
                       return _TopBar(
                         doctorName: doctorName,
@@ -307,7 +348,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.lock_rounded, color: Colors.amber.shade300, size: 18),
+                              Icon(
+                                Icons.lock_rounded,
+                                color: Colors.amber.shade300,
+                                size: 18,
+                              ),
                               const SizedBox(width: 8),
                               const Text(
                                 'Revenue & Financials',
@@ -323,13 +368,19 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           const SizedBox(height: 10),
                           Row(
                             children: [
-                              const Icon(Icons.shield_outlined, color: Colors.amber, size: 20),
+                              const Icon(
+                                Icons.shield_outlined,
+                                color: Colors.amber,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               Text(
                                 'Feature Locked by Super Admin',
                                 style: TextStyle(
                                   fontFamily: AppColors.bodyFontFamily,
-                                  color: AppColors.textPrimary.withValues(alpha: 0.8),
+                                  color: AppColors.textPrimary.withValues(
+                                    alpha: 0.8,
+                                  ),
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -350,8 +401,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                         final currentIndex = bars.isEmpty
                             ? -1
                             : (_selectedBarIndex >= 0
-                                ? _selectedBarIndex.clamp(0, bars.length - 1)
-                                : _defaultSelectedBarIndex(bars));
+                                  ? _selectedBarIndex.clamp(0, bars.length - 1)
+                                  : _defaultSelectedBarIndex(bars));
                         final amount = currentIndex < 0
                             ? '₹0'
                             : '₹${bars[currentIndex].revenueAmount ?? 0}';
@@ -372,7 +423,8 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                           onToggle: (monthly) {
                             setState(() {
                               _isMonthly = monthly;
-                              _selectedBarIndex = -1; // reset selection to current day / month
+                              _selectedBarIndex =
+                                  -1; // reset selection to current day / month
                             });
                           },
                           onBarSelected: (index) {
@@ -387,8 +439,12 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   StreamBuilder<Map<String, dynamic>?>(
                     stream: DoctorProfileHelper.watchDoctorProfile(),
                     builder: (context, profileSnapshot) {
-                      final rawSpecialty = DoctorProfileHelper.formatSpecialty(profileSnapshot.data);
-                      final isDentist = rawSpecialty.toLowerCase().contains('dent');
+                      final rawSpecialty = DoctorProfileHelper.formatSpecialty(
+                        profileSnapshot.data,
+                      );
+                      final isDentist = rawSpecialty.toLowerCase().contains(
+                        'dent',
+                      );
                       if (!isDentist) return const SizedBox.shrink();
 
                       return const Padding(
@@ -402,11 +458,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                   QuickActionsRow(
                     onNewVisit: isAppointmentsEnabled
                         ? () => _navigateToTabOrExplain(
-                              tabIndex: 4,
-                              unavailableTitle: 'Visits',
-                              unavailableMessage:
-                                  'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
-                            )
+                            tabIndex: 4,
+                            unavailableTitle: 'Visits',
+                            unavailableMessage:
+                                'Visit scheduling lives in the Events section. Open Events and use the plus button to add a home visitation or clinic appointment.',
+                          )
                         : () => showLockedNotice('Appointments & Visits'),
                     onAddInventoryItem: isInventoryEnabled
                         ? _openAddMedicine
@@ -439,7 +495,11 @@ class _HomeDashboardScreenState extends State<HomeDashboardScreen> {
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.lock_rounded, color: Colors.amber.shade300, size: 18),
+                          Icon(
+                            Icons.lock_rounded,
+                            color: Colors.amber.shade300,
+                            size: 18,
+                          ),
                           const SizedBox(width: 8),
                           const Expanded(
                             child: Text(
@@ -519,52 +579,59 @@ class _TopBar extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              Builder(builder: (context) {
-                final specMeta = DoctorSpecialty.fromString(specialty);
-                return Tooltip(
-                  message: 'Tap to switch specialty',
-                  waitDuration: const Duration(milliseconds: 300),
-                  child: InkWell(
-                    onTap: () => showSpecialtySwitcherDialog(context),
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: specMeta.accentColor.withValues(alpha: 0.10),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: specMeta.accentColor.withValues(alpha: 0.25),
-                          width: 1,
+              Builder(
+                builder: (context) {
+                  final specMeta = DoctorSpecialty.fromString(specialty);
+                  return Tooltip(
+                    message: 'Tap to switch specialty',
+                    waitDuration: const Duration(milliseconds: 300),
+                    child: InkWell(
+                      onTap: () => showSpecialtySwitcherDialog(context),
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: specMeta.accentColor.withValues(alpha: 0.10),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: specMeta.accentColor.withValues(alpha: 0.25),
+                            width: 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              specMeta.icon,
+                              size: 13,
+                              color: specMeta.accentColor,
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              specialty.isNotEmpty ? specialty : '---',
+                              style: TextStyle(
+                                fontFamily: AppColors.bodyFontFamily,
+                                color: specMeta.accentColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(width: 3),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 13,
+                              color: specMeta.accentColor,
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(specMeta.icon,
-                              size: 13, color: specMeta.accentColor),
-                          const SizedBox(width: 5),
-                          Text(
-                            specialty.isNotEmpty ? specialty : '---',
-                            style: TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              color: specMeta.accentColor,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(width: 3),
-                          Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            size: 13,
-                            color: specMeta.accentColor,
-                          ),
-                        ],
-                      ),
                     ),
-                  ),
-                );
-              }),
+                  );
+                },
+              ),
             ],
           ),
         ),
@@ -622,13 +689,7 @@ class _RevenueSnapshotCard extends StatelessWidget {
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.25),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -653,7 +714,9 @@ class _RevenueSnapshotCard extends StatelessWidget {
                   GestureDetector(
                     onTap: onHideToggle,
                     child: Icon(
-                      hideRevenue ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                      hideRevenue
+                          ? Icons.visibility_off_outlined
+                          : Icons.visibility_outlined,
                       size: 17,
                       color: AppColors.slateBlue.withValues(alpha: 0.7),
                     ),
@@ -755,14 +818,18 @@ class _RevenueSnapshotCard extends StatelessWidget {
                               ? AppColors.chartBarLight
                               : AppColors.textSecondary,
                           fontSize: 11,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.normal,
                         );
 
                         return Expanded(
                           child: GestureDetector(
                             onTap: () => onBarSelected(index),
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 5,
+                              ),
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
@@ -780,20 +847,29 @@ class _RevenueSnapshotCard extends StatelessWidget {
                                       offset: const Offset(0, 3),
                                       child: Container(
                                         width: double.infinity,
-                                        padding: const EdgeInsets.symmetric(vertical: 2),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 2,
+                                        ),
                                         alignment: Alignment.center,
                                         decoration: BoxDecoration(
-                                          color: isSelected ? AppColors.chartBarLight : null,
+                                          color: isSelected
+                                              ? AppColors.chartBarLight
+                                              : null,
                                           border: Border.all(
-                                            color: AppColors.chartBarLight.withValues(alpha: 0.6),
+                                            color: AppColors.chartBarLight
+                                                .withValues(alpha: 0.6),
                                             width: 1.2,
                                           ),
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
+                                          ),
                                         ),
                                         child: Text(
                                           bar.label,
                                           style: labelStyle.copyWith(
-                                            color: isSelected ? Colors.white : AppColors.textSecondary,
+                                            color: isSelected
+                                                ? Colors.white
+                                                : AppColors.textSecondary,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -873,13 +949,7 @@ class TodaysVisitsCard extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: visitsAsync.when(
         loading: () => _CardShell(
@@ -941,10 +1011,7 @@ class TodaysVisitsCard extends ConsumerWidget {
                               showSessionDetailsSheet(context, resolved[i]),
                         ),
                         if (i != resolved.length - 1)
-                          const Divider(
-                            height: 24,
-                            color: Color(0xFFDDE6F0),
-                          ),
+                          const Divider(height: 24),
                       ],
                     ],
                   ),
@@ -1180,13 +1247,7 @@ class _QuickActionButton extends StatelessWidget {
           color: AppColors.cardSurface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: AppColors.divider),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          boxShadow: const [],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1253,13 +1314,7 @@ class _RecentActivityCardState extends ConsumerState<RecentActivityCard> {
           color: AppColors.divider.withValues(alpha: 0.8),
           width: 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1295,31 +1350,33 @@ class _RecentActivityCardState extends ConsumerState<RecentActivityCard> {
                 ],
               ),
               activityAsync.whenOrNull(
-                data: (items) {
-                  if (items.isNotEmpty) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 2.5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.chartBarLight.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '${items.length} updates',
-                        style: const TextStyle(
-                          fontFamily: AppColors.bodyFontFamily,
-                          color: AppColors.chartBarLight,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ) ??
+                    data: (items) {
+                      if (items.isNotEmpty) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2.5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.chartBarLight.withValues(
+                              alpha: 0.1,
+                            ),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${items.length} updates',
+                            style: const TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: AppColors.chartBarLight,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    },
+                  ) ??
                   const SizedBox.shrink(),
             ],
           ),
@@ -1383,7 +1440,6 @@ class _RecentActivityCardState extends ConsumerState<RecentActivityCard> {
                     separatorBuilder: (context, index) => const Divider(
                       height: 14,
                       thickness: 0.7,
-                      color: Color(0xFFE8EEF5),
                     ),
                     itemBuilder: (context, index) {
                       return _ActivityRow(item: items[index]);
@@ -1420,11 +1476,7 @@ class _ActivityRow extends StatelessWidget {
                 width: 1,
               ),
             ),
-            child: Icon(
-              item.icon,
-              color: AppColors.slateBlue,
-              size: 14,
-            ),
+            child: Icon(item.icon, color: AppColors.slateBlue, size: 14),
           ),
           const SizedBox(width: 8),
           Expanded(
@@ -1468,12 +1520,16 @@ class LowStockBanner extends ConsumerWidget {
     final lowStockCount = items.where((item) => item.isLowStock).length;
     final now = DateTime.now();
     final expiredCount = items
-        .where((item) => item.expiryDate != null && item.expiryDate!.isBefore(now))
+        .where(
+          (item) => item.expiryDate != null && item.expiryDate!.isBefore(now),
+        )
         .length;
     final expSoonCount = items
-        .where((item) =>
-            item.isExpiringSoon &&
-            !(item.expiryDate != null && item.expiryDate!.isBefore(now)))
+        .where(
+          (item) =>
+              item.isExpiringSoon &&
+              !(item.expiryDate != null && item.expiryDate!.isBefore(now)),
+        )
         .length;
 
     if (lowStockCount == 0 && expiredCount == 0 && expSoonCount == 0) {
@@ -1514,16 +1570,10 @@ class LowStockBanner extends ConsumerWidget {
                 ),
               ),
             ),
-            const Icon(
-              Icons.chevron_right,
-              color: Color(0xFFD97706),
-              size: 18,
-            ),
+            const Icon(Icons.chevron_right, color: Color(0xFFD97706), size: 18),
           ],
         ),
       ),
     );
   }
 }
-
-

@@ -47,9 +47,16 @@ class RadStudyContextPanel extends StatelessWidget {
     final patient = RadFormat.patientLine(study, now);
     final dose = study.dose;
     final question = study.clinicalQuestion.trim();
-    final notIncluded = rows.where((r) => !measurementIds.contains(r.id)).length;
+    final notIncluded = rows
+        .where((r) => !measurementIds.contains(r.id))
+        .length;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(CruSpace.s20, CruSpace.s20, CruSpace.s16, CruSpace.s24),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s20,
+        CruSpace.s20,
+        CruSpace.s16,
+        CruSpace.s24,
+      ),
       children: [
         Row(
           children: [
@@ -66,14 +73,17 @@ class RadStudyContextPanel extends StatelessWidget {
         ),
         const SizedBox(height: CruSpace.s10),
         Text(
-          study.description.trim().isEmpty ? study.modality.label : study.description.trim(),
+          study.description.trim().isEmpty
+              ? study.modality.label
+              : study.description.trim(),
           style: CruType.callout.tint(c.label),
         ),
         if (patient.isNotEmpty || study.patientExternalId.isNotEmpty)
           Text(
             [
               if (patient.isNotEmpty) patient,
-              if (study.patientExternalId.isNotEmpty) 'ID ${study.patientExternalId}',
+              if (study.patientExternalId.isNotEmpty)
+                'ID ${study.patientExternalId}',
             ].join(' · '),
             style: CruType.subhead.tabular.tint(c.label2),
           ),
@@ -98,7 +108,7 @@ class RadStudyContextPanel extends StatelessWidget {
           trailing: study.keyImages.isEmpty
               ? null
               : '${study.keyImages.where((k) => keyImageIds.contains(k.id)).length} of '
-                  '${study.keyImages.length} in report',
+                    '${study.keyImages.length} in report',
         ),
         if (study.keyImages.isEmpty)
           Text(
@@ -132,7 +142,9 @@ class RadStudyContextPanel extends StatelessWidget {
           ),
         _Heading(
           'Measurements',
-          trailing: rows.isEmpty ? null : '${rows.length - notIncluded} of ${rows.length} in report',
+          trailing: rows.isEmpty
+              ? null
+              : '${rows.length - notIncluded} of ${rows.length} in report',
         ),
         if (rows.isEmpty)
           Text(
@@ -148,7 +160,9 @@ class RadStudyContextPanel extends StatelessWidget {
                   RadCheck(
                     value: measurementIds.contains(r.id),
                     semanticLabel: 'Include ${r.label} in the report',
-                    onChanged: readOnly ? null : (_) => onToggleMeasurement(r.id),
+                    onChanged: readOnly
+                        ? null
+                        : (_) => onToggleMeasurement(r.id),
                   ),
                   const SizedBox(width: CruSpace.s10),
                   Expanded(
@@ -160,7 +174,10 @@ class RadStudyContextPanel extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: CruSpace.s8),
-                  Text(r.value, style: CruType.subhead.w600.tabular.tint(c.label)),
+                  Text(
+                    r.value,
+                    style: CruType.subhead.w600.tabular.tint(c.label),
+                  ),
                 ],
               ),
             ),
@@ -168,13 +185,17 @@ class RadStudyContextPanel extends StatelessWidget {
             const SizedBox(height: CruSpace.s6),
             Align(
               alignment: Alignment.centerLeft,
-              child: CruLink(label: 'Include all', onPressed: onIncludeAllMeasurements),
+              child: CruLink(
+                label: 'Include all',
+                onPressed: onIncludeAllMeasurements,
+              ),
             ),
           ],
         ],
         if (!dose.isEmpty || study.equipment.isNotEmpty) ...[
           const _Heading('Exposure'),
-          if (study.equipment.isNotEmpty) _Fact(label: 'Unit', value: study.equipment),
+          if (study.equipment.isNotEmpty)
+            _Fact(label: 'Unit', value: study.equipment),
           for (final (label, v, unit) in [
             ('Tube voltage', dose.kvp, 'kVp'),
             ('Tube current', dose.ma, 'mA'),
@@ -187,7 +208,9 @@ class RadStudyContextPanel extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: CruSpace.s2),
                 child: Row(
                   children: [
-                    Expanded(child: Text(label, style: CruType.subhead.tint(c.label2))),
+                    Expanded(
+                      child: Text(label, style: CruType.subhead.tint(c.label2)),
+                    ),
                     Text(
                       '${v == v.roundToDouble() ? v.toStringAsFixed(0) : v.toStringAsFixed(1)} $unit',
                       style: CruType.subhead.w500.tabular.tint(c.label),
@@ -215,7 +238,8 @@ class _Heading extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(text, style: CruType.groupLabel.tint(c.label3))),
-          if (trailing != null) Text(trailing!, style: CruType.caption.tabular.tint(c.label3)),
+          if (trailing != null)
+            Text(trailing!, style: CruType.caption.tabular.tint(c.label3)),
         ],
       ),
     );
@@ -288,7 +312,8 @@ class _KeyThumbState extends ConsumerState<_KeyThumb> {
           children: [
             CruPressable(
               onTap: widget.onOpen,
-              semanticLabel: 'Open ${caption.isEmpty ? 'key image' : caption} in the viewer',
+              semanticLabel:
+                  'Open ${caption.isEmpty ? 'key image' : caption} in the viewer',
               tooltip: 'Open in the viewer',
               builder: (context, hovered) => AspectRatio(
                 aspectRatio: 4 / 3,
@@ -331,7 +356,9 @@ class _KeyThumbState extends ConsumerState<_KeyThumb> {
         ),
         const SizedBox(height: CruSpace.s4),
         Text(
-          caption.isEmpty ? DentalFormat.shortDate(widget.keyImage.createdAt) : caption,
+          caption.isEmpty
+              ? DentalFormat.shortDate(widget.keyImage.createdAt)
+              : caption,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
           style: CruType.caption.tint(caption.isEmpty ? c.label3 : c.label2),

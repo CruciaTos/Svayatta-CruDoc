@@ -33,10 +33,7 @@ const Color _accentTealLight = Color(0xFFCCFBF1);
 class DentalPatientDetailsScreen extends ConsumerStatefulWidget {
   final Patient patient;
 
-  const DentalPatientDetailsScreen({
-    super.key,
-    required this.patient,
-  });
+  const DentalPatientDetailsScreen({super.key, required this.patient});
 
   @override
   ConsumerState<DentalPatientDetailsScreen> createState() =>
@@ -92,7 +89,7 @@ class _DentalPatientDetailsScreenState
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Colors.transparent),
                 ),
               ),
             ),
@@ -101,7 +98,9 @@ class _DentalPatientDetailsScreenState
               style: FilledButton.styleFrom(
                 backgroundColor: _accentTeal,
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
               onPressed: () => Navigator.pop(ctx, controller.text),
               child: const Text('Save Note'),
@@ -115,7 +114,9 @@ class _DentalPatientDetailsScreenState
     final trimmed = result.trim();
     setState(() => _note = trimmed);
     try {
-      await ref.read(patientRepositoryProvider).updateDoctorsNote(widget.patient.id, trimmed);
+      await ref
+          .read(patientRepositoryProvider)
+          .updateDoctorsNote(widget.patient.id, trimmed);
     } catch (_) {}
   }
 
@@ -137,7 +138,10 @@ class _DentalPatientDetailsScreenState
         title: const Text('Delete Patient'),
         content: Text('Are you sure you want to delete ${patient.fullName}?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
@@ -155,9 +159,9 @@ class _DentalPatientDetailsScreenState
       Navigator.pop(context);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to delete: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
     }
   }
 
@@ -260,7 +264,11 @@ class _DentalPatientDetailsScreenState
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.sentiment_satisfied_alt_rounded, size: 14, color: _accentTeal),
+                    Icon(
+                      Icons.sentiment_satisfied_alt_rounded,
+                      size: 14,
+                      color: _accentTeal,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'DENTAL CLINIC',
@@ -319,7 +327,9 @@ class _DentalPatientDetailsScreenState
             radius: 26,
             backgroundColor: _accentTealLight,
             child: Text(
-              patient.fullName.isNotEmpty ? patient.fullName[0].toUpperCase() : 'P',
+              patient.fullName.isNotEmpty
+                  ? patient.fullName[0].toUpperCase()
+                  : 'P',
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -343,7 +353,10 @@ class _DentalPatientDetailsScreenState
                 const SizedBox(height: 2),
                 Text(
                   '${patient.gender} • ${patient.age} yrs • ID: ${patient.id.substring(0, patient.id.length > 8 ? 8 : patient.id.length)}',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
                 ),
               ],
             ),
@@ -358,7 +371,9 @@ class _DentalPatientDetailsScreenState
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),
       data: (visits) {
-        final completed = visits.where((v) => v.status == VisitStatus.completed).length;
+        final completed = visits
+            .where((v) => v.status == VisitStatus.completed)
+            .length;
         // Latest completed visit that has already started: never a
         // future booking or a cancelled visit.
         final now = DateTime.now();
@@ -377,11 +392,19 @@ class _DentalPatientDetailsScreenState
         return Row(
           children: [
             Expanded(
-              child: _buildStatItem('Sessions Attended', '$completed', Icons.check_circle_outline),
+              child: _buildStatItem(
+                'Sessions Attended',
+                '$completed',
+                Icons.check_circle_outline,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildStatItem('Last Consultation', lastVisitStr, Icons.calendar_today_outlined),
+              child: _buildStatItem(
+                'Last Consultation',
+                lastVisitStr,
+                Icons.calendar_today_outlined,
+              ),
             ),
           ],
         );
@@ -405,8 +428,21 @@ class _DentalPatientDetailsScreenState
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
-                Text(label, style: const TextStyle(fontSize: 11, color: Color(0xFF64748B))),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
+                ),
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
               ],
             ),
           ),
@@ -416,10 +452,11 @@ class _DentalPatientDetailsScreenState
   }
 
   Widget _buildImagingSection(Patient patient) {
-    final studies = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
-        .where((s) => s.patientId == patient.id)
-        .toList()
-      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+    final studies =
+        (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+            .where((s) => s.patientId == patient.id)
+            .toList()
+          ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -442,7 +479,11 @@ class _DentalPatientDetailsScreenState
                       color: _accentTealLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.blur_on_rounded, size: 18, color: _accentTeal),
+                    child: const Icon(
+                      Icons.blur_on_rounded,
+                      size: 18,
+                      color: _accentTeal,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   const Text(
@@ -460,7 +501,11 @@ class _DentalPatientDetailsScreenState
                 icon: const Icon(Icons.add, size: 16, color: _accentTeal),
                 label: const Text(
                   'Import Scan',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _accentTeal),
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: _accentTeal,
+                  ),
                 ),
               ),
             ],
@@ -480,12 +525,16 @@ class _DentalPatientDetailsScreenState
             Column(
               children: [
                 for (var i = 0; i < studies.length; i++) ...[
-                  if (i > 0) const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                  if (i > 0)
+                    const Divider(height: 16),
                   InkWell(
                     onTap: () => openRadStudy(context, ref, studies[i]),
                     borderRadius: BorderRadius.circular(10),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 8,
+                        horizontal: 6,
+                      ),
                       child: Row(
                         children: [
                           RadModalityBadge(studies[i].modality),
@@ -514,7 +563,8 @@ class _DentalPatientDetailsScreenState
                             ),
                           ),
                           FilledButton.tonal(
-                            onPressed: () => openRadStudy(context, ref, studies[i]),
+                            onPressed: () =>
+                                openRadStudy(context, ref, studies[i]),
                             child: const Text('Open Viewer'),
                           ),
                         ],
@@ -529,7 +579,9 @@ class _DentalPatientDetailsScreenState
     );
   }
 
-  Widget _buildOdontogramSection(AsyncValue<List<ToothChartEntryModel>> toothChartAsync) {
+  Widget _buildOdontogramSection(
+    AsyncValue<List<ToothChartEntryModel>> toothChartAsync,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -560,7 +612,10 @@ class _DentalPatientDetailsScreenState
               if (_selectedToothNumber != null)
                 TextButton(
                   onPressed: () => setState(() => _selectedToothNumber = null),
-                  child: const Text('Clear Selection', style: TextStyle(fontSize: 12, color: _accentTeal)),
+                  child: const Text(
+                    'Clear Selection',
+                    style: TextStyle(fontSize: 12, color: _accentTeal),
+                  ),
                 ),
             ],
           ),
@@ -571,11 +626,21 @@ class _DentalPatientDetailsScreenState
           toothChartAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.symmetric(vertical: 36),
-              child: Center(child: CircularProgressIndicator(color: _accentTeal, strokeWidth: 2)),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: _accentTeal,
+                  strokeWidth: 2,
+                ),
+              ),
             ),
             error: (e, _) => Padding(
               padding: const EdgeInsets.symmetric(vertical: 24),
-              child: Center(child: Text('Failed to load chart: $e', style: const TextStyle(color: Colors.red))),
+              child: Center(
+                child: Text(
+                  'Failed to load chart: $e',
+                  style: const TextStyle(color: Colors.red),
+                ),
+              ),
             ),
             data: (entries) {
               return Column(
@@ -586,7 +651,8 @@ class _DentalPatientDetailsScreenState
                     onToothSelected: (tooth) {
                       setState(() => _selectedToothNumber = tooth);
                     },
-                    numbering: ref.watch(toothNumberingProvider).value ??
+                    numbering:
+                        ref.watch(toothNumberingProvider).value ??
                         ToothNumbering.fdi,
                   ),
                   if (_selectedToothNumber != null) ...[
@@ -604,8 +670,12 @@ class _DentalPatientDetailsScreenState
 
   Widget _buildSelectedToothActionCard(List<ToothChartEntryModel> entries) {
     final tooth = _selectedToothNumber!;
-    final matchingEntries = entries.where((e) => e.toothNumber == tooth).toList();
-    final latestEntry = matchingEntries.isNotEmpty ? matchingEntries.first : null;
+    final matchingEntries = entries
+        .where((e) => e.toothNumber == tooth)
+        .toList();
+    final latestEntry = matchingEntries.isNotEmpty
+        ? matchingEntries.first
+        : null;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -657,10 +727,15 @@ class _DentalPatientDetailsScreenState
                     );
                   },
                   icon: const Icon(Icons.add_circle_outline, size: 16),
-                  label: const Text('Log Condition', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Log Condition',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   style: FilledButton.styleFrom(
                     backgroundColor: _accentTeal,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                   ),
                 ),
@@ -679,10 +754,18 @@ class _DentalPatientDetailsScreenState
                   );
                 },
                 icon: const Icon(Icons.medical_services_outlined, size: 16),
-                label: const Text('Log Procedure', style: TextStyle(fontSize: 12)),
+                label: const Text(
+                  'Log Procedure',
+                  style: TextStyle(fontSize: 12),
+                ),
                 style: OutlinedButton.styleFrom(
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 8,
+                    horizontal: 8,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -722,7 +805,11 @@ class _DentalPatientDetailsScreenState
             children: [
               const Row(
                 children: [
-                  Icon(Icons.medical_services_rounded, size: 18, color: _accentTeal),
+                  Icon(
+                    Icons.medical_services_rounded,
+                    size: 18,
+                    color: _accentTeal,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Procedures Log',
@@ -738,17 +825,26 @@ class _DentalPatientDetailsScreenState
                 style: FilledButton.styleFrom(
                   backgroundColor: _accentTeal,
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 icon: const Icon(Icons.add, size: 14),
-                label: const Text('Log Procedure', style: TextStyle(fontSize: 12)),
+                label: const Text(
+                  'Log Procedure',
+                  style: TextStyle(fontSize: 12),
+                ),
                 onPressed: () {
                   showModalBottomSheet(
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
-                    builder: (_) => DentalProcedureLogSheet(patientId: patient.id),
+                    builder: (_) =>
+                        DentalProcedureLogSheet(patientId: patient.id),
                   );
                 },
               ),
@@ -759,10 +855,16 @@ class _DentalPatientDetailsScreenState
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: CircularProgressIndicator(color: _accentTeal, strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  color: _accentTeal,
+                  strokeWidth: 2,
+                ),
               ),
             ),
-            error: (err, _) => Text('Error loading procedures: $err', style: const TextStyle(color: Colors.red)),
+            error: (err, _) => Text(
+              'Error loading procedures: $err',
+              style: const TextStyle(color: Colors.red),
+            ),
             data: (logs) {
               if (logs.isEmpty) {
                 return Container(
@@ -785,7 +887,8 @@ class _DentalPatientDetailsScreenState
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: logs.length > 5 ? 5 : logs.length,
-                separatorBuilder: (context, sepIndex) => const Divider(height: 12),
+                separatorBuilder: (context, sepIndex) =>
+                    const Divider(height: 12),
                 itemBuilder: (context, idx) {
                   final log = logs[idx];
                   return Row(
@@ -797,7 +900,11 @@ class _DentalPatientDetailsScreenState
                           color: const Color(0xFFCCFBF1),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: const Icon(Icons.done_all_rounded, size: 16, color: _accentTeal),
+                        child: const Icon(
+                          Icons.done_all_rounded,
+                          size: 16,
+                          color: _accentTeal,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -810,12 +917,20 @@ class _DentalPatientDetailsScreenState
                                 Expanded(
                                   child: Text(
                                     log.procedureName,
-                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 13,
+                                    ),
                                   ),
                                 ),
                                 Text(
-                                  DateFormat('dd MMM yyyy').format(log.performedAt),
-                                  style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                                  DateFormat(
+                                    'dd MMM yyyy',
+                                  ).format(log.performedAt),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF94A3B8),
+                                  ),
                                 ),
                               ],
                             ),
@@ -825,10 +940,16 @@ class _DentalPatientDetailsScreenState
                                 if (log.toothNumbers.isNotEmpty)
                                   Text(
                                     'Tooth ${log.toothNumbers.join(", ")} • ',
-                                    style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF64748B),
+                                    ),
                                   ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: log.status == 'completed'
                                         ? const Color(0xFFDCFCE7)
@@ -854,7 +975,11 @@ class _DentalPatientDetailsScreenState
                                 log.notes,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF64748B),
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ],
                           ],
@@ -889,7 +1014,11 @@ class _DentalPatientDetailsScreenState
             children: [
               const Row(
                 children: [
-                  Icon(Icons.request_quote_rounded, size: 18, color: _accentTeal),
+                  Icon(
+                    Icons.request_quote_rounded,
+                    size: 18,
+                    color: _accentTeal,
+                  ),
                   SizedBox(width: 8),
                   Text(
                     'Treatment Plan & Quote',
@@ -904,11 +1033,19 @@ class _DentalPatientDetailsScreenState
               OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(
                   visualDensity: VisualDensity.compact,
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 icon: const Icon(Icons.open_in_new, size: 14),
-                label: const Text('Manage Quote', style: TextStyle(fontSize: 12)),
+                label: const Text(
+                  'Manage Quote',
+                  style: TextStyle(fontSize: 12),
+                ),
                 onPressed: () {
                   showModalBottomSheet(
                     context: context,
@@ -928,10 +1065,16 @@ class _DentalPatientDetailsScreenState
             loading: () => const Center(
               child: Padding(
                 padding: EdgeInsets.symmetric(vertical: 8),
-                child: CircularProgressIndicator(color: _accentTeal, strokeWidth: 2),
+                child: CircularProgressIndicator(
+                  color: _accentTeal,
+                  strokeWidth: 2,
+                ),
               ),
             ),
-            error: (err, _) => Text('Error loading plan: $err', style: const TextStyle(color: Colors.red)),
+            error: (err, _) => Text(
+              'Error loading plan: $err',
+              style: const TextStyle(color: Colors.red),
+            ),
             data: (items) {
               if (items.isEmpty) {
                 return Container(
@@ -951,7 +1094,9 @@ class _DentalPatientDetailsScreenState
               }
 
               final total = items
-                  .where((i) => i.status == 'proposed' || i.status == 'accepted')
+                  .where(
+                    (i) => i.status == 'proposed' || i.status == 'accepted',
+                  )
                   .fold<double>(0.0, (sum, i) => sum + i.estimatedPrice);
 
               return Row(
@@ -962,12 +1107,18 @@ class _DentalPatientDetailsScreenState
                     children: [
                       Text(
                         '${items.length} proposed procedure${items.length == 1 ? '' : 's'}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         '${items.where((i) => i.status == "invoiced").length} invoiced',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                     ],
                   ),
@@ -1012,16 +1163,23 @@ class _DentalPatientDetailsScreenState
               ),
               TextButton(
                 onPressed: _openNoteEditor,
-                child: const Text('Edit Note', style: TextStyle(fontSize: 12, color: _accentTeal)),
+                child: const Text(
+                  'Edit Note',
+                  style: TextStyle(fontSize: 12, color: _accentTeal),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 6),
           Text(
-            _note.trim().isNotEmpty ? _note : 'No general clinical notes added yet.',
+            _note.trim().isNotEmpty
+                ? _note
+                : 'No general clinical notes added yet.',
             style: TextStyle(
               fontSize: 13,
-              color: _note.trim().isNotEmpty ? const Color(0xFF334155) : const Color(0xFF94A3B8),
+              color: _note.trim().isNotEmpty
+                  ? const Color(0xFF334155)
+                  : const Color(0xFF94A3B8),
             ),
           ),
         ],
@@ -1042,12 +1200,20 @@ class _DentalPatientDetailsScreenState
         children: [
           const Text(
             'Contact Information',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF0F172A)),
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0F172A),
+            ),
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.phone_outlined, size: 16, color: Color(0xFF64748B)),
+              const Icon(
+                Icons.phone_outlined,
+                size: 16,
+                color: Color(0xFF64748B),
+              ),
               const SizedBox(width: 8),
               Text(
                 patient.phone.isNotEmpty ? patient.phone : 'No phone number',
@@ -1059,11 +1225,18 @@ class _DentalPatientDetailsScreenState
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(Icons.email_outlined, size: 16, color: Color(0xFF64748B)),
+                const Icon(
+                  Icons.email_outlined,
+                  size: 16,
+                  color: Color(0xFF64748B),
+                ),
                 const SizedBox(width: 8),
                 Text(
                   patient.email,
-                  style: const TextStyle(fontSize: 13, color: Color(0xFF334155)),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF334155),
+                  ),
                 ),
               ],
             ),

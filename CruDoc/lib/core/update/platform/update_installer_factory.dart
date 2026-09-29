@@ -19,7 +19,9 @@ class UpdateInstallerFactory {
   /// platform that isn't supported yet.
   UpdateInstaller create() {
     if (kIsWeb) {
-      throw const UpdateInstallException('CruDoc does not support in-app updates on Web.');
+      throw const UpdateInstallException(
+        'CruDoc does not support in-app updates on Web.',
+      );
     }
     if (Platform.isWindows) return WindowsUpdateInstaller();
     if (Platform.isAndroid) return AndroidUpdateInstaller();

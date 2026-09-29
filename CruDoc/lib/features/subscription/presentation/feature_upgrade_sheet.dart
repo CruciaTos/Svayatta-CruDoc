@@ -11,10 +11,7 @@ import 'package:doctor_management_app/core/theme/cru_theme.dart';
 class FeatureUpgradeSheet extends StatefulWidget {
   final DoctorSubscriptionInfo subscriptionInfo;
 
-  const FeatureUpgradeSheet({
-    super.key,
-    required this.subscriptionInfo,
-  });
+  const FeatureUpgradeSheet({super.key, required this.subscriptionInfo});
 
   static Future<void> show(
     BuildContext context, {
@@ -128,9 +125,9 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final currencyFormatter = NumberFormat.currency(
@@ -206,12 +203,15 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+                  icon: const Icon(
+                    Icons.close_rounded,
+                    color: AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const Divider(height: 1),
 
           // Content body
           Expanded(
@@ -221,7 +221,9 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                     stream: _subscriptionService.watchMyUpgradeRequests(),
                     builder: (context, snapshot) {
                       final requests = snapshot.data ?? [];
-                      final pendingRequest = requests.cast<UpgradeRequest?>().firstWhere(
+                      final pendingRequest = requests
+                          .cast<UpgradeRequest?>()
+                          .firstWhere(
                             (r) => r?.status == UpgradeRequestStatus.pending,
                             orElse: () => null,
                           );
@@ -230,7 +232,10 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                         padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
                         children: [
                           if (pendingRequest != null)
-                            _buildPendingRequestBanner(pendingRequest, currencyFormatter),
+                            _buildPendingRequestBanner(
+                              pendingRequest,
+                              currencyFormatter,
+                            ),
 
                           _buildCurrentPlanCard(),
                           const SizedBox(height: 18),
@@ -272,8 +277,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
           ),
 
           // Bottom Bar with Subtotal & Submit
-          if (_successMessage == null)
-            _buildBottomBar(currencyFormatter),
+          if (_successMessage == null) _buildBottomBar(currencyFormatter),
         ],
       ),
     );
@@ -286,20 +290,18 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isExp
-            ? const Color(0xFFFEF2F2)
-            : const Color(0xFFF0FDF4),
+        color: isExp ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDF4),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isExp
-              ? const Color(0xFFFCA5A5)
-              : const Color(0xFF86EFAC),
+          color: isExp ? const Color(0xFFFCA5A5) : const Color(0xFF86EFAC),
         ),
       ),
       child: Row(
         children: [
           Icon(
-            isExp ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded,
+            isExp
+                ? Icons.error_outline_rounded
+                : Icons.check_circle_outline_rounded,
             color: isExp ? const Color(0xFFDC2626) : const Color(0xFF16A34A),
             size: 22,
           ),
@@ -313,19 +315,23 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                   style: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
-                    color: isExp ? const Color(0xFF991B1B) : const Color(0xFF166534),
+                    color: isExp
+                        ? const Color(0xFF991B1B)
+                        : const Color(0xFF166534),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   info.expiresDate != null
                       ? (isExp
-                          ? 'Expired on ${DateFormat('dd MMM yyyy').format(info.expiresDate!)}'
-                          : 'Valid until ${DateFormat('dd MMM yyyy').format(info.expiresDate!)} (${info.daysRemaining ?? 0} days remaining)')
+                            ? 'Expired on ${DateFormat('dd MMM yyyy').format(info.expiresDate!)}'
+                            : 'Valid until ${DateFormat('dd MMM yyyy').format(info.expiresDate!)} (${info.daysRemaining ?? 0} days remaining)')
                       : 'Standard account configuration',
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: isExp ? const Color(0xFFB91C1C) : const Color(0xFF15803D),
+                    color: isExp
+                        ? const Color(0xFFB91C1C)
+                        : const Color(0xFF15803D),
                   ),
                 ),
               ],
@@ -397,9 +403,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
         color: isSelected ? const Color(0xFFF0F7FF) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected
-              ? const Color(0xFF1E78FF)
-              : const Color(0xFFE2E8F0),
+          color: isSelected ? const Color(0xFF1E78FF) : const Color(0xFFE2E8F0),
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
@@ -502,8 +506,8 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                       color: isBase
                           ? const Color(0xFF16A34A)
                           : (isSelected
-                              ? const Color(0xFF1E78FF)
-                              : AppColors.textPrimary),
+                                ? const Color(0xFF1E78FF)
+                                : AppColors.textPrimary),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -549,7 +553,11 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
         children: [
           const Row(
             children: [
-              Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF64748B)),
+              Icon(
+                Icons.info_outline_rounded,
+                size: 18,
+                color: Color(0xFF64748B),
+              ),
               SizedBox(width: 8),
               Text(
                 'How Activation Works',
@@ -580,16 +588,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
   Widget _buildBottomBar(NumberFormat currencyFormatter) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 10,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
       child: SafeArea(
         top: false,
         child: Row(

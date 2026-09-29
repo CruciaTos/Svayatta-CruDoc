@@ -34,12 +34,15 @@ abstract final class CruIcons {
   static const chevronDown = CruIconData('m6 9.5 6 6 6-6');
   static const chevronLeft = CruIconData('m14.5 6-6 6 6 6');
   static const chevronRight = CruIconData('m9.5 6 6 6-6 6');
-  static const dashboard = CruIconData('', rects: [
-    (3.5, 3.5, 7, 7, 2),
-    (13.5, 3.5, 7, 7, 2),
-    (3.5, 13.5, 7, 7, 2),
-    (13.5, 13.5, 7, 7, 2),
-  ]);
+  static const dashboard = CruIconData(
+    '',
+    rects: [
+      (3.5, 3.5, 7, 7, 2),
+      (13.5, 3.5, 7, 7, 2),
+      (3.5, 13.5, 7, 7, 2),
+      (13.5, 13.5, 7, 7, 2),
+    ],
+  );
   static const queue = CruIconData('M4 6.5h16M4 12h16M4 17.5h10');
   static const calendar = CruIconData(
     'M3.5 10h17M8 3v4M16 3v4',
@@ -65,10 +68,8 @@ abstract final class CruIcons {
     'M4 10v4a1 1 0 0 0 1 1h2l8 4.5V4.5L7 9H5a1 1 0 0 0-1 1z'
     'M18.5 9.5a3.5 3.5 0 0 1 0 5',
   );
-  static const search = CruIconData(
-    'm20 20-4.2-4.2',
-    circles: [(11, 11, 6.5)],
-  );
+  static const search = CruIconData('m20 20-4.2-4.2', circles: [(11, 11, 6.5)]);
+
   /// A house (home visits).
   static const home = CruIconData(
     'M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z',
@@ -83,10 +84,7 @@ abstract final class CruIcons {
     'M3.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6M19 8v6M16 11h6',
     circles: [(10, 8, 3.5)],
   );
-  static const clock = CruIconData(
-    'M12 7.5V12l3 2',
-    circles: [(12, 12, 8.5)],
-  );
+  static const clock = CruIconData('M12 7.5V12l3 2', circles: [(12, 12, 8.5)]);
   static const warning = CruIconData(
     'M10.3 4.8a2 2 0 0 1 3.4 0l7 12.2a2 2 0 0 1-1.7 3H5a2 2 0 0 1-1.7-3z'
     'M12 10v4M12 17h.01',
@@ -111,13 +109,17 @@ abstract final class CruIcons {
     'M18.5 2c.2 1.6.9 2.3 2.5 2.5-1.6.2-2.3.9-2.5 2.5-.2-1.6-.9-2.3-2.5-2.5'
     ' 1.6-.2 2.3-.9 2.5-2.5z',
   );
-  static const moon = CruIconData('M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z');
+  static const moon = CruIconData(
+    'M19.5 14.5A8 8 0 0 1 9.5 4.5a8 8 0 1 0 10 10z',
+  );
   static const sun = CruIconData(
     'M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4'
     'M5.6 18.4 7 17M17 7l1.4-1.4',
     circles: [(12, 12, 4)],
   );
-  static const pen = CruIconData('M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zm9.5-13.5 4 4');
+  static const pen = CruIconData(
+    'M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16zm9.5-13.5 4 4',
+  );
   static const wallet = CruIconData(
     'M3.5 10h17M15.5 14.5h2',
     rects: [(3.5, 6, 17, 13, 3)],
@@ -139,13 +141,16 @@ abstract final class CruIcons {
     'M9.5 4.5v15',
     rects: [(3.5, 4.5, 17, 15, 3.5)],
   );
+
   /// WhatsApp-style chat bubble.
   static const whatsapp = CruIconData(
     'M20.5 11.5a8.5 8.5 0 0 1-12.4 7.5L3.5 20.5l1.4-4.3A8.5 8.5 0 1 1 20.5 11.5z',
   );
   static const close = CruIconData('M6.5 6.5l11 11M17.5 6.5l-11 11');
   static const arrowUpRight = CruIconData('M8 16 16 8M9 8h7v7');
-  static const importExport = CruIconData('M8 20V5M4 9l4-4 4 4M16 4v15M12 15l4 4 4-4');
+  static const importExport = CruIconData(
+    'M8 20V5M4 9l4-4 4 4M16 4v15M12 15l4 4 4-4',
+  );
   static const download = CruIconData(
     'M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5'
     'M4 15.5v2a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-2',
@@ -156,9 +161,15 @@ abstract final class CruIcons {
     'M12 3.5C12.7 8.5 15.5 11.3 20.5 12 15.5 12.7 12.7 15.5 12 20.5'
     ' 11.3 15.5 8.5 12.7 3.5 12 8.5 11.3 11.3 8.5 12 3.5z',
   );
-  static const autoMode = CruIconData(
-    'M12 3.5v17',
-    circles: [(12, 12, 8.5)],
+  static const autoMode = CruIconData('M12 3.5v17', circles: [(12, 12, 8.5)]);
+  static const play = CruIconData('M7 4.5v15l12-7.5z', filled: true);
+  static const fileText = CruIconData(
+    'M14 3.5H6a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9.5z'
+    'M14 3.5v6h6M8 13h8M8 17h5',
+  );
+  static const userCheck = CruIconData(
+    'M3.5 20c.6-3.6 3.2-6 6.5-6s5.9 2.4 6.5 6M15 11l2.5 2.5 4.5-4.5',
+    circles: [(10, 8, 3.5)],
   );
 }
 
@@ -199,7 +210,8 @@ class CruIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = color ?? IconTheme.of(context).color ?? const Color(0xFF000000);
+    final resolved =
+        color ?? IconTheme.of(context).color ?? const Color(0xFF000000);
     final painted = CustomPaint(
       size: Size.square(size * CruIconScale.of(context)),
       painter: _CruIconPainter(icon, resolved, strokeWidth),
@@ -226,7 +238,10 @@ class _CruIconPainter extends CustomPainter {
       }
       for (final (x, y, w, h, rx) in icon.rects) {
         path.addRRect(
-          RRect.fromRectAndRadius(Rect.fromLTWH(x, y, w, h), Radius.circular(rx)),
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(x, y, w, h),
+            Radius.circular(rx),
+          ),
         );
       }
       return path;
@@ -259,7 +274,9 @@ class _CruIconPainter extends CustomPainter {
       old.icon != icon || old.color != color || old.strokeWidth != strokeWidth;
 }
 
-final RegExp _token = RegExp(r'[MmLlHhVvCcSsAaZz]|-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?');
+final RegExp _token = RegExp(
+  r'[MmLlHhVvCcSsAaZz]|-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?',
+);
 
 /// Parses the subset of SVG path syntax the reference icons use.
 Path parseSvgPath(String data) {

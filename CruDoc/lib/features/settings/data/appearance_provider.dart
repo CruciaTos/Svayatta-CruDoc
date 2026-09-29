@@ -28,18 +28,64 @@ class AppearanceModeNotifier extends Notifier<AppearanceMode> {
 
   /// Toggles between Evening (Night mode) and Day mode.
   Future<void> toggle() async {
-    final isCurrentlyEvening = state == AppearanceMode.evening ||
+    final isCurrentlyEvening =
+        state == AppearanceMode.evening ||
         (state == AppearanceMode.auto && isEveningSession(DateTime.now()));
-    final next =
-        isCurrentlyEvening ? AppearanceMode.day : AppearanceMode.evening;
+    final next = isCurrentlyEvening
+        ? AppearanceMode.day
+        : AppearanceMode.evening;
     await select(next);
   }
 }
 
 final appearanceModeProvider =
     NotifierProvider<AppearanceModeNotifier, AppearanceMode>(
-  AppearanceModeNotifier.new,
-);
+      AppearanceModeNotifier.new,
+    );
+
+class TextSizePreferenceNotifier extends Notifier<TextSizePreference> {
+  @override
+  TextSizePreference build() {
+    Future(() async {
+      final stored = await ref.read(appearancePreferencesProvider).getTextSize();
+      if (ref.mounted && stored != state) state = stored;
+    });
+    return TextSizePreference.standard;
+  }
+
+  Future<void> select(TextSizePreference size) async {
+    state = size;
+    await ref.read(appearancePreferencesProvider).setTextSize(size);
+  }
+}
+
+final textSizePreferenceProvider =
+    NotifierProvider<TextSizePreferenceNotifier, TextSizePreference>(
+      TextSizePreferenceNotifier.new,
+    );
+
+class DayBackgroundColorNotifier extends Notifier<int> {
+  @override
+  int build() {
+    Future(() async {
+      final stored = await ref
+          .read(appearancePreferencesProvider)
+          .getDayBackgroundColor();
+      if (ref.mounted && stored != state) state = stored;
+    });
+    return AppearancePreferences.defaultDayBackgroundColor;
+  }
+
+  Future<void> select(int argb) async {
+    state = argb;
+    await ref.read(appearancePreferencesProvider).setDayBackgroundColor(argb);
+  }
+}
+
+final dayBackgroundColorProvider =
+    NotifierProvider<DayBackgroundColorNotifier, int>(
+      DayBackgroundColorNotifier.new,
+    );
 
 /// Day or Evening right now. Auto switches with the dashboard clock
 /// (every 30 s): Evening from the evening session start (default 17:00)

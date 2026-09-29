@@ -87,13 +87,19 @@ class MedicalDocument {
       status: map['status'] as String? ?? 'active',
       uploadedBy: map['uploadedBy'] as String? ?? '',
       isDeleted: (map['isDeleted'] as int? ?? 0) == 1,
-      createdAt: DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int? ?? 0),
-      updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updatedAt'] as int? ?? 0),
+      createdAt: DateTime.fromMillisecondsSinceEpoch(
+        map['createdAt'] as int? ?? 0,
+      ),
+      updatedAt: DateTime.fromMillisecondsSinceEpoch(
+        map['updatedAt'] as int? ?? 0,
+      ),
       syncStatus: map['syncStatus'] as String? ?? 'synced',
     );
   }
 
-  factory MedicalDocument.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory MedicalDocument.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final map = doc.data() ?? {};
     return MedicalDocument(
       documentId: doc.id,

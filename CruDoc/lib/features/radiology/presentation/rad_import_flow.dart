@@ -22,7 +22,11 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Import scans: pick a source (or take dropped [paths]), find the
 /// studies in it, then confirm each one's patient and referral before it
 /// joins the worklist. Returns how many studies were added.
-Future<int> runRadImport(BuildContext context, WidgetRef ref, {List<String>? paths}) async {
+Future<int> runRadImport(
+  BuildContext context,
+  WidgetRef ref, {
+  List<String>? paths,
+}) async {
   var picked = paths;
   if (picked == null) {
     picked = await showDialog<List<String>>(
@@ -33,7 +37,10 @@ Future<int> runRadImport(BuildContext context, WidgetRef ref, {List<String>? pat
   }
 
   final temp = await getTemporaryDirectory();
-  final work = p.join(temp.path, 'crudoc_import_${DateTime.now().millisecondsSinceEpoch}');
+  final work = p.join(
+    temp.path,
+    'crudoc_import_${DateTime.now().millisecondsSinceEpoch}',
+  );
   if (!context.mounted) return 0;
 
   final scan = await showDialog<RadImportScan>(
@@ -59,7 +66,9 @@ Future<int> runRadImport(BuildContext context, WidgetRef ref, {List<String>? pat
       context: context,
       builder: (_) => RadStudyFormDialog(
         group: scan.groups[i],
-        stepLabel: scan.groups.length > 1 ? 'Study ${i + 1} of ${scan.groups.length}' : null,
+        stepLabel: scan.groups.length > 1
+            ? 'Study ${i + 1} of ${scan.groups.length}'
+            : null,
       ),
     );
     if (ok == true) added++;
@@ -68,7 +77,12 @@ Future<int> runRadImport(BuildContext context, WidgetRef ref, {List<String>? pat
     await Directory(work).delete(recursive: true);
   } catch (_) {}
   if (added > 0 && context.mounted) {
-    radToast(context, added == 1 ? 'Added 1 study to the worklist' : 'Added $added studies to the worklist');
+    radToast(
+      context,
+      added == 1
+          ? 'Added 1 study to the worklist'
+          : 'Added $added studies to the worklist',
+    );
   }
   return added;
 }
@@ -84,7 +98,8 @@ class _SourceDialog extends StatelessWidget {
       dialogTitle: 'Pick scans (DICOM, JPG, PNG, TIFF or ZIP)',
     );
     final paths = r?.files.map((f) => f.path).whereType<String>().toList();
-    if (paths != null && paths.isNotEmpty && context.mounted) Navigator.of(context).pop(paths);
+    if (paths != null && paths.isNotEmpty && context.mounted)
+      Navigator.of(context).pop(paths);
   }
 
   Future<void> _folder(BuildContext context) async {
@@ -99,7 +114,10 @@ class _SourceDialog extends StatelessWidget {
     return DentalPanelDialog(
       title: 'Import scans',
       subtitle: 'Or drop files and folders anywhere on the worklist',
-      leading: const CruIconTile(icon: RadIcons.import, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.import,
+        tone: CruTileTone.accent,
+      ),
       width: CruSize.dialog + 180,
       body: Padding(
         padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
@@ -109,7 +127,8 @@ class _SourceDialog extends StatelessWidget {
             _SourceTile(
               icon: RadIcons.xray,
               title: 'Direct RVG sensor capture',
-              body: 'Arm intraoral sensor (Vatech, Carestream, Woodpecker, Dexis...)',
+              body:
+                  'Arm intraoral sensor (Vatech, Carestream, Woodpecker, Dexis...)',
               onTap: () {
                 Navigator.of(context).pop();
                 showRvgCaptureDialog(context);
@@ -124,7 +143,8 @@ class _SourceDialog extends StatelessWidget {
             _SourceTile(
               icon: RadIcons.folder,
               title: 'Folder or patient CD',
-              body: 'Every scan inside, sub-folders included (DICOMDIR discs work)',
+              body:
+                  'Every scan inside, sub-folders included (DICOMDIR discs work)',
               onTap: () => _folder(context),
             ),
             _SourceTile(
@@ -259,8 +279,12 @@ class _ScanningDialogState extends State<_ScanningDialog> {
 /// referral ([existing]): study type, patient, referrer, question,
 /// priority and fee.
 class RadStudyFormDialog extends ConsumerStatefulWidget {
-  const RadStudyFormDialog({super.key, this.group, this.existing, this.stepLabel})
-      : assert(group != null || existing != null);
+  const RadStudyFormDialog({
+    super.key,
+    this.group,
+    this.existing,
+    this.stepLabel,
+  }) : assert(group != null || existing != null);
 
   final RadImportGroup? group;
   final RadStudy? existing;
@@ -301,14 +325,18 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
     final e = widget.existing;
     _name = TextEditingController(text: e?.patientName ?? g?.patientName ?? '');
     _question = TextEditingController(text: e?.clinicalQuestion ?? '');
-    _description = TextEditingController(text: e?.description ?? g?.description ?? '');
+    _description = TextEditingController(
+      text: e?.description ?? g?.description ?? '',
+    );
     _modality = e?.modality ?? g?.modality ?? RadModality.other;
     _priority = e?.priority ?? RadPriority.routine;
     _studyDate = e?.studyDate ?? g?.studyDate ?? DateTime.now();
     _dob = e?.patientDob ?? g?.patientDob;
     _sex = e?.patientSex ?? g?.patientSex ?? '';
     _fee = TextEditingController(text: e?.fee?.toStringAsFixed(0) ?? '');
-    _link = e != null && e.patientId.isNotEmpty ? _PatientLink.existing : _PatientLink.none;
+    _link = e != null && e.patientId.isNotEmpty
+        ? _PatientLink.existing
+        : _PatientLink.none;
 
     WidgetsBinding.instance.addPostFrameCallback((_) => _prefill());
   }
@@ -316,7 +344,8 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
   /// Patient match, referrer from the scan, fee from the fee list.
   Future<void> _prefill() async {
     final e = widget.existing;
-    final patients = ref.read(patientsStreamProvider).value ?? const <Patient>[];
+    final patients =
+        ref.read(patientsStreamProvider).value ?? const <Patient>[];
     if (e != null && e.patientId.isNotEmpty) {
       for (final p in patients) {
         if (p.id == e.patientId) _patient = p;
@@ -338,8 +367,12 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       final fromScan = widget.group!.referringPhysician.toLowerCase();
       if (fromScan.isNotEmpty) {
         for (final r in referrers) {
-          final n = r.name.toLowerCase().replaceAll('dr. ', '').replaceAll('dr ', '');
-          if (n.isNotEmpty && (fromScan.contains(n) || n.contains(fromScan))) _referrer = r;
+          final n = r.name
+              .toLowerCase()
+              .replaceAll('dr. ', '')
+              .replaceAll('dr ', '');
+          if (n.isNotEmpty && (fromScan.contains(n) || n.contains(fromScan)))
+            _referrer = r;
         }
       }
     }
@@ -352,7 +385,8 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
     if (f != null) _fee.text = f.toStringAsFixed(0);
   }
 
-  static String _norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+  static String _norm(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
 
   /// Clinic patients whose name (either order) matches the scan's name,
   /// date of birth breaking ties.
@@ -393,20 +427,24 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       case _PatientLink.create:
         final parts = _name.text.trim().split(RegExp(r'\s+'));
         final now = DateTime.now();
-        return ref.read(patientRepositoryProvider).createPatient(Patient(
-              id: '',
-              firstName: parts.first,
-              lastName: parts.length > 1 ? parts.sublist(1).join(' ') : '',
-              phone: '',
-              gender: _sex,
-              dateOfBirth: _dob ?? DateTime(now.year - 30, 1, 1),
-              diagnosis: const [],
-              notes: 'Added from a radiology referral',
-              packageBalance: 0,
-              isArchived: false,
-              createdAt: now,
-              updatedAt: now,
-            ));
+        return ref
+            .read(patientRepositoryProvider)
+            .createPatient(
+              Patient(
+                id: '',
+                firstName: parts.first,
+                lastName: parts.length > 1 ? parts.sublist(1).join(' ') : '',
+                phone: '',
+                gender: _sex,
+                dateOfBirth: _dob ?? DateTime(now.year - 30, 1, 1),
+                diagnosis: const [],
+                notes: 'Added from a radiology referral',
+                packageBalance: 0,
+                isArchived: false,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
     }
   }
 
@@ -426,7 +464,9 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       final fee = double.tryParse(_fee.text.trim());
       final e = widget.existing;
       if (e != null) {
-        final due = e.priority != _priority ? await ctrl.dueFor(_priority, e.receivedAt) : e.dueAt;
+        final due = e.priority != _priority
+            ? await ctrl.dueFor(_priority, e.receivedAt)
+            : e.dueAt;
         await ctrl.saveStudy(
           e.copyWith(
             patientId: patientId,
@@ -479,7 +519,8 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
             updatedAt: now,
           ),
           auditAction: 'Imported',
-          detail: '$name · ${_modality.short} · ${RadFormat.images(images.length)}',
+          detail:
+              '$name · ${_modality.short} · ${RadFormat.images(images.length)}',
         );
       }
       if (mounted) Navigator.of(context).pop(true);
@@ -495,8 +536,11 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final g = widget.group;
-    final patients = ref.watch(patientsStreamProvider).value ?? const <Patient>[];
-    final matches = _isImport ? _matches(patients).take(3).toList() : const <Patient>[];
+    final patients =
+        ref.watch(patientsStreamProvider).value ?? const <Patient>[];
+    final matches = _isImport
+        ? _matches(patients).take(3).toList()
+        : const <Patient>[];
     final files = g == null
         ? RadFormat.images(widget.existing!.imageCount)
         : [
@@ -509,7 +553,9 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       title: _isImport ? 'Add to worklist' : 'Edit referral',
       subtitle: [?widget.stepLabel, files].join(' · '),
       leading: CruIconTile(
-          icon: _modality.isVolume ? RadIcons.cube : RadIcons.xray, tone: CruTileTone.accent),
+        icon: _modality.isVolume ? RadIcons.cube : RadIcons.xray,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: _isImport ? 'Add to worklist' : 'Save changes',
       onSubmit: _save,
       busy: _saving,
@@ -518,15 +564,17 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       footerHint: 'Ctrl + Enter to save',
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CruFormSection(
               first: true,
               title: 'Study',
-              description: 'The type picks the viewer, the report template and the fee.',
+              description:
+                  'The type picks the viewer, the report template and the fee.',
               children: [
                 CruFieldFrame(
                   label: 'Type',
@@ -544,33 +592,40 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                     },
                   ),
                 ),
-                CruFieldRow(children: [
-                  CruPickerField(
-                    label: 'Taken on',
-                    icon: CruIcons.calendar,
-                    value: RadFormat.date(_studyDate),
-                    placeholder: 'Pick a date',
-                    onTap: () async {
-                      final d = await pickDentalDate(context,
-                          initial: _studyDate, last: DateTime.now());
-                      if (d != null) {
-                        setState(() => _studyDate = d);
-                        _edited();
-                      }
-                    },
-                  ),
-                  CruTextField(
-                    label: 'Description',
-                    optional: true,
-                    controller: _description,
-                    hint: 'Full volume, 16 × 10 cm',
-                    onChanged: (_) => _edited(),
-                  ),
-                ]),
+                CruFieldRow(
+                  children: [
+                    CruPickerField(
+                      label: 'Taken on',
+                      icon: CruIcons.calendar,
+                      value: RadFormat.date(_studyDate),
+                      placeholder: 'Pick a date',
+                      onTap: () async {
+                        final d = await pickDentalDate(
+                          context,
+                          initial: _studyDate,
+                          last: DateTime.now(),
+                        );
+                        if (d != null) {
+                          setState(() => _studyDate = d);
+                          _edited();
+                        }
+                      },
+                    ),
+                    CruTextField(
+                      label: 'Description',
+                      optional: true,
+                      controller: _description,
+                      hint: 'Full volume, 16 × 10 cm',
+                      onChanged: (_) => _edited(),
+                    ),
+                  ],
+                ),
                 if (g != null && g.compressedCount > 0)
                   RadNotConnected(
-                    title: '${RadFormat.images(g.compressedCount)} use a compressed format',
-                    body: 'JPEG 2000 / JPEG-LS scans are kept with the study but can\'t be '
+                    title:
+                        '${RadFormat.images(g.compressedCount)} use a compressed format',
+                    body:
+                        'JPEG 2000 / JPEG-LS scans are kept with the study but can\'t be '
                         'shown yet. Ask the scanner or PACS to export uncompressed DICOM '
                         'to read them now.',
                   ),
@@ -591,7 +646,9 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                       for (final m in matches)
                         DentalChoiceChip(
                           label: '${m.fullName} · ${m.age} y',
-                          selected: _link == _PatientLink.existing && _patient?.id == m.id,
+                          selected:
+                              _link == _PatientLink.existing &&
+                              _patient?.id == m.id,
                           onTap: () {
                             setState(() {
                               _link = _PatientLink.existing;
@@ -600,18 +657,22 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                             _edited();
                           },
                         ),
-                      if (_patient != null && !matches.any((m) => m.id == _patient!.id))
+                      if (_patient != null &&
+                          !matches.any((m) => m.id == _patient!.id))
                         DentalChoiceChip(
                           label: _patient!.fullName,
                           selected: _link == _PatientLink.existing,
-                          onTap: () => setState(() => _link = _PatientLink.existing),
+                          onTap: () =>
+                              setState(() => _link = _PatientLink.existing),
                         ),
                       DentalChoiceChip(
                         label: 'Pick a patient…',
                         selected: false,
                         onTap: () async {
-                          final picked =
-                              await pickRadPatient(context, initialQuery: _name.text.trim());
+                          final picked = await pickRadPatient(
+                            context,
+                            initialQuery: _name.text.trim(),
+                          );
                           if (picked != null) {
                             setState(() {
                               _patient = picked;
@@ -645,43 +706,49 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                     label: 'Name',
                     controller: _name,
                     textCapitalization: TextCapitalization.words,
-                    validator: (v) => (v ?? '').trim().isEmpty ? 'Add the patient\'s name.' : null,
+                    validator: (v) => (v ?? '').trim().isEmpty
+                        ? 'Add the patient\'s name.'
+                        : null,
                     onChanged: (_) {
                       _edited();
                       setState(() {});
                     },
                   ),
-                  CruFieldRow(children: [
-                    CruPickerField(
-                      label: 'Date of birth',
-                      optional: true,
-                      icon: CruIcons.calendar,
-                      value: _dob == null ? null : RadFormat.date(_dob!),
-                      placeholder: 'Pick a date',
-                      onTap: () async {
-                        final d = await pickDentalDate(context,
+                  CruFieldRow(
+                    children: [
+                      CruPickerField(
+                        label: 'Date of birth',
+                        optional: true,
+                        icon: CruIcons.calendar,
+                        value: _dob == null ? null : RadFormat.date(_dob!),
+                        placeholder: 'Pick a date',
+                        onTap: () async {
+                          final d = await pickDentalDate(
+                            context,
                             initial: _dob ?? DateTime(DateTime.now().year - 30),
-                            last: DateTime.now());
-                        if (d != null) {
-                          setState(() => _dob = d);
-                          _edited();
-                        }
-                      },
-                    ),
-                    CruFieldFrame(
-                      label: 'Sex',
-                      optional: true,
-                      child: DentalChipWrap<String>(
-                        options: const ['Female', 'Male', 'Other'],
-                        label: (s) => s,
-                        isSelected: (s) => s == _sex,
-                        onTap: (s) {
-                          setState(() => _sex = _sex == s ? '' : s);
-                          _edited();
+                            last: DateTime.now(),
+                          );
+                          if (d != null) {
+                            setState(() => _dob = d);
+                            _edited();
+                          }
                         },
                       ),
-                    ),
-                  ]),
+                      CruFieldFrame(
+                        label: 'Sex',
+                        optional: true,
+                        child: DentalChipWrap<String>(
+                          options: const ['Female', 'Male', 'Other'],
+                          label: (s) => s,
+                          isSelected: (s) => s == _sex,
+                          onTap: (s) {
+                            setState(() => _sex = _sex == s ? '' : s);
+                            _edited();
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ],
             ),
@@ -698,7 +765,10 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                       ? 'The scan says ${g!.referringPhysician}'
                       : 'Pick a referrer',
                   onTap: () async {
-                    final r = await pickRadReferrer(context, selectedId: _referrer?.id);
+                    final r = await pickRadReferrer(
+                      context,
+                      selectedId: _referrer?.id,
+                    );
                     if (r != null) {
                       setState(() => _referrer = r);
                       _edited();
@@ -714,39 +784,42 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                   textCapitalization: TextCapitalization.sentences,
                   onChanged: (_) => _edited(),
                 ),
-                CruFieldRow(children: [
-                  CruFieldFrame(
-                    label: 'Priority',
-                    help: 'Sets when the report is due.',
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: CruSegmentedControl<RadPriority>(
-                        semanticLabel: 'Priority',
-                        segments: [
-                          for (final p in RadPriority.values) CruSegment(p, p.label),
-                        ],
-                        selected: _priority,
-                        onChanged: (p) {
-                          setState(() => _priority = p);
-                          _edited();
-                        },
+                CruFieldRow(
+                  children: [
+                    CruFieldFrame(
+                      label: 'Priority',
+                      help: 'Sets when the report is due.',
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: CruSegmentedControl<RadPriority>(
+                          semanticLabel: 'Priority',
+                          segments: [
+                            for (final p in RadPriority.values)
+                              CruSegment(p, p.label),
+                          ],
+                          selected: _priority,
+                          onChanged: (p) {
+                            setState(() => _priority = p);
+                            _edited();
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  CruTextField(
-                    label: 'Reading fee',
-                    optional: true,
-                    controller: _fee,
-                    prefix: '₹',
-                    tabular: true,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (_) {
-                      _feeEdited = true;
-                      _edited();
-                    },
-                  ),
-                ]),
+                    CruTextField(
+                      label: 'Reading fee',
+                      optional: true,
+                      controller: _fee,
+                      prefix: '₹',
+                      tabular: true,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (_) {
+                        _feeEdited = true;
+                        _edited();
+                      },
+                    ),
+                  ],
+                ),
                 if (_priority == RadPriority.stat)
                   Text(
                     'STAT studies go to the top of the worklist.',

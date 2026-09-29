@@ -24,7 +24,8 @@ class BridgePingResult {
 /// Service for managing platform-wide settings and hardware sensor bridge verification.
 class SuperAdminSettingsService {
   final SuperAdminFirebaseService _fb = SuperAdminFirebaseService();
-  final SuperAdminAuditLogService _auditLogService = SuperAdminAuditLogService();
+  final SuperAdminAuditLogService _auditLogService =
+      SuperAdminAuditLogService();
 
   static const String _docId = 'platform_settings';
 
@@ -45,7 +46,9 @@ class SuperAdminSettingsService {
   /// Save platform settings to Firestore and write an audit log entry.
   Future<void> savePlatformSettings(PlatformSettingsModel settings) async {
     final beforeDoc = await _fb.systemConfigCollection.doc(_docId).get();
-    final beforeData = beforeDoc.exists ? beforeDoc.data() as Map<String, dynamic>? : null;
+    final beforeData = beforeDoc.exists
+        ? beforeDoc.data() as Map<String, dynamic>?
+        : null;
 
     final data = settings.toJson();
     data['lastModified'] = _fb.serverTimestamp;
@@ -78,9 +81,7 @@ class SuperAdminSettingsService {
       final cleanHost = host.trim().replaceFirst(RegExp(r'^https?://'), '');
       final uri = Uri.parse('http://$cleanHost:$port/status');
 
-      final response = await http.get(uri).timeout(
-        const Duration(seconds: 4),
-      );
+      final response = await http.get(uri).timeout(const Duration(seconds: 4));
       stopwatch.stop();
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -96,7 +97,9 @@ class SuperAdminSettingsService {
             latencyMs: stopwatch.elapsedMilliseconds,
             version: version,
             statusMessage: status,
-            activeSensors: sensors.isNotEmpty ? sensors : ['TWAIN Standard', 'Direct USB Sensor'],
+            activeSensors: sensors.isNotEmpty
+                ? sensors
+                : ['TWAIN Standard', 'Direct USB Sensor'],
           );
         } catch (_) {
           return BridgePingResult(

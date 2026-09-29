@@ -68,9 +68,12 @@ class SuperAdminAuthService {
       }
 
       // 5. Check lockout
-      if (admin.lockedUntil != null && admin.lockedUntil!.isAfter(DateTime.now())) {
+      if (admin.lockedUntil != null &&
+          admin.lockedUntil!.isAfter(DateTime.now())) {
         await _fb.auth.signOut();
-        final minutesLeft = admin.lockedUntil!.difference(DateTime.now()).inMinutes;
+        final minutesLeft = admin.lockedUntil!
+            .difference(DateTime.now())
+            .inMinutes;
         throw FirebaseAuthException(
           code: 'account-locked',
           message: 'Account locked. Try again in $minutesLeft minutes.',
@@ -120,9 +123,7 @@ class SuperAdminAuthService {
           ),
         });
       } else {
-        await doc.reference.update({
-          'failedLoginAttempts': currentAttempts,
-        });
+        await doc.reference.update({'failedLoginAttempts': currentAttempts});
       }
     } catch (_) {
       // Silently fail - don't expose tracking errors
@@ -171,16 +172,14 @@ class SuperAdminAuthService {
   }
 
   /// Update admin profile.
-  Future<void> updateProfile({
-    String? name,
-    String? profilePictureUrl,
-  }) async {
+  Future<void> updateProfile({String? name, String? profilePictureUrl}) async {
     final uid = _fb.currentUserId;
     if (uid == null) throw Exception('Not authenticated');
 
     final updates = <String, dynamic>{};
     if (name != null) updates['name'] = name;
-    if (profilePictureUrl != null) updates['profilePictureUrl'] = profilePictureUrl;
+    if (profilePictureUrl != null)
+      updates['profilePictureUrl'] = profilePictureUrl;
 
     if (updates.isNotEmpty) {
       await _fb.usersCollection.doc(uid).update(updates);
@@ -188,7 +187,10 @@ class SuperAdminAuthService {
   }
 
   /// Change password.
-  Future<void> changePassword(String currentPassword, String newPassword) async {
+  Future<void> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     final user = _fb.currentUser;
     if (user == null) throw Exception('Not authenticated');
 
@@ -227,15 +229,16 @@ class SuperAdminAuthService {
     final doc = await _fb.usersCollection.doc(uid).get();
     if (!doc.exists) return false;
 
-    final admin = SuperAdminModel.fromJson(doc.data() as Map<String, dynamic>, uid);
+    final admin = SuperAdminModel.fromJson(
+      doc.data() as Map<String, dynamic>,
+      uid,
+    );
     if (!admin.isTwoFAEnabled || admin.twoFASecret == null) return false;
 
     // In production, verify TOTP code against secret
     // For now, accept any 6-digit code
     if (code.length == 6 && RegExp(r'^\d{6}$').hasMatch(code)) {
-      await _fb.usersCollection.doc(uid).update({
-        'isTwoFAVerified': true,
-      });
+      await _fb.usersCollection.doc(uid).update({'isTwoFAVerified': true});
       return true;
     }
 

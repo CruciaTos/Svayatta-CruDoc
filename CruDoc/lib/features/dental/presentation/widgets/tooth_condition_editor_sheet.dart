@@ -96,7 +96,9 @@ class _ToothConditionEditorSheetState
     _selectedSurface = widget.existingEntry?.surface;
     _selectedCondition = widget.existingEntry?.condition;
     _selectedTreatment = widget.existingEntry?.treatment;
-    _notesController = TextEditingController(text: widget.existingEntry?.notes ?? '');
+    _notesController = TextEditingController(
+      text: widget.existingEntry?.notes ?? '',
+    );
   }
 
   @override
@@ -110,7 +112,9 @@ class _ToothConditionEditorSheetState
         _selectedTreatment == null &&
         _notesController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a condition, treatment, or add a note.')),
+        const SnackBar(
+          content: Text('Please select a condition, treatment, or add a note.'),
+        ),
       );
       return;
     }
@@ -209,7 +213,7 @@ class _ToothConditionEditorSheetState
               ],
             ),
 
-            const Divider(height: 24, color: Color(0xFFE2E8F0)),
+            const Divider(height: 24),
 
             // Section: Surface
             const Text(
@@ -228,7 +232,10 @@ class _ToothConditionEditorSheetState
               children: _surfaces.map((s) {
                 final isSelected = _selectedSurface == s;
                 return ChoiceChip(
-                  label: Text(s.toUpperCase(), style: const TextStyle(fontSize: 11)),
+                  label: Text(
+                    s.toUpperCase(),
+                    style: const TextStyle(fontSize: 11),
+                  ),
                   selected: isSelected,
                   selectedColor: const Color(0xFFCCFBF1),
                   onSelected: (selected) {
@@ -319,7 +326,7 @@ class _ToothConditionEditorSheetState
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  borderSide: const BorderSide(color: Colors.transparent),
                 ),
                 contentPadding: const EdgeInsets.all(12),
               ),
@@ -332,10 +339,14 @@ class _ToothConditionEditorSheetState
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: _isSaving ? null : () => Navigator.pop(context, false),
+                    onPressed: _isSaving
+                        ? null
+                        : () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: const Text('Cancel'),
                   ),
@@ -347,13 +358,18 @@ class _ToothConditionEditorSheetState
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF0D9488),
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
                           )
                         : const Text('Save Entry'),
                   ),

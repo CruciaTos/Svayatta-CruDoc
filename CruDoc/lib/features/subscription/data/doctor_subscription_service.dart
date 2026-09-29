@@ -54,11 +54,9 @@ class DoctorSubscriptionService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
 
-  DoctorSubscriptionService({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  DoctorSubscriptionService({FirebaseFirestore? firestore, FirebaseAuth? auth})
+    : _firestore = firestore ?? FirebaseFirestore.instance,
+      _auth = auth ?? FirebaseAuth.instance;
 
   static const List<FeaturePricingItem> availableFeatures = [
     FeaturePricingItem(
@@ -72,7 +70,8 @@ class DoctorSubscriptionService {
     FeaturePricingItem(
       moduleKey: 'patients',
       title: 'Patient Records & EMR',
-      description: 'Complete patient profiles, medical history & encounter logs',
+      description:
+          'Complete patient profiles, medical history & encounter logs',
       monthlyPriceInr: 0,
       isBaseModule: true,
       iconName: 'groups',
@@ -96,7 +95,8 @@ class DoctorSubscriptionService {
     FeaturePricingItem(
       moduleKey: 'revenue',
       title: 'Revenue Analytics & Invoicing',
-      description: 'Income tracking, digital receipts, billing sheets & financial summaries',
+      description:
+          'Income tracking, digital receipts, billing sheets & financial summaries',
       monthlyPriceInr: 999,
       iconName: 'payments',
     ),
@@ -110,28 +110,32 @@ class DoctorSubscriptionService {
     FeaturePricingItem(
       moduleKey: 'omnichannel_messaging',
       title: 'WhatsApp, SMS & Gmail Messaging',
-      description: 'Automated 10-min appointment reminders & digital Rx dispatch to patients',
+      description:
+          'Automated 10-min appointment reminders & digital Rx dispatch to patients',
       monthlyPriceInr: 1999,
       iconName: 'chat',
     ),
     FeaturePricingItem(
       moduleKey: 'ai_assistant',
       title: 'AI Medical Scribe & Rx Generator',
-      description: 'Voice clinical dictation, SOAP generation & instant structured prescriptions',
+      description:
+          'Voice clinical dictation, SOAP generation & instant structured prescriptions',
       monthlyPriceInr: 2499,
       iconName: 'smart_toy',
     ),
     FeaturePricingItem(
       moduleKey: 'ai_agentic_calling',
       title: 'Autonomous AI Voice Calling',
-      description: 'AI phone agent to call patients for automated confirmations & follow-ups',
+      description:
+          'AI phone agent to call patients for automated confirmations & follow-ups',
       monthlyPriceInr: 3999,
       iconName: 'phone',
     ),
     FeaturePricingItem(
       moduleKey: 'multi_device_access',
       title: 'Multi-Device & Receptionist Access',
-      description: 'Simultaneous login across mobile, tablet, desktop & staff kiosks',
+      description:
+          'Simultaneous login across mobile, tablet, desktop & staff kiosks',
       monthlyPriceInr: 799,
       iconName: 'devices',
     ),
@@ -164,7 +168,8 @@ class DoctorSubscriptionService {
       final data = doc.data()!;
       final planName = (data['subscriptionPlan'] as String?) ?? 'Starter';
       final status = (data['status'] as String?) ?? 'active';
-      final modulesRaw = (data['enabledModules'] as List<dynamic>?)
+      final modulesRaw =
+          (data['enabledModules'] as List<dynamic>?)
               ?.map((e) => e.toString().toLowerCase())
               .toList() ??
           DoctorFeatureGuard.defaultModules;
@@ -203,7 +208,7 @@ class DoctorSubscriptionService {
 
   /// Processes in-app payment and instantly activates the selected features for 1 month (30 days).
   Future<({bool success, String transactionId, DateTime newExpiryDate})>
-      processPaymentAndActivateFeatures({
+  processPaymentAndActivateFeatures({
     required List<String> selectedModules,
     required double amountPaid,
     required String paymentMethod,
@@ -284,12 +289,12 @@ class DoctorSubscriptionService {
         .where('doctorId', isEqualTo: user.uid)
         .snapshots()
         .map((snapshot) {
-      final list = snapshot.docs
-          .map((doc) => UpgradeRequest.fromFirestore(doc))
-          .toList();
-      list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      return list;
-    });
+          final list = snapshot.docs
+              .map((doc) => UpgradeRequest.fromFirestore(doc))
+              .toList();
+          list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          return list;
+        });
   }
 
   /// Submits an upgrade request to Firestore (for optional manual approval).
@@ -304,7 +309,8 @@ class DoctorSubscriptionService {
       throw StateError('No doctor logged in');
     }
 
-    final doctorName = doctorNameOverride ??
+    final doctorName =
+        doctorNameOverride ??
         user.displayName ??
         user.email?.split('@').first ??
         'Doctor';

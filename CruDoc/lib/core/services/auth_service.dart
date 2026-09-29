@@ -8,8 +8,8 @@ import 'package:doctor_management_app/core/services/demo_session_service.dart';
 /// Consumed via [authServiceProvider] from `auth_providers.dart`.
 class AuthService {
   AuthService({FirebaseAuth? auth, GoogleSignIn? googleSignIn})
-      : _auth = auth ?? FirebaseAuth.instance,
-        _googleSignIn = googleSignIn ?? GoogleSignIn();
+    : _auth = auth ?? FirebaseAuth.instance,
+      _googleSignIn = googleSignIn ?? GoogleSignIn();
 
   final FirebaseAuth _auth;
   final GoogleSignIn _googleSignIn;

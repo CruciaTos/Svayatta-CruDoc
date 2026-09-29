@@ -269,9 +269,7 @@ class RevenueLocalService {
       orderBy: 'date DESC',
     );
     if (!_pendingPaymentsController.isClosed) {
-      _pendingPaymentsController.add(
-        rows.map(_pendingPaymentFromRow).toList(),
-      );
+      _pendingPaymentsController.add(rows.map(_pendingPaymentFromRow).toList());
     }
   }
 

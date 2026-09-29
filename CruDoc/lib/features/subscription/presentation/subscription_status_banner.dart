@@ -60,10 +60,8 @@ class SubscriptionStatusBanner extends StatelessWidget {
                   ),
                 ),
                 InkWell(
-                  onTap: () => FeatureUpgradeSheet.show(
-                    context,
-                    subscriptionInfo: info,
-                  ),
+                  onTap: () =>
+                      FeatureUpgradeSheet.show(context, subscriptionInfo: info),
                   borderRadius: BorderRadius.circular(8),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -77,7 +75,11 @@ class SubscriptionStatusBanner extends StatelessWidget {
                     child: const Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.upgrade_rounded, size: 14, color: Colors.white),
+                        Icon(
+                          Icons.upgrade_rounded,
+                          size: 14,
+                          color: Colors.white,
+                        ),
                         SizedBox(width: 4),
                         Text(
                           'Upgrade',
@@ -97,10 +99,18 @@ class SubscriptionStatusBanner extends StatelessWidget {
         }
 
         // Expired or Expiring Soon — High Priority Alert
-        final bgColor = isExp ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB);
-        final borderColor = isExp ? const Color(0xFFF87171) : const Color(0xFFFBBF24);
-        final textColor = isExp ? const Color(0xFF991B1B) : const Color(0xFF92400E);
-        final btnColor = isExp ? const Color(0xFFDC2626) : const Color(0xFFD97706);
+        final bgColor = isExp
+            ? const Color(0xFFFEF2F2)
+            : const Color(0xFFFFFBEB);
+        final borderColor = isExp
+            ? const Color(0xFFF87171)
+            : const Color(0xFFFBBF24);
+        final textColor = isExp
+            ? const Color(0xFF991B1B)
+            : const Color(0xFF92400E);
+        final btnColor = isExp
+            ? const Color(0xFFDC2626)
+            : const Color(0xFFD97706);
 
         return Container(
           margin: const EdgeInsets.only(bottom: 14),
@@ -109,13 +119,7 @@ class SubscriptionStatusBanner extends StatelessWidget {
             color: bgColor,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: borderColor, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: borderColor.withValues(alpha: 0.15),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Row(
             children: [
@@ -126,7 +130,9 @@ class SubscriptionStatusBanner extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  isExp ? Icons.lock_clock_rounded : Icons.warning_amber_rounded,
+                  isExp
+                      ? Icons.lock_clock_rounded
+                      : Icons.warning_amber_rounded,
                   color: btnColor,
                   size: 20,
                 ),
@@ -137,7 +143,9 @@ class SubscriptionStatusBanner extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      isExp ? 'Plan Expired — Features Locked' : 'Plan Expiring Soon',
+                      isExp
+                          ? 'Plan Expired — Features Locked'
+                          : 'Plan Expiring Soon',
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
@@ -160,10 +168,8 @@ class SubscriptionStatusBanner extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               ElevatedButton(
-                onPressed: () => FeatureUpgradeSheet.show(
-                  context,
-                  subscriptionInfo: info,
-                ),
+                onPressed: () =>
+                    FeatureUpgradeSheet.show(context, subscriptionInfo: info),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: btnColor,
                   foregroundColor: Colors.white,

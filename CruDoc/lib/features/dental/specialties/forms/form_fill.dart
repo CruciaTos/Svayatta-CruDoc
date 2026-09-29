@@ -110,12 +110,14 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
     for (final field in widget.template.fields) {
       if (field.required) {
         final val = _answers[field.id];
-        final empty = val == null ||
+        final empty =
+            val == null ||
             (val is String && val.trim().isEmpty) ||
             (val is List && val.isEmpty);
         if (empty) {
           setState(() {
-            _validationError = 'Please answer required question: "${field.label}"';
+            _validationError =
+                'Please answer required question: "${field.label}"';
           });
           return;
         }
@@ -146,10 +148,7 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
         await saveDentalRecord(ref, rec);
         if (mounted) recToast(context, 'Form submitted');
       } else {
-        final updated = resp.record.copyWith(
-          data: data,
-          recordedAt: now,
-        );
+        final updated = resp.record.copyWith(data: data, recordedAt: now);
         await saveDentalRecord(ref, updated);
         if (mounted) recToast(context, 'Form response updated');
       }
@@ -170,7 +169,8 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
 
     return CruFormDialog(
       title: t.name,
-      subtitle: '${p.fullName} (${p.age}y) · ${widget.initialResponse != null ? 'Recorded ${DentalFormat.date(widget.initialResponse!.answeredAt)}' : 'New entry'}',
+      subtitle:
+          '${p.fullName} (${p.age}y) · ${widget.initialResponse != null ? 'Recorded ${DentalFormat.date(widget.initialResponse!.answeredAt)}' : 'New entry'}',
       width: 660,
       busy: _busy,
       submitLabel: _editing ? 'Submit response' : 'Edit response',
@@ -191,10 +191,7 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
                 color: c.inset,
                 borderRadius: BorderRadius.circular(CruRadius.control),
               ),
-              child: Text(
-                t.description,
-                style: CruType.caption.tint(c.label2),
-              ),
+              child: Text(t.description, style: CruType.caption.tint(c.label2)),
             ),
             const SizedBox(height: CruSpace.s16),
           ],
@@ -212,7 +209,10 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
                   CruIcon(CruIcons.warning, size: 16, color: c.amberText),
                   const SizedBox(width: CruSpace.s8),
                   Expanded(
-                    child: Text(_validationError!, style: CruType.caption.tint(c.amberText)),
+                    child: Text(
+                      _validationError!,
+                      style: CruType.caption.tint(c.amberText),
+                    ),
                   ),
                 ],
               ),
@@ -251,188 +251,229 @@ class _FormFillDialogState extends ConsumerState<FormFillDialog> {
 
         // Value widget depending on field type
         switch (spec.type) {
-          FormFieldType.text => !_editing
-              ? Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s10),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
+          FormFieldType.text =>
+            !_editing
+                ? Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s12,
+                      vertical: CruSpace.s10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      border: Border.all(color: c.hairline),
+                    ),
+                    child: Text(
+                      ans?.toString().isNotEmpty == true ? ans.toString() : '—',
+                      style: CruType.body.tint(c.label),
+                    ),
+                  )
+                : CruTextField(
+                    label: spec.label,
+                    controller: _controllers.putIfAbsent(
+                      spec.id,
+                      () => TextEditingController(),
+                    ),
+                    hint: 'Type your answer...',
                   ),
-                  child: Text(
-                    ans?.toString().isNotEmpty == true ? ans.toString() : '—',
-                    style: CruType.body.tint(c.label),
+          FormFieldType.longText =>
+            !_editing
+                ? Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(CruSpace.s12),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      border: Border.all(color: c.hairline),
+                    ),
+                    child: Text(
+                      ans?.toString().isNotEmpty == true ? ans.toString() : '—',
+                      style: CruType.body.tint(c.label),
+                    ),
+                  )
+                : CruTextField(
+                    label: spec.label,
+                    controller: _controllers.putIfAbsent(
+                      spec.id,
+                      () => TextEditingController(),
+                    ),
+                    maxLines: 4,
+                    hint: 'Detailed notes...',
                   ),
-                )
-              : CruTextField(
-                  label: spec.label,
-                  controller: _controllers.putIfAbsent(spec.id, () => TextEditingController()),
-                  hint: 'Type your answer...',
-                ),
-          FormFieldType.longText => !_editing
-              ? Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(CruSpace.s12),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
-                  ),
-                  child: Text(
-                    ans?.toString().isNotEmpty == true ? ans.toString() : '—',
-                    style: CruType.body.tint(c.label),
-                  ),
-                )
-              : CruTextField(
-                  label: spec.label,
-                  controller: _controllers.putIfAbsent(spec.id, () => TextEditingController()),
-                  maxLines: 4,
-                  hint: 'Detailed notes...',
-                ),
-          FormFieldType.number => !_editing
-              ? Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s10),
-                  decoration: BoxDecoration(
-                    color: c.surface,
-                    borderRadius: BorderRadius.circular(CruRadius.control),
-                    border: Border.all(color: c.hairline),
-                  ),
-                  child: Text(
-                    ans != null ? '$ans ${spec.unit}'.trim() : '—',
-                    style: CruType.body.tabular.tint(c.label),
-                  ),
-                )
-              : Row(
-                  children: [
-                    Expanded(
-                      child: CruTextField(
-                        label: spec.label,
-                        controller: _controllers.putIfAbsent(spec.id, () => TextEditingController()),
-                        keyboardType: TextInputType.number,
-                        hint: '0.0',
+          FormFieldType.number =>
+            !_editing
+                ? Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: CruSpace.s12,
+                      vertical: CruSpace.s10,
+                    ),
+                    decoration: BoxDecoration(
+                      color: c.surface,
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      border: Border.all(color: c.hairline),
+                    ),
+                    child: Text(
+                      ans != null ? '$ans ${spec.unit}'.trim() : '—',
+                      style: CruType.body.tabular.tint(c.label),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Expanded(
+                        child: CruTextField(
+                          label: spec.label,
+                          controller: _controllers.putIfAbsent(
+                            spec.id,
+                            () => TextEditingController(),
+                          ),
+                          keyboardType: TextInputType.number,
+                          hint: '0.0',
+                        ),
                       ),
-                    ),
-                    if (spec.unit.isNotEmpty) ...[
-                      const SizedBox(width: CruSpace.s8),
-                      Text(spec.unit, style: CruType.caption.w600.tint(c.label2)),
+                      if (spec.unit.isNotEmpty) ...[
+                        const SizedBox(width: CruSpace.s8),
+                        Text(
+                          spec.unit,
+                          style: CruType.caption.w600.tint(c.label2),
+                        ),
+                      ],
                     ],
-                  ],
-                ),
+                  ),
           FormFieldType.choice => Wrap(
-              spacing: CruSpace.s8,
-              runSpacing: CruSpace.s6,
-              children: [
-                for (final opt in spec.options)
-                  DentalChoiceChip(
-                    label: opt,
-                    selected: ans == opt,
-                    onTap: _editing
-                        ? () => setState(() => _answers[spec.id] = opt)
-                        : () {},
-                  ),
-              ],
-            ),
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s6,
+            children: [
+              for (final opt in spec.options)
+                DentalChoiceChip(
+                  label: opt,
+                  selected: ans == opt,
+                  onTap: _editing
+                      ? () => setState(() => _answers[spec.id] = opt)
+                      : () {},
+                ),
+            ],
+          ),
           FormFieldType.multiChoice => Wrap(
-              spacing: CruSpace.s8,
-              runSpacing: CruSpace.s6,
-              children: [
-                for (final opt in spec.options)
-                  DentalChoiceChip(
-                    label: opt,
-                    selected: (ans is List) && ans.contains(opt),
-                    onTap: _editing
-                        ? () {
-                            setState(() {
-                              final list = (ans is List) ? List<String>.from(ans) : <String>[];
-                              if (list.contains(opt)) {
-                                list.remove(opt);
-                              } else {
-                                list.add(opt);
-                              }
-                              _answers[spec.id] = list;
-                            });
-                          }
-                        : () {},
-                  ),
-              ],
-            ),
-          FormFieldType.yesNo => Row(
-              children: [
+            spacing: CruSpace.s8,
+            runSpacing: CruSpace.s6,
+            children: [
+              for (final opt in spec.options)
                 DentalChoiceChip(
-                  label: 'Yes',
-                  selected: ans == true || ans == 'Yes',
+                  label: opt,
+                  selected: (ans is List) && ans.contains(opt),
                   onTap: _editing
-                      ? () => setState(() => _answers[spec.id] = 'Yes')
-                      : () {},
-                ),
-                const SizedBox(width: CruSpace.s8),
-                DentalChoiceChip(
-                  label: 'No',
-                  selected: ans == false || ans == 'No',
-                  onTap: _editing
-                      ? () => setState(() => _answers[spec.id] = 'No')
-                      : () {},
-                ),
-              ],
-            ),
-          FormFieldType.date => Container(
-              padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s8),
-              decoration: BoxDecoration(
-                color: c.surface,
-                borderRadius: BorderRadius.circular(CruRadius.control),
-                border: Border.all(color: c.hairline),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CruIcon(CruIcons.calendar, size: 16, color: c.accent),
-                  const SizedBox(width: CruSpace.s8),
-                  Text(
-                    ans != null ? DentalFormat.date(DateTime.tryParse(ans.toString()) ?? DateTime.now()) : 'Pick date',
-                    style: CruType.caption.tint(c.label),
-                  ),
-                  if (_editing) ...[
-                    const SizedBox(width: CruSpace.s12),
-                    CruCapsuleButton(
-                      label: 'Change',
-                      icon: CruIcons.calendar,
-                      onPressed: () async {
-                        final picked = await pickDentalDate(context, initial: DateTime.now());
-                        if (picked != null) {
-                          setState(() => _answers[spec.id] = picked.toIso8601String());
+                      ? () {
+                          setState(() {
+                            final list = (ans is List)
+                                ? List<String>.from(ans)
+                                : <String>[];
+                            if (list.contains(opt)) {
+                              list.remove(opt);
+                            } else {
+                              list.add(opt);
+                            }
+                            _answers[spec.id] = list;
+                          });
                         }
-                      },
-                    ),
-                  ],
+                      : () {},
+                ),
+            ],
+          ),
+          FormFieldType.yesNo => Row(
+            children: [
+              DentalChoiceChip(
+                label: 'Yes',
+                selected: ans == true || ans == 'Yes',
+                onTap: _editing
+                    ? () => setState(() => _answers[spec.id] = 'Yes')
+                    : () {},
+              ),
+              const SizedBox(width: CruSpace.s8),
+              DentalChoiceChip(
+                label: 'No',
+                selected: ans == false || ans == 'No',
+                onTap: _editing
+                    ? () => setState(() => _answers[spec.id] = 'No')
+                    : () {},
+              ),
+            ],
+          ),
+          FormFieldType.date => Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: CruSpace.s12,
+              vertical: CruSpace.s8,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: BorderRadius.circular(CruRadius.control),
+              border: Border.all(color: c.hairline),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CruIcon(CruIcons.calendar, size: 16, color: c.accent),
+                const SizedBox(width: CruSpace.s8),
+                Text(
+                  ans != null
+                      ? DentalFormat.date(
+                          DateTime.tryParse(ans.toString()) ?? DateTime.now(),
+                        )
+                      : 'Pick date',
+                  style: CruType.caption.tint(c.label),
+                ),
+                if (_editing) ...[
+                  const SizedBox(width: CruSpace.s12),
+                  CruCapsuleButton(
+                    label: 'Change',
+                    icon: CruIcons.calendar,
+                    onPressed: () async {
+                      final picked = await pickDentalDate(
+                        context,
+                        initial: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        setState(
+                          () => _answers[spec.id] = picked.toIso8601String(),
+                        );
+                      }
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+          FormFieldType.scale10 => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Rating: ${ans ?? 'Not rated'}',
+                    style: CruType.caption.w600.tabular.tint(c.label),
+                  ),
+                  Text(
+                    '0 = None, 10 = Severe',
+                    style: CruType.micro.tint(c.label3),
+                  ),
                 ],
               ),
-            ),
-          FormFieldType.scale10 => Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Rating: ${ans ?? 'Not rated'}', style: CruType.caption.w600.tabular.tint(c.label)),
-                    Text('0 = None, 10 = Severe', style: CruType.micro.tint(c.label3)),
-                  ],
-                ),
-                const SizedBox(height: CruSpace.s4),
-                Slider(
-                  value: (ans is num) ? ans.toDouble() : 0.0,
-                  min: 0,
-                  max: 10,
-                  divisions: 10,
-                  activeColor: c.accent,
-                  label: '${ans ?? 0}',
-                  onChanged: _editing
-                      ? (v) => setState(() => _answers[spec.id] = v.toInt())
-                      : null,
-                ),
-              ],
-            ),
+              const SizedBox(height: CruSpace.s4),
+              Slider(
+                value: (ans is num) ? ans.toDouble() : 0.0,
+                min: 0,
+                max: 10,
+                divisions: 10,
+                activeColor: c.accent,
+                label: '${ans ?? 0}',
+                onChanged: _editing
+                    ? (v) => setState(() => _answers[spec.id] = v.toInt())
+                    : null,
+              ),
+            ],
+          ),
         },
       ],
     );
@@ -449,9 +490,14 @@ class PatientFormsDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
     final responsesAsync = ref.watch(
-      patientRecordsProvider((patientId: patient.id, kind: RecKind.formResponse)),
+      patientRecordsProvider((
+        patientId: patient.id,
+        kind: RecKind.formResponse,
+      )),
     );
-    final templatesAsync = ref.watch(clinicRecordsProvider(RecKind.formTemplate));
+    final templatesAsync = ref.watch(
+      clinicRecordsProvider(RecKind.formTemplate),
+    );
 
     return DentalPanelDialog(
       title: 'Clinical Questionnaires & Forms',
@@ -463,18 +509,25 @@ class PatientFormsDialog extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Patient Responses', style: CruType.callout.w600.tint(c.label)),
+              Text(
+                'Patient Responses',
+                style: CruType.callout.w600.tint(c.label),
+              ),
               CruButton(
                 label: 'Fill a form',
                 icon: CruIcons.plus,
                 kind: CruButtonKind.primary,
                 onPressed: () {
-                  final templates = templatesAsync.value
+                  final templates =
+                      templatesAsync.value
                           ?.map(FormTemplate.fromRecord)
                           .toList() ??
                       [];
                   if (templates.isEmpty) {
-                    recToast(context, 'No templates created yet. Create a form template first.');
+                    recToast(
+                      context,
+                      'No templates created yet. Create a form template first.',
+                    );
                     return;
                   }
 
@@ -504,18 +557,34 @@ class PatientFormsDialog extends ConsumerWidget {
                               },
                               child: Row(
                                 children: [
-                                  const CruIconTile(icon: CruIcons.box, tone: CruTileTone.neutral),
+                                  const CruIconTile(
+                                    icon: CruIcons.box,
+                                    tone: CruTileTone.neutral,
+                                  ),
                                   const SizedBox(width: CruSpace.s12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
-                                        Text(t.name, style: CruType.callout.w600.tint(c.label)),
-                                        Text('${t.fields.length} questions', style: CruType.caption.tint(c.label2)),
+                                        Text(
+                                          t.name,
+                                          style: CruType.callout.w600.tint(
+                                            c.label,
+                                          ),
+                                        ),
+                                        Text(
+                                          '${t.fields.length} questions',
+                                          style: CruType.caption.tint(c.label2),
+                                        ),
                                       ],
                                     ),
                                   ),
-                                  CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+                                  CruIcon(
+                                    CruIcons.chevronRight,
+                                    size: 16,
+                                    color: c.label3,
+                                  ),
                                 ],
                               ),
                             ),
@@ -542,18 +611,23 @@ class PatientFormsDialog extends ConsumerWidget {
                 return DentalEmptyState(
                   icon: CruIcons.box,
                   title: 'No forms filled for this patient',
-                  body: 'Complete custom clinical intake, symptoms, or screening forms.',
+                  body:
+                      'Complete custom clinical intake, symptoms, or screening forms.',
                   actions: [
                     CruButton(
                       label: 'Fill a form',
                       icon: CruIcons.plus,
                       onPressed: () {
-                        final templates = templatesAsync.value
+                        final templates =
+                            templatesAsync.value
                                 ?.map(FormTemplate.fromRecord)
                                 .toList() ??
                             [];
                         if (templates.isEmpty) {
-                          recToast(context, 'No templates created yet. Create a form template first.');
+                          recToast(
+                            context,
+                            'No templates created yet. Create a form template first.',
+                          );
                           return;
                         }
                         showDialog<void>(
@@ -571,7 +645,9 @@ class PatientFormsDialog extends ConsumerWidget {
 
               final responses = records.map(FormResponse.fromRecord).toList()
                 ..sort((a, b) => b.answeredAt.compareTo(a.answeredAt));
-              final templates = templatesAsync.value?.map(FormTemplate.fromRecord).toList() ?? [];
+              final templates =
+                  templatesAsync.value?.map(FormTemplate.fromRecord).toList() ??
+                  [];
 
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -580,7 +656,10 @@ class PatientFormsDialog extends ConsumerWidget {
                     DentalListRow(
                       semanticLabel: r.templateName,
                       onTap: () {
-                        final tmpl = templates.where((t) => t.id == r.templateId).firstOrNull ??
+                        final tmpl =
+                            templates
+                                .where((t) => t.id == r.templateId)
+                                .firstOrNull ??
                             FormTemplate(
                               id: r.templateId,
                               name: r.templateName,
@@ -605,13 +684,19 @@ class PatientFormsDialog extends ConsumerWidget {
                       },
                       child: Row(
                         children: [
-                          const CruIconTile(icon: CruIcons.box, tone: CruTileTone.accent),
+                          const CruIconTile(
+                            icon: CruIcons.box,
+                            tone: CruTileTone.accent,
+                          ),
                           const SizedBox(width: CruSpace.s12),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(r.templateName, style: CruType.callout.w600.tint(c.label)),
+                                Text(
+                                  r.templateName,
+                                  style: CruType.callout.w600.tint(c.label),
+                                ),
                                 Text(
                                   'Submitted ${DentalFormat.date(r.answeredAt)} · ${r.answers.length} answers recorded',
                                   style: CruType.caption.tint(c.label2),
@@ -619,7 +704,11 @@ class PatientFormsDialog extends ConsumerWidget {
                               ],
                             ),
                           ),
-                          CruIcon(CruIcons.chevronRight, size: 16, color: c.label3),
+                          CruIcon(
+                            CruIcons.chevronRight,
+                            size: 16,
+                            color: c.label3,
+                          ),
                         ],
                       ),
                     ),
@@ -634,4 +723,3 @@ class PatientFormsDialog extends ConsumerWidget {
     );
   }
 }
-

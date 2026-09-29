@@ -53,18 +53,18 @@ class InventoryVial extends StatelessWidget {
                       tween: Tween(end: fill!),
                       duration: CruMotion.of(context),
                       curve: CruMotion.curve,
-                      builder: (context, f, _) => Container(
-                        height: height * f,
-                        color: fillColor,
-                      ),
+                      builder: (context, f, _) =>
+                          Container(height: height * f, color: fillColor),
                     ),
                   ),
                 if (notch != null)
                   Positioned(
                     left: 0,
                     right: 0,
-                    bottom: (height * notch! - InventorySize.notch / 2)
-                        .clamp(0.0, height - InventorySize.notch),
+                    bottom: (height * notch! - InventorySize.notch / 2).clamp(
+                      0.0,
+                      height - InventorySize.notch,
+                    ),
                     height: InventorySize.notch,
                     child: ColoredBox(color: c.surface),
                   ),

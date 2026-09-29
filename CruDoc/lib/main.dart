@@ -26,22 +26,14 @@ const bool _useFirebaseEmulators = bool.fromEnvironment(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (_useFirebaseEmulators) {
-    await FirebaseAuth.instance.useAuthEmulator(
-      '10.0.2.2',
-      9099,
-    );
+    await FirebaseAuth.instance.useAuthEmulator('10.0.2.2', 9099);
 
     FirebaseFunctions.instanceFor(
       region: 'asia-south1',
-    ).useFunctionsEmulator(
-      '10.0.2.2',
-      5001,
-    );
+    ).useFunctionsEmulator('10.0.2.2', 5001);
   }
 
   FirebaseFirestore.instance.settings = const Settings(
@@ -80,9 +72,7 @@ void _showForcedLogoutSnackBar(String reason) {
                 Expanded(
                   child: Text(
                     reason,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ],
@@ -96,9 +86,7 @@ void _showForcedLogoutSnackBar(String reason) {
           ),
         );
       } catch (e) {
-        debugPrint(
-          'Could not show forced logout snackbar: $e',
-        );
+        debugPrint('Could not show forced logout snackbar: $e');
       }
     }
   });
@@ -134,13 +122,9 @@ void _wireWebEncryptionKeyLoading() {
 
       lastHandledUid = user.uid;
 
-      await EncryptionKeyManager.instance.loadForDoctor(
-        user.uid,
-      );
+      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
     } catch (error, stackTrace) {
-      debugPrint(
-        'Web startup auth bootstrap failed: $error',
-      );
+      debugPrint('Web startup auth bootstrap failed: $error');
       debugPrint(stackTrace.toString());
     }
   });
@@ -193,12 +177,9 @@ void _wireDoctorScopedStartup() {
       // Order matters: the key must be loaded before migration/sync try to
       // decrypt anything, and the local cache must be confirmed to belong to
       // this doctor before anything is written into it.
-      await EncryptionKeyManager.instance.loadForDoctor(
-        user.uid,
-      );
+      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
 
-      await LocalDatabaseService.instance
-          .ensureLocalDataMatchesSignedInDoctor(
+      await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
         user.uid,
       );
 
@@ -206,9 +187,7 @@ void _wireDoctorScopedStartup() {
 
       await FirestoreSyncService.instance.start();
     } catch (error, stackTrace) {
-      debugPrint(
-        'Doctor-scoped startup bootstrap failed: $error',
-      );
+      debugPrint('Doctor-scoped startup bootstrap failed: $error');
       debugPrint(stackTrace.toString());
     }
   });
@@ -220,6 +199,7 @@ class MoodyDashboardApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final appearance = ref.watch(resolvedAppearanceProvider);
+    final textSize = ref.watch(textSizePreferenceProvider);
     final isEvening = appearance == CruAppearance.evening;
 
     return MaterialApp.router(
@@ -231,9 +211,16 @@ class MoodyDashboardApp extends ConsumerWidget {
       darkTheme: CruTheme.evening(),
       themeMode: isEvening ? ThemeMode.dark : ThemeMode.light,
       routerConfig: appRouter,
-      builder: (context, child) => VoiceOverlay(
-        child: child ?? const SizedBox.shrink(),
-      ),
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final systemScale = mediaQuery.textScaler.scale(1);
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(systemScale * textSize.scale),
+          ),
+          child: VoiceOverlay(child: child ?? const SizedBox.shrink()),
+        );
+      },
     );
   }
 }

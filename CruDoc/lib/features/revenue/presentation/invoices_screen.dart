@@ -80,9 +80,9 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error seeding Firebase: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error seeding Firebase: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSeeding = false);
@@ -98,10 +98,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
   void _openCreateInvoiceSheet() {
     final isDesktop = MediaQuery.of(context).size.width >= 800;
     if (isDesktop) {
-      showDesktopCreateInvoiceDialog(
-        context,
-        repository: _repository,
-      );
+      showDesktopCreateInvoiceDialog(context, repository: _repository);
       return;
     }
     showModalBottomSheet<void>(
@@ -112,17 +109,18 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => _CreateInvoiceSheet(
-        onSave: (name, service, amount, status, notes, dueDate, patientId) async {
-          await _repository.createInvoice(
-            patientName: name,
-            service: service,
-            amount: amount,
-            status: status,
-            notes: notes,
-            dueDate: dueDate,
-            patientId: patientId,
-          );
-        },
+        onSave:
+            (name, service, amount, status, notes, dueDate, patientId) async {
+              await _repository.createInvoice(
+                patientName: name,
+                service: service,
+                amount: amount,
+                status: status,
+                notes: notes,
+                dueDate: dueDate,
+                patientId: patientId,
+              );
+            },
       ),
     );
   }
@@ -135,7 +133,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
         barrierDismissible: true,
         builder: (ctx) => Dialog(
           backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 24,
+            vertical: 24,
+          ),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
             child: Container(
@@ -143,13 +144,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 32,
-                    offset: Offset(0, 16),
-                  ),
-                ],
+                boxShadow: const [],
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(20),
@@ -158,7 +153,10 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
                     invoice: invoice,
                     onStatusChanged: (newStatus) async {
                       if (invoice.doctorId != 'sample') {
-                        await _repository.updateInvoiceStatus(invoice.id, newStatus);
+                        await _repository.updateInvoiceStatus(
+                          invoice.id,
+                          newStatus,
+                        );
                       }
                       if (ctx.mounted) Navigator.pop(ctx);
                     },
@@ -206,486 +204,475 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     return ShellBackground(
       child: Scaffold(
         backgroundColor: Colors.transparent,
-      body: SafeArea(
-        child: StreamBuilder<List<InvoiceModel>>(
-          stream: _repository.watchInvoices(),
-          builder: (context, snapshot) {
-            final allInvoices = snapshot.data ?? <InvoiceModel>[];
+        body: SafeArea(
+          child: StreamBuilder<List<InvoiceModel>>(
+            stream: _repository.watchInvoices(),
+            builder: (context, snapshot) {
+              final allInvoices = snapshot.data ?? <InvoiceModel>[];
 
-            final filteredInvoices = allInvoices.where((inv) {
-              final matchesStatus = _selectedFilter == 'All' ||
-                  inv.status.toLowerCase() == _selectedFilter.toLowerCase();
-              final query = _searchQuery.toLowerCase().trim();
-              final matchesSearch = query.isEmpty ||
-                  inv.patientName.toLowerCase().contains(query) ||
-                  inv.service.toLowerCase().contains(query) ||
-                  inv.id.toLowerCase().contains(query);
+              final filteredInvoices = allInvoices.where((inv) {
+                final matchesStatus =
+                    _selectedFilter == 'All' ||
+                    inv.status.toLowerCase() == _selectedFilter.toLowerCase();
+                final query = _searchQuery.toLowerCase().trim();
+                final matchesSearch =
+                    query.isEmpty ||
+                    inv.patientName.toLowerCase().contains(query) ||
+                    inv.service.toLowerCase().contains(query) ||
+                    inv.id.toLowerCase().contains(query);
 
-              return matchesStatus && matchesSearch;
-            }).toList();
+                return matchesStatus && matchesSearch;
+              }).toList();
 
-            final totalInvoiced = allInvoices.fold<double>(
-                0.0, (sum, item) => sum + item.amount);
-            final paidTotal = allInvoices
-                .where((i) => i.isPaid)
-                .fold<double>(0.0, (sum, item) => sum + item.amount);
-            final pendingTotal = allInvoices
-                .where((i) => i.isPending)
-                .fold<double>(0.0, (sum, item) => sum + item.amount);
-            final overdueTotal = allInvoices
-                .where((i) => i.isOverdue)
-                .fold<double>(0.0, (sum, item) => sum + item.amount);
+              final totalInvoiced = allInvoices.fold<double>(
+                0.0,
+                (sum, item) => sum + item.amount,
+              );
+              final paidTotal = allInvoices
+                  .where((i) => i.isPaid)
+                  .fold<double>(0.0, (sum, item) => sum + item.amount);
+              final pendingTotal = allInvoices
+                  .where((i) => i.isPending)
+                  .fold<double>(0.0, (sum, item) => sum + item.amount);
+              final overdueTotal = allInvoices
+                  .where((i) => i.isOverdue)
+                  .fold<double>(0.0, (sum, item) => sum + item.amount);
 
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Top Header Section: Action Bar + Page Title
-                  Row(
-                    children: [
-                      if (Navigator.canPop(context))
-                        InkWell(
-                          onTap: () => Navigator.pop(context),
-                          borderRadius: BorderRadius.circular(14),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(
-                                color: const Color(0xFFE2E8F0),
-                              ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Color(0x08000000),
-                                  blurRadius: 6,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(
-                                  Icons.arrow_back_rounded,
-                                  size: 18,
-                                  color: Color(0xFF0F172A),
-                                ),
-                                SizedBox(width: 6),
-                                Text(
-                                  'Back',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Invoices & Billing',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF0F172A),
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Horizontal Metric Cards (4 Cards inspired by Web UI)
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top Header Section: Action Bar + Page Title
+                    Row(
                       children: [
-                        _MetricCard(
-                          icon: Icons.receipt_long_rounded,
-                          iconColor: const Color(0xFF2563EB),
-                          iconBg: const Color(0xFFEFF6FF),
-                          title: 'Total Invoiced',
-                          amount: '₹${totalInvoiced.toInt()}',
-                        ),
-                        const SizedBox(width: 12),
-                        _MetricCard(
-                          icon: Icons.check_circle_rounded,
-                          iconColor: const Color(0xFF16A34A),
-                          iconBg: const Color(0xFFDCFCE7),
-                          title: 'Paid Invoices',
-                          amount: '₹${paidTotal.toInt()}',
-                        ),
-                        const SizedBox(width: 12),
-                        _MetricCard(
-                          icon: Icons.hourglass_top_rounded,
-                          iconColor: const Color(0xFFD97706),
-                          iconBg: const Color(0xFFFEF3C7),
-                          title: 'Pending',
-                          amount: '₹${pendingTotal.toInt()}',
-                        ),
-                        const SizedBox(width: 12),
-                        _MetricCard(
-                          icon: Icons.warning_amber_rounded,
-                          iconColor: const Color(0xFFDC2626),
-                          iconBg: const Color(0xFFFEE2E2),
-                          title: 'Overdue',
-                          amount: '₹${overdueTotal.toInt()}',
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Search & Create Invoice Section (Compact & Sleek Sizing)
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x06000000),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: SizedBox(
-                            height: 36,
-                            child: TextField(
-                              controller: _searchController,
-                              onChanged: (val) {
-                                setState(() {
-                                  _searchQuery =
-                                      _repository.sanitizeInput(val);
-                                });
-                              },
-                              style: const TextStyle(
-                                  fontSize: 12.5, color: Color(0xFF0F172A)),
-                              decoration: InputDecoration(
-                                hintText: 'Search invoice #, patient...',
-                                hintStyle: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF94A3B8),
-                                ),
-                                prefixIcon: const Icon(
-                                  Icons.search_rounded,
-                                  size: 17,
-                                  color: Color(0xFF64748B),
-                                ),
-                                prefixIconConstraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
-                                ),
-                                suffixIcon: _searchController.text.isNotEmpty
-                                    ? IconButton(
-                                        icon: const Icon(Icons.clear, size: 15),
-                                        padding: EdgeInsets.zero,
-                                        constraints: const BoxConstraints(
-                                          minWidth: 28,
-                                          minHeight: 28,
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _searchController.clear();
-                                            _searchQuery = '';
-                                          });
-                                        },
-                                      )
-                                    : null,
-                                filled: true,
-                                fillColor: const Color(0xFFF8FAFC),
-                                contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 0,
-                                ),
-                                isDense: true,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide.none,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: _openCreateInvoiceSheet,
-                            borderRadius: BorderRadius.circular(10),
+                        if (Navigator.canPop(context))
+                          InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(14),
                             child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFF1E78FF),
-                                    Color(0xFF1D4ED8)
-                                  ],
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x261E78FF),
-                                    blurRadius: 6,
-                                    offset: Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  Icons.add_rounded,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // Filter Pills Row (Shifted below Search Bar Box)
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children:
-                          ['All', 'Paid', 'Pending', 'Overdue'].map((filter) {
-                        final isSelected = _selectedFilter == filter;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: InkWell(
-                            onTap: () {
-                              setState(() => _selectedFilter = filter);
-                            },
-                            borderRadius: BorderRadius.circular(10),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
                               padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
+                                horizontal: 12,
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: isSelected
-                                    ? const Color(0xFF1E78FF)
-                                    : Colors.white,
-                                borderRadius: BorderRadius.circular(10),
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: isSelected
-                                      ? const Color(0xFF1E78FF)
-                                      : const Color(0xFFE2E8F0),
-                                  width: 1,
+                                  color: const Color(0xFFE2E8F0),
                                 ),
-                                boxShadow: isSelected
-                                    ? const [
-                                        BoxShadow(
-                                          color: Color(0x331E78FF),
-                                          blurRadius: 6,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ]
-                                    : const [
-                                        BoxShadow(
-                                          color: Color(0x06000000),
-                                          blurRadius: 4,
-                                          offset: Offset(0, 1),
-                                        ),
-                                      ],
+                                boxShadow: const [],
                               ),
-                              child: Text(
-                                filter,
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w700
-                                      : FontWeight.w600,
-                                  color: isSelected
-                                      ? Colors.white
-                                      : const Color(0xFF475569),
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  Icon(
+                                    Icons.arrow_back_rounded,
+                                    size: 18,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                  SizedBox(width: 6),
+                                  Text(
+                                    'Back',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF0F172A),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        );
-                      }).toList(),
+                      ],
                     ),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  // Table Header / Invoices Section Card (Only This Section Scrolls!)
-                  Expanded(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                    const SizedBox(height: 16),
+                    const Text(
+                      'Invoices & Billing',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF0F172A),
+                        letterSpacing: -0.5,
                       ),
-                      child: Column(
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Horizontal Metric Cards (4 Cards inspired by Web UI)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
                         children: [
-                          // Column Headers (Matching Web Table Columns)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 12,
-                            ),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.vertical(
-                                top: Radius.circular(16),
-                              ),
-                            ),
-                            child: const Row(
-                              children: [
-                                Expanded(
-                                  flex: 3,
-                                  child: Text(
-                                    'INVOICE & PATIENT',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF64748B),
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    'AMOUNT',
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF64748B),
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                Expanded(
-                                  flex: 2,
-                                  child: Text(
-                                    'STATUS',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w700,
-                                      color: Color(0xFF64748B),
-                                      letterSpacing: 0.5,
-                                    ),
-                                  ),
-                                ),
-                                SizedBox(width: 36), // Space for action button
-                              ],
-                            ),
+                          _MetricCard(
+                            icon: Icons.receipt_long_rounded,
+                            iconColor: const Color(0xFF2563EB),
+                            iconBg: const Color(0xFFEFF6FF),
+                            title: 'Total Invoiced',
+                            amount: '₹${totalInvoiced.toInt()}',
                           ),
-
-                          const Divider(height: 1, color: Color(0xFFE2E8F0)),
-
-                          // Scrollable Rows List
-                          Expanded(
-                            child: filteredInvoices.isEmpty
-                                ? Center(
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        const Icon(
-                                          Icons.receipt_long_outlined,
-                                          size: 40,
-                                          color: Color(0xFFCBD5E1),
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(
-                                          'No ${_selectedFilter.toLowerCase()} invoices found in Firebase',
-                                          style: const TextStyle(
-                                            color: Color(0xFF64748B),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        OutlinedButton.icon(
-                                          onPressed: _isSeeding
-                                              ? null
-                                              : _seedSampleInvoicesToFirebase,
-                                          icon: _isSeeding
-                                              ? const SizedBox(
-                                                  width: 14,
-                                                  height: 14,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                          strokeWidth: 2),
-                                                )
-                                              : const Icon(
-                                                  Icons.cloud_upload_outlined,
-                                                  size: 16),
-                                          label: Text(_isSeeding
-                                              ? 'Saving to Firebase...'
-                                              : 'Populate Sample Invoices to Firebase'),
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor:
-                                                const Color(0xFF2563EB),
-                                            side: const BorderSide(
-                                                color: Color(0xFF2563EB)),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : ListView.separated(
-                                    physics:
-                                        const AlwaysScrollableScrollPhysics(),
-                                    padding: EdgeInsets.zero,
-                                    itemCount: filteredInvoices.length,
-                                    separatorBuilder: (_, _) => const Divider(
-                                      height: 1,
-                                      color: Color(0xFFF1F5F9),
-                                    ),
-                                    itemBuilder: (context, index) {
-                                      final inv = filteredInvoices[index];
-                                      return _InvoiceTableRow(
-                                        invoice: inv,
-                                        onViewDetails: () =>
-                                            _showInvoiceDetails(inv),
-                                      );
-                                    },
-                                  ),
+                          const SizedBox(width: 12),
+                          _MetricCard(
+                            icon: Icons.check_circle_rounded,
+                            iconColor: const Color(0xFF16A34A),
+                            iconBg: const Color(0xFFDCFCE7),
+                            title: 'Paid Invoices',
+                            amount: '₹${paidTotal.toInt()}',
+                          ),
+                          const SizedBox(width: 12),
+                          _MetricCard(
+                            icon: Icons.hourglass_top_rounded,
+                            iconColor: const Color(0xFFD97706),
+                            iconBg: const Color(0xFFFEF3C7),
+                            title: 'Pending',
+                            amount: '₹${pendingTotal.toInt()}',
+                          ),
+                          const SizedBox(width: 12),
+                          _MetricCard(
+                            icon: Icons.warning_amber_rounded,
+                            iconColor: const Color(0xFFDC2626),
+                            iconBg: const Color(0xFFFEE2E2),
+                            title: 'Overdue',
+                            amount: '₹${overdueTotal.toInt()}',
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            );
-          },
+
+                    const SizedBox(height: 14),
+
+                    // Search & Create Invoice Section (Compact & Sleek Sizing)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: const [],
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: SizedBox(
+                              height: 36,
+                              child: TextField(
+                                controller: _searchController,
+                                onChanged: (val) {
+                                  setState(() {
+                                    _searchQuery = _repository.sanitizeInput(
+                                      val,
+                                    );
+                                  });
+                                },
+                                style: const TextStyle(
+                                  fontSize: 12.5,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                decoration: InputDecoration(
+                                  hintText: 'Search invoice #, patient...',
+                                  hintStyle: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  prefixIcon: const Icon(
+                                    Icons.search_rounded,
+                                    size: 17,
+                                    color: Color(0xFF64748B),
+                                  ),
+                                  prefixIconConstraints: const BoxConstraints(
+                                    minWidth: 32,
+                                    minHeight: 32,
+                                  ),
+                                  suffixIcon: _searchController.text.isNotEmpty
+                                      ? IconButton(
+                                          icon: const Icon(
+                                            Icons.clear,
+                                            size: 15,
+                                          ),
+                                          padding: EdgeInsets.zero,
+                                          constraints: const BoxConstraints(
+                                            minWidth: 28,
+                                            minHeight: 28,
+                                          ),
+                                          onPressed: () {
+                                            setState(() {
+                                              _searchController.clear();
+                                              _searchQuery = '';
+                                            });
+                                          },
+                                        )
+                                      : null,
+                                  filled: true,
+                                  fillColor: const Color(0xFFF8FAFC),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 0,
+                                  ),
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(10),
+                                    borderSide: BorderSide.none,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: _openCreateInvoiceSheet,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF1E78FF),
+                                      Color(0xFF1D4ED8),
+                                    ],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: const [],
+                                ),
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.add_rounded,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    // Filter Pills Row (Shifted below Search Bar Box)
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        children: ['All', 'Paid', 'Pending', 'Overdue'].map((
+                          filter,
+                        ) {
+                          final isSelected = _selectedFilter == filter;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: InkWell(
+                              onTap: () {
+                                setState(() => _selectedFilter = filter);
+                              },
+                              borderRadius: BorderRadius.circular(10),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 150),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? const Color(0xFF1E78FF)
+                                      : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? const Color(0xFF1E78FF)
+                                        : const Color(0xFFE2E8F0),
+                                    width: 1,
+                                  ),
+                                  boxShadow: const [],
+                                ),
+                                child: Text(
+                                  filter,
+                                  style: TextStyle(
+                                    fontSize: 12.5,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w600,
+                                    color: isSelected
+                                        ? Colors.white
+                                        : const Color(0xFF475569),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Table Header / Invoices Section Card (Only This Section Scrolls!)
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            // Column Headers (Matching Web Table Columns)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              decoration: const BoxDecoration(
+                                color: Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      'INVOICE & PATIENT',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'AMOUNT',
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'STATUS',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w700,
+                                        color: Color(0xFF64748B),
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 36,
+                                  ), // Space for action button
+                                ],
+                              ),
+                            ),
+
+                            const Divider(height: 1),
+
+                            // Scrollable Rows List
+                            Expanded(
+                              child: filteredInvoices.isEmpty
+                                  ? Center(
+                                      child: Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.receipt_long_outlined,
+                                            size: 40,
+                                            color: Color(0xFFCBD5E1),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            'No ${_selectedFilter.toLowerCase()} invoices found in Firebase',
+                                            style: const TextStyle(
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          OutlinedButton.icon(
+                                            onPressed: _isSeeding
+                                                ? null
+                                                : _seedSampleInvoicesToFirebase,
+                                            icon: _isSeeding
+                                                ? const SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                        ),
+                                                  )
+                                                : const Icon(
+                                                    Icons.cloud_upload_outlined,
+                                                    size: 16,
+                                                  ),
+                                            label: Text(
+                                              _isSeeding
+                                                  ? 'Saving to Firebase...'
+                                                  : 'Populate Sample Invoices to Firebase',
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              foregroundColor: const Color(
+                                                0xFF2563EB,
+                                              ),
+                                              side: const BorderSide(
+                                                color: Color(0xFF2563EB),
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                  : ListView.separated(
+                                      physics:
+                                          const AlwaysScrollableScrollPhysics(),
+                                      padding: EdgeInsets.zero,
+                                      itemCount: filteredInvoices.length,
+                                      separatorBuilder: (_, _) => const Divider(
+                                        height: 1,
+                                      ),
+                                      itemBuilder: (context, index) {
+                                        final inv = filteredInvoices[index];
+                                        return _InvoiceTableRow(
+                                          invoice: inv,
+                                          onViewDetails: () =>
+                                              _showInvoiceDetails(inv),
+                                        );
+                                      },
+                                    ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
 
 class _MetricCard extends StatelessWidget {
@@ -757,10 +744,7 @@ class _InvoiceTableRow extends StatelessWidget {
   final InvoiceModel invoice;
   final VoidCallback onViewDetails;
 
-  const _InvoiceTableRow({
-    required this.invoice,
-    required this.onViewDetails,
-  });
+  const _InvoiceTableRow({required this.invoice, required this.onViewDetails});
 
   @override
   Widget build(BuildContext context) {
@@ -885,7 +869,8 @@ class _CreateInvoiceSheet extends StatefulWidget {
     String notes,
     DateTime? dueDate,
     String? patientId,
-  ) onSave;
+  )
+  onSave;
 
   const _CreateInvoiceSheet({required this.onSave});
 
@@ -985,9 +970,7 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
 
       setState(() => _isOcrLoading = true);
 
-      final result = await PaddleOcrService.instance.scanInvoice(
-        image,
-      );
+      final result = await PaddleOcrService.instance.scanInvoice(image);
 
       if (!mounted) return;
 
@@ -1005,18 +988,19 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
         }
 
         for (final treatment in result.treatments) {
-          _treatments.add(_TreatmentItem(
-            name: treatment.name,
-            price: treatment.price,
-          ));
+          _treatments.add(
+            _TreatmentItem(name: treatment.name, price: treatment.price),
+          );
         }
 
         for (final medicine in result.medicines) {
-          _medicines.add(_MedicineItem(
-            name: medicine.name,
-            dosage: medicine.dosage,
-            price: medicine.price,
-          ));
+          _medicines.add(
+            _MedicineItem(
+              name: medicine.name,
+              dosage: medicine.dosage,
+              price: medicine.price,
+            ),
+          );
         }
       });
 
@@ -1032,10 +1016,7 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
       if (!mounted) return;
       setState(() => _isOcrLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('OCR Failed: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('OCR Failed: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -1060,13 +1041,15 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
           .get();
       if (doc.exists && doc.data() != null) {
         final data = doc.data()!;
-        final candidate = (data['fullName'] ??
-            data['full_name'] ??
-            data['doctorName'] ??
-            data['doctor_name'] ??
-            data['name'] ??
-            data['displayName'] ??
-            data['userName']) as String?;
+        final candidate =
+            (data['fullName'] ??
+                    data['full_name'] ??
+                    data['doctorName'] ??
+                    data['doctor_name'] ??
+                    data['name'] ??
+                    data['displayName'] ??
+                    data['userName'])
+                as String?;
 
         if (candidate != null &&
             candidate.trim().isNotEmpty &&
@@ -1095,12 +1078,14 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
             .get();
         if (emailQ.docs.isNotEmpty) {
           final data = emailQ.docs.first.data();
-          final candidate = (data['fullName'] ??
-              data['full_name'] ??
-              data['doctorName'] ??
-              data['doctor_name'] ??
-              data['name'] ??
-              data['displayName']) as String?;
+          final candidate =
+              (data['fullName'] ??
+                      data['full_name'] ??
+                      data['doctorName'] ??
+                      data['doctor_name'] ??
+                      data['name'] ??
+                      data['displayName'])
+                  as String?;
           if (candidate != null &&
               candidate.trim().isNotEmpty &&
               candidate.trim().toLowerCase() != 'doctor') {
@@ -1124,8 +1109,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
         user.email!.trim().isNotEmpty) {
       final rawName = user.email!.split('@').first;
       final cleanHandle = rawName.replaceAll(RegExp(r'\d+$'), '');
-      final parts =
-          cleanHandle.split(RegExp(r'[._-]')).where((p) => p.isNotEmpty);
+      final parts = cleanHandle
+          .split(RegExp(r'[._-]'))
+          .where((p) => p.isNotEmpty);
       if (parts.isNotEmpty) {
         final formatted = parts
             .map((p) => p[0].toUpperCase() + p.substring(1).toLowerCase())
@@ -1149,10 +1135,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
   }
 
   double get _calculatedTotal {
-    double tTotal =
-        _treatments.fold(0.0, (sum, item) => sum + item.price);
-    double mTotal =
-        _medicines.fold(0.0, (sum, item) => sum + item.price);
+    double tTotal = _treatments.fold(0.0, (sum, item) => sum + item.price);
+    double mTotal = _medicines.fold(0.0, (sum, item) => sum + item.price);
     return tTotal + mTotal;
   }
 
@@ -1230,11 +1214,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
       final List<String> servicesList = [];
       if (_treatments.isNotEmpty) {
         servicesList.add(
-            'Treatments: ${_treatments.map((t) => t.name).join(", ")}');
+          'Treatments: ${_treatments.map((t) => t.name).join(", ")}',
+        );
       }
       if (_medicines.isNotEmpty) {
-        servicesList
-            .add('Medicines: ${_medicines.map((m) => m.name).join(", ")}');
+        servicesList.add(
+          'Medicines: ${_medicines.map((m) => m.name).join(", ")}',
+        );
       }
       final serviceSummary = servicesList.isNotEmpty
           ? servicesList.join(' | ')
@@ -1255,9 +1241,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error generating invoice: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error generating invoice: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -1313,8 +1299,11 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                             strokeWidth: 2,
                           ),
                         )
-                      : const Icon(Icons.document_scanner_outlined,
-                          color: Colors.white, size: 16),
+                      : const Icon(
+                          Icons.document_scanner_outlined,
+                          color: Colors.white,
+                          size: 16,
+                        ),
                   label: Text(
                     _isOcrLoading ? 'Scanning...' : 'Scan Bill (OCR)',
                     style: const TextStyle(
@@ -1325,7 +1314,10 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                   ),
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.white.withOpacity(0.15),
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1380,7 +1372,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
-                                          color: const Color(0xFFCBD5E1)),
+                                        color: const Color(0xFFCBD5E1),
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
@@ -1416,7 +1409,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
-                                          color: const Color(0xFFCBD5E1)),
+                                        color: const Color(0xFFCBD5E1),
+                                      ),
                                     ),
                                     child: Row(
                                       children: [
@@ -1499,11 +1493,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                         size: 20,
                                         color: Color(0xFF64748B),
                                       ),
-                                      suffixIcon: _patientController
-                                              .text.isNotEmpty
+                                      suffixIcon:
+                                          _patientController.text.isNotEmpty
                                           ? IconButton(
-                                              icon: const Icon(Icons.clear,
-                                                  size: 18),
+                                              icon: const Icon(
+                                                Icons.clear,
+                                                size: 18,
+                                              ),
                                               onPressed: () {
                                                 setState(() {
                                                   _patientController.clear();
@@ -1518,19 +1514,20 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       fillColor: Colors.white,
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 10,
-                                      ),
+                                            horizontal: 12,
+                                            vertical: 10,
+                                          ),
                                       border: OutlineInputBorder(
                                         borderRadius: BorderRadius.circular(10),
                                         borderSide: const BorderSide(
-                                            color: Color(0xFFCBD5E1)),
+                                          color: Colors.transparent,
+                                        ),
                                       ),
                                     ),
                                     validator: (val) =>
                                         val == null || val.trim().isEmpty
-                                            ? 'Please enter patient name'
-                                            : null,
+                                        ? 'Please enter patient name'
+                                        : null,
                                   ),
 
                                   // Floating Autocomplete Suggestions Dropdown
@@ -1538,30 +1535,26 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       suggestions.isNotEmpty) ...[
                                     const SizedBox(height: 6),
                                     Container(
-                                      constraints:
-                                          const BoxConstraints(maxHeight: 180),
+                                      constraints: const BoxConstraints(
+                                        maxHeight: 180,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: Colors.white,
-                                        borderRadius:
-                                            BorderRadius.circular(12),
+                                        borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                            color: const Color(0xFFCBD5E1)),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black
-                                                .withValues(alpha: 0.08),
-                                            blurRadius: 10,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
+                                          color: const Color(0xFFCBD5E1),
+                                        ),
+                                        boxShadow: const [],
                                       ),
                                       child: ListView.separated(
                                         shrinkWrap: true,
                                         itemCount: suggestions.length > 5
                                             ? 5
                                             : suggestions.length,
-                                        separatorBuilder: (_, _) => const Divider(
-                                            height: 1, color: Color(0xFFF1F5F9)),
+                                        separatorBuilder: (_, _) =>
+                                            const Divider(
+                                              height: 1,
+                                            ),
                                         itemBuilder: (context, index) {
                                           final p = suggestions[index];
                                           return InkWell(
@@ -1576,7 +1569,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                                 // If patient has notes, auto-fill
                                                 if (p.notes.isNotEmpty) {
                                                   _clinicalNotesController
-                                                      .text = p.notes;
+                                                          .text =
+                                                      p.notes;
                                                   _showClinicalNotes = true;
                                                 }
                                               });
@@ -1584,9 +1578,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                             child: Padding(
                                               padding:
                                                   const EdgeInsets.symmetric(
-                                                horizontal: 12,
-                                                vertical: 8,
-                                              ),
+                                                    horizontal: 12,
+                                                    vertical: 8,
+                                                  ),
                                               child: Row(
                                                 children: [
                                                   CircleAvatar(
@@ -1596,14 +1590,15 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                                     child: Text(
                                                       p.firstName.isNotEmpty
                                                           ? p.firstName[0]
-                                                              .toUpperCase()
+                                                                .toUpperCase()
                                                           : 'P',
                                                       style: const TextStyle(
                                                         fontSize: 11,
                                                         fontWeight:
                                                             FontWeight.w700,
-                                                        color:
-                                                            Color(0xFF2563EB),
+                                                        color: Color(
+                                                          0xFF2563EB,
+                                                        ),
                                                       ),
                                                     ),
                                                   ),
@@ -1618,21 +1613,24 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                                           p.fullName,
                                                           style:
                                                               const TextStyle(
-                                                            fontSize: 13,
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                            color: Color(
-                                                                0xFF0F172A),
-                                                          ),
+                                                                fontSize: 13,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w700,
+                                                                color: Color(
+                                                                  0xFF0F172A,
+                                                                ),
+                                                              ),
                                                         ),
                                                         Text(
                                                           '${p.gender} • ${p.phone.isEmpty ? "No phone" : p.phone}',
                                                           style:
                                                               const TextStyle(
-                                                            fontSize: 11,
-                                                            color: Color(
-                                                                0xFF64748B),
-                                                          ),
+                                                                fontSize: 11,
+                                                                color: Color(
+                                                                  0xFF64748B,
+                                                                ),
+                                                              ),
                                                         ),
                                                       ],
                                                     ),
@@ -1671,8 +1669,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                         children: [
                           InkWell(
                             onTap: () {
-                              setState(() =>
-                                  _showClinicalNotes = !_showClinicalNotes);
+                              setState(
+                                () => _showClinicalNotes = !_showClinicalNotes,
+                              );
                             },
                             borderRadius: BorderRadius.circular(14),
                             child: Padding(
@@ -1712,7 +1711,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                   hintText:
                                       'Enter patient observations, diagnosis, or clinical notes...',
                                   hintStyle: TextStyle(
-                                      fontSize: 12, color: Color(0xFF94A3B8)),
+                                    fontSize: 12,
+                                    color: Color(0xFF94A3B8),
+                                  ),
                                   border: OutlineInputBorder(),
                                 ),
                               ),
@@ -1753,9 +1754,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                     hintText:
                                         'Treatment (e.g. Followup Consulta...)',
                                     hintStyle: TextStyle(
-                                        fontSize: 12, color: Color(0xFF94A3B8)),
+                                      fontSize: 12,
+                                      color: Color(0xFF94A3B8),
+                                    ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 8),
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
                                     border: OutlineInputBorder(),
                                   ),
                                 ),
@@ -1769,9 +1774,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                   decoration: const InputDecoration(
                                     hintText: 'Price (₹)',
                                     hintStyle: TextStyle(
-                                        fontSize: 12, color: Color(0xFF94A3B8)),
+                                      fontSize: 12,
+                                      color: Color(0xFF94A3B8),
+                                    ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 10, vertical: 8),
+                                      horizontal: 10,
+                                      vertical: 8,
+                                    ),
                                     border: OutlineInputBorder(),
                                   ),
                                 ),
@@ -1787,11 +1796,14 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
+                                    horizontal: 14,
+                                    vertical: 12,
+                                  ),
                                 ),
-                                child: const Text('Add',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w700)),
+                                child: const Text(
+                                  'Add',
+                                  style: TextStyle(fontWeight: FontWeight.w700),
+                                ),
                               ),
                             ],
                           ),
@@ -1804,7 +1816,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 6),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFEFF6FF),
                                     borderRadius: BorderRadius.circular(8),
@@ -1830,8 +1844,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       const SizedBox(width: 6),
                                       InkWell(
                                         onTap: () {
-                                          setState(() =>
-                                              _treatments.remove(item));
+                                          setState(
+                                            () => _treatments.remove(item),
+                                          );
                                         },
                                         child: const Icon(
                                           Icons.close,
@@ -1880,9 +1895,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                   decoration: const InputDecoration(
                                     hintText: 'Medicine (e.g. Tab Ran...)',
                                     hintStyle: TextStyle(
-                                        fontSize: 11, color: Color(0xFF94A3B8)),
+                                      fontSize: 11,
+                                      color: Color(0xFF94A3B8),
+                                    ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 8),
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
                                     border: OutlineInputBorder(),
                                   ),
                                 ),
@@ -1895,9 +1914,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                   decoration: const InputDecoration(
                                     hintText: 'Dosage (e.g. 1-0-1)',
                                     hintStyle: TextStyle(
-                                        fontSize: 11, color: Color(0xFF94A3B8)),
+                                      fontSize: 11,
+                                      color: Color(0xFF94A3B8),
+                                    ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 8),
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
                                     border: OutlineInputBorder(),
                                   ),
                                 ),
@@ -1911,9 +1934,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                   decoration: const InputDecoration(
                                     hintText: 'Price (₹)',
                                     hintStyle: TextStyle(
-                                        fontSize: 11, color: Color(0xFF94A3B8)),
+                                      fontSize: 11,
+                                      color: Color(0xFF94A3B8),
+                                    ),
                                     contentPadding: EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 8),
+                                      horizontal: 8,
+                                      vertical: 8,
+                                    ),
                                     border: OutlineInputBorder(),
                                   ),
                                 ),
@@ -1929,12 +1956,17 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 12),
+                                    horizontal: 12,
+                                    vertical: 12,
+                                  ),
                                 ),
-                                child: const Text('Add',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w700)),
+                                child: const Text(
+                                  'Add',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
@@ -1947,7 +1979,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 6),
                                   padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 6),
+                                    horizontal: 10,
+                                    vertical: 6,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF0FDF4),
                                     borderRadius: BorderRadius.circular(8),
@@ -1981,8 +2015,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       const SizedBox(width: 6),
                                       InkWell(
                                         onTap: () {
-                                          setState(() =>
-                                              _medicines.remove(item));
+                                          setState(
+                                            () => _medicines.remove(item),
+                                          );
                                         },
                                         child: const Icon(
                                           Icons.close,
@@ -2005,12 +2040,15 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                     // Total Calculation Banner
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFEFF6FF),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                            color: primaryBlue.withValues(alpha: 0.3)),
+                          color: primaryBlue.withValues(alpha: 0.3),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2049,14 +2087,7 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                               end: Alignment.bottomRight,
                             ),
                             borderRadius: BorderRadius.circular(14),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF2563EB)
-                                    .withValues(alpha: 0.35),
-                                blurRadius: 14,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
+                            boxShadow: const [],
                           ),
                           child: Material(
                             color: Colors.transparent,
@@ -2064,8 +2095,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                               onTap: _isSubmitting ? null : _submit,
                               borderRadius: BorderRadius.circular(14),
                               child: Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 14),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -2079,8 +2111,11 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                         ),
                                       )
                                     else
-                                      const Icon(Icons.receipt_long_rounded,
-                                          size: 20, color: Colors.white),
+                                      const Icon(
+                                        Icons.receipt_long_rounded,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
                                     const SizedBox(width: 8),
                                     Text(
                                       _isSubmitting
@@ -2123,7 +2158,6 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
     );
   }
 }
-
 
 class _InvoiceDetailsSheet extends StatelessWidget {
   final InvoiceModel invoice;
@@ -2203,10 +2237,7 @@ class _InvoiceDetailsSheet extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 13,
-              color: Color(0xFF64748B),
-            ),
+            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
           ),
           Text(
             value,

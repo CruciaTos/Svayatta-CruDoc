@@ -26,16 +26,11 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
     required List<FormFieldSpec> fields,
   }) async {
     final now = DateTime.now();
-    final rec = DentalRecord.create(
-      '',
-      RecKind.formTemplate,
-      {
-        'name': name,
-        'description': description,
-        'fields': fields.map((f) => f.toJson()).toList(),
-      },
-      at: now,
-    );
+    final rec = DentalRecord.create('', RecKind.formTemplate, {
+      'name': name,
+      'description': description,
+      'fields': fields.map((f) => f.toJson()).toList(),
+    }, at: now);
     await saveDentalRecord(ref, rec);
     if (mounted) {
       recToast(context, 'Template "$name" created');
@@ -45,13 +40,20 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
   void _loadStarterBurningMouth() {
     _createStarterTemplate(
       name: 'Burning Mouth Syndrome Intake',
-      description: 'Standard clinical history for oral burning sensation, dysgeusia, and mucosal symptoms.',
+      description:
+          'Standard clinical history for oral burning sensation, dysgeusia, and mucosal symptoms.',
       fields: [
         FormFieldSpec(
           id: const Uuid().v4(),
           label: 'Primary anatomical site of burning sensation',
           type: FormFieldType.multiChoice,
-          options: ['Anterior two-thirds of tongue', 'Hard palate', 'Lower lip', 'Buccal mucosa', 'Gingiva'],
+          options: [
+            'Anterior two-thirds of tongue',
+            'Hard palate',
+            'Lower lip',
+            'Buccal mucosa',
+            'Gingiva',
+          ],
           required: true,
         ),
         FormFieldSpec(
@@ -72,9 +74,15 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
         ),
         FormFieldSpec(
           id: const Uuid().v4(),
-          label: 'Diurnal pattern (increases through day, constant, wakes from sleep)',
+          label:
+              'Diurnal pattern (increases through day, constant, wakes from sleep)',
           type: FormFieldType.choice,
-          options: ['Worsens progressively during day', 'Constant from waking', 'Intermittent', 'Wakes from sleep'],
+          options: [
+            'Worsens progressively during day',
+            'Constant from waking',
+            'Intermittent',
+            'Wakes from sleep',
+          ],
         ),
         FormFieldSpec(
           id: const Uuid().v4(),
@@ -88,7 +96,8 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
   void _loadStarterXerostomia() {
     _createStarterTemplate(
       name: 'Xerostomia (Dry Mouth) Inventory',
-      description: 'Assessment of salivary hypofunction and impact on swallowing and speech.',
+      description:
+          'Assessment of salivary hypofunction and impact on swallowing and speech.',
       fields: [
         FormFieldSpec(
           id: const Uuid().v4(),
@@ -116,7 +125,8 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
         ),
         FormFieldSpec(
           id: const Uuid().v4(),
-          label: 'Current medications (antihistamines, antihypertensives, psychotropics)',
+          label:
+              'Current medications (antihistamines, antihypertensives, psychotropics)',
           type: FormFieldType.longText,
         ),
       ],
@@ -136,7 +146,8 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
           // Header
           DentalPageHeader(
             title: 'Clinical Forms & Questionnaires',
-            subtitle: 'Design custom intake questionnaires, symptom logs, and patient forms',
+            subtitle:
+                'Design custom intake questionnaires, symptom logs, and patient forms',
             actions: [
               CruButton(
                 label: 'New form template',
@@ -176,7 +187,8 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
                             DentalEmptyState(
                               icon: CruIcons.box,
                               title: 'No custom forms designed yet',
-                              body: 'Design specialized symptom questionnaires, medical intake, or oral medicine screening forms for your clinic.',
+                              body:
+                                  'Design specialized symptom questionnaires, medical intake, or oral medicine screening forms for your clinic.',
                               actions: [
                                 CruButton(
                                   label: 'Create first form',
@@ -195,7 +207,9 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
                               padding: const EdgeInsets.all(CruSpace.s16),
                               decoration: BoxDecoration(
                                 color: c.surface,
-                                borderRadius: BorderRadius.circular(CruRadius.control),
+                                borderRadius: BorderRadius.circular(
+                                  CruRadius.control,
+                                ),
                                 border: Border.all(color: c.hairline),
                               ),
                               child: Column(
@@ -203,23 +217,33 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
                                 children: [
                                   Row(
                                     children: [
-                                      CruIcon(CruIcons.sparkle, size: 16, color: c.accent),
+                                      CruIcon(
+                                        CruIcons.sparkle,
+                                        size: 16,
+                                        color: c.accent,
+                                      ),
                                       const SizedBox(width: CruSpace.s8),
-                                      Text('OR START WITH A CLINICAL TEMPLATE',
-                                          style: CruType.micro.w600.tint(c.accent)),
+                                      Text(
+                                        'OR START WITH A CLINICAL TEMPLATE',
+                                        style: CruType.micro.w600.tint(
+                                          c.accent,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                   const SizedBox(height: CruSpace.s12),
                                   _presetRow(
                                     title: 'Burning Mouth Syndrome Intake',
-                                    desc: '6 questions on site, severity, dysgeusia, xerostomia and diurnal pattern.',
+                                    desc:
+                                        '6 questions on site, severity, dysgeusia, xerostomia and diurnal pattern.',
                                     onUse: _loadStarterBurningMouth,
                                     c: c,
                                   ),
                                   const CruSeparator(),
                                   _presetRow(
                                     title: 'Xerostomia (Dry Mouth) Inventory',
-                                    desc: '5 questions assessing salivary hypofunction, swallowing, and nocturnal dryness.',
+                                    desc:
+                                        '5 questions assessing salivary hypofunction, swallowing, and nocturnal dryness.',
                                     onUse: _loadStarterXerostomia,
                                     c: c,
                                   ),
@@ -278,11 +302,15 @@ class _FormsScreenState extends ConsumerState<FormsScreen> {
                                   final ok = await confirmDental(
                                     context,
                                     title: 'Delete template?',
-                                    body: 'Delete "${filtered[i].name}"? Existing patient responses will remain saved in their charts.',
+                                    body:
+                                        'Delete "${filtered[i].name}"? Existing patient responses will remain saved in their charts.',
                                     action: 'Delete',
                                   );
                                   if (ok && filtered[i].record != null) {
-                                    await deleteDentalRecord(ref, filtered[i].record!);
+                                    await deleteDentalRecord(
+                                      ref,
+                                      filtered[i].record!,
+                                    );
                                     if (context.mounted) {
                                       recToast(context, 'Template deleted');
                                     }
@@ -366,7 +394,10 @@ class _TemplateRow extends StatelessWidget {
     final t = template;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s16, vertical: CruSpace.s12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s16,
+        vertical: CruSpace.s12,
+      ),
       child: Row(
         children: [
           const CruIconTile(icon: CruIcons.box, tone: CruTileTone.accent),

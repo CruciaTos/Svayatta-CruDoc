@@ -79,13 +79,16 @@ class InventoryRepository {
           .where('doctorId', isEqualTo: _currentDoctorId)
           .snapshots()
           .map((snapshot) {
-        final list = snapshot.docs
-            .map((doc) => MedicineModel.fromJson({...doc.data(), 'id': doc.id}))
-            .where((m) => m.isActive)
-            .toList();
-        list.sort((a, b) => a.name.compareTo(b.name));
-        return list;
-      });
+            final list = snapshot.docs
+                .map(
+                  (doc) =>
+                      MedicineModel.fromJson({...doc.data(), 'id': doc.id}),
+                )
+                .where((m) => m.isActive)
+                .toList();
+            list.sort((a, b) => a.name.compareTo(b.name));
+            return list;
+          });
     }
     return _localService.watchMedicines();
   }
@@ -123,14 +126,23 @@ class InventoryRepository {
     if (kIsWeb) {
       final firestoreData = Map<String, dynamic>.from(data)
         ..['updatedAt'] = FieldValue.serverTimestamp();
-      if (firestoreData.containsKey('expiryDate') && firestoreData['expiryDate'] is DateTime) {
-        firestoreData['expiryDate'] = Timestamp.fromDate(firestoreData['expiryDate'] as DateTime);
+      if (firestoreData.containsKey('expiryDate') &&
+          firestoreData['expiryDate'] is DateTime) {
+        firestoreData['expiryDate'] = Timestamp.fromDate(
+          firestoreData['expiryDate'] as DateTime,
+        );
       }
-      if (firestoreData.containsKey('lowStockNotifiedAt') && firestoreData['lowStockNotifiedAt'] is DateTime) {
-        firestoreData['lowStockNotifiedAt'] = Timestamp.fromDate(firestoreData['lowStockNotifiedAt'] as DateTime);
+      if (firestoreData.containsKey('lowStockNotifiedAt') &&
+          firestoreData['lowStockNotifiedAt'] is DateTime) {
+        firestoreData['lowStockNotifiedAt'] = Timestamp.fromDate(
+          firestoreData['lowStockNotifiedAt'] as DateTime,
+        );
       }
-      if (firestoreData.containsKey('expiryNotifiedAt') && firestoreData['expiryNotifiedAt'] is DateTime) {
-        firestoreData['expiryNotifiedAt'] = Timestamp.fromDate(firestoreData['expiryNotifiedAt'] as DateTime);
+      if (firestoreData.containsKey('expiryNotifiedAt') &&
+          firestoreData['expiryNotifiedAt'] is DateTime) {
+        firestoreData['expiryNotifiedAt'] = Timestamp.fromDate(
+          firestoreData['expiryNotifiedAt'] as DateTime,
+        );
       }
       await FirebaseFirestore.instance
           .collection('medicines')
@@ -153,9 +165,9 @@ class InventoryRepository {
           .collection('medicines')
           .doc(medicineId)
           .update({
-        'isActive': false,
-        'updatedAt': DateTime.now().toIso8601String(),
-      });
+            'isActive': false,
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
       return;
     }
     await _localService.softDeleteMedicine(medicineId);
@@ -194,15 +206,21 @@ class InventoryRepository {
       late final StockTransactionModel recorded;
 
       await FirebaseFirestore.instance.runTransaction((txn) async {
-        final medRef = FirebaseFirestore.instance.collection('medicines').doc(medicineId);
+        final medRef = FirebaseFirestore.instance
+            .collection('medicines')
+            .doc(medicineId);
         final medDoc = await txn.get(medRef);
         if (!medDoc.exists) {
-          throw MedicineNotFoundException('Medicine $medicineId was not found.');
+          throw MedicineNotFoundException(
+            'Medicine $medicineId was not found.',
+          );
         }
         final medData = medDoc.data() ?? {};
         final isActive = medData['isActive'] as bool? ?? true;
         if (!isActive) {
-          throw MedicineNotFoundException('Medicine $medicineId was not found.');
+          throw MedicineNotFoundException(
+            'Medicine $medicineId was not found.',
+          );
         }
 
         final currentStock = (medData['currentStock'] as num?)?.toInt() ?? 0;
@@ -221,7 +239,9 @@ class InventoryRepository {
 
         final newStock = currentStock + delta;
         if (newStock < 0) {
-          throw InsufficientStockException('Not enough stock: only $currentStock unit(s) available.');
+          throw InsufficientStockException(
+            'Not enough stock: only $currentStock unit(s) available.',
+          );
         }
 
         recorded = StockTransactionModel(
@@ -236,7 +256,9 @@ class InventoryRepository {
           createdAt: now,
         );
 
-        final txRef = FirebaseFirestore.instance.collection('stock_transactions').doc(txId);
+        final txRef = FirebaseFirestore.instance
+            .collection('stock_transactions')
+            .doc(txId);
         txn.set(txRef, recorded.toJson());
         txn.update(medRef, {
           'currentStock': newStock,
@@ -278,7 +300,10 @@ class InventoryRepository {
           .get();
       return snapshot.docs
           .where((doc) => doc.data()['isActive'] as bool? ?? true)
-          .map((doc) => StockTransactionModel.fromJson({...doc.data(), 'id': doc.id}))
+          .map(
+            (doc) =>
+                StockTransactionModel.fromJson({...doc.data(), 'id': doc.id}),
+          )
           .toList();
     }
     return _localService.getTransactionsForMedicine(medicineId);
@@ -295,10 +320,15 @@ class InventoryRepository {
           .limit(50)
           .snapshots()
           .map((snapshot) {
-        return snapshot.docs
-            .map((doc) => StockTransactionModel.fromJson({...doc.data(), 'id': doc.id}))
-            .toList();
-      });
+            return snapshot.docs
+                .map(
+                  (doc) => StockTransactionModel.fromJson({
+                    ...doc.data(),
+                    'id': doc.id,
+                  }),
+                )
+                .toList();
+          });
     }
     return _localService.watchRecentTransactions();
   }
@@ -307,9 +337,7 @@ class InventoryRepository {
   /// doesn't refire on every rebuild. Does not trigger a new sync-worthy
   /// "pending" bump beyond the normal update path.
   Future<void> markLowStockNotified(String medicineId) {
-    return updateMedicine(medicineId, {
-      'lowStockNotifiedAt': DateTime.now(),
-    });
+    return updateMedicine(medicineId, {'lowStockNotifiedAt': DateTime.now()});
   }
 
   /// Stamps `expiryNotifiedAt` on a medicine so the expiry alert doesn't

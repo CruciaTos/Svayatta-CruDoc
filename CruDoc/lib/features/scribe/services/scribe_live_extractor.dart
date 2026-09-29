@@ -149,55 +149,98 @@ class ScribeLiveExtractor {
     'unable to walk properly',
   };
 
-  static final _commonMedications = <String, ({String defaultDose, String defaultFreq})>{
-    'paracetamol': (defaultDose: '650 mg', defaultFreq: '1 tab TDS'),
-    'dolo': (defaultDose: '650 mg', defaultFreq: '1 tab TDS'),
-    'crocin': (defaultDose: '650 mg', defaultFreq: '1 tab SOS'),
-    'calpol': (defaultDose: '500 mg', defaultFreq: '1 tab TDS'),
-    'combiflam': (defaultDose: '1 tab', defaultFreq: 'BD after food'),
-    'ibuprofen': (defaultDose: '400 mg', defaultFreq: '1 tab BD after food'),
-    'diclofenac': (defaultDose: '50 mg', defaultFreq: '1 tab BD after food'),
-    'aceclofenac': (defaultDose: '100 mg', defaultFreq: '1 tab BD after food'),
-    'zerodol': (defaultDose: '100 mg', defaultFreq: '1 tab BD'),
-    'voveran': (defaultDose: '50 mg', defaultFreq: '1 tab BD'),
-    'tramadol': (defaultDose: '50 mg', defaultFreq: '1 tab SOS'),
-    'ultracet': (defaultDose: '1 tab', defaultFreq: 'BD SOS'),
-    'pantoprazole': (defaultDose: '40 mg', defaultFreq: '1 tab OD before breakfast'),
-    'pan': (defaultDose: '40 mg', defaultFreq: '1 tab OD before food'),
-    'pan d': (defaultDose: '1 cap', defaultFreq: 'OD before breakfast'),
-    'omeprazole': (defaultDose: '20 mg', defaultFreq: '1 cap OD'),
-    'omez': (defaultDose: '20 mg', defaultFreq: '1 cap OD before breakfast'),
-    'rabeprazole': (defaultDose: '20 mg', defaultFreq: '1 tab OD'),
-    'cetirizine': (defaultDose: '10 mg', defaultFreq: '1 tab at bedtime'),
-    'levocetirizine': (defaultDose: '5 mg', defaultFreq: '1 tab HS'),
-    'montelukast': (defaultDose: '10 mg', defaultFreq: '1 tab at night'),
-    'allegra': (defaultDose: '120 mg', defaultFreq: '1 tab OD'),
-    'amoxicillin': (defaultDose: '500 mg', defaultFreq: '1 cap TDS for 5 days'),
-    'augmentin': (defaultDose: '625 mg', defaultFreq: '1 tab BD for 5 days'),
-    'azithromycin': (defaultDose: '500 mg', defaultFreq: '1 tab OD for 3 days'),
-    'cefixime': (defaultDose: '200 mg', defaultFreq: '1 tab BD for 5 days'),
-    'ciprofloxacin': (defaultDose: '500 mg', defaultFreq: '1 tab BD for 5 days'),
-    'metformin': (defaultDose: '500 mg', defaultFreq: '1 tab BD with meals'),
-    'glycomet': (defaultDose: '500 mg', defaultFreq: '1 tab BD'),
-    'glimepiride': (defaultDose: '1 mg', defaultFreq: '1 tab OD before breakfast'),
-    'teneligliptin': (defaultDose: '20 mg', defaultFreq: '1 tab OD'),
-    'telmisartan': (defaultDose: '40 mg', defaultFreq: '1 tab OD morning'),
-    'amlodipine': (defaultDose: '5 mg', defaultFreq: '1 tab OD'),
-    'atorvastatin': (defaultDose: '10 mg', defaultFreq: '1 tab at bedtime'),
-    'calcium': (defaultDose: '500 mg', defaultFreq: '1 tab OD after lunch'),
-    'shelcal': (defaultDose: '500 mg', defaultFreq: '1 tab OD after food'),
-    'vitamin d3': (defaultDose: '60,000 IU', defaultFreq: 'Once weekly for 8 weeks'),
-    'calcirol': (defaultDose: '60,000 IU', defaultFreq: 'Once weekly'),
-    'neurobion': (defaultDose: '1 tab', defaultFreq: 'OD for 30 days'),
-    'methylcobalamin': (defaultDose: '1500 mcg', defaultFreq: '1 tab OD'),
-    'pregabalin': (defaultDose: '75 mg', defaultFreq: '1 cap HS'),
-    'gabapentin': (defaultDose: '100 mg', defaultFreq: '1 tab at bedtime'),
-    'thiocolchicoside': (defaultDose: '4 mg', defaultFreq: '1 tab BD'),
-    'baclofen': (defaultDose: '10 mg', defaultFreq: '1 tab BD'),
-    'volini': (defaultDose: 'Gel', defaultFreq: 'Apply locally 2-3 times daily'),
-    'omnigel': (defaultDose: 'Gel', defaultFreq: 'Apply locally twice daily'),
-    'moov': (defaultDose: 'Spray', defaultFreq: 'Apply locally SOS'),
-  };
+  static final _commonMedications =
+      <String, ({String defaultDose, String defaultFreq})>{
+        'paracetamol': (defaultDose: '650 mg', defaultFreq: '1 tab TDS'),
+        'dolo': (defaultDose: '650 mg', defaultFreq: '1 tab TDS'),
+        'crocin': (defaultDose: '650 mg', defaultFreq: '1 tab SOS'),
+        'calpol': (defaultDose: '500 mg', defaultFreq: '1 tab TDS'),
+        'combiflam': (defaultDose: '1 tab', defaultFreq: 'BD after food'),
+        'ibuprofen': (
+          defaultDose: '400 mg',
+          defaultFreq: '1 tab BD after food',
+        ),
+        'diclofenac': (
+          defaultDose: '50 mg',
+          defaultFreq: '1 tab BD after food',
+        ),
+        'aceclofenac': (
+          defaultDose: '100 mg',
+          defaultFreq: '1 tab BD after food',
+        ),
+        'zerodol': (defaultDose: '100 mg', defaultFreq: '1 tab BD'),
+        'voveran': (defaultDose: '50 mg', defaultFreq: '1 tab BD'),
+        'tramadol': (defaultDose: '50 mg', defaultFreq: '1 tab SOS'),
+        'ultracet': (defaultDose: '1 tab', defaultFreq: 'BD SOS'),
+        'pantoprazole': (
+          defaultDose: '40 mg',
+          defaultFreq: '1 tab OD before breakfast',
+        ),
+        'pan': (defaultDose: '40 mg', defaultFreq: '1 tab OD before food'),
+        'pan d': (defaultDose: '1 cap', defaultFreq: 'OD before breakfast'),
+        'omeprazole': (defaultDose: '20 mg', defaultFreq: '1 cap OD'),
+        'omez': (
+          defaultDose: '20 mg',
+          defaultFreq: '1 cap OD before breakfast',
+        ),
+        'rabeprazole': (defaultDose: '20 mg', defaultFreq: '1 tab OD'),
+        'cetirizine': (defaultDose: '10 mg', defaultFreq: '1 tab at bedtime'),
+        'levocetirizine': (defaultDose: '5 mg', defaultFreq: '1 tab HS'),
+        'montelukast': (defaultDose: '10 mg', defaultFreq: '1 tab at night'),
+        'allegra': (defaultDose: '120 mg', defaultFreq: '1 tab OD'),
+        'amoxicillin': (
+          defaultDose: '500 mg',
+          defaultFreq: '1 cap TDS for 5 days',
+        ),
+        'augmentin': (
+          defaultDose: '625 mg',
+          defaultFreq: '1 tab BD for 5 days',
+        ),
+        'azithromycin': (
+          defaultDose: '500 mg',
+          defaultFreq: '1 tab OD for 3 days',
+        ),
+        'cefixime': (defaultDose: '200 mg', defaultFreq: '1 tab BD for 5 days'),
+        'ciprofloxacin': (
+          defaultDose: '500 mg',
+          defaultFreq: '1 tab BD for 5 days',
+        ),
+        'metformin': (
+          defaultDose: '500 mg',
+          defaultFreq: '1 tab BD with meals',
+        ),
+        'glycomet': (defaultDose: '500 mg', defaultFreq: '1 tab BD'),
+        'glimepiride': (
+          defaultDose: '1 mg',
+          defaultFreq: '1 tab OD before breakfast',
+        ),
+        'teneligliptin': (defaultDose: '20 mg', defaultFreq: '1 tab OD'),
+        'telmisartan': (defaultDose: '40 mg', defaultFreq: '1 tab OD morning'),
+        'amlodipine': (defaultDose: '5 mg', defaultFreq: '1 tab OD'),
+        'atorvastatin': (defaultDose: '10 mg', defaultFreq: '1 tab at bedtime'),
+        'calcium': (defaultDose: '500 mg', defaultFreq: '1 tab OD after lunch'),
+        'shelcal': (defaultDose: '500 mg', defaultFreq: '1 tab OD after food'),
+        'vitamin d3': (
+          defaultDose: '60,000 IU',
+          defaultFreq: 'Once weekly for 8 weeks',
+        ),
+        'calcirol': (defaultDose: '60,000 IU', defaultFreq: 'Once weekly'),
+        'neurobion': (defaultDose: '1 tab', defaultFreq: 'OD for 30 days'),
+        'methylcobalamin': (defaultDose: '1500 mcg', defaultFreq: '1 tab OD'),
+        'pregabalin': (defaultDose: '75 mg', defaultFreq: '1 cap HS'),
+        'gabapentin': (defaultDose: '100 mg', defaultFreq: '1 tab at bedtime'),
+        'thiocolchicoside': (defaultDose: '4 mg', defaultFreq: '1 tab BD'),
+        'baclofen': (defaultDose: '10 mg', defaultFreq: '1 tab BD'),
+        'volini': (
+          defaultDose: 'Gel',
+          defaultFreq: 'Apply locally 2-3 times daily',
+        ),
+        'omnigel': (
+          defaultDose: 'Gel',
+          defaultFreq: 'Apply locally twice daily',
+        ),
+        'moov': (defaultDose: 'Spray', defaultFreq: 'Apply locally SOS'),
+      };
 
   /// Detects which fields are being cued or spoken in quick/fast transcript,
   /// so that `AiBlurReveal` can immediately dissolve the outgoing content into smoke.
@@ -205,16 +248,24 @@ class ScribeLiveExtractor {
     final text = rawText.toLowerCase();
     final cued = <String>{};
 
-    if (RegExp(r'\b(complaint|problem|c/o|complaining|came with|suffering from|pain|ache|fever)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(complaint|problem|c/o|complaining|came with|suffering from|pain|ache|fever)\b',
+    ).hasMatch(text)) {
       cued.add('chiefComplaint');
     }
-    if (RegExp(r'\b(symptom|swelling|stiffness|tingling|numbness|clicking|weakness|fever|cough|headache)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(symptom|swelling|stiffness|tingling|numbness|clicking|weakness|fever|cough|headache)\b',
+    ).hasMatch(text)) {
       cued.add('symptoms');
     }
-    if (RegExp(r'\b(diagnos|impression|condition|spondylosis|arthritis|tear|syndrome|radiculopathy)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(diagnos|impression|condition|spondylosis|arthritis|tear|syndrome|radiculopathy)\b',
+    ).hasMatch(text)) {
       cued.add('diagnoses');
     }
-    if (RegExp(r'\b(medicine|tablet|capsule|mg|dose|syrup|gel|spray|paracetamol|painkiller|prescrib|take this)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(medicine|tablet|capsule|mg|dose|syrup|gel|spray|paracetamol|painkiller|prescrib|take this)\b',
+    ).hasMatch(text)) {
       cued.add('medicines');
     }
     if (RegExp(r'\b(bp|blood pressure)\b').hasMatch(text)) {
@@ -229,25 +280,39 @@ class ScribeLiveExtractor {
     if (RegExp(r'\b(pain|nprs|vas|scale of 10|out of 10)\b').hasMatch(text)) {
       cued.addAll(['painNow', 'painWorst', 'painNature', 'painLocation']);
     }
-    if (RegExp(r'\b(advise|advice|avoid|precaution|hot pack|ice pack|exercise|rest|water)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(advise|advice|avoid|precaution|hot pack|ice pack|exercise|rest|water)\b',
+    ).hasMatch(text)) {
       cued.add('advice');
     }
-    if (RegExp(r'\b(aggravat|wors|increas|trigger|bend|walk|stair|sit)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(aggravat|wors|increas|trigger|bend|walk|stair|sit)\b',
+    ).hasMatch(text)) {
       cued.add('aggravating');
     }
-    if (RegExp(r'\b(relie|eas|better\s+with|calm|rest|pack|ice|heat)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(relie|eas|better\s+with|calm|rest|pack|ice|heat)\b',
+    ).hasMatch(text)) {
       cued.add('easing');
     }
-    if (RegExp(r'\b(limit|cannot|can\x27t|unable|trouble|difficult)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(limit|cannot|can\x27t|unable|trouble|difficult)\b',
+    ).hasMatch(text)) {
       cued.add('functionalLimits');
     }
-    if (RegExp(r'\b(onset|start|began|mechanis|lift|fall|twist)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(onset|start|began|mechanis|lift|fall|twist)\b',
+    ).hasMatch(text)) {
       cued.add('onset');
     }
-    if (RegExp(r'\b(past\s+history|medical\s+history|diabet|hypertens|bp|asthma|surger)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(past\s+history|medical\s+history|diabet|hypertens|bp|asthma|surger)\b',
+    ).hasMatch(text)) {
       cued.add('history');
     }
-    if (RegExp(r'\b(goal|aim|want\s+to|return\s+to|get\s+back)\b').hasMatch(text)) {
+    if (RegExp(
+      r'\b(goal|aim|want\s+to|return\s+to|get\s+back)\b',
+    ).hasMatch(text)) {
       cued.add('patientGoals');
     }
 
@@ -269,7 +334,9 @@ class ScribeLiveExtractor {
       final loc = context.location!;
       final dur = context.duration;
       final problem = context.problem ?? 'Severe pain';
-      chiefComplaint = _formatSentence(dur != null ? '$problem on $loc for $dur' : '$problem on $loc');
+      chiefComplaint = _formatSentence(
+        dur != null ? '$problem on $loc for $dur' : '$problem on $loc',
+      );
     }
 
     final symptoms = _extractSymptoms(lower, context);
@@ -322,7 +389,9 @@ class ScribeLiveExtractor {
     for (var i = 0; i < turns.length; i++) {
       final turn = turns[i].trim();
       final lower = turn.toLowerCase();
-      final nextLower = (i + 1 < turns.length) ? turns[i + 1].trim().toLowerCase() : '';
+      final nextLower = (i + 1 < turns.length)
+          ? turns[i + 1].trim().toLowerCase()
+          : '';
       final window = nextLower.isNotEmpty ? '$lower $nextLower' : lower;
 
       // 1. Pain score inquiry (Doctor question -> Patient answer)
@@ -345,7 +414,9 @@ class ScribeLiveExtractor {
       }
 
       // 2. Duration / onset
-      final durRegex = RegExp(r'\b(?:for|since|it\x27s been|it has been|past)?\s*(\d+\s*(?:days?|weeks?|months?|years?))\b');
+      final durRegex = RegExp(
+        r'\b(?:for|since|it\x27s been|it has been|past)?\s*(\d+\s*(?:days?|weeks?|months?|years?))\b',
+      );
       final dm = durRegex.firstMatch(lower);
       if (dm != null) {
         duration ??= dm.group(1);
@@ -353,9 +424,21 @@ class ScribeLiveExtractor {
 
       // 3. Location inquiry or complaint
       for (final loc in [
-        'right side', 'left side', 'lower back', 'right knee', 'left knee',
-        'right shoulder', 'left shoulder', 'neck', 'cervical', 'lumbar',
-        'right ankle', 'left ankle', 'right wrist', 'left wrist', 'hip',
+        'right side',
+        'left side',
+        'lower back',
+        'right knee',
+        'left knee',
+        'right shoulder',
+        'left shoulder',
+        'neck',
+        'cervical',
+        'lumbar',
+        'right ankle',
+        'left ankle',
+        'right wrist',
+        'left wrist',
+        'hip',
       ]) {
         if (lower.contains(loc) || nextLower.contains(loc)) {
           location = _formatTitle(loc);
@@ -364,7 +447,9 @@ class ScribeLiveExtractor {
       }
 
       // 4. Complaint problem type
-      if (lower.contains('severe pain') || lower.contains('very severe') || nextLower.contains('severe pain')) {
+      if (lower.contains('severe pain') ||
+          lower.contains('very severe') ||
+          nextLower.contains('severe pain')) {
         problem = 'Severe pain';
       }
 
@@ -472,7 +557,11 @@ class ScribeLiveExtractor {
     );
     final om = onsetRegex.firstMatch(text);
     if (om != null) {
-      final rawMatch = om.group(1)?.split(RegExp(r'[.!?;]|\band\s+also\b')).first.trim();
+      final rawMatch = om
+          .group(1)
+          ?.split(RegExp(r'[.!?;]|\band\s+also\b'))
+          .first
+          .trim();
       if (rawMatch != null && rawMatch.length >= 4) {
         onset = _formatSentence('Started $rawMatch');
       }
@@ -559,7 +648,11 @@ class ScribeLiveExtractor {
           }
         }
         // Post-concept negation: e.g. "fever is absent", "swelling none"
-        if (RegExp(r'\b' + termRegex + r'\s+(?:is\s+absent|is\s+ruled\s+out|none|absent|negative)\b').hasMatch(clause)) {
+        if (RegExp(
+          r'\b' +
+              termRegex +
+              r'\s+(?:is\s+absent|is\s+ruled\s+out|none|absent|negative)\b',
+        ).hasMatch(clause)) {
           return true;
         }
       }
@@ -569,8 +662,17 @@ class ScribeLiveExtractor {
 
   static int? _wordToDigit(String w) {
     const map = {
-      'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
-      'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+      'zero': 0,
+      'one': 1,
+      'two': 2,
+      'three': 3,
+      'four': 4,
+      'five': 5,
+      'six': 6,
+      'seven': 7,
+      'eight': 8,
+      'nine': 9,
+      'ten': 10,
     };
     return int.tryParse(w) ?? map[w.toLowerCase()];
   }
@@ -616,7 +718,9 @@ class ScribeLiveExtractor {
         prob = prob
             .replaceAll(RegExp(r'\b(?:very severely|severely)\b'), 'severe')
             .replaceAll(RegExp(r'\bmy\s+'), '');
-        return _formatSentence(dur != null && dur.isNotEmpty ? '$prob for $dur' : prob);
+        return _formatSentence(
+          dur != null && dur.isNotEmpty ? '$prob for $dur' : prob,
+        );
       }
     }
 
@@ -717,15 +821,24 @@ class ScribeLiveExtractor {
           }
 
           // Check if frequency or instruction is stated
-          if (lower.contains('twice daily') || lower.contains('twice a day') || lower.contains('bd')) {
+          if (lower.contains('twice daily') ||
+              lower.contains('twice a day') ||
+              lower.contains('bd')) {
             instructions = '1 tab BD after food';
-          } else if (lower.contains('thrice daily') || lower.contains('three times') || lower.contains('tds')) {
+          } else if (lower.contains('thrice daily') ||
+              lower.contains('three times') ||
+              lower.contains('tds')) {
             instructions = '1 tab TDS after food';
-          } else if (lower.contains('once daily') || lower.contains('once a day') || lower.contains('od')) {
+          } else if (lower.contains('once daily') ||
+              lower.contains('once a day') ||
+              lower.contains('od')) {
             instructions = '1 tab OD';
-          } else if (lower.contains('before breakfast') || lower.contains('empty stomach')) {
+          } else if (lower.contains('before breakfast') ||
+              lower.contains('empty stomach')) {
             instructions = 'Before food in morning';
-          } else if (lower.contains('at bedtime') || lower.contains('at night') || lower.contains('hs')) {
+          } else if (lower.contains('at bedtime') ||
+              lower.contains('at night') ||
+              lower.contains('hs')) {
             instructions = '1 tab at bedtime';
           }
         }
@@ -746,10 +859,22 @@ class ScribeLiveExtractor {
   String? _extractAdvice(String text, String lower) {
     final advicePatterns = [
       RegExp(r'\b(avoid\s+[^.,;\n]+)', caseSensitive: false),
-      RegExp(r'\b(apply\s+(?:ice|hot|heat|cold|pack|fermentation)[^.,;\n]*)', caseSensitive: false),
-      RegExp(r'\b(start\s+(?:gentle|physiotherapy|exercises|walking|stretching)[^.,;\n]*)', caseSensitive: false),
-      RegExp(r'\b(maintain\s+(?:good posture|ergonomics|hydration)[^.,;\n]*)', caseSensitive: false),
-      RegExp(r'\b(take\s+(?:adequate rest|plenty of fluids)[^.,;\n]*)', caseSensitive: false),
+      RegExp(
+        r'\b(apply\s+(?:ice|hot|heat|cold|pack|fermentation)[^.,;\n]*)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\b(start\s+(?:gentle|physiotherapy|exercises|walking|stretching)[^.,;\n]*)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\b(maintain\s+(?:good posture|ergonomics|hydration)[^.,;\n]*)',
+        caseSensitive: false,
+      ),
+      RegExp(
+        r'\b(take\s+(?:adequate rest|plenty of fluids)[^.,;\n]*)',
+        caseSensitive: false,
+      ),
     ];
 
     final pieces = <String>[];
@@ -814,8 +939,17 @@ class ScribeLiveExtractor {
 
     int? wordToDigit(String w) {
       const map = {
-        'zero': 0, 'one': 1, 'two': 2, 'three': 3, 'four': 4,
-        'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+        'zero': 0,
+        'one': 1,
+        'two': 2,
+        'three': 3,
+        'four': 4,
+        'five': 5,
+        'six': 6,
+        'seven': 7,
+        'eight': 8,
+        'nine': 9,
+        'ten': 10,
       };
       return int.tryParse(w) ?? map[w.toLowerCase()];
     }
@@ -924,7 +1058,9 @@ class ScribeLiveExtractor {
 
   DateTime? _extractFollowUp(String lower) {
     // "follow up after 5 days", "review in 1 week", "see me next monday"
-    final daysMatch = RegExp(r'\b(?:follow\s*up|review|see me|come back)\s*(?:after|in)?\s*(\d+)\s*days?\b').firstMatch(lower);
+    final daysMatch = RegExp(
+      r'\b(?:follow\s*up|review|see me|come back)\s*(?:after|in)?\s*(\d+)\s*days?\b',
+    ).firstMatch(lower);
     if (daysMatch != null) {
       final d = int.tryParse(daysMatch.group(1) ?? '');
       if (d != null) {
@@ -932,7 +1068,9 @@ class ScribeLiveExtractor {
       }
     }
 
-    final weeksMatch = RegExp(r'\b(?:follow\s*up|review|see me|come back)\s*(?:after|in)?\s*(\d+)\s*weeks?\b').firstMatch(lower);
+    final weeksMatch = RegExp(
+      r'\b(?:follow\s*up|review|see me|come back)\s*(?:after|in)?\s*(\d+)\s*weeks?\b',
+    ).firstMatch(lower);
     if (weeksMatch != null) {
       final w = int.tryParse(weeksMatch.group(1) ?? '');
       if (w != null) {
@@ -944,10 +1082,14 @@ class ScribeLiveExtractor {
   }
 
   static String _formatTitle(String s) {
-    return s.trim().split(RegExp(r'\s+')).map((w) {
-      if (w.isEmpty) return '';
-      return w[0].toUpperCase() + w.substring(1).toLowerCase();
-    }).join(' ');
+    return s
+        .trim()
+        .split(RegExp(r'\s+'))
+        .map((w) {
+          if (w.isEmpty) return '';
+          return w[0].toUpperCase() + w.substring(1).toLowerCase();
+        })
+        .join(' ');
   }
 
   static String _formatSentence(String s) {

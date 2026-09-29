@@ -22,7 +22,10 @@ abstract interface class UpdateInstaller {
   /// reporting progress via [onProgress] as it arrives. Throws
   /// [UpdateDownloadException] if the release/manifest doesn't carry a
   /// usable asset for this platform.
-  Future<void> download(AppRelease release, void Function(UpdateProgress progress) onProgress);
+  Future<void> download(
+    AppRelease release,
+    void Function(UpdateProgress progress) onProgress,
+  );
 
   /// Verifies the just-downloaded file's integrity. Returns `true` when
   /// verification passes *or* when no checksum was published to check
@@ -55,7 +58,9 @@ Future<void> downloadFileWithProgress({
   }
 
   if (response.statusCode != 200) {
-    throw UpdateDownloadException('Download failed with HTTP ${response.statusCode}.');
+    throw UpdateDownloadException(
+      'Download failed with HTTP ${response.statusCode}.',
+    );
   }
 
   final total = response.contentLength ?? totalHint;
@@ -68,12 +73,14 @@ Future<void> downloadFileWithProgress({
     await for (final chunk in response.stream) {
       sink.add(chunk);
       received += chunk.length;
-      onProgress(UpdateProgress(
-        state: UpdateProgressState.downloading,
-        bytesDownloaded: received,
-        totalBytes: total,
-        percent: total > 0 ? _clamp01(received / total) : 0,
-      ));
+      onProgress(
+        UpdateProgress(
+          state: UpdateProgressState.downloading,
+          bytesDownloaded: received,
+          totalBytes: total,
+          percent: total > 0 ? _clamp01(received / total) : 0,
+        ),
+      );
     }
     await sink.flush();
   } catch (e) {

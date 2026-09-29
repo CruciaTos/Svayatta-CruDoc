@@ -74,7 +74,10 @@ class CollectionsByDayCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: CruSpace.s18),
-          SizedBox(height: _chartHeight, child: _Chart(chart: chart)),
+          SizedBox(
+            height: _chartHeight,
+            child: _Chart(chart: chart),
+          ),
           const SizedBox(height: CruSpace.s18),
           Wrap(
             spacing: CruSpace.s18,
@@ -83,7 +86,8 @@ class CollectionsByDayCard extends StatelessWidget {
               _LegendItem(color: c.barMuted, label: 'Collected'),
               _LegendItem(
                 color: c.barActive,
-                label: '${chart.todayLegend} · ${DashFormat.rupees(chart.todayAmount)}',
+                label:
+                    '${chart.todayLegend} · ${DashFormat.rupees(chart.todayAmount)}',
               ),
             ],
           ),
@@ -137,7 +141,9 @@ class _Chart extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (final b in chart.bars)
-                Expanded(child: _Bar(bar: b, scaleMax: chart.scaleMax)),
+                Expanded(
+                  child: _Bar(bar: b, scaleMax: chart.scaleMax),
+                ),
             ],
           ),
         ),
@@ -160,28 +166,28 @@ class _Bar extends StatelessWidget {
     final height = stub
         ? CruSize.barStub
         : (bar.amount / scaleMax * _plotHeight)
-            .clamp(CruSize.barStub, _plotHeight)
-            .toDouble();
+              .clamp(CruSize.barStub, _plotHeight)
+              .toDouble();
 
     final Decoration decoration = switch (bar.kind) {
       BarKind.today => ShapeDecoration(
-          color: today,
-          shape: cruShape(stub ? CruRadius.barStub : CruRadius.bar),
-        ),
+        color: today,
+        shape: cruShape(stub ? CruRadius.barStub : CruRadius.bar),
+      ),
       BarKind.past => ShapeDecoration(
-          color: c.barMuted,
-          shape: cruShape(CruRadius.bar),
-        ),
+        color: c.barMuted,
+        shape: cruShape(CruRadius.bar),
+      ),
       BarKind.emptyPast => ShapeDecoration(
-          color: c.track,
-          shape: cruShape(CruRadius.barStub),
-        ),
+        color: c.track,
+        shape: cruShape(CruRadius.barStub),
+      ),
       BarKind.future => ShapeDecoration(
-          shape: cruShape(
-            CruRadius.barStub,
-            side: BorderSide(color: c.separator),
-          ),
+        shape: cruShape(
+          CruRadius.barStub,
+          side: BorderSide(color: c.separator),
         ),
+      ),
     };
 
     return Semantics(

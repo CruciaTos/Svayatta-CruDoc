@@ -15,10 +15,7 @@ import 'package:doctor_management_app/features/chatbot/services/voice_transcript
 class VoiceInputModal extends StatefulWidget {
   final ValueChanged<String> onSpeechRecognized;
 
-  const VoiceInputModal({
-    super.key,
-    required this.onSpeechRecognized,
-  });
+  const VoiceInputModal({super.key, required this.onSpeechRecognized});
 
   /// Helper to present the voice input modal sheet on mobile.
   static Future<void> show(
@@ -29,9 +26,8 @@ class VoiceInputModal extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => VoiceInputModal(
-        onSpeechRecognized: onSpeechRecognized,
-      ),
+      builder: (context) =>
+          VoiceInputModal(onSpeechRecognized: onSpeechRecognized),
     );
   }
 
@@ -128,7 +124,9 @@ class _VoiceInputModalState extends State<VoiceInputModal>
       });
 
       // Amplitude polling timer for real waveform animation
-      _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 100), (_) async {
+      _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 100), (
+        _,
+      ) async {
         if (!mounted || !_isListening) return;
         final amp = await _transcriptionService.getAmplitude();
         // Convert current dBFS (-160 to 0) to normalized factor (0.1 to 1.0)
@@ -220,13 +218,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 24,
-            offset: Offset(0, -6),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -256,7 +248,9 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                     ),
                     child: Icon(
                       Icons.mic_rounded,
-                      color: _isListening ? const Color(0xFF1E78FF) : AppColors.slateBlue,
+                      color: _isListening
+                          ? const Color(0xFF1E78FF)
+                          : AppColors.slateBlue,
                       size: 20,
                     ),
                   ),
@@ -265,10 +259,10 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                     _isListening
                         ? 'Listening to Doctor...'
                         : (_isTranscribing
-                            ? 'Processing Speech...'
-                            : (_textController.text.isNotEmpty
-                                ? 'Query Ready'
-                                : 'Voice Dictation')),
+                              ? 'Processing Speech...'
+                              : (_textController.text.isNotEmpty
+                                    ? 'Query Ready'
+                                    : 'Voice Dictation')),
                     style: const TextStyle(
                       fontFamily: AppColors.headingFontFamily,
                       fontSize: 17,
@@ -280,7 +274,10 @@ class _VoiceInputModalState extends State<VoiceInputModal>
               ),
               if (_isListening)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(12),
@@ -329,8 +326,9 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                         height: 86 + (_pulseController.value * 28),
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: const Color(0xFF1E78FF)
-                              .withValues(alpha: 0.18 * (1 - _pulseController.value)),
+                          color: const Color(0xFF1E78FF).withValues(
+                            alpha: 0.18 * (1 - _pulseController.value),
+                          ),
                         ),
                       );
                     },
@@ -345,13 +343,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF1E78FF).withValues(alpha: 0.4),
-                          blurRadius: 16,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+                      boxShadow: const [],
                     ),
                     child: const Icon(
                       Icons.stop_rounded,
@@ -401,7 +393,9 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                     height: 44,
                     child: CircularProgressIndicator(
                       strokeWidth: 3,
-                      valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF1E78FF)),
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        Color(0xFF1E78FF),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -437,7 +431,11 @@ class _VoiceInputModalState extends State<VoiceInputModal>
               ),
               child: Column(
                 children: [
-                  Icon(Icons.mic_off_rounded, color: Colors.red.shade700, size: 28),
+                  Icon(
+                    Icons.mic_off_rounded,
+                    color: Colors.red.shade700,
+                    size: 28,
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     _errorMessage!,
@@ -496,7 +494,11 @@ class _VoiceInputModalState extends State<VoiceInputModal>
               children: [
                 TextButton.icon(
                   onPressed: _startListening,
-                  icon: const Icon(Icons.mic_rounded, size: 16, color: Color(0xFF1E78FF)),
+                  icon: const Icon(
+                    Icons.mic_rounded,
+                    size: 16,
+                    color: Color(0xFF1E78FF),
+                  ),
                   label: const Text(
                     'Re-record Voice',
                     style: TextStyle(
@@ -535,8 +537,11 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                   return Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ActionChip(
-                      avatar: const Icon(Icons.chat_bubble_outline_rounded,
-                          size: 13, color: AppColors.chartBarLight),
+                      avatar: const Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 13,
+                        color: AppColors.chartBarLight,
+                      ),
                       label: Text(
                         suggestion,
                         style: const TextStyle(
@@ -594,20 +599,15 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                       colors: [Color(0xFF1E78FF), Color(0xFF00C6FF)],
                     ),
                     borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF1E78FF).withValues(alpha: 0.35),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
+                    boxShadow: const [],
                   ),
                   child: ElevatedButton.icon(
                     onPressed: _isListening
                         ? _stopAndTranscribe
-                        : (_isTranscribing || _textController.text.trim().isEmpty
-                            ? null
-                            : _sendQuery),
+                        : (_isTranscribing ||
+                                  _textController.text.trim().isEmpty
+                              ? null
+                              : _sendQuery),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,

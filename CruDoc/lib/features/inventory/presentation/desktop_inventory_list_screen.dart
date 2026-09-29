@@ -224,13 +224,7 @@ class _InventoryStatusBanner extends StatelessWidget {
         color: backgroundColor,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -990,13 +984,7 @@ class _NewStatCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1927,13 +1915,7 @@ class _MedicationCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Material(
         color: Colors.transparent,
@@ -2296,13 +2278,7 @@ class _MedicationRowCard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.grey.shade300),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Material(
         color: Colors.transparent,
@@ -3884,13 +3860,7 @@ class _UsageAnalyticsTabState extends State<_UsageAnalyticsTab> {
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: const Color(0xFFE2E8F0), width: 0.75),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x060F172A),
-                  blurRadius: 16,
-                  offset: Offset(0, 4),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -4335,9 +4305,7 @@ List<MedicationData> _watchMedications(WidgetRef ref) =>
 void _pushMedicineDetail(BuildContext context, MedicineModel medicine) {
   Navigator.push(
     context,
-    MaterialPageRoute(
-      builder: (_) => MedicineDetailScreen(medicine: medicine),
-    ),
+    MaterialPageRoute(builder: (_) => MedicineDetailScreen(medicine: medicine)),
   );
 }
 
@@ -4349,7 +4317,8 @@ class InventoryOrdersTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return _OrdersTab(
       medications: _watchMedications(ref),
-      transactions: ref.watch(recentStockTransactionsProvider).value ??
+      transactions:
+          ref.watch(recentStockTransactionsProvider).value ??
           const <StockTransactionModel>[],
       repository: ref.watch(inventoryRepositoryProvider),
       onOpenMedicineDetail: (m) => _pushMedicineDetail(context, m),
@@ -4384,7 +4353,8 @@ class InventoryUsageTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final medications = _watchMedications(ref);
     return _UsageAnalyticsTab(
-      transactions: ref.watch(recentStockTransactionsProvider).value ??
+      transactions:
+          ref.watch(recentStockTransactionsProvider).value ??
           const <StockTransactionModel>[],
       medicineById: <String, MedicineModel>{
         for (final med in medications)

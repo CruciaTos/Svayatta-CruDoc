@@ -35,8 +35,7 @@ class QueuePatientArchivedException extends QueueException {
 
 /// [QueueRepository.callNext] was called with nobody left waiting.
 class QueueEmptyException extends QueueException {
-  const QueueEmptyException()
-    : super('There is no one waiting in the queue.');
+  const QueueEmptyException() : super('There is no one waiting in the queue.');
 }
 
 /// An action expected a queue entry to be in a specific state (e.g.

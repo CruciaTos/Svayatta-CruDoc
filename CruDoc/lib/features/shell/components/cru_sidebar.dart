@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -189,194 +192,274 @@ class CruSidebar extends ConsumerWidget {
       sub: ref.watch(activeDentalSubspecialtyProvider),
     );
 
-    return AnimatedContainer(
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(end: collapsed ? 0.0 : 1.0),
       duration: CruMotion.of(context),
       curve: CruMotion.curve,
-      width: collapsed ? CruSize.sidebarCollapsed : CruSize.sidebar,
-      color: Colors.transparent,
-      padding: collapsed
-          ? const EdgeInsets.fromLTRB(8, 12, 4, 12)
-          : const EdgeInsets.fromLTRB(12, 12, 4, 12),
-      child: DecoratedBox(
-        decoration: ShapeDecoration(
-          color: c.surface,
-          shape: cruShape(CruRadius.card),
-          shadows: [
-            BoxShadow(
-              color: c.isEvening
-                  ? const Color(0x66000000)
-                  : const Color(0x180F172A),
-              blurRadius: 16,
-              spreadRadius: 0,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: c.isEvening
-                  ? const Color(0x40000000)
-                  : const Color(0x0C0F172A),
-              blurRadius: 6,
-              offset: const Offset(0, 1),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: collapsed
-              ? const EdgeInsets.fromLTRB(0, 16, 0, 12)
-              : const EdgeInsets.fromLTRB(14, 18, 14, 14),
-          child: Semantics(
-            container: true,
-            label: 'Main navigation',
-            child: Column(
-              crossAxisAlignment: collapsed
-                  ? CrossAxisAlignment.center
-                  : CrossAxisAlignment.stretch,
-              children: [
-                if (collapsed)
-                  _Brand(collapsed: true)
-                else
-                  Row(
-                    children: [
-                      const Expanded(child: _Brand(collapsed: false)),
-                      if (canExpand)
-                        CruPressable(
-                          onTap: callbacks.onToggleCollapsed,
-                          tooltip: 'Collapse sidebar (Ctrl+B)',
-                          builder: (context, hovered) => Container(
-                            width: 28,
-                            height: 28,
-                            alignment: Alignment.center,
-                            decoration: ShapeDecoration(
-                              color: hovered ? c.hoverFill : Colors.transparent,
-                              shape: cruShape(8),
-                            ),
-                            child: CruIcon(CruIcons.chevronLeft,
-                                size: 16, color: c.label2),
+      builder: (context, progress, _) {
+        final width = lerpDouble(CruSize.sidebarCollapsed, CruSize.sidebar, progress)!;
+        final outerPadding = EdgeInsets.lerp(
+          const EdgeInsets.fromLTRB(8, 12, 4, 12),
+          const EdgeInsets.fromLTRB(12, 12, 4, 12),
+          progress,
+        )!;
+        final innerPadding = EdgeInsets.lerp(
+          const EdgeInsets.fromLTRB(6, 16, 6, 12),
+          const EdgeInsets.fromLTRB(14, 18, 14, 14),
+          progress,
+        )!;
+
+        return Container(
+          width: width,
+          color: Colors.transparent,
+          padding: outerPadding,
+          child: DecoratedBox(
+            decoration: c.isEvening
+                ? ShapeDecoration(
+                    color: const Color(0xFF111214),
+                    shape: cruShape(CruRadius.card),
+                    shadows: const [
+                      BoxShadow(
+                        color: Color(0x66000000),
+                        blurRadius: 16,
+                        spreadRadius: 0,
+                        offset: Offset(0, 4),
+                      ),
+                      BoxShadow(
+                        color: Color(0x40000000),
+                        blurRadius: 6,
+                        offset: Offset(0, 1),
+                      ),
+                    ],
+                  )
+                : ShapeDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1E3A8A), Color(0xFF1F4FCB)],
+                    ),
+                    shape: cruShape(CruRadius.card),
+                  ),
+            child: Padding(
+              padding: innerPadding,
+              child: Semantics(
+                container: true,
+                label: 'Main navigation',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _Brand(
+                            collapsed: collapsed,
+                            progress: progress,
                           ),
                         ),
-                    ],
-                  ),
-                const SizedBox(height: CruSpace.s16),
-                _ClinicSwitcher(
-                  identity: identity,
-                  collapsed: collapsed,
-                  onTap: callbacks.onClinicSwitcher,
-                ),
-                const SizedBox(height: CruSpace.s16),
-                Expanded(
-                  child: SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: collapsed
-                          ? CrossAxisAlignment.center
-                          : CrossAxisAlignment.stretch,
-                      children: [
-                        // Each group is a column with 2 px between its label
-                        // and items; 18 px between groups.
-                        for (var g = 0; g < groups.length; g++) ...[
-                          if (g > 0) const SizedBox(height: 16),
-                          if (!collapsed)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
-                              child: Text(
-                                groups[g].label,
-                                style: CruType.groupLabel.tint(c.label3),
+                        if (canExpand && progress > 0.25)
+                          Opacity(
+                            opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                            child: CruPressable(
+                              onTap: callbacks.onToggleCollapsed,
+                              tooltip: 'Collapse sidebar (Ctrl+B)',
+                              builder: (context, hovered) => Container(
+                                width: 28,
+                                height: 28,
+                                alignment: Alignment.center,
+                                decoration: ShapeDecoration(
+                                  color: hovered
+                                      ? (c.isEvening
+                                          ? c.inset
+                                          : Colors.white.withValues(alpha: 0.12))
+                                      : Colors.transparent,
+                                  shape: cruShape(8),
+                                ),
+                                child: CruIcon(
+                                  CruIcons.chevronLeft,
+                                  size: 16,
+                                  color: c.isEvening
+                                      ? c.label2
+                                      : CruBrand.white,
+                                ),
                               ),
                             ),
-                          for (var i = 0; i < groups[g].items.length; i++) ...[
-                            if (i > 0 || !collapsed)
-                              const SizedBox(height: CruSpace.s2),
-                            _SidebarItem(
-                              item: groups[g].items[i],
-                              selected: currentTab == groups[g].items[i].tab,
-                              collapsed: collapsed,
-                              badge:
-                                  groups[g].items[i].tab ==
-                                          DesktopTab.appointments &&
-                                      waiting > 0
-                                  ? waiting
-                                  : null,
-                              onTap: () =>
-                                  callbacks.onNavigate(groups[g].items[i].tab),
-                            ),
-                          ],
-                        ],
+                          ),
                       ],
                     ),
-                  ),
-                ),
-                const SizedBox(height: CruSpace.s10),
-                if (!collapsed && plan?.daysRemaining != null) ...[
-                  _PlanLine(
-                    text: plan!.isExpired
-                        ? 'Plan expired'
-                        : '${plan.doctorStatus.toLowerCase() == 'trial' ? 'Free trial' : '${plan.planName} plan'}'
-                              ' · ${plan.daysRemaining} days left',
-                    onUpgrade: callbacks.onUpgrade,
-                  ),
-                  const SizedBox(height: CruSpace.s8),
-                ],
-                _ProfileButton(
-                  name: identity.fullName,
-                  collapsed: collapsed,
-                  callbacks: callbacks,
-                  canExpand: canExpand,
-                ),
-                if (collapsed && canExpand) ...[
-                  const SizedBox(height: CruSpace.s8),
-                  if (callbacks.onToggleTheme != null) ...[
-                    CruPressable(
-                      onTap: callbacks.onToggleTheme,
-                      tooltip: c.isEvening
-                          ? 'Night Mode (Click to switch to Day Mode)'
-                          : 'Day Mode (Click to switch to Night Mode)',
-                      builder: (context, hovered) => Container(
-                        width: 32,
-                        height: 32,
-                        alignment: Alignment.center,
-                        decoration: ShapeDecoration(
-                          color: hovered ? c.hoverFill : Colors.transparent,
-                          shape: cruShape(8),
-                        ),
-                        child: CruIcon(
-                          c.isEvening ? CruIcons.moon : CruIcons.sun,
-                          size: 16,
-                          color: c.isEvening ? c.accentText : c.amberText,
+                    const SizedBox(height: CruSpace.s16),
+                    _ClinicSwitcher(
+                      identity: identity,
+                      collapsed: collapsed,
+                      onTap: callbacks.onClinicSwitcher,
+                      progress: progress,
+                    ),
+                    const SizedBox(height: CruSpace.s16),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            // Each group is a column with 2 px between its label
+                            // and items; 18 px between groups.
+                            for (var g = 0; g < groups.length; g++) ...[
+                              if (g > 0) const SizedBox(height: 16),
+                              if (progress > 0.1)
+                                Padding(
+                                  padding: EdgeInsets.fromLTRB(
+                                    lerpDouble(4, 10, progress)!,
+                                    0,
+                                    10,
+                                    6,
+                                  ),
+                                  child: Opacity(
+                                    opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                                    child: Transform.translate(
+                                      offset: Offset((1.0 - progress) * -12.0, 0),
+                                      child: Text(
+                                        groups[g].label,
+                                        style: c.isEvening
+                                            ? CruType.groupLabel.tint(c.label3)
+                                            : CruType.groupLabel.tint(
+                                                CruBrand.white.withValues(alpha: 0.72),
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              for (var i = 0; i < groups[g].items.length; i++) ...[
+                                if (i > 0 || !collapsed)
+                                  const SizedBox(height: CruSpace.s2),
+                                _SidebarItem(
+                                  item: groups[g].items[i],
+                                  selected: currentTab == groups[g].items[i].tab,
+                                  collapsed: collapsed,
+                                  progress: progress,
+                                  badge:
+                                      groups[g].items[i].tab ==
+                                              DesktopTab.appointments &&
+                                          waiting > 0
+                                      ? waiting
+                                      : null,
+                                  onTap: () =>
+                                      callbacks.onNavigate(groups[g].items[i].tab),
+                                ),
+                              ],
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                    const SizedBox(height: CruSpace.s4),
+                    const SizedBox(height: CruSpace.s10),
+                    if (plan?.daysRemaining != null && progress > 0.25) ...[
+                      Opacity(
+                        opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                        child: _PlanLine(
+                          text: plan!.isExpired
+                              ? 'Plan expired'
+                              : '${plan.doctorStatus.toLowerCase() == 'trial' ? 'Free trial' : '${plan.planName} plan'}'
+                                    ' · ${plan.daysRemaining} days left',
+                          onUpgrade: callbacks.onUpgrade,
+                        ),
+                      ),
+                      const SizedBox(height: CruSpace.s8),
+                    ],
+                    _ProfileButton(
+                      name: identity.fullName,
+                      collapsed: collapsed,
+                      callbacks: callbacks,
+                      canExpand: canExpand,
+                      progress: progress,
+                    ),
+                    if (canExpand && progress < 0.75) ...[
+                      Opacity(
+                        opacity: ((0.75 - progress) / 0.75).clamp(0.0, 1.0),
+                        child: Column(
+                          children: [
+                            const SizedBox(height: CruSpace.s8),
+                            if (callbacks.onToggleTheme != null) ...[
+                              CruPressable(
+                                onTap: callbacks.onToggleTheme,
+                                tooltip: c.isEvening
+                                    ? 'Night Mode (Click to switch to Day Mode)'
+                                    : 'Day Mode (Click to switch to Night Mode)',
+                                builder: (context, hovered) => Container(
+                                  width: 32,
+                                  height: 32,
+                                  alignment: Alignment.center,
+                                  decoration: ShapeDecoration(
+                                    color: hovered
+                                        ? (c.isEvening
+                                            ? c.inset
+                                            : Colors.white.withValues(alpha: 0.12))
+                                        : Colors.transparent,
+                                    shape: cruShape(8),
+                                  ),
+                                  child: CruIcon(
+                                    c.isEvening ? CruIcons.moon : CruIcons.sun,
+                                    size: 16,
+                                    color: c.isEvening
+                                        ? c.accentText
+                                        : const Color(0xFFF59E0B),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: CruSpace.s4),
+                            ],
+                            CruPressable(
+                              onTap: callbacks.onToggleCollapsed,
+                              tooltip: 'Expand sidebar (Ctrl+B)',
+                              builder: (context, hovered) => Container(
+                                width: 32,
+                                height: 32,
+                                alignment: Alignment.center,
+                                decoration: ShapeDecoration(
+                                  color: hovered
+                                      ? (c.isEvening
+                                          ? c.inset
+                                          : Colors.white.withValues(alpha: 0.12))
+                                      : Colors.transparent,
+                                  shape: cruShape(8),
+                                ),
+                                child: CruIcon(
+                                  CruIcons.chevronRight,
+                                  size: 16,
+                                  color: c.isEvening ? c.label2 : CruBrand.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
-                  CruPressable(
-                    onTap: callbacks.onToggleCollapsed,
-                    tooltip: 'Expand sidebar (Ctrl+B)',
-                    builder: (context, hovered) => Container(
-                      width: 32,
-                      height: 32,
-                      alignment: Alignment.center,
-                      decoration: ShapeDecoration(
-                        color: hovered ? c.hoverFill : Colors.transparent,
-                        shape: cruShape(8),
-                      ),
-                      child: CruIcon(CruIcons.chevronRight,
-                          size: 16, color: c.label2),
-                    ),
-                  ),
-                ],
-              ],
+                ),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
 
 class _Brand extends StatelessWidget {
-  const _Brand({required this.collapsed});
+  const _Brand({
+    required this.collapsed,
+    this.progress = 1.0,
+  });
   final bool collapsed;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final curveProgress = Curves.easeInOutCubic.transform(progress);
+    final impulse = math.sin(progress * math.pi);
+    // In collapsed (48px wide): mark is 32px wide. Centered: (48 - 32) / 2 = 8.0.
+    // In expanded: left margin is 8.0.
+    final markX = lerpDouble(8.0, 8.0, curveProgress)! + impulse * 3.0;
+    final markScale = 1.0 + impulse * 0.10;
+
     final mark = Container(
       width: CruSize.appMark,
       height: CruSize.appMark,
@@ -392,15 +475,45 @@ class _Brand extends StatelessWidget {
         color: c.onAccent,
       ),
     );
-    if (collapsed) return Semantics(label: 'CruDoc', child: mark);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
-      child: Row(
-        children: [
-          mark,
-          const SizedBox(width: CruSpace.s10),
-          Text('CruDoc', style: CruType.wordmark.tint(c.label)),
-        ],
+
+    return Semantics(
+      label: 'CruDoc',
+      child: SizedBox(
+        height: CruSize.appMark,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: markX,
+              top: 0,
+              child: Transform.scale(
+                scale: markScale,
+                child: mark,
+              ),
+            ),
+            if (progress > 0.15)
+              Positioned(
+                left: 8.0 + CruSize.appMark + CruSpace.s10,
+                top: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                  child: Transform.translate(
+                    offset: Offset((1.0 - progress) * 16.0, 0),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'CruDoc',
+                        style: CruType.wordmark.tint(
+                          c.isEvening ? c.label : CruBrand.white,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -412,11 +525,13 @@ class _ClinicSwitcher extends StatelessWidget {
     required this.identity,
     required this.collapsed,
     required this.onTap,
+    this.progress = 1.0,
   });
 
   final DoctorIdentity identity;
   final bool collapsed;
   final VoidCallback onTap;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -424,6 +539,14 @@ class _ClinicSwitcher extends StatelessWidget {
     final title = identity.clinicName ?? identity.specialty ?? '';
     final subtitle = identity.clinicName == null ? null : identity.specialty;
     final letter = title.isEmpty ? '·' : title[0].toUpperCase();
+
+    final curveProgress = Curves.easeInOutCubic.transform(progress);
+    final impulse = math.sin(progress * math.pi);
+    // Collapsed: centered in 48 -> (48 - 32) / 2 = 8.0.
+    // Expanded: left docked at 10.0.
+    final tileX = lerpDouble(8.0, 10.0, curveProgress)! + impulse * 3.0;
+    final tileScale = 1.0 + impulse * 0.10;
+    final switcherHeight = lerpDouble(40.0, 52.0, curveProgress)!;
 
     final tile = Container(
       width: CruSize.clinicTile,
@@ -442,9 +565,7 @@ class _ClinicSwitcher extends StatelessWidget {
       tooltip: collapsed ? title : null,
       builder: (context, hovered) => AnimatedContainer(
         duration: CruMotion.of(context, CruMotion.fast),
-        padding: collapsed
-            ? const EdgeInsets.all(4)
-            : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        height: switcherHeight,
         decoration: ShapeDecoration(
           color: hovered ? cruHoverShade(c.surface, c) : c.surface,
           shape: cruShape(
@@ -453,14 +574,30 @@ class _ClinicSwitcher extends StatelessWidget {
           ),
           shadows: c.cardShadow,
         ),
-        child: collapsed
-            ? tile
-            : Row(
-                children: [
-                  tile,
-                  const SizedBox(width: CruSpace.s10),
-                  Expanded(
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: tileX,
+              top: (switcherHeight - CruSize.clinicTile) / 2,
+              child: Transform.scale(
+                scale: tileScale,
+                child: tile,
+              ),
+            ),
+            if (progress > 0.2)
+              Positioned(
+                left: 10.0 + CruSize.clinicTile + CruSpace.s10,
+                right: 32.0,
+                top: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: ((progress - 0.3) / 0.7).clamp(0.0, 1.0),
+                  child: Transform.translate(
+                    offset: Offset((1.0 - progress) * 16.0, 0),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -481,14 +618,24 @@ class _ClinicSwitcher extends StatelessWidget {
                       ],
                     ),
                   ),
-                  CruIcon(
+                ),
+              ),
+            if (progress > 0.35)
+              Positioned(
+                right: 10.0,
+                top: (switcherHeight - 16.0) / 2,
+                child: Opacity(
+                  opacity: ((progress - 0.35) / 0.65).clamp(0.0, 1.0),
+                  child: CruIcon(
                     CruIcons.chevronsUpDown,
                     size: 16,
                     strokeWidth: 1.8,
                     color: c.label3,
                   ),
-                ],
+                ),
               ),
+          ],
+        ),
       ),
     );
   }
@@ -501,6 +648,7 @@ class _SidebarItem extends StatelessWidget {
     required this.collapsed,
     required this.onTap,
     this.badge,
+    this.progress = 1.0,
   });
 
   final _NavItem item;
@@ -508,6 +656,7 @@ class _SidebarItem extends StatelessWidget {
   final bool collapsed;
   final int? badge;
   final VoidCallback onTap;
+  final double progress;
 
   @override
   Widget build(BuildContext context) {
@@ -521,81 +670,136 @@ class _SidebarItem extends StatelessWidget {
         tooltip: collapsed ? label : null,
         scaleOnPress: false,
         builder: (context, hovered) {
-          final fill = selected
-              ? c.accent
-              : hovered
-              ? (c.isEvening ? c.inset : c.hoverFill)
-              : Colors.transparent;
+          final Color fill;
+          final Color iconColor;
+          final Color labelColor;
+          final Color badgeColor;
+          final List<BoxShadow>? shadows;
+
+          if (c.isEvening) {
+            // Dark mode: Black sidebar like the image, active state with blue and white text/icon
+            fill = selected
+                ? c.accent
+                : (hovered ? c.inset : Colors.transparent);
+            iconColor = selected ? CruBrand.white : c.label2;
+            labelColor = selected ? CruBrand.white : c.label;
+            badgeColor = selected
+                ? CruBrand.white.withValues(alpha: 0.9)
+                : c.label2;
+            shadows = selected ? c.inkShadow : null;
+          } else {
+            // Light mode: Maintained untouched with blue sidebar, white active item & blue text/icon
+            fill = selected
+                ? CruBrand.white
+                : (hovered
+                    ? Colors.white.withValues(alpha: 0.12)
+                    : Colors.transparent);
+            iconColor = selected ? c.accent : CruBrand.white;
+            labelColor = selected ? c.accent : CruBrand.white;
+            badgeColor = selected
+                ? c.accent.withValues(alpha: 0.9)
+                : CruBrand.white.withValues(alpha: 0.9);
+            shadows = null;
+          }
+
+          final curveProgress = Curves.easeInOutCubic.transform(progress);
+          final impulse = math.sin(progress * math.pi);
+          // Collapsed: centered in 48 -> (48 - 20) / 2 = 14.0.
+          // Expanded: left docked at 10.0.
+          // Dynamic impulse glides the icon physically across space with dynamic lift and settling
+          final iconX = lerpDouble(14.0, 10.0, curveProgress)! + impulse * 4.0;
+          final iconScale = 1.0 + impulse * 0.15;
+          final iconShiftY = -impulse * 1.5;
+
           final icon = CruIcon(
             item.icon,
             size: CruSize.navIcon,
-            color: selected ? CruBrand.white : c.label2,
+            color: iconColor,
           );
+
           return AnimatedContainer(
             duration: CruMotion.of(context, CruMotion.fast),
             curve: CruMotion.curve,
             height: CruSize.navItem,
-            width: collapsed ? 48 : null,
-            padding: EdgeInsets.symmetric(horizontal: collapsed ? 0 : 10),
             decoration: ShapeDecoration(
               color: fill,
               shape: cruShape(
                 CruRadius.control,
                 side: BorderSide.none,
               ),
-              shadows: selected ? c.inkShadow : null,
+              shadows: shadows,
             ),
-            child: collapsed
-                ? Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      icon,
-                      if (badge != null)
-                        const Positioned(
-                          top: 8,
-                          right: 10,
-                          child: CruStatusDot(
-                            CruDotKind.waiting,
-                            size: CruSize.smallDot,
-                          ),
-                        ),
-                    ],
-                  )
-                : Row(
-                    children: [
-                      icon,
-                      const SizedBox(width: CruSpace.s12),
-                      Expanded(
-                        child: Text(
-                          item.label,
-                          style: CruType.nav
-                              .copyWith(
-                                fontWeight: selected
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                              )
-                              .tint(selected ? CruBrand.white : c.label),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Icon that physically glides dynamically
+                Positioned(
+                  left: iconX,
+                  top: (CruSize.navItem - CruSize.navIcon) / 2 + iconShiftY,
+                  child: Transform.scale(
+                    scale: iconScale,
+                    child: icon,
+                  ),
+                ),
+                // Collapsed status dot
+                if (badge != null && progress < 0.6)
+                  Positioned(
+                    left: iconX + 13.0,
+                    top: 7.0 + iconShiftY,
+                    child: Opacity(
+                      opacity: ((0.6 - progress) / 0.6).clamp(0.0, 1.0),
+                      child: const CruStatusDot(
+                        CruDotKind.waiting,
+                        size: CruSize.smallDot,
+                      ),
+                    ),
+                  ),
+                // Expanded label and count badge
+                if (progress > 0.15)
+                  Positioned(
+                    left: 10.0 + CruSize.navIcon + CruSpace.s12,
+                    right: 10.0,
+                    top: 0,
+                    bottom: 0,
+                    child: Opacity(
+                      opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                      child: Transform.translate(
+                        offset: Offset((1.0 - progress) * 20.0, 0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.label,
+                                style: CruType.nav
+                                    .copyWith(
+                                      fontWeight: selected
+                                          ? FontWeight.w600
+                                          : FontWeight.w500,
+                                    )
+                                    .tint(labelColor),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (badge != null) ...[
+                              const CruStatusDot(
+                                CruDotKind.waiting,
+                                size: CruSize.smallDot,
+                              ),
+                              const SizedBox(width: CruSpace.s6),
+                              Text(
+                                '$badge',
+                                style: CruType.subhead.w500.tabular.tint(badgeColor),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (badge != null) ...[
-                        const CruStatusDot(
-                          CruDotKind.waiting,
-                          size: CruSize.smallDot,
-                        ),
-                        const SizedBox(width: CruSpace.s6),
-                        Text(
-                          '$badge',
-                          style: CruType.subhead.w500.tabular.tint(
-                            selected
-                                ? CruBrand.white.withValues(alpha: 0.9)
-                                : c.label2,
-                          ),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
+              ],
+            ),
           );
         },
       ),
@@ -618,14 +822,20 @@ class _PlanLine extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: CruType.caption.tabular.tint(c.label2),
+              style: CruType.caption.tabular.tint(
+                c.isEvening
+                    ? c.label2
+                    : CruBrand.white.withValues(alpha: 0.8),
+              ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
           ),
           CruLink(
             label: 'Upgrade',
-            style: CruType.caption.w600,
+            style: c.isEvening
+                ? CruType.caption.w600
+                : CruType.caption.w600.copyWith(color: CruBrand.white),
             onPressed: onUpgrade,
           ),
         ],
@@ -633,19 +843,20 @@ class _PlanLine extends StatelessWidget {
     );
   }
 }
-
 class _ProfileButton extends StatelessWidget {
   const _ProfileButton({
     required this.name,
     required this.collapsed,
     required this.callbacks,
     required this.canExpand,
+    this.progress = 1.0,
   });
 
   final String? name;
   final bool collapsed;
   final SidebarCallbacks callbacks;
   final bool canExpand;
+  final double progress;
 
   Future<void> _openMenu(BuildContext context) async {
     final box = context.findRenderObject()! as RenderBox;
@@ -718,7 +929,20 @@ class _ProfileButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = context.cru;
     final display = name ?? 'Account';
-    final avatar = CruMonogram(name: name ?? '', size: 34, background: c.track);
+    final curveProgress = Curves.easeInOutCubic.transform(progress);
+    final impulse = math.sin(progress * math.pi);
+    // Collapsed: centered in 48 -> (48 - 34) / 2 = 7.0.
+    // Expanded: left docked at 10.0.
+    final avatarX = lerpDouble(7.0, 10.0, curveProgress)! + impulse * 3.0;
+    final avatarScale = 1.0 + impulse * 0.10;
+    final cardHeight = lerpDouble(42.0, 52.0, curveProgress)!;
+
+    final avatar = CruMonogram(
+      name: name ?? '',
+      size: 34,
+      background: Colors.white,
+      foreground: c.accent,
+    );
     return CruPressable(
       onTap: () => _openMenu(context),
       semanticLabel: '$display. Account and settings',
@@ -726,63 +950,105 @@ class _ProfileButton extends StatelessWidget {
       scaleOnPress: false,
       builder: (context, hovered) => AnimatedContainer(
         duration: CruMotion.of(context, CruMotion.fast),
-        padding: collapsed
-            ? const EdgeInsets.all(4)
-            : const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        height: cardHeight,
         decoration: ShapeDecoration(
-          color: hovered
-              ? (c.isEvening ? c.inset : c.hoverFill)
-              : Colors.transparent,
-          shape: cruShape(CruRadius.switcher),
+          color: c.isEvening
+              ? (hovered
+                  ? c.accent.withValues(alpha: 0.9)
+                  : c.accent)
+              : Colors.white,
+          shape: cruShape(
+            CruRadius.switcher,
+            side: BorderSide(
+              color: c.isEvening
+                  ? Colors.white.withValues(alpha: 0.15)
+                  : Colors.white.withValues(alpha: 0.2),
+            ),
+          ),
         ),
-        child: collapsed
-            ? avatar
-            : Row(
-                children: [
-                  avatar,
-                  const SizedBox(width: CruSpace.s10),
-                  Expanded(
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: avatarX,
+              top: (cardHeight - 34.0) / 2,
+              child: Transform.scale(
+                scale: avatarScale,
+                child: avatar,
+              ),
+            ),
+            if (progress > 0.2)
+              Positioned(
+                left: 10.0 + 34.0 + CruSpace.s10,
+                right: callbacks.onToggleTheme != null ? 40.0 : 10.0,
+                top: 0,
+                bottom: 0,
+                child: Opacity(
+                  opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                  child: Transform.translate(
+                    offset: Offset((1.0 - progress) * 16.0, 0),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           display,
-                          style: CruType.profileName.tint(c.label),
+                          style: CruType.profileName.tint(
+                            c.isEvening
+                                ? CruBrand.white
+                                : const Color(0xFF0F172A),
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           'Account & settings',
-                          style: CruType.caption.tint(c.label2),
+                          style: CruType.caption.tint(
+                            c.isEvening
+                                ? CruBrand.white.withValues(alpha: 0.85)
+                                : const Color(0xFF475569),
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  if (callbacks.onToggleTheme != null)
-                    CruPressable(
-                      onTap: callbacks.onToggleTheme,
-                      tooltip: c.isEvening
-                          ? 'Night Mode active (Click to switch to Day Mode)'
-                          : 'Day Mode active (Click to switch to Night Mode)',
-                      builder: (context, hovered) => Container(
-                        width: 28,
-                        height: 28,
-                        alignment: Alignment.center,
-                        decoration: ShapeDecoration(
-                          color: hovered
-                              ? (c.isEvening ? c.inset : c.hoverFill)
-                              : Colors.transparent,
-                          shape: cruShape(8),
-                        ),
-                        child: CruIcon(
-                          c.isEvening ? CruIcons.moon : CruIcons.sun,
-                          size: 16,
-                          color: c.isEvening ? c.accentText : c.amberText,
-                        ),
+                ),
+              ),
+            if (callbacks.onToggleTheme != null && progress > 0.35)
+              Positioned(
+                right: 8.0,
+                top: (cardHeight - 28.0) / 2,
+                child: Opacity(
+                  opacity: ((progress - 0.35) / 0.65).clamp(0.0, 1.0),
+                  child: CruPressable(
+                    onTap: callbacks.onToggleTheme,
+                    tooltip: c.isEvening
+                        ? 'Night Mode active (Click to switch to Day Mode)'
+                        : 'Day Mode active (Click to switch to Night Mode)',
+                    builder: (context, hovered) => Container(
+                      width: 28,
+                      height: 28,
+                      alignment: Alignment.center,
+                      decoration: ShapeDecoration(
+                        color: c.isEvening
+                            ? Colors.white.withValues(alpha: 0.18)
+                            : const Color(0xFFEEF2FF),
+                        shape: cruShape(8),
+                      ),
+                      child: CruIcon(
+                        c.isEvening ? CruIcons.moon : CruIcons.sun,
+                        size: 16,
+                        color: c.isEvening
+                            ? CruBrand.white
+                            : const Color(0xFFF59E0B),
                       ),
                     ),
-                ],
+                  ),
+                ),
               ),
+          ],
+        ),
       ),
     );
   }

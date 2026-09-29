@@ -9,7 +9,16 @@ import 'package:path/path.dart' as p;
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/dicom/dicom_file.dart';
 
-const _rasterExt = {'.jpg', '.jpeg', '.png', '.tif', '.tiff', '.bmp', '.gif', '.webp'};
+const _rasterExt = {
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.tif',
+  '.tiff',
+  '.bmp',
+  '.gif',
+  '.webp',
+};
 
 /// One file found for import.
 class RadImportFile {
@@ -50,24 +59,24 @@ class RadImportFile {
   final String dicomModality;
 
   RadImageRef toRef(String id, String storedPath) => RadImageRef(
-        id: id,
-        path: storedPath,
-        kind: kind,
-        seriesUid: seriesUid,
-        seriesDescription: seriesDescription,
-        instanceNumber: instanceNumber,
-        width: width,
-        height: height,
-        frames: frames,
-        compressed: compressed,
-        transferSyntax: transferSyntax,
-        pixelSpacingMm: pixelSpacingMm,
-        position: position,
-        orientation: orientation,
-        sliceThickness: sliceThickness,
-        sliceLocation: sliceLocation,
-        dicomModality: dicomModality,
-      );
+    id: id,
+    path: storedPath,
+    kind: kind,
+    seriesUid: seriesUid,
+    seriesDescription: seriesDescription,
+    instanceNumber: instanceNumber,
+    width: width,
+    height: height,
+    frames: frames,
+    compressed: compressed,
+    transferSyntax: transferSyntax,
+    pixelSpacingMm: pixelSpacingMm,
+    position: position,
+    orientation: orientation,
+    sliceThickness: sliceThickness,
+    sliceLocation: sliceLocation,
+    dicomModality: dicomModality,
+  );
 }
 
 /// The files of one study found in an import, with what the scans say
@@ -127,14 +136,17 @@ class RadImportScan {
 
 /// Finds images in files, folders (patient CDs with a DICOMDIR) and ZIP
 /// files, and groups them by study. Runs off the UI thread.
-Future<RadImportScan> scanForImport(List<String> paths, {required String tempDir}) =>
-    Isolate.run(() => _scan(paths, tempDir));
+Future<RadImportScan> scanForImport(
+  List<String> paths, {
+  required String tempDir,
+}) => Isolate.run(() => _scan(paths, tempDir));
 
 RadImportScan _scan(List<String> paths, String tempDir) {
   final files = <File>[];
   var zipN = 0;
   void unzip(File zip) {
-    final out = Directory(p.join(tempDir, 'zip_${zipN++}'))..createSync(recursive: true);
+    final out = Directory(p.join(tempDir, 'zip_${zipN++}'))
+      ..createSync(recursive: true);
     try {
       final archive = ZipDecoder().decodeBytes(zip.readAsBytesSync());
       for (final f in archive.files) {
@@ -159,7 +171,9 @@ RadImportScan _scan(List<String> paths, String tempDir) {
   void add(String path) {
     final type = FileSystemEntity.typeSync(path);
     if (type == FileSystemEntityType.directory) {
-      for (final e in Directory(path).listSync(recursive: true, followLinks: false)) {
+      for (final e in Directory(
+        path,
+      ).listSync(recursive: true, followLinks: false)) {
         if (e is File) addFile(e);
       }
     } else if (type == FileSystemEntityType.file) {
@@ -193,14 +207,16 @@ RadImportScan _scan(List<String> paths, String tempDir) {
         skipped++;
         continue;
       }
-      raster.add(RadImportFile(
-        sourcePath: f.path,
-        kind: RadFileKind.raster,
-        width: info.width,
-        height: info.height,
-        seriesUid: 'pictures',
-        seriesDescription: 'Pictures',
-      ));
+      raster.add(
+        RadImportFile(
+          sourcePath: f.path,
+          kind: RadFileKind.raster,
+          width: info.width,
+          height: info.height,
+          seriesUid: 'pictures',
+          seriesDescription: 'Pictures',
+        ),
+      );
       continue;
     }
     if (!DicomFile.looksLikeDicom(bytes)) {
@@ -218,7 +234,8 @@ RadImportScan _scan(List<String> paths, String tempDir) {
       skipped++;
       continue;
     }
-    final studyUid = d.string(DicomTag.studyInstanceUid) ??
+    final studyUid =
+        d.string(DicomTag.studyInstanceUid) ??
         '${d.string(DicomTag.patientId) ?? ''}_${d.string(DicomTag.studyDate) ?? ''}';
     final pos = d.numbers(DicomTag.imagePosition);
     final ori = d.numbers(DicomTag.imageOrientation);
@@ -248,20 +265,26 @@ RadImportScan _scan(List<String> paths, String tempDir) {
   final groups = <RadImportGroup>[];
   for (final e in byStudy.entries) {
     final list = e.value;
-    final header = list.firstWhere((x) => x.$2 != null, orElse: () => list.first).$2;
+    final header = list
+        .firstWhere((x) => x.$2 != null, orElse: () => list.first)
+        .$2;
     final files = list.map((x) => x.$1).toList()
-      ..sort((a, b) => a.seriesUid != b.seriesUid
-          ? a.seriesUid.compareTo(b.seriesUid)
-          : a.instanceNumber.compareTo(b.instanceNumber));
+      ..sort(
+        (a, b) => a.seriesUid != b.seriesUid
+            ? a.seriesUid.compareTo(b.seriesUid)
+            : a.instanceNumber.compareTo(b.instanceNumber),
+      );
     groups.add(_groupFrom(e.key, files, header));
   }
   if (raster.isNotEmpty) {
     raster.sort((a, b) => a.sourcePath.compareTo(b.sourcePath));
-    groups.add(RadImportGroup(
-      key: 'pictures',
-      files: raster,
-      modality: guessRasterModality(raster.first),
-    ));
+    groups.add(
+      RadImportGroup(
+        key: 'pictures',
+        files: raster,
+        modality: guessRasterModality(raster.first),
+      ),
+    );
   }
   return RadImportScan(groups: groups, skipped: skipped);
 }
@@ -284,11 +307,15 @@ RadImportGroup _groupFrom(String key, List<RadImportFile> files, DicomFile? d) {
       _ => '',
     },
     patientDob: d.date(DicomTag.birthDate),
-    studyDate: d.date(DicomTag.studyDate, DicomTag.studyTime) ??
+    studyDate:
+        d.date(DicomTag.studyDate, DicomTag.studyTime) ??
         d.date(DicomTag.seriesDate) ??
         d.date(DicomTag.acquisitionDate),
     modality: guessDicomModality(d, files),
-    description: d.string(DicomTag.studyDescription) ?? d.string(DicomTag.seriesDescription) ?? '',
+    description:
+        d.string(DicomTag.studyDescription) ??
+        d.string(DicomTag.seriesDescription) ??
+        '',
     institution: d.string(DicomTag.institution) ?? '',
     equipment: [manufacturer, model].where((s) => s.isNotEmpty).join(' '),
     bodyPart: d.string(DicomTag.bodyPart) ?? '',
@@ -299,7 +326,8 @@ RadImportGroup _groupFrom(String key, List<RadImportFile> files, DicomFile? d) {
       kvp: d.number(DicomTag.kvp),
       ma: ma,
       exposureMs: exposureMs,
-      mas: d.number(DicomTag.exposure) ??
+      mas:
+          d.number(DicomTag.exposure) ??
           (ma != null && exposureMs != null ? ma * exposureMs / 1000 : null),
       dap: d.number(DicomTag.dap),
     ),
@@ -318,7 +346,10 @@ RadModality guessDicomModality(DicomFile d, List<RadImportFile> files) {
   if (mod == 'CT' || slices > 20) return RadModality.cbct;
   if (text.contains('ceph')) return RadModality.ceph;
   if (text.contains('tmj')) return RadModality.tmj;
-  if (mod == 'PX' || text.contains('pan') || text.contains('opg') || text.contains('ortho')) {
+  if (mod == 'PX' ||
+      text.contains('pan') ||
+      text.contains('opg') ||
+      text.contains('ortho')) {
     return RadModality.opg;
   }
   if (text.contains('bite') || text.contains('bw')) return RadModality.bitewing;
@@ -339,7 +370,9 @@ RadModality guessRasterModality(RadImportFile f) {
   if (name.contains('opg') || name.contains('pano')) return RadModality.opg;
   if (name.contains('bite') || name.contains('bw')) return RadModality.bitewing;
   if (name.contains('occl')) return RadModality.occlusal;
-  if (name.contains('iopa') || name.contains('pa_') || name.contains('periap')) {
+  if (name.contains('iopa') ||
+      name.contains('pa_') ||
+      name.contains('periap')) {
     return RadModality.iopa;
   }
   if (f.height > 0 && f.width / f.height > 1.7) return RadModality.opg;
@@ -356,7 +389,9 @@ Future<List<RadImageRef>> copyIntoStudy(RadImportGroup group, String studyDir) {
     final refs = <RadImageRef>[];
     for (var i = 0; i < files.length; i++) {
       final f = files[i];
-      final ext = f.kind == RadFileKind.dicom ? '.dcm' : p.extension(f.sourcePath).toLowerCase();
+      final ext = f.kind == RadFileKind.dicom
+          ? '.dcm'
+          : p.extension(f.sourcePath).toLowerCase();
       final stored = 'img_${i.toString().padLeft(4, '0')}$ext';
       File(f.sourcePath).copySync(p.join(studyDir, stored));
       refs.add(f.toRef('img_$i', stored));

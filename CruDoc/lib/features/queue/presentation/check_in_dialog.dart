@@ -28,7 +28,8 @@ class CheckInDialog extends ConsumerStatefulWidget {
 class _CheckInDialogState extends ConsumerState<CheckInDialog> {
   bool _isRegistered = true;
   Patient? _selectedPatient;
-  final TextEditingController _patientSearchController = TextEditingController();
+  final TextEditingController _patientSearchController =
+      TextEditingController();
   final TextEditingController _walkInNameController = TextEditingController();
   final TextEditingController _walkInPhoneController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
@@ -57,7 +58,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
 
       if (_isRegistered) {
         if (_selectedPatient == null) {
-          throw const QueueValidationException('Please select a registered patient from the list.');
+          throw const QueueValidationException(
+            'Please select a registered patient from the list.',
+          );
         }
         created = await repo.checkIn(
           patientId: _selectedPatient!.id,
@@ -67,7 +70,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
       } else {
         final walkInName = _walkInNameController.text.trim();
         if (walkInName.isEmpty) {
-          throw const QueueValidationException('Please enter the walk-in patient\'s name.');
+          throw const QueueValidationException(
+            'Please enter the walk-in patient\'s name.',
+          );
         }
         created = await repo.checkIn(
           walkInName: walkInName,
@@ -100,9 +105,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
   // screen in night mode.
   @override
   Widget build(BuildContext context) => Theme(
-        data: CruTheme.day(),
-        child: Builder(builder: _buildOnDay),
-      );
+    data: CruTheme.day(),
+    child: Builder(builder: _buildOnDay),
+  );
 
   Widget _buildOnDay(BuildContext context) {
     final patientsAsync = ref.watch(patientsStreamProvider);
@@ -130,7 +135,9 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         Container(
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.12),
+                            color: const Color(
+                              0xFF2563EB,
+                            ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Icon(
@@ -166,7 +173,11 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                       ],
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF9CA3AF)),
+                      icon: const Icon(
+                        Icons.close_rounded,
+                        size: 20,
+                        color: Color(0xFF9CA3AF),
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       splashRadius: 20,
                     ),
@@ -238,32 +249,50 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         _selectedPatient = patient;
                       });
                     },
-                    fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          hintText: 'Search by name or phone...',
-                          hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                          prefixIcon: const Icon(Icons.search_rounded, size: 20, color: Color(0xFF6B7280)),
-                          filled: true,
-                          fillColor: const Color(0xFFF9FAFB),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                          ),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
-                          ),
-                        ),
-                      );
-                    },
+                    fieldViewBuilder:
+                        (context, controller, focusNode, onFieldSubmitted) {
+                          return TextField(
+                            controller: controller,
+                            focusNode: focusNode,
+                            decoration: InputDecoration(
+                              hintText: 'Search by name or phone...',
+                              hintStyle: const TextStyle(
+                                fontSize: 13,
+                                color: Color(0xFF9CA3AF),
+                              ),
+                              prefixIcon: const Icon(
+                                Icons.search_rounded,
+                                size: 20,
+                                color: Color(0xFF6B7280),
+                              ),
+                              filled: true,
+                              fillColor: const Color(0xFFF9FAFB),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.transparent,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Colors.transparent,
+                                ),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                                borderSide: const BorderSide(
+                                  color: Color(0xFF2563EB),
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                   ),
                   if (_selectedPatient != null) ...[
                     const SizedBox(height: 10),
@@ -283,7 +312,10 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                               _selectedPatient!.firstName.isNotEmpty
                                   ? _selectedPatient!.firstName[0].toUpperCase()
                                   : 'P',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -301,14 +333,22 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                                 ),
                                 Text(
                                   '${_selectedPatient!.gender} · ${_selectedPatient!.phone}',
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF3B82F6)),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF3B82F6),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF6B7280)),
-                            onPressed: () => setState(() => _selectedPatient = null),
+                            icon: const Icon(
+                              Icons.close_rounded,
+                              size: 18,
+                              color: Color(0xFF6B7280),
+                            ),
+                            onPressed: () =>
+                                setState(() => _selectedPatient = null),
                             splashRadius: 16,
                           ),
                         ],
@@ -329,22 +369,35 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                     controller: _walkInNameController,
                     decoration: InputDecoration(
                       hintText: 'e.g. Rahul Sharma',
-                      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                      prefixIcon: const Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF6B7280)),
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.person_outline_rounded,
+                        size: 20,
+                        color: Color(0xFF6B7280),
+                      ),
                       filled: true,
                       fillColor: const Color(0xFFF9FAFB),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: const BorderSide(color: Colors.transparent),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: const BorderSide(color: Colors.transparent),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2563EB),
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -363,22 +416,35 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
                       hintText: 'e.g. +91 98765 43210',
-                      hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                      prefixIcon: const Icon(Icons.phone_outlined, size: 20, color: Color(0xFF6B7280)),
+                      hintStyle: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF9CA3AF),
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.phone_outlined,
+                        size: 20,
+                        color: Color(0xFF6B7280),
+                      ),
                       filled: true,
                       fillColor: const Color(0xFFF9FAFB),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 12,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: const BorderSide(color: Colors.transparent),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                        borderSide: const BorderSide(color: Colors.transparent),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                        borderSide: const BorderSide(
+                          color: Color(0xFF2563EB),
+                          width: 1.5,
+                        ),
                       ),
                     ),
                   ),
@@ -399,23 +465,37 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                 TextField(
                   controller: _reasonController,
                   decoration: InputDecoration(
-                    hintText: 'e.g. High fever, Dressing change, Routine followup...',
-                    hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
-                    prefixIcon: const Icon(Icons.medical_information_outlined, size: 20, color: Color(0xFF6B7280)),
+                    hintText:
+                        'e.g. High fever, Dressing change, Routine followup...',
+                    hintStyle: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF9CA3AF),
+                    ),
+                    prefixIcon: const Icon(
+                      Icons.medical_information_outlined,
+                      size: 20,
+                      color: Color(0xFF6B7280),
+                    ),
                     filled: true,
                     fillColor: const Color(0xFFF9FAFB),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                      borderSide: const BorderSide(color: Colors.transparent),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                      borderSide: const BorderSide(color: Colors.transparent),
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.5),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF2563EB),
+                        width: 1.5,
+                      ),
                     ),
                   ),
                 ),
@@ -441,7 +521,8 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         icon: Icons.check_circle_outline_rounded,
                         isSelected: _priority == QueuePriority.normal,
                         color: const Color(0xFF2563EB),
-                        onTap: () => setState(() => _priority = QueuePriority.normal),
+                        onTap: () =>
+                            setState(() => _priority = QueuePriority.normal),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -452,7 +533,8 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         icon: Icons.priority_high_rounded,
                         isSelected: _priority == QueuePriority.urgent,
                         color: const Color(0xFFDC2626),
-                        onTap: () => setState(() => _priority = QueuePriority.urgent),
+                        onTap: () =>
+                            setState(() => _priority = QueuePriority.urgent),
                       ),
                     ),
                   ],
@@ -469,12 +551,19 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline_rounded, size: 18, color: Color(0xFFDC2626)),
+                        const Icon(
+                          Icons.error_outline_rounded,
+                          size: 18,
+                          color: Color(0xFFDC2626),
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(fontSize: 12, color: Color(0xFFDC2626)),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFDC2626),
+                            ),
                           ),
                         ),
                       ],
@@ -489,9 +578,14 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
                     TextButton(
-                      onPressed: _isLoading ? null : () => Navigator.of(context).pop(),
+                      onPressed: _isLoading
+                          ? null
+                          : () => Navigator.of(context).pop(),
                       style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                         foregroundColor: const Color(0xFF6B7280),
                       ),
                       child: const Text('Cancel'),
@@ -503,23 +597,37 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                         backgroundColor: const Color(0xFF2563EB),
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 12,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
                           : const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.confirmation_number_outlined, size: 16),
+                                Icon(
+                                  Icons.confirmation_number_outlined,
+                                  size: 16,
+                                ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Issue Token',
-                                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13,
+                                  ),
                                 ),
                               ],
                             ),
@@ -559,15 +667,7 @@ class _TypeToggleButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(10),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
+          boxShadow: const [],
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -575,7 +675,9 @@ class _TypeToggleButton extends StatelessWidget {
             Icon(
               icon,
               size: 16,
-              color: isSelected ? const Color(0xFF2563EB) : const Color(0xFF6B7280),
+              color: isSelected
+                  ? const Color(0xFF2563EB)
+                  : const Color(0xFF6B7280),
             ),
             const SizedBox(width: 6),
             Text(
@@ -583,7 +685,9 @@ class _TypeToggleButton extends StatelessWidget {
               style: TextStyle(
                 fontSize: 12,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                color: isSelected ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
+                color: isSelected
+                    ? const Color(0xFF1F2937)
+                    : const Color(0xFF6B7280),
               ),
             ),
           ],
@@ -618,7 +722,9 @@ class _PriorityOptionCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.08) : const Color(0xFFF9FAFB),
+          color: isSelected
+              ? color.withValues(alpha: 0.08)
+              : const Color(0xFFF9FAFB),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: isSelected ? color : const Color(0xFFE5E7EB),
@@ -627,7 +733,11 @@ class _PriorityOptionCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Icon(icon, size: 18, color: isSelected ? color : const Color(0xFF9CA3AF)),
+            Icon(
+              icon,
+              size: 18,
+              color: isSelected ? color : const Color(0xFF9CA3AF),
+            ),
             const SizedBox(width: 8),
             Expanded(
               child: Column(
@@ -645,7 +755,9 @@ class _PriorityOptionCard extends StatelessWidget {
                     subtitle,
                     style: TextStyle(
                       fontSize: 10.5,
-                      color: isSelected ? color.withValues(alpha: 0.8) : const Color(0xFF6B7280),
+                      color: isSelected
+                          ? color.withValues(alpha: 0.8)
+                          : const Color(0xFF6B7280),
                     ),
                   ),
                 ],

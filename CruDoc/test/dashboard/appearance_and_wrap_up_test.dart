@@ -1,11 +1,14 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:doctor_management_app/core/theme/cru_colors.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_builder.dart';
 import 'package:doctor_management_app/features/dashboard/domain/wrap_up_builder.dart';
+import 'package:doctor_management_app/features/shell/presentation/desktop_shell_layout.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'dashboard_fixtures.dart';
 
@@ -32,24 +35,36 @@ void main() {
   group('resolveAppearance', () {
     test('Auto follows the evening session (17:00) until morning', () {
       DateTime at(int h, int m) => DateTime(2026, 9, 23, h, m);
-      expect(resolveAppearance(AppearanceMode.auto, at(16, 59)),
-          CruAppearance.day);
-      expect(resolveAppearance(AppearanceMode.auto, at(17, 0)),
-          CruAppearance.evening);
-      expect(resolveAppearance(AppearanceMode.auto, at(23, 30)),
-          CruAppearance.evening);
-      expect(resolveAppearance(AppearanceMode.auto, at(4, 59)),
-          CruAppearance.evening);
-      expect(resolveAppearance(AppearanceMode.auto, at(5, 0)),
-          CruAppearance.day);
+      expect(
+        resolveAppearance(AppearanceMode.auto, at(16, 59)),
+        CruAppearance.day,
+      );
+      expect(
+        resolveAppearance(AppearanceMode.auto, at(17, 0)),
+        CruAppearance.evening,
+      );
+      expect(
+        resolveAppearance(AppearanceMode.auto, at(23, 30)),
+        CruAppearance.evening,
+      );
+      expect(
+        resolveAppearance(AppearanceMode.auto, at(4, 59)),
+        CruAppearance.evening,
+      );
+      expect(
+        resolveAppearance(AppearanceMode.auto, at(5, 0)),
+        CruAppearance.day,
+      );
     });
 
     test('Day and Evening are fixed choices', () {
       final night = DateTime(2026, 9, 23, 21);
       final noon = DateTime(2026, 9, 23, 12);
       expect(resolveAppearance(AppearanceMode.day, night), CruAppearance.day);
-      expect(resolveAppearance(AppearanceMode.evening, noon),
-          CruAppearance.evening);
+      expect(
+        resolveAppearance(AppearanceMode.evening, noon),
+        CruAppearance.evening,
+      );
     });
 
     test('stored names parse, unknown falls back to Auto', () {
@@ -57,6 +72,53 @@ void main() {
       expect(AppearanceMode.fromName(null), AppearanceMode.auto);
       expect(AppearanceMode.fromName('dusk'), AppearanceMode.auto);
     });
+  });
+
+  test('day background color defaults and persists independently', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = AppearancePreferences();
+
+    expect(
+      await preferences.getDayBackgroundColor(),
+      AppearancePreferences.defaultDayBackgroundColor,
+    );
+    await preferences.setDayBackgroundColor(0xFFF1F8FC);
+    expect(await preferences.getDayBackgroundColor(), 0xFFF1F8FC);
+  });
+
+  test('text size defaults to Standard and persists independently', () async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = AppearancePreferences();
+
+    expect(await preferences.getTextSize(), TextSizePreference.standard);
+    await preferences.setTextSize(TextSizePreference.large);
+    expect(await preferences.getTextSize(), TextSizePreference.large);
+    expect(await preferences.getMode(), AppearanceMode.auto);
+  });
+
+  testWidgets('custom day background never changes evening mode', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: CruTheme.evening(),
+        home: const CruAmbientBackground(
+          isEvening: true,
+          dayBackgroundColor: Color(0xFFF1F8FC),
+          child: SizedBox.expand(),
+        ),
+      ),
+    );
+
+    final backgrounds = tester
+        .widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byType(CruAmbientBackground),
+            matching: find.byType(ColoredBox),
+          ),
+        )
+        .map((box) => box.color);
+    expect(backgrounds, contains(CruColors.evening.canvas));
   });
 
   group('buildWrapUp', () {

@@ -27,8 +27,9 @@ class UpdateBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final checkResult = ref.watch(updateCheckResultProvider);
-    final dismissedForSession =
-        ref.watch(updateControllerProvider).dismissedForSession;
+    final dismissedForSession = ref
+        .watch(updateControllerProvider)
+        .dismissedForSession;
 
     if (checkResult is! UpdateAvailable) return const SizedBox.shrink();
 
@@ -46,9 +47,7 @@ class UpdateBanner extends ConsumerWidget {
             color: AppColors.cardSurface,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.divider),
-            boxShadow: const [
-              BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 2)),
-            ],
+            boxShadow: const [],
           ),
           child: Row(
             children: [
@@ -97,8 +96,11 @@ class UpdateBanner extends ConsumerWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close,
-                    size: 18, color: AppColors.textSecondary),
+                icon: const Icon(
+                  Icons.close,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 tooltip: 'Dismiss',
                 onPressed: () =>
                     ref.read(updateControllerProvider.notifier).remindLater(),

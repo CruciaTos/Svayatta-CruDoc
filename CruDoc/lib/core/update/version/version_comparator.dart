@@ -41,15 +41,20 @@ abstract final class VersionComparator {
 
   /// Convenience wrapper for the common call site: "does [candidate]
   /// represent a newer release than [current]?"
-  static bool isNewer(String candidate, String current) => compare(candidate, current) > 0;
+  static bool isNewer(String candidate, String current) =>
+      compare(candidate, current) > 0;
 
   static _ParsedVersion _parse(String raw) {
     final normalized = normalize(raw);
     // Build metadata (`+7`) never affects precedence — drop it first.
     final withoutBuild = normalized.split('+').first;
     final dashIndex = withoutBuild.indexOf('-');
-    final corePart = dashIndex == -1 ? withoutBuild : withoutBuild.substring(0, dashIndex);
-    final preRelease = dashIndex == -1 ? null : withoutBuild.substring(dashIndex + 1);
+    final corePart = dashIndex == -1
+        ? withoutBuild
+        : withoutBuild.substring(0, dashIndex);
+    final preRelease = dashIndex == -1
+        ? null
+        : withoutBuild.substring(dashIndex + 1);
 
     final segments = corePart.split('.');
     final core = List<int>.generate(3, (i) {

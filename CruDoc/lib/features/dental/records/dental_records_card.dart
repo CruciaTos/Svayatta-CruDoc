@@ -62,7 +62,10 @@ class DentalRecordsCard extends ConsumerWidget {
     );
     final referrals = of(RecKind.referral);
     final openReferrals = referrals
-        .where((r) => r.str('status') != 'completed' && r.str('status') != 'declined')
+        .where(
+          (r) =>
+              r.str('status') != 'completed' && r.str('status') != 'declined',
+        )
         .toList();
     final referralLine = referrals.isEmpty
         ? 'No referrals yet'
@@ -76,15 +79,21 @@ class DentalRecordsCard extends ConsumerWidget {
                 : countStr;
           }();
     final labCases = of(RecKind.labCase);
-    final openLabCases = labCases.where((r) => r.str('stage') != 'fitted').toList();
+    final openLabCases = labCases
+        .where((r) => r.str('stage') != 'fitted')
+        .toList();
     final labCaseLine = labCases.isEmpty
         ? 'No lab cases'
         : () {
             final openCount = openLabCases.length;
             final last = labCases.first;
-            final type = last.str('type').isNotEmpty ? last.str('type') : 'Case';
+            final type = last.str('type').isNotEmpty
+                ? last.str('type')
+                : 'Case';
             final stage = last.str('stage');
-            final countStr = openCount == 0 ? 'None active' : '$openCount active';
+            final countStr = openCount == 0
+                ? 'None active'
+                : '$openCount active';
             return '$countStr · last $type (${stage.isNotEmpty ? stage : 'scanned'})';
           }();
     final photoSets = of(RecKind.photoSet);
@@ -96,7 +105,9 @@ class DentalRecordsCard extends ConsumerWidget {
         ? 'No cases'
         : () {
             final last = sedationCases.first;
-            final modality = last.str('planned').isNotEmpty ? last.str('planned') : 'Sedation';
+            final modality = last.str('planned').isNotEmpty
+                ? last.str('planned')
+                : 'Sedation';
             final status = last.str('status');
             return '$modality · $status (${DentalFormat.date(last.recordedAt)})';
           }();
@@ -106,14 +117,17 @@ class DentalRecordsCard extends ConsumerWidget {
         : () {
             final count = formResponses.length;
             final last = formResponses.first;
-            final name = last.str('templateName').isNotEmpty ? last.str('templateName') : 'Form';
+            final name = last.str('templateName').isNotEmpty
+                ? last.str('templateName')
+                : 'Form';
             return '$count filled · last $name (${DentalFormat.date(last.recordedAt)})';
           }();
 
-    final radStudies = (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
-        .where((s) => s.patientId == patient.id)
-        .toList()
-      ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
+    final radStudies =
+        (ref.watch(radStudiesProvider).value ?? const <RadStudy>[])
+            .where((s) => s.patientId == patient.id)
+            .toList()
+          ..sort((a, b) => b.studyDate.compareTo(a.studyDate));
     final radLine = radStudies.isEmpty
         ? 'No scans yet · Tap to import / capture'
         : '${radStudies.length} ${radStudies.length == 1 ? 'scan' : 'scans'} · last ${radStudies.first.modality.short} (${DentalFormat.date(radStudies.first.studyDate)})';
@@ -201,20 +215,17 @@ class DentalRecordsCard extends ConsumerWidget {
             omCardLine(om),
             () => showOmHistoryDialog(context, patient, existing: om),
             warn: omHighRisk(om),
-            alert: allergy == null || allergy == 'None' ? null : 'Allergic to $allergy',
+            alert: allergy == null || allergy == 'None'
+                ? null
+                : 'Allergic to $allergy',
           ),
-          row(
-            RadIcons.xray,
-            'X-rays & Imaging',
-            radLine,
-            () {
-              if (radStudies.isNotEmpty) {
-                openRadStudy(context, ref, radStudies.first);
-              } else {
-                runRadImport(context, ref);
-              }
-            },
-          ),
+          row(RadIcons.xray, 'X-rays & Imaging', radLine, () {
+            if (radStudies.isNotEmpty) {
+              openRadStudy(context, ref, radStudies.first);
+            } else {
+              runRadImport(context, ref);
+            }
+          }),
           row(RecIcons.perio, 'Perio chart', perioLine, () {
             Navigator.of(context, rootNavigator: true).push(
               MaterialPageRoute<void>(
@@ -294,7 +305,9 @@ class DentalRecordsCard extends ConsumerWidget {
               context: context,
               builder: (_) => PreopDialog(
                 patient: patient,
-                initialCase: sedationCases.isNotEmpty ? SedationCase.fromRecord(sedationCases.first) : null,
+                initialCase: sedationCases.isNotEmpty
+                    ? SedationCase.fromRecord(sedationCases.first)
+                    : null,
               ),
             ),
           ),
@@ -330,7 +343,9 @@ class DentalRecordsCard extends ConsumerWidget {
               () => showEruptionDialog(
                 context,
                 patient,
-                existing: eruptionRecords.isEmpty ? null : eruptionRecords.first,
+                existing: eruptionRecords.isEmpty
+                    ? null
+                    : eruptionRecords.first,
               ),
               warn: eruption.warn,
             ),

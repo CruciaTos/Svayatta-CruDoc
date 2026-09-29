@@ -111,7 +111,10 @@ class WhatsAppNotificationLog {
     };
   }
 
-  factory WhatsAppNotificationLog.fromMap(Map<String, dynamic> map, {String? id}) {
+  factory WhatsAppNotificationLog.fromMap(
+    Map<String, dynamic> map, {
+    String? id,
+  }) {
     return WhatsAppNotificationLog(
       id: id ?? (map['id'] as String? ?? ''),
       doctorId: map['doctorId'] as String? ?? '',
@@ -126,14 +129,18 @@ class WhatsAppNotificationLog {
       isMock: (map['isMock'] == 1 || map['isMock'] == true),
       attemptedAt: _parseDateTime(map['attemptedAt']),
       sentAt: map['sentAt'] != null ? _parseDateTime(map['sentAt']) : null,
-      deliveredAt: map['deliveredAt'] != null ? _parseDateTime(map['deliveredAt']) : null,
+      deliveredAt: map['deliveredAt'] != null
+          ? _parseDateTime(map['deliveredAt'])
+          : null,
       readAt: map['readAt'] != null ? _parseDateTime(map['readAt']) : null,
       createdAt: _parseDateTime(map['createdAt']),
       updatedAt: _parseDateTime(map['updatedAt']),
     );
   }
 
-  factory WhatsAppNotificationLog.fromFirestore(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory WhatsAppNotificationLog.fromFirestore(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     final data = doc.data() ?? <String, dynamic>{};
     return WhatsAppNotificationLog.fromMap(data, id: doc.id);
   }

@@ -19,8 +19,10 @@ const _pacsNotConnected =
 // ============================================================ query
 
 /// Search a PACS for a patient's studies and download one.
-Future<void> showRadPacsQueryDialog(BuildContext context) =>
-    showDialog<void>(context: context, builder: (_) => const _PacsQueryDialog());
+Future<void> showRadPacsQueryDialog(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (_) => const _PacsQueryDialog(),
+);
 
 class _PacsQueryDialog extends ConsumerStatefulWidget {
   const _PacsQueryDialog();
@@ -50,18 +52,28 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final servers = ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
-    final server = servers.where((s) => s.id == _serverId).firstOrNull ??
+    final servers =
+        ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
+    final server =
+        servers.where((s) => s.id == _serverId).firstOrNull ??
         servers.where((s) => s.isDefault).firstOrNull ??
         servers.firstOrNull;
 
     return DentalPanelDialog(
       title: 'Search PACS',
-      subtitle: server == null ? 'No PACS added yet' : '${server.name} · ${server.baseUrl}',
-      leading: const CruIconTile(icon: RadIcons.server, tone: CruTileTone.accent),
+      subtitle: server == null
+          ? 'No PACS added yet'
+          : '${server.name} · ${server.baseUrl}',
+      leading: const CruIconTile(
+        icon: RadIcons.server,
+        tone: CruTileTone.accent,
+      ),
       width: CruSize.formDialog,
       body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: CruSpace.s8,
+          vertical: CruSpace.s8,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -69,7 +81,8 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
               DentalEmptyState(
                 icon: RadIcons.server,
                 title: 'Add your PACS first',
-                body: 'Enter the DICOMweb address of the practice or hospital PACS '
+                body:
+                    'Enter the DICOMweb address of the practice or hospital PACS '
                     '(Orthanc, dcm4chee, a cloud PACS).',
                 actions: [
                   CruButton(
@@ -90,38 +103,60 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
                     onTap: (s) => setState(() => _serverId = s.id),
                   ),
                 ),
-              CruFieldRow(children: [
-                CruTextField(label: 'Patient name', controller: _name, optional: true),
-                CruTextField(label: 'Patient ID', controller: _id, optional: true),
-                CruTextField(label: 'Accession', controller: _accession, optional: true),
-              ]),
+              CruFieldRow(
+                children: [
+                  CruTextField(
+                    label: 'Patient name',
+                    controller: _name,
+                    optional: true,
+                  ),
+                  CruTextField(
+                    label: 'Patient ID',
+                    controller: _id,
+                    optional: true,
+                  ),
+                  CruTextField(
+                    label: 'Accession',
+                    controller: _accession,
+                    optional: true,
+                  ),
+                ],
+              ),
               const SizedBox(height: CruSpace.s12),
-              CruFieldRow(children: [
-                CruPickerField(
-                  label: 'From',
-                  optional: true,
-                  icon: CruIcons.calendar,
-                  value: _from == null ? null : RadFormat.date(_from!),
-                  placeholder: 'Any date',
-                  onTap: () async {
-                    final d = await pickDentalDate(context,
-                        initial: _from ?? DateTime.now(), last: DateTime.now());
-                    if (d != null) setState(() => _from = d);
-                  },
-                ),
-                CruPickerField(
-                  label: 'To',
-                  optional: true,
-                  icon: CruIcons.calendar,
-                  value: _to == null ? null : RadFormat.date(_to!),
-                  placeholder: 'Any date',
-                  onTap: () async {
-                    final d = await pickDentalDate(context,
-                        initial: _to ?? DateTime.now(), last: DateTime.now());
-                    if (d != null) setState(() => _to = d);
-                  },
-                ),
-              ]),
+              CruFieldRow(
+                children: [
+                  CruPickerField(
+                    label: 'From',
+                    optional: true,
+                    icon: CruIcons.calendar,
+                    value: _from == null ? null : RadFormat.date(_from!),
+                    placeholder: 'Any date',
+                    onTap: () async {
+                      final d = await pickDentalDate(
+                        context,
+                        initial: _from ?? DateTime.now(),
+                        last: DateTime.now(),
+                      );
+                      if (d != null) setState(() => _from = d);
+                    },
+                  ),
+                  CruPickerField(
+                    label: 'To',
+                    optional: true,
+                    icon: CruIcons.calendar,
+                    value: _to == null ? null : RadFormat.date(_to!),
+                    placeholder: 'Any date',
+                    onTap: () async {
+                      final d = await pickDentalDate(
+                        context,
+                        initial: _to ?? DateTime.now(),
+                        last: DateTime.now(),
+                      );
+                      if (d != null) setState(() => _to = d);
+                    },
+                  ),
+                ],
+              ),
               const SizedBox(height: CruSpace.s12),
               CruFieldFrame(
                 label: 'Modality',
@@ -137,12 +172,18 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
                   },
                   isSelected: _modalities.contains,
                   onTap: (m) => setState(
-                      () => _modalities.contains(m) ? _modalities.remove(m) : _modalities.add(m)),
+                    () => _modalities.contains(m)
+                        ? _modalities.remove(m)
+                        : _modalities.add(m),
+                  ),
                 ),
               ),
               const SizedBox(height: CruSpace.s16),
               if (_searched)
-                const RadNotConnected(title: 'PACS isn\'t connected yet', body: _pacsNotConnected)
+                const RadNotConnected(
+                  title: 'PACS isn\'t connected yet',
+                  body: _pacsNotConnected,
+                )
               else
                 Text(
                   'Results appear here with each study\'s date, type and image count; '
@@ -177,8 +218,10 @@ class _PacsQueryDialogState extends ConsumerState<_PacsQueryDialog> {
 // ============================================================ servers
 
 /// The saved PACS servers: add, edit, make default.
-Future<void> showRadPacsServersDialog(BuildContext context) =>
-    showDialog<void>(context: context, builder: (_) => const _PacsServersDialog());
+Future<void> showRadPacsServersDialog(BuildContext context) => showDialog<void>(
+  context: context,
+  builder: (_) => const _PacsServersDialog(),
+);
 
 class _PacsServersDialog extends ConsumerWidget {
   const _PacsServersDialog();
@@ -186,18 +229,25 @@ class _PacsServersDialog extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
-    final servers = ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
+    final servers =
+        ref.watch(radPacsServersProvider).value ?? const <RadPacsServer>[];
     return DentalPanelDialog(
       title: 'PACS servers',
       subtitle: 'DICOMweb addresses you can search and send to',
-      leading: const CruIconTile(icon: RadIcons.server, tone: CruTileTone.neutral),
+      leading: const CruIconTile(
+        icon: RadIcons.server,
+        tone: CruTileTone.neutral,
+      ),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (servers.isEmpty)
             Padding(
               padding: const EdgeInsets.all(CruSpace.s16),
-              child: Text('None added yet.', style: CruType.subhead.tint(c.label2)),
+              child: Text(
+                'None added yet.',
+                style: CruType.subhead.tint(c.label2),
+              ),
             ),
           for (final s in servers)
             DentalListRow(
@@ -205,31 +255,52 @@ class _PacsServersDialog extends ConsumerWidget {
               onTap: () => showRadPacsServerDialog(context, existing: s),
               child: Row(
                 children: [
-                  const CruIconTile(icon: RadIcons.server, tone: CruTileTone.neutral),
+                  const CruIconTile(
+                    icon: RadIcons.server,
+                    tone: CruTileTone.neutral,
+                  ),
                   const SizedBox(width: CruSpace.s12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(s.name, style: CruType.callout.tint(c.label)),
-                        Text(s.baseUrl,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: CruType.caption.tint(c.label2)),
+                        Text(
+                          s.baseUrl,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: CruType.caption.tint(c.label2),
+                        ),
                       ],
                     ),
                   ),
                   if (s.isDefault) ...[
-                    CruPill(text: 'Default', background: c.inset, foreground: c.label2),
+                    CruPill(
+                      text: 'Default',
+                      background: c.inset,
+                      foreground: c.label2,
+                    ),
                     const SizedBox(width: CruSpace.s8),
                   ],
-                  const RadNotConnected(title: 'Not connected yet', body: '', compact: true),
+                  const RadNotConnected(
+                    title: 'Not connected yet',
+                    body: '',
+                    compact: true,
+                  ),
                 ],
               ),
             ),
           const Padding(
-            padding: EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s12, CruSpace.s8, CruSpace.s4),
-            child: RadNotConnected(title: 'PACS isn\'t connected yet', body: _pacsNotConnected),
+            padding: EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              CruSpace.s12,
+              CruSpace.s8,
+              CruSpace.s4,
+            ),
+            child: RadNotConnected(
+              title: 'PACS isn\'t connected yet',
+              body: _pacsNotConnected,
+            ),
           ),
         ],
       ),
@@ -242,7 +313,10 @@ class _PacsServersDialog extends ConsumerWidget {
             onPressed: () => showRadPacsServerDialog(context),
           ),
           const Spacer(),
-          CruButton(label: 'Done', onPressed: () => Navigator.of(context).pop()),
+          CruButton(
+            label: 'Done',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ],
       ),
     );
@@ -250,8 +324,13 @@ class _PacsServersDialog extends ConsumerWidget {
 }
 
 /// Add or edit one PACS server.
-Future<void> showRadPacsServerDialog(BuildContext context, {RadPacsServer? existing}) =>
-    showDialog<void>(context: context, builder: (_) => _PacsServerDialog(existing: existing));
+Future<void> showRadPacsServerDialog(
+  BuildContext context, {
+  RadPacsServer? existing,
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _PacsServerDialog(existing: existing),
+);
 
 class _PacsServerDialog extends ConsumerStatefulWidget {
   const _PacsServerDialog({this.existing});
@@ -266,7 +345,9 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _url = TextEditingController(text: widget.existing?.baseUrl ?? '');
-  late final _user = TextEditingController(text: widget.existing?.username ?? '');
+  late final _user = TextEditingController(
+    text: widget.existing?.username ?? '',
+  );
   late String _auth = widget.existing?.auth ?? 'none';
   late bool _default = widget.existing?.isDefault ?? false;
   bool _tested = false;
@@ -299,15 +380,19 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
     );
     if (_default) {
       // Only one default.
-      for (final o in ref.read(radPacsServersProvider).value ?? const <RadPacsServer>[]) {
+      for (final o
+          in ref.read(radPacsServersProvider).value ??
+              const <RadPacsServer>[]) {
         if (o.id != s.id && o.isDefault) {
-          await ctrl.savePacsServer(RadPacsServer(
-            id: o.id,
-            name: o.name,
-            baseUrl: o.baseUrl,
-            auth: o.auth,
-            username: o.username,
-          ));
+          await ctrl.savePacsServer(
+            RadPacsServer(
+              id: o.id,
+              name: o.name,
+              baseUrl: o.baseUrl,
+              auth: o.auth,
+              username: o.username,
+            ),
+          );
         }
       }
     }
@@ -318,8 +403,12 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
   Future<void> _delete() async {
     final e = widget.existing;
     if (e == null) return;
-    final ok = await confirmDental(context,
-        title: 'Remove ${e.name}?', body: 'Only the saved address is removed.', action: 'Remove');
+    final ok = await confirmDental(
+      context,
+      title: 'Remove ${e.name}?',
+      body: 'Only the saved address is removed.',
+      action: 'Remove',
+    );
     if (!ok || !mounted) return;
     await ref.read(radiologyProvider).deletePacsServer(e);
     if (mounted) Navigator.of(context).pop();
@@ -330,28 +419,34 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
     return CruFormDialog(
       title: widget.existing == null ? 'Add PACS' : 'Edit PACS',
       subtitle: 'A DICOMweb server',
-      leading: const CruIconTile(icon: RadIcons.server, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RadIcons.server,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: widget.existing == null ? 'Add PACS' : 'Save changes',
       onSubmit: _save,
       dirty: _dirty,
       body: Form(
         key: _form,
-        autovalidateMode:
-            _submitted ? AutovalidateMode.onUserInteraction : AutovalidateMode.disabled,
+        autovalidateMode: _submitted
+            ? AutovalidateMode.onUserInteraction
+            : AutovalidateMode.disabled,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CruFormSection(
               first: true,
               title: 'Server',
-              description: 'Ask whoever runs the PACS for its DICOMweb address.',
+              description:
+                  'Ask whoever runs the PACS for its DICOMweb address.',
               children: [
                 CruTextField(
                   label: 'Name',
                   controller: _name,
                   autofocus: widget.existing == null,
                   hint: 'City Hospital PACS',
-                  validator: (v) => (v ?? '').trim().isEmpty ? 'Give it a name.' : null,
+                  validator: (v) =>
+                      (v ?? '').trim().isEmpty ? 'Give it a name.' : null,
                   onChanged: (_) => _edited(),
                 ),
                 CruTextField(
@@ -367,33 +462,35 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
                   },
                   onChanged: (_) => _edited(),
                 ),
-                CruFieldRow(children: [
-                  CruFieldFrame(
-                    label: 'Sign-in',
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: CruSegmentedControl<String>(
-                        semanticLabel: 'Sign-in',
-                        segments: const [
-                          CruSegment('none', 'None'),
-                          CruSegment('basic', 'Password'),
-                          CruSegment('bearer', 'Token'),
-                        ],
-                        selected: _auth,
-                        onChanged: (a) {
-                          setState(() => _auth = a);
-                          _edited();
-                        },
+                CruFieldRow(
+                  children: [
+                    CruFieldFrame(
+                      label: 'Sign-in',
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: CruSegmentedControl<String>(
+                          semanticLabel: 'Sign-in',
+                          segments: const [
+                            CruSegment('none', 'None'),
+                            CruSegment('basic', 'Password'),
+                            CruSegment('bearer', 'Token'),
+                          ],
+                          selected: _auth,
+                          onChanged: (a) {
+                            setState(() => _auth = a);
+                            _edited();
+                          },
+                        ),
                       ),
                     ),
-                  ),
-                  if (_auth == 'basic')
-                    CruTextField(
-                      label: 'Username',
-                      controller: _user,
-                      onChanged: (_) => _edited(),
-                    ),
-                ]),
+                    if (_auth == 'basic')
+                      CruTextField(
+                        label: 'Username',
+                        controller: _user,
+                        onChanged: (_) => _edited(),
+                      ),
+                  ],
+                ),
                 if (_auth != 'none')
                   Text(
                     'The password or token is asked for when the connection is set up; '
@@ -414,7 +511,10 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
               title: 'Connection',
               children: [
                 if (_tested)
-                  const RadNotConnected(title: 'Not connected yet', body: _pacsNotConnected)
+                  const RadNotConnected(
+                    title: 'Not connected yet',
+                    body: _pacsNotConnected,
+                  )
                 else
                   Align(
                     alignment: Alignment.centerLeft,
@@ -428,7 +528,10 @@ class _PacsServerDialogState extends ConsumerState<_PacsServerDialog> {
                 if (widget.existing != null)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: CruLink(label: 'Remove this PACS', onPressed: _delete),
+                    child: CruLink(
+                      label: 'Remove this PACS',
+                      onPressed: _delete,
+                    ),
                   ),
               ],
             ),
@@ -460,14 +563,18 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
   @override
   void initState() {
     super.initState();
-    NetworkInterface.list(type: InternetAddressType.IPv4).then((list) {
-      if (!mounted) return;
-      setState(() => _addresses = [
-            for (final i in list)
-              for (final a in i.addresses)
-                if (!a.isLoopback) a.address,
-          ]);
-    }).catchError((_) {});
+    NetworkInterface.list(type: InternetAddressType.IPv4)
+        .then((list) {
+          if (!mounted) return;
+          setState(
+            () => _addresses = [
+              for (final i in list)
+                for (final a in i.addresses)
+                  if (!a.isLoopback) a.address,
+            ],
+          );
+        })
+        .catchError((_) {});
   }
 
   @override
@@ -480,10 +587,14 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
   Future<void> _save(RadSettings s) async {
     final port = int.tryParse(_port!.text.trim()) ?? s.dicomPort;
     final ae = _ae!.text.trim().toUpperCase();
-    await ref.read(radiologyProvider).saveSettings(s.copyWith(
-          aeTitle: ae.isEmpty ? 'CRUDOC' : ae,
-          dicomPort: port.clamp(1, 65535),
-        ));
+    await ref
+        .read(radiologyProvider)
+        .saveSettings(
+          s.copyWith(
+            aeTitle: ae.isEmpty ? 'CRUDOC' : ae,
+            dicomPort: port.clamp(1, 65535),
+          ),
+        );
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -498,7 +609,10 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
     return DentalPanelDialog(
       title: 'Receive from scanners',
       subtitle: 'Scanners and PACS "Send to CruDoc" (DICOM C-STORE)',
-      leading: const CruIconTile(icon: RadIcons.cube, tone: CruTileTone.neutral),
+      leading: const CruIconTile(
+        icon: RadIcons.cube,
+        tone: CruTileTone.neutral,
+      ),
       body: s == null
           ? const SizedBox(height: 120)
           : Padding(
@@ -506,26 +620,35 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  CruFieldRow(children: [
-                    CruTextField(
-                      label: 'AE title',
-                      controller: _ae!,
-                      help: 'Up to 16 letters, the name scanners send to.',
-                      inputFormatters: [
-                        LengthLimitingTextInputFormatter(16),
-                        FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_]')),
-                      ],
-                    ),
-                    CruTextField(
-                      label: 'Port',
-                      controller: _port!,
-                      tabular: true,
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    ),
-                  ]),
+                  CruFieldRow(
+                    children: [
+                      CruTextField(
+                        label: 'AE title',
+                        controller: _ae!,
+                        help: 'Up to 16 letters, the name scanners send to.',
+                        inputFormatters: [
+                          LengthLimitingTextInputFormatter(16),
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'[A-Za-z0-9_]'),
+                          ),
+                        ],
+                      ),
+                      CruTextField(
+                        label: 'Port',
+                        controller: _port!,
+                        tabular: true,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                      ),
+                    ],
+                  ),
                   const SizedBox(height: CruSpace.s16),
-                  Text('Set up on the scanner', style: CruType.subhead.w600.tint(c.label)),
+                  Text(
+                    'Set up on the scanner',
+                    style: CruType.subhead.w600.tint(c.label),
+                  ),
                   const SizedBox(height: CruSpace.s6),
                   Text(
                     'Add a DICOM destination with AE title ${_ae?.text ?? s.aeTitle}, port '
@@ -536,7 +659,8 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
                   const SizedBox(height: CruSpace.s16),
                   const RadNotConnected(
                     title: 'The receiver isn\'t connected yet',
-                    body: 'These settings are saved. CruDoc starts listening for scans on '
+                    body:
+                        'These settings are saved. CruDoc starts listening for scans on '
                         'this port with the connection update; until then, export from the '
                         'scanner to a folder or USB drive and import it.',
                   ),
@@ -552,7 +676,10 @@ class _ReceiverDialogState extends ConsumerState<_ReceiverDialog> {
             onPressed: () => Navigator.of(context).pop(),
           ),
           const SizedBox(width: CruSpace.s10),
-          CruButton(label: 'Save', onPressed: s == null ? null : () => _save(s)),
+          CruButton(
+            label: 'Save',
+            onPressed: s == null ? null : () => _save(s),
+          ),
         ],
       ),
     );

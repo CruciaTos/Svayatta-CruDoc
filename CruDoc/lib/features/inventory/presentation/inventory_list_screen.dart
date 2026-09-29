@@ -100,8 +100,11 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                   children: [
                     if (Navigator.canPop(context)) ...[
                       IconButton(
-                        icon: const Icon(Icons.arrow_back_ios_new,
-                            color: AppColors.textPrimary, size: 20),
+                        icon: const Icon(
+                          Icons.arrow_back_ios_new,
+                          color: AppColors.textPrimary,
+                          size: 20,
+                        ),
                         onPressed: () => Navigator.pop(context),
                       ),
                       const SizedBox(width: 4),
@@ -110,74 +113,77 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                   ],
                 ),
                 const SizedBox(height: 8),
-              _SearchBar(
-                controller: _searchController,
-                onChanged: (value) => setState(() => _query = value),
-              ),
-              const SizedBox(height: 12),
-              medicinesAsync.when(
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-                data: (medicines) => _FilterRow(
-                  selected: _filter,
-                  category: _category,
-                  categories: medicines
-                      .map((m) => m.category)
-                      .where((c) =>
-                          c.trim().isNotEmpty &&
-                          c.trim().toLowerCase() != 'pain killer')
-                      .toSet()
-                      .toList()
-                    ..sort(),
-                  onSelected: (filter) => setState(() => _filter = filter),
-                  onCategorySelected: (category) =>
-                      setState(() => _category = category),
+                _SearchBar(
+                  controller: _searchController,
+                  onChanged: (value) => setState(() => _query = value),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: medicinesAsync.when(
-                  loading: () =>
-                      const Center(child: CircularProgressIndicator()),
-                  error: (error, _) => Center(
-                    child: Text(
-                      'Error loading inventory: $error',
-                      style: AppColors.bodyMedium,
-                    ),
+                const SizedBox(height: 12),
+                medicinesAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (medicines) => _FilterRow(
+                    selected: _filter,
+                    category: _category,
+                    categories:
+                        medicines
+                            .map((m) => m.category)
+                            .where(
+                              (c) =>
+                                  c.trim().isNotEmpty &&
+                                  c.trim().toLowerCase() != 'pain killer',
+                            )
+                            .toSet()
+                            .toList()
+                          ..sort(),
+                    onSelected: (filter) => setState(() => _filter = filter),
+                    onCategorySelected: (category) =>
+                        setState(() => _category = category),
                   ),
-                  data: (medicines) {
-                    final filtered = _applyFilters(medicines);
-                    if (filtered.isEmpty) {
-                      final message = medicines.isEmpty
-                          ? 'No medicines yet — tap + to add one'
-                          : 'No matches';
-                      return Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            message,
-                            style: AppColors.bodyMedium,
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      );
-                    }
-                    return ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 80),
-                      physics: const ClampingScrollPhysics(),
-                      itemCount: filtered.length,
-                      itemBuilder: (context, index) =>
-                          _MedicineTile(medicine: filtered[index]),
-                    );
-                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                Expanded(
+                  child: medicinesAsync.when(
+                    loading: () =>
+                        const Center(child: CircularProgressIndicator()),
+                    error: (error, _) => Center(
+                      child: Text(
+                        'Error loading inventory: $error',
+                        style: AppColors.bodyMedium,
+                      ),
+                    ),
+                    data: (medicines) {
+                      final filtered = _applyFilters(medicines);
+                      if (filtered.isEmpty) {
+                        final message = medicines.isEmpty
+                            ? 'No medicines yet — tap + to add one'
+                            : 'No matches';
+                        return Center(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Text(
+                              message,
+                              style: AppColors.bodyMedium,
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        );
+                      }
+                      return ListView.builder(
+                        padding: const EdgeInsets.only(bottom: 80),
+                        physics: const ClampingScrollPhysics(),
+                        itemCount: filtered.length,
+                        itemBuilder: (context, index) =>
+                            _MedicineTile(medicine: filtered[index]),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
   }
 }
 

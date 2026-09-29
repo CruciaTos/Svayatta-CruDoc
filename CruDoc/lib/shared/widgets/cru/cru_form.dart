@@ -87,7 +87,7 @@ class CruFormDialog extends StatelessWidget {
           backgroundColor: c.surface,
           surfaceTintColor: c.surface.withValues(alpha: 0),
           insetPadding: const EdgeInsets.all(CruSpace.s32),
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: width, maxHeight: maxHeight),
@@ -226,7 +226,7 @@ class _DiscardDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: c.surface,
       surfaceTintColor: c.surface.withValues(alpha: 0),
-      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: CruSize.dialog),
         child: Padding(
@@ -301,10 +301,7 @@ class CruFormSection extends StatelessWidget {
                     Text(title, style: CruType.callout.tint(c.label)),
                     if (description != null) ...[
                       const SizedBox(height: CruSpace.s4),
-                      Text(
-                        description!,
-                        style: CruType.caption.tint(c.label3),
-                      ),
+                      Text(description!, style: CruType.caption.tint(c.label3)),
                     ],
                   ],
                 ),
@@ -580,8 +577,8 @@ class _CruTextFieldState extends State<CruTextField> {
         final ring = field.hasError
             ? BorderSide(color: c.amber, width: 1.5)
             : focused
-                ? BorderSide(color: c.accent, width: 1.5)
-                : BorderSide(color: c.inset.withValues(alpha: 0), width: 1.5);
+            ? BorderSide(color: c.accent, width: 1.5)
+            : BorderSide(color: c.inset.withValues(alpha: 0), width: 1.5);
         final base = CruType.input.tint(c.label);
 
         // Snapshot widget for real outgoing user text dissolving into fog
@@ -624,11 +621,19 @@ class _CruTextFieldState extends State<CruTextField> {
                   : CrossAxisAlignment.center,
               children: [
                 if (widget.icon != null) ...[
-                  CruIcon(widget.icon!, size: 17, strokeWidth: 2, color: c.label3),
+                  CruIcon(
+                    widget.icon!,
+                    size: 17,
+                    strokeWidth: 2,
+                    color: c.label3,
+                  ),
                   const SizedBox(width: CruSpace.s10),
                 ],
                 if (widget.prefix != null) ...[
-                  Text(widget.prefix!, style: CruType.input.w500.tint(c.label2)),
+                  Text(
+                    widget.prefix!,
+                    style: CruType.input.w500.tint(c.label2),
+                  ),
                   const SizedBox(width: CruSpace.s6),
                 ],
                 Expanded(
@@ -646,8 +651,11 @@ class _CruTextFieldState extends State<CruTextField> {
                       keyboardType: multiline
                           ? TextInputType.multiline
                           : widget.keyboardType,
-                      textInputAction: widget.textInputAction ??
-                          (multiline ? TextInputAction.newline : TextInputAction.next),
+                      textInputAction:
+                          widget.textInputAction ??
+                          (multiline
+                              ? TextInputAction.newline
+                              : TextInputAction.next),
                       textCapitalization: widget.textCapitalization,
                       inputFormatters: widget.inputFormatters,
                       cursorColor: c.accent,
@@ -659,7 +667,9 @@ class _CruTextFieldState extends State<CruTextField> {
                       },
                       onSubmitted: widget.onSubmitted,
                       decoration: InputDecoration.collapsed(
-                        hintText: (widget.aiPending || widget.controller.text.isNotEmpty)
+                        hintText:
+                            (widget.aiPending ||
+                                widget.controller.text.isNotEmpty)
                             ? null
                             : widget.hint,
                         hintStyle: CruType.input.tint(c.label3),
@@ -773,7 +783,9 @@ class _CruPickerFieldState extends State<CruPickerField> {
         alignment: Alignment.centerLeft,
         child: Text(
           outgoingText,
-          style: CruType.input.tabular.tint(outgoingHadValue ? c.label : c.label3),
+          style: CruType.input.tabular.tint(
+            outgoingHadValue ? c.label : c.label3,
+          ),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
@@ -798,7 +810,9 @@ class _CruPickerFieldState extends State<CruPickerField> {
             shape: cruShape(
               CruRadius.control,
               side: BorderSide(
-                color: widget.error != null ? c.amber : c.inset.withValues(alpha: 0),
+                color: widget.error != null
+                    ? c.amber
+                    : c.inset.withValues(alpha: 0),
                 width: 1.5,
               ),
             ),
@@ -814,8 +828,11 @@ class _CruPickerFieldState extends State<CruPickerField> {
                   stagger: widget.aiStagger,
                   outgoingChild: outgoingWidget,
                   child: Text(
-                    widget.value ?? (widget.aiPending ? '' : widget.placeholder),
-                    style: CruType.input.tabular.tint(hasValue ? c.label : c.label3),
+                    widget.value ??
+                        (widget.aiPending ? '' : widget.placeholder),
+                    style: CruType.input.tabular.tint(
+                      hasValue ? c.label : c.label3,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -950,10 +967,7 @@ class _CruTagFieldState extends State<CruTagField> {
         spacing: CruSpace.s6,
         runSpacing: CruSpace.s6,
         crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          for (final v in outgoing)
-            _Tag(label: v, onRemove: () {}),
-        ],
+        children: [for (final v in outgoing) _Tag(label: v, onRemove: () {})],
       );
     }
 
@@ -973,7 +987,9 @@ class _CruTagFieldState extends State<CruTagField> {
             child: AnimatedContainer(
               duration: CruMotion.of(context, CruMotion.fast),
               curve: CruMotion.curve,
-              constraints: const BoxConstraints(minHeight: CruSize.actionButton),
+              constraints: const BoxConstraints(
+                minHeight: CruSize.actionButton,
+              ),
               padding: const EdgeInsets.symmetric(
                 horizontal: CruSpace.s8,
                 vertical: CruSpace.s6,
@@ -1027,7 +1043,9 @@ class _CruTagFieldState extends State<CruTagField> {
                               decoration: InputDecoration.collapsed(
                                 hintText: widget.aiPending
                                     ? null
-                                    : (widget.values.isEmpty ? widget.hint : 'Add another'),
+                                    : (widget.values.isEmpty
+                                          ? widget.hint
+                                          : 'Add another'),
                                 hintStyle: CruType.input.tint(c.label3),
                               ),
                             ),
@@ -1094,7 +1112,12 @@ class _Tag extends StatelessWidget {
                 color: hovered ? c.inset : c.inset.withValues(alpha: 0),
                 shape: cruShape(CruRadius.full),
               ),
-              child: CruIcon(CruIcons.close, size: 12, strokeWidth: 2, color: c.label2),
+              child: CruIcon(
+                CruIcons.close,
+                size: 12,
+                strokeWidth: 2,
+                color: c.label2,
+              ),
             ),
           ),
         ],

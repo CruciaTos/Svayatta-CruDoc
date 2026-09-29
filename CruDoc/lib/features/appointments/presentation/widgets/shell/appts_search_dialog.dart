@@ -10,9 +10,9 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Finds visits by patient name; picking one opens its day.
 Future<void> showApptsSearchDialog(BuildContext context) => showDialog<void>(
-      context: context,
-      builder: (_) => const ApptsSearchDialog(),
-    );
+  context: context,
+  builder: (_) => const ApptsSearchDialog(),
+);
 
 class ApptsSearchDialog extends ConsumerStatefulWidget {
   const ApptsSearchDialog({super.key});
@@ -70,7 +70,7 @@ class _ApptsSearchDialogState extends ConsumerState<ApptsSearchDialog> {
         left: CruSpace.s24,
         right: CruSpace.s24,
       ),
-      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: CruSize.remindersDialog),
         child: Padding(
@@ -88,7 +88,12 @@ class _ApptsSearchDialogState extends ConsumerState<ApptsSearchDialog> {
                 ),
                 child: Row(
                   children: [
-                    CruIcon(CruIcons.search, size: 17, strokeWidth: 2, color: c.label2),
+                    CruIcon(
+                      CruIcons.search,
+                      size: 17,
+                      strokeWidth: 2,
+                      color: c.label2,
+                    ),
                     const SizedBox(width: CruSpace.s10),
                     Expanded(
                       child: TextField(
@@ -123,7 +128,8 @@ class _ApptsSearchDialogState extends ConsumerState<ApptsSearchDialog> {
                     ),
                   )
                 else
-                  for (final item in results) _ResultRow(item: item, onTap: () => _open(item)),
+                  for (final item in results)
+                    _ResultRow(item: item, onTap: () => _open(item)),
               ],
             ],
           ),
@@ -144,7 +150,8 @@ class _ResultRow extends StatelessWidget {
     final c = context.cru;
     return CruPressable(
       onTap: onTap,
-      semanticLabel: '${item.name}, ${ApptFormat.dateLine(item.start)}, '
+      semanticLabel:
+          '${item.name}, ${ApptFormat.dateLine(item.start)}, '
           '${ApptFormat.time(item.start)}',
       scaleOnPress: false,
       builder: (context, hovered) => AnimatedContainer(

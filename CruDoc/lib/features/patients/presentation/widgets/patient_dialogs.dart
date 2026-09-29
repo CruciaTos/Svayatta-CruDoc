@@ -86,8 +86,7 @@ class _RecordPaymentDialogState extends State<RecordPaymentDialog> {
             controller: _amount,
             autofocus: true,
             prefix: '₹',
-            keyboardType:
-                const TextInputType.numberWithOptions(decimal: true),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
@@ -202,7 +201,7 @@ class PatientDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: c.surface,
       surfaceTintColor: c.surface.withValues(alpha: 0),
-      shape: cruShape(CruRadius.card, side: BorderSide(color: c.hairline)),
+      shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: CruSize.dialog),
         child: Padding(

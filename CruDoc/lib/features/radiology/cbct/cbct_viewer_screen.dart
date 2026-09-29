@@ -9,14 +9,29 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// What the CBCT 3D viewer will do (approved; not built yet).
 const _planned = <(String, String)>[
-  ('Axial, coronal and sagittal', 'Linked crosshairs, tilted planes, thick slab (MIP / average)'),
-  ('Panoramic from CBCT', 'Draw or auto-detect the arch; numbered cross-sections along it'),
-  ('Nerve canal', 'Trace the mandibular canal; distance to canal on every measurement'),
-  ('3D rendering', 'Bone, teeth, soft tissue and X-ray presets in ivory, with clipping and cut tools'),
+  (
+    'Axial, coronal and sagittal',
+    'Linked crosshairs, tilted planes, thick slab (MIP / average)',
+  ),
+  (
+    'Panoramic from CBCT',
+    'Draw or auto-detect the arch; numbered cross-sections along it',
+  ),
+  (
+    'Nerve canal',
+    'Trace the mandibular canal; distance to canal on every measurement',
+  ),
+  (
+    '3D rendering',
+    'Bone, teeth, soft tissue and X-ray presets in ivory, with clipping and cut tools',
+  ),
   ('Measurements in 3D', 'Distances, angles and lesion volume'),
   ('Airway', 'Volume and the narrowest cross-section'),
   ('Sinus and TMJ views', 'Both condyles side by side'),
-  ('Implant planning', 'Implant library, bone density along the implant, canal warning'),
+  (
+    'Implant planning',
+    'Implant library, bone density along the implant, canal warning',
+  ),
   ('Export', 'STL for 3D printing and a rotating GIF'),
 ];
 
@@ -55,7 +70,10 @@ class CbctViewerScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('3D viewer', style: CruType.largeTitle.tint(c.label)),
+                        Text(
+                          '3D viewer',
+                          style: CruType.largeTitle.tint(c.label),
+                        ),
                         if (study != null)
                           Text(
                             '${study.patientName} · ${study.modality.label} · '
@@ -70,12 +88,17 @@ class CbctViewerScreen extends ConsumerWidget {
                     icon: RadIcons.xray,
                     onPressed: study == null
                         ? null
-                        : () => Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+                        : () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute<void>(
                               builder: (_) => Theme(
                                 data: Theme.of(context),
-                                child: RadViewerScreen(studyId: studyId, initialStudy: study),
+                                child: RadViewerScreen(
+                                  studyId: studyId,
+                                  initialStudy: study,
+                                ),
                               ),
-                            )),
+                            ),
+                          ),
                   ),
                 ],
               ),
@@ -83,7 +106,8 @@ class CbctViewerScreen extends ConsumerWidget {
               const RadNotConnected(
                 icon: RadIcons.cube,
                 title: 'The 3D viewer isn\'t built yet',
-                body: 'It\'s planned and will open here for CBCT studies. Until then, page '
+                body:
+                    'It\'s planned and will open here for CBCT studies. Until then, page '
                     'through the slices in the 2D viewer: measurements, key images and the '
                     'report all work there.',
               ),
@@ -93,22 +117,36 @@ class CbctViewerScreen extends ConsumerWidget {
                   semanticLabel: 'Coming in the 3D viewer',
                   child: ListView(
                     children: [
-                      Text('Coming in the 3D viewer', style: CruType.headline.tint(c.label)),
+                      Text(
+                        'Coming in the 3D viewer',
+                        style: CruType.headline.tint(c.label),
+                      ),
                       const SizedBox(height: CruSpace.s12),
                       for (final (title, body) in _planned)
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: CruSpace.s8),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: CruSpace.s8,
+                          ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const CruIconTile(icon: RadIcons.cube, tone: CruTileTone.neutral),
+                              const CruIconTile(
+                                icon: RadIcons.cube,
+                                tone: CruTileTone.neutral,
+                              ),
                               const SizedBox(width: CruSpace.s12),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(title, style: CruType.callout.tint(c.label)),
-                                    Text(body, style: CruType.subhead.tint(c.label2)),
+                                    Text(
+                                      title,
+                                      style: CruType.callout.tint(c.label),
+                                    ),
+                                    Text(
+                                      body,
+                                      style: CruType.subhead.tint(c.label2),
+                                    ),
                                   ],
                                 ),
                               ),
@@ -131,5 +169,6 @@ class CbctViewerScreen extends ConsumerWidget {
 bool radIsVolume(RadStudy s) {
   if (!s.modality.isVolume) return false;
   final readable = s.images.where((i) => !i.compressed).toList();
-  return readable.length > 1 || (readable.length == 1 && readable.first.frames > 1);
+  return readable.length > 1 ||
+      (readable.length == 1 && readable.first.frames > 1);
 }

@@ -85,7 +85,9 @@ class UpdateManifest {
   });
 
   factory UpdateManifest.fromJson(Map<String, dynamic> json) {
-    final platformsJson = (json['platforms'] as Map?)?.cast<String, dynamic>() ?? const <String, dynamic>{};
+    final platformsJson =
+        (json['platforms'] as Map?)?.cast<String, dynamic>() ??
+        const <String, dynamic>{};
 
     return UpdateManifest(
       schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
@@ -96,7 +98,9 @@ class UpdateManifest {
       platforms: platformsJson.map(
         (key, value) => MapEntry(
           key,
-          UpdateManifestPlatform.fromJson((value as Map).cast<String, dynamic>()),
+          UpdateManifestPlatform.fromJson(
+            (value as Map).cast<String, dynamic>(),
+          ),
         ),
       ),
     );

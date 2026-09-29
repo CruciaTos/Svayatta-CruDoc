@@ -35,10 +35,10 @@ const _alcohol = {
 };
 
 List<Map<String, String>> _rows(Object? raw, List<String> keys) => [
-      if (raw is List)
-        for (final r in raw)
-          if (r is Map) {for (final k in keys) k: '${r[k] ?? ''}'.trim()},
-    ];
+  if (raw is List)
+    for (final r in raw)
+      if (r is Map) {for (final k in keys) k: '${r[k] ?? ''}'.trim()},
+];
 
 /// The patient's oral medicine history (newest record), or null.
 DentalRecord? omHistoryOf(List<DentalRecord> records) =>
@@ -50,7 +50,10 @@ String? omAllergyText(DentalRecord? r) {
   if (r == null) return null;
   final list = _rows(r.data['allergies'], const ['to', 'reaction'])
       .where((a) => a['to']!.isNotEmpty)
-      .map((a) => a['reaction']!.isEmpty ? a['to']! : '${a['to']} (${a['reaction']})')
+      .map(
+        (a) =>
+            a['reaction']!.isEmpty ? a['to']! : '${a['to']} (${a['reaction']})',
+      )
       .toList();
   if (list.isNotEmpty) return list.join(', ');
   return r.data['nka'] == true ? 'None' : null;
@@ -70,11 +73,14 @@ String omCardLine(DentalRecord? r) {
   final conditions = r.data['systemic'] is List
       ? (r.data['systemic'] as List).map((e) => '$e').toList()
       : const <String>[];
-  final meds = _rows(r.data['medications'], const ['name'])
-      .where((m) => m['name']!.isNotEmpty)
-      .length;
+  final meds = _rows(r.data['medications'], const [
+    'name',
+  ]).where((m) => m['name']!.isNotEmpty).length;
   final parts = [
-    if (conditions.isNotEmpty) conditions.join(', ') else 'No systemic conditions',
+    if (conditions.isNotEmpty)
+      conditions.join(', ')
+    else
+      'No systemic conditions',
     if (meds > 0) '$meds medicine${meds == 1 ? '' : 's'}',
     if (omHighRisk(r)) 'high-risk habits',
   ];
@@ -86,15 +92,14 @@ Future<void> showOmHistoryDialog(
   BuildContext context,
   Patient patient, {
   DentalRecord? existing,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _OmHistoryDialog(patient: patient, existing: existing),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _OmHistoryDialog(patient: patient, existing: existing),
+);
 
 class _Line {
   _Line(List<String> values)
-      : fields = [for (final v in values) TextEditingController(text: v)];
+    : fields = [for (final v in values) TextEditingController(text: v)];
 
   final List<TextEditingController> fields;
 
@@ -139,7 +144,11 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
       _conditions.addAll((d['systemic'] as List).map((e) => '$e'));
     }
     _conditionNotes.text = '${d['systemicNotes'] ?? ''}';
-    for (final m in _rows(d['medications'], const ['name', 'dose', 'frequency'])) {
+    for (final m in _rows(d['medications'], const [
+      'name',
+      'dose',
+      'frequency',
+    ])) {
       _meds.add(_Line([m['name']!, m['dose']!, m['frequency']!]));
     }
     for (final a in _rows(d['allergies'], const ['to', 'reaction'])) {
@@ -148,11 +157,15 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
     _nka = d['nka'] == true;
     final h = d['habits'];
     if (h is Map) {
-      _tobaccoUse = _tobacco.containsKey(h['tobacco']) ? '${h['tobacco']}' : 'none';
+      _tobaccoUse = _tobacco.containsKey(h['tobacco'])
+          ? '${h['tobacco']}'
+          : 'none';
       final py = h['packYears'];
       _packYears.text = py is num && py > 0 ? '$py' : '';
       _areca = h['arecaNut'] == true;
-      _alcoholUse = _alcohol.containsKey(h['alcohol']) ? '${h['alcohol']}' : 'none';
+      _alcoholUse = _alcohol.containsKey(h['alcohol'])
+          ? '${h['alcohol']}'
+          : 'none';
     }
     _complaint.text = '${d['complaint'] ?? ''}';
     _duration.text = '${d['duration'] ?? ''}';
@@ -176,16 +189,19 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
 
   Map<String, dynamic> _data() {
     List<Map<String, String>> rows(List<_Line> lines, List<String> keys) => [
-          for (final l in lines)
-            if (l.fields.first.text.trim().isNotEmpty)
-              {
-                for (var i = 0; i < keys.length; i++)
-                  keys[i]: l.fields[i].text.trim(),
-              },
-        ];
+      for (final l in lines)
+        if (l.fields.first.text.trim().isNotEmpty)
+          {
+            for (var i = 0; i < keys.length; i++)
+              keys[i]: l.fields[i].text.trim(),
+          },
+    ];
     final allergies = rows(_allergies, const ['to', 'reaction']);
     return {
-      'systemic': [for (final c in omConditions) if (_conditions.contains(c)) c],
+      'systemic': [
+        for (final c in omConditions)
+          if (_conditions.contains(c)) c,
+      ],
       'systemicNotes': _conditionNotes.text.trim(),
       'medications': rows(_meds, const ['name', 'dose', 'frequency']),
       'allergies': allergies,
@@ -211,7 +227,11 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
     try {
       final data = _data();
       final e = widget.existing;
-      final draft = DentalRecord.create(widget.patient.id, RecKind.omHistory, data);
+      final draft = DentalRecord.create(
+        widget.patient.id,
+        RecKind.omHistory,
+        data,
+      );
       final versions = [
         if (e?.data['versions'] is List) ...(e!.data['versions'] as List),
         {
@@ -220,12 +240,14 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
         },
       ];
       final r = e == null
-          ? DentalRecord.create(
-              widget.patient.id,
-              RecKind.omHistory,
-              {...data, 'versions': versions},
-            )
-          : e.copyWith(data: {...data, 'versions': versions}, recordedAt: DateTime.now());
+          ? DentalRecord.create(widget.patient.id, RecKind.omHistory, {
+              ...data,
+              'versions': versions,
+            })
+          : e.copyWith(
+              data: {...data, 'versions': versions},
+              recordedAt: DateTime.now(),
+            );
       await saveDentalRecord(ref, r);
       if (mounted) Navigator.of(context).pop();
     } catch (_) {
@@ -308,13 +330,18 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
     return CruFormDialog(
       title: 'Oral medicine history',
       subtitle: widget.patient.fullName,
-      leading: const CruIconTile(icon: RecIcons.consent, tone: CruTileTone.accent),
+      leading: const CruIconTile(
+        icon: RecIcons.consent,
+        tone: CruTileTone.accent,
+      ),
       submitLabel: 'Save history',
       onSubmit: _save,
       busy: _saving,
       dirty: _dirty,
       notice: _notice,
-      footerHint: updated == null ? null : 'Last updated ${DentalFormat.date(updated)}',
+      footerHint: updated == null
+          ? null
+          : 'Last updated ${DentalFormat.date(updated)}',
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -328,9 +355,11 @@ class _OmHistoryDialogState extends ConsumerState<_OmHistoryDialog> {
                 label: (s) => s,
                 isSelected: _conditions.contains,
                 onTap: (s) {
-                  setState(() => _conditions.contains(s)
-                      ? _conditions.remove(s)
-                      : _conditions.add(s));
+                  setState(
+                    () => _conditions.contains(s)
+                        ? _conditions.remove(s)
+                        : _conditions.add(s),
+                  );
                   _edited();
                 },
               ),

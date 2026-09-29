@@ -49,13 +49,18 @@ class _SuperAdminSettingsScreenState
     _pacsAeController = TextEditingController(text: s.pacsAeTitle);
     _pacsPortController = TextEditingController(text: s.pacsPort.toString());
     _rvgHostController = TextEditingController(text: s.rvgBridgeHost);
-    _rvgPortController = TextEditingController(text: s.rvgBridgePort.toString());
-    _rvgTimeoutController =
-        TextEditingController(text: s.rvgAcquisitionTimeoutSeconds.toString());
-    _maintenanceMsgController =
-        TextEditingController(text: s.maintenanceMessage);
-    _procedureCatalogController =
-        TextEditingController(text: s.procedureCatalogVersion);
+    _rvgPortController = TextEditingController(
+      text: s.rvgBridgePort.toString(),
+    );
+    _rvgTimeoutController = TextEditingController(
+      text: s.rvgAcquisitionTimeoutSeconds.toString(),
+    );
+    _maintenanceMsgController = TextEditingController(
+      text: s.maintenanceMessage,
+    );
+    _procedureCatalogController = TextEditingController(
+      text: s.procedureCatalogVersion,
+    );
   }
 
   @override
@@ -149,7 +154,12 @@ class _SuperAdminSettingsScreenState
                       child: CircularProgressIndicator(),
                     ),
                   )
-                : _buildSelectedCategoryContent(context, state, notifier, isMobile),
+                : _buildSelectedCategoryContent(
+                    context,
+                    state,
+                    notifier,
+                    isMobile,
+                  ),
           ],
         ),
       ),
@@ -163,185 +173,210 @@ class _SuperAdminSettingsScreenState
     SettingsNotifier notifier,
     bool isMobile,
   ) {
-    return LayoutBuilder(builder: (context, constraints) {
-      final isNarrow = constraints.maxWidth < 650;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          'System Configuration',
-                          style: TextStyle(
-                            fontFamily: AppColors.headingFontFamily,
-                            fontSize: isMobile ? 22 : 26,
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.midnightBlue,
-                            letterSpacing: -0.5,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        if (state.isDirty)
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFEF3C7),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                  color: const Color(0xFFF59E0B), width: 1),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                CircleAvatar(
-                                  radius: 3,
-                                  backgroundColor: Color(0xFFD97706),
-                                ),
-                                SizedBox(width: 5),
-                                Text(
-                                  'Unsaved Changes',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF92400E),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Global governance, PACS DICOM routing, Direct RVG sensor bridge, dental charts, and Gemini AI settings.',
-                      style: TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 13,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!isNarrow) ...[
-                if (state.isDirty) ...[
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.undo_rounded, size: 16),
-                    label: const Text('Reset'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.slateBlue,
-                      side: BorderSide(color: AppColors.divider),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(CruRadius.control),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 12),
-                    ),
-                    onPressed: () => notifier.resetChanges(),
-                  ),
-                  const SizedBox(width: 12),
-                ],
-                ElevatedButton.icon(
-                  icon: state.isSaving
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Icon(Icons.cloud_done_rounded,
-                          size: 18, color: Colors.white),
-                  label: Text(
-                    state.isSaving ? 'Deploying...' : 'Save Configuration',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(CruRadius.control),
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
-                  ),
-                  onPressed: state.isSaving ? null : () => notifier.saveSettings(),
-                ),
-              ],
-            ],
-          ),
-          if (isNarrow) ...[
-            const SizedBox(height: 14),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 650;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                if (state.isDirty) ...[
-                  Expanded(
-                    child: OutlinedButton(
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'System Configuration',
+                            style: TextStyle(
+                              fontFamily: AppColors.headingFontFamily,
+                              fontSize: isMobile ? 22 : 26,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.midnightBlue,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          if (state.isDirty)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: const Color(0xFFF59E0B),
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 3,
+                                    backgroundColor: Color(0xFFD97706),
+                                  ),
+                                  SizedBox(width: 5),
+                                  Text(
+                                    'Unsaved Changes',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF92400E),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Global governance, PACS DICOM routing, Direct RVG sensor bridge, dental charts, and Gemini AI settings.',
+                        style: TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (!isNarrow) ...[
+                  if (state.isDirty) ...[
+                    OutlinedButton.icon(
+                      icon: const Icon(Icons.undo_rounded, size: 16),
+                      label: const Text('Reset'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.slateBlue,
                         side: BorderSide(color: AppColors.divider),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                              BorderRadius.circular(CruRadius.control),
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
                       ),
                       onPressed: () => notifier.resetChanges(),
-                      child: const Text('Reset'),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
+                    const SizedBox(width: 12),
+                  ],
+                  ElevatedButton.icon(
                     icon: state.isSaving
                         ? const SizedBox(
-                            width: 14,
-                            height: 14,
+                            width: 16,
+                            height: 16,
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.cloud_done_rounded,
-                            size: 16, color: Colors.white),
+                        : const Icon(
+                            Icons.cloud_done_rounded,
+                            size: 18,
+                            color: Colors.white,
+                          ),
                     label: Text(
-                      state.isSaving ? 'Saving...' : 'Save Configuration',
+                      state.isSaving ? 'Deploying...' : 'Save Configuration',
                       style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius:
-                            BorderRadius.circular(CruRadius.control),
+                        borderRadius: BorderRadius.circular(CruRadius.control),
                       ),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 14,
+                      ),
                     ),
-                    onPressed:
-                        state.isSaving ? null : () => notifier.saveSettings(),
+                    onPressed: state.isSaving
+                        ? null
+                        : () => notifier.saveSettings(),
                   ),
-                ),
+                ],
               ],
             ),
+            if (isNarrow) ...[
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  if (state.isDirty) ...[
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.slateBlue,
+                          side: BorderSide(color: AppColors.divider),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              CruRadius.control,
+                            ),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () => notifier.resetChanges(),
+                        child: const Text('Reset'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      icon: state.isSaving
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Icon(
+                              Icons.cloud_done_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            ),
+                      label: Text(
+                        state.isSaving ? 'Saving...' : 'Save Configuration',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(
+                            CruRadius.control,
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: state.isSaving
+                          ? null
+                          : () => notifier.saveSettings(),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ],
-        ],
-      );
-    });
+        );
+      },
+    );
   }
 
   // ==================== 2. STATUS & MAINTENANCE BANNERS ====================
@@ -355,8 +390,11 @@ class _SuperAdminSettingsScreenState
       ),
       child: Row(
         children: [
-          const Icon(Icons.warning_amber_rounded,
-              color: Color(0xFFD97706), size: 24),
+          const Icon(
+            Icons.warning_amber_rounded,
+            color: Color(0xFFD97706),
+            size: 24,
+          ),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -408,12 +446,15 @@ class _SuperAdminSettingsScreenState
     required VoidCallback onDismiss,
   }) {
     final bgColor = isError ? const Color(0xFFFEF2F2) : const Color(0xFFECFDF5);
-    final borderColor =
-        isError ? const Color(0xFFFECACA) : const Color(0xFFA7F3D0);
-    final textColor =
-        isError ? const Color(0xFF991B1B) : const Color(0xFF065F46);
-    final icon =
-        isError ? Icons.error_outline_rounded : Icons.check_circle_outline_rounded;
+    final borderColor = isError
+        ? const Color(0xFFFECACA)
+        : const Color(0xFFA7F3D0);
+    final textColor = isError
+        ? const Color(0xFF991B1B)
+        : const Color(0xFF065F46);
+    final icon = isError
+        ? Icons.error_outline_rounded
+        : Icons.check_circle_outline_rounded;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -450,11 +491,27 @@ class _SuperAdminSettingsScreenState
   // ==================== 3. CATEGORY TABS ====================
   Widget _buildCategoryTabs(bool isMobile) {
     final tabs = [
-      (SettingsCategory.radiology, Icons.camera_alt_outlined, 'Radiology & DICOM'),
+      (
+        SettingsCategory.radiology,
+        Icons.camera_alt_outlined,
+        'Radiology & DICOM',
+      ),
       (SettingsCategory.rvgBridge, Icons.sensors_outlined, 'Direct RVG Bridge'),
-      (SettingsCategory.dentalSuite, Icons.medical_services_outlined, 'Dental Specialty'),
-      (SettingsCategory.aiScribe, Icons.psychology_outlined, 'AI Scribe & 2nd Read'),
-      (SettingsCategory.governance, Icons.security_outlined, 'Security & Lockdown'),
+      (
+        SettingsCategory.dentalSuite,
+        Icons.medical_services_outlined,
+        'Dental Specialty',
+      ),
+      (
+        SettingsCategory.aiScribe,
+        Icons.psychology_outlined,
+        'AI Scribe & 2nd Read',
+      ),
+      (
+        SettingsCategory.governance,
+        Icons.security_outlined,
+        'Security & Lockdown',
+      ),
       (SettingsCategory.storageSync, Icons.storage_outlined, 'Database & Sync'),
     ];
 
@@ -475,8 +532,10 @@ class _SuperAdminSettingsScreenState
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? const Color(0xFF2563EB)
@@ -487,15 +546,7 @@ class _SuperAdminSettingsScreenState
                         ? const Color(0xFF2563EB)
                         : AppColors.divider,
                   ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF2563EB).withValues(alpha: 0.25),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
+                  boxShadow: const [],
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -511,8 +562,9 @@ class _SuperAdminSettingsScreenState
                       style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         fontSize: 13,
-                        fontWeight:
-                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontWeight: isSelected
+                            ? FontWeight.w700
+                            : FontWeight.w500,
                         color: isSelected
                             ? Colors.white
                             : AppColors.textPrimary,
@@ -583,7 +635,9 @@ class _SuperAdminSettingsScreenState
                     controller: _pacsAeController,
                     hint: 'CRUDOC_PACS',
                     onChanged: (val) {
-                      notifier.updateSettings(s.copyWith(pacsAeTitle: val.trim()));
+                      notifier.updateSettings(
+                        s.copyWith(pacsAeTitle: val.trim()),
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -594,7 +648,8 @@ class _SuperAdminSettingsScreenState
                     keyboardType: TextInputType.number,
                     onChanged: (val) {
                       final p = int.tryParse(val.trim());
-                      if (p != null) notifier.updateSettings(s.copyWith(pacsPort: p));
+                      if (p != null)
+                        notifier.updateSettings(s.copyWith(pacsPort: p));
                     },
                   ),
                 ],
@@ -611,7 +666,9 @@ class _SuperAdminSettingsScreenState
                         'Apply direct linear window/level contrast LUT on full dynamic range',
                     value: s.highBitDepthRendering,
                     onChanged: (v) {
-                      notifier.updateSettings(s.copyWith(highBitDepthRendering: v));
+                      notifier.updateSettings(
+                        s.copyWith(highBitDepthRendering: v),
+                      );
                     },
                   ),
                   const Divider(height: 16),
@@ -621,7 +678,9 @@ class _SuperAdminSettingsScreenState
                         'Instantly display thumbnail slice previews before byte-stream completes',
                     value: s.progressiveStreaming,
                     onChanged: (v) {
-                      notifier.updateSettings(s.copyWith(progressiveStreaming: v));
+                      notifier.updateSettings(
+                        s.copyWith(progressiveStreaming: v),
+                      );
                     },
                   ),
                 ],
@@ -635,7 +694,8 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Multi-Frame CBCT Preload Buffer',
-              subtitle: 'Number of adjacent axial/sagittal slices kept in active VRAM cache.',
+              subtitle:
+                  'Number of adjacent axial/sagittal slices kept in active VRAM cache.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -644,10 +704,16 @@ class _SuperAdminSettingsScreenState
                     children: [
                       const Text(
                         'Preload Slice Radius:',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFF3E8FF),
                           borderRadius: BorderRadius.circular(8),
@@ -671,19 +737,24 @@ class _SuperAdminSettingsScreenState
                     activeColor: const Color(0xFF8B5CF6),
                     onChanged: (v) {
                       notifier.updateSettings(
-                          s.copyWith(dicomPreloadSliceCount: v.toInt()));
+                        s.copyWith(dicomPreloadSliceCount: v.toInt()),
+                      );
                     },
                   ),
                   const Text(
                     'Recommended: 16 for desktop workstations, 8 for lightweight browser tablets.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
             _buildSettingCard(
               title: 'Per-Doctor DICOM Cloud Storage Limit',
-              subtitle: 'Default allocated high-resolution volume quota per clinic.',
+              subtitle:
+                  'Default allocated high-resolution volume quota per clinic.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -692,10 +763,16 @@ class _SuperAdminSettingsScreenState
                     children: [
                       const Text(
                         'Allocated Storage Quota:',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFEDE9FE),
                           borderRadius: BorderRadius.circular(8),
@@ -719,12 +796,16 @@ class _SuperAdminSettingsScreenState
                     activeColor: const Color(0xFF8B5CF6),
                     onChanged: (v) {
                       notifier.updateSettings(
-                          s.copyWith(defaultDoctorStorageQuotaGB: v));
+                        s.copyWith(defaultDoctorStorageQuotaGB: v),
+                      );
                     },
                   ),
                   const Text(
                     'Doctors receive soft warnings at 80% usage and upload blocking at 100%.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -765,17 +846,13 @@ class _SuperAdminSettingsScreenState
             borderRadius: BorderRadius.circular(CruRadius.card),
             border: Border.all(
               color: ping != null
-                  ? (ping.isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444))
+                  ? (ping.isOnline
+                        ? const Color(0xFF10B981)
+                        : const Color(0xFFEF4444))
                   : AppColors.divider,
               width: ping != null ? 1.5 : 1.0,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.04),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -832,9 +909,15 @@ class _SuperAdminSettingsScreenState
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.bolt_rounded, size: 16, color: Colors.white),
+                        : const Icon(
+                            Icons.bolt_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                     label: Text(
-                      state.isTestingBridge ? 'Pinging...' : 'Ping Sensor Bridge',
+                      state.isTestingBridge
+                          ? 'Pinging...'
+                          : 'Ping Sensor Bridge',
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -846,9 +929,14 @@ class _SuperAdminSettingsScreenState
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(CruRadius.control),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                     ),
-                    onPressed: state.isTestingBridge ? null : () => notifier.testBridge(),
+                    onPressed: state.isTestingBridge
+                        ? null
+                        : () => notifier.testBridge(),
                   ),
                 ],
               ),
@@ -915,7 +1003,9 @@ class _SuperAdminSettingsScreenState
                     controller: _rvgHostController,
                     hint: '127.0.0.1',
                     onChanged: (val) {
-                      notifier.updateSettings(s.copyWith(rvgBridgeHost: val.trim()));
+                      notifier.updateSettings(
+                        s.copyWith(rvgBridgeHost: val.trim()),
+                      );
                     },
                   ),
                   const SizedBox(height: 12),
@@ -926,7 +1016,8 @@ class _SuperAdminSettingsScreenState
                     keyboardType: TextInputType.number,
                     onChanged: (val) {
                       final p = int.tryParse(val.trim());
-                      if (p != null) notifier.updateSettings(s.copyWith(rvgBridgePort: p));
+                      if (p != null)
+                        notifier.updateSettings(s.copyWith(rvgBridgePort: p));
                     },
                   ),
                 ],
@@ -943,7 +1034,9 @@ class _SuperAdminSettingsScreenState
                         'Scan TWAIN, Vatech, Carestream, Dexis, and Woodpecker sensor DLLs',
                     value: s.autoDiscoverDrivers,
                     onChanged: (v) {
-                      notifier.updateSettings(s.copyWith(autoDiscoverDrivers: v));
+                      notifier.updateSettings(
+                        s.copyWith(autoDiscoverDrivers: v),
+                      );
                     },
                   ),
                   const Divider(height: 16),
@@ -953,7 +1046,9 @@ class _SuperAdminSettingsScreenState
                         'Generate synthetic realistic intraoral dental exposures when no sensor is plugged in',
                     value: s.allowSimulatedCaptureFallback,
                     onChanged: (v) {
-                      notifier.updateSettings(s.copyWith(allowSimulatedCaptureFallback: v));
+                      notifier.updateSettings(
+                        s.copyWith(allowSimulatedCaptureFallback: v),
+                      );
                     },
                   ),
                 ],
@@ -968,7 +1063,8 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Hardware Exposure Timeout',
-              subtitle: 'Maximum duration the sensor waits for radiation trigger before canceling.',
+              subtitle:
+                  'Maximum duration the sensor waits for radiation trigger before canceling.',
               child: Column(
                 children: [
                   _buildTextInput(
@@ -980,14 +1076,18 @@ class _SuperAdminSettingsScreenState
                       final t = int.tryParse(val.trim());
                       if (t != null) {
                         notifier.updateSettings(
-                            s.copyWith(rvgAcquisitionTimeoutSeconds: t));
+                          s.copyWith(rvgAcquisitionTimeoutSeconds: t),
+                        );
                       }
                     },
                   ),
                   const SizedBox(height: 8),
                   const Text(
                     'Recommended: 45 seconds to allow technician arming and patient positioning.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -1019,7 +1119,8 @@ class _SuperAdminSettingsScreenState
                 onChanged: (v) {
                   if (v != null) {
                     notifier.updateSettings(
-                        s.copyWith(defaultCalibrationProfile: v));
+                      s.copyWith(defaultCalibrationProfile: v),
+                    );
                   }
                 },
               ),
@@ -1054,14 +1155,19 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Odontogram Numbering System Gate',
-              subtitle: 'Platform-wide dental notation system applied to clinical charts.',
+              subtitle:
+                  'Platform-wide dental notation system applied to clinical charts.',
               child: DropdownButtonFormField<String>(
                 initialValue: s.odontogramNumberingSystem,
-                decoration: _inputDecoration(label: 'Global Numbering Notation'),
+                decoration: _inputDecoration(
+                  label: 'Global Numbering Notation',
+                ),
                 items: const [
                   DropdownMenuItem(
                     value: 'FDI (ISO 3950)',
-                    child: Text('FDI Two-Digit World Dental Standard (ISO 3950)'),
+                    child: Text(
+                      'FDI Two-Digit World Dental Standard (ISO 3950)',
+                    ),
                   ),
                   DropdownMenuItem(
                     value: 'Universal (ADA)',
@@ -1074,14 +1180,17 @@ class _SuperAdminSettingsScreenState
                 ],
                 onChanged: (v) {
                   if (v != null) {
-                    notifier.updateSettings(s.copyWith(odontogramNumberingSystem: v));
+                    notifier.updateSettings(
+                      s.copyWith(odontogramNumberingSystem: v),
+                    );
                   }
                 },
               ),
             ),
             _buildSettingCard(
               title: 'Pediatric (Primary) Dentition Quick-Toggle',
-              subtitle: 'Allow instant switching between permanent 32 teeth and deciduous 20 primary teeth.',
+              subtitle:
+                  'Allow instant switching between permanent 32 teeth and deciduous 20 primary teeth.',
               child: _buildSwitchTile(
                 title: 'Enable Pediatric Deciduous Chart Mode',
                 subtitle:
@@ -1089,7 +1198,8 @@ class _SuperAdminSettingsScreenState
                 value: s.enablePediatricDentitionToggle,
                 onChanged: (v) {
                   notifier.updateSettings(
-                      s.copyWith(enablePediatricDentitionToggle: v));
+                    s.copyWith(enablePediatricDentitionToggle: v),
+                  );
                 },
               ),
             ),
@@ -1101,7 +1211,8 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Periodontal Probing Depth Red-Flag Warning',
-              subtitle: 'Pocket depth measurement (mm) that triggers yellow/amber warning.',
+              subtitle:
+                  'Pocket depth measurement (mm) that triggers yellow/amber warning.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1110,7 +1221,10 @@ class _SuperAdminSettingsScreenState
                     children: [
                       const Text(
                         'Warning Threshold (Amber):',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '≥ ${s.perioWarningDepthMm} mm',
@@ -1130,19 +1244,24 @@ class _SuperAdminSettingsScreenState
                     activeColor: const Color(0xFFF59E0B),
                     onChanged: (v) {
                       notifier.updateSettings(
-                          s.copyWith(perioWarningDepthMm: v.toInt()));
+                        s.copyWith(perioWarningDepthMm: v.toInt()),
+                      );
                     },
                   ),
                   const Text(
                     'Standard AAP guideline recommends 4 mm as the threshold for early pocketing.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
             ),
             _buildSettingCard(
               title: 'Periodontal Severe Pocket Alert',
-              subtitle: 'Deep pocket measurement (mm) that triggers red alert and surgical referral prompt.',
+              subtitle:
+                  'Deep pocket measurement (mm) that triggers red alert and surgical referral prompt.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1151,7 +1270,10 @@ class _SuperAdminSettingsScreenState
                     children: [
                       const Text(
                         'Severe Threshold (Red Alert):',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '≥ ${s.perioSevereDepthMm} mm',
@@ -1171,12 +1293,16 @@ class _SuperAdminSettingsScreenState
                     activeColor: const Color(0xFFEF4444),
                     onChanged: (v) {
                       notifier.updateSettings(
-                          s.copyWith(perioSevereDepthMm: v.toInt()));
+                        s.copyWith(perioSevereDepthMm: v.toInt()),
+                      );
                     },
                   ),
                   const Text(
                     'Probing depths of 6 mm or greater denote advanced periodontitis.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -1186,14 +1312,16 @@ class _SuperAdminSettingsScreenState
         const SizedBox(height: 16),
         _buildSettingCard(
           title: 'Dental Procedure Code Catalog Version',
-          subtitle: 'Global CDT / ADA clinical coding scheme deployed to clinics.',
+          subtitle:
+              'Global CDT / ADA clinical coding scheme deployed to clinics.',
           child: _buildTextInput(
             label: 'Procedure Catalog Schema Version',
             controller: _procedureCatalogController,
             hint: 'CDT-2026.1',
             onChanged: (val) {
               notifier.updateSettings(
-                  s.copyWith(procedureCatalogVersion: val.trim()));
+                s.copyWith(procedureCatalogVersion: val.trim()),
+              );
             },
           ),
         ),
@@ -1225,18 +1353,23 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Primary Google Gemini LLM Engine',
-              subtitle: 'Backbone model utilized for real-time transcription and clinical summaries.',
+              subtitle:
+                  'Backbone model utilized for real-time transcription and clinical summaries.',
               child: DropdownButtonFormField<String>(
                 initialValue: s.geminiModel,
                 decoration: _inputDecoration(label: 'Gemini Model'),
                 items: const [
                   DropdownMenuItem(
                     value: 'gemini-2.5-flash',
-                    child: Text('Gemini 2.5 Flash (Ultra-Low Latency & High Speed)'),
+                    child: Text(
+                      'Gemini 2.5 Flash (Ultra-Low Latency & High Speed)',
+                    ),
                   ),
                   DropdownMenuItem(
                     value: 'gemini-2.5-pro',
-                    child: Text('Gemini 2.5 Pro (Deep Clinical Reasoning & Multimodal)'),
+                    child: Text(
+                      'Gemini 2.5 Pro (Deep Clinical Reasoning & Multimodal)',
+                    ),
                   ),
                   DropdownMenuItem(
                     value: 'gemini-1.5-flash',
@@ -1256,7 +1389,8 @@ class _SuperAdminSettingsScreenState
             ),
             _buildSettingCard(
               title: 'Radiology AI Second Read Confidence Threshold',
-              subtitle: 'Minimum confidence score required before presenting an AI diagnostic finding.',
+              subtitle:
+                  'Minimum confidence score required before presenting an AI diagnostic finding.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1265,10 +1399,16 @@ class _SuperAdminSettingsScreenState
                     children: [
                       const Text(
                         'Minimum Confidence Gate:',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFFDF4FF),
                           borderRadius: BorderRadius.circular(8),
@@ -1292,12 +1432,16 @@ class _SuperAdminSettingsScreenState
                     activeColor: const Color(0xFFD946EF),
                     onChanged: (v) {
                       notifier.updateSettings(
-                          s.copyWith(aiSecondReadConfidenceThreshold: v));
+                        s.copyWith(aiSecondReadConfidenceThreshold: v),
+                      );
                     },
                   ),
                   const Text(
                     'High threshold (85%+) minimizes false positives while capturing significant radiolucencies.',
-                    style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ],
               ),
@@ -1310,7 +1454,8 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Ambient Audio Streaming Chunk Buffer',
-              subtitle: 'Audio packet duration uploaded to Gemini transcription stream.',
+              subtitle:
+                  'Audio packet duration uploaded to Gemini transcription stream.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1319,7 +1464,10 @@ class _SuperAdminSettingsScreenState
                     children: [
                       const Text(
                         'Audio Chunk Duration:',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '${s.ambientScribeAudioChunkSeconds} seconds',
@@ -1339,7 +1487,8 @@ class _SuperAdminSettingsScreenState
                     activeColor: const Color(0xFF2563EB),
                     onChanged: (v) {
                       notifier.updateSettings(
-                          s.copyWith(ambientScribeAudioChunkSeconds: v.toInt()));
+                        s.copyWith(ambientScribeAudioChunkSeconds: v.toInt()),
+                      );
                     },
                   ),
                 ],
@@ -1347,7 +1496,8 @@ class _SuperAdminSettingsScreenState
             ),
             _buildSettingCard(
               title: 'HIPAA & Privacy Data Protections',
-              subtitle: 'Automated de-identification and clinical note structuring.',
+              subtitle:
+                  'Automated de-identification and clinical note structuring.',
               child: Column(
                 children: [
                   _buildSwitchTile(
@@ -1402,7 +1552,8 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Maintenance Mode Banner',
-              subtitle: 'Display high-priority broadcast banner across all active web & desktop shells.',
+              subtitle:
+                  'Display high-priority broadcast banner across all active web & desktop shells.',
               child: Column(
                 children: [
                   _buildSwitchTile(
@@ -1422,7 +1573,8 @@ class _SuperAdminSettingsScreenState
                     hint: 'System maintenance scheduled in 15 minutes...',
                     onChanged: (val) {
                       notifier.updateSettings(
-                          s.copyWith(maintenanceMessage: val.trim()));
+                        s.copyWith(maintenanceMessage: val.trim()),
+                      );
                     },
                   ),
                 ],
@@ -1430,7 +1582,8 @@ class _SuperAdminSettingsScreenState
             ),
             _buildSettingCard(
               title: 'Emergency Read-Only Lockdown',
-              subtitle: 'Freeze all write/edit operations during database migrations or incidents.',
+              subtitle:
+                  'Freeze all write/edit operations during database migrations or incidents.',
               child: Column(
                 children: [
                   _buildSwitchTile(
@@ -1442,15 +1595,20 @@ class _SuperAdminSettingsScreenState
                     onChanged: (v) {
                       _confirmActionDialog(
                         context: context,
-                        title: v ? 'Enable Emergency Lockdown?' : 'Disable Lockdown?',
+                        title: v
+                            ? 'Enable Emergency Lockdown?'
+                            : 'Disable Lockdown?',
                         content: v
                             ? 'All clinics will be placed into read-only mode immediately. Doctors will NOT be able to save new clinical notes or bills.'
                             : 'This will restore write operations and allow clinics to resume normal mutations.',
-                        confirmText: v ? 'Enable Lockdown' : 'Restore Operations',
+                        confirmText: v
+                            ? 'Enable Lockdown'
+                            : 'Restore Operations',
                         isDestructive: v,
                         onConfirm: () {
                           notifier.updateSettings(
-                              s.copyWith(emergencyReadOnlyLockdown: v));
+                            s.copyWith(emergencyReadOnlyLockdown: v),
+                          );
                         },
                       );
                     },
@@ -1476,38 +1634,62 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Admin Session Inactivity Timeout',
-              subtitle: 'Automatically invalidate super admin session tokens after idle duration.',
+              subtitle:
+                  'Automatically invalidate super admin session tokens after idle duration.',
               child: DropdownButtonFormField<int>(
                 initialValue: s.sessionTimeoutMinutes,
                 decoration: _inputDecoration(label: 'Timeout Interval'),
                 items: const [
-                  DropdownMenuItem(value: 15, child: Text('15 Minutes (High Security)')),
-                  DropdownMenuItem(value: 30, child: Text('30 Minutes (Standard)')),
-                  DropdownMenuItem(value: 60, child: Text('60 Minutes (Extended)')),
+                  DropdownMenuItem(
+                    value: 15,
+                    child: Text('15 Minutes (High Security)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 30,
+                    child: Text('30 Minutes (Standard)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 60,
+                    child: Text('60 Minutes (Extended)'),
+                  ),
                   DropdownMenuItem(value: 120, child: Text('2 Hours')),
                 ],
                 onChanged: (v) {
                   if (v != null) {
-                    notifier.updateSettings(s.copyWith(sessionTimeoutMinutes: v));
+                    notifier.updateSettings(
+                      s.copyWith(sessionTimeoutMinutes: v),
+                    );
                   }
                 },
               ),
             ),
             _buildSettingCard(
               title: 'Audit Log Retention Policy',
-              subtitle: 'Regulatory compliance period for immutable administrator audit trails.',
+              subtitle:
+                  'Regulatory compliance period for immutable administrator audit trails.',
               child: DropdownButtonFormField<int>(
                 initialValue: s.auditLogRetentionYears,
                 decoration: _inputDecoration(label: 'Retention Horizon'),
                 items: const [
                   DropdownMenuItem(value: 3, child: Text('3 Years')),
-                  DropdownMenuItem(value: 5, child: Text('5 Years (NABH Standard)')),
-                  DropdownMenuItem(value: 7, child: Text('7 Years (HIPAA Compliance)')),
-                  DropdownMenuItem(value: 10, child: Text('10 Years (Permanent Medical Record)')),
+                  DropdownMenuItem(
+                    value: 5,
+                    child: Text('5 Years (NABH Standard)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 7,
+                    child: Text('7 Years (HIPAA Compliance)'),
+                  ),
+                  DropdownMenuItem(
+                    value: 10,
+                    child: Text('10 Years (Permanent Medical Record)'),
+                  ),
                 ],
                 onChanged: (v) {
                   if (v != null) {
-                    notifier.updateSettings(s.copyWith(auditLogRetentionYears: v));
+                    notifier.updateSettings(
+                      s.copyWith(auditLogRetentionYears: v),
+                    );
                   }
                 },
               ),
@@ -1542,13 +1724,17 @@ class _SuperAdminSettingsScreenState
           children: [
             _buildSettingCard(
               title: 'Client Database Cache Compaction',
-              subtitle: 'Trigger optimization and defragmentation of local SQLite indexes.',
+              subtitle:
+                  'Trigger optimization and defragmentation of local SQLite indexes.',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
                     'Compacting frees unallocated disk sectors, optimizes B-Trees, and accelerates DICOM thumbnail queries.',
-                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
@@ -1561,10 +1747,15 @@ class _SuperAdminSettingsScreenState
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.cleaning_services_rounded,
-                            size: 16, color: Colors.white),
+                        : const Icon(
+                            Icons.cleaning_services_rounded,
+                            size: 16,
+                            color: Colors.white,
+                          ),
                     label: Text(
-                      state.isCompacting ? 'Compacting...' : 'Compact Cache & Optimize Indexes',
+                      state.isCompacting
+                          ? 'Compacting...'
+                          : 'Compact Cache & Optimize Indexes',
                       style: const TextStyle(
                         fontWeight: FontWeight.w700,
                         color: Colors.white,
@@ -1576,16 +1767,22 @@ class _SuperAdminSettingsScreenState
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(CruRadius.control),
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
                     ),
-                    onPressed: state.isCompacting ? null : () => notifier.compactCache(),
+                    onPressed: state.isCompacting
+                        ? null
+                        : () => notifier.compactCache(),
                   ),
                 ],
               ),
             ),
             _buildSettingCard(
               title: 'Purge Temporary RVG Captures',
-              subtitle: 'Automatically purge raw unprocessed sensor frames older than N days.',
+              subtitle:
+                  'Automatically purge raw unprocessed sensor frames older than N days.',
               child: DropdownButtonFormField<int>(
                 initialValue: s.purgeTempCapturesAfterDays,
                 decoration: _inputDecoration(label: 'Auto-Purge Threshold'),
@@ -1597,7 +1794,9 @@ class _SuperAdminSettingsScreenState
                 ],
                 onChanged: (v) {
                   if (v != null) {
-                    notifier.updateSettings(s.copyWith(purgeTempCapturesAfterDays: v));
+                    notifier.updateSettings(
+                      s.copyWith(purgeTempCapturesAfterDays: v),
+                    );
                   }
                 },
               ),
@@ -1607,7 +1806,8 @@ class _SuperAdminSettingsScreenState
         const SizedBox(height: 16),
         _buildSettingCard(
           title: 'Cloud Real-Time Sync Polling Interval',
-          subtitle: 'Frequency of background sync pulses between desktop shell and Firestore backend.',
+          subtitle:
+              'Frequency of background sync pulses between desktop shell and Firestore backend.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1619,7 +1819,10 @@ class _SuperAdminSettingsScreenState
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFECFDF5),
                       borderRadius: BorderRadius.circular(8),
@@ -1643,7 +1846,8 @@ class _SuperAdminSettingsScreenState
                 activeColor: const Color(0xFF10B981),
                 onChanged: (v) {
                   notifier.updateSettings(
-                      s.copyWith(syncIntervalSeconds: v.toInt()));
+                    s.copyWith(syncIntervalSeconds: v.toInt()),
+                  );
                 },
               ),
             ],
@@ -1709,22 +1913,26 @@ class _SuperAdminSettingsScreenState
     if (isMobile) {
       return Column(
         children: children
-            .map((c) => Padding(
-                  padding: const EdgeInsets.only(bottom: 14.0),
-                  child: c,
-                ))
+            .map(
+              (c) => Padding(
+                padding: const EdgeInsets.only(bottom: 14.0),
+                child: c,
+              ),
+            )
             .toList(),
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: children
-          .map((c) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6.0),
-                  child: c,
-                ),
-              ))
+          .map(
+            (c) => Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                child: c,
+              ),
+            ),
+          )
           .toList(),
     );
   }
@@ -1740,13 +1948,7 @@ class _SuperAdminSettingsScreenState
         color: AppColors.cardSurface,
         borderRadius: BorderRadius.circular(CruRadius.card),
         border: Border.all(color: AppColors.divider),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.02),
-            blurRadius: 8,
-            offset: const Offset(0, 3),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1881,8 +2083,9 @@ class _SuperAdminSettingsScreenState
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  isDestructive ? const Color(0xFFEF4444) : const Color(0xFF2563EB),
+              backgroundColor: isDestructive
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF2563EB),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(CruRadius.control),

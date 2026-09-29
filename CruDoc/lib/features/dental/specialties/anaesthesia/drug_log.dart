@@ -36,8 +36,7 @@ class LocalAnaestheticSpec {
       math.min(weightKg * maxMgPerKg, absoluteMaxMg);
 
   /// Maximum cartridge count for the given patient weight in kg.
-  double maxCartridges(double weightKg) =>
-      maxDoseMg(weightKg) / mgPerCartridge;
+  double maxCartridges(double weightKg) => maxDoseMg(weightKg) / mgPerCartridge;
 }
 
 /// Constant formulary list of local anaesthetics (AN4 spec table).
@@ -105,7 +104,9 @@ class DrugLogEntry {
 
   factory DrugLogEntry.fromJson(Map<String, dynamic> json) {
     return DrugLogEntry(
-      at: (json['at'] as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch,
+      at:
+          (json['at'] as num?)?.toInt() ??
+          DateTime.now().millisecondsSinceEpoch,
       drug: json['drug'] as String? ?? '',
       dose: (json['dose'] as num?)?.toDouble() ?? 0.0,
       unit: json['unit'] as String? ?? 'mg',
@@ -115,13 +116,13 @@ class DrugLogEntry {
   }
 
   Map<String, dynamic> toJson() => {
-        'at': at,
-        'drug': drug,
-        'dose': dose,
-        'unit': unit,
-        'route': route,
-        'note': note,
-      };
+    'at': at,
+    'drug': drug,
+    'dose': dose,
+    'unit': unit,
+    'route': route,
+    'note': note,
+  };
 }
 
 /// Dialog for logging drugs, calculating local anaesthetic limits, and reviewing running totals.
@@ -170,14 +171,20 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
   ];
 
   static const _units = ['mg', 'mcg', 'ml', 'cartridges'];
-  static const _routes = ['IV', 'Infiltration', 'Nerve block', 'IM', 'Oral', 'Inhalation'];
+  static const _routes = [
+    'IV',
+    'Infiltration',
+    'Nerve block',
+    'IM',
+    'Oral',
+    'Inhalation',
+  ];
 
   @override
   void initState() {
     super.initState();
-    _weightKg = widget.sedationCase?.preop.weightKg ??
-        widget.initialWeightKg ??
-        60.0;
+    _weightKg =
+        widget.sedationCase?.preop.weightKg ?? widget.initialWeightKg ?? 60.0;
 
     _drugs = widget.sedationCase != null
         ? widget.sedationCase!.drugs.map(DrugLogEntry.fromJson).toList()
@@ -251,7 +258,9 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
   double _cartridgesGiven(LocalAnaestheticSpec spec) {
     double total = 0.0;
     for (final d in _drugs) {
-      final match = d.drug.toLowerCase().contains(spec.name.split(' ').first.toLowerCase());
+      final match = d.drug.toLowerCase().contains(
+        spec.name.split(' ').first.toLowerCase(),
+      );
       if (match) {
         if (d.unit == 'cartridges') {
           total += d.dose;
@@ -271,7 +280,8 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
 
     return DentalPanelDialog(
       title: 'Drug & Anaesthetic Log',
-      subtitle: '${widget.patient.fullName} · Patient weight: ${_weightKg.toStringAsFixed(1)} kg',
+      subtitle:
+          '${widget.patient.fullName} · Patient weight: ${_weightKg.toStringAsFixed(1)} kg',
       width: 920,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -312,7 +322,10 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                             style: CruType.caption.w600.tabular.tint(c.label),
                             decoration: const InputDecoration(
                               isDense: true,
-                              contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 4,
+                              ),
                               border: OutlineInputBorder(),
                             ),
                             onChanged: (val) {
@@ -387,7 +400,10 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Administer Medication', style: CruType.callout.w600.tint(c.label)),
+                Text(
+                  'Administer Medication',
+                  style: CruType.callout.w600.tint(c.label),
+                ),
                 const SizedBox(height: CruSpace.s8),
 
                 // Quick drug chips
@@ -402,7 +418,8 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                         onTap: () {
                           setState(() {
                             _drugCtrl.text = drug;
-                            if (drug.contains('adrenaline') || drug.contains('plain')) {
+                            if (drug.contains('adrenaline') ||
+                                drug.contains('plain')) {
                               _unit = 'cartridges';
                               _route = 'Infiltration';
                             } else if (drug == 'Fentanyl') {
@@ -451,7 +468,13 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                             value: _unit,
                             items: [
                               for (final u in _units)
-                                DropdownMenuItem(value: u, child: Text(u, style: CruType.body.tint(c.label))),
+                                DropdownMenuItem(
+                                  value: u,
+                                  child: Text(
+                                    u,
+                                    style: CruType.body.tint(c.label),
+                                  ),
+                                ),
                             ],
                             onChanged: (u) => setState(() => _unit = u ?? 'mg'),
                           ),
@@ -469,9 +492,16 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                             value: _route,
                             items: [
                               for (final r in _routes)
-                                DropdownMenuItem(value: r, child: Text(r, style: CruType.body.tint(c.label))),
+                                DropdownMenuItem(
+                                  value: r,
+                                  child: Text(
+                                    r,
+                                    style: CruType.body.tint(c.label),
+                                  ),
+                                ),
                             ],
-                            onChanged: (r) => setState(() => _route = r ?? 'IV'),
+                            onChanged: (r) =>
+                                setState(() => _route = r ?? 'IV'),
                           ),
                         ),
                       ),
@@ -507,14 +537,22 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Running Totals', style: CruType.callout.w600.tint(c.label)),
+                      Text(
+                        'Running Totals',
+                        style: CruType.callout.w600.tint(c.label),
+                      ),
                       const SizedBox(height: CruSpace.s10),
                       if (_drugTotals.isEmpty)
-                        Text('No medications logged yet.', style: CruType.caption.tint(c.label3))
+                        Text(
+                          'No medications logged yet.',
+                          style: CruType.caption.tint(c.label3),
+                        )
                       else
                         for (final entry in _drugTotals.entries) ...[
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
+                            padding: const EdgeInsets.symmetric(
+                              vertical: CruSpace.s4,
+                            ),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
@@ -528,7 +566,9 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                                 ),
                                 Text(
                                   entry.value.toStringAsFixed(1),
-                                  style: CruType.caption.w600.tabular.tint(c.accent),
+                                  style: CruType.caption.w600.tabular.tint(
+                                    c.accent,
+                                  ),
                                 ),
                               ],
                             ),
@@ -557,7 +597,10 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Administration Log (${_drugs.length})', style: CruType.callout.w600.tint(c.label)),
+                          Text(
+                            'Administration Log (${_drugs.length})',
+                            style: CruType.callout.w600.tint(c.label),
+                          ),
                           Text(
                             'Latest first',
                             style: CruType.micro.tint(c.label3),
@@ -566,7 +609,10 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                       ),
                       const SizedBox(height: CruSpace.s10),
                       if (_drugs.isEmpty)
-                        Text('No administration records.', style: CruType.caption.tint(c.label3))
+                        Text(
+                          'No administration records.',
+                          style: CruType.caption.tint(c.label3),
+                        )
                       else
                         for (var i = _drugs.length - 1; i >= 0; i--) ...[
                           _drugRow(_drugs[i], i, c),
@@ -609,27 +655,54 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
     return TableRow(
       children: [
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s8,
+            vertical: CruSpace.s6,
+          ),
           child: Text(spec.name, style: CruType.caption.w600.tint(c.label)),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s6),
-          child: Text('${maxMg.toStringAsFixed(0)} mg', style: CruType.caption.tabular.tint(c.label)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s8,
+            vertical: CruSpace.s6,
+          ),
+          child: Text(
+            '${maxMg.toStringAsFixed(0)} mg',
+            style: CruType.caption.tabular.tint(c.label),
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s6),
-          child: Text('${maxCart.toStringAsFixed(1)} carts', style: CruType.caption.tabular.tint(c.label)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s8,
+            vertical: CruSpace.s6,
+          ),
+          child: Text(
+            '${maxCart.toStringAsFixed(1)} carts',
+            style: CruType.caption.tabular.tint(c.label),
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s6),
-          child: Text('${givenCart.toStringAsFixed(1)} carts', style: CruType.caption.tabular.tint(c.label)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s8,
+            vertical: CruSpace.s6,
+          ),
+          child: Text(
+            '${givenCart.toStringAsFixed(1)} carts',
+            style: CruType.caption.tabular.tint(c.label),
+          ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s6),
+          padding: const EdgeInsets.symmetric(
+            horizontal: CruSpace.s8,
+            vertical: CruSpace.s6,
+          ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('${leftCart.toStringAsFixed(1)} carts', style: CruType.caption.w600.tabular.tint(c.label)),
+              Text(
+                '${leftCart.toStringAsFixed(1)} carts',
+                style: CruType.caption.w600.tabular.tint(c.label),
+              ),
               const SizedBox(width: CruSpace.s6),
               if (givenCart > 0)
                 CruPill(
@@ -646,13 +719,18 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
 
   Widget _th(String text, CruColors c) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s8,
+        vertical: CruSpace.s8,
+      ),
       child: Text(text, style: CruType.micro.w600.tint(c.label2)),
     );
   }
 
   Widget _drugRow(DrugLogEntry entry, int index, CruColors c) {
-    final timeStr = DateFormat('HH:mm').format(DateTime.fromMillisecondsSinceEpoch(entry.at));
+    final timeStr = DateFormat(
+      'HH:mm',
+    ).format(DateTime.fromMillisecondsSinceEpoch(entry.at));
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
@@ -664,8 +742,10 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${entry.drug} — ${entry.dose} ${entry.unit} (${entry.route})',
-                    style: CruType.caption.w600.tint(c.label)),
+                Text(
+                  '${entry.drug} — ${entry.dose} ${entry.unit} (${entry.route})',
+                  style: CruType.caption.w600.tint(c.label),
+                ),
                 if (entry.note.isNotEmpty)
                   Text(entry.note, style: CruType.micro.tint(c.label3)),
               ],

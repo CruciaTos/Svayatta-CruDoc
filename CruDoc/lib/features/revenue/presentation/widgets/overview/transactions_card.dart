@@ -32,10 +32,10 @@ class TransactionsCard extends StatelessWidget {
   final ValueChanged<RevenueEntry> onOpen;
 
   String get _emptyText => switch (filter) {
-        TxnFilter.all => 'No transactions in this period',
-        TxnFilter.moneyIn => 'No money in during this period',
-        TxnFilter.moneyOut => 'No money out during this period',
-      };
+    TxnFilter.all => 'No transactions in this period',
+    TxnFilter.moneyIn => 'No money in during this period',
+    TxnFilter.moneyOut => 'No money out during this period',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -137,19 +137,21 @@ class TransactionsCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text.rich(
-                    TextSpan(children: [
-                      const TextSpan(text: 'Today · '),
-                      TextSpan(
-                        text: DashFormat.rupees(todayIn),
-                        style: TextStyle(color: c.greenText),
-                      ),
-                      const TextSpan(text: ' in · '),
-                      TextSpan(
-                        text: DashFormat.rupees(todayOut),
-                        style: TextStyle(color: c.redText),
-                      ),
-                      const TextSpan(text: ' out'),
-                    ]),
+                    TextSpan(
+                      children: [
+                        const TextSpan(text: 'Today · '),
+                        TextSpan(
+                          text: DashFormat.rupees(todayIn),
+                          style: TextStyle(color: c.greenText),
+                        ),
+                        const TextSpan(text: ' in · '),
+                        TextSpan(
+                          text: DashFormat.rupees(todayOut),
+                          style: TextStyle(color: c.redText),
+                        ),
+                        const TextSpan(text: ' out'),
+                      ],
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: CruType.subhead.tabular.tint(c.label2),
@@ -174,6 +176,8 @@ class TransactionsSkeleton extends StatelessWidget {
   const TransactionsSkeleton({super.key});
 
   @override
-  Widget build(BuildContext context) =>
-      const SkeletonCard(rows: RevenueBuilder.collapsedRows, rowHeight: kTxnRowHeight);
+  Widget build(BuildContext context) => const SkeletonCard(
+    rows: RevenueBuilder.collapsedRows,
+    rowHeight: kTxnRowHeight,
+  );
 }

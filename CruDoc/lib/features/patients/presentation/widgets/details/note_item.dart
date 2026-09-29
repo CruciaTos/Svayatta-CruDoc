@@ -49,9 +49,11 @@ class NoteItem extends StatelessWidget {
               ),
               if (trailing != null) ...[
                 const SizedBox(width: CruSpace.s12),
-                CruTimeText(trailing!,
-                    style: CruType.caption.tabular.tint(c.label3),
-                    timeColor: c.accentText),
+                CruTimeText(
+                  trailing!,
+                  style: CruType.caption.tabular.tint(c.label3),
+                  timeColor: c.accentText,
+                ),
               ],
             ],
           ),
@@ -74,9 +76,8 @@ class ScribeTag extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final notes = ref.watch(notesForVisitProvider(visitId)).value;
-    final confirmed = notes?.any(
-          (n) => n.status == ConsultationNoteStatus.confirmed,
-        ) ??
+    final confirmed =
+        notes?.any((n) => n.status == ConsultationNoteStatus.confirmed) ??
         false;
     if (!confirmed) return const SizedBox.shrink();
     final doctor = ref.watch(doctorIdentityProvider).greetingName;
@@ -88,7 +89,12 @@ class ScribeTag extends ConsumerWidget {
       padding: const EdgeInsets.only(top: CruSpace.s6),
       child: Row(
         children: [
-          CruIcon(CruIcons.sparkleSingle, size: 13, strokeWidth: 2, color: c.ai),
+          CruIcon(
+            CruIcons.sparkleSingle,
+            size: 13,
+            strokeWidth: 2,
+            color: c.ai,
+          ),
           const SizedBox(width: CruSpace.s6),
           Flexible(
             child: Text(

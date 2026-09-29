@@ -25,18 +25,19 @@ abstract final class CruTheme {
 
   static ThemeData _build(CruColors c) {
     final brightness = c.isEvening ? Brightness.dark : Brightness.light;
-    final scheme = ColorScheme.fromSeed(
-      seedColor: c.accent,
-      brightness: brightness,
-      dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
-    ).copyWith(
-      primary: c.accent,
-      onPrimary: c.onAccent,
-      surface: c.surface,
-      onSurface: c.label,
-      onSurfaceVariant: c.label2,
-      outlineVariant: c.separator,
-    );
+    final scheme =
+        ColorScheme.fromSeed(
+          seedColor: c.accent,
+          brightness: brightness,
+          dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
+        ).copyWith(
+          primary: c.accent,
+          onPrimary: c.onAccent,
+          surface: c.surface,
+          onSurface: c.label,
+          onSurfaceVariant: c.label2,
+          outlineVariant: c.separator,
+        );
 
     return ThemeData(
       useMaterial3: true,
@@ -74,8 +75,8 @@ abstract final class CruTheme {
       popupMenuTheme: PopupMenuThemeData(
         color: c.surface,
         surfaceTintColor: Colors.transparent,
-        elevation: c.isEvening ? 0 : 8,
-        shadowColor: c.label.withValues(alpha: 0.18),
+        elevation: 0,
+        shadowColor: Colors.transparent,
         shape: RoundedSuperellipseBorder(
           borderRadius: BorderRadius.circular(CruRadius.control),
           side: BorderSide(color: c.hairline),
@@ -90,9 +91,43 @@ abstract final class CruTheme {
         elevation: 0,
         shape: RoundedSuperellipseBorder(
           borderRadius: BorderRadius.circular(CruRadius.card),
-          side: BorderSide(color: c.hairline),
+          side: BorderSide(color: c.cardBorder),
         ),
       ),
+      menuTheme: MenuThemeData(
+        style: MenuStyle(
+          elevation: const WidgetStatePropertyAll(0),
+          shadowColor: const WidgetStatePropertyAll(Colors.transparent),
+        ),
+      ),
+      dialogTheme: const DialogThemeData(
+        elevation: 0,
+        shadowColor: Colors.transparent,
+      ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        elevation: 0,
+        modalElevation: 0,
+        shadowColor: Colors.transparent,
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          elevation: 0,
+          shadowColor: Colors.transparent,
+        ),
+      ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        elevation: 0,
+        focusElevation: 0,
+        hoverElevation: 0,
+        highlightElevation: 0,
+      ),
+      appBarTheme: const AppBarTheme(
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        shadowColor: Colors.transparent,
+      ),
+      drawerTheme: const DrawerThemeData(elevation: 0),
+      snackBarTheme: const SnackBarThemeData(elevation: 0),
       extensions: [c],
     );
   }

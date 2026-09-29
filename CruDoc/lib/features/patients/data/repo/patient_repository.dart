@@ -177,9 +177,9 @@ class PatientRepository {
           .collection('patients')
           .doc(patientId)
           .update({
-        'isArchived': true,
-        'updatedAt': DateTime.now().toIso8601String(),
-      });
+            'isArchived': true,
+            'updatedAt': DateTime.now().toIso8601String(),
+          });
       return;
     }
     await _localService.softDeletePatient(patientId);
@@ -216,7 +216,10 @@ class PatientRepository {
             .doc(patientId)
             .get();
         if (doc.exists && doc.data() != null) {
-          final p = Patient.fromMap(_decryptedFromFirestore(doc.data()!), id: doc.id);
+          final p = Patient.fromMap(
+            _decryptedFromFirestore(doc.data()!),
+            id: doc.id,
+          );
           await _localService.upsertPatient(p, syncStatus: 'synced');
           return p;
         }
@@ -238,13 +241,13 @@ class PatientRepository {
         yield const [];
         return;
       }
- 
+
       // If a key was passed in, assume caller has loaded it and FieldCipher
       // is ready. If not, attempt to load as a fallback.
       if (encryptionKey == null && !FieldCipher.isReady) {
         await EncryptionKeyManager.instance.loadForDoctor(user.uid);
       }
- 
+
       // Now yield from the Firestore snapshot stream and do synchronous
       // mapping/decryption using FieldCipher which relies on the loaded key.
       yield* FirebaseFirestore.instance
@@ -253,10 +256,12 @@ class PatientRepository {
           .snapshots()
           .map((snapshot) {
             final list = snapshot.docs
-                .map((doc) => Patient.fromMap(
-                      _decryptedFromFirestore(doc.data()),
-                      id: doc.id,
-                    ))
+                .map(
+                  (doc) => Patient.fromMap(
+                    _decryptedFromFirestore(doc.data()),
+                    id: doc.id,
+                  ),
+                )
                 .where((p) => !p.isArchived)
                 .toList();
             list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -293,15 +298,19 @@ class PatientRepository {
           .get();
 
       final list = snap.docs
-          .map((doc) => Patient.fromMap(
-                _decryptedFromFirestore(doc.data()),
-                id: doc.id,
-              ))
+          .map(
+            (doc) => Patient.fromMap(
+              _decryptedFromFirestore(doc.data()),
+              id: doc.id,
+            ),
+          )
           .where((p) => includeArchived || !p.isArchived)
           .where((p) {
             final nameMatch = p.fullName.toLowerCase().contains(cleanQuery);
             final phoneMatch = p.phone.toLowerCase().contains(cleanQuery);
-            final diagMatch = p.diagnosisDisplay.toLowerCase().contains(cleanQuery);
+            final diagMatch = p.diagnosisDisplay.toLowerCase().contains(
+              cleanQuery,
+            );
             final idMatch = p.id.toLowerCase() == cleanQuery;
             return nameMatch || phoneMatch || diagMatch || idMatch;
           })

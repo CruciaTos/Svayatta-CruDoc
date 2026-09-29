@@ -12,10 +12,7 @@ import 'package:doctor_management_app/features/homeopathy/services/homeopathy_vo
 class HomeopathyVoiceScribeModal extends StatefulWidget {
   final HomeopathyCaseSheet existingSheet;
 
-  const HomeopathyVoiceScribeModal({
-    super.key,
-    required this.existingSheet,
-  });
+  const HomeopathyVoiceScribeModal({super.key, required this.existingSheet});
 
   /// Displays the modal and returns the populated [HomeopathyCaseSheet] if successful.
   static Future<HomeopathyCaseSheet?> show(
@@ -26,9 +23,8 @@ class HomeopathyVoiceScribeModal extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => HomeopathyVoiceScribeModal(
-        existingSheet: existingSheet,
-      ),
+      builder: (context) =>
+          HomeopathyVoiceScribeModal(existingSheet: existingSheet),
     );
   }
 
@@ -115,8 +111,9 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
         }
       });
 
-      _amplitudeTimer =
-          Timer.periodic(const Duration(milliseconds: 100), (_) async {
+      _amplitudeTimer = Timer.periodic(const Duration(milliseconds: 100), (
+        _,
+      ) async {
         if (!mounted || !_isRecording) return;
         final amp = await _transcriptionService.getAmplitude();
         final normalized = ((amp.current + 60) / 60).clamp(0.12, 1.0);
@@ -218,13 +215,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 24,
-            offset: const Offset(0, -6),
-          ),
-        ],
+        boxShadow: const [],
       ),
       padding: EdgeInsets.fromLTRB(24, 16, 24, 28 + bottomInset),
       child: Column(
@@ -277,8 +268,9 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
                     Text(
                       'Speak entire consultation or case story in one go',
                       style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.textTheme.bodySmall?.color
-                            ?.withValues(alpha: 0.7),
+                        color: theme.textTheme.bodySmall?.color?.withValues(
+                          alpha: 0.7,
+                        ),
                       ),
                     ),
                   ],
@@ -417,8 +409,10 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
               icon: const Icon(Icons.close_rounded, size: 18),
               label: const Text('Cancel'),
               style: OutlinedButton.styleFrom(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 22,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
@@ -432,12 +426,14 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
                 foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 14,
+                ),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14),
                 ),
-                elevation: 2,
+                elevation: 0,
               ),
             ),
           ],
@@ -500,8 +496,11 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
           ),
           child: Row(
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  color: Colors.red, size: 22),
+              const Icon(
+                Icons.error_outline_rounded,
+                color: Colors.red,
+                size: 22,
+              ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(

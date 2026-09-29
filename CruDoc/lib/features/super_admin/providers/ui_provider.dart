@@ -80,5 +80,5 @@ class SuperAdminUINotifier extends Notifier<SuperAdminUIState> {
 
 final superAdminUIProvider =
     NotifierProvider<SuperAdminUINotifier, SuperAdminUIState>(
-  SuperAdminUINotifier.new,
-);
+      SuperAdminUINotifier.new,
+    );

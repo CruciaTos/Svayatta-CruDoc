@@ -80,7 +80,7 @@ class RevenueRepository {
       description: entry.description,
       amount: entry.amount,
       type: entry.type,
-      kind: entry.kind, 
+      kind: entry.kind,
       payer: entry.payer,
       patientId: entry.patientId,
       visitId: entry.visitId,
@@ -121,9 +121,7 @@ class RevenueRepository {
         if (data['amount'] is num) {
           final plainVal = (data['amount'] as num).toDouble();
           final encryptedVal = FieldCipher.encrypt(plainVal.toString());
-          await doc.reference.update({
-            'amount': encryptedVal,
-          });
+          await doc.reference.update({'amount': encryptedVal});
         }
       }
 
@@ -137,9 +135,7 @@ class RevenueRepository {
         if (data['amount'] is num) {
           final plainVal = (data['amount'] as num).toDouble();
           final encryptedVal = FieldCipher.encrypt(plainVal.toString());
-          await doc.reference.update({
-            'amount': encryptedVal,
-          });
+          await doc.reference.update({'amount': encryptedVal});
         }
       }
     } catch (_) {}
@@ -161,13 +157,18 @@ class RevenueRepository {
           .where('doctorId', isEqualTo: doctorId)
           .snapshots()
           .map((snapshot) {
-        final list = snapshot.docs
-            .map((doc) => RevenueEntry.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
-            .where((e) => !e.isDeleted)
-            .toList();
-        list.sort((a, b) => b.date.compareTo(a.date));
-        return list;
-      });
+            final list = snapshot.docs
+                .map(
+                  (doc) => RevenueEntry.fromMap(
+                    _decryptedFromFirestore(doc.data()),
+                    id: doc.id,
+                  ),
+                )
+                .where((e) => !e.isDeleted)
+                .toList();
+            list.sort((a, b) => b.date.compareTo(a.date));
+            return list;
+          });
     }
     return _localService.watchRevenueEntries();
   }
@@ -180,13 +181,18 @@ class RevenueRepository {
           .where('doctorId', isEqualTo: _currentDoctorId)
           .snapshots()
           .map((snapshot) {
-        final list = snapshot.docs
-            .map((doc) => PendingPayment.fromMap(_decryptedFromFirestore(doc.data()), id: doc.id))
-            .where((p) => !p.isPaid)
-            .toList();
-        list.sort((a, b) => b.date.compareTo(a.date));
-        return list;
-      });
+            final list = snapshot.docs
+                .map(
+                  (doc) => PendingPayment.fromMap(
+                    _decryptedFromFirestore(doc.data()),
+                    id: doc.id,
+                  ),
+                )
+                .where((p) => !p.isPaid)
+                .toList();
+            list.sort((a, b) => b.date.compareTo(a.date));
+            return list;
+          });
     }
     return _localService.watchPendingPayments();
   }

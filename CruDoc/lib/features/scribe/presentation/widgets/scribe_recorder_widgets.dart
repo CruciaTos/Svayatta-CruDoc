@@ -837,7 +837,7 @@ class _RoundAction extends StatelessWidget {
             ? BorderSide(color: palette.border)
             : BorderSide.none,
       ),
-      elevation: background == null ? 0 : 2,
+      elevation: 0,
       shadowColor: (background ?? Colors.black).withValues(alpha: 0.4),
       child: InkWell(
         customBorder: const CircleBorder(),

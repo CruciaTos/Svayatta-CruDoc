@@ -93,11 +93,11 @@ class SelectedAppointmentCard extends ConsumerWidget {
                 monogram: CruSize.monogramList,
                 onRemove: canCancel
                     ? () => ApptActions.removeFromAppointment(
-                          context,
-                          ref,
-                          item,
-                          item.members[i],
-                        )
+                        context,
+                        ref,
+                        item,
+                        item.members[i],
+                      )
                     : null,
                 showOpen: true,
               ),
@@ -147,7 +147,8 @@ class SelectedAppointmentCard extends ConsumerWidget {
                     strokeWidth: 2,
                     color: c.accentText,
                   ),
-                  onPressed: () => DashboardActions.openPatient(context, patient),
+                  onPressed: () =>
+                      DashboardActions.openPatient(context, patient),
                 ),
             ],
           ),
@@ -203,8 +204,9 @@ class _Person extends ConsumerWidget {
                 children: [
                   Text(
                     member.name,
-                    style: (grouped ? CruType.callout : CruType.headline)
-                        .tint(c.label),
+                    style: (grouped ? CruType.callout : CruType.headline).tint(
+                      c.label,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

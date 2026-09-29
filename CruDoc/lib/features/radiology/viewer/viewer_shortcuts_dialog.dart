@@ -12,12 +12,12 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 Future<void> showRadShortcuts(
   BuildContext context, {
   required RadViewerPrefs prefs,
-  required void Function(RadViewerPrefs next, Map<String, dynamic> save) onChanged,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _ShortcutsDialog(prefs: prefs, onChanged: onChanged),
-    );
+  required void Function(RadViewerPrefs next, Map<String, dynamic> save)
+  onChanged,
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _ShortcutsDialog(prefs: prefs, onChanged: onChanged),
+);
 
 class _ShortcutsDialog extends StatefulWidget {
   const _ShortcutsDialog({required this.prefs, required this.onChanged});
@@ -66,7 +66,8 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
     final keys = {..._prefs.keys};
     String? note;
     for (final other in RadViewerAction.values) {
-      if (other != a && _prefs.keyFor(other).toUpperCase() == name.toUpperCase()) {
+      if (other != a &&
+          _prefs.keyFor(other).toUpperCase() == name.toUpperCase()) {
         keys[other.name] = '';
         note = '“$name” was ${other.label}; that action has no key now.';
       }
@@ -81,7 +82,9 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
   }
 
   void _resetKeys() {
-    _apply(_prefs.copyWith(keys: const {}), {RadViewerPrefs.keysKey: <String, String>{}});
+    _apply(_prefs.copyWith(keys: const {}), {
+      RadViewerPrefs.keysKey: <String, String>{},
+    });
     setState(() {
       _listening = null;
       _note = null;
@@ -114,7 +117,12 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s12, CruSpace.s8, CruSpace.s6),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              CruSpace.s12,
+              CruSpace.s8,
+              CruSpace.s6,
+            ),
             child: Text(title, style: CruType.groupLabel.tint(c.label3)),
           ),
           ...rows,
@@ -132,8 +140,12 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
         child: Row(
           children: [
             Expanded(
-              child: Text(label,
-                  maxLines: 1, overflow: TextOverflow.ellipsis, style: CruType.text.tint(c.label)),
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.text.tint(c.label),
+              ),
             ),
             key,
           ],
@@ -158,7 +170,9 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
         padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
         alignment: Alignment.center,
         decoration: ShapeDecoration(
-          color: listening ? c.accentTint : (hovered ? cruHoverShade(c.inset, c) : c.inset),
+          color: listening
+              ? c.accentTint
+              : (hovered ? cruHoverShade(c.inset, c) : c.inset),
           shape: cruShape(CruRadius.keycap),
         ),
         child: Text(
@@ -180,10 +194,16 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
   ) {
     final c = context.cru;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8, vertical: CruSpace.s4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s8,
+        vertical: CruSpace.s4,
+      ),
       child: Row(
         children: [
-          SizedBox(width: 130, child: Text(label, style: CruType.text.tint(c.label))),
+          SizedBox(
+            width: 130,
+            child: Text(label, style: CruType.text.tint(c.label)),
+          ),
           Flexible(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
@@ -210,7 +230,10 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
       child: DentalPanelDialog(
         title: 'Shortcuts and mouse',
         subtitle: 'Click a key to change it',
-        leading: const CruIconTile(icon: RadViewerIcons.keyboard, tone: CruTileTone.neutral),
+        leading: const CruIconTile(
+          icon: RadViewerIcons.keyboard,
+          tone: CruTileTone.neutral,
+        ),
         width: CruSize.formDialog,
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,36 +243,67 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
               children: [
                 for (final g in RadActionGroup.values)
                   _group(context, _groupTitles[g]!, [
-                    for (final a in RadViewerAction.values.where((a) => a.group == g))
+                    for (final a in RadViewerAction.values.where(
+                      (a) => a.group == g,
+                    ))
                       _row(context, a.label, _keyButton(context, a)),
                   ]),
                 _group(context, 'Always', [
-                  for (final (label, key) in _fixed) _row(context, label, CruKeycap(key)),
+                  for (final (label, key) in _fixed)
+                    _row(context, label, CruKeycap(key)),
                 ]),
               ],
             ),
             const SizedBox(height: CruSpace.s12),
             Padding(
-              padding: const EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s12, CruSpace.s8, CruSpace.s6),
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s8,
+                CruSpace.s12,
+                CruSpace.s8,
+                CruSpace.s6,
+              ),
               child: Text('Mouse', style: CruType.groupLabel.tint(c.label3)),
             ),
-            _mouseRow<RadDragAction>(context, 'Right drag', drag, _prefs.right, (v) {
-              _apply(_prefs.copyWith(right: v), {RadViewerPrefs.mouseKey: _prefs.mouseJson(right: v)});
-            }),
-            _mouseRow<RadDragAction>(context, 'Middle drag', drag, _prefs.middle, (v) {
-              _apply(_prefs.copyWith(middle: v), {RadViewerPrefs.mouseKey: _prefs.mouseJson(middle: v)});
-            }),
+            _mouseRow<RadDragAction>(
+              context,
+              'Right drag',
+              drag,
+              _prefs.right,
+              (v) {
+                _apply(_prefs.copyWith(right: v), {
+                  RadViewerPrefs.mouseKey: _prefs.mouseJson(right: v),
+                });
+              },
+            ),
+            _mouseRow<RadDragAction>(
+              context,
+              'Middle drag',
+              drag,
+              _prefs.middle,
+              (v) {
+                _apply(_prefs.copyWith(middle: v), {
+                  RadViewerPrefs.mouseKey: _prefs.mouseJson(middle: v),
+                });
+              },
+            ),
             _mouseRow<RadWheelAction>(
               context,
               'Wheel',
               [for (final a in RadWheelAction.values) CruSegment(a, a.label)],
               _prefs.wheel,
               (v) {
-                _apply(_prefs.copyWith(wheel: v), {RadViewerPrefs.mouseKey: _prefs.mouseJson(wheel: v)});
+                _apply(_prefs.copyWith(wheel: v), {
+                  RadViewerPrefs.mouseKey: _prefs.mouseJson(wheel: v),
+                });
               },
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(CruSpace.s8, CruSpace.s4, CruSpace.s8, 0),
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s8,
+                CruSpace.s4,
+                CruSpace.s8,
+                0,
+              ),
               child: Text(
                 'Left drag always uses the tool you picked. Ctrl + wheel does the other wheel action.',
                 style: CruType.caption.tint(c.label2),
@@ -274,7 +328,10 @@ class _ShortcutsDialogState extends State<_ShortcutsDialog> {
               onPressed: _prefs.keys.isEmpty ? null : _resetKeys,
             ),
             const SizedBox(width: CruSpace.s10),
-            CruButton(label: 'Done', onPressed: () => Navigator.of(context).pop()),
+            CruButton(
+              label: 'Done',
+              onPressed: () => Navigator.of(context).pop(),
+            ),
           ],
         ),
       ),

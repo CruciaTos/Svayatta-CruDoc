@@ -68,7 +68,8 @@ class ToothFrame {
   final V3 tangent;
 
   /// A point on the crown's outer face, where a callout points.
-  V3 get anchor => base + axis * (spec.crown * 0.35) + outward * (spec.bl * 0.52);
+  V3 get anchor =>
+      base + axis * (spec.crown * 0.35) + outward * (spec.bl * 0.52);
 }
 
 /// Both jaws as meshes, centred on the origin.
@@ -127,7 +128,8 @@ class JawModel {
         final t = arch.tangent(s);
         final outward = V3(-t.z, 0, t.x);
         final lean = switch (spec.kind) {
-          ToothKind.centralIncisor || ToothKind.lateralIncisor => upper ? 0.3 : 0.16,
+          ToothKind.centralIncisor ||
+          ToothKind.lateralIncisor => upper ? 0.3 : 0.16,
           ToothKind.canine => 0.14,
           ToothKind.premolar => 0.05,
           ToothKind.molar => -0.04,
@@ -199,8 +201,8 @@ class JawModel {
   static MeshPart _crown(ToothFrame f, {required bool lower}) {
     final s = f.spec;
     final (occA, occB, cejA, cejB, exp, depth) = switch (s.kind) {
-      ToothKind.centralIncisor || ToothKind.lateralIncisor =>
-        (0.92, 0.22, 0.7, 0.78, 2.4, 0.3),
+      ToothKind.centralIncisor ||
+      ToothKind.lateralIncisor => (0.92, 0.22, 0.7, 0.78, 2.4, 0.3),
       ToothKind.canine => (0.45, 0.5, 0.66, 0.8, 2.3, 2.2),
       ToothKind.premolar => (0.7, 0.72, 0.72, 0.82, 2.6, 2.0),
       ToothKind.molar => (0.82, 0.8, 0.82, 0.85, 3.0, 1.7),
@@ -238,11 +240,11 @@ class JawModel {
       (1.12, cejB * 0.95),
     ];
     double cusp(double th) => switch (s.kind) {
-          ToothKind.molar => (1 - math.cos(4 * th)) / 2,
-          ToothKind.premolar => (1 - math.cos(2 * th)) / 2,
-          ToothKind.canine => 0.0,
-          _ => 0.5,
-        };
+      ToothKind.molar => (1 - math.cos(4 * th)) / 2,
+      ToothKind.premolar => (1 - math.cos(2 * th)) / 2,
+      ToothKind.canine => 0.0,
+      _ => 0.5,
+    };
     const hs = [0.0, 0.06, 0.15, 0.3, 0.45, 0.6, 0.75, 0.9, 1.0, 1.12];
     final rings = [
       for (var i = 0; i < hs.length; i++)
@@ -252,10 +254,13 @@ class JawModel {
           b: s.bl / 2 * key(bKeys, hs[i]),
           exponent: exp,
           lift: i == 0
-              ? (th) => s.kind == ToothKind.canine ? d * 0.75 : d * (1 - cusp(th))
+              ? (th) =>
+                    s.kind == ToothKind.canine ? d * 0.75 : d * (1 - cusp(th))
               : i == 1
-                  ? (th) => s.kind == ToothKind.canine ? d * 0.3 : d * 0.35 * (1 - cusp(th))
-                  : null,
+              ? (th) => s.kind == ToothKind.canine
+                    ? d * 0.3
+                    : d * 0.35 * (1 - cusp(th))
+              : null,
         ),
     ];
     final top = switch (s.kind) {
@@ -263,8 +268,15 @@ class JawModel {
       ToothKind.canine => 0.0,
       _ => 0.12,
     };
-    return _loft(f, rings, segs: 18, topCap: top, bottomCap: null,
-        material: MeshMaterial.crown, lower: lower);
+    return _loft(
+      f,
+      rings,
+      segs: 18,
+      topCap: top,
+      bottomCap: null,
+      material: MeshMaterial.crown,
+      lower: lower,
+    );
   }
 
   // --------------------------------------------------------------- roots
@@ -277,17 +289,17 @@ class JawModel {
     final cejB = s.bl / 2 * 0.82;
     final List<(double dt, double dn, double a, double b, double lean)> roots =
         switch (s.roots) {
-      1 => [(0.0, 0.0, cejA * 0.95, cejB * 0.95, 0.0)],
-      2 => [
-          (-cejA * 0.5, 0.0, cejA * 0.48, cejB * 0.9, -0.35),
-          (cejA * 0.5, 0.0, cejA * 0.48, cejB * 0.9, 0.35),
-        ],
-      _ => [
-          (-cejA * 0.45, cejB * 0.35, cejA * 0.45, cejB * 0.45, -0.3),
-          (cejA * 0.45, cejB * 0.35, cejA * 0.45, cejB * 0.45, 0.3),
-          (0.0, -cejB * 0.45, cejA * 0.5, cejB * 0.5, 0.0),
-        ],
-    };
+          1 => [(0.0, 0.0, cejA * 0.95, cejB * 0.95, 0.0)],
+          2 => [
+            (-cejA * 0.5, 0.0, cejA * 0.48, cejB * 0.9, -0.35),
+            (cejA * 0.5, 0.0, cejA * 0.48, cejB * 0.9, 0.35),
+          ],
+          _ => [
+            (-cejA * 0.45, cejB * 0.35, cejA * 0.45, cejB * 0.45, -0.3),
+            (cejA * 0.45, cejB * 0.35, cejA * 0.45, cejB * 0.45, 0.3),
+            (0.0, -cejB * 0.45, cejA * 0.5, cejB * 0.5, 0.0),
+          ],
+        };
     const hr = [0.0, 0.25, 0.5, 0.72, 0.88, 0.97];
     for (final (dt, dn, ra, rb, lean) in roots) {
       final rings = [
@@ -301,9 +313,16 @@ class JawModel {
             offsetN: dn * (1 + 0.3 * t),
           ),
       ];
-      _loftInto(b, f, rings, segs: 10, topCap: null,
-          bottomCap: h0 + s.root, bottomOffsetT: rings.last.offsetT,
-          bottomOffsetN: rings.last.offsetN);
+      _loftInto(
+        b,
+        f,
+        rings,
+        segs: 10,
+        topCap: null,
+        bottomCap: h0 + s.root,
+        bottomOffsetT: rings.last.offsetT,
+        bottomOffsetN: rings.last.offsetN,
+      );
     }
     return b.finish(MeshMaterial.root, lower: lower, tooth: s.number);
   }
@@ -324,8 +343,15 @@ class JawModel {
           exponent: 2,
         ),
     ];
-    return _loft(f, rings, segs: 12, topCap: h0, bottomCap: h0 + len + r * 0.4,
-        material: MeshMaterial.implant, lower: lower);
+    return _loft(
+      f,
+      rings,
+      segs: 12,
+      topCap: h0,
+      bottomCap: h0 + len + r * 0.4,
+      material: MeshMaterial.implant,
+      lower: lower,
+    );
   }
 
   // ---------------------------------------------------------------- gums
@@ -404,9 +430,7 @@ class JawModel {
         (bh * 0.8, cej + 0.6),
       ];
       assert(profile.length == profileLen);
-      rings.add([
-        for (final (pn, ph) in profile) base + n * pn + l * ph,
-      ]);
+      rings.add([for (final (pn, ph) in profile) base + n * pn + l * ph]);
     }
     final idx = <List<int>>[
       for (final ring in rings) [for (final v in ring) b.add(v)],
@@ -482,16 +506,21 @@ class JawModel {
         final cx = c.sign * math.pow(c.abs(), e);
         final sy = sn.sign * math.pow(sn.abs(), e);
         final h = r.h + (r.lift?.call(th) ?? 0);
-        row.add(b.add(f.base +
-            f.axis * h +
-            f.tangent * (r.a * cx + r.offsetT) +
-            f.outward * (r.b * sy + r.offsetN)));
+        row.add(
+          b.add(
+            f.base +
+                f.axis * h +
+                f.tangent * (r.a * cx + r.offsetT) +
+                f.outward * (r.b * sy + r.offsetN),
+          ),
+        );
       }
       idx.add(row);
     }
     for (var i = 0; i < rings.length - 1; i++) {
       final midH = (rings[i].h + rings[i + 1].h) / 2;
-      final center = f.base +
+      final center =
+          f.base +
           f.axis * midH +
           f.tangent * ((rings[i].offsetT + rings[i + 1].offsetT) / 2) +
           f.outward * ((rings[i].offsetN + rings[i + 1].offsetN) / 2);
@@ -503,20 +532,24 @@ class JawModel {
     }
     if (topCap != null) {
       final r0 = rings.first;
-      final c = b.add(f.base +
-          f.axis * topCap +
-          f.tangent * r0.offsetT +
-          f.outward * r0.offsetN);
+      final c = b.add(
+        f.base +
+            f.axis * topCap +
+            f.tangent * r0.offsetT +
+            f.outward * r0.offsetN,
+      );
       final ref = f.base + f.axis * (rings.first.h + 3);
       for (var j = 0; j < segs; j++) {
         b.triOutward(c, idx[0][j], idx[0][(j + 1) % segs], ref);
       }
     }
     if (bottomCap != null) {
-      final c = b.add(f.base +
-          f.axis * bottomCap +
-          f.tangent * bottomOffsetT +
-          f.outward * bottomOffsetN);
+      final c = b.add(
+        f.base +
+            f.axis * bottomCap +
+            f.tangent * bottomOffsetT +
+            f.outward * bottomOffsetN,
+      );
       final ref = f.base + f.axis * (rings.last.h - 3);
       final last = idx.last;
       for (var j = 0; j < segs; j++) {
@@ -621,9 +654,15 @@ class _MeshBuilder {
     final n = (vb - va).cross(vc - va);
     final centroid = (va + vb + vc) * (1 / 3);
     if (n.dot(centroid - inside) >= 0) {
-      _t..add(a)..add(b)..add(c);
+      _t
+        ..add(a)
+        ..add(b)
+        ..add(c);
     } else {
-      _t..add(a)..add(c)..add(b);
+      _t
+        ..add(a)
+        ..add(c)
+        ..add(b);
     }
   }
 
@@ -641,7 +680,8 @@ class _MeshBuilder {
     }
     for (var i = 0; i < nrm.length; i += 3) {
       final l = math.sqrt(
-          nrm[i] * nrm[i] + nrm[i + 1] * nrm[i + 1] + nrm[i + 2] * nrm[i + 2]);
+        nrm[i] * nrm[i] + nrm[i + 1] * nrm[i + 1] + nrm[i + 2] * nrm[i + 2],
+      );
       if (l > 0) {
         nrm[i] /= l;
         nrm[i + 1] /= l;

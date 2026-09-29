@@ -58,7 +58,7 @@ Future<bool?> showEditPatientSheet(
 /// loading/error state. The actual input fields live in [PatientForm].
 class AddPatientPage extends StatefulWidget {
   const AddPatientPage({super.key, PatientRepository? repository})
-      : _repository = repository;
+    : _repository = repository;
 
   final PatientRepository? _repository;
 
@@ -68,7 +68,7 @@ class AddPatientPage extends StatefulWidget {
 
 class AddPatientSheet extends StatefulWidget {
   const AddPatientSheet({super.key, PatientRepository? repository})
-      : _repository = repository;
+    : _repository = repository;
 
   final PatientRepository? _repository;
 
@@ -116,9 +116,9 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -166,8 +166,11 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.person_add_alt_1_rounded,
-                                color: Color(0xFF2563EB), size: 22),
+                            Icon(
+                              Icons.person_add_alt_1_rounded,
+                              color: Color(0xFF2563EB),
+                              size: 22,
+                            ),
                             SizedBox(width: 10),
                             Text(
                               'Add New Patient',
@@ -189,7 +192,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                         ),
                       ],
                     ),
-                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 20),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -209,8 +212,9 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                         onPressed: _isSaving ? null : _onSavePressed,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor:
-                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          disabledBackgroundColor: const Color(
+                            0xFF2563EB,
+                          ).withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -286,9 +290,9 @@ class _AddPatientPageState extends State<AddPatientPage> {
       Navigator.of(context).pop();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to save patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to save patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -329,8 +333,9 @@ class _AddPatientPageState extends State<AddPatientPage> {
                     onPressed: _isSaving ? null : _onSavePressed,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.slateBlue,
-                      disabledBackgroundColor:
-                          AppColors.slateBlue.withValues(alpha: 0.5),
+                      disabledBackgroundColor: AppColors.slateBlue.withValues(
+                        alpha: 0.5,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -375,8 +380,11 @@ class _TopBar extends StatelessWidget {
     return Row(
       children: [
         IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new,
-              color: AppColors.textPrimary, size: 20),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+            size: 20,
+          ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(),
           onPressed: () => Navigator.pop(context),
@@ -443,9 +451,9 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
       Navigator.of(context).pop(true);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to update patient: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to update patient: $e')));
     } finally {
       if (mounted) setState(() => _isSaving = false);
     }
@@ -516,7 +524,7 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                         ),
                       ],
                     ),
-                    const Divider(height: 20, color: Color(0xFFE2E8F0)),
+                    const Divider(height: 20),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -543,8 +551,9 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                         onPressed: _isSaving ? null : _onSavePressed,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor:
-                              const Color(0xFF2563EB).withValues(alpha: 0.5),
+                          disabledBackgroundColor: const Color(
+                            0xFF2563EB,
+                          ).withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),

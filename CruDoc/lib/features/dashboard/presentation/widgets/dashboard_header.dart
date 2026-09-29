@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
+import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/dashboard_search_field.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -27,25 +28,14 @@ class DashboardHeader extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (c.isEvening) ...[
-              CruIcon(CruIcons.moon, size: 14, strokeWidth: 2, color: c.label2),
-              const SizedBox(width: CruSpace.s6),
-            ],
-            Flexible(
-              child: Text(
-                c.isEvening
-                    ? '${DashFormat.dateLine(now)} · Evening session'
-                    : DashFormat.dateLine(now),
-                style: CruType.dateLine.tint(c.label2),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        Text(
+          isEveningSession(now)
+              ? '${DashFormat.dateLine(now)} · Evening session'
+              : DashFormat.dateLine(now),
+          style: CruType.dateLine.tint(c.label2),
+          overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: CruSpace.s4),
+        const SizedBox(height: CruSpace.s6),
         Semantics(
           header: true,
           child: Text(
@@ -59,31 +49,31 @@ class DashboardHeader extends ConsumerWidget {
     );
 
     Widget actions({required bool stretchSearch}) => Row(
-          mainAxisSize: stretchSearch ? MainAxisSize.max : MainAxisSize.min,
-          children: [
-            if (stretchSearch)
-              Expanded(child: DashboardSearchField(focusNode: searchFocusNode))
-            else
-              DashboardSearchField(
-                focusNode: searchFocusNode,
-                width: CruSize.searchWidth,
-              ),
-            const SizedBox(width: CruSpace.s10),
-            CruButton(
-              label: 'Add patient',
-              kind: CruButtonKind.secondary,
-              icon: CruIcons.userPlus,
-              onPressed: () => DashboardActions.addPatient(context),
-            ),
-            const SizedBox(width: CruSpace.s10),
-            // The same booking flow as Schedule's "New appointment".
-            CruButton(
-              label: 'New appointment',
-              icon: CruIcons.plus,
-              onPressed: () => ApptActions.newAppointment(context, ref),
-            ),
-          ],
-        );
+      mainAxisSize: stretchSearch ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        if (stretchSearch)
+          Expanded(child: DashboardSearchField(focusNode: searchFocusNode))
+        else
+          DashboardSearchField(
+            focusNode: searchFocusNode,
+            width: CruSize.searchWidth,
+          ),
+        const SizedBox(width: CruSpace.s10),
+        CruButton(
+          label: 'Add patient',
+          kind: CruButtonKind.secondary,
+          icon: CruIcons.userPlus,
+          onPressed: () => DashboardActions.addPatient(context),
+        ),
+        const SizedBox(width: CruSpace.s10),
+        // The same booking flow as Schedule's "New appointment".
+        CruButton(
+          label: 'New appointment',
+          icon: CruIcons.plus,
+          onPressed: () => ApptActions.newAppointment(context, ref),
+        ),
+      ],
+    );
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -94,7 +84,14 @@ class DashboardHeader extends ConsumerWidget {
             children: [
               Expanded(child: title),
               const SizedBox(width: CruSpace.s24),
-              actions(stretchSearch: false),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 640),
+                child: FittedBox(
+                  alignment: Alignment.centerRight,
+                  fit: BoxFit.scaleDown,
+                  child: actions(stretchSearch: false),
+                ),
+              ),
             ],
           );
         }

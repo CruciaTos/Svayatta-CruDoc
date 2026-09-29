@@ -81,8 +81,8 @@ class RvgSensorService {
   RvgSensorService({
     String baseUrl = 'http://127.0.0.1:8766',
     http.Client? httpClient,
-  })  : _baseUrl = baseUrl,
-        _http = httpClient ?? http.Client();
+  }) : _baseUrl = baseUrl,
+       _http = httpClient ?? http.Client();
 
   static final instance = RvgSensorService();
 
@@ -127,7 +127,9 @@ class RvgSensorService {
       }
 
       if (script != null) {
-        debugPrint('[RvgSensorService] Launching background sensor bridge: ${script.path}');
+        debugPrint(
+          '[RvgSensorService] Launching background sensor bridge: ${script.path}',
+        );
         Process.start('python', [script.path], mode: ProcessStartMode.detached);
         // Give it a brief moment to bind port 8766
         for (var i = 0; i < 6; i++) {
@@ -148,7 +150,8 @@ class RvgSensorService {
         final res = await _http.get(Uri.parse('$_baseUrl/devices'));
         if (res.statusCode == 200) {
           final data = jsonDecode(res.body) as Map<String, dynamic>;
-          final list = (data['devices'] as List<dynamic>?)?.cast<String>() ?? [];
+          final list =
+              (data['devices'] as List<dynamic>?)?.cast<String>() ?? [];
           return list.map((name) {
             final isSim = name.toLowerCase().contains('simulator');
             return RvgDevice(name: name, isSimulator: isSim);
@@ -210,10 +213,9 @@ class RvgSensorService {
       }
     } catch (_) {}
 
-    _emitStatus(const RvgStatus(
-      state: RvgState.idle,
-      message: 'Sensor disarmed.',
-    ));
+    _emitStatus(
+      const RvgStatus(state: RvgState.idle, message: 'Sensor disarmed.'),
+    );
   }
 
   /// Manually triggers exposure (useful for testing or foot-pedal simulation).
@@ -314,57 +316,69 @@ class RvgSensorService {
   // ──────────────────────── Internal Dart Simulation ────────────────────────
 
   void _runInternalSimulation(String device, int tooth, String patient) async {
-    _emitStatus(RvgStatus(
-      state: RvgState.arming,
-      message: 'Connecting to $device...',
-      device: device,
-      tooth: tooth,
-    ));
+    _emitStatus(
+      RvgStatus(
+        state: RvgState.arming,
+        message: 'Connecting to $device...',
+        device: device,
+        tooth: tooth,
+      ),
+    );
 
     await Future.delayed(const Duration(milliseconds: 800));
-    _emitStatus(RvgStatus(
-      state: RvgState.armed,
-      message: 'Sensor armed. Waiting for X-ray exposure...',
-      device: device,
-      tooth: tooth,
-    ));
+    _emitStatus(
+      RvgStatus(
+        state: RvgState.armed,
+        message: 'Sensor armed. Waiting for X-ray exposure...',
+        device: device,
+        tooth: tooth,
+      ),
+    );
 
     // Wait 3.5 seconds to simulate placing positioner and firing tube
     for (var i = 1; i <= 4; i++) {
       await Future.delayed(const Duration(milliseconds: 800));
       if (_lastState != RvgState.armed) return;
-      _emitStatus(RvgStatus(
-        state: RvgState.armed,
-        message: 'Sensor armed. Waiting for X-ray exposure... (${4 - i}s)',
-        elapsed: i,
-        device: device,
-        tooth: tooth,
-      ));
+      _emitStatus(
+        RvgStatus(
+          state: RvgState.armed,
+          message: 'Sensor armed. Waiting for X-ray exposure... (${4 - i}s)',
+          elapsed: i,
+          device: device,
+          tooth: tooth,
+        ),
+      );
     }
 
-    _emitStatus(RvgStatus(
-      state: RvgState.exposed,
-      message: 'X-ray radiation pulse detected!',
-      device: device,
-      tooth: tooth,
-    ));
+    _emitStatus(
+      RvgStatus(
+        state: RvgState.exposed,
+        message: 'X-ray radiation pulse detected!',
+        device: device,
+        tooth: tooth,
+      ),
+    );
 
     await Future.delayed(const Duration(milliseconds: 800));
-    _emitStatus(RvgStatus(
-      state: RvgState.transferring,
-      message: 'Processing sensor calibration & 16-bit DIB transfer...',
-      device: device,
-      tooth: tooth,
-    ));
+    _emitStatus(
+      RvgStatus(
+        state: RvgState.transferring,
+        message: 'Processing sensor calibration & 16-bit DIB transfer...',
+        device: device,
+        tooth: tooth,
+      ),
+    );
 
     await Future.delayed(const Duration(milliseconds: 600));
-    _emitStatus(RvgStatus(
-      state: RvgState.done,
-      message: 'Radiograph acquired successfully.',
-      hasImage: true,
-      device: device,
-      tooth: tooth,
-    ));
+    _emitStatus(
+      RvgStatus(
+        state: RvgState.done,
+        message: 'Radiograph acquired successfully.',
+        hasImage: true,
+        device: device,
+        tooth: tooth,
+      ),
+    );
   }
 
   /// Synthesizes a valid PNG radiograph purely in Dart without external tools.
@@ -387,11 +401,29 @@ class RvgSensorService {
     final crownY = isLower ? height ~/ 3 : (height * 2) ~/ 3;
 
     // Outer enamel crown
-    img.fillCircle(image, x: centerX, y: crownY, radius: 180, color: img.ColorRgb8(230, 230, 230));
+    img.fillCircle(
+      image,
+      x: centerX,
+      y: crownY,
+      radius: 180,
+      color: img.ColorRgb8(230, 230, 230),
+    );
     // Dentin
-    img.fillCircle(image, x: centerX, y: crownY, radius: 140, color: img.ColorRgb8(175, 175, 175));
+    img.fillCircle(
+      image,
+      x: centerX,
+      y: crownY,
+      radius: 140,
+      color: img.ColorRgb8(175, 175, 175),
+    );
     // Pulp chamber
-    img.fillCircle(image, x: centerX, y: crownY, radius: 45, color: img.ColorRgb8(45, 45, 45));
+    img.fillCircle(
+      image,
+      x: centerX,
+      y: crownY,
+      radius: 45,
+      color: img.ColorRgb8(45, 45, 45),
+    );
 
     // Root canal
     final rootDir = isLower ? 1 : -1;

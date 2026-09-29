@@ -21,7 +21,12 @@ RadRgba _thumbRgba(String path, RadFileKind kind) {
   final px = decodeRadPixels(File(path).readAsBytesSync(), kind);
   final step = math.max(1, (math.max(px.width, px.height) / _thumbMax).ceil());
   final (c, w) = px.defaultWindow;
-  return renderDisplay(px, px.values, RadDisplay(center: c, width: w, invert: px.invert), step: step);
+  return renderDisplay(
+    px,
+    px.values,
+    RadDisplay(center: c, width: w, invert: px.invert),
+    step: step,
+  );
 }
 
 Future<RadRgba> _thumbInIsolate(String path, RadFileKind kind) =>
@@ -41,12 +46,17 @@ class RadThumbCache extends ChangeNotifier {
 
   static String _key(String studyId, String imageId) => '$studyId/$imageId';
 
-  ui.Image? image(String studyId, String imageId) => _images[_key(studyId, imageId)];
-  bool failed(String studyId, String imageId) => _failed.contains(_key(studyId, imageId));
+  ui.Image? image(String studyId, String imageId) =>
+      _images[_key(studyId, imageId)];
+  bool failed(String studyId, String imageId) =>
+      _failed.contains(_key(studyId, imageId));
 
   void request(RadStudy s, RadImageRef i, {bool priority = false}) {
     final key = _key(s.id, i.id);
-    if (i.compressed || _images.containsKey(key) || _failed.contains(key) || !_queued.add(key)) {
+    if (i.compressed ||
+        _images.containsKey(key) ||
+        _failed.contains(key) ||
+        !_queued.add(key)) {
       return;
     }
     if (priority) {
@@ -124,54 +134,81 @@ class RadThumbnailStrip extends StatelessWidget {
     }
     final out = <Widget>[
       Padding(
-        padding: const EdgeInsets.fromLTRB(CruSpace.s12, CruSpace.s16, CruSpace.s12, CruSpace.s4),
-        child: Text(title, style: CruType.groupLabel.tint(c.label3), maxLines: 2),
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s12,
+          CruSpace.s16,
+          CruSpace.s12,
+          CruSpace.s4,
+        ),
+        child: Text(
+          title,
+          style: CruType.groupLabel.tint(c.label3),
+          maxLines: 2,
+        ),
       ),
     ];
     final stacks = radStacks(s);
     var n = 0;
     for (final e in bySeries.entries) {
-      final list = [...e.value]..sort((a, b) => a.instanceNumber.compareTo(b.instanceNumber));
+      final list = [...e.value]
+        ..sort((a, b) => a.instanceNumber.compareTo(b.instanceNumber));
       final stack = stacks[e.key];
       if (bySeries.length > 1) {
         final label = list.first.seriesDescription.isNotEmpty
             ? list.first.seriesDescription
             : 'Series ${bySeries.keys.toList().indexOf(e.key) + 1}';
-        out.add(Padding(
-          padding: const EdgeInsets.fromLTRB(CruSpace.s12, CruSpace.s8, CruSpace.s12, CruSpace.s2),
-          child: Text(label,
-              maxLines: 1, overflow: TextOverflow.ellipsis, style: CruType.micro.tint(c.label2)),
-        ));
+        out.add(
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s12,
+              CruSpace.s8,
+              CruSpace.s12,
+              CruSpace.s2,
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CruType.micro.tint(c.label2),
+            ),
+          ),
+        );
       }
       if (stack != null) {
         // A slice stack gets one thumbnail: its middle slice.
-        final mid = s.images.firstWhere((i) => i.id == stack[stack.length ~/ 2]);
+        final mid = s.images.firstWhere(
+          (i) => i.id == stack[stack.length ~/ 2],
+        );
         n++;
         cache.request(s, mid);
-        out.add(_Thumb(
-          study: s,
-          image: mid,
-          number: n,
-          slices: stack.length,
-          cache: cache,
-          shown: stack.any((id) => shown.contains('${s.id}/$id')),
-          active: stack.any((id) => active == '${s.id}/$id'),
-          onOpen: () => onOpen(s.id, mid.id),
-        ));
+        out.add(
+          _Thumb(
+            study: s,
+            image: mid,
+            number: n,
+            slices: stack.length,
+            cache: cache,
+            shown: stack.any((id) => shown.contains('${s.id}/$id')),
+            active: stack.any((id) => active == '${s.id}/$id'),
+            onOpen: () => onOpen(s.id, mid.id),
+          ),
+        );
         continue;
       }
       for (final i in list) {
         n++;
         cache.request(s, i);
-        out.add(_Thumb(
-          study: s,
-          image: i,
-          number: n,
-          cache: cache,
-          shown: shown.contains('${s.id}/${i.id}'),
-          active: active == '${s.id}/${i.id}',
-          onOpen: () => onOpen(s.id, i.id),
-        ));
+        out.add(
+          _Thumb(
+            study: s,
+            image: i,
+            number: n,
+            cache: cache,
+            shown: shown.contains('${s.id}/${i.id}'),
+            active: active == '${s.id}/${i.id}',
+            onOpen: () => onOpen(s.id, i.id),
+          ),
+        );
       }
     }
     return out;
@@ -194,7 +231,11 @@ class RadThumbnailStrip extends StatelessWidget {
           children: [
             ..._section(context, study, RadFormat.images(study.images.length)),
             if (other != null)
-              ..._section(context, other, 'Earlier · ${RadFormat.date(other.studyDate)}'),
+              ..._section(
+                context,
+                other,
+                'Earlier · ${RadFormat.date(other.studyDate)}',
+              ),
           ],
         ),
       ),
@@ -240,7 +281,9 @@ class _Thumb extends StatelessWidget {
         shape: cruShape(
           CruRadius.iconTile,
           side: BorderSide(
-            color: active ? c.accent : (shown || hovered ? c.label3 : c.hairline),
+            color: active
+                ? c.accent
+                : (shown || hovered ? c.label3 : c.hairline),
             width: active ? 2 : 1,
           ),
         ),
@@ -269,7 +312,10 @@ class _Thumb extends StatelessWidget {
       if (image.compressed) 'Not supported',
     ].join(' · ');
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12, vertical: CruSpace.s4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s12,
+        vertical: CruSpace.s4,
+      ),
       child: Draggable<RadImageDrag>(
         data: RadImageDrag(study.id, image.id),
         dragAnchorStrategy: pointerDragAnchorStrategy,
@@ -277,7 +323,9 @@ class _Thumb extends StatelessWidget {
         child: CruPressable(
           onTap: onOpen,
           semanticLabel: 'Image $number',
-          tooltip: image.seriesDescription.isEmpty ? null : image.seriesDescription,
+          tooltip: image.seriesDescription.isEmpty
+              ? null
+              : image.seriesDescription,
           builder: (context, hovered) => Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

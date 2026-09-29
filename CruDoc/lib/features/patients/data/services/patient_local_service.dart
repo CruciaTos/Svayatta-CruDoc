@@ -153,8 +153,6 @@ class PatientLocalService {
     for (final row in rows) {
       final patient = _fromRow(row);
 
-
-      
       if (results.containsKey(patient.id)) continue;
 
       final nameMatch = normalizeForSearch(
@@ -211,7 +209,9 @@ class PatientLocalService {
   }) {
     return {
       'id': patient.id,
-      'doctorId': patient.doctorId.isEmpty ? _currentDoctorId : patient.doctorId,
+      'doctorId': patient.doctorId.isEmpty
+          ? _currentDoctorId
+          : patient.doctorId,
       'firstName': patient.firstName,
       'lastName': patient.lastName,
       'phone': patient.phone,

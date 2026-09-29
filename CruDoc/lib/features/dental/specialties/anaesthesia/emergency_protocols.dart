@@ -72,10 +72,18 @@ class _EmergencyProtocolsScreenState
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final protocols = [
-      ...(ref.watch(clinicRecordsProvider(RecKind.emergencyProtocol)).value ??
-          const <DentalRecord>[]),
-    ]..sort((a, b) => a.str('name').toLowerCase().compareTo(b.str('name').toLowerCase()));
+    final protocols =
+        [
+          ...(ref
+                  .watch(clinicRecordsProvider(RecKind.emergencyProtocol))
+                  .value ??
+              const <DentalRecord>[]),
+        ]..sort(
+          (a, b) => a
+              .str('name')
+              .toLowerCase()
+              .compareTo(b.str('name').toLowerCase()),
+        );
     final padding = MediaQuery.sizeOf(context).width < CruBreakpoint.compact
         ? CruSpace.mainPaddingCompact
         : CruSpace.mainPadding;
@@ -119,7 +127,8 @@ class _EmergencyProtocolsScreenState
               child: DentalEmptyState(
                 icon: CruIcons.warning,
                 title: 'No protocols yet',
-                body: 'Add your clinic’s approved emergency protocols: '
+                body:
+                    'Add your clinic’s approved emergency protocols: '
                     'the steps and drug doses exactly as your guideline gives '
                     'them (for example the Indian Resuscitation Council’s). '
                     'They show here in large text, ready at the chair.',
@@ -188,7 +197,10 @@ class _ProtocolCard extends StatelessWidget {
                     ),
                   ),
                   Expanded(
-                    child: Text(steps[i], style: CruType.headline.tint(c.label)),
+                    child: Text(
+                      steps[i],
+                      style: CruType.headline.tint(c.label),
+                    ),
                   ),
                 ],
               ),
@@ -200,7 +212,10 @@ class _ProtocolCard extends StatelessWidget {
             for (final d in drugs)
               Padding(
                 padding: const EdgeInsets.only(bottom: CruSpace.s6),
-                child: Text(d, style: CruType.headline.w600.tabular.tint(c.label)),
+                child: Text(
+                  d,
+                  style: CruType.headline.w600.tabular.tint(c.label),
+                ),
               ),
           ],
           const SizedBox(height: CruSpace.s6),
@@ -219,11 +234,10 @@ Future<void> showProtocolDialog(
   BuildContext context, {
   DentalRecord? existing,
   String? name,
-}) =>
-    showDialog<void>(
-      context: context,
-      builder: (_) => _ProtocolDialog(existing: existing, name: name),
-    );
+}) => showDialog<void>(
+  context: context,
+  builder: (_) => _ProtocolDialog(existing: existing, name: name),
+);
 
 class _ProtocolDialog extends ConsumerStatefulWidget {
   const _ProtocolDialog({this.existing, this.name});
@@ -262,7 +276,9 @@ class _ProtocolDialogState extends ConsumerState<_ProtocolDialog> {
 
   Future<void> _save() async {
     if (_name.text.trim().isEmpty || _split(_steps.text).isEmpty) {
-      setState(() => _notice = 'Give the protocol a name and at least one step.');
+      setState(
+        () => _notice = 'Give the protocol a name and at least one step.',
+      );
       return;
     }
     setState(() {

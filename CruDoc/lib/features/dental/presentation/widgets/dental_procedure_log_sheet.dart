@@ -34,7 +34,8 @@ class DentalProcedureLogSheet extends ConsumerStatefulWidget {
 
 class _DentalProcedureLogSheetState
     extends ConsumerState<DentalProcedureLogSheet> {
-  final TextEditingController _procedureNameController = TextEditingController();
+  final TextEditingController _procedureNameController =
+      TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   final TextEditingController _materialsController = TextEditingController();
   final TextEditingController _teethInputController = TextEditingController();
@@ -94,7 +95,9 @@ class _DentalProcedureLogSheetState
     final procName = _procedureNameController.text.trim();
     if (procName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select or enter a procedure name')),
+        const SnackBar(
+          content: Text('Please select or enter a procedure name'),
+        ),
       );
       return;
     }
@@ -130,7 +133,9 @@ class _DentalProcedureLogSheetState
         _selectedConsumableId != null &&
         _deductQuantity > 0) {
       try {
-        await ref.read(inventoryRepositoryProvider).recordTransaction(
+        await ref
+            .read(inventoryRepositoryProvider)
+            .recordTransaction(
               medicineId: _selectedConsumableId!,
               type: StockTransactionType.dispense,
               quantity: _deductQuantity,
@@ -243,10 +248,12 @@ class _DentalProcedureLogSheetState
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: catalog.length,
-                              separatorBuilder: (context, sepIndex) => const SizedBox(width: 8),
+                              separatorBuilder: (context, sepIndex) =>
+                                  const SizedBox(width: 8),
                               itemBuilder: (context, i) {
                                 final item = catalog[i];
-                                final isSelected = _selectedCatalogId == item.id;
+                                final isSelected =
+                                    _selectedCatalogId == item.id;
                                 return ActionChip(
                                   backgroundColor: isSelected
                                       ? const Color(0xFFCCFBF1)
@@ -294,13 +301,20 @@ class _DentalProcedureLogSheetState
                       const SizedBox(width: 6),
                       const Text(
                         'Teeth Involved (FDI Notation)',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const Spacer(),
                       if (_selectedTeeth.isNotEmpty)
                         TextButton(
-                          onPressed: () => setState(() => _selectedTeeth.clear()),
-                          child: const Text('Clear', style: TextStyle(fontSize: 12)),
+                          onPressed: () =>
+                              setState(() => _selectedTeeth.clear()),
+                          child: const Text(
+                            'Clear',
+                            style: TextStyle(fontSize: 12),
+                          ),
                         ),
                     ],
                   ),
@@ -341,7 +355,10 @@ class _DentalProcedureLogSheetState
                           decoration: const InputDecoration(
                             hintText: 'Add tooth # (e.g. 16, 26, 47)',
                             isDense: true,
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
                             border: OutlineInputBorder(),
                           ),
                           onSubmitted: (val) {
@@ -380,7 +397,11 @@ class _DentalProcedureLogSheetState
                   // Status chips
                   const Text(
                     'Status',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF64748B),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Row(
@@ -390,7 +411,8 @@ class _DentalProcedureLogSheetState
                         selected: _selectedStatus == 'completed',
                         selectedColor: const Color(0xFFDCFCE7),
                         onSelected: (sel) {
-                          if (sel) setState(() => _selectedStatus = 'completed');
+                          if (sel)
+                            setState(() => _selectedStatus = 'completed');
                         },
                       ),
                       const SizedBox(width: 8),
@@ -399,7 +421,8 @@ class _DentalProcedureLogSheetState
                         selected: _selectedStatus == 'inProgress',
                         selectedColor: const Color(0xFFFEF08A),
                         onSelected: (sel) {
-                          if (sel) setState(() => _selectedStatus = 'inProgress');
+                          if (sel)
+                            setState(() => _selectedStatus = 'inProgress');
                         },
                       ),
                       const SizedBox(width: 8),
@@ -452,13 +475,15 @@ class _DentalProcedureLogSheetState
                                 value: null,
                                 child: Text('No linked visit'),
                               ),
-                              ...visits.map((v) => DropdownMenuItem<String?>(
-                                    value: v.id,
-                                    child: Text(
-                                      '${DateFormat('dd MMM yyyy').format(v.scheduledStart)} — ${v.address.isNotEmpty ? v.address : 'Visit'}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  )),
+                              ...visits.map(
+                                (v) => DropdownMenuItem<String?>(
+                                  value: v.id,
+                                  child: Text(
+                                    '${DateFormat('dd MMM yyyy').format(v.scheduledStart)} — ${v.address.isNotEmpty ? v.address : 'Visit'}',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
                             ],
                             onChanged: (val) {
                               setState(() => _selectedVisitId = val);
@@ -489,7 +514,8 @@ class _DentalProcedureLogSheetState
                     controller: _materialsController,
                     decoration: const InputDecoration(
                       labelText: 'Materials Used (Optional)',
-                      hintText: 'e.g. Composite shade A2, Gutta-percha 25 0.04...',
+                      hintText:
+                          'e.g. Composite shade A2, Gutta-percha 25 0.04...',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -510,7 +536,9 @@ class _DentalProcedureLogSheetState
 
                       if (dentalItems.isEmpty) return const SizedBox.shrink();
 
-                      final selectedItem = dentalItems.cast<MedicineModel?>().firstWhere(
+                      final selectedItem = dentalItems
+                          .cast<MedicineModel?>()
+                          .firstWhere(
                             (i) => i?.id == _selectedConsumableId,
                             orElse: () => null,
                           );
@@ -527,7 +555,11 @@ class _DentalProcedureLogSheetState
                           children: [
                             const Row(
                               children: [
-                                Icon(Icons.inventory_2_outlined, size: 16, color: _accentTeal),
+                                Icon(
+                                  Icons.inventory_2_outlined,
+                                  size: 16,
+                                  color: _accentTeal,
+                                ),
                                 SizedBox(width: 6),
                                 Text(
                                   'Deduct Consumable (Chairside)',
@@ -544,7 +576,10 @@ class _DentalProcedureLogSheetState
                               initialValue: _selectedConsumableId,
                               decoration: const InputDecoration(
                                 labelText: 'Select Consumable (Optional)',
-                                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                                 border: OutlineInputBorder(),
                               ),
                               items: [
@@ -572,7 +607,10 @@ class _DentalProcedureLogSheetState
                                 children: [
                                   if (selectedItem.isLowStock)
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
                                       decoration: BoxDecoration(
                                         color: const Color(0xFFFEE2E2),
                                         borderRadius: BorderRadius.circular(4),
@@ -580,7 +618,11 @@ class _DentalProcedureLogSheetState
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          const Icon(Icons.warning_amber_rounded, size: 12, color: Color(0xFF991B1B)),
+                                          const Icon(
+                                            Icons.warning_amber_rounded,
+                                            size: 12,
+                                            color: Color(0xFF991B1B),
+                                          ),
                                           const SizedBox(width: 4),
                                           Text(
                                             'Low: ${selectedItem.currentStock} ${selectedItem.unit}',
@@ -596,28 +638,45 @@ class _DentalProcedureLogSheetState
                                   else
                                     Text(
                                       'In Stock: ${selectedItem.currentStock} ${selectedItem.unit}',
-                                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF64748B),
+                                      ),
                                     ),
                                   const Spacer(),
                                   const Text(
                                     'Deduct: ',
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                    ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.remove_circle_outline, size: 20),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline,
+                                      size: 20,
+                                    ),
                                     color: Colors.redAccent,
                                     onPressed: _deductQuantity > 1
-                                        ? () => setState(() => _deductQuantity--)
+                                        ? () =>
+                                              setState(() => _deductQuantity--)
                                         : null,
                                   ),
                                   Text(
                                     '$_deductQuantity',
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
                                   ),
                                   IconButton(
-                                    icon: const Icon(Icons.add_circle_outline, size: 20),
+                                    icon: const Icon(
+                                      Icons.add_circle_outline,
+                                      size: 20,
+                                    ),
                                     color: _accentTeal,
-                                    onPressed: () => setState(() => _deductQuantity++),
+                                    onPressed: () =>
+                                        setState(() => _deductQuantity++),
                                   ),
                                 ],
                               ),
@@ -639,7 +698,9 @@ class _DentalProcedureLogSheetState
                 style: FilledButton.styleFrom(
                   backgroundColor: _accentTeal,
                   minimumSize: const Size.fromHeight(48),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
                 onPressed: _saveProcedure,
                 child: const Text(

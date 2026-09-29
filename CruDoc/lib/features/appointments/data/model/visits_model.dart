@@ -19,7 +19,6 @@ const int kMaxGroupPatients = 4;
 const int kMinVisitDurationMinutes = 5;
 const int kMaxVisitDurationMinutes = 480; // 8 hours
 
-
 /// Builds a Google Static Maps image URL for the given coordinates, or
 /// `null` if either coordinate is missing or no Maps key is set up
 /// ([MapsKey]).
@@ -28,7 +27,10 @@ const int kMaxVisitDurationMinutes = 480; // 8 hours
 /// varying values) so `CachedNetworkImage` derives the same cache key for
 /// the same visit across app launches, instead of re-downloading the image
 /// every time.
-String? staticMapUrlFor({required double? latitude, required double? longitude}) {
+String? staticMapUrlFor({
+  required double? latitude,
+  required double? longitude,
+}) {
   if (latitude == null || longitude == null || !MapsKey.isSet) return null;
   return 'https://maps.googleapis.com/maps/api/staticmap'
       '?center=$latitude,$longitude'

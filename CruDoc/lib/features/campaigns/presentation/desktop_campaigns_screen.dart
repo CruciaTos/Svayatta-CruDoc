@@ -14,18 +14,18 @@ import 'campaign_analytics_dialog.dart';
 // DESIGN TOKENS (Matching desktop consistency system)
 // =============================================================================
 const _kPrimaryAccent = Color(0xFF2563EB); // Royal cobalt blue
-const _kAccentTint    = Color(0xFFEFF6FF);
-const _kSuccessGreen  = Color(0xFF10B981);
-const _kSuccessTint   = Color(0xFFECFDF5);
-const _kDangerRose    = Color(0xFFF43F5E);
-const _kDangerTint    = Color(0xFFFFF1F2);
-const _kWarningAmber  = Color(0xFFF59E0B);
-const _kWarningTint   = Color(0xFFFFFBEB);
-const _kTextDark      = Color(0xFF0F172A);
-const _kTextMedium    = Color(0xFF334155);
-const _kTextMuted     = Color(0xFF64748B);
-const _kBorderLight   = Color(0xFFE2E8F0);
-const _kCardBg        = Colors.white;
+const _kAccentTint = Color(0xFFEFF6FF);
+const _kSuccessGreen = Color(0xFF10B981);
+const _kSuccessTint = Color(0xFFECFDF5);
+const _kDangerRose = Color(0xFFF43F5E);
+const _kDangerTint = Color(0xFFFFF1F2);
+const _kWarningAmber = Color(0xFFF59E0B);
+const _kWarningTint = Color(0xFFFFFBEB);
+const _kTextDark = Color(0xFF0F172A);
+const _kTextMedium = Color(0xFF334155);
+const _kTextMuted = Color(0xFF64748B);
+const _kBorderLight = Color(0xFFE2E8F0);
+const _kCardBg = Colors.white;
 
 /// Full desktop Campaign Management Hub screen.
 class DesktopCampaignsScreen extends StatefulWidget {
@@ -64,20 +64,13 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
             decoration: BoxDecoration(
               color: const Color(0xFFF0F9FF).withValues(alpha: 0.94),
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: const Color(0xFFCBD5E1),
-                width: 0.75,
-              ),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x0C000000),
-                  blurRadius: 20,
-                  offset: Offset(0, 4),
-                ),
-              ],
+              border: Border.all(color: const Color(0xFFCBD5E1), width: 0.75),
+              boxShadow: const [],
             ),
             child: StreamBuilder<List<CampaignModel>>(
-              stream: _campaignRepository.watchDoctorCampaigns(_currentDoctorId),
+              stream: _campaignRepository.watchDoctorCampaigns(
+                _currentDoctorId,
+              ),
               builder: (context, snapshot) {
                 final allCampaigns = snapshot.data ?? [];
                 final filteredCampaigns = _filterCampaigns(allCampaigns);
@@ -101,7 +94,8 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
 
                       // 4. Campaign Cards List / Table
                       Expanded(
-                        child: snapshot.connectionState == ConnectionState.waiting
+                        child:
+                            snapshot.connectionState == ConnectionState.waiting
                             ? const Center(
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.5,
@@ -109,8 +103,8 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                                 ),
                               )
                             : filteredCampaigns.isEmpty
-                                ? _buildEmptyState(allCampaigns.isEmpty)
-                                : _buildCampaignsList(filteredCampaigns),
+                            ? _buildEmptyState(allCampaigns.isEmpty)
+                            : _buildCampaignsList(filteredCampaigns),
                       ),
                     ],
                   ),
@@ -170,7 +164,7 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
-            elevation: 1,
+            elevation: 0,
           ),
         ),
       ],
@@ -262,7 +256,9 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
   // ===========================================================================
   Widget _buildSearchAndFilters() {
     final bool hasActiveFilter =
-        _selectedCategoryFilter != null || _selectedStatusFilter != null || _searchQuery.isNotEmpty;
+        _selectedCategoryFilter != null ||
+        _selectedStatusFilter != null ||
+        _searchQuery.isNotEmpty;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -270,13 +266,7 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
         color: _kCardBg,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _kBorderLight, width: 0.8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x060F172A),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Row(
         children: [
@@ -307,7 +297,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                   ),
                   suffixIcon: _searchQuery.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.close_rounded, size: 16, color: _kTextMuted),
+                          icon: const Icon(
+                            Icons.close_rounded,
+                            size: 16,
+                            color: _kTextMuted,
+                          ),
                           onPressed: () {
                             _searchController.clear();
                             setState(() => _searchQuery = '');
@@ -356,7 +350,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _kTextMuted),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: _kTextMuted,
+                ),
                 items: [
                   const DropdownMenuItem(
                     value: null,
@@ -366,7 +364,8 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                     (c) => DropdownMenuItem(value: c, child: Text(c.label)),
                   ),
                 ],
-                onChanged: (cat) => setState(() => _selectedCategoryFilter = cat),
+                onChanged: (cat) =>
+                    setState(() => _selectedCategoryFilter = cat),
                 style: const TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 12.5,
@@ -398,9 +397,16 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                     fontWeight: FontWeight.w500,
                   ),
                 ),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18, color: _kTextMuted),
+                icon: const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  size: 18,
+                  color: _kTextMuted,
+                ),
                 items: [
-                  const DropdownMenuItem(value: null, child: Text('All Statuses')),
+                  const DropdownMenuItem(
+                    value: null,
+                    child: Text('All Statuses'),
+                  ),
                   ...CampaignStatus.values.map(
                     (s) => DropdownMenuItem(value: s, child: Text(s.label)),
                   ),
@@ -434,11 +440,17 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                 decoration: BoxDecoration(
                   color: _kDangerTint,
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: _kDangerRose.withValues(alpha: 0.3)),
+                  border: Border.all(
+                    color: _kDangerRose.withValues(alpha: 0.3),
+                  ),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.filter_alt_off_rounded, size: 15, color: _kDangerRose),
+                    Icon(
+                      Icons.filter_alt_off_rounded,
+                      size: 15,
+                      color: _kDangerRose,
+                    ),
                     SizedBox(width: 4),
                     Text(
                       'Reset',
@@ -504,13 +516,7 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
         color: _kCardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kBorderLight, width: 0.8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x060F172A),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -537,7 +543,10 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                   children: [
                     // Category Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
                       decoration: BoxDecoration(
                         color: cat.color.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(6),
@@ -560,7 +569,10 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
 
                     // Status Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 7,
+                        vertical: 2.5,
+                      ),
                       decoration: BoxDecoration(
                         color: campaign.status.color.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(6),
@@ -667,8 +679,8 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                         color: successRate >= 90
                             ? _kSuccessGreen
                             : (successRate > 50
-                                ? _kWarningAmber
-                                : _kDangerRose),
+                                  ? _kWarningAmber
+                                  : _kDangerRose),
                       ),
                     ),
                   ],
@@ -795,7 +807,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                       value: 'retry',
                       child: Row(
                         children: [
-                          Icon(Icons.refresh_rounded, size: 16, color: _kPrimaryAccent),
+                          Icon(
+                            Icons.refresh_rounded,
+                            size: 16,
+                            color: _kPrimaryAccent,
+                          ),
                           SizedBox(width: 8),
                           Text('Retry Failed Recipients'),
                         ],
@@ -805,7 +821,11 @@ class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
                     value: 'delete',
                     child: Row(
                       children: [
-                        Icon(Icons.delete_outline_rounded, size: 16, color: _kDangerRose),
+                        Icon(
+                          Icons.delete_outline_rounded,
+                          size: 16,
+                          color: _kDangerRose,
+                        ),
                         SizedBox(width: 8),
                         Text(
                           'Delete Campaign',
@@ -951,13 +971,7 @@ class _CampaignMetricCard extends StatelessWidget {
         color: _kCardBg,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kBorderLight, width: 0.8),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x060F172A),
-            blurRadius: 14,
-            offset: Offset(0, 4),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -991,7 +1005,10 @@ class _CampaignMetricCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 2.5,
+                ),
                 decoration: BoxDecoration(
                   color: badgeBg,
                   borderRadius: BorderRadius.circular(6),

@@ -23,7 +23,9 @@ class WeekHeaderRow extends StatelessWidget {
       children: [
         const SizedBox(width: WeekMetrics.gutter),
         for (final d in days)
-          Expanded(child: WeekDayHeader(date: d, today: today)),
+          Expanded(
+            child: WeekDayHeader(date: d, today: today),
+          ),
       ],
     );
   }
@@ -39,7 +41,11 @@ class WeekDayHeader extends ConsumerWidget {
 
   /// Past: "11 seen · 1 missed". Today and future: "13 booked" (today
   /// counts every visit that day). Nothing when the day is empty.
-  static String countLine(ApptDayCounts? counts, DateTime date, DateTime today) {
+  static String countLine(
+    ApptDayCounts? counts,
+    DateTime date,
+    DateTime today,
+  ) {
     if (counts == null || counts.appointments == 0) return '';
     if (date.isBefore(today)) {
       final missed = counts.missed > 0 ? ' · ${counts.missed} missed' : '';
@@ -57,8 +63,7 @@ class WeekDayHeader extends ConsumerWidget {
     final overlap = counts?.hasUnsortedOverlap ?? false;
 
     return CruPressable(
-      onTap: () =>
-          ref.read(apptsControllerProvider.notifier).openDay(date),
+      onTap: () => ref.read(apptsControllerProvider.notifier).openDay(date),
       scaleOnPress: false,
       semanticLabel:
           '${DashFormat.dateLine(date)}${line.isEmpty ? '' : ', $line'}. Open day',
@@ -74,8 +79,9 @@ class WeekDayHeader extends ConsumerWidget {
             children: [
               Text(
                 DateFormat('E').format(date),
-                style: CruType.groupLabel
-                    .tint(isToday ? c.accentText : c.label2),
+                style: CruType.groupLabel.tint(
+                  isToday ? c.accentText : c.label2,
+                ),
               ),
               const SizedBox(height: CruSpace.s2),
               SizedBox(

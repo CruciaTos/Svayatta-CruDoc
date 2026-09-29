@@ -79,7 +79,7 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
       decoration: ShapeDecoration(
         color: c.surface,
         shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-        shadows: c.cardShadow,
+        shadows: const [],
       ),
       child: Row(
         children: [

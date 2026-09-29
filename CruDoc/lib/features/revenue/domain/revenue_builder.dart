@@ -47,7 +47,10 @@ abstract final class RevenueBuilder {
   /// (midnight) fall back to their creation time on the same day.
   static DateTime when(RevenueEntry e) {
     final d = e.date;
-    if (d.hour == 0 && d.minute == 0 && d.second == 0 && sameDay(d, e.createdAt)) {
+    if (d.hour == 0 &&
+        d.minute == 0 &&
+        d.second == 0 &&
+        sameDay(d, e.createdAt)) {
       return e.createdAt;
     }
     return d;
@@ -275,10 +278,7 @@ abstract final class RevenueBuilder {
     return amount > 0 ? BarKind.past : BarKind.emptyPast;
   }
 
-  static ChartData chart(
-    Iterable<RevenueEntry> entries,
-    PeriodWindow w,
-  ) {
+  static ChartData chart(Iterable<RevenueEntry> entries, PeriodWindow w) {
     final daily = _dailyIncome(entries);
     final today = w.today;
     final bars = <ChartBar>[];
@@ -315,8 +315,9 @@ abstract final class RevenueBuilder {
           final isToday = i == today.day;
           final regular = i == 1 || i % 7 == 0;
           // A regular label next to today's would collide with it.
-          final label =
-              isToday || (regular && (i - today.day).abs() != 1) ? '$i' : null;
+          final label = isToday || (regular && (i - today.day).abs() != 1)
+              ? '$i'
+              : null;
           bars.add(dayBar(d, label));
         }
       case RevenuePeriod.year:
@@ -339,14 +340,16 @@ abstract final class RevenueBuilder {
           } else {
             kind = amount > 0 ? BarKind.past : BarKind.emptyPast;
           }
-          bars.add(ChartBar(
-            date: start,
-            amount: amount,
-            kind: kind,
-            label: DateFormat('MMM').format(start),
-            semantic:
-                '${DateFormat('MMMM y').format(start)}: ${DashFormat.rupees(amount)}',
-          ));
+          bars.add(
+            ChartBar(
+              date: start,
+              amount: amount,
+              kind: kind,
+              label: DateFormat('MMM').format(start),
+              semantic:
+                  '${DateFormat('MMMM y').format(start)}: ${DashFormat.rupees(amount)}',
+            ),
+          );
         }
     }
 
@@ -356,7 +359,9 @@ abstract final class RevenueBuilder {
     return ChartData(
       bars: bars,
       ticks: ticks,
-      scaleMax: math.max(max, ticks.last) <= 0 ? 1.0 : math.max(max, ticks.last),
+      scaleMax: math.max(max, ticks.last) <= 0
+          ? 1.0
+          : math.max(max, ticks.last),
       todayAmount: todayBar.isEmpty ? 0 : todayBar.first.amount,
       todayLegend: todayLegend,
       note: note,
@@ -375,10 +380,10 @@ abstract final class RevenueBuilder {
   }
 
   static String _typeLabel(RevenueType type) => switch (type) {
-        RevenueType.visit => 'Visit',
-        RevenueType.online => 'Online consultation',
-        RevenueType.miscellaneous => 'Other income',
-      };
+    RevenueType.visit => 'Visit',
+    RevenueType.online => 'Online consultation',
+    RevenueType.miscellaneous => 'Other income',
+  };
 
   static TxnRow row(RevenueEntry e, DateTime today) {
     final t = when(e);
@@ -419,22 +424,23 @@ abstract final class RevenueBuilder {
   }
 
   static bool _passes(RevenueEntry e, TxnFilter f) => switch (f) {
-        TxnFilter.all => true,
-        TxnFilter.moneyIn => e.kind == TransactionKind.income,
-        TxnFilter.moneyOut => e.kind == TransactionKind.expense,
-      };
+    TxnFilter.all => true,
+    TxnFilter.moneyIn => e.kind == TransactionKind.income,
+    TxnFilter.moneyOut => e.kind == TransactionKind.expense,
+  };
 
   static List<RevenueEntry> inSpan(
     Iterable<RevenueEntry> entries,
     DateSpan span,
   ) {
-    final list = [
-      for (final e in entries)
-        if (!e.isDeleted && span.contains(when(e))) e,
-    ]..sort((a, b) {
-        final byTime = when(b).compareTo(when(a));
-        return byTime != 0 ? byTime : b.createdAt.compareTo(a.createdAt);
-      });
+    final list =
+        [
+          for (final e in entries)
+            if (!e.isDeleted && span.contains(when(e))) e,
+        ]..sort((a, b) {
+          final byTime = when(b).compareTo(when(a));
+          return byTime != 0 ? byTime : b.createdAt.compareTo(a.createdAt);
+        });
     return list;
   }
 
@@ -481,8 +487,8 @@ abstract final class RevenueBuilder {
   static String age(int days) => days <= 0
       ? 'today'
       : days == 1
-          ? '1 day'
-          : '$days days';
+      ? '1 day'
+      : '$days days';
 
   /// Unpaid balances grouped per patient (patientId, else payer),
   /// oldest first.
@@ -499,8 +505,8 @@ abstract final class RevenueBuilder {
       final key = p.patientId != null && p.patientId!.isNotEmpty
           ? 'patient:${p.patientId}'
           : payer.isNotEmpty
-              ? 'payer:${payer.toLowerCase()}'
-              : 'row:${p.id}';
+          ? 'payer:${payer.toLowerCase()}'
+          : 'row:${p.id}';
       groups.putIfAbsent(key, () => []).add(p);
     }
 
@@ -516,8 +522,8 @@ abstract final class RevenueBuilder {
       final name = patient != null
           ? patient.fullName.trim()
           : payer.isNotEmpty
-              ? payer
-              : 'No name';
+          ? payer
+          : 'No name';
       final total = rows.fold<double>(0, (s, r) => s + r.amount);
       final ageDays = math.max(0, daysBetween(first.date, today));
       final on = DateFormat('d MMM').format(first.date);
@@ -528,16 +534,18 @@ abstract final class RevenueBuilder {
       } else {
         lead = '${rows.length} items since $on';
       }
-      out.add(PendingGroup(
-        key: key,
-        name: name.isEmpty ? 'No name' : name,
-        patient: patient,
-        rows: List.unmodifiable(rows),
-        total: total,
-        oldest: first.date,
-        ageDays: ageDays,
-        detail: '$lead · ${age(ageDays)}',
-      ));
+      out.add(
+        PendingGroup(
+          key: key,
+          name: name.isEmpty ? 'No name' : name,
+          patient: patient,
+          rows: List.unmodifiable(rows),
+          total: total,
+          oldest: first.date,
+          ageDays: ageDays,
+          detail: '$lead · ${age(ageDays)}',
+        ),
+      );
     });
     out.sort((a, b) {
       final byDate = a.oldest.compareTo(b.oldest);

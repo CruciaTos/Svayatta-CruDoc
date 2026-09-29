@@ -6,7 +6,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class DesktopShellPreferences {
   DesktopShellPreferences();
 
-  static const String _kSidebarExpandedKey = 'crudoc.desktop_shell.sidebar_expanded';
+  static const String _kSidebarExpandedKey =
+      'crudoc.desktop_shell.sidebar_expanded';
   static const String _kLastTabIndexKey = 'crudoc.desktop_shell.last_tab_index';
 
   /// Whether the sidebar should render expanded. Defaults to `true`

@@ -17,8 +17,8 @@ class DentalRepository {
   DentalRepository({
     LocalDatabaseService? localDbService,
     FirebaseFirestore? firestore,
-  })  : _localDbService = localDbService ?? LocalDatabaseService.instance,
-        _firestore = firestore;
+  }) : _localDbService = localDbService ?? LocalDatabaseService.instance,
+       _firestore = firestore;
 
   FirebaseFirestore? get firestore => _firestore;
 
@@ -84,7 +84,9 @@ class DentalRepository {
   // TOOTH CHART ENTRIES
   // ---------------------------------------------------------------------------
 
-  Future<List<ToothChartEntryModel>> getToothChartForPatient(String patientId) async {
+  Future<List<ToothChartEntryModel>> getToothChartForPatient(
+    String patientId,
+  ) async {
     final db = await _localDbService.localDatabase;
     final rows = await db.query(
       'tooth_chart_entries',
@@ -122,7 +124,9 @@ class DentalRepository {
   // PROCEDURE LOG ENTRIES
   // ---------------------------------------------------------------------------
 
-  Future<List<DentalProcedureLogModel>> getProcedureLogsForPatient(String patientId) async {
+  Future<List<DentalProcedureLogModel>> getProcedureLogsForPatient(
+    String patientId,
+  ) async {
     final db = await _localDbService.localDatabase;
     final rows = await db.query(
       'procedure_log_entries',
@@ -133,7 +137,9 @@ class DentalRepository {
     return rows.map((r) => DentalProcedureLogModel.fromMap(r)).toList();
   }
 
-  Future<List<DentalProcedureLogModel>> getProcedureLogsForVisit(String visitId) async {
+  Future<List<DentalProcedureLogModel>> getProcedureLogsForVisit(
+    String visitId,
+  ) async {
     final db = await _localDbService.localDatabase;
     final rows = await db.query(
       'procedure_log_entries',
@@ -207,7 +213,9 @@ class DentalRepository {
     return rows.map((r) => TreatmentPlanLineItemModel.fromMap(r)).toList();
   }
 
-  Future<void> saveTreatmentPlanLineItem(TreatmentPlanLineItemModel item) async {
+  Future<void> saveTreatmentPlanLineItem(
+    TreatmentPlanLineItemModel item,
+  ) async {
     final db = await _localDbService.localDatabase;
     await db.insert(
       'treatment_plan_line_items',
@@ -216,7 +224,10 @@ class DentalRepository {
     );
   }
 
-  Future<void> updateTreatmentPlanLineItemStatus(String id, String newStatus) async {
+  Future<void> updateTreatmentPlanLineItemStatus(
+    String id,
+    String newStatus,
+  ) async {
     final db = await _localDbService.localDatabase;
     await db.update(
       'treatment_plan_line_items',
@@ -248,7 +259,9 @@ class DentalRepository {
   // STERILIZATION LOG ENTRIES
   // ---------------------------------------------------------------------------
 
-  Future<List<SterilizationLogModel>> getSterilizationLogs(String doctorId) async {
+  Future<List<SterilizationLogModel>> getSterilizationLogs(
+    String doctorId,
+  ) async {
     final db = await _localDbService.localDatabase;
     final rows = await db.query(
       'sterilization_log_entries',

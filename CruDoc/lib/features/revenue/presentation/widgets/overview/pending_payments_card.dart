@@ -110,7 +110,6 @@ class _PendingRow extends StatelessWidget {
             CruMonogram(
               name: g.name,
               size: CruSize.monogramList,
-              background: c.inset,
             ),
             const SizedBox(width: CruSpace.s12),
             Expanded(
@@ -120,16 +119,18 @@ class _PendingRow extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text.rich(
-                      TextSpan(children: [
-                        TextSpan(
-                          text: g.name,
-                          style: CruType.callout.tint(c.label),
-                        ),
-                        TextSpan(
-                          text: ' ${DashFormat.rupees(g.total)}',
-                          style: CruType.callout.tabular.tint(c.amberText),
-                        ),
-                      ]),
+                      TextSpan(
+                        children: [
+                          TextSpan(
+                            text: g.name,
+                            style: CruType.callout.tint(c.label),
+                          ),
+                          TextSpan(
+                            text: ' ${DashFormat.rupees(g.total)}',
+                            style: CruType.callout.tabular.tint(c.amberText),
+                          ),
+                        ],
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -137,8 +138,9 @@ class _PendingRow extends StatelessWidget {
                       g.detail,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: CruType.caption.tabular
-                          .tint(g.overdue ? c.amberText : c.label2),
+                      style: CruType.caption.tabular.tint(
+                        g.overdue ? c.amberText : c.label2,
+                      ),
                     ),
                   ],
                 ),

@@ -80,13 +80,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     if (prompt.isNotEmpty) _controller.text = prompt;
 
     // Initial welcome message
-    _messages.add(ChatMessage(
-      id: const Uuid().v4(),
-      text: '👋 **Hello, Doctor!**\n\n'
-          'I\'m your CruDoc Assistant. Ask me anything about your practice or use the mic for instant voice queries! 😊',
-      isUser: false,
-      timestamp: DateTime.now(),
-    ));
+    _messages.add(
+      ChatMessage(
+        id: const Uuid().v4(),
+        text:
+            '👋 **Hello, Doctor!**\n\n'
+            'I\'m your CruDoc Assistant. Ask me anything about your practice or use the mic for instant voice queries! 😊',
+        isUser: false,
+        timestamp: DateTime.now(),
+      ),
+    );
   }
 
   void _onInputChanged() {
@@ -131,12 +134,14 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
     final userMsgId = const Uuid().v4();
     setState(() {
-      _messages.add(ChatMessage(
-        id: userMsgId,
-        text: trimmed,
-        isUser: true,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          id: userMsgId,
+          text: trimmed,
+          isUser: true,
+          timestamp: DateTime.now(),
+        ),
+      );
       _isTyping = true;
     });
     _scrollToBottom();
@@ -151,24 +156,29 @@ class _ChatbotScreenState extends State<ChatbotScreen>
 
       setState(() {
         _isTyping = false;
-        _messages.add(ChatMessage(
-          id: const Uuid().v4(),
-          text: response,
-          isUser: false,
-          timestamp: DateTime.now(),
-        ));
+        _messages.add(
+          ChatMessage(
+            id: const Uuid().v4(),
+            text: response,
+            isUser: false,
+            timestamp: DateTime.now(),
+          ),
+        );
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _isTyping = false;
-        _messages.add(ChatMessage(
-          id: const Uuid().v4(),
-          text: '⚠️ Could not reach CruDoc Assistant. Please check your connection and tap to retry.',
-          isUser: false,
-          timestamp: DateTime.now(),
-          isError: true,
-        ));
+        _messages.add(
+          ChatMessage(
+            id: const Uuid().v4(),
+            text:
+                '⚠️ Could not reach CruDoc Assistant. Please check your connection and tap to retry.',
+            isUser: false,
+            timestamp: DateTime.now(),
+            isError: true,
+          ),
+        );
       });
     }
 
@@ -190,13 +200,16 @@ class _ChatbotScreenState extends State<ChatbotScreen>
     setState(() {
       _chatService.resetConversation();
       _messages.clear();
-      _messages.add(ChatMessage(
-        id: const Uuid().v4(),
-        text: '👋 **Hello, Doctor!**\n\n'
-            'I\'m your CruDoc Assistant. Ask me anything about the app or use voice dictation! 😊',
-        isUser: false,
-        timestamp: DateTime.now(),
-      ));
+      _messages.add(
+        ChatMessage(
+          id: const Uuid().v4(),
+          text:
+              '👋 **Hello, Doctor!**\n\n'
+              'I\'m your CruDoc Assistant. Ask me anything about the app or use voice dictation! 😊',
+          isUser: false,
+          timestamp: DateTime.now(),
+        ),
+      );
     });
   }
 
@@ -231,13 +244,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               color: const Color(0xFF1E78FF).withValues(alpha: 0.2),
               width: 1.5,
             ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.16),
-                blurRadius: 24,
-                offset: const Offset(0, -6),
-              ),
-            ],
+            boxShadow: const [],
           ),
           child: SafeArea(
             top: false,
@@ -292,13 +299,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
+                boxShadow: const [],
               ),
               child: const Icon(
                 Icons.keyboard_arrow_down_rounded,
@@ -321,13 +322,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               ),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: Colors.white, width: 1.5),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF1E78FF).withValues(alpha: 0.35),
-                  blurRadius: 8,
-                  offset: const Offset(0, 3),
-                ),
-              ],
+              boxShadow: const [],
             ),
             child: const Icon(
               Icons.smart_toy_rounded,
@@ -371,8 +366,9 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                         color: _isTyping
                             ? const Color(0xFF1E78FF)
                             : AppColors.textSecondary,
-                        fontWeight:
-                            _isTyping ? FontWeight.w600 : FontWeight.w400,
+                        fontWeight: _isTyping
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                       ),
                     ),
                   ],
@@ -392,13 +388,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+                  boxShadow: const [],
                 ),
                 child: const Icon(
                   Icons.refresh_rounded,
@@ -430,8 +420,10 @@ class _ChatbotScreenState extends State<ChatbotScreen>
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFEFF6FF),
                   borderRadius: BorderRadius.circular(20),
@@ -474,22 +466,28 @@ class _ChatbotScreenState extends State<ChatbotScreen>
               if (lower.contains('patient') &&
                   !DoctorFeatureGuard.isEnabled(enabledModules, 'patients')) {
                 isLocked = true;
-              } else if ((lower.contains('invoice') || lower.contains('revenue')) &&
+              } else if ((lower.contains('invoice') ||
+                      lower.contains('revenue')) &&
                   !DoctorFeatureGuard.isEnabled(enabledModules, 'revenue')) {
                 isLocked = true;
               } else if (lower.contains('inventory') &&
                   !DoctorFeatureGuard.isEnabled(enabledModules, 'inventory')) {
                 isLocked = true;
               } else if (lower.contains('visit') &&
-                  !DoctorFeatureGuard.isEnabled(enabledModules, 'appointments')) {
+                  !DoctorFeatureGuard.isEnabled(
+                    enabledModules,
+                    'appointments',
+                  )) {
                 isLocked = true;
               }
 
               return GestureDetector(
                 onTap: () => _sendMessage(suggestion, enabledModules),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(20),
@@ -498,13 +496,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                           ? Colors.amber.shade400
                           : const Color(0xFF1E78FF).withValues(alpha: 0.25),
                     ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
+                    boxShadow: const [],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -572,13 +564,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
       decoration: BoxDecoration(
         color: Colors.white,
         border: const Border(top: BorderSide(color: Color(0xFFE2E8F0))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, -3),
-          ),
-        ],
+        boxShadow: const [],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -630,8 +616,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
             child: _hasInputText
                 ? GestureDetector(
                     key: const ValueKey('send_btn'),
-                    onTap: () =>
-                        _sendMessage(_controller.text, enabledModules),
+                    onTap: () => _sendMessage(_controller.text, enabledModules),
                     child: Container(
                       width: 44,
                       height: 44,
@@ -642,13 +627,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                           end: Alignment.bottomRight,
                         ),
                         shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF1E78FF).withValues(alpha: 0.38),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
+                        boxShadow: const [],
                       ),
                       child: const Icon(
                         Icons.send_rounded,

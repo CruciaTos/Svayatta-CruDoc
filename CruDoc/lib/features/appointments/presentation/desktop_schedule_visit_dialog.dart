@@ -675,6 +675,7 @@ class _DesktopScheduleVisitDialogState
                     onPlaceSelected: (lat, lng) {
                       _lat = lat;
                       _lng = lng;
+                      _mapsLink.text = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
                       _edited();
                     },
                     aiRevealKey: _revealAddress,

@@ -432,6 +432,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                   setState(() {
                     _resolvedLat = selection.latitude;
                     _resolvedLng = selection.longitude;
+                    _mapsLinkController.text = 'https://www.google.com/maps/search/?api=1&query=${selection.latitude},${selection.longitude}';
                   });
                 },
               ),

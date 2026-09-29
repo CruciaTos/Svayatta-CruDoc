@@ -74,6 +74,7 @@ dependencies:
   archive: ^4.0.9
   image: ^4.9.2
   desktop_drop: ^0.8.4
+  sherpa_onnx: ^1.13.8
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -106,6 +107,8 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/images/default_map.png
+    # Offline speech model for the voice demo (lib/features/voice).
+    - assets/voice/parakeet/
 
   fonts:
     - family: PlusJakartaSans

@@ -142,6 +142,21 @@ class SidebarCallbacks {
 }
 
 /// Calm Clinical sidebar: no card behind it, sits on the canvas.
+/// Every screen in this login's sidebar, so voice can go exactly where
+/// the sidebar goes.
+List<({int tab, String label})> sidebarTabs({
+  required bool dentist,
+  required bool radiologist,
+  DoctorSpecialtyType? sub,
+}) => [
+  for (final g in _groupsFor(
+    dentist: dentist,
+    radiologist: radiologist,
+    sub: sub,
+  ))
+    for (final i in g.items) (tab: i.tab, label: i.label),
+];
+
 class CruSidebar extends ConsumerWidget {
   const CruSidebar({
     super.key,

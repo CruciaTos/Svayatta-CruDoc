@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -48,7 +49,8 @@ class DesktopAddEditPatientDialog extends StatefulWidget {
 }
 
 class _DesktopAddEditPatientDialogState
-    extends State<DesktopAddEditPatientDialog> {
+    extends State<DesktopAddEditPatientDialog>
+    with VoiceDialogHook<DesktopAddEditPatientDialog> {
   static const _sexes = ['Male', 'Female', 'Other'];
 
   static const _commonConditions = [
@@ -176,6 +178,55 @@ class _DesktopAddEditPatientDialogState
     }
     _edited();
   }
+
+  @override
+  void onVoiceFill(VoiceFill f) {
+    if (f.firstName != null) _firstName.text = f.firstName!;
+    if (f.lastName != null) _lastName.text = f.lastName!;
+    if (f.phone != null) _phone.text = f.phone!;
+    if (f.email != null) _email.text = f.email!;
+    if (f.gender != null && _sexes.contains(f.gender)) _sex = f.gender;
+    if (f.dateOfBirth != null) {
+      _dateOfBirth = f.dateOfBirth;
+      _dobFromAge = false;
+      _age.text = '${_ageOn(_dateOfBirth)}';
+    } else if (f.age != null) {
+      _age.text = '${f.age}';
+      _onAgeChanged(_age.text);
+    }
+    if (f.conditions.isNotEmpty) {
+      final seen = <String>{};
+      _conditions = [..._conditions, ...f.conditions]
+          .where((c) => seen.add(c.toLowerCase()))
+          .take(Patient.maxDiagnoses)
+          .toList();
+    }
+    if (f.notes != null) {
+      _voiceNotesBase ??= _notes.text.trim();
+      _notes.text =
+          [_voiceNotesBase!, f.notes!].where((s) => s.isNotEmpty).join('\n');
+    }
+    if (f.balance != null) _balance.text = f.balance!.toStringAsFixed(0);
+    _edited();
+  }
+
+  /// Notes typed before voice started adding to them.
+  String? _voiceNotesBase;
+
+  @override
+  List<String> voiceMissing() => [
+        if (_firstName.text.trim().isEmpty) 'first name',
+        if (_lastName.text.trim().isEmpty) 'last name',
+        if (_sex == null) 'sex',
+        if (_dateOfBirth == null) 'age',
+        if (_phone.text.replaceAll(RegExp(r'\D'), '').length < 10) 'mobile',
+      ];
+
+  @override
+  void onVoiceConfirm() => _save();
+
+  @override
+  String get voiceKind => widget.patient == null ? 'addPatient' : 'editPatient';
 
   void _onAgeChanged(String value) {
     final years = int.tryParse(value.trim());

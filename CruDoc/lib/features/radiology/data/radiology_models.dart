@@ -118,6 +118,8 @@ class RadImageRef {
     this.dicomModality = '',
     this.storagePath = '',
     this.cloudStatus = '',
+    this.previewPath = '',
+    this.sopInstanceUid = '',
   });
 
   final String id;
@@ -158,7 +160,20 @@ class RadImageRef {
   /// is kept on this computer only and will never be uploaded.
   final String cloudStatus;
 
-  RadImageRef copyWith({String? storagePath, String? cloudStatus}) =>
+  /// Cloud Storage path of a small JPEG preview, so lists and thumbnails
+  /// on another device don't have to download the original (empty until
+  /// uploaded).
+  final String previewPath;
+
+  /// DICOM SOP Instance UID (0008,0018); empty for plain pictures. Keys the
+  /// instance for a DICOMweb or PACS store later.
+  final String sopInstanceUid;
+
+  RadImageRef copyWith({
+    String? storagePath,
+    String? cloudStatus,
+    String? previewPath,
+  }) =>
       RadImageRef(
         id: id,
         path: path,
@@ -179,6 +194,8 @@ class RadImageRef {
         dicomModality: dicomModality,
         storagePath: storagePath ?? this.storagePath,
         cloudStatus: cloudStatus ?? this.cloudStatus,
+        previewPath: previewPath ?? this.previewPath,
+        sopInstanceUid: sopInstanceUid,
       );
 
   Map<String, dynamic> toJson() => {
@@ -201,6 +218,8 @@ class RadImageRef {
     'dicomModality': dicomModality,
     'storagePath': storagePath,
     'cloudStatus': cloudStatus,
+    'previewPath': previewPath,
+    'sopInstanceUid': sopInstanceUid,
   };
 
   factory RadImageRef.fromJson(Map<String, dynamic> j) => RadImageRef(
@@ -227,15 +246,17 @@ class RadImageRef {
     dicomModality: _str(j['dicomModality']),
     storagePath: _str(j['storagePath']),
     cloudStatus: _str(j['cloudStatus']),
+    previewPath: _str(j['previewPath']),
+    sopInstanceUid: _str(j['sopInstanceUid']),
   );
 }
 
 /// Why an image is not uploaded to Cloud Storage ([RadImageRef.cloudStatus]).
 abstract final class RadCloudStatus {
-  /// Over the 15 MB upload limit.
+  /// Over the upload limit (15 MB for pictures, 250 MB for DICOM/TIFF).
   static const localOnlyTooLarge = 'localOnlyTooLarge';
 
-  /// A file type the storage rules do not accept (DICOM, TIFF…).
+  /// A file type the storage rules do not accept (BMP, GIF…).
   static const localOnlyType = 'localOnlyType';
 }
 

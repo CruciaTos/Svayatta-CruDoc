@@ -26,7 +26,10 @@ abstract final class InventoryReceiptSync {
     if (medicineId.isEmpty) return;
     try {
       final type = image.mimeType ?? contentTypeForPath(image.name);
-      if (type == null || !isUploadableContentType(type)) return;
+      if (type == null ||
+          !acceptsContentType(UploadKind.inventoryReceipt, type)) {
+        return;
+      }
       await StorageSyncQueue.instance.cancelByLink(linkHandler, medicineId);
       await StorageSyncQueue.instance.enqueue(
         kind: UploadKind.inventoryReceipt,

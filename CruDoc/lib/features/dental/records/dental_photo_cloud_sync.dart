@@ -48,8 +48,8 @@ abstract final class DentalPhotoCloudSync {
       final type = contentTypeForPath(localPath);
       final file = File(localPath);
       if (type == null ||
-          !isUploadableContentType(type) ||
-          exceedsUploadLimit(await file.length())) {
+          !acceptsContentType(UploadKind.clinicalPhoto, type) ||
+          exceedsUploadLimit(await file.length(), contentType: type)) {
         return;
       }
       final docId = _docId(record.id, slot);

@@ -36,7 +36,7 @@ String? contentTypeForPath(String path) {
   };
 }
 
-/// Content types `storage.rules` accepts. Anything else (DICOM, TIFF…) would
+/// Content types `storage.rules` accepts. Anything else (BMP, GIF…) would
 /// be refused by the server, so callers can keep such files local-only
 /// instead of queueing an upload that can never succeed.
 bool isUploadableContentType(String contentType) =>
@@ -52,11 +52,18 @@ const Set<String> _rulesContentTypes = {
   'audio/opus',
   'text/csv',
   'application/octet-stream',
+  'application/dicom',
+  'image/tiff',
 };
 
-/// True when [sizeBytes] is over the 15 MB the rules allow.
-bool exceedsUploadLimit(int sizeBytes) =>
-    sizeBytes > MedicalStorageService.maxUploadBytes;
+/// Whether [StorageSyncQueue.enqueue] takes a [contentType] file as [kind].
+bool acceptsContentType(UploadKind kind, String contentType) =>
+    _allowedTypes[kind]?.contains(contentType) ?? false;
+
+/// True when [sizeBytes] is over what the rules allow for [contentType]:
+/// 250 MB for DICOM and TIFF originals, 15 MB for everything else.
+bool exceedsUploadLimit(int sizeBytes, {String contentType = ''}) =>
+    sizeBytes > MedicalStorageService.maxUploadBytesFor(contentType);
 
 const Set<String> _images = {'image/jpeg', 'image/png', 'image/webp'};
 const Set<String> _audio = {'audio/mp4', 'audio/aac', 'audio/opus'};
@@ -77,6 +84,8 @@ final Map<UploadKind, Set<String>> _allowedTypes = {
   UploadKind.sterilizationStrip: _images,
   UploadKind.databaseBackup: {'application/octet-stream'},
   UploadKind.revenueCsv: {'text/csv'},
+  UploadKind.imagingOriginal: {'application/dicom', 'image/tiff'},
+  UploadKind.imagingPreview: {'image/jpeg'},
 };
 
 /// What a link handler is told once its file is in the bucket.
@@ -284,9 +293,11 @@ class StorageSyncQueue {
       final willCompress =
           _images.contains(contentType) &&
           (compress || _alwaysCompressed.contains(kind));
-      if (!willCompress && exceedsUploadLimit(bytes.lengthInBytes)) {
+      if (!willCompress &&
+          exceedsUploadLimit(bytes.lengthInBytes, contentType: contentType)) {
         _log(
-          'not enqueuing ${kind.name}: ${bytes.lengthInBytes} bytes is over 15 MB',
+          'not enqueuing ${kind.name}: ${bytes.lengthInBytes} bytes is over '
+          'the limit for $contentType',
         );
         return null;
       }
@@ -819,6 +830,20 @@ class StorageSyncQueue {
       UploadKind.databaseBackup => service.uploadDatabaseBackup(
         doctorId: doctorId,
         encryptedBytes: bytes,
+      ),
+      UploadKind.imagingOriginal => service.uploadImagingOriginal(
+        doctorId: doctorId,
+        patientId: patientId,
+        bytes: bytes,
+        contentType: type,
+      ),
+      UploadKind.imagingPreview => service.uploadClinicalMedia(
+        doctorId: doctorId,
+        patientId: patientId,
+        kind: ClinicalMediaKind.imagingPreview,
+        bytes: bytes,
+        contentType: type,
+        compress: false, // Already a small JPEG.
       ),
       UploadKind.revenueCsv => service.uploadRevenueCsv(
         doctorId: doctorId,

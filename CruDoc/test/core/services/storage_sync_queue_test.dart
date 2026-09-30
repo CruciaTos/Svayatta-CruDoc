@@ -514,8 +514,34 @@ void main() {
 
     test('knows which types the storage rules take', () {
       expect(isUploadableContentType('image/png'), isTrue);
-      expect(isUploadableContentType('application/dicom'), isFalse);
-      expect(isUploadableContentType('image/tiff'), isFalse);
+      expect(isUploadableContentType('application/dicom'), isTrue);
+      expect(isUploadableContentType('image/tiff'), isTrue);
+      expect(isUploadableContentType('image/bmp'), isFalse);
+    });
+
+    test('takes DICOM and TIFF as imaging originals only', () {
+      expect(acceptsContentType(UploadKind.imagingOriginal, 'application/dicom'), isTrue);
+      expect(acceptsContentType(UploadKind.imagingOriginal, 'image/tiff'), isTrue);
+      expect(acceptsContentType(UploadKind.imagingOriginal, 'image/jpeg'), isFalse);
+      expect(acceptsContentType(UploadKind.clinicalPhoto, 'image/tiff'), isFalse);
+      expect(acceptsContentType(UploadKind.clinicalXray, 'application/dicom'), isFalse);
+      expect(acceptsContentType(UploadKind.imagingPreview, 'image/jpeg'), isTrue);
+    });
+  });
+
+  group('exceedsUploadLimit', () {
+    const mb = 1024 * 1024;
+
+    test('allows DICOM and TIFF up to 250 MB', () {
+      expect(exceedsUploadLimit(250 * mb, contentType: 'application/dicom'), isFalse);
+      expect(exceedsUploadLimit(250 * mb + 1, contentType: 'application/dicom'), isTrue);
+      expect(exceedsUploadLimit(40 * mb, contentType: 'image/tiff'), isFalse);
+    });
+
+    test('keeps 15 MB for everything else', () {
+      expect(exceedsUploadLimit(15 * mb, contentType: 'image/jpeg'), isFalse);
+      expect(exceedsUploadLimit(15 * mb + 1, contentType: 'image/jpeg'), isTrue);
+      expect(exceedsUploadLimit(15 * mb + 1), isTrue);
     });
   });
 }

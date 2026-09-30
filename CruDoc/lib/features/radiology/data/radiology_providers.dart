@@ -1,11 +1,15 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_cloud_fetch.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 
@@ -202,8 +206,35 @@ class RadiologyController {
   Future<Directory> studyDir(String studyId) =>
       _repo.studyDir(doctorId, studyId);
 
-  Future<File> fileOf(RadStudy s, String relativePath) =>
-      _repo.fileOf(doctorId, s.id, relativePath);
+  /// The local file at [relativePath] in [s]. When it isn't on this
+  /// computer (the study was imported on another device) but was uploaded,
+  /// it is downloaded into the study folder first, once.
+  Future<File> fileOf(RadStudy s, String relativePath) async {
+    final file = await _repo.fileOf(doctorId, s.id, relativePath);
+    if (kIsWeb || await file.exists()) return file;
+    final image = s.images.where((i) => i.path == relativePath).firstOrNull;
+    if (image == null || image.storagePath.isEmpty) return file;
+    return RadCloudFetch.instance.fetch(image.storagePath, file);
+  }
+
+  /// What to draw [image]'s thumbnail from: the original when it's on this
+  /// computer, otherwise its small cloud preview (downloaded once), and only
+  /// failing that the original from the cloud.
+  Future<(File, RadFileKind)> thumbSourceOf(
+    RadStudy s,
+    RadImageRef image,
+  ) async {
+    final original = await _repo.fileOf(doctorId, s.id, image.path);
+    if (kIsWeb || await original.exists() || image.previewPath.isEmpty) {
+      return (await fileOf(s, image.path), image.kind);
+    }
+    final dir = await _repo.studyDir(doctorId, s.id);
+    final preview = File(p.join(dir.path, '.previews', '${image.id}.jpg'));
+    return (
+      await RadCloudFetch.instance.fetch(image.previewPath, preview),
+      RadFileKind.raster,
+    );
+  }
 
   Future<int> storageBytes() => _repo.storageBytes(doctorId);
 

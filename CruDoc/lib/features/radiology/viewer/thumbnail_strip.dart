@@ -34,9 +34,11 @@ Future<RadRgba> _thumbInIsolate(String path, RadFileKind kind) =>
 
 /// Thumbnail previews, made one at a time in the background.
 class RadThumbCache extends ChangeNotifier {
-  RadThumbCache(this._fileOf);
+  RadThumbCache(this._sourceOf);
 
-  final Future<File> Function(RadStudy s, String relativePath) _fileOf;
+  /// The file (and how to decode it) to draw a thumbnail from.
+  final Future<(File, RadFileKind)> Function(RadStudy s, RadImageRef i)
+  _sourceOf;
   final _images = <String, ui.Image>{};
   final _failed = <String>{};
   final _queued = <String>{};
@@ -74,8 +76,8 @@ class RadThumbCache extends ChangeNotifier {
       final (s, i) = _queue.removeAt(0);
       final key = _key(s.id, i.id);
       try {
-        final f = await _fileOf(s, i.path);
-        final rgba = await _thumbInIsolate(f.path, i.kind);
+        final (f, kind) = await _sourceOf(s, i);
+        final rgba = await _thumbInIsolate(f.path, kind);
         final image = await radImageFromRgba(rgba);
         if (_disposed) {
           image.dispose();

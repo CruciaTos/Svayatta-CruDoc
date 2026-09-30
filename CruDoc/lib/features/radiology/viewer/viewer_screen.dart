@@ -127,7 +127,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     super.initState();
     _ctl = ref.read(radiologyProvider);
     _cache = RadPixelCache(_loadPixels, capacity: 12);
-    _thumbs = RadThumbCache(_ctl.fileOf);
+    _thumbs = RadThumbCache(_ctl.thumbSourceOf);
     final init = widget.initialStudy;
     if (init != null) {
       _study = init;

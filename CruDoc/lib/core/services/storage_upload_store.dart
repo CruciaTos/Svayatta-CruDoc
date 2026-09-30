@@ -24,7 +24,9 @@ enum UploadKind {
   inventoryReceipt,
   sterilizationStrip,
   databaseBackup,
-  revenueCsv;
+  revenueCsv,
+  imagingOriginal,
+  imagingPreview;
 
   /// Kinds stored under a patient, which need a `patientId`.
   bool get isPatientScoped => switch (this) {
@@ -35,7 +37,9 @@ enum UploadKind {
     clinicalXray ||
     clinicalPhoto ||
     clinicalLab ||
-    voiceDictation => true,
+    voiceDictation ||
+    imagingOriginal ||
+    imagingPreview => true,
     _ => false,
   };
 }

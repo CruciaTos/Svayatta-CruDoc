@@ -163,7 +163,7 @@ describe('limits on what is uploaded', () => {
     );
   });
 
-  it('rejects DICOM and TIFF, which the rules do not list', async () => {
+  it('rejects DICOM and TIFF outside clinical/imaging', async () => {
     await assertFails(
       uploadBytes(ref(as(A), `doctors/${A}/x/a.dcm`), bytes(), {
         contentType: 'application/dicom',
@@ -174,6 +174,46 @@ describe('limits on what is uploaded', () => {
         contentType: 'image/tiff',
       }),
     );
+  });
+});
+
+describe('clinical/imaging', () => {
+  const DCM = `doctors/${A}/patients/p1/clinical/imaging/2026/09/i1.dcm`;
+  const dicom = { contentType: 'application/dicom' };
+
+  it('lets the doctor store and read a DICOM instance', async () => {
+    await assertSucceeds(uploadBytes(ref(as(A), DCM), bytes(), dicom));
+    await assertSucceeds(getBytes(ref(as(A), DCM)));
+  });
+
+  it('accepts TIFF', async () => {
+    await assertSucceeds(
+      uploadBytes(ref(as(A), `doctors/${A}/patients/p1/clinical/imaging/a.tif`), bytes(), {
+        contentType: 'image/tiff',
+      }),
+    );
+  });
+
+  it('accepts an original over 15 MB, up to 250 MB', async () => {
+    await assertSucceeds(uploadBytes(ref(as(A), DCM), bytes(40 * MB), dicom));
+  });
+
+  it('rejects an original over 250 MB', async () => {
+    await assertFails(uploadBytes(ref(as(A), DCM), bytes(250 * MB + 1), dicom));
+  });
+
+  it('keeps the 15 MB limit for pictures in the same folder', async () => {
+    await assertFails(
+      uploadBytes(ref(as(A), `doctors/${A}/patients/p1/clinical/imaging/a.jpg`), bytes(16 * MB), {
+        contentType: 'image/jpeg',
+      }),
+    );
+  });
+
+  it('keeps other doctors out', async () => {
+    await seed(DCM, 'application/dicom');
+    await assertFails(getBytes(ref(as(B), DCM)));
+    await assertFails(uploadBytes(ref(as(B), DCM), bytes(), dicom));
   });
 });
 

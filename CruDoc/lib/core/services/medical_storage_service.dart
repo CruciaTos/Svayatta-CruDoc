@@ -16,7 +16,13 @@ export '../errors/storage_exceptions.dart';
 enum ClinicalMediaKind {
   xray('xrays'),
   photo('photos'),
-  lab('labs');
+  lab('labs'),
+
+  /// Diagnostic originals (DICOM, TIFF) from the radiology module.
+  imaging('imaging'),
+
+  /// Small JPEG previews of [imaging] originals, for lists and thumbnails.
+  imagingPreview('imaging-previews');
 
   const ClinicalMediaKind(this.folder);
   final String folder;
@@ -62,6 +68,15 @@ class MedicalStorageService {
 
   static const int maxUploadBytes = 15 * 1024 * 1024;
 
+  /// DICOM and TIFF originals are allowed more (storage.rules matches).
+  static const int maxImagingUploadBytes = 250 * 1024 * 1024;
+
+  /// The size limit storage.rules applies to a file of [contentType].
+  static int maxUploadBytesFor(String contentType) =>
+      _imagingTypes.contains(contentType)
+      ? maxImagingUploadBytes
+      : maxUploadBytes;
+
   /// Photos are scaled to fit this box (rotated for portrait shots) and
   /// re-encoded as JPEG at [_jpegQuality].
   static const int _maxLongEdge = 1920;
@@ -75,9 +90,12 @@ class MedicalStorageService {
   static const String _csv = 'text/csv';
   static const String _binary = 'application/octet-stream';
   static const String _m4a = 'audio/mp4';
+  static const String _dicom = 'application/dicom';
+  static const String _tiff = 'image/tiff';
 
   static const Set<String> _imageTypes = {_jpeg, _png, _webp};
   static const Set<String> _audioTypes = {_m4a, 'audio/aac', 'audio/opus'};
+  static const Set<String> _imagingTypes = {_dicom, _tiff};
 
   static const Map<String, String> _extensions = {
     _jpeg: 'jpg',
@@ -86,6 +104,8 @@ class MedicalStorageService {
     _pdf: 'pdf',
     _csv: 'csv',
     _binary: 'enc',
+    _dicom: 'dcm',
+    _tiff: 'tif',
     _m4a: 'm4a',
     'audio/aac': 'aac',
     'audio/opus': 'opus',
@@ -170,6 +190,24 @@ class MedicalStorageService {
       bytes: bytes,
       contentType: contentType,
       compress: compress && _imageTypes.contains(contentType),
+    );
+  }
+
+  /// A diagnostic original (DICOM or TIFF), stored byte for byte under
+  /// `clinical/imaging`. Up to [maxImagingUploadBytes].
+  Future<StoredFile> uploadImagingOriginal({
+    required String doctorId,
+    required String patientId,
+    required Uint8List bytes,
+    required String contentType,
+  }) {
+    _requireOneOf(contentType, _imagingTypes);
+    return _uploadPatientFile(
+      doctorId: doctorId,
+      patientId: patientId,
+      category: 'clinical/${ClinicalMediaKind.imaging.folder}',
+      bytes: bytes,
+      contentType: contentType,
     );
   }
 
@@ -290,7 +328,7 @@ class MedicalStorageService {
   Future<Uint8List> downloadBytes(String storagePath) async {
     _requireOwnedPath(storagePath);
     AccessAuditService.instance.fileDownloaded(storagePath);
-    final data = await _storage.ref(storagePath).getData(maxUploadBytes);
+    final data = await _storage.ref(storagePath).getData(maxImagingUploadBytes);
     if (data == null) {
       throw StateError('No data found at $storagePath.');
     }
@@ -398,8 +436,9 @@ class MedicalStorageService {
     String contentType,
     Map<String, String> metadata,
   ) async {
-    if (bytes.lengthInBytes > maxUploadBytes) {
-      throw StorageFileTooLargeException(bytes.lengthInBytes, maxUploadBytes);
+    final limit = maxUploadBytesFor(contentType);
+    if (bytes.lengthInBytes > limit) {
+      throw StorageFileTooLargeException(bytes.lengthInBytes, limit);
     }
     await _storage
         .ref(path)

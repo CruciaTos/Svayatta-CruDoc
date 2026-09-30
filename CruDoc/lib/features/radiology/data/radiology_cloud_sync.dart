@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/services/storage_sync_queue.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
+import 'package:doctor_management_app/features/radiology/imaging/rad_preview.dart';
 
 /// What [RadiologyCloudSync.enqueueStudyImages] left on this computer only.
 class RadCloudSyncSummary {
@@ -29,9 +30,9 @@ class RadCloudSyncSummary {
     if (!hasLocalOnly) return null;
     final total = tooLarge + unsupported;
     final why = tooLarge > 0 && unsupported > 0
-        ? 'larger than 15 MB or in a format the cloud does not accept'
+        ? 'too large or in a format the cloud does not accept'
         : tooLarge > 0
-        ? 'larger than 15 MB'
+        ? 'too large (over 250 MB for DICOM/TIFF, 15 MB for pictures)'
         : 'in a format the cloud does not accept';
     return '$total ${total == 1 ? 'image is' : 'images are'} $why and '
         '${total == 1 ? 'is' : 'are'} stored on this computer only.';
@@ -40,15 +41,37 @@ class RadCloudSyncSummary {
 
 /// Sends a radiology study's images to Cloud Storage in the background.
 ///
-/// Studies live in the local database, so the uploaded path is written back
-/// into the study's own image list (which then syncs like any other edit)
-/// rather than patched onto a Firestore document.
+/// Each image goes up as its own object (one DICOM instance per file), with
+/// a small JPEG preview beside it. Another device then lists the study and
+/// shows thumbnails from the previews, and downloads an original only when
+/// it is opened (see [RadiologyController.fileOf]).
+///
+/// Studies live in the local database, so the uploaded paths are written
+/// back into the study's own image list (which then syncs like any other
+/// edit) rather than patched onto a Firestore document.
 abstract final class RadiologyCloudSync {
   static const linkHandler = 'radiology.imageStoragePath';
+  static const previewLinkHandler = 'radiology.imagePreviewPath';
 
   /// Call once at startup, before the queue runs.
-  static void register() =>
-      StorageSyncQueue.instance.registerLinkHandler(linkHandler, _record);
+  static void register() {
+    StorageSyncQueue.instance.registerLinkHandler(
+      linkHandler,
+      (ctx) => _record(ctx, preview: false),
+    );
+    StorageSyncQueue.instance.registerLinkHandler(
+      previewLinkHandler,
+      (ctx) => _record(ctx, preview: true),
+    );
+  }
+
+  /// The queue kind for an original of [contentType]: DICOM and TIFF go to
+  /// `clinical/imaging` (250 MB limit), pictures and PDFs to
+  /// `clinical/xrays`.
+  static UploadKind kindFor(String contentType) =>
+      acceptsContentType(UploadKind.imagingOriginal, contentType)
+      ? UploadKind.imagingOriginal
+      : UploadKind.clinicalXray;
 
   /// Queues every uploadable image of [study] (already saved) and marks the
   /// ones that can never be uploaded as local-only, so nothing is dropped
@@ -67,23 +90,26 @@ abstract final class RadiologyCloudSync {
 
     try {
       for (final image in study.images) {
+        if (image.storagePath.isNotEmpty) continue; // Already uploaded.
         final type = contentTypeForPath(image.path);
-        if (type == null || !isUploadableContentType(type)) {
+        final kind = type == null ? null : kindFor(type);
+        if (type == null || kind == null || !acceptsContentType(kind, type)) {
           unsupported++;
           marked[image.id] = RadCloudStatus.localOnlyType;
           continue;
         }
         final file = File(p.join(studyDir, image.path));
         if (!await file.exists()) continue;
-        if (exceedsUploadLimit(await file.length())) {
+        if (exceedsUploadLimit(await file.length(), contentType: type)) {
           tooLarge++;
           marked[image.id] = RadCloudStatus.localOnlyTooLarge;
           continue;
         }
+        final bytes = await file.readAsBytes();
         final id = await StorageSyncQueue.instance.enqueue(
-          kind: UploadKind.clinicalXray,
+          kind: kind,
           patientId: study.patientId,
-          bytes: await file.readAsBytes(),
+          bytes: bytes,
           contentType: type,
           compress: false, // Diagnostic originals stay untouched.
           link: UploadLink.viaHandler(
@@ -93,6 +119,9 @@ abstract final class RadiologyCloudSync {
           ),
         );
         if (id != null) queued++;
+        if (image.previewPath.isEmpty && !image.compressed) {
+          await _enqueuePreview(study, image, bytes);
+        }
       }
 
       if (marked.isNotEmpty) {
@@ -117,7 +146,30 @@ abstract final class RadiologyCloudSync {
     );
   }
 
-  static Future<void> _record(UploadLinkContext ctx) async {
+  static Future<void> _enqueuePreview(
+    RadStudy study,
+    RadImageRef image,
+    Uint8List bytes,
+  ) async {
+    final jpeg = await radPreviewJpeg(bytes, image.kind);
+    if (jpeg == null) return; // Undecodable here; the original still goes up.
+    await StorageSyncQueue.instance.enqueue(
+      kind: UploadKind.imagingPreview,
+      patientId: study.patientId,
+      bytes: jpeg,
+      contentType: 'image/jpeg',
+      link: UploadLink.viaHandler(
+        previewLinkHandler,
+        docId: study.id,
+        args: {'imageId': image.id},
+      ),
+    );
+  }
+
+  static Future<void> _record(
+    UploadLinkContext ctx, {
+    required bool preview,
+  }) async {
     final repo = RadiologyRepository();
     final study = await repo.study(ctx.link.docId);
     final imageId = ctx.link.args['imageId'];
@@ -135,7 +187,11 @@ abstract final class RadiologyCloudSync {
       study.copyWith(
         images: [
           for (final i in study.images)
-            i.id == imageId ? i.copyWith(storagePath: ctx.storagePath) : i,
+            i.id != imageId
+                ? i
+                : preview
+                ? i.copyWith(previewPath: ctx.storagePath)
+                : i.copyWith(storagePath: ctx.storagePath),
         ],
       ),
     );

@@ -39,6 +39,7 @@ class RadImportFile {
     this.sliceThickness,
     this.sliceLocation,
     this.dicomModality = '',
+    this.sopInstanceUid = '',
   });
 
   final String sourcePath;
@@ -57,6 +58,7 @@ class RadImportFile {
   final double? sliceThickness;
   final double? sliceLocation;
   final String dicomModality;
+  final String sopInstanceUid;
 
   RadImageRef toRef(String id, String storedPath) => RadImageRef(
     id: id,
@@ -76,6 +78,7 @@ class RadImportFile {
     sliceThickness: sliceThickness,
     sliceLocation: sliceLocation,
     dicomModality: dicomModality,
+    sopInstanceUid: sopInstanceUid,
   );
 }
 
@@ -249,6 +252,7 @@ RadImportScan _scan(List<String> paths, String tempDir) {
         compressed: d.isCompressed,
         transferSyntax: d.transferSyntax,
         seriesUid: d.string(DicomTag.seriesInstanceUid) ?? 'series',
+        sopInstanceUid: d.string(DicomTag.sopInstanceUid) ?? '',
         seriesDescription: d.string(DicomTag.seriesDescription) ?? '',
         instanceNumber: d.integer(DicomTag.instanceNumber) ?? 0,
         pixelSpacingMm: d.pixelSpacingMm,

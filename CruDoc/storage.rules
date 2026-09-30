@@ -51,6 +51,15 @@ service firebase.storage {
         && isAllowedMedicalType();
     }
 
+    // Diagnostic originals from the radiology module: one DICOM instance
+    // (or TIFF) per object, stored byte for byte. Larger limit than other
+    // files; the type is accepted here only.
+    match /doctors/{doctorId}/patients/{patientId}/clinical/imaging/{allPaths=**} {
+      allow create, update: if isOwner(doctorId)
+        && request.resource.size <= 250 * 1024 * 1024
+        && request.resource.contentType in ['application/dicom', 'image/tiff'];
+    }
+
     // Encrypted database backups (.enc) are opaque bytes. octet-stream is
     // accepted here only, so it can't be used to slip arbitrary files into
     // patient folders.

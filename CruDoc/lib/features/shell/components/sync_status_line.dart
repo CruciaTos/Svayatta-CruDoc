@@ -239,4 +239,6 @@ String uploadKindLabel(UploadKind kind) => switch (kind) {
   UploadKind.sterilizationStrip => 'Sterilization strip',
   UploadKind.databaseBackup => 'Cloud backup',
   UploadKind.revenueCsv => 'Revenue export',
+  UploadKind.imagingOriginal => 'Radiology image',
+  UploadKind.imagingPreview => 'Radiology preview',
 };

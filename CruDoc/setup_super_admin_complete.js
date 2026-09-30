@@ -2,7 +2,12 @@
  * Complete Super Admin Setup Script
  * Run this ONCE to create everything needed.
  * 
- * Usage: node setup_super_admin_complete.js
+ * Usage (PowerShell):
+ *   $env:ADMIN_EMAIL="info@svayatta.in"; node setup_super_admin_complete.js
+ *
+ * No password is set or typed anywhere: a new account is created without
+ * one, and the admin sets it from the reset email ("Forgot password?" on
+ * the console login screen).
  */
 
 const admin = require('./functions/node_modules/firebase-admin');
@@ -30,13 +35,12 @@ const db = admin.firestore();
 // ==========================================
 // CONFIGURATION — CONFIGURE VIA ENVIRONMENT
 // ==========================================
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@crudoc.com';
-const ADMIN_PASSWORD = process.env.ADMIN_INITIAL_PASSWORD;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_NAME = process.env.ADMIN_NAME || 'Super Admin';
+const CONSOLE_URL = 'https://superadmin.svayatta.in';
 
-if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 8) {
-  console.error('❌ Error: ADMIN_INITIAL_PASSWORD environment variable must be set (minimum 8 characters).');
-  console.error('   Usage: ADMIN_INITIAL_PASSWORD="SecurePassphraseHere" node setup_super_admin_complete.js');
+if (!ADMIN_EMAIL) {
+  console.error('❌ Error: set ADMIN_EMAIL, e.g. $env:ADMIN_EMAIL="info@svayatta.in"');
   process.exit(1);
 }
 // ==========================================
@@ -58,7 +62,6 @@ async function setupSuperAdmin() {
         console.log('📝 Creating new admin user...');
         userRecord = await auth.createUser({
           email: ADMIN_EMAIL,
-          password: ADMIN_PASSWORD,
           displayName: ADMIN_NAME,
         });
         uid = userRecord.uid;
@@ -95,18 +98,16 @@ async function setupSuperAdmin() {
     console.log('\n========================================');
     console.log('✅ SETUP COMPLETE!');
     console.log('========================================');
-    console.log(`📧 Email:    ${ADMIN_EMAIL}`);
-    console.log(`🔑 Password: ${ADMIN_PASSWORD}`);
-    console.log(`🆔 UID:      ${uid}`);
+    console.log(`📧 Email: ${ADMIN_EMAIL}`);
+    console.log(`🆔 UID:   ${uid}`);
     console.log('========================================');
-    console.log('\n▶️  Now go to your browser and navigate to:');
-    console.log('   http://localhost:63791/#/admin/login');
-    console.log('   (replace 63791 with whatever port you see)');
-    console.log('\n▶️  Login with the email and password above.');
+    console.log(`\n▶️  Open ${CONSOLE_URL}, type ${ADMIN_EMAIL} and click`);
+    console.log('   "Forgot password?". Set a password from the email, then sign in.');
 
   } catch (error) {
     console.error('\n❌ ERROR:', error.message);
     console.error('Full error:', error);
+    process.exit(1);
   }
 
   process.exit(0);

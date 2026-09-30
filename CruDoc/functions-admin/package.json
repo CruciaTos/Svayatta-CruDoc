@@ -1,0 +1,17 @@
+{
+  "name": "crudoc-functions-admin",
+  "description": "Super Admin access (claimSuperAdmin). Kept apart from the main functions codebase so it deploys without that codebase's secrets.",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": { "node": "22" },
+  "scripts": {
+    "build": "tsc"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.6.0",
+    "firebase-functions": "^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0"
+  }
+}

@@ -1,10 +1,10 @@
-import * as functions from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
-import * as crypto from 'crypto';
-import { defineSecret } from 'firebase-functions/params';
-import { dispatchAppointmentWhatsApp } from './whatsapp';
+import * as functions from "firebase-functions/v2/https";
+import * as admin from "firebase-admin";
+import * as crypto from "crypto";
+import {defineSecret} from "firebase-functions/params";
+import {dispatchAppointmentWhatsApp} from "./whatsapp";
 
-export const voiceBotApiKeySecret = defineSecret('VOICE_BOT_API_KEY');
+export const voiceBotApiKeySecret = defineSecret("VOICE_BOT_API_KEY");
 
 function getDb() {
   if (!admin.apps.length) {
@@ -20,7 +20,7 @@ function getExpectedVoiceBotKey(): string {
   } catch (_) {
     // Falls back to process.env in local/emulator environments
   }
-  return (process.env.VOICE_BOT_API_KEY || '').trim();
+  return (process.env.VOICE_BOT_API_KEY || "").trim();
 }
 
 // ============================================================
@@ -46,29 +46,29 @@ function getExpectedVoiceBotKey(): string {
  */
 export const createAppointment = functions.onRequest(
   {
-    region: 'asia-south1',
+    region: "asia-south1",
     maxInstances: 10,
     cors: true,
     secrets: [voiceBotApiKeySecret],
   },
   async (req, res) => {
     // ---- Method check ----
-    if (req.method !== 'POST') {
-      res.status(405).json({success: false, error: 'Method not allowed'});
+    if (req.method !== "POST") {
+      res.status(405).json({success: false, error: "Method not allowed"});
       return;
     }
 
     // ---- API-key auth (Timing-Safe Comparison) ----
     const expectedKey = getExpectedVoiceBotKey();
     if (!expectedKey) {
-      console.error('VOICE_BOT_API_KEY not configured in Cloud Functions Secret Manager or env');
-      res.status(500).json({success: false, error: 'Server misconfiguration'});
+      console.error("VOICE_BOT_API_KEY not configured in Cloud Functions Secret Manager or env");
+      res.status(500).json({success: false, error: "Server misconfiguration"});
       return;
     }
 
-    const providedKey = req.headers['x-api-key'] as string | undefined;
-    if (!providedKey || typeof providedKey !== 'string') {
-      res.status(401).json({success: false, error: 'Unauthorized'});
+    const providedKey = req.headers["x-api-key"] as string | undefined;
+    if (!providedKey || typeof providedKey !== "string") {
+      res.status(401).json({success: false, error: "Unauthorized"});
       return;
     }
 
@@ -79,7 +79,7 @@ export const createAppointment = functions.onRequest(
       providedBuf.length !== expectedBuf.length ||
       !crypto.timingSafeEqual(providedBuf, expectedBuf)
     ) {
-      res.status(401).json({success: false, error: 'Unauthorized'});
+      res.status(401).json({success: false, error: "Unauthorized"});
       return;
     }
 
@@ -94,24 +94,24 @@ export const createAppointment = functions.onRequest(
       doctor_id,
     } = req.body;
 
-    if (!patient_name || typeof patient_name !== 'string') {
-      res.status(400).json({success: false, error: 'patient_name is required'});
+    if (!patient_name || typeof patient_name !== "string") {
+      res.status(400).json({success: false, error: "patient_name is required"});
       return;
     }
-    if (!phone || typeof phone !== 'string') {
-      res.status(400).json({success: false, error: 'phone is required'});
+    if (!phone || typeof phone !== "string") {
+      res.status(400).json({success: false, error: "phone is required"});
       return;
     }
-    if (!date || typeof date !== 'string') {
-      res.status(400).json({success: false, error: 'date is required (ISO format, e.g. 2026-08-15)'});
+    if (!date || typeof date !== "string") {
+      res.status(400).json({success: false, error: "date is required (ISO format, e.g. 2026-08-15)"});
       return;
     }
-    if (!time || typeof time !== 'string') {
-      res.status(400).json({success: false, error: 'time is required (e.g. 10:30)'});
+    if (!time || typeof time !== "string") {
+      res.status(400).json({success: false, error: "time is required (e.g. 10:30)"});
       return;
     }
-    if (!doctor_id || typeof doctor_id !== 'string') {
-      res.status(400).json({success: false, error: 'doctor_id is required'});
+    if (!doctor_id || typeof doctor_id !== "string") {
+      res.status(400).json({success: false, error: "doctor_id is required"});
       return;
     }
 
@@ -123,7 +123,7 @@ export const createAppointment = functions.onRequest(
       const normalised = normaliseTime(time);
       scheduledStart = new Date(`${date}T${normalised}:00`);
       if (isNaN(scheduledStart.getTime())) {
-        throw new Error('Invalid date');
+        throw new Error("Invalid date");
       }
     } catch {
       res.status(400).json({
@@ -135,9 +135,9 @@ export const createAppointment = functions.onRequest(
 
     try {
       // ---- Verify doctor exists ----
-      const doctorDoc = await getDb().collection('users').doc(doctor_id).get();
+      const doctorDoc = await getDb().collection("users").doc(doctor_id).get();
       if (!doctorDoc.exists) {
-        res.status(404).json({success: false, error: 'Doctor not found'});
+        res.status(404).json({success: false, error: "Doctor not found"});
         return;
       }
 
@@ -155,12 +155,12 @@ export const createAppointment = functions.onRequest(
         patientId: patientId,
         scheduledStart: admin.firestore.Timestamp.fromDate(scheduledStart),
         durationMinutes: 30,
-        address: '',
+        address: "",
         latitude: null,
         longitude: null,
         mapsLink: null,
-        visitType: 'clinic',
-        status: 'scheduled',
+        visitType: "clinic",
+        status: "scheduled",
         isPaid: false,
         amountCharged: null,
         isDeleted: false,
@@ -170,13 +170,13 @@ export const createAppointment = functions.onRequest(
         therapistNotes: null,
         reminderStatus: null,
         calendarEventId: null,
-        source: source || 'ai_receptionist',
+        source: source || "ai_receptionist",
         createdAt: now,
         updatedAt: now,
       };
 
       const appointmentRef = await getDb()
-        .collection('appointments')
+        .collection("appointments")
         .add(appointmentData);
 
       console.log(
@@ -192,8 +192,8 @@ export const createAppointment = functions.onRequest(
         patientName: patient_name.trim(),
         phone: phone.trim(),
         scheduledStart,
-        visitType: 'clinic',
-        source: source || 'ai_receptionist',
+        visitType: "clinic",
+        source: source || "ai_receptionist",
       }).catch((err) => {
         console.error(`[WhatsApp] Failed to dispatch for appointment ${appointmentRef.id}:`, err);
       });
@@ -205,8 +205,8 @@ export const createAppointment = functions.onRequest(
       });
     } catch (error) {
       const message =
-        error instanceof Error ? error.message : 'Unknown error';
-      console.error('createAppointment failed:', message);
+        error instanceof Error ? error.message : "Unknown error";
+      console.error("createAppointment failed:", message);
       res.status(500).json({success: false, error: message});
     }
   },
@@ -237,10 +237,10 @@ async function findOrCreatePatient(
   // field so it can look them up. These records are tagged with
   // `source: "ai_receptionist"` so they're distinguishable.
   const existing = await getDb()
-    .collection('patients')
-    .where('doctorId', '==', doctorId)
-    .where('phone', '==', phone)
-    .where('source', '==', 'ai_receptionist')
+    .collection("patients")
+    .where("doctorId", "==", doctorId)
+    .where("phone", "==", phone)
+    .where("source", "==", "ai_receptionist")
     .limit(1)
     .get();
 
@@ -261,12 +261,12 @@ async function findOrCreatePatient(
     diagnosis: null,
     isArchived: false,
     isDeleted: false,
-    source: 'ai_receptionist',
+    source: "ai_receptionist",
     createdAt: now,
     updatedAt: now,
   };
 
-  const patientRef = await getDb().collection('patients').add(patientData);
+  const patientRef = await getDb().collection("patients").add(patientData);
   console.log(
     `AI receptionist created patient ${patientRef.id} (${name}, ${phone})`,
   );
@@ -283,7 +283,7 @@ function normaliseTime(raw: string): string {
   // Already 24-hour? e.g. "14:30"
   const match24 = trimmed.match(/^(\d{1,2}):(\d{2})$/);
   if (match24) {
-    return `${match24[1].padStart(2, '0')}:${match24[2]}`;
+    return `${match24[1].padStart(2, "0")}:${match24[2]}`;
   }
 
   // 12-hour? e.g. "2:30 PM" or "2:30PM"
@@ -293,10 +293,10 @@ function normaliseTime(raw: string): string {
     const minutes = match12[2];
     const period = match12[3];
 
-    if (period === 'PM' && hours !== 12) hours += 12;
-    if (period === 'AM' && hours === 12) hours = 0;
+    if (period === "PM" && hours !== 12) hours += 12;
+    if (period === "AM" && hours === 12) hours = 0;
 
-    return `${hours.toString().padStart(2, '0')}:${minutes}`;
+    return `${hours.toString().padStart(2, "0")}:${minutes}`;
   }
 
   // Fallback — return as-is and let the caller's Date parse handle it

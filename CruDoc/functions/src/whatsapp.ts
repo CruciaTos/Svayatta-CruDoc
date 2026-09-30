@@ -1,34 +1,40 @@
-import * as functions from 'firebase-functions/v2/https';
-import * as admin from 'firebase-admin';
-import * as crypto from 'crypto';
-import { defineSecret } from 'firebase-functions/params';
+import * as functions from "firebase-functions/v2/https";
+import * as admin from "firebase-admin";
+import * as crypto from "crypto";
+import {defineSecret} from "firebase-functions/params";
 
-export const whatsappAccessTokenSecret = defineSecret('WHATSAPP_ACCESS_TOKEN');
-export const whatsappWebhookVerifyTokenSecret = defineSecret('WHATSAPP_WEBHOOK_VERIFY_TOKEN');
-export const whatsappWebhookAppSecretSecret = defineSecret('WHATSAPP_WEBHOOK_APP_SECRET');
+export const whatsappAccessTokenSecret = defineSecret("WHATSAPP_ACCESS_TOKEN");
+export const whatsappWebhookVerifyTokenSecret = defineSecret("WHATSAPP_WEBHOOK_VERIFY_TOKEN");
+export const whatsappWebhookAppSecretSecret = defineSecret("WHATSAPP_WEBHOOK_APP_SECRET");
 
 function getWhatsAppAccessToken(): string {
   try {
     const val = whatsappAccessTokenSecret.value();
     if (val && val.trim().length > 0) return val.trim();
-  } catch (_) {}
-  return (process.env.WHATSAPP_ACCESS_TOKEN || '').trim();
+  } catch (_) {
+    // Secret not bound (emulator / local): fall back to the env var.
+  }
+  return (process.env.WHATSAPP_ACCESS_TOKEN || "").trim();
 }
 
 function getWhatsAppWebhookVerifyToken(): string {
   try {
     const val = whatsappWebhookVerifyTokenSecret.value();
     if (val && val.trim().length > 0) return val.trim();
-  } catch (_) {}
-  return (process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || '').trim();
+  } catch (_) {
+    // Secret not bound (emulator / local): fall back to the env var.
+  }
+  return (process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "").trim();
 }
 
 function getWhatsAppWebhookAppSecret(): string {
   try {
     const val = whatsappWebhookAppSecretSecret.value();
     if (val && val.trim().length > 0) return val.trim();
-  } catch (_) {}
-  return (process.env.WHATSAPP_WEBHOOK_APP_SECRET || '').trim();
+  } catch (_) {
+    // Secret not bound (emulator / local): fall back to the env var.
+  }
+  return (process.env.WHATSAPP_WEBHOOK_APP_SECRET || "").trim();
 }
 
 function getDb() {
@@ -52,15 +58,15 @@ function getDb() {
  *  "09876543210"      -> "919876543210"
  *  "+1 (555) 234-5678"-> "15552345678"
  */
-export function normalizePhoneNumber(raw: string | null | undefined, defaultCountryCode = '91'): string | null {
-  if (!raw || typeof raw !== 'string') return null;
+export function normalizePhoneNumber(raw: string | null | undefined, defaultCountryCode = "91"): string | null {
+  if (!raw || typeof raw !== "string") return null;
 
   // Strip all non-digit characters
-  let digits = raw.replace(/\D/g, '');
+  let digits = raw.replace(/\D/g, "");
   if (!digits) return null;
 
   // Remove leading zeros
-  digits = digits.replace(/^0+/, '');
+  digits = digits.replace(/^0+/, "");
 
   // 10-digit number assumed to be default country code (e.g. India)
   if (digits.length === 10) {
@@ -85,16 +91,16 @@ export interface WhatsAppAppointmentData {
   clinicName: string;
   appointmentDate: string;
   appointmentTime: string;
-  consultationType: 'In-Clinic' | 'Home Visit';
+  consultationType: "In-Clinic" | "Home Visit";
 }
 
 /**
  * Sanitizes template parameters to prevent CRLF injection, control characters,
  * and ensures NO sensitive medical information or diagnoses are ever included.
  */
-export function sanitizeTemplateParam(val: string | null | undefined, fallback = 'N/A'): string {
+export function sanitizeTemplateParam(val: string | null | undefined, fallback = "N/A"): string {
   if (!val) return fallback;
-  return val.replace(/[\r\n\t]/g, ' ').trim() || fallback;
+  return val.replace(/[\r\n\t]/g, " ").trim() || fallback;
 }
 
 // ============================================================
@@ -126,14 +132,14 @@ export async function sendWhatsAppMetaMessage(params: {
   doctorId: string;
   patientId: string;
 }): Promise<{ success: boolean; messageId?: string; error?: string; isMock?: boolean }> {
-  const mode = process.env.WHATSAPP_MODE || 'development';
+  const mode = process.env.WHATSAPP_MODE || "development";
   const token = getWhatsAppAccessToken();
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const templateName = params.templateName || process.env.WHATSAPP_TEMPLATE_NAME || 'appointment_confirmation';
+  const templateName = params.templateName || process.env.WHATSAPP_TEMPLATE_NAME || "appointment_confirmation";
 
   // In development/mock mode or if credentials are unconfigured, simulate realistic successful delivery
-  if (mode === 'development' || mode === 'mock' || !token || !phoneNumberId) {
-    const mockWamid = `wamid.HBgL${Date.now()}_${crypto.randomBytes(6).toString('hex')}`;
+  if (mode === "development" || mode === "mock" || !token || !phoneNumberId) {
+    const mockWamid = `wamid.HBgL${Date.now()}_${crypto.randomBytes(6).toString("hex")}`;
     console.log(
       `[WhatsApp ${mode.toUpperCase()} MODE] Simulated send to ${params.toPhone} for appt ${params.appointmentId} ` +
       `(Patient: "${params.data.patientName}", Doctor: "${params.data.doctorName}"). WAMID: ${mockWamid}`
@@ -147,23 +153,23 @@ export async function sendWhatsAppMetaMessage(params: {
 
   const url = `https://graph.facebook.com/v20.0/${phoneNumberId}/messages`;
   const body = {
-    messaging_product: 'whatsapp',
-    recipient_type: 'individual',
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
     to: params.toPhone,
-    type: 'template',
+    type: "template",
     template: {
       name: templateName,
-      language: { code: 'en_US' },
+      language: {code: "en_US"},
       components: [
         {
-          type: 'body',
+          type: "body",
           parameters: [
-            { type: 'text', text: sanitizeTemplateParam(params.data.patientName, 'Valued Patient') },
-            { type: 'text', text: sanitizeTemplateParam(params.data.doctorName, 'Doctor') },
-            { type: 'text', text: sanitizeTemplateParam(params.data.clinicName, 'CruDoc Practice') },
-            { type: 'text', text: sanitizeTemplateParam(params.data.appointmentDate) },
-            { type: 'text', text: sanitizeTemplateParam(params.data.appointmentTime) },
-            { type: 'text', text: sanitizeTemplateParam(params.data.consultationType) },
+            {type: "text", text: sanitizeTemplateParam(params.data.patientName, "Valued Patient")},
+            {type: "text", text: sanitizeTemplateParam(params.data.doctorName, "Doctor")},
+            {type: "text", text: sanitizeTemplateParam(params.data.clinicName, "CruDoc Practice")},
+            {type: "text", text: sanitizeTemplateParam(params.data.appointmentDate)},
+            {type: "text", text: sanitizeTemplateParam(params.data.appointmentTime)},
+            {type: "text", text: sanitizeTemplateParam(params.data.consultationType)},
           ],
         },
       ],
@@ -172,16 +178,16 @@ export async function sendWhatsAppMetaMessage(params: {
 
   const maxRetries = 3;
   let attempt = 0;
-  let lastError = '';
+  let lastError = "";
 
   while (attempt < maxRetries) {
     attempt++;
     try {
       const response = await fetch(url, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
       });
@@ -191,40 +197,40 @@ export async function sendWhatsAppMetaMessage(params: {
       if (response.ok && responseData.messages && responseData.messages.length > 0) {
         const messageId = responseData.messages[0].id;
         console.log(`[WhatsApp API] Successfully sent message ${messageId} to ${params.toPhone}`);
-        return { success: true, messageId };
+        return {success: true, messageId};
       }
 
       const errorCode = responseData.error?.code ?? response.status;
       lastError = responseData.error?.message || `HTTP ${response.status} from Meta WhatsApp API`;
 
       // If custom template is not created yet, fallback to hello_world test template in sandbox
-      if ((errorCode === 132001 || lastError.toLowerCase().includes('template')) && templateName !== 'hello_world') {
+      if ((errorCode === 132001 || lastError.toLowerCase().includes("template")) && templateName !== "hello_world") {
         console.warn(`[WhatsApp API] Template "${templateName}" not found. Falling back to "hello_world" test template...`);
         const fallbackBody = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
           to: params.toPhone,
-          type: 'template',
+          type: "template",
           template: {
-            name: 'hello_world',
-            language: { code: 'en_US' },
+            name: "hello_world",
+            language: {code: "en_US"},
           },
         };
         const fbRes = await fetch(url, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+          method: "POST",
+          headers: {"Authorization": `Bearer ${token}`, "Content-Type": "application/json"},
           body: JSON.stringify(fallbackBody),
         });
         const fbData = (await fbRes.json()) as MetaApiResponse;
         if (fbRes.ok && fbData.messages && fbData.messages.length > 0) {
-          return { success: true, messageId: fbData.messages[0].id };
+          return {success: true, messageId: fbData.messages[0].id};
         }
       }
 
       // Permanent failures (400 Bad Request, 401 Auth, Invalid Recipient) -> fail fast without retrying
       if (response.status === 400 || response.status === 401 || errorCode === 131026) {
         console.error(`[WhatsApp API] Permanent failure (status: ${response.status}, code: ${errorCode}): ${lastError}`);
-        return { success: false, error: lastError };
+        return {success: false, error: lastError};
       }
 
       // Transient errors (429 Rate Limit, 500, 503) -> retry with exponential backoff
@@ -234,7 +240,7 @@ export async function sendWhatsAppMetaMessage(params: {
         await new Promise((resolve) => setTimeout(resolve, delayMs));
       }
     } catch (err: any) {
-      lastError = err?.message || 'Network failure connecting to Meta WhatsApp API';
+      lastError = err?.message || "Network failure connecting to Meta WhatsApp API";
       console.warn(`[WhatsApp API] Network error on attempt ${attempt}/${maxRetries}: ${lastError}`);
       if (attempt < maxRetries) {
         const delayMs = Math.pow(2, attempt) * 500 + Math.random() * 200;
@@ -243,7 +249,7 @@ export async function sendWhatsAppMetaMessage(params: {
     }
   }
 
-  return { success: false, error: lastError };
+  return {success: false, error: lastError};
 }
 
 // ============================================================
@@ -263,21 +269,21 @@ export async function dispatchAppointmentWhatsApp(params: {
   const db = getDb();
   const appointmentId = params.appointmentId;
   const doctorId = params.doctorId;
-  const logRef = db.collection('whatsapp_notification_logs').doc(appointmentId);
+  const logRef = db.collection("whatsapp_notification_logs").doc(appointmentId);
 
   // 1. Idempotency Check
   const existingLog = await logRef.get();
   if (existingLog.exists) {
     const data = existingLog.data();
-    if (data?.status === 'sent' || data?.status === 'delivered' || data?.status === 'read') {
+    if (data?.status === "sent" || data?.status === "delivered" || data?.status === "read") {
       console.log(`[WhatsApp Dispatch] Notification already completed for appointment ${appointmentId}. Skipping duplicate.`);
-      return { success: true, status: data.status, messageId: data.whatsappMessageId };
+      return {success: true, status: data.status, messageId: data.whatsappMessageId};
     }
-    if (data?.status === 'pending') {
+    if (data?.status === "pending") {
       const attemptedAt = data.attemptedAt?.toDate ? data.attemptedAt.toDate() : new Date();
       if (Date.now() - attemptedAt.getTime() < 2 * 60 * 1000) {
         console.log(`[WhatsApp Dispatch] Notification is currently in-flight for appointment ${appointmentId}. Skipping.`);
-        return { success: true, status: 'pending' };
+        return {success: true, status: "pending"};
       }
     }
   }
@@ -288,12 +294,12 @@ export async function dispatchAppointmentWhatsApp(params: {
 
   if (!rawPhone || !patientName) {
     try {
-      const patientDoc = await db.collection('patients').doc(params.patientId).get();
+      const patientDoc = await db.collection("patients").doc(params.patientId).get();
       if (patientDoc.exists) {
         const patientData = patientDoc.data() || {};
         rawPhone = rawPhone || (patientData.phone as string);
-        const first = (patientData.firstName as string) || '';
-        const last = (patientData.lastName as string) || '';
+        const first = (patientData.firstName as string) || "";
+        const last = (patientData.lastName as string) || "";
         patientName = patientName || `${first} ${last}`.trim();
       }
     } catch (e) {
@@ -302,13 +308,13 @@ export async function dispatchAppointmentWhatsApp(params: {
   }
 
   // 3. Resolve Doctor & Clinic Details
-  let doctorName = 'Doctor';
-  let clinicName = 'CruDoc Clinic';
+  let doctorName = "Doctor";
+  let clinicName = "CruDoc Clinic";
   try {
-    const doctorDoc = await db.collection('users').doc(doctorId).get();
+    const doctorDoc = await db.collection("users").doc(doctorId).get();
     if (doctorDoc.exists) {
       const docData = doctorDoc.data() || {};
-      doctorName = docData.displayName || docData.name || 'Doctor';
+      doctorName = docData.displayName || docData.name || "Doctor";
       clinicName = docData.clinicName || docData.practiceName || clinicName;
     }
   } catch (e) {
@@ -324,36 +330,36 @@ export async function dispatchAppointmentWhatsApp(params: {
       appointmentId,
       doctorId,
       patientId: params.patientId,
-      recipientPhone: rawPhone || '',
-      recipientName: patientName || 'Patient',
-      status: 'skipped',
-      failureReason: 'invalid_or_missing_phone',
-      source: params.source || 'booking_flow',
+      recipientPhone: rawPhone || "",
+      recipientName: patientName || "Patient",
+      status: "skipped",
+      failureReason: "invalid_or_missing_phone",
+      source: params.source || "booking_flow",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { success: true, status: 'skipped', reason: 'invalid_or_missing_phone' };
+    return {success: true, status: "skipped", reason: "invalid_or_missing_phone"};
   }
 
   // 5. Format Date and Time
-  const startDate = params.scheduledStart instanceof Date
-    ? params.scheduledStart
-    : (params.scheduledStart as admin.firestore.Timestamp).toDate();
+  const startDate = params.scheduledStart instanceof Date ?
+    params.scheduledStart :
+    (params.scheduledStart as admin.firestore.Timestamp).toDate();
 
-  const formattedDate = startDate.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+  const formattedDate = startDate.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
   });
 
-  const formattedTime = startDate.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
+  const formattedTime = startDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
     hour12: true,
   });
 
-  const consultationType = params.visitType === 'home' ? 'Home Visit' : 'In-Clinic';
+  const consultationType = params.visitType === "home" ? "Home Visit" : "In-Clinic";
 
   // 6. Write Initial Pending Log
   await logRef.set({
@@ -362,8 +368,8 @@ export async function dispatchAppointmentWhatsApp(params: {
     doctorId,
     patientId: params.patientId,
     recipientPhone: normalizedPhone,
-    recipientName: patientName || 'Valued Patient',
-    status: 'pending',
+    recipientName: patientName || "Valued Patient",
+    status: "pending",
     attemptCount: 1,
     attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -374,7 +380,7 @@ export async function dispatchAppointmentWhatsApp(params: {
   const result = await sendWhatsAppMetaMessage({
     toPhone: normalizedPhone,
     data: {
-      patientName: patientName || 'Valued Patient',
+      patientName: patientName || "Valued Patient",
       doctorName,
       clinicName,
       appointmentDate: formattedDate,
@@ -389,20 +395,20 @@ export async function dispatchAppointmentWhatsApp(params: {
   // 8. Update Log Status
   if (result.success) {
     await logRef.update({
-      status: 'sent',
+      status: "sent",
       whatsappMessageId: result.messageId || null,
       isMock: result.isMock || false,
       sentAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { success: true, status: 'sent', messageId: result.messageId };
+    return {success: true, status: "sent", messageId: result.messageId};
   } else {
     await logRef.update({
-      status: 'failed',
-      failureReason: result.error || 'meta_api_error',
+      status: "failed",
+      failureReason: result.error || "meta_api_error",
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     });
-    return { success: false, status: 'failed', reason: result.error };
+    return {success: false, status: "failed", reason: result.error};
   }
 }
 
@@ -412,22 +418,22 @@ export async function dispatchAppointmentWhatsApp(params: {
 
 export const sendWhatsAppAppointmentConfirmation = functions.onRequest(
   {
-    region: 'asia-south1',
+    region: "asia-south1",
     maxInstances: 10,
     cors: true,
     secrets: [whatsappAccessTokenSecret],
   },
   async (req, res) => {
-    if (req.method !== 'POST') {
-      res.status(405).json({ success: false, error: 'Method not allowed' });
+    if (req.method !== "POST") {
+      res.status(405).json({success: false, error: "Method not allowed"});
       return;
     }
 
     try {
-      const { appointmentId, doctorId, patientId, phone, patientName, scheduledStart, visitType } = req.body;
+      const {appointmentId, doctorId, patientId, phone, patientName, scheduledStart, visitType} = req.body;
 
       if (!appointmentId || !doctorId || !patientId) {
-        res.status(400).json({ success: false, error: 'appointmentId, doctorId, and patientId are required' });
+        res.status(400).json({success: false, error: "appointmentId, doctorId, and patientId are required"});
         return;
       }
 
@@ -440,14 +446,14 @@ export const sendWhatsAppAppointmentConfirmation = functions.onRequest(
         phone,
         patientName,
         scheduledStart: isNaN(dateObj.getTime()) ? new Date() : dateObj,
-        visitType: visitType || 'clinic',
-        source: 'manual_or_client_trigger',
+        visitType: visitType || "clinic",
+        source: "manual_or_client_trigger",
       });
 
       res.status(200).json(result);
     } catch (err: any) {
-      console.error('[WhatsApp Endpoint Error]', err);
-      res.status(500).json({ success: false, error: err?.message || 'Internal server error' });
+      console.error("[WhatsApp Endpoint Error]", err);
+      res.status(500).json({success: false, error: err?.message || "Internal server error"});
     }
   }
 );
@@ -477,15 +483,15 @@ export async function checkAndDispatchUpcomingReminders(): Promise<{
   let processedCount = 0;
   let sentCount = 0;
 
-  const collections = ['appointments', 'visitations'];
+  const collections = ["appointments", "visitations"];
 
   for (const colName of collections) {
     try {
       const snap = await db
         .collection(colName)
-        .where('status', '==', 'scheduled')
-        .where('scheduledStart', '>=', windowStartTs)
-        .where('scheduledStart', '<=', windowEndTs)
+        .where("status", "==", "scheduled")
+        .where("scheduledStart", ">=", windowStartTs)
+        .where("scheduledStart", "<=", windowEndTs)
         .get();
 
       for (const doc of snap.docs) {
@@ -493,35 +499,37 @@ export async function checkAndDispatchUpcomingReminders(): Promise<{
         processedCount++;
 
         // Skip if reminder has already been sent
-        if (data.reminderSent === true || data.reminderStatus === 'sent') {
+        if (data.reminderSent === true || data.reminderStatus === "sent") {
           continue;
         }
 
         const appointmentId = doc.id;
         const doctorId = data.doctorId;
         const patientId = data.patientId;
-        const visitType = data.visitType || (colName === 'visitations' ? 'home' : 'clinic');
+        const visitType = data.visitType || (colName === "visitations" ? "home" : "clinic");
 
         if (!doctorId || !patientId) continue;
 
         // Fetch patient phone and details
-        let phone = data.phone || data.patientPhone || '';
-        let patientName = data.patientName || '';
+        let phone = data.phone || data.patientPhone || "";
+        let patientName = data.patientName || "";
 
         if (!phone || !patientName) {
           try {
-            const pDoc = await db.collection('patients').doc(patientId).get();
+            const pDoc = await db.collection("patients").doc(patientId).get();
             if (pDoc.exists) {
               const pData = pDoc.data() || {};
-              phone = phone || pData.phone || '';
-              patientName = patientName || pData.fullName || 'Valued Patient';
+              phone = phone || pData.phone || "";
+              patientName = patientName || pData.fullName || "Valued Patient";
             }
-          } catch (_) {}
+          } catch (_) {
+            // Patient lookup is best-effort; keep what the request gave.
+          }
         }
 
-        const startDate = data.scheduledStart instanceof admin.firestore.Timestamp
-          ? data.scheduledStart.toDate()
-          : new Date(data.scheduledStart);
+        const startDate = data.scheduledStart instanceof admin.firestore.Timestamp ?
+          data.scheduledStart.toDate() :
+          new Date(data.scheduledStart);
 
         console.log(
           `[WhatsApp Auto-Reminder] Triggering 10-min reminder for appt ${appointmentId} ` +
@@ -537,13 +545,13 @@ export async function checkAndDispatchUpcomingReminders(): Promise<{
           patientName,
           scheduledStart: startDate,
           visitType,
-          source: '10_min_automated_reminder',
+          source: "10_min_automated_reminder",
         });
 
         // Mark visit with reminderSent = true to guarantee idempotency
         await doc.ref.update({
           reminderSent: true,
-          reminderStatus: 'sent',
+          reminderStatus: "sent",
           reminderSentAt: admin.firestore.FieldValue.serverTimestamp(),
           updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         });
@@ -557,7 +565,7 @@ export async function checkAndDispatchUpcomingReminders(): Promise<{
     }
   }
 
-  return { processedCount, sentCount };
+  return {processedCount, sentCount};
 }
 
 /**
@@ -566,13 +574,13 @@ export async function checkAndDispatchUpcomingReminders(): Promise<{
  */
 export const scheduledAppointmentReminders = functions.onRequest(
   {
-    region: 'asia-south1',
+    region: "asia-south1",
     maxInstances: 5,
     cors: true,
   },
   async (req, res) => {
     try {
-      console.log('[WhatsApp Reminders] Automated 10-minute reminder job triggered.');
+      console.log("[WhatsApp Reminders] Automated 10-minute reminder job triggered.");
       const result = await checkAndDispatchUpcomingReminders();
       res.status(200).json({
         success: true,
@@ -580,8 +588,8 @@ export const scheduledAppointmentReminders = functions.onRequest(
         ...result,
       });
     } catch (err: any) {
-      console.error('[WhatsApp Reminders Error]', err);
-      res.status(500).json({ success: false, error: err?.message || 'Internal error' });
+      console.error("[WhatsApp Reminders Error]", err);
+      res.status(500).json({success: false, error: err?.message || "Internal error"});
     }
   }
 );
@@ -592,64 +600,64 @@ export const scheduledAppointmentReminders = functions.onRequest(
 
 export const whatsappWebhook = functions.onRequest(
   {
-    region: 'asia-south1',
+    region: "asia-south1",
     maxInstances: 10,
     cors: true,
     secrets: [whatsappWebhookVerifyTokenSecret, whatsappWebhookAppSecretSecret],
   },
   async (req, res) => {
     // ---- GET: Webhook Verification Challenge ----
-    if (req.method === 'GET') {
-      const mode = req.query['hub.mode'];
-      const token = req.query['hub.verify_token'];
-      const challenge = req.query['hub.challenge'];
+    if (req.method === "GET") {
+      const mode = req.query["hub.mode"];
+      const token = req.query["hub.verify_token"];
+      const challenge = req.query["hub.challenge"];
 
       const expectedVerifyToken = getWhatsAppWebhookVerifyToken();
 
-      if (mode === 'subscribe' && typeof token === 'string' && expectedVerifyToken) {
+      if (mode === "subscribe" && typeof token === "string" && expectedVerifyToken) {
         const tokenBuf = Buffer.from(token);
         const expectedBuf = Buffer.from(expectedVerifyToken);
         if (
           tokenBuf.length === expectedBuf.length &&
           crypto.timingSafeEqual(tokenBuf, expectedBuf)
         ) {
-          console.log('[WhatsApp Webhook] Verification challenge passed successfully.');
+          console.log("[WhatsApp Webhook] Verification challenge passed successfully.");
           res.status(200).send(challenge);
           return;
         }
       }
 
-      console.warn('[WhatsApp Webhook] Verification token mismatch.');
-      res.status(403).send('Forbidden');
+      console.warn("[WhatsApp Webhook] Verification token mismatch.");
+      res.status(403).send("Forbidden");
       return;
     }
 
     // ---- POST: Status Callback Events ----
-    if (req.method === 'POST') {
+    if (req.method === "POST") {
       const appSecret = getWhatsAppWebhookAppSecret();
 
       // Validate HMAC SHA-256 signature if app secret is configured
       if (appSecret) {
-        const signatureHeader = req.headers['x-hub-signature-256'] as string | undefined;
-        if (!signatureHeader || !signatureHeader.startsWith('sha256=')) {
-          console.warn('[WhatsApp Webhook] Missing or invalid signature header');
-          res.status(401).send('Unauthorized: Signature missing');
+        const signatureHeader = req.headers["x-hub-signature-256"] as string | undefined;
+        if (!signatureHeader || !signatureHeader.startsWith("sha256=")) {
+          console.warn("[WhatsApp Webhook] Missing or invalid signature header");
+          res.status(401).send("Unauthorized: Signature missing");
           return;
         }
 
         const signature = signatureHeader.substring(7);
         const rawBody = (req as any).rawBody || JSON.stringify(req.body);
         const expectedSignature = crypto
-          .createHmac('sha256', appSecret)
+          .createHmac("sha256", appSecret)
           .update(rawBody)
-          .digest('hex');
+          .digest("hex");
 
         const sigBuf = Buffer.from(signature);
         const expBuf = Buffer.from(expectedSignature);
 
         if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
-          console.warn('[WhatsApp Webhook] HMAC SHA-256 signature mismatch');
-          res.status(401).send('Unauthorized: Signature mismatch');
+          console.warn("[WhatsApp Webhook] HMAC SHA-256 signature mismatch");
+          res.status(401).send("Unauthorized: Signature mismatch");
           return;
         }
       }
@@ -673,8 +681,8 @@ export const whatsappWebhook = functions.onRequest(
                   try {
                     // Look up matching notification log by whatsappMessageId
                     const querySnap = await db
-                      .collection('whatsapp_notification_logs')
-                      .where('whatsappMessageId', '==', messageId)
+                      .collection("whatsapp_notification_logs")
+                      .where("whatsappMessageId", "==", messageId)
                       .limit(1)
                       .get();
 
@@ -685,13 +693,13 @@ export const whatsappWebhook = functions.onRequest(
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                       };
 
-                      if (status === 'delivered') {
+                      if (status === "delivered") {
                         updateData.deliveredAt = admin.firestore.Timestamp.fromDate(timestamp);
-                      } else if (status === 'read') {
+                      } else if (status === "read") {
                         updateData.readAt = admin.firestore.Timestamp.fromDate(timestamp);
-                      } else if (status === 'failed') {
+                      } else if (status === "failed") {
                         const errorDetail = statusObj.errors?.[0];
-                        updateData.failureReason = errorDetail ? `${errorDetail.code}: ${errorDetail.title}` : 'delivery_failed';
+                        updateData.failureReason = errorDetail ? `${errorDetail.code}: ${errorDetail.title}` : "delivery_failed";
                       }
 
                       await doc.ref.update(updateData);
@@ -708,11 +716,11 @@ export const whatsappWebhook = functions.onRequest(
       }
 
       // Acknowledge receipt to Meta immediately (200 OK)
-      res.status(200).json({ success: true });
+      res.status(200).json({success: true});
       return;
     }
 
-    res.status(405).json({ success: false, error: 'Method not allowed' });
+    res.status(405).json({success: false, error: "Method not allowed"});
   }
 );
 
@@ -722,40 +730,40 @@ export const whatsappWebhook = functions.onRequest(
  */
 export const sendWhatsAppCampaignMessage = functions.onCall(
   {
-    region: 'asia-south1',
+    region: "asia-south1",
     maxInstances: 10,
     secrets: [whatsappAccessTokenSecret],
   },
   async (request) => {
     if (!request.auth || !request.auth.uid) {
-      throw new functions.HttpsError('unauthenticated', 'Authentication required.');
+      throw new functions.HttpsError("unauthenticated", "Authentication required.");
     }
 
-    const { campaignId, doctorId, patientId, patientName, phone, clinicName, doctorName } = request.data || {};
+    const {campaignId, doctorId, patientId, patientName, phone, clinicName, doctorName} = request.data || {};
 
     if (!doctorId || request.auth.uid !== doctorId) {
-      throw new functions.HttpsError('permission-denied', 'Cross-doctor action is strictly forbidden.');
+      throw new functions.HttpsError("permission-denied", "Cross-doctor action is strictly forbidden.");
     }
 
     const normalized = normalizePhoneNumber(phone);
     if (!normalized) {
-      return { success: false, error: 'Invalid recipient phone number' };
+      return {success: false, error: "Invalid recipient phone number"};
     }
 
     const result = await sendWhatsAppMetaMessage({
       toPhone: normalized,
       data: {
-        patientName: patientName || 'Valued Patient',
-        doctorName: doctorName || 'Doctor',
-        clinicName: clinicName || 'CruDoc Practice',
+        patientName: patientName || "Valued Patient",
+        doctorName: doctorName || "Doctor",
+        clinicName: clinicName || "CruDoc Practice",
         appointmentDate: new Date().toLocaleDateString(),
         appointmentTime: new Date().toLocaleTimeString(),
-        consultationType: 'In-Clinic',
+        consultationType: "In-Clinic",
       },
-      templateName: 'appointment_confirmation',
-      appointmentId: `${campaignId || 'campaign'}_${Date.now()}`,
+      templateName: "appointment_confirmation",
+      appointmentId: `${campaignId || "campaign"}_${Date.now()}`,
       doctorId,
-      patientId: patientId || 'campaign_patient',
+      patientId: patientId || "campaign_patient",
     });
 
     return result;

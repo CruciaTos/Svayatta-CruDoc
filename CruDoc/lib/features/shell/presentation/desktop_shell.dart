@@ -47,7 +47,6 @@ import 'package:doctor_management_app/features/dental/specialties/forms/forms_sc
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
-import 'package:doctor_management_app/features/super_admin/providers/auth_provider.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -476,11 +475,6 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       onToggleCollapsed: _toggleSidebar,
       appearanceMenu: _appearanceMenu,
       onToggleTheme: () => ref.read(appearanceModeProvider.notifier).toggle(),
-      onSuperAdmin: () async {
-        await ref.read(superAdminAuthProvider.notifier).loginDemoDev();
-        if (!context.mounted) return;
-        context.go('/admin');
-      },
     );
   }
 

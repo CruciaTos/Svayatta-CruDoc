@@ -1,8 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
-import 'package:doctor_management_app/features/super_admin/models/doctor_model.dart';
-import 'package:doctor_management_app/features/super_admin/config/enums.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -121,50 +119,6 @@ void main() {
       expect(updated.sessionId, 's-1');
       expect(updated.status, 'revoked');
       expect(updated.isCurrentDevice, isTrue);
-    });
-  });
-
-  group('DoctorModel Multi-Device & Limit Tests', () {
-    test('serializes and deserializes allowMultiDevice and maxDeviceLimit correctly', () {
-      final doc = DoctorModel(
-        id: 'doc-001',
-        name: 'Dr. Priya Mehta',
-        email: 'priya@example.com',
-        phone: '9876543210',
-        specialization: 'Cardiology',
-        clinicName: 'Heart Care Clinic',
-        country: 'India',
-        timeZone: 'Asia/Kolkata',
-        subscriptionPlan: SubscriptionPlan.professional,
-        allowMultiDevice: true,
-        maxDeviceLimit: 5,
-      );
-
-      final json = doc.toJson();
-      expect(json['allowMultiDevice'], isTrue);
-      expect(json['maxDeviceLimit'], 5);
-
-      final restored = DoctorModel.fromJson(json, 'doc-001');
-      expect(restored.allowMultiDevice, isTrue);
-      expect(restored.maxDeviceLimit, 5);
-      expect(restored.name, 'Dr. Priya Mehta');
-    });
-
-    test('defaults allowMultiDevice to false and maxDeviceLimit to 0', () {
-      final doc = DoctorModel(
-        id: 'doc-002',
-        name: 'Dr. Test',
-        email: 'test@example.com',
-        phone: '1234567890',
-        specialization: 'General',
-        clinicName: 'Clinic',
-        country: 'India',
-        timeZone: 'Asia/Kolkata',
-        subscriptionPlan: SubscriptionPlan.starter,
-      );
-
-      expect(doc.allowMultiDevice, isFalse);
-      expect(doc.maxDeviceLimit, 0);
     });
   });
 

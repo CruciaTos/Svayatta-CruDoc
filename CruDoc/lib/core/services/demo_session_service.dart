@@ -10,9 +10,6 @@ class DemoSessionService {
   static bool _isDemoMode = false;
   static bool get isDemoMode => _isDemoMode;
 
-  static bool _isSuperAdminMode = false;
-  static bool get isSuperAdminMode => _isSuperAdminMode;
-
   static DoctorSpecialty _activeSpecialty = DoctorSpecialty.defaultSpecialty;
   static DoctorSpecialty get activeSpecialty => _activeSpecialty;
 
@@ -33,20 +30,7 @@ class DemoSessionService {
   static Stream<Map<String, dynamic>> get profileStream =>
       _profileStreamController.stream;
 
-  static Map<String, dynamic> get currentMockProfile => _isSuperAdminMode
-      ? {
-          'uid': 'demo_super_admin_dev',
-          'email': 'admin@crudoc.com',
-          'displayName': 'Super Administrator (Dev)',
-          'doctorName': 'Super Administrator',
-          'specialty': 'Platform Administration',
-          'specialization': 'Super Admin',
-          'clinicName': 'CruDoc HQ Platform',
-          'status': 'Active',
-          'role': 'superAdmin',
-          'isDemoAccount': true,
-        }
-      : {
+  static Map<String, dynamic> get currentMockProfile => {
           'uid': 'demo_doctor_dev',
           'email': _activeSpecialty.demoEmail,
           'displayName': _getDemoDoctorName(_activeSpecialty),
@@ -57,7 +41,7 @@ class DemoSessionService {
           'status': 'Active',
           'role': 'doctor',
           'isDemoAccount': true,
-        };
+      };
 
   static String _getDemoDoctorName(DoctorSpecialty specialty) {
     switch (specialty.type) {
@@ -109,20 +93,10 @@ class DemoSessionService {
   /// Starts an active offline/online trial demo session for doctor.
   static void startDemoSession([DoctorSpecialty? specialty]) {
     _isDemoMode = true;
-    _isSuperAdminMode = false;
     _activeSpecialty = specialty ?? DoctorSpecialty.defaultSpecialty;
     sessionStateNotifier.value = true;
     sessionRevisionNotifier.value++;
     specialtyNotifier.value = _activeSpecialty;
-    _profileStreamController.add(currentMockProfile);
-  }
-
-  /// Starts an active offline/online trial demo session for Super Admin.
-  static void startSuperAdminDemoSession() {
-    _isDemoMode = true;
-    _isSuperAdminMode = true;
-    sessionStateNotifier.value = true;
-    sessionRevisionNotifier.value++;
     _profileStreamController.add(currentMockProfile);
   }
 
@@ -136,7 +110,6 @@ class DemoSessionService {
   /// Ends the trial demo session and resets state.
   static void endDemoSession() {
     _isDemoMode = false;
-    _isSuperAdminMode = false;
     sessionStateNotifier.value = false;
     sessionRevisionNotifier.value++;
     _activeSpecialty = DoctorSpecialty.defaultSpecialty;

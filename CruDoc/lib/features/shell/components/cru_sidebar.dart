@@ -126,7 +126,6 @@ class SidebarCallbacks {
     required this.onLogout,
     required this.onToggleCollapsed,
     this.appearanceMenu,
-    this.onSuperAdmin,
     this.onToggleTheme,
   });
 
@@ -140,7 +139,6 @@ class SidebarCallbacks {
   final VoidCallback onHelp;
   final VoidCallback onLogout;
   final VoidCallback onToggleCollapsed;
-  final VoidCallback? onSuperAdmin;
   final VoidCallback? onToggleTheme;
 
   /// Extra account-menu entries (appearance), built by the shell with the
@@ -901,16 +899,6 @@ class _ProfileButton extends StatelessWidget {
             callbacks.onToggleCollapsed,
             trailing: 'Ctrl B',
           ),
-        if (callbacks.onSuperAdmin != null) ...[
-          const PopupMenuDivider(),
-          _item(
-            c,
-            CruIcons.sparkle,
-            'Super Admin Console',
-            callbacks.onSuperAdmin!,
-            trailing: 'Admin',
-          ),
-        ],
         const PopupMenuDivider(),
         _item(c, CruIcons.logout, 'Log out', callbacks.onLogout),
       ],

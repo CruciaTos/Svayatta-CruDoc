@@ -7,9 +7,6 @@ import 'package:doctor_management_app/core/services/demo_session_service.dart';
 
 import '../../features/auth/presentation/auth_screen.dart';
 import '../../features/shell/presentation/responsive_shell.dart';
-import '../../features/super_admin/screens/auth/login_screen.dart';
-import '../../features/super_admin/screens/main_shell.dart';
-import '../../features/super_admin/middleware/auth_middleware.dart';
 
 final GoRouter appRouter = _createAppRouter();
 
@@ -45,30 +42,18 @@ GoRouter _createAppRouter() {
       final isLoggedIn = user != null || isDemo;
       final path = state.matchedLocation;
       final isAuthRoute = path == '/' || path == '/auth';
-      final isAdminRoute = path.startsWith('/admin');
-      final isAdminLoginRoute = path == '/admin/login';
 
-      // 1. Direct access to Super Admin login screen is always allowed
-      if (isAdminLoginRoute) {
-        return null;
-      }
+      // Super Admin is a separate web app on its own subdomain
+      // (CrudocSuper-admin, next to this repo); the clinic app has no admin
+      // routes.
 
-      // 2. Direct access to Super Admin suite (/admin)
-      // SuperAdminAuthGuard handles checking auth state and rendering SuperAdminLoginScreen if not authenticated
-      if (isAdminRoute) {
-        return null;
-      }
-
-      // 3. Unauthenticated users trying to access protected clinic routes
+      // 1. Unauthenticated users trying to access protected clinic routes
       if (!isLoggedIn && !isAuthRoute) {
         return '/auth';
       }
 
-      // 4. Authenticated users landing on landing/auth routes
+      // 2. Authenticated users landing on landing/auth routes
       if (isLoggedIn && isAuthRoute) {
-        if (DemoSessionService.isSuperAdminMode) {
-          return '/admin';
-        }
         return '/dashboard';
       }
 
@@ -80,15 +65,6 @@ GoRouter _createAppRouter() {
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const ResponsiveShell(),
-      ),
-      GoRoute(
-        path: '/admin/login',
-        builder: (context, state) => const SuperAdminLoginScreen(),
-      ),
-      GoRoute(
-        path: '/admin',
-        builder: (context, state) =>
-            const SuperAdminAuthGuard(child: SuperAdminShell()),
       ),
     ],
   );

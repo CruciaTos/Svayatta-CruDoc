@@ -17,7 +17,6 @@ import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
 import 'package:doctor_management_app/features/auth/presentation/widgets/specialty_onboarding_dialog.dart';
-import 'package:doctor_management_app/features/super_admin/providers/auth_provider.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -184,15 +183,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
     if (!mounted) return;
     _enterApp();
-  }
-
-  /// 1-Click fast login into the Super Admin Demo / Dev account.
-  Future<void> _handleSuperAdminDemoLogin() async {
-    setState(() => _isLoading = true);
-    await ref.read(superAdminAuthProvider.notifier).loginDemoDev();
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    context.go('/admin');
   }
 
   void _goToPage(int index) {
@@ -700,7 +690,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                           setState(() => _obscurePassword = !_obscurePassword),
                       onPrimary: _handleEmailLogin,
                       onTrialDemoLogin: _handleTrialDemoLogin,
-                      onSuperAdminDemoLogin: _handleSuperAdminDemoLogin,
                       onDemoFill: _fillDemoCredentials,
                       selectedSpecialty: ref.watch(authSpecialtyProvider),
                       onSpecialtySelected: (spec) {
@@ -810,7 +799,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                                 setState(() => _rememberMe = !_rememberMe),
                             onPrimarySubmit: _handleEmailLogin,
                             onTrialDemoLogin: _handleTrialDemoLogin,
-                            onSuperAdminDemoLogin: _handleSuperAdminDemoLogin,
                             onDemoFill: _fillDemoCredentials,
                           ),
                         ),
@@ -1301,7 +1289,6 @@ class _WebAuthPortalCard extends StatelessWidget {
     required this.onRememberMeToggle,
     required this.onPrimarySubmit,
     required this.onTrialDemoLogin,
-    this.onSuperAdminDemoLogin,
     required this.onDemoFill,
   });
 
@@ -1315,7 +1302,6 @@ class _WebAuthPortalCard extends StatelessWidget {
   final VoidCallback onRememberMeToggle;
   final VoidCallback onPrimarySubmit;
   final VoidCallback onTrialDemoLogin;
-  final VoidCallback? onSuperAdminDemoLogin;
   final VoidCallback onDemoFill;
 
   @override
@@ -1550,38 +1536,6 @@ class _WebAuthPortalCard extends StatelessWidget {
             ),
           ),
         ),
-        if (onSuperAdminDemoLogin != null) ...[
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 44,
-            child: OutlinedButton.icon(
-              onPressed: isLoading ? null : onSuperAdminDemoLogin,
-              icon: const Icon(
-                Icons.admin_panel_settings_rounded,
-                color: Color(0xFF2563EB),
-                size: 19,
-              ),
-              label: const Text(
-                'Super Admin Console (Dev Access)',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2563EB),
-                  fontFamily: AppColors.bodyFontFamily,
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: const Color(
-                  0xFF2563EB,
-                ).withValues(alpha: 0.06),
-                side: const BorderSide(color: Color(0xFF2563EB), width: 1.2),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1749,7 +1703,6 @@ class _AuthFormPanel extends StatelessWidget {
     required this.onObscureToggle,
     required this.onPrimary,
     this.onTrialDemoLogin,
-    this.onSuperAdminDemoLogin,
     this.onDemoFill,
     this.selectedSpecialty,
     this.onSpecialtySelected,
@@ -1769,7 +1722,6 @@ class _AuthFormPanel extends StatelessWidget {
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final VoidCallback? onTrialDemoLogin;
-  final VoidCallback? onSuperAdminDemoLogin;
   final VoidCallback? onDemoFill;
   final DoctorSpecialty? selectedSpecialty;
   final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
@@ -1858,7 +1810,6 @@ class _AuthFormPanel extends StatelessWidget {
                   onObscureToggle: onObscureToggle,
                   onPrimary: onPrimary,
                   onTrialDemoLogin: onTrialDemoLogin,
-                  onSuperAdminDemoLogin: onSuperAdminDemoLogin,
                   onDemoFill: onDemoFill,
                   selectedSpecialty: selectedSpecialty,
                   onSpecialtySelected: onSpecialtySelected,
@@ -1889,7 +1840,6 @@ class _AuthForm extends StatelessWidget {
     required this.onObscureToggle,
     required this.onPrimary,
     this.onTrialDemoLogin,
-    this.onSuperAdminDemoLogin,
     this.onDemoFill,
     this.selectedSpecialty,
     this.onSpecialtySelected,
@@ -1907,7 +1857,6 @@ class _AuthForm extends StatelessWidget {
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final VoidCallback? onTrialDemoLogin;
-  final VoidCallback? onSuperAdminDemoLogin;
   final VoidCallback? onDemoFill;
   final DoctorSpecialty? selectedSpecialty;
   final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
@@ -2093,38 +2042,6 @@ class _AuthForm extends StatelessWidget {
                   0xFF059669,
                 ).withValues(alpha: 0.08),
                 side: const BorderSide(color: Color(0xFF059669), width: 1.1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
-        if (_isLogin && onSuperAdminDemoLogin != null) ...[
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton.icon(
-              onPressed: isLoading ? null : onSuperAdminDemoLogin,
-              icon: const Icon(
-                Icons.admin_panel_settings_rounded,
-                color: Color(0xFF2563EB),
-                size: 18,
-              ),
-              label: const Text(
-                'Super Admin Console (Dev Access)',
-                style: TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF2563EB),
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: const Color(
-                  0xFF2563EB,
-                ).withValues(alpha: 0.08),
-                side: const BorderSide(color: Color(0xFF2563EB), width: 1.1),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10),
                 ),

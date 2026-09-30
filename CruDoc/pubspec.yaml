@@ -43,6 +43,10 @@ dependencies:
   path_provider: ^2.1.6
   firebase_core: ^4.14.0
   flutter_riverpod: ^3.3.2
+  # Theme, Cru widgets and models shared with the Super Admin web app
+  # (CrudocSuper-admin, next to this repo).
+  crudoc_shared:
+    path: ../crudoc_shared
   go_router: ^17.3.0
   firebase_auth: ^6.6.1
   cloud_functions: ^6.4.0

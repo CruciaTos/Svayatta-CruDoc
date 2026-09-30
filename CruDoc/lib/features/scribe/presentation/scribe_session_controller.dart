@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
+import 'package:doctor_management_app/features/scribe/data/services/scribe_audio_sync.dart';
 import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
@@ -425,7 +426,13 @@ class ScribeSessionController extends ChangeNotifier {
         existingDraft: activeDraftForm?.toNote(),
       );
 
+      // The note is safe locally first; the recording then goes to the
+      // cloud in the background, so an offline doctor never waits on it.
       await _repository.saveNote(draft);
+      await ScribeAudioSync.enqueueRecording(
+        note: draft,
+        localPath: _audioPath,
+      );
       await _deleteAudio();
       if (_disposed) return;
       _draft = draft;

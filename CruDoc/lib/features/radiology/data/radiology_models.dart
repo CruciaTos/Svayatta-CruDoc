@@ -116,6 +116,8 @@ class RadImageRef {
     this.sliceThickness,
     this.sliceLocation,
     this.dicomModality = '',
+    this.storagePath = '',
+    this.cloudStatus = '',
   });
 
   final String id;
@@ -148,6 +150,37 @@ class RadImageRef {
   /// The DICOM Modality tag ("CT", "PX", "IO", "DX"…).
   final String dicomModality;
 
+  /// Firebase Cloud Storage object path (empty when not yet uploaded).
+  /// Use [MedicalStorageService.getDownloadUrl] to resolve to a URL.
+  final String storagePath;
+
+  /// Empty for a normal image. [RadCloudStatus] values say why this file
+  /// is kept on this computer only and will never be uploaded.
+  final String cloudStatus;
+
+  RadImageRef copyWith({String? storagePath, String? cloudStatus}) =>
+      RadImageRef(
+        id: id,
+        path: path,
+        kind: kind,
+        seriesUid: seriesUid,
+        seriesDescription: seriesDescription,
+        instanceNumber: instanceNumber,
+        width: width,
+        height: height,
+        frames: frames,
+        compressed: compressed,
+        transferSyntax: transferSyntax,
+        pixelSpacingMm: pixelSpacingMm,
+        position: position,
+        orientation: orientation,
+        sliceThickness: sliceThickness,
+        sliceLocation: sliceLocation,
+        dicomModality: dicomModality,
+        storagePath: storagePath ?? this.storagePath,
+        cloudStatus: cloudStatus ?? this.cloudStatus,
+      );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'path': path,
@@ -166,6 +199,8 @@ class RadImageRef {
     'sliceThickness': sliceThickness,
     'sliceLocation': sliceLocation,
     'dicomModality': dicomModality,
+    'storagePath': storagePath,
+    'cloudStatus': cloudStatus,
   };
 
   factory RadImageRef.fromJson(Map<String, dynamic> j) => RadImageRef(
@@ -190,7 +225,18 @@ class RadImageRef {
     sliceThickness: _double(j['sliceThickness']),
     sliceLocation: _double(j['sliceLocation']),
     dicomModality: _str(j['dicomModality']),
+    storagePath: _str(j['storagePath']),
+    cloudStatus: _str(j['cloudStatus']),
   );
+}
+
+/// Why an image is not uploaded to Cloud Storage ([RadImageRef.cloudStatus]).
+abstract final class RadCloudStatus {
+  /// Over the 15 MB upload limit.
+  static const localOnlyTooLarge = 'localOnlyTooLarge';
+
+  /// A file type the storage rules do not accept (DICOM, TIFF…).
+  static const localOnlyType = 'localOnlyType';
 }
 
 /// Exposure values read from the DICOM file (radiation dose log).

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -10,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/errors/inventory_exceptions.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
+import 'package:doctor_management_app/features/inventory/data/services/inventory_receipt_sync.dart';
 import 'package:doctor_management_app/features/inventory/data/services/ocr_service.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_builder.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_format.dart';
@@ -363,6 +365,7 @@ class _DesktopAddEditMedicineDialogState
     final batch = _batch.text.trim();
 
     try {
+      var savedId = widget.medicine?.id ?? '';
       if (_isEditing) {
         await _repository.updateMedicine(widget.medicine!.id, {
           'name': name,
@@ -379,7 +382,7 @@ class _DesktopAddEditMedicineDialogState
         });
       } else {
         final now = DateTime.now();
-        await _repository.createMedicine(
+        savedId = await _repository.createMedicine(
           MedicineModel(
             id: '',
             name: name,
@@ -395,6 +398,17 @@ class _DesktopAddEditMedicineDialogState
             imageUrl: _imageUrl,
             createdAt: now,
             updatedAt: now,
+          ),
+        );
+      }
+      // The item is saved; the receipt goes to the cloud in the background.
+      final receipt = _receiptImage;
+      if (receipt != null) {
+        unawaited(
+          InventoryReceiptSync.enqueueReceipt(
+            medicineId: savedId,
+            image: receipt,
+            replacePath: widget.medicine?.receiptStoragePath,
           ),
         );
       }

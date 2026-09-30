@@ -5,6 +5,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import 'firebase_options.dart';
 import 'core/router/app_router.dart';
@@ -14,6 +15,12 @@ import 'core/services/firestore_sync_service.dart';
 import 'core/services/initial_firestore_migration_service.dart';
 import 'core/services/local_database_service.dart';
 import 'core/services/maps_key.dart';
+import 'core/pdf/services/generated_document_sync.dart';
+import 'core/services/storage_sync_queue.dart';
+import 'features/dental/records/dental_photo_cloud_sync.dart';
+import 'features/inventory/data/services/inventory_receipt_sync.dart';
+import 'features/radiology/data/radiology_cloud_sync.dart';
+import 'features/scribe/data/services/scribe_audio_sync.dart';
 import 'core/theme/cru_theme.dart';
 import 'features/settings/data/appearance_provider.dart';
 import 'features/voice/presentation/voice_overlay.dart';
@@ -23,18 +30,37 @@ const bool _useFirebaseEmulators = bool.fromEnvironment(
   defaultValue: false,
 );
 
+/// 10.0.2.2 is the host machine as seen from the Android emulator. Pass
+/// `--dart-define=EMULATOR_HOST=<pc-lan-ip>` for a physical phone, or
+/// `localhost` for Windows / web.
+const String _emulatorHost = String.fromEnvironment(
+  'EMULATOR_HOST',
+  defaultValue: '10.0.2.2',
+);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   if (_useFirebaseEmulators) {
-    await FirebaseAuth.instance.useAuthEmulator('10.0.2.2', 9099);
+    await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);
 
     FirebaseFunctions.instanceFor(
       region: 'asia-south1',
-    ).useFunctionsEmulator('10.0.2.2', 5001);
+    ).useFunctionsEmulator(_emulatorHost, 5001);
+
+    // Without this, debug uploads go to the real bucket even while the
+    // emulators are running.
+    await FirebaseStorage.instance.useStorageEmulator(_emulatorHost, 9199);
   }
+
+  // The default retry window is about ten minutes, far too long for a clinic
+  // that is offline: give up quickly and let StorageSyncQueue retry later.
+  FirebaseStorage.instance.setMaxUploadRetryTime(const Duration(seconds: 30));
+  FirebaseStorage.instance.setMaxOperationRetryTime(
+    const Duration(seconds: 30),
+  );
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: false,
@@ -46,6 +72,14 @@ Future<void> main() async {
     _wireWebEncryptionKeyLoading();
   }
   MapsKey.loadOnSignIn();
+  // Each feature that keeps a cloud path on its own record says how, before
+  // the queue can finish an upload it left waiting.
+  RadiologyCloudSync.register();
+  ScribeAudioSync.register();
+  GeneratedDocumentSync.register();
+  InventoryReceiptSync.register();
+  DentalPhotoCloudSync.register();
+  StorageSyncQueue.instance.start();
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));
 }

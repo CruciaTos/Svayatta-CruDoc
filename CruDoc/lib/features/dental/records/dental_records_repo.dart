@@ -177,6 +177,17 @@ class DentalRecordsRepository {
     return rows.map(_fromRow).toList();
   }
 
+  Future<DentalRecord?> byId(String id) async {
+    final db = await _db.localDatabase;
+    final rows = await db.query(
+      'dental_records',
+      where: 'id = ? AND isDeleted = 0',
+      whereArgs: [id],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : _fromRow(rows.first);
+  }
+
   Future<List<DentalRecord>> all(String doctorId, String kind) async {
     final db = await _db.localDatabase;
     final rows = await db.query(

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/features/shell/components/sync_status_line.dart';
 import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
@@ -197,7 +198,11 @@ class CruSidebar extends ConsumerWidget {
       duration: CruMotion.of(context),
       curve: CruMotion.curve,
       builder: (context, progress, _) {
-        final width = lerpDouble(CruSize.sidebarCollapsed, CruSize.sidebar, progress)!;
+        final width = lerpDouble(
+          CruSize.sidebarCollapsed,
+          CruSize.sidebar,
+          progress,
+        )!;
         final outerPadding = EdgeInsets.lerp(
           const EdgeInsets.fromLTRB(8, 12, 4, 12),
           const EdgeInsets.fromLTRB(12, 12, 4, 12),
@@ -269,8 +274,10 @@ class CruSidebar extends ConsumerWidget {
                                 decoration: ShapeDecoration(
                                   color: hovered
                                       ? (c.isEvening
-                                          ? c.inset
-                                          : Colors.white.withValues(alpha: 0.12))
+                                            ? c.inset
+                                            : Colors.white.withValues(
+                                                alpha: 0.12,
+                                              ))
                                       : Colors.transparent,
                                   shape: cruShape(8),
                                 ),
@@ -312,26 +319,39 @@ class CruSidebar extends ConsumerWidget {
                                     6,
                                   ),
                                   child: Opacity(
-                                    opacity: ((progress - 0.25) / 0.75).clamp(0.0, 1.0),
+                                    opacity: ((progress - 0.25) / 0.75).clamp(
+                                      0.0,
+                                      1.0,
+                                    ),
                                     child: Transform.translate(
-                                      offset: Offset((1.0 - progress) * -12.0, 0),
+                                      offset: Offset(
+                                        (1.0 - progress) * -12.0,
+                                        0,
+                                      ),
                                       child: Text(
                                         groups[g].label,
                                         style: c.isEvening
                                             ? CruType.groupLabel.tint(c.label3)
                                             : CruType.groupLabel.tint(
-                                                CruBrand.white.withValues(alpha: 0.72),
+                                                CruBrand.white.withValues(
+                                                  alpha: 0.72,
+                                                ),
                                               ),
                                       ),
                                     ),
                                   ),
                                 ),
-                              for (var i = 0; i < groups[g].items.length; i++) ...[
+                              for (
+                                var i = 0;
+                                i < groups[g].items.length;
+                                i++
+                              ) ...[
                                 if (i > 0 || !collapsed)
                                   const SizedBox(height: CruSpace.s2),
                                 _SidebarItem(
                                   item: groups[g].items[i],
-                                  selected: currentTab == groups[g].items[i].tab,
+                                  selected:
+                                      currentTab == groups[g].items[i].tab,
                                   collapsed: collapsed,
                                   progress: progress,
                                   badge:
@@ -340,8 +360,9 @@ class CruSidebar extends ConsumerWidget {
                                           waiting > 0
                                       ? waiting
                                       : null,
-                                  onTap: () =>
-                                      callbacks.onNavigate(groups[g].items[i].tab),
+                                  onTap: () => callbacks.onNavigate(
+                                    groups[g].items[i].tab,
+                                  ),
                                 ),
                               ],
                             ],
@@ -363,6 +384,7 @@ class CruSidebar extends ConsumerWidget {
                       ),
                       const SizedBox(height: CruSpace.s8),
                     ],
+                    SyncStatusLine(collapsed: collapsed),
                     _ProfileButton(
                       name: identity.fullName,
                       collapsed: collapsed,
@@ -389,8 +411,10 @@ class CruSidebar extends ConsumerWidget {
                                   decoration: ShapeDecoration(
                                     color: hovered
                                         ? (c.isEvening
-                                            ? c.inset
-                                            : Colors.white.withValues(alpha: 0.12))
+                                              ? c.inset
+                                              : Colors.white.withValues(
+                                                  alpha: 0.12,
+                                                ))
                                         : Colors.transparent,
                                     shape: cruShape(8),
                                   ),
@@ -415,15 +439,19 @@ class CruSidebar extends ConsumerWidget {
                                 decoration: ShapeDecoration(
                                   color: hovered
                                       ? (c.isEvening
-                                          ? c.inset
-                                          : Colors.white.withValues(alpha: 0.12))
+                                            ? c.inset
+                                            : Colors.white.withValues(
+                                                alpha: 0.12,
+                                              ))
                                       : Colors.transparent,
                                   shape: cruShape(8),
                                 ),
                                 child: CruIcon(
                                   CruIcons.chevronRight,
                                   size: 16,
-                                  color: c.isEvening ? c.label2 : CruBrand.white,
+                                  color: c.isEvening
+                                      ? c.label2
+                                      : CruBrand.white,
                                 ),
                               ),
                             ),
@@ -443,10 +471,7 @@ class CruSidebar extends ConsumerWidget {
 }
 
 class _Brand extends StatelessWidget {
-  const _Brand({
-    required this.collapsed,
-    this.progress = 1.0,
-  });
+  const _Brand({required this.collapsed, this.progress = 1.0});
   final bool collapsed;
   final double progress;
 
@@ -486,10 +511,7 @@ class _Brand extends StatelessWidget {
             Positioned(
               left: markX,
               top: 0,
-              child: Transform.scale(
-                scale: markScale,
-                child: mark,
-              ),
+              child: Transform.scale(scale: markScale, child: mark),
             ),
             if (progress > 0.15)
               Positioned(
@@ -581,10 +603,7 @@ class _ClinicSwitcher extends StatelessWidget {
             Positioned(
               left: tileX,
               top: (switcherHeight - CruSize.clinicTile) / 2,
-              child: Transform.scale(
-                scale: tileScale,
-                child: tile,
-              ),
+              child: Transform.scale(scale: tileScale, child: tile),
             ),
             if (progress > 0.2)
               Positioned(
@@ -692,8 +711,8 @@ class _SidebarItem extends StatelessWidget {
             fill = selected
                 ? CruBrand.white
                 : (hovered
-                    ? Colors.white.withValues(alpha: 0.12)
-                    : Colors.transparent);
+                      ? Colors.white.withValues(alpha: 0.12)
+                      : Colors.transparent);
             iconColor = selected ? c.accent : CruBrand.white;
             labelColor = selected ? c.accent : CruBrand.white;
             badgeColor = selected
@@ -723,10 +742,7 @@ class _SidebarItem extends StatelessWidget {
             height: CruSize.navItem,
             decoration: ShapeDecoration(
               color: fill,
-              shape: cruShape(
-                CruRadius.control,
-                side: BorderSide.none,
-              ),
+              shape: cruShape(CruRadius.control, side: BorderSide.none),
               shadows: shadows,
             ),
             clipBehavior: Clip.antiAlias,
@@ -737,10 +753,7 @@ class _SidebarItem extends StatelessWidget {
                 Positioned(
                   left: iconX,
                   top: (CruSize.navItem - CruSize.navIcon) / 2 + iconShiftY,
-                  child: Transform.scale(
-                    scale: iconScale,
-                    child: icon,
-                  ),
+                  child: Transform.scale(scale: iconScale, child: icon),
                 ),
                 // Collapsed status dot
                 if (badge != null && progress < 0.6)
@@ -790,7 +803,9 @@ class _SidebarItem extends StatelessWidget {
                               const SizedBox(width: CruSpace.s6),
                               Text(
                                 '$badge',
-                                style: CruType.subhead.w500.tabular.tint(badgeColor),
+                                style: CruType.subhead.w500.tabular.tint(
+                                  badgeColor,
+                                ),
                               ),
                             ],
                           ],
@@ -823,9 +838,7 @@ class _PlanLine extends StatelessWidget {
             child: Text(
               text,
               style: CruType.caption.tabular.tint(
-                c.isEvening
-                    ? c.label2
-                    : CruBrand.white.withValues(alpha: 0.8),
+                c.isEvening ? c.label2 : CruBrand.white.withValues(alpha: 0.8),
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -843,6 +856,7 @@ class _PlanLine extends StatelessWidget {
     );
   }
 }
+
 class _ProfileButton extends StatelessWidget {
   const _ProfileButton({
     required this.name,
@@ -953,9 +967,7 @@ class _ProfileButton extends StatelessWidget {
         height: cardHeight,
         decoration: ShapeDecoration(
           color: c.isEvening
-              ? (hovered
-                  ? c.accent.withValues(alpha: 0.9)
-                  : c.accent)
+              ? (hovered ? c.accent.withValues(alpha: 0.9) : c.accent)
               : Colors.white,
           shape: cruShape(
             CruRadius.switcher,
@@ -973,10 +985,7 @@ class _ProfileButton extends StatelessWidget {
             Positioned(
               left: avatarX,
               top: (cardHeight - 34.0) / 2,
-              child: Transform.scale(
-                scale: avatarScale,
-                child: avatar,
-              ),
+              child: Transform.scale(scale: avatarScale, child: avatar),
             ),
             if (progress > 0.2)
               Positioned(

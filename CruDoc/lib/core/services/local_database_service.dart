@@ -270,6 +270,8 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createDentalRecordsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
+      await _createPendingUploadsTable(txn);
+      await _createGeneratedDocumentsTable(txn);
       await _createIndexes(txn);
     });
   }
@@ -298,6 +300,8 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createDentalRecordsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
+      await _createPendingUploadsTable(txn);
+      await _createGeneratedDocumentsTable(txn);
 
       await _ensureColumns(txn, table: 'patients', columns: _patientsColumns);
       await _ensureColumns(txn, table: 'visits', columns: _visitsColumns);
@@ -372,6 +376,16 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'sync_state',
         columns: _syncStateColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'pending_uploads',
+        columns: _pendingUploadsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'generated_documents',
+        columns: _generatedDocumentsColumns,
       );
 
       await _createIndexes(txn);
@@ -522,6 +536,7 @@ class LocalDatabaseService extends ChangeNotifier {
         lowStockNotifiedAt INTEGER,
         expiryNotifiedAt INTEGER,
         imageUrl TEXT,
+        receiptStoragePath TEXT,
         isActive INTEGER NOT NULL DEFAULT 1,
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
@@ -573,6 +588,58 @@ class LocalDatabaseService extends ChangeNotifier {
       CREATE TABLE IF NOT EXISTS app_meta (
         key TEXT PRIMARY KEY,
         value TEXT
+      )
+    ''');
+  }
+
+  /// Files waiting to go to Firebase Cloud Storage (see StorageSyncQueue).
+  ///
+  /// Deliberately NOT in [wipeAllLocalData]: unlike the Firestore cache, a
+  /// staged file exists nowhere else, so wiping this table would lose it.
+  /// `localPath` is relative to the staging root, because an absolute path
+  /// can go stale when the OS moves the app container.
+  Future<void> _createPendingUploadsTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_uploads (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL,
+        patientId TEXT,
+        kind TEXT NOT NULL,
+        localPath TEXT NOT NULL,
+        contentType TEXT NOT NULL,
+        compress INTEGER NOT NULL DEFAULT 0,
+        linkCollection TEXT,
+        linkDocId TEXT,
+        linkField TEXT,
+        linkHandler TEXT,
+        linkArgs TEXT,
+        replacePath TEXT,
+        deleteLocalAfter INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'pending'
+          CHECK (status IN ('pending', 'uploading', 'done', 'failed', 'cancelled')),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        lastError TEXT,
+        resultPath TEXT,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  /// Where each generated invoice / prescription PDF went in Cloud Storage
+  /// (see GeneratedDocumentSync). Not cleared by [wipeAllLocalData]: the path is
+  /// only recorded here.
+  Future<void> _createGeneratedDocumentsTable(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS generated_documents (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL DEFAULT '',
+        type TEXT NOT NULL DEFAULT '',
+        documentNumber TEXT NOT NULL DEFAULT '',
+        storagePath TEXT NOT NULL DEFAULT '',
+        createdAt INTEGER NOT NULL DEFAULT 0,
+        updatedAt INTEGER NOT NULL DEFAULT 0
       )
     ''');
   }
@@ -840,6 +907,14 @@ class LocalDatabaseService extends ChangeNotifier {
       CREATE INDEX IF NOT EXISTS idx_radiology_docs_sync_pending
       ON radiology_docs (syncStatus, pendingDelete)
     ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_pending_uploads_status
+      ON pending_uploads (doctorId, status)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_generated_documents_patient
+      ON generated_documents (doctorId, patientId, type)
+    ''');
   }
 
   Future<void> _ensureColumns(
@@ -968,6 +1043,7 @@ class LocalDatabaseService extends ChangeNotifier {
     'lowStockNotifiedAt': 'lowStockNotifiedAt INTEGER',
     'expiryNotifiedAt': 'expiryNotifiedAt INTEGER',
     'imageUrl': 'imageUrl TEXT',
+    'receiptStoragePath': 'receiptStoragePath TEXT',
     'isActive': 'isActive INTEGER NOT NULL DEFAULT 1',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
@@ -1543,5 +1619,39 @@ class LocalDatabaseService extends ChangeNotifier {
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  static const Map<String, String> _pendingUploadsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': 'patientId TEXT',
+    'kind': "kind TEXT NOT NULL DEFAULT ''",
+    'localPath': "localPath TEXT NOT NULL DEFAULT ''",
+    'contentType': "contentType TEXT NOT NULL DEFAULT ''",
+    'compress': 'compress INTEGER NOT NULL DEFAULT 0',
+    'linkCollection': 'linkCollection TEXT',
+    'linkDocId': 'linkDocId TEXT',
+    'linkField': 'linkField TEXT',
+    'linkHandler': 'linkHandler TEXT',
+    'linkArgs': 'linkArgs TEXT',
+    'replacePath': 'replacePath TEXT',
+    'deleteLocalAfter': 'deleteLocalAfter INTEGER NOT NULL DEFAULT 0',
+    'status': "status TEXT NOT NULL DEFAULT 'pending'",
+    'attempts': 'attempts INTEGER NOT NULL DEFAULT 0',
+    'lastError': 'lastError TEXT',
+    'resultPath': 'resultPath TEXT',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+  };
+
+  static const Map<String, String> _generatedDocumentsColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'type': "type TEXT NOT NULL DEFAULT ''",
+    'documentNumber': "documentNumber TEXT NOT NULL DEFAULT ''",
+    'storagePath': "storagePath TEXT NOT NULL DEFAULT ''",
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
   };
 }

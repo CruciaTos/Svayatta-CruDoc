@@ -1,6 +1,5 @@
 import {setGlobalOptions} from "firebase-functions/v2";
 import * as admin from "firebase-admin";
-export * from "./s3-functions";
 
 if (!admin.apps.length) {
   admin.initializeApp();

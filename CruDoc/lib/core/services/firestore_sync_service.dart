@@ -529,6 +529,7 @@ class FirestoreSyncService {
           'unitPrice': (row['unitPrice'] as num?)?.toDouble(),
           'supplierName': row['supplierName'] as String?,
           'batchNumber': row['batchNumber'] as String?,
+          'receiptStoragePath': row['receiptStoragePath'] as String?,
           'expiryDate': row['expiryDate'] == null
               ? null
               : _timestampFromMillis(row['expiryDate']),
@@ -917,6 +918,7 @@ class FirestoreSyncService {
           'unitPrice': (data['unitPrice'] as num?)?.toDouble(),
           'supplierName': data['supplierName'] as String?,
           'batchNumber': data['batchNumber'] as String?,
+          'receiptStoragePath': data['receiptStoragePath'] as String?,
           'expiryDate': data['expiryDate'] == null
               ? null
               : _timestampToMillis(data['expiryDate'], fallback: now),

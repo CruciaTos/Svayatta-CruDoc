@@ -53,6 +53,7 @@ class InventoryRepository {
       batchNumber: medicine.batchNumber,
       expiryDate: medicine.expiryDate,
       imageUrl: medicine.imageUrl,
+      receiptStoragePath: medicine.receiptStoragePath,
       isActive: true,
       createdAt: now,
       updatedAt: now,

@@ -10,6 +10,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_cloud_sync.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_import.dart';
@@ -456,6 +457,7 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
       _notice = null;
     });
     final ctrl = ref.read(radiologyProvider);
+    final messenger = ScaffoldMessenger.maybeOf(context);
     try {
       final patientId = await _patientId();
       final name = _link == _PatientLink.existing && _patient != null
@@ -491,37 +493,48 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
         final dir = await ctrl.studyDir(id);
         final images = await copyIntoStudy(g, dir.path);
         final now = DateTime.now();
+        final study = RadStudy(
+          id: id,
+          patientId: patientId,
+          patientName: name,
+          patientSex: _sex,
+          patientDob: _dob,
+          patientExternalId: g.patientExternalId,
+          modality: _modality,
+          studyDate: _studyDate,
+          receivedAt: now,
+          description: _description.text.trim(),
+          referrerId: _referrer?.id ?? '',
+          clinicalQuestion: _question.text.trim(),
+          priority: _priority,
+          dueAt: await ctrl.dueFor(_priority, now),
+          images: images,
+          dose: g.dose,
+          studyUid: g.studyUid,
+          accession: g.accession,
+          institution: g.institution,
+          equipment: g.equipment,
+          bodyPart: g.bodyPart,
+          fee: fee,
+          createdAt: now,
+          updatedAt: now,
+        );
         await ctrl.saveStudy(
-          RadStudy(
-            id: id,
-            patientId: patientId,
-            patientName: name,
-            patientSex: _sex,
-            patientDob: _dob,
-            patientExternalId: g.patientExternalId,
-            modality: _modality,
-            studyDate: _studyDate,
-            receivedAt: now,
-            description: _description.text.trim(),
-            referrerId: _referrer?.id ?? '',
-            clinicalQuestion: _question.text.trim(),
-            priority: _priority,
-            dueAt: await ctrl.dueFor(_priority, now),
-            images: images,
-            dose: g.dose,
-            studyUid: g.studyUid,
-            accession: g.accession,
-            institution: g.institution,
-            equipment: g.equipment,
-            bodyPart: g.bodyPart,
-            fee: fee,
-            createdAt: now,
-            updatedAt: now,
-          ),
+          study,
           auditAction: 'Imported',
           detail:
               '$name · ${_modality.short} · ${RadFormat.images(images.length)}',
         );
+        // Only now, with the study saved, does anything go to the cloud.
+        final sync = await RadiologyCloudSync.enqueueStudyImages(
+          ctrl: ctrl,
+          study: study,
+          studyDir: dir.path,
+        );
+        final notice = sync.notice;
+        if (notice != null) {
+          messenger?.showSnackBar(SnackBar(content: Text(notice)));
+        }
       }
       if (mounted) Navigator.of(context).pop(true);
     } catch (err) {

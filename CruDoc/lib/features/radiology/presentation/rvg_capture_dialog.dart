@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_cloud_sync.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/open_study.dart';
@@ -193,6 +194,16 @@ class _RvgCaptureDialogState extends ConsumerState<_RvgCaptureDialog>
       study,
       auditAction: 'RVG direct capture',
       detail: 'Tooth #$_tooth on ${_selectedDevice?.name}',
+    );
+
+    // The study is safe locally; the image goes to the cloud in the
+    // background and its storage path is written back into the study.
+    unawaited(
+      RadiologyCloudSync.enqueueStudyImages(
+        ctrl: ctrl,
+        study: study,
+        studyDir: studyDir,
+      ),
     );
 
     if (!mounted) return;

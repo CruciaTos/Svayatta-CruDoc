@@ -1,0 +1,64 @@
+rules_version = '2';
+
+// Firebase Cloud Storage rules for CruDoc.
+//
+// Every object lives under the owning doctor's uid. The client-side
+// counterpart is lib/core/services/medical_storage_service.dart — keep the
+// size cap and content-type lists below in sync with it.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isOwner(doctorId) {
+      return request.auth != null && request.auth.uid == doctorId;
+    }
+
+    function withinSizeLimit() {
+      return request.resource.size <= 15 * 1024 * 1024;
+    }
+
+    function isAllowedMedicalType() {
+      return request.resource.contentType in [
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+        'application/pdf',
+        'audio/mp4',
+        'audio/aac',
+        'audio/opus',
+        'text/csv',
+        'application/octet-stream'
+      ];
+    }
+
+    function isAllowedAudioType() {
+      return request.resource.contentType in [
+        'audio/mp4',
+        'audio/aac',
+        'audio/opus'
+      ];
+    }
+
+    // Default deny: anything not matched below is unreachable.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // Permanent per-doctor files: patient records, clinic branding,
+    // inventory receipts, sterilization strips, backups, exports.
+    match /doctors/{doctorId}/{allPaths=**} {
+      allow read, delete: if isOwner(doctorId);
+      allow create, update: if isOwner(doctorId)
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+    }
+
+    // Ephemeral voice dictation awaiting transcription. Write-once:
+    // no update, so a recording can't be swapped after upload.
+    match /voice-scratch/doctors/{doctorId}/{allPaths=**} {
+      allow read, delete: if isOwner(doctorId);
+      allow create: if isOwner(doctorId)
+        && withinSizeLimit()
+        && isAllowedAudioType();
+    }
+  }
+}

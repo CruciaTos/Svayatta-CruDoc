@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -8,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_ui.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
+import 'package:doctor_management_app/features/dental/records/dental_photo_cloud_sync.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/therapy/domain/physio_photos_models.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_comparison_dialog.dart';
@@ -138,6 +140,15 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
         data: {...set.record.data, 'photos': nextPhotos},
       );
       await saveDentalRecord(ref, updated);
+      // Saved locally; the photo goes to the cloud in the background.
+      unawaited(
+        DentalPhotoCloudSync.enqueuePhoto(
+          record: updated,
+          slot: slot.name,
+          localPath: destPath,
+          replaced: set.record,
+        ),
+      );
       if (mounted) {
         setState(() {});
         recToast(context, '${slot.title} photo saved');
@@ -168,8 +179,12 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
 
     final nextPhotos = Map<String, String>.from(set.photos)..remove(slot.name);
     final updated = set.record.copyWith(
-      data: {...set.record.data, 'photos': nextPhotos},
+      data: DentalPhotoCloudSync.dropSlot({
+        ...set.record.data,
+        'photos': nextPhotos,
+      }, slot.name),
     );
+    unawaited(DentalPhotoCloudSync.discardSlot(set.record, slot.name));
     await saveDentalRecord(ref, updated);
     if (mounted) {
       setState(() {});
@@ -194,6 +209,7 @@ class _PhysioPhotosDialogState extends ConsumerState<PhysioPhotosDialog> {
       } catch (_) {}
     }
 
+    unawaited(DentalPhotoCloudSync.discardRecord(set.record));
     await deleteDentalRecord(ref, set.record);
     if (mounted) {
       setState(() => _selectedSetId = null);

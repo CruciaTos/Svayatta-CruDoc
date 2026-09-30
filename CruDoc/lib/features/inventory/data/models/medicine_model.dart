@@ -25,6 +25,9 @@ class MedicineModel {
 
   final String? imageUrl;
 
+  /// Cloud Storage path of the supplier receipt photo, if one was kept.
+  final String? receiptStoragePath;
+
   /// Dedup flags so the low-stock/expiry alert only fires once per crossing
   /// instead of refiring on every rebuild.
   final DateTime? lowStockNotifiedAt;
@@ -48,6 +51,7 @@ class MedicineModel {
     this.batchNumber,
     this.expiryDate,
     this.imageUrl,
+    this.receiptStoragePath,
     this.lowStockNotifiedAt,
     this.expiryNotifiedAt,
     this.isActive = true,
@@ -92,6 +96,7 @@ class MedicineModel {
       batchNumber: map['batchNumber'] as String?,
       expiryDate: _toDate(map['expiryDate']),
       imageUrl: map['imageUrl'] as String?,
+      receiptStoragePath: map['receiptStoragePath'] as String?,
       lowStockNotifiedAt: _toDate(map['lowStockNotifiedAt']),
       expiryNotifiedAt: _toDate(map['expiryNotifiedAt']),
       isActive: map['isActive'] as bool? ?? true,
@@ -116,6 +121,7 @@ class MedicineModel {
       'batchNumber': batchNumber,
       'expiryDate': expiryDate != null ? Timestamp.fromDate(expiryDate!) : null,
       'imageUrl': imageUrl,
+      'receiptStoragePath': receiptStoragePath,
       'lowStockNotifiedAt': lowStockNotifiedAt != null
           ? Timestamp.fromDate(lowStockNotifiedAt!)
           : null,
@@ -144,6 +150,8 @@ class MedicineModel {
     bool clearExpiryDate = false,
     String? imageUrl,
     bool clearImageUrl = false,
+    String? receiptStoragePath,
+    bool clearReceiptStoragePath = false,
     DateTime? lowStockNotifiedAt,
     bool clearLowStockNotifiedAt = false,
     DateTime? expiryNotifiedAt,
@@ -167,6 +175,9 @@ class MedicineModel {
       batchNumber: batchNumber ?? this.batchNumber,
       expiryDate: clearExpiryDate ? null : (expiryDate ?? this.expiryDate),
       imageUrl: clearImageUrl ? null : (imageUrl ?? this.imageUrl),
+      receiptStoragePath: clearReceiptStoragePath
+          ? null
+          : (receiptStoragePath ?? this.receiptStoragePath),
       lowStockNotifiedAt: clearLowStockNotifiedAt
           ? null
           : (lowStockNotifiedAt ?? this.lowStockNotifiedAt),

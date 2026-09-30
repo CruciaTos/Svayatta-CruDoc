@@ -2,17 +2,18 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/services/field_cipher.dart';
+import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/scribe/data/models/consultation_note.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
 import 'package:doctor_management_app/features/scribe/data/services/consultation_note_local_service.dart';
+import 'package:doctor_management_app/features/scribe/data/services/scribe_audio_sync.dart';
 
 /// Repository for consultation notes produced by the AI Scribe.
 ///
@@ -71,7 +72,18 @@ class ConsultationNoteRepository {
   /// Does NOT touch Patient or Visit — the doctor must call [confirmNote]
   /// after reviewing the draft to commit it to the patient record.
   Future<void> saveNote(ConsultationNote note) async {
-    await _localService.upsertNote(_encryptedForLocal(note));
+    // The recording's cloud path is filled in by a background upload, after
+    // the review screen has loaded its copy of the note. Saving that older
+    // copy must not wipe it.
+    var toSave = note;
+    if (note.audioStoragePath == null) {
+      final stored = await _localService.getNote(note.id);
+      final path = stored?.audioStoragePath;
+      if (path != null && path.isNotEmpty) {
+        toSave = note.copyWith(audioStoragePath: path);
+      }
+    }
+    await _localService.upsertNote(_encryptedForLocal(toSave));
   }
 
   /// Called when the doctor taps Confirm on the draft review screen, with
@@ -92,8 +104,15 @@ class ConsultationNoteRepository {
       updatedAt: now,
     );
 
-    // 1 — Persist the doctor's edits together with the confirmed status
-    await saveNote(confirmed);
+    // The recording is no longer needed: stop it uploading, and find the
+    // path of one that already has (the note passed in may predate it).
+    await ScribeAudioSync.cancelFor(note.id);
+    final audioPath = await _storedAudioPath(note);
+
+    // 1 — Persist the doctor's edits together with the confirmed status.
+    // The audio is about to be deleted, so the note stops pointing at it.
+    final withoutAudio = confirmed.copyWith(clearAudioStoragePath: true);
+    await _localService.upsertNote(_encryptedForLocal(withoutAudio));
 
     // 2 & 3 — Merge into patient record
     await _mergeIntoPatient(confirmed);
@@ -102,26 +121,30 @@ class ConsultationNoteRepository {
     await _mergeIntoVisit(confirmed);
 
     // 5 — Write to Firestore medical_records
-    unawaited(_writeToFirestore(confirmed));
+    unawaited(_writeToFirestore(withoutAudio));
 
     // 6 — Delete raw audio from Firebase Storage
-    final audioPath = note.audioStoragePath;
-    if (audioPath != null && audioPath.isNotEmpty) {
-      unawaited(_deleteAudio(audioPath));
-    }
+    if (audioPath != null) unawaited(_deleteAudio(audioPath));
   }
 
   /// Called when the doctor taps Discard. Marks the note discarded locally
   /// and schedules audio deletion. No patient-record changes are made.
   Future<void> discardNote(ConsultationNote note) async {
+    await ScribeAudioSync.cancelFor(note.id);
+    final audioPath = await _storedAudioPath(note);
     await _localService.updateNoteFields(note.id, {
       'status': ConsultationNoteStatus.discarded.value,
+      'audioStoragePath': null,
     });
 
-    final audioPath = note.audioStoragePath;
-    if (audioPath != null && audioPath.isNotEmpty) {
-      unawaited(_deleteAudio(audioPath));
-    }
+    if (audioPath != null) unawaited(_deleteAudio(audioPath));
+  }
+
+  /// The recording's cloud path as stored now, or null when there is none.
+  Future<String?> _storedAudioPath(ConsultationNote note) async {
+    final stored = await _localService.getNote(note.id);
+    final path = stored?.audioStoragePath ?? note.audioStoragePath;
+    return path == null || path.isEmpty ? null : path;
   }
 
   // ---- Read operations ----
@@ -364,7 +387,12 @@ class ConsultationNoteRepository {
 
   Future<void> _deleteAudio(String storagePath) async {
     try {
-      await FirebaseStorage.instance.ref(storagePath).delete();
+      await MedicalStorageService.instance.delete(storagePath);
+    } on FirebaseException catch (e) {
+      // Already gone (the 14-day purge got there first) is the goal.
+      if (e.code != 'object-not-found') {
+        debugPrint('[ScribeRepo] Audio deletion failed: ${e.code}');
+      }
     } catch (e) {
       debugPrint('[ScribeRepo] Audio deletion failed: $e');
     }

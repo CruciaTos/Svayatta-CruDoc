@@ -16,6 +16,7 @@ GoogleService-Info.plist
 
 # Application specifics
 *.json
+!CruDoc/tests/storage-rules/package.json
 CruDoc/lib/firebase_options.dart
 .agents/
 .cursor/

@@ -1618,7 +1618,10 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
     final currentDoctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-      stream: FirebaseFirestore.instance.collection('invoices').snapshots(),
+      stream: FirebaseFirestore.instance
+          .collection('invoices')
+          .where('doctorId', isEqualTo: currentDoctorId)
+          .snapshots(),
       builder: (context, snapshot) {
         List<Map<String, dynamic>> allInvoices = List.from(_invoicesList);
 

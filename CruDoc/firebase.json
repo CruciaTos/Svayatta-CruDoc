@@ -1,0 +1,49 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "disallowLegacyRuntimeConfig": true,
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run lint",
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "svayatta-crudoc-dev",
+          "appId": "1:474729174031:android:3f1d8b96af88681495ff7a",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "svayatta-crudoc-dev",
+          "configurations": {
+            "android": "1:474729174031:android:3f1d8b96af88681495ff7a",
+            "ios": "1:474729174031:ios:92395b34f119936395ff7a",
+            "macos": "1:474729174031:ios:92395b34f119936395ff7a",
+            "web": "1:474729174031:web:27636fabcc65619d95ff7a",
+            "windows": "1:474729174031:web:738621a85f95687495ff7a"
+          }
+        }
+      }
+    }
+  }
+}

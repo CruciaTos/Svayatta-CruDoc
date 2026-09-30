@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:doctor_management_app/core/services/access_audit_service.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
@@ -44,6 +45,12 @@ class _DentalPatientDetailsScreenState
     extends ConsumerState<DentalPatientDetailsScreen> {
   String? _selectedToothNumber;
   late String _note = widget.patient.notes;
+
+  @override
+  void initState() {
+    super.initState();
+    AccessAuditService.instance.patientViewed(widget.patient.id);
+  }
 
   String get _currentDoctorId =>
       FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';

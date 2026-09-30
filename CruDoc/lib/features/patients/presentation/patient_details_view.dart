@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:doctor_management_app/core/services/access_audit_service.dart';
 import 'package:doctor_management_app/features/dental/specialties/oralmed/oralmed_history.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 
@@ -52,6 +53,8 @@ class PatientDetailsView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Deduplicated by the service, so rebuilds don't add log entries.
+    AccessAuditService.instance.patientViewed(patientId);
     final summary = ref.watch(patientSummaryProvider(patientId));
     return summary.when(
       loading: () => _DetailsSkeleton(onBack: onBack),

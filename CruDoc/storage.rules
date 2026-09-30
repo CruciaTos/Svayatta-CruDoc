@@ -25,8 +25,7 @@ service firebase.storage {
         'audio/mp4',
         'audio/aac',
         'audio/opus',
-        'text/csv',
-        'application/octet-stream'
+        'text/csv'
       ];
     }
 
@@ -50,6 +49,15 @@ service firebase.storage {
       allow create, update: if isOwner(doctorId)
         && withinSizeLimit()
         && isAllowedMedicalType();
+    }
+
+    // Encrypted database backups (.enc) are opaque bytes. octet-stream is
+    // accepted here only, so it can't be used to slip arbitrary files into
+    // patient folders.
+    match /doctors/{doctorId}/backups/{allPaths=**} {
+      allow create, update: if isOwner(doctorId)
+        && withinSizeLimit()
+        && request.resource.contentType == 'application/octet-stream';
     }
 
     // Ephemeral voice dictation awaiting transcription. Write-once:

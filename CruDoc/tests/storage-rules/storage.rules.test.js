@@ -66,13 +66,20 @@ describe('a doctor and their own files', () => {
       ['audio/aac', 'a.aac'],
       ['audio/opus', 'a.opus'],
       ['text/csv', 'a.csv'],
-      ['application/octet-stream', 'a.enc'],
     ];
     for (const [contentType, name] of allowed) {
       await assertSucceeds(
         uploadBytes(ref(as(A), `doctors/${A}/x/${name}`), bytes(), { contentType }),
       );
     }
+  });
+
+  it('can write an encrypted backup (octet-stream) to backups/', async () => {
+    await assertSucceeds(
+      uploadBytes(ref(as(A), `doctors/${A}/backups/2026/09/b.enc`), bytes(), {
+        contentType: 'application/octet-stream',
+      }),
+    );
   });
 
   it('can replace and read back their own file', async () => {
@@ -144,6 +151,14 @@ describe('limits on what is uploaded', () => {
     await assertFails(
       uploadBytes(ref(as(A), `doctors/${A}/x/run.exe`), bytes(), {
         contentType: 'application/x-msdownload',
+      }),
+    );
+  });
+
+  it('rejects octet-stream outside backups/', async () => {
+    await assertFails(
+      uploadBytes(ref(as(A), `doctors/${A}/patients/p1/clinical/xrays/a.bin`), bytes(), {
+        contentType: 'application/octet-stream',
       }),
     );
   });

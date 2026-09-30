@@ -1,0 +1,14 @@
+{
+  "name": "crudoc-firestore-rules-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Proves firestore.rules keeps each doctor's records away from every other doctor.",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
+    "firebase": "^11.0.0"
+  }
+}

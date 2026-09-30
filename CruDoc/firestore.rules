@@ -1,4 +1,16 @@
 rules_version = '2';
+
+// Firestore rules for CruDoc.
+//
+// Clinical data lives in top-level collections, one document per record,
+// each stamped with the owning doctor's uid in `doctorId`. A doctor can only
+// see and change documents carrying their own uid, and every list query must
+// filter on `doctorId == uid` (the repositories already do).
+//
+// Super Admin manages accounts, plans and settings but is denied patient data.
+// Cloud Functions use the Admin SDK and are not affected by these rules.
+//
+// Tests: tests/firestore-rules (run with the Firestore emulator).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -16,20 +28,104 @@ service cloud.firestore {
         && request.auth.token.isTwoFAVerified == true;
     }
 
-    function isDoctor(doctorId) {
-      return isAuthenticated()
-        && request.auth.uid == doctorId
-        && request.auth.token.role == 'doctor';
+    function isSelf(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isAdminOrDoctor(doctorId) {
-      return isSuperAdmin() || isDoctor(doctorId);
+    // The stored document belongs to the caller (or doesn't exist yet, so a
+    // get or delete reveals nothing).
+    function ownsExisting() {
+      return resource == null || resource.data.doctorId == request.auth.uid;
     }
 
-    function hasModuleEnabled(moduleId) {
-      return isAuthenticated()
-        && request.auth.token.enabledModules != null
-        && request.auth.token.enabledModules.hasAny([moduleId]);
+    // The document being written is stamped with the caller's uid.
+    function writesOwnDoctorId() {
+      return request.resource.data.doctorId == request.auth.uid;
+    }
+
+    // Top-level collections holding one doctor's records, keyed by `doctorId`.
+    function isDoctorOwnedCollection(collection) {
+      return collection in [
+        'patients',
+        'appointments',
+        'visitations',
+        'walk_in_queue',
+        'invoices',
+        'revenue_entries',
+        'pending_payments',
+        'medicines',
+        'stock_transactions',
+        'dental_records',
+        'radiology_docs',
+        'homeopathy_case_sheets',
+        'whatsapp_notification_logs',
+        'dental_procedure_catalog',
+        'tooth_chart_entries',
+        'procedure_log_entries',
+        'sterilization_log_entries',
+        'treatment_plan_line_items'
+      ];
+    }
+
+    // ============================================================
+    // DOCTOR-OWNED CLINICAL COLLECTIONS - STRICT ISOLATION
+    // ============================================================
+    // Super Admin is deliberately absent: it never reads patient data.
+
+    match /{collection}/{docId} {
+      allow get: if isDoctorOwnedCollection(collection)
+        && isAuthenticated()
+        && ownsExisting();
+      allow list: if isDoctorOwnedCollection(collection)
+        && isAuthenticated()
+        && resource.data.doctorId == request.auth.uid;
+      allow create: if isDoctorOwnedCollection(collection)
+        && isAuthenticated()
+        && writesOwnDoctorId();
+      // doctorId can't be changed, so a record can't be handed to, or taken
+      // from, another doctor.
+      allow update: if isDoctorOwnedCollection(collection)
+        && isAuthenticated()
+        && resource.data.doctorId == request.auth.uid
+        && writesOwnDoctorId();
+      allow delete: if isDoctorOwnedCollection(collection)
+        && isAuthenticated()
+        && ownsExisting();
+    }
+
+    // ============================================================
+    // PATIENT ACCESS LOG - APPEND ONLY
+    // ============================================================
+    // Written by AccessAuditService when a patient record is opened or a
+    // stored file is downloaded. A doctor can add entries in their own name
+    // and read their own log; nobody can change or delete an entry.
+
+    match /access_logs/{logId} {
+      allow get: if isAuthenticated() && ownsExisting();
+      allow list: if isAuthenticated()
+        && resource.data.doctorId == request.auth.uid;
+      allow create: if isAuthenticated()
+        && writesOwnDoctorId()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.action in ['patient.view', 'file.download']
+        && request.resource.data.keys().hasOnly(
+          ['doctorId', 'actorUid', 'action', 'patientId', 'target', 'platform', 'at']);
+      allow update, delete: if false;
+    }
+
+    // ============================================================
+    // PER-DOCTOR ENCRYPTION KEYS
+    // ============================================================
+    // The wrapped data key for a doctor. Created once by that doctor's app,
+    // never changed or deleted from a client.
+
+    match /doctor_keys/{doctorId} {
+      allow get: if isSelf(doctorId);
+      allow create: if isSelf(doctorId)
+        && request.resource.data.keys().hasOnly(['wrappedKey', 'createdAt'])
+        && request.resource.data.wrappedKey is string;
+      allow update, delete: if false;
     }
 
     // ============================================================
@@ -37,81 +133,73 @@ service cloud.firestore {
     // ============================================================
 
     match /users/{userId} {
+      // A doctor reads their own profile. The email match lets the login
+      // screen find a profile the Super Admin created before first sign-in.
+      allow get: if isSuperAdmin()
+        || isSelf(userId)
+        || (isAuthenticated() && resource.data.email == request.auth.token.email);
+      allow list: if isSuperAdmin()
+        || (isAuthenticated() && resource.data.email == request.auth.token.email);
 
-      // Super Admin can read/write all user documents (metadata only)
-      // Doctors can only read/write their own document
-      allow read: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId);
-      allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin() || (isAuthenticated() && request.auth.uid == userId);
+      // A signed-in user may create their own profile, but never as an admin.
+      allow create: if isSuperAdmin()
+        || (isSelf(userId)
+          && (!('role' in request.resource.data)
+            || request.resource.data.role == 'doctor'));
+      allow update: if isSuperAdmin()
+        || (isSelf(userId)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
       allow delete: if isSuperAdmin();
 
-      // ============================================================
-      // PATIENT SUB-COLLECTION - STRICT ISOLATION
-      // ============================================================
-      // CRITICAL: Only the owning doctor can access patient data.
-      // Super Admin is EXPLICITLY DENIED access to patient data.
-      // ============================================================
-
-      match /patients/{patientId} {
-        // Only the doctor who owns this patient can access
-        allow read, write: if isDoctor(userId);
-
-        // Super Admin is explicitly denied
+      // Everything a doctor keeps under their own profile: device sessions,
+      // scribe notes (medical_records), campaigns and their recipients, and
+      // the legacy per-doctor subcollections.
+      match /{subcollection}/{rest=**} {
+        allow read, write: if isSelf(userId);
       }
 
-      // ============================================================
-      // APPOINTMENTS SUB-COLLECTION
-      // ============================================================
-
-      match /appointments/{appointmentId} {
-        allow read, write: if isDoctor(userId);
-      }
-
-      // ============================================================
-      // MEDICAL RECORDS SUB-COLLECTION
-      // ============================================================
-
-      match /medical_records/{recordId} {
-        allow read, write: if isDoctor(userId);
-      }
-
-      // ============================================================
-      // REVENUE SUB-COLLECTION
-      // ============================================================
-
-      match /revenue/{revenueId} {
-        allow read, write: if isDoctor(userId);
-      }
-
-      // ============================================================
-      // DENTAL RECORDS & RADIOLOGY DOCS SUB-COLLECTIONS
-      // ============================================================
-
-      match /dental_records/{recordId} {
-        allow read, write: if isDoctor(userId);
-      }
-
-      match /radiology_docs/{docId} {
-        allow read, write: if isDoctor(userId);
+      // Super Admin can see and revoke a doctor's device sessions.
+      match /active_sessions/{sessionId} {
+        allow read, delete: if isSuperAdmin();
       }
     }
 
     // ============================================================
-    // SUBSCRIPTIONS COLLECTION
+    // SUBSCRIPTIONS, FEATURE FLAGS, DOCTOR SETTINGS
     // ============================================================
 
     match /subscriptions/{doctorId} {
-      allow read: if isSuperAdmin() || isDoctor(doctorId);
+      allow read: if isSuperAdmin() || isSelf(doctorId);
+      allow write: if isSuperAdmin();
+    }
+
+    match /feature_flags/{doctorId} {
+      allow read: if isSuperAdmin() || isSelf(doctorId);
+      allow write: if isSuperAdmin();
+    }
+
+    match /doctor_settings/{doctorId} {
+      allow read: if isSuperAdmin() || isSelf(doctorId);
       allow write: if isSuperAdmin();
     }
 
     // ============================================================
-    // FEATURE FLAGS COLLECTION
+    // PAYMENTS AND UPGRADE REQUESTS
     // ============================================================
 
-    match /feature_flags/{doctorId} {
-      allow read: if isSuperAdmin() || isDoctor(doctorId);
-      allow write: if isSuperAdmin();
+    // Receipts are written by the doctor's app and never edited from a client.
+    match /payment_transactions/{transactionId} {
+      allow read: if isSuperAdmin()
+        || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
+      allow create: if isAuthenticated() && writesOwnDoctorId();
+      allow update, delete: if isSuperAdmin();
+    }
+
+    match /upgrade_requests/{requestId} {
+      allow read: if isSuperAdmin()
+        || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
+      allow create: if isAuthenticated() && writesOwnDoctorId();
+      allow update, delete: if isSuperAdmin();
     }
 
     // ============================================================
@@ -126,34 +214,21 @@ service cloud.firestore {
     // ============================================================
     // AUDIT LOGS COLLECTION
     // ============================================================
-    // IMMUTABLE: Only Super Admin can read. No one can delete.
-    // Logs are append-only via Cloud Functions.
+    // IMMUTABLE: Only Super Admin can read. No one can change or delete.
 
     match /audit_logs/{logId} {
       allow read: if isSuperAdmin();
       allow create: if isSuperAdmin();
-      allow update: if false;  // Immutable - cannot be modified
-      allow delete: if false;  // Immutable - cannot be deleted
-    }
-
-    // ============================================================
-    // DOCTOR SETTINGS COLLECTION
-    // ============================================================
-
-    match /doctor_settings/{doctorId} {
-      allow read: if isSuperAdmin() || isDoctor(doctorId);
-      allow write: if isSuperAdmin();
+      allow update, delete: if false;
     }
 
     // ============================================================
     // ANALYTICS COLLECTION
     // ============================================================
-    // Read-only for Super Admin. Written by scheduled Cloud Functions.
+    // Written by scheduled Cloud Functions.
 
     match /analytics/{docId} {
-      allow read: if isSuperAdmin();
-      allow create: if isSuperAdmin();
-      allow update: if isSuperAdmin();
+      allow read, create, update: if isSuperAdmin();
       allow delete: if false;  // Historical data should not be deleted
     }
 
@@ -162,10 +237,14 @@ service cloud.firestore {
     // ============================================================
 
     match /notifications/{notificationId} {
-      allow read: if isSuperAdmin() || request.auth.uid == resource.data.doctorId;
-      allow create: if isSuperAdmin();
-      allow update: if request.auth.uid == resource.data.doctorId; // Mark as read
-      allow delete: if isSuperAdmin();
+      allow read: if isSuperAdmin()
+        || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
+      allow create, delete: if isSuperAdmin();
+      // The doctor may mark their own notification as read.
+      allow update: if isSuperAdmin()
+        || (isAuthenticated()
+          && resource.data.doctorId == request.auth.uid
+          && writesOwnDoctorId());
     }
 
     // ============================================================
@@ -173,35 +252,30 @@ service cloud.firestore {
     // ============================================================
 
     match /support_tickets/{ticketId} {
-      allow read: if isSuperAdmin() || request.auth.uid == resource.data.doctorId;
-      allow create: if isAuthenticated();
-      allow update: if isSuperAdmin() || request.auth.uid == resource.data.doctorId;
+      allow read: if isSuperAdmin()
+        || (isAuthenticated() && resource.data.doctorId == request.auth.uid);
+      allow create: if isAuthenticated() && writesOwnDoctorId();
+      allow update: if isSuperAdmin()
+        || (isAuthenticated()
+          && resource.data.doctorId == request.auth.uid
+          && writesOwnDoctorId());
       allow delete: if isSuperAdmin();
     }
 
     // ============================================================
-    // API KEYS COLLECTION
+    // API KEYS, API LOGS, SYSTEM CONFIG
     // ============================================================
 
     match /api_keys/{keyId} {
       allow read, write: if isSuperAdmin();
     }
 
-    // ============================================================
-    // API LOGS COLLECTION
-    // ============================================================
-
     match /api_logs/{logId} {
       allow read, write: if isSuperAdmin();
     }
 
-    // ============================================================
-    // SYSTEM CONFIG COLLECTION
-    // ============================================================
-
     match /system_config/{configId} {
-      allow read: if isSuperAdmin();
-      allow write: if isSuperAdmin();
+      allow read, write: if isSuperAdmin();
     }
 
     // Keys the doctor's app itself uses (the Google Maps key), copied here
@@ -212,38 +286,8 @@ service cloud.firestore {
     }
 
     // ============================================================
-    // MEDICAL DOCUMENTS COLLECTION - STRICT DOCTOR ISOLATION
-    // ============================================================
-
-    match /medical_documents/{documentId} {
-      allow read, write: if isAuthenticated() && 
-        (resource == null || resource.data.doctorId == request.auth.uid || request.resource.data.doctorId == request.auth.uid);
-    }
-
-    // ============================================================
-    // DENTAL RECORDS & RADIOLOGY DOCS - STRICT DOCTOR ISOLATION
-    // ============================================================
-
-    match /dental_records/{recordId} {
-      allow read: if isAuthenticated() && (resource == null || resource.data.doctorId == request.auth.uid);
-      allow write: if isAuthenticated() && 
-        (resource == null || resource.data.doctorId == request.auth.uid) &&
-        (request.resource == null || request.resource.data.doctorId == request.auth.uid);
-    }
-
-    match /radiology_docs/{docId} {
-      allow read: if isAuthenticated() && (resource == null || resource.data.doctorId == request.auth.uid);
-      allow write: if isAuthenticated() && 
-        (resource == null || resource.data.doctorId == request.auth.uid) &&
-        (request.resource == null || request.resource.data.doctorId == request.auth.uid);
-    }
-
-    // ============================================================
     // DENY ALL OTHER ACCESS
     // ============================================================
-
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    // Collections not listed above are unreachable from clients.
   }
 }

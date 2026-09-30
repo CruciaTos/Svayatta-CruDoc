@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:doctor_management_app/core/services/access_audit_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
@@ -52,6 +53,12 @@ class PatientDetailsPage extends ConsumerStatefulWidget {
 
 class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
   late String _note = widget.patient.notes;
+
+  @override
+  void initState() {
+    super.initState();
+    AccessAuditService.instance.patientViewed(widget.patient.id);
+  }
 
   /// Opens the doctor's-note editor sheet. Triggered by double-tapping the
   /// note card or tapping "Add Note" in the bottom bar.

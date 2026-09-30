@@ -8,6 +8,7 @@ import 'package:image/image.dart' as img;
 import 'package:uuid/uuid.dart';
 
 import '../errors/storage_exceptions.dart';
+import 'access_audit_service.dart';
 
 export '../errors/storage_exceptions.dart';
 
@@ -282,11 +283,13 @@ class MedicalStorageService {
   /// persist or share it.
   Future<String> getDownloadUrl(String storagePath) {
     _requireOwnedPath(storagePath);
+    AccessAuditService.instance.fileDownloaded(storagePath);
     return _storage.ref(storagePath).getDownloadURL();
   }
 
   Future<Uint8List> downloadBytes(String storagePath) async {
     _requireOwnedPath(storagePath);
+    AccessAuditService.instance.fileDownloaded(storagePath);
     final data = await _storage.ref(storagePath).getData(maxUploadBytes);
     if (data == null) {
       throw StateError('No data found at $storagePath.');
@@ -300,6 +303,7 @@ class MedicalStorageService {
       throw UnsupportedError('downloadToFile is not supported on web.');
     }
     _requireOwnedPath(storagePath);
+    AccessAuditService.instance.fileDownloaded(storagePath);
     await _storage.ref(storagePath).writeToFile(destination);
     return destination;
   }

@@ -72,5 +72,6 @@ match /treatment_plan_line_items/{docId} {
 
 ## 4. Test Execution Status
 
-- **Firebase Emulator Rules Suite**: CruDoc currently does not ship with an active `firebase.json` emulator configuration for `rules:test`.
+- **Firebase Emulator Rules Suite**: `tests/firestore-rules/firestore.rules.test.js` covers every scenario above for all 18 doctor-owned collections, plus users, encryption keys, subscriptions, payments and the admin-only collections. Run from `CruDoc/`:
+  `firebase emulators:exec --project demo-crudoc --only firestore "npm test --prefix tests/firestore-rules"`
 - **Validation**: Rules contract defined above matches the flat top-level collection isolation enforced across existing repositories (`patient_repository.dart`, `homeopathy_repository.dart`, `medicine_model.dart`).

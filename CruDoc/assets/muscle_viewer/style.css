@@ -38,7 +38,7 @@ button { font: inherit; cursor: pointer; color: var(--ink); }
 .seg { display: inline-flex; background: #e9edf3; border-radius: 12px; padding: 3px; }
 .seg button { border: 0; background: transparent; padding: 7px 16px; border-radius: 9px; font-size: 14px; color: #475569; }
 .seg button.on { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(15,23,42,.08); }
-.seg.small button { padding: 6px 10px; font-size: 12.5px; flex: 1; }
+.seg.small button { padding: 6px 4px; font-size: 12px; flex: 1; min-width: 0; }
 .seg.small { display: flex; }
 
 #labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
@@ -55,7 +55,7 @@ button { font: inherit; cursor: pointer; color: var(--ink); }
 .lbar { width: 220px; height: 6px; background: #dfe3ea; border-radius: 6px; overflow: hidden; }
 .lbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
 
-#panel { width: 320px; flex: none; display: flex; flex-direction: column; gap: 12px; overflow: auto; padding: 2px; }
+#panel { width: 280px; flex: none; display: flex; flex-direction: column; gap: 12px; overflow: auto; padding: 2px; }
 #search { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; font: inherit; font-size: 14px; outline: none; }
 #search:focus { border-color: var(--accent); }
 #results { display: flex; flex-direction: column; gap: 2px; max-height: 220px; overflow: auto; }

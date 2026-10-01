@@ -104,7 +104,7 @@ class _MuscleChartCardState extends ConsumerState<MuscleChartCard> {
           ),
           const SizedBox(height: CruSpace.s12),
           SizedBox(
-            height: 640,
+            height: 700,
             child: ClipRRect(
               borderRadius: BorderRadius.circular(CruRadius.control),
               child: recordsAsync.isLoading && _record == null

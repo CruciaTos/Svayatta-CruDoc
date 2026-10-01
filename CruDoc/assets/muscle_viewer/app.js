@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { frameBody } from './framing.js';
 
 const params = new URLSearchParams(location.search);
 const EMBED = params.has('embed');
@@ -193,6 +194,11 @@ function sideDir(side) { return new THREE.Vector3(side === 'right' ? rightSign :
 function dirFor(name) { return name === 'left' || name === 'right' ? sideDir(name) : DIRS[name].clone(); }
 
 let tween = null;
+// The whole-body view (Front, Back, ...) currently shown, until the user or a
+// region/muscle/zoom control moves the camera. It is re-framed whenever the
+// stage is resized, so the body fills the stage at its final size even if the
+// first frame was taken before the layout settled.
+let autoView = null;
 function frameBox(box, dir, animate = true, pad = 1.15) {
   const center = box.getCenter(new THREE.Vector3());
   const radius = box.getBoundingSphere(new THREE.Sphere()).radius;
@@ -200,12 +206,45 @@ function frameBox(box, dir, animate = true, pad = 1.15) {
   const fit = Math.min(fov, 2 * Math.atan(Math.tan(fov / 2) * camera.aspect));
   const dist = (radius * pad) / Math.sin(fit / 2);
   const toPos = center.clone().add(dir.clone().normalize().multiplyScalar(dist));
-  if (!animate) {
-    camera.position.copy(toPos); controls.target.copy(center); controls.update(); needsRender = true; return;
-  }
-  tween = { t0: performance.now(), dur: 520, fromPos: camera.position.clone(), fromTarget: controls.target.clone(), toPos, toTarget: center };
+  autoView = null;
+  moveCamera(toPos, center, animate);
 }
-function setView(name, animate = true) { frameBox(bodyBox, dirFor(name), animate, 1.02); }
+function moveCamera(toPos, toTarget, animate = true) {
+  if (!animate) {
+    tween = null;
+    camera.position.copy(toPos); controls.target.copy(toTarget); controls.update(); needsRender = true; return;
+  }
+  tween = { t0: performance.now(), dur: 520, fromPos: camera.position.clone(), fromTarget: controls.target.clone(), toPos, toTarget };
+}
+
+// Pixels at the top and bottom of the stage covered by the overlay bars. The
+// bars wrap onto more rows when the stage is narrow, so measure them.
+function overlayInsets() {
+  const s = stage.getBoundingClientRect();
+  const top = document.querySelector('.bar.top').getBoundingClientRect();
+  const bottom = document.querySelector('.bar.bottom').getBoundingClientRect();
+  return {
+    top: Math.max(0, top.bottom - s.top) + 6,
+    bottom: Math.max(0, s.bottom - bottom.top) + 6,
+  };
+}
+// Whole-body views (Front / Back / sides / reset): fill the clear area.
+function setView(name, animate = true) {
+  autoView = name;
+  const { top, bottom } = overlayInsets();
+  const { pos, target } = frameBody({
+    box: bodyBox,
+    dir: dirFor(name),
+    fovDeg: camera.fov,
+    aspect: camera.aspect,
+    stageW: stage.clientWidth,
+    stageH: stage.clientHeight,
+    top,
+    bottom,
+    side: 12,
+  });
+  moveCamera(pos, target, animate);
+}
 
 const REGIONS = {
   neck: { re: /sternocleidomastoid|scalenus|levator scapulae|splenius/, sides: 'RL', dir: () => new THREE.Vector3(rightSign * 0.5, 0.15, 1) },
@@ -342,6 +381,7 @@ function buildUi() {
   };
 }
 function dolly(k) {
+  autoView = null;
   const off = camera.position.clone().sub(controls.target).multiplyScalar(k);
   tween = { t0: performance.now(), dur: 250, fromPos: camera.position.clone(), fromTarget: controls.target.clone(), toPos: controls.target.clone().add(off), toTarget: controls.target.clone() };
 }
@@ -410,11 +450,14 @@ function updateCallouts() {
 // ---------------------------------------------------------------- loop
 let needsRender = true;
 controls.addEventListener('change', () => (needsRender = true));
+// The user took the camera: stop re-framing on resize.
+controls.addEventListener('start', () => (autoView = null));
 function resize() {
   const w = stage.clientWidth, h = stage.clientHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / Math.max(h, 1);
   camera.updateProjectionMatrix();
+  if (autoView && !bodyBox.isEmpty()) setView(autoView, false);
   needsRender = true;
 }
 new ResizeObserver(resize).observe(stage);

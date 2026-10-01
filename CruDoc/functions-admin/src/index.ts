@@ -71,3 +71,5 @@ export const claimSuperAdmin = onCall(async (request) => {
 
   return {granted: true};
 });
+
+export * from "./receptionist-admin";

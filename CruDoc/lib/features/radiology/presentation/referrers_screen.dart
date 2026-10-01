@@ -92,7 +92,9 @@ class _RadReferrersScreenState extends ConsumerState<RadReferrersScreen> {
     );
 
     return Padding(
-      padding: CruSpace.mainPadding,
+      padding: cruIsPhone(context)
+          ? CruSpace.mainPaddingPhone
+          : CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -145,18 +147,13 @@ class _RadReferrersScreenState extends ConsumerState<RadReferrersScreen> {
               ],
             ),
           const SizedBox(height: CruSpace.cardGap),
-          Row(
-            children: [
-              const Spacer(),
-              SizedBox(
-                width: 300,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search name, clinic or city',
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-              ),
-            ],
+          DentalFilterBar(
+            searchWidth: 300,
+            search: DentalSearchField(
+              controller: _search,
+              hint: 'Search name, clinic or city',
+              onChanged: (v) => setState(() => _query = v),
+            ),
           ),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(
@@ -263,29 +260,32 @@ class _ReferrerRow extends StatelessWidget {
               ],
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              '${DashFormat.plural(studies.length, 'study', 'studies')} · ${month.length} this month',
-              style: CruType.subhead.tabular.tint(c.label2),
-            ),
-          ),
-          SizedBox(
-            width: 120,
-            child: Text(
-              waiting == 0 ? 'Nothing waiting' : '$waiting waiting',
-              style: CruType.subhead.tabular.tint(
-                waiting == 0 ? c.label3 : c.amberText,
+          // Phone: name, clinic and this month's fees only.
+          if (!cruIsPhone(context)) ...[
+            Expanded(
+              flex: 2,
+              child: Text(
+                '${DashFormat.plural(studies.length, 'study', 'studies')} · ${month.length} this month',
+                style: CruType.subhead.tabular.tint(c.label2),
               ),
             ),
-          ),
-          SizedBox(
-            width: 110,
-            child: Text(
-              last == null ? 'No studies yet' : RadFormat.ago(last, now),
-              style: CruType.subhead.tabular.tint(c.label2),
+            SizedBox(
+              width: 120,
+              child: Text(
+                waiting == 0 ? 'Nothing waiting' : '$waiting waiting',
+                style: CruType.subhead.tabular.tint(
+                  waiting == 0 ? c.label3 : c.amberText,
+                ),
+              ),
             ),
-          ),
+            SizedBox(
+              width: 110,
+              child: Text(
+                last == null ? 'No studies yet' : RadFormat.ago(last, now),
+                style: CruType.subhead.tabular.tint(c.label2),
+              ),
+            ),
+          ],
           SizedBox(
             width: 96,
             child: Text(

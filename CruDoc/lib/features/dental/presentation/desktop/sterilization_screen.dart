@@ -107,7 +107,9 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
     final last = logs == null || logs.isEmpty ? null : logs.first;
 
     return Padding(
-      padding: CruSpace.mainPadding,
+      padding: cruIsPhone(context)
+          ? CruSpace.mainPaddingPhone
+          : CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -181,8 +183,8 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
               ],
             ),
           const SizedBox(height: CruSpace.cardGap),
-          Row(
-            children: [
+          DentalFilterBar(
+            filters: [
               CruSegmentedControl<_CycleFilter>(
                 semanticLabel: 'Show',
                 segments: const [
@@ -194,16 +196,12 @@ class _SterilizationScreenState extends ConsumerState<SterilizationScreen> {
                 selected: _filter,
                 onChanged: (f) => setState(() => _filter = f),
               ),
-              const Spacer(),
-              SizedBox(
-                width: 280,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search load, operator or notes',
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-              ),
             ],
+            search: DentalSearchField(
+              controller: _search,
+              hint: 'Search load, operator or notes',
+              onChanged: (v) => setState(() => _query = v),
+            ),
           ),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(

@@ -166,7 +166,9 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
     );
 
     final page = Padding(
-      padding: CruSpace.mainPadding,
+      padding: cruIsPhone(context)
+          ? CruSpace.mainPaddingPhone
+          : CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -241,8 +243,9 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
               ],
             ),
           const SizedBox(height: CruSpace.cardGap),
-          Row(
-            children: [
+          DentalFilterBar(
+            searchWidth: 300,
+            filters: [
               CruSegmentedControl<_Show>(
                 semanticLabel: 'Show',
                 segments: const [
@@ -254,7 +257,6 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                 selected: _show,
                 onChanged: (s) => setState(() => _show = s),
               ),
-              const SizedBox(width: CruSpace.s12),
               PopupMenuButton<RadModality?>(
                 tooltip: 'Study type',
                 onSelected: (m) => setState(() => _type = m),
@@ -272,16 +274,12 @@ class _RadWorklistScreenState extends ConsumerState<RadWorklistScreen> {
                   ),
                 ),
               ),
-              const Spacer(),
-              SizedBox(
-                width: 300,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search patient, referrer or question',
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-              ),
             ],
+            search: DentalSearchField(
+              controller: _search,
+              hint: 'Search patient, referrer or question',
+              onChanged: (v) => setState(() => _query = v),
+            ),
           ),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(
@@ -472,6 +470,9 @@ class _StudyRow extends ConsumerWidget {
         study.description,
     ].where((s) => s.isNotEmpty).join(' · ');
     final priority = radPriorityPill(c, study.priority);
+    // Phone: the due time joins the second line; referrer and priority
+    // columns stay on the desktop.
+    final phone = cruIsPhone(context);
 
     return DentalListRow(
       semanticLabel:
@@ -513,9 +514,14 @@ class _StudyRow extends ConsumerWidget {
                     ],
                   ],
                 ),
-                if (line.isNotEmpty)
+                if (line.isNotEmpty || phone)
                   Text(
-                    line,
+                    phone
+                        ? [
+                            due.text,
+                            line,
+                          ].where((t) => t.isNotEmpty).join(' · ')
+                        : line,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: CruType.subhead.tint(c.label2),
@@ -523,53 +529,58 @@ class _StudyRow extends ConsumerWidget {
               ],
             ),
           ),
-          const SizedBox(width: CruSpace.s12),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  referrer?.name ?? 'No referrer',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.subhead.tint(
-                    referrer == null ? c.label3 : c.label,
+          if (!phone) ...[
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    referrer?.name ?? 'No referrer',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.subhead.tint(
+                      referrer == null ? c.label3 : c.label,
+                    ),
                   ),
-                ),
-                Text(
-                  '${RadFormat.ago(study.receivedAt, now)} · ${RadFormat.images(study.imageCount)}',
-                  maxLines: 1,
-                  style: CruType.caption.tabular.tint(c.label2),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: CruSpace.s12),
-          SizedBox(
-            width: 104,
-            child: Text(
-              due.text,
-              maxLines: 1,
-              style: CruType.subhead.tabular.tint(
-                due.late || due.soon ? c.amberText : c.label2,
+                  Text(
+                    '${RadFormat.ago(study.receivedAt, now)} · ${RadFormat.images(study.imageCount)}',
+                    maxLines: 1,
+                    style: CruType.caption.tabular.tint(c.label2),
+                  ),
+                ],
               ),
             ),
-          ),
-          SizedBox(
-            width: 72,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: priority ?? const SizedBox.shrink(),
+            const SizedBox(width: CruSpace.s12),
+            SizedBox(
+              width: 104,
+              child: Text(
+                due.text,
+                maxLines: 1,
+                style: CruType.subhead.tabular.tint(
+                  due.late || due.soon ? c.amberText : c.label2,
+                ),
+              ),
             ),
-          ),
-          SizedBox(
-            width: 96,
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: radStatusPill(c, study.status),
+            SizedBox(
+              width: 72,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: priority ?? const SizedBox.shrink(),
+              ),
             ),
-          ),
+            SizedBox(
+              width: 96,
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: radStatusPill(c, study.status),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(width: CruSpace.s8),
+            radStatusPill(c, study.status),
+          ],
           PopupMenuButton<_RowAction>(
             tooltip: 'More',
             icon: CruIcon(CruIcons.more, size: 18, color: c.label2),

@@ -9,6 +9,9 @@ import 'package:doctor_management_app/core/router/app_router.dart';
 import 'package:doctor_management_app/core/theme/cru_colors.dart';
 import 'package:doctor_management_app/core/theme/cru_tokens.dart';
 import 'package:doctor_management_app/core/theme/cru_type.dart';
+import 'package:doctor_management_app/features/mobile/mobile_island.dart';
+import 'package:doctor_management_app/features/shell/presentation/responsive_shell.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru_pressable.dart';
 
 import '../services/speech_engine.dart';
 import '../voice_controller.dart';
@@ -79,6 +82,9 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
         });
       }
     });
+    // Voice needs the clinic PC's speech server; phones show the island
+    // without it (see MobileIsland).
+    if (cruIsTouchPlatform) return;
     _engine.init().then(
       (_) => mounted ? setState(() => _loaded = true) : null,
       onError: (Object e) =>
@@ -251,6 +257,45 @@ class _VoiceOverlayState extends ConsumerState<VoiceOverlay> {
   @override
   Widget build(BuildContext context) {
     if (_isDuplicate) return widget.child;
+    // Phone-sized: the island in the status bar instead of the pill.
+    if (MediaQuery.sizeOf(context).width < kDesktopBreakpoint) {
+      return Stack(
+        children: [
+          widget.child,
+          Positioned.fill(
+            child: ListenableBuilder(
+              listenable: Listenable.merge([
+                _voice.understood,
+                _voice.ready,
+                _voice.hint,
+                _voice.asking,
+              ]),
+              builder: (context, _) => MobileIsland(
+                navContext: () =>
+                    appRouter.routerDelegate.navigatorKey.currentContext ??
+                    context,
+                voice: IslandVoice(
+                  available: !cruIsTouchPlatform && _loaded && _error == null,
+                  listening: _listening,
+                  heard: _heard,
+                  understood: _showResult ? _voice.understood.value : null,
+                  ready: _voice.ready.value,
+                  need: _voice.hint.value,
+                  error: cruIsTouchPlatform ? null : _error,
+                  ask: _voice.asking.value,
+                  level: _engine.level,
+                  onTalkStart: _talk,
+                  onTalkEnd: () {
+                    if (!_engine.handsFree) _engine.stop();
+                  },
+                  onPick: (i) => _voice.pickChoice(i),
+                ),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     return Stack(
       children: [
         widget.child,

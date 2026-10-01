@@ -100,7 +100,10 @@ class InventoryPanelFrame extends StatelessWidget {
       child: DecoratedBox(
         decoration: ShapeDecoration(
           color: c.surface,
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+          shape: cruShape(
+            CruRadius.card,
+            side: BorderSide(color: c.cardBorder),
+          ),
           shadows: const [],
         ),
         child: SingleChildScrollView(

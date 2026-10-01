@@ -109,7 +109,9 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
 
     final open = drafts.length + prelim.length;
     return Padding(
-      padding: CruSpace.mainPadding,
+      padding: cruIsPhone(context)
+          ? CruSpace.mainPaddingPhone
+          : CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -180,8 +182,8 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
               ],
             ),
           const SizedBox(height: CruSpace.cardGap),
-          Row(
-            children: [
+          DentalFilterBar(
+            filters: [
               CruSegmentedControl<_ReportFilter>(
                 semanticLabel: 'Show',
                 segments: const [
@@ -193,16 +195,12 @@ class _RadReportsScreenState extends ConsumerState<RadReportsScreen> {
                 selected: _filter,
                 onChanged: (f) => setState(() => _filter = f),
               ),
-              const Spacer(),
-              SizedBox(
-                width: 280,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search patient, title or referrer',
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-              ),
             ],
+            search: DentalSearchField(
+              controller: _search,
+              hint: 'Search patient, title or referrer',
+              onChanged: (v) => setState(() => _query = v),
+            ),
           ),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(
@@ -328,17 +326,20 @@ class _ReportRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: CruSpace.s12),
-          RadModalityBadge(study.modality),
-          const SizedBox(width: CruSpace.s12),
-          SizedBox(
-            width: 72,
-            child: Text(
-              RadFormat.time(report.updatedAt),
-              textAlign: TextAlign.right,
-              style: CruType.subhead.tabular.tint(c.label2),
+          // Phone: the modality and time stay on the desktop row.
+          if (!cruIsPhone(context)) ...[
+            RadModalityBadge(study.modality),
+            const SizedBox(width: CruSpace.s12),
+            SizedBox(
+              width: 72,
+              child: Text(
+                RadFormat.time(report.updatedAt),
+                textAlign: TextAlign.right,
+                style: CruType.subhead.tabular.tint(c.label2),
+              ),
             ),
-          ),
-          const SizedBox(width: CruSpace.s12),
+            const SizedBox(width: CruSpace.s12),
+          ],
           SizedBox(
             width: 96,
             child: Align(

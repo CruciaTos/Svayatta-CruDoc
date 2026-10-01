@@ -86,6 +86,36 @@ class DesktopSettingsScreen extends ConsumerWidget {
 
     final name = DoctorProfileHelper.formatDoctorName(user, profile);
     final email = user?.email;
+    Widget body(SettingsSection section) => switch (section) {
+      SettingsSection.profile => _ProfileSection(user: user, profile: profile),
+      SettingsSection.clinic => _ClinicSection(user: user, profile: profile),
+      SettingsSection.accounts => const _AccountsSection(),
+      SettingsSection.devices => _DevicesSection(user: user),
+      SettingsSection.appearance => const _AppearanceSection(),
+      SettingsSection.dental => const _DentalSection(),
+      SettingsSection.radiology => const RadSettingsSection(),
+      SettingsSection.about => const _AboutSection(),
+    };
+    if (cruIsPhone(context)) {
+      // Phone: one section per page (the phone lists them in More).
+      return SingleChildScrollView(
+        padding: CruSpace.mainPaddingPhone,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                section.label,
+                style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+              ),
+            ),
+            const SizedBox(height: CruSpace.s16),
+            body(section),
+          ],
+        ),
+      );
+    }
     return Padding(
       padding: padding,
       child: Column(
@@ -142,27 +172,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
                           ),
                           child: KeyedSubtree(
                             key: ValueKey(section),
-                            child: switch (section) {
-                              SettingsSection.profile => _ProfileSection(
-                                user: user,
-                                profile: profile,
-                              ),
-                              SettingsSection.clinic => _ClinicSection(
-                                user: user,
-                                profile: profile,
-                              ),
-                              SettingsSection.accounts =>
-                                const _AccountsSection(),
-                              SettingsSection.devices => _DevicesSection(
-                                user: user,
-                              ),
-                              SettingsSection.appearance =>
-                                const _AppearanceSection(),
-                              SettingsSection.dental => const _DentalSection(),
-                              SettingsSection.radiology =>
-                                const RadSettingsSection(),
-                              SettingsSection.about => const _AboutSection(),
-                            },
+                            child: body(section),
                           ),
                         ),
                       ),
@@ -1228,7 +1238,7 @@ class _DeviceRow extends StatelessWidget {
       ].join(' · '),
       action: s.isCurrentDevice
           ? CruPill(
-              text: 'This computer',
+              text: cruIsPhone(context) ? 'This phone' : 'This computer',
               background: c.accentTint,
               foreground: c.accentText,
             )

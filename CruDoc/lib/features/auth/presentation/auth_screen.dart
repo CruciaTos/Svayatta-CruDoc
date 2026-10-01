@@ -13,6 +13,7 @@ import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/widgets/subspecialty_row.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
+import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
@@ -103,85 +104,70 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     super.dispose();
   }
 
-  void _fillDemoCredentials() {
+  /// Any email on the demo domain opens the selected specialty's shared
+  /// demo account, whatever password is typed, and fills it with sample
+  /// data the first time so every screen has something to show.
+  static const _demoEmailDomain = '@crudoc.com';
+
+  Future<void> _enterDemo(String email) async {
     final spec = ref.read(authSpecialtyProvider);
-    setState(() {
-      _emailController.text = spec.demoEmail;
-      _passwordController.text = spec.demoPassword;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(spec.icon, color: Colors.amber, size: 18),
-            const SizedBox(width: 8),
-            Text('${spec.label} demo credentials pre-filled! Click Log in.'),
-          ],
-        ),
-        backgroundColor: const Color(0xFF0F172A),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-  }
-
-  /// 1-Click fast login into the Trial Demo account for developers.
-  /// Activates an instant local demo session (rate-limit immune) and syncs with Firebase in background.
-  Future<void> _handleTrialDemoLogin() async {
-    final spec = ref.read(authSpecialtyProvider);
-    _emailController.text = spec.demoEmail;
-    _passwordController.text = spec.demoPassword;
-
-    // 1. Activate trial demo session immediately (bypasses Firebase network rate-limits)
-    DemoSessionService.startDemoSession(spec);
-
-    // 2. Background attempt to authenticate with Firebase if available
-    unawaited(() async {
+    setState(() => _isLoading = true);
+    User? user;
+    try {
       try {
-        UserCredential userCred;
-        try {
-          userCred = await FirebaseAuth.instance.signInWithEmailAndPassword(
-            email: spec.demoEmail,
-            password: spec.demoPassword,
-          );
-        } catch (_) {
-          userCred = await FirebaseAuth.instance.createUserWithEmailAndPassword(
-            email: spec.demoEmail,
-            password: spec.demoPassword,
-          );
+        user = (await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: spec.demoEmail,
+          password: spec.demoPassword,
+        )).user;
+      } on FirebaseAuthException catch (e) {
+        if (e.code != 'user-not-found' && e.code != 'invalid-credential') {
+          rethrow;
         }
-
-        final user = userCred.user;
-        if (user != null) {
-          final docRef = FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid);
-          await docRef.set({
-            'uid': user.uid,
-            'email': spec.demoEmail,
-            'displayName': 'Dr. Demo Doctor',
-            'doctorName': 'Dr. Demo Doctor',
-            'specialty': spec.label,
-            'specialization': spec.label,
-            'status': 'Active',
-            'role': 'doctor',
-            'updatedAt': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
-        }
-      } catch (e) {
-        debugPrint('Trial demo background auth note: $e');
+        user = (await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: spec.demoEmail,
+          password: spec.demoPassword,
+        )).user;
       }
-    }());
-
-    if (_rememberMe) {
-      unawaited(
-        _secureStorage.write(key: 'remembered_email', value: spec.demoEmail),
-      );
-      unawaited(_secureStorage.write(key: 'remember_me', value: 'true'));
+    } catch (e) {
+      // Every screen reads the signed-in account, so without one the app
+      // would only show loading states. Say why instead of entering.
+      debugPrint('Demo account sign-in failed: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _showUserDoesNotExistDialog(
+          title: 'Demo Unavailable',
+          message: e is FirebaseAuthException && e.message != null
+              ? e.message!
+              : 'Could not reach the demo account. Check the connection and try again.',
+        );
+      }
+      return;
     }
 
-    if (!mounted) return;
+    if (user != null) {
+      try {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'email': spec.demoEmail,
+          'specialty': spec.label,
+          'specialization': spec.label,
+          'status': 'Active',
+          'role': 'doctor',
+          'isDemoAccount': true,
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      } catch (e) {
+        debugPrint('Demo profile write failed: $e');
+      }
+      await DemoDataSeeder.seedIfEmpty();
+    }
+
+    DemoSessionService.startDemoSession(spec);
+    if (_rememberMe) {
+      unawaited(_secureStorage.write(key: 'remembered_email', value: email));
+      unawaited(_secureStorage.write(key: 'remember_me', value: 'true'));
+    }
+    if (mounted) setState(() => _isLoading = false);
     _enterApp();
   }
 
@@ -354,6 +340,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         message:
             'User does not exist. Please enter valid email and password credentials.',
       );
+      return;
+    }
+
+    if (email.toLowerCase().endsWith(_demoEmailDomain)) {
+      await _enterDemo(email);
       return;
     }
 
@@ -689,8 +680,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                       onObscureToggle: () =>
                           setState(() => _obscurePassword = !_obscurePassword),
                       onPrimary: _handleEmailLogin,
-                      onTrialDemoLogin: _handleTrialDemoLogin,
-                      onDemoFill: _fillDemoCredentials,
                       selectedSpecialty: ref.watch(authSpecialtyProvider),
                       onSpecialtySelected: (spec) {
                         ref.read(authSpecialtyProvider.notifier).select(spec);
@@ -798,8 +787,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                             onRememberMeToggle: () =>
                                 setState(() => _rememberMe = !_rememberMe),
                             onPrimarySubmit: _handleEmailLogin,
-                            onTrialDemoLogin: _handleTrialDemoLogin,
-                            onDemoFill: _fillDemoCredentials,
                           ),
                         ),
                       ),
@@ -1288,8 +1275,6 @@ class _WebAuthPortalCard extends StatelessWidget {
     required this.onObscureToggle,
     required this.onRememberMeToggle,
     required this.onPrimarySubmit,
-    required this.onTrialDemoLogin,
-    required this.onDemoFill,
   });
 
   final bool obscurePassword;
@@ -1301,8 +1286,6 @@ class _WebAuthPortalCard extends StatelessWidget {
   final VoidCallback onObscureToggle;
   final VoidCallback onRememberMeToggle;
   final VoidCallback onPrimarySubmit;
-  final VoidCallback onTrialDemoLogin;
-  final VoidCallback onDemoFill;
 
   @override
   Widget build(BuildContext context) {
@@ -1419,7 +1402,7 @@ class _WebAuthPortalCard extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Remember Me & Need Help
+        // Remember Me
         Row(
           children: [
             GestureDetector(
@@ -1450,18 +1433,6 @@ class _WebAuthPortalCard extends StatelessWidget {
                       ),
                     ),
                   ],
-                ),
-              ),
-            ),
-            const Spacer(),
-            InkWell(
-              onTap: onDemoFill,
-              child: const Text(
-                'Need Help?',
-                style: TextStyle(
-                  color: Color(0xFF00ACC1),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1504,35 +1475,6 @@ class _WebAuthPortalCard extends StatelessWidget {
                         fontFamily: AppColors.bodyFontFamily,
                       ),
                     ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        // 1-Click Trial Demo Mode Button
-        SizedBox(
-          height: 46,
-          child: OutlinedButton.icon(
-            onPressed: isLoading ? null : onTrialDemoLogin,
-            icon: const Icon(
-              Icons.bolt_rounded,
-              color: Color(0xFF059669),
-              size: 20,
-            ),
-            label: const Text(
-              'Launch Trial Demo Mode (Dev Account)',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF059669),
-                fontFamily: AppColors.bodyFontFamily,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFF059669).withValues(alpha: 0.06),
-              side: const BorderSide(color: Color(0xFF059669), width: 1.2),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
             ),
           ),
         ),
@@ -1702,8 +1644,6 @@ class _AuthFormPanel extends StatelessWidget {
     required this.onBack,
     required this.onObscureToggle,
     required this.onPrimary,
-    this.onTrialDemoLogin,
-    this.onDemoFill,
     this.selectedSpecialty,
     this.onSpecialtySelected,
     required this.onSecondary,
@@ -1721,8 +1661,6 @@ class _AuthFormPanel extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
-  final VoidCallback? onTrialDemoLogin;
-  final VoidCallback? onDemoFill;
   final DoctorSpecialty? selectedSpecialty;
   final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
   final VoidCallback onSecondary;
@@ -1809,8 +1747,6 @@ class _AuthFormPanel extends StatelessWidget {
                   nameController: nameController,
                   onObscureToggle: onObscureToggle,
                   onPrimary: onPrimary,
-                  onTrialDemoLogin: onTrialDemoLogin,
-                  onDemoFill: onDemoFill,
                   selectedSpecialty: selectedSpecialty,
                   onSpecialtySelected: onSpecialtySelected,
                   onSecondary: onSecondary,
@@ -1839,8 +1775,6 @@ class _AuthForm extends StatelessWidget {
     required this.nameController,
     required this.onObscureToggle,
     required this.onPrimary,
-    this.onTrialDemoLogin,
-    this.onDemoFill,
     this.selectedSpecialty,
     this.onSpecialtySelected,
     required this.onSecondary,
@@ -1856,8 +1790,6 @@ class _AuthForm extends StatelessWidget {
   final TextEditingController nameController;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
-  final VoidCallback? onTrialDemoLogin;
-  final VoidCallback? onDemoFill;
   final DoctorSpecialty? selectedSpecialty;
   final ValueChanged<DoctorSpecialty>? onSpecialtySelected;
   final VoidCallback onSecondary;
@@ -1972,37 +1904,6 @@ class _AuthForm extends StatelessWidget {
                 },
               ),
             ),
-          const SizedBox(height: 6),
-          // ── "Need Help?" link (replicates desktop demo fill) ──
-          Row(
-            children: [
-              Text(
-                selectedSpecialty != null
-                    ? '${selectedSpecialty!.shortLabel} Demo'
-                    : 'Demo: demo1234',
-                style: TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: const Color(0xFF0A7BFF).withValues(alpha: 0.6),
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              if (onDemoFill != null)
-                GestureDetector(
-                  onTap: onDemoFill,
-                  child: const Text(
-                    'Need Help?',
-                    style: TextStyle(
-                      color: Color(0xFF00ACC1),
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: AppColors.bodyFontFamily,
-                    ),
-                  ),
-                ),
-            ],
-          ),
         ] else
           const SizedBox(height: 10),
         const SizedBox(height: 4),
@@ -2015,40 +1916,6 @@ class _AuthForm extends StatelessWidget {
           isLoading: isLoading,
           onPressed: onPrimary,
         ),
-        if (_isLogin && onTrialDemoLogin != null) ...[
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            height: 42,
-            child: OutlinedButton.icon(
-              onPressed: isLoading ? null : onTrialDemoLogin,
-              icon: const Icon(
-                Icons.bolt_rounded,
-                color: Color(0xFF059669),
-                size: 18,
-              ),
-              label: Text(
-                selectedSpecialty != null
-                    ? 'Launch ${selectedSpecialty!.shortLabel} Trial Demo'
-                    : 'Launch Trial Demo Mode',
-                style: const TextStyle(
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF059669),
-                ),
-              ),
-              style: OutlinedButton.styleFrom(
-                backgroundColor: const Color(
-                  0xFF059669,
-                ).withValues(alpha: 0.08),
-                side: const BorderSide(color: Color(0xFF059669), width: 1.1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
-          ),
-        ],
         const SizedBox(height: 10),
         const _DividerLabel(),
         const SizedBox(height: 10),

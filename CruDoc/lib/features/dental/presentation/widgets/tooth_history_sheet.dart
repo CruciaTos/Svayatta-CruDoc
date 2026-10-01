@@ -149,8 +149,7 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: entries.length,
-                  separatorBuilder: (_, _) =>
-                      const Divider(height: 16),
+                  separatorBuilder: (_, _) => const Divider(height: 16),
                   itemBuilder: (context, index) {
                     final item = entries[index];
                     final dateLabel = dateFormat.format(item.recordedAt);

@@ -106,6 +106,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   Timer? _prefsTimer;
   double _panelWidth = RadViewerPrefs.defaultPanelWidth;
 
+  /// Phone: the side panel opens over the image only when asked for.
+  bool _phonePanel = false;
+
   RadLayout _layout = RadLayout.one;
   final _panes = <RadPane>[];
   int _active = 0;
@@ -494,6 +497,10 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   }
 
   void _togglePanel() {
+    if (cruIsPhone(context)) {
+      setState(() => _phonePanel = !_phonePanel);
+      return;
+    }
     _prefs = _prefs.copyWith(panelOpen: !_prefs.panelOpen);
     setState(() {});
     _savePrefs({RadViewerPrefs.panelOpenKey: _prefs.panelOpen});
@@ -1646,17 +1653,19 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
             ),
           ),
           const RadBarDivider(),
-          RadBarButton(
-            icon: RadViewerIcons.thumbnails,
-            tooltip: _tip('Thumbnails', RadViewerAction.thumbnails),
-            selected: _prefs.thumbs,
-            style: RadBarButtonStyle.toggle,
-            onPressed: _toggleThumbs,
-          ),
+          // No thumbnail strip on a phone, so no button for it.
+          if (!cruIsPhone(context))
+            RadBarButton(
+              icon: RadViewerIcons.thumbnails,
+              tooltip: _tip('Thumbnails', RadViewerAction.thumbnails),
+              selected: _prefs.thumbs,
+              style: RadBarButtonStyle.toggle,
+              onPressed: _toggleThumbs,
+            ),
           RadBarButton(
             icon: RadViewerIcons.panel,
             tooltip: _tip('Side panel', RadViewerAction.panel),
-            selected: _prefs.panelOpen,
+            selected: cruIsPhone(context) ? _phonePanel : _prefs.panelOpen,
             style: RadBarButtonStyle.toggle,
             onPressed: _togglePanel,
           ),
@@ -1670,7 +1679,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     );
   }
 
-  Widget _panel(RadStudy s, RadReport? report) {
+  Widget _panel(RadStudy s, RadReport? report, {double? width}) {
     final p = _pane;
     final own = p.studyId == s.id;
     final paneStudy = own
@@ -1686,29 +1695,31 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
         : null;
     return Row(
       children: [
-        MouseRegion(
-          cursor: SystemMouseCursors.resizeColumn,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onHorizontalDragUpdate: (d) => setState(() {
-              _panelWidth = (_panelWidth - d.delta.dx).clamp(
-                RadViewerPrefs.minPanelWidth,
-                RadViewerPrefs.maxPanelWidth,
-              );
-            }),
-            onHorizontalDragEnd: (_) {
-              _prefs = _prefs.copyWith(panelWidth: _panelWidth);
-              _savePrefs({RadViewerPrefs.panelWidthKey: _panelWidth});
-            },
-            child: SizedBox(
-              width: CruSpace.s6,
-              child: ColoredBox(color: context.cru.surface),
+        // Phone: no resize handle; the panel takes the width it is given.
+        if (width == null)
+          MouseRegion(
+            cursor: SystemMouseCursors.resizeColumn,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onHorizontalDragUpdate: (d) => setState(() {
+                _panelWidth = (_panelWidth - d.delta.dx).clamp(
+                  RadViewerPrefs.minPanelWidth,
+                  RadViewerPrefs.maxPanelWidth,
+                );
+              }),
+              onHorizontalDragEnd: (_) {
+                _prefs = _prefs.copyWith(panelWidth: _panelWidth);
+                _savePrefs({RadViewerPrefs.panelWidthKey: _panelWidth});
+              },
+              child: SizedBox(
+                width: CruSpace.s6,
+                child: ColoredBox(color: context.cru.surface),
+              ),
             ),
           ),
-        ),
         RadViewerSidePanel(
           host: this,
-          width: _panelWidth,
+          width: width ?? _panelWidth,
           tab: _tab,
           onTab: _setTab,
           study: s,
@@ -1800,94 +1811,110 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     final referrer = ref.watch(radReferrerByIdProvider)[s.referrerId];
     final p = _pane;
 
+    final phone = cruIsPhone(context);
     return Scaffold(
       backgroundColor: c.canvas,
-      body: Focus(
-        focusNode: _focus,
-        autofocus: true,
-        onKeyEvent: _onKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!_reading) ...[
-              RadViewerTopBar(
-                study: s,
-                referrer: referrer?.display,
-                report: report,
-                onBack: _back,
-                onReport: _openReport,
-                onShortcuts: _openShortcuts,
-                shortcutsKey: _prefs.keyFor(RadViewerAction.shortcuts),
-                onOpen3d: radIsVolume(s) ? _open3d : null,
-              ),
-              _toolbar(s, others),
-            ],
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (!_reading && _prefs.thumbs)
-                    RadThumbnailStrip(
-                      study: s,
-                      compare: _compare,
-                      cache: _thumbs,
-                      shown: {
-                        for (final q in _panes)
-                          if (q.imageId.isNotEmpty) '${q.studyId}/${q.imageId}',
-                      },
-                      active: '${p.studyId}/${p.imageId}',
-                      onOpen: (studyId, imageId) {
-                        setState(() => _show(_pane, studyId, imageId));
-                        _focus.requestFocus();
-                      },
-                    ),
-                  Expanded(
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        _grid(),
-                        if (s.images.isEmpty)
-                          ColoredBox(
-                            color: RadInk.viewport,
-                            child: Center(
-                              child: Text(
-                                'This study has no images yet',
-                                style: CruType.text.tint(RadInk.overlayQuiet),
+      body: SafeArea(
+        top: phone,
+        bottom: false,
+        left: false,
+        right: false,
+        child: Focus(
+          focusNode: _focus,
+          autofocus: true,
+          onKeyEvent: _onKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (!_reading) ...[
+                RadViewerTopBar(
+                  study: s,
+                  referrer: referrer?.display,
+                  report: report,
+                  onBack: _back,
+                  onReport: _openReport,
+                  onShortcuts: _openShortcuts,
+                  shortcutsKey: _prefs.keyFor(RadViewerAction.shortcuts),
+                  onOpen3d: radIsVolume(s) ? _open3d : null,
+                ),
+                _toolbar(s, others),
+              ],
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!_reading && _prefs.thumbs && !phone)
+                      RadThumbnailStrip(
+                        study: s,
+                        compare: _compare,
+                        cache: _thumbs,
+                        shown: {
+                          for (final q in _panes)
+                            if (q.imageId.isNotEmpty)
+                              '${q.studyId}/${q.imageId}',
+                        },
+                        active: '${p.studyId}/${p.imageId}',
+                        onOpen: (studyId, imageId) {
+                          setState(() => _show(_pane, studyId, imageId));
+                          _focus.requestFocus();
+                        },
+                      ),
+                    Expanded(
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _grid(),
+                          if (s.images.isEmpty)
+                            ColoredBox(
+                              color: RadInk.viewport,
+                              child: Center(
+                                child: Text(
+                                  'This study has no images yet',
+                                  style: CruType.text.tint(RadInk.overlayQuiet),
+                                ),
                               ),
                             ),
-                          ),
-                        if (_reading)
-                          Positioned(
-                            top: CruSpace.s12,
-                            right: CruSpace.s12,
-                            child: _OverlayPill(
-                              icon: CruIcons.close,
-                              label:
-                                  _prefs
-                                      .keyFor(RadViewerAction.readingMode)
-                                      .isEmpty
-                                  ? 'Leave reading mode'
-                                  : 'Leave reading mode · ${_prefs.keyFor(RadViewerAction.readingMode)}',
-                              onTap: () => setState(() => _reading = false),
+                          if (_reading)
+                            Positioned(
+                              top: CruSpace.s12,
+                              right: CruSpace.s12,
+                              child: _OverlayPill(
+                                icon: CruIcons.close,
+                                label:
+                                    _prefs
+                                        .keyFor(RadViewerAction.readingMode)
+                                        .isEmpty
+                                    ? 'Leave reading mode'
+                                    : 'Leave reading mode · ${_prefs.keyFor(RadViewerAction.readingMode)}',
+                                onTap: () => setState(() => _reading = false),
+                              ),
                             ),
-                          ),
-                        if (_busy)
-                          const Positioned(
-                            left: 0,
-                            right: 0,
-                            bottom: CruSpace.s16,
-                            child: Center(
-                              child: _OverlayPill(label: 'Working…'),
+                          if (_busy)
+                            const Positioned(
+                              left: 0,
+                              right: 0,
+                              bottom: CruSpace.s16,
+                              child: Center(
+                                child: _OverlayPill(label: 'Working…'),
+                              ),
                             ),
-                          ),
-                      ],
+                          if (phone && _phonePanel && !_reading)
+                            Positioned.fill(
+                              child: LayoutBuilder(
+                                builder: (context, box) =>
+                                    _panel(s, report, width: box.maxWidth),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  if (!_reading && _prefs.panelOpen) _panel(s, report),
-                ],
+                    if (!_reading && !phone && _prefs.panelOpen)
+                      _panel(s, report),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

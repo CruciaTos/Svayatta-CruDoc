@@ -41,7 +41,15 @@ const String _emulatorHost = String.fromEnvironment(
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } on FirebaseException catch (e) {
+    // Android starts the default app natively from google-services.json; if
+    // its options differ from ours, keep the native one rather than crash.
+    if (e.code != 'duplicate-app') rethrow;
+  }
 
   if (_useFirebaseEmulators) {
     await FirebaseAuth.instance.useAuthEmulator(_emulatorHost, 9099);

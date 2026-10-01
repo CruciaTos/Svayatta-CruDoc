@@ -229,6 +229,7 @@ class RadViewerTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final phone = cruIsPhone(context);
     final s = study;
     final who = RadFormat.patientLine(s, DateTime.now());
     final meta = [
@@ -253,52 +254,70 @@ class RadViewerTopBar extends StatelessWidget {
             onPressed: onBack,
           ),
           const SizedBox(width: CruSpace.s8),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 260),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  s.patientName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.headline.tint(c.label),
-                ),
-                if (who.isNotEmpty)
+          // Phone: the name takes the free room; the study details, the
+          // report state and the keyboard shortcuts stay on the desktop.
+          if (phone)
+            Expanded(
+              child: Text(
+                s.patientName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.headline.tint(c.label),
+              ),
+            )
+          else ...[
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                   Text(
-                    who,
-                    maxLines: 1,
-                    style: CruType.caption.tabular.tint(c.label2),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: CruSpace.s16),
-          RadModalityBadge(s.modality),
-          const SizedBox(width: CruSpace.s12),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  meta,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.caption.tabular.tint(c.label2),
-                ),
-                if (s.clinicalQuestion.isNotEmpty)
-                  Text(
-                    s.clinicalQuestion,
+                    s.patientName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: CruType.subhead.w500.tint(c.label),
+                    style: CruType.headline.tint(c.label),
                   ),
-              ],
+                  if (who.isNotEmpty)
+                    Text(
+                      who,
+                      maxLines: 1,
+                      style: CruType.caption.tabular.tint(c.label2),
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (s.critical) ...[
+            const SizedBox(width: CruSpace.s16),
+            RadModalityBadge(s.modality),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.caption.tabular.tint(c.label2),
+                  ),
+                  if (s.clinicalQuestion.isNotEmpty)
+                    Text(
+                      s.clinicalQuestion,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CruType.subhead.w500.tint(c.label),
+                    ),
+                ],
+              ),
+            ),
+          ],
+          if (phone) ...[
+            const SizedBox(width: CruSpace.s8),
+            RadModalityBadge(s.modality),
+            const SizedBox(width: CruSpace.s8),
+          ],
+          if (s.critical && !phone) ...[
             CruPill(
               text: 'Critical finding',
               background: c.redTint,
@@ -306,7 +325,7 @@ class RadViewerTopBar extends StatelessWidget {
             ),
             const SizedBox(width: CruSpace.s8),
           ],
-          if (r != null) ...[
+          if (r != null && !phone) ...[
             radReportStatusPill(c, r.status),
             const SizedBox(width: CruSpace.s8),
           ],
@@ -319,17 +338,19 @@ class RadViewerTopBar extends StatelessWidget {
             ),
             const SizedBox(width: CruSpace.s8),
           ],
-          CruIconButton(
-            icon: RadViewerIcons.keyboard,
-            size: CruSize.control,
-            iconSize: 19,
-            semanticLabel: 'Shortcuts',
-            tooltip: shortcutsKey.isEmpty
-                ? 'Shortcuts'
-                : 'Shortcuts ($shortcutsKey)',
-            onPressed: onShortcuts,
-          ),
-          const SizedBox(width: CruSpace.s8),
+          if (!phone) ...[
+            CruIconButton(
+              icon: RadViewerIcons.keyboard,
+              size: CruSize.control,
+              iconSize: 19,
+              semanticLabel: 'Shortcuts',
+              tooltip: shortcutsKey.isEmpty
+                  ? 'Shortcuts'
+                  : 'Shortcuts ($shortcutsKey)',
+              onPressed: onShortcuts,
+            ),
+            const SizedBox(width: CruSpace.s8),
+          ],
           CruButton(
             label: 'Report',
             icon: RadIcons.report,

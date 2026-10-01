@@ -97,7 +97,9 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
                 isCollapsed: true,
                 border: InputBorder.none,
                 hint: Text(
-                  'Search items, batches or suppliers',
+                  cruIsPhone(context)
+                      ? 'Search items'
+                      : 'Search items, batches or suppliers',
                   style: CruType.input.tint(c.label3),
                   maxLines: 1,
                   softWrap: false,
@@ -116,7 +118,7 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
               tooltip: 'Clear search',
               onPressed: _clear,
             )
-          else
+          else if (!cruIsPhone(context))
             CruKeycap(_shortcut()),
         ],
       ),

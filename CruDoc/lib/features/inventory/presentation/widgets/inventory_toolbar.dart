@@ -31,6 +31,35 @@ class InventoryToolbar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final items = tab == InventoryTab.items;
+    if (cruIsPhone(context)) {
+      // Phone: the sections on one line, search and sort under them.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: CruSegmentedControl<InventoryTab>(
+              semanticLabel: 'Inventory sections',
+              segments: [
+                for (final t in InventoryTab.values) CruSegment(t, t.label),
+              ],
+              selected: tab,
+              onChanged: ref.read(inventoryControllerProvider.notifier).setTab,
+            ),
+          ),
+          if (items) ...[
+            const SizedBox(height: CruSpace.s10),
+            Row(
+              children: [
+                Expanded(child: InventorySearchField(focusNode: searchFocus)),
+                const SizedBox(width: CruSpace.s8),
+                InventorySortButton(sort: sort, hasUsage: hasUsage),
+              ],
+            ),
+          ],
+        ],
+      );
+    }
     return Row(
       children: [
         CruSegmentedControl<InventoryTab>(

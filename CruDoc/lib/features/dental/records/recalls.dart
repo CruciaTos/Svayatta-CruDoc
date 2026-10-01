@@ -668,7 +668,9 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
     );
 
     return Padding(
-      padding: CruSpace.mainPadding,
+      padding: cruIsPhone(context)
+          ? CruSpace.mainPaddingPhone
+          : CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -762,8 +764,8 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
             ),
           ],
           const SizedBox(height: CruSpace.cardGap),
-          Row(
-            children: [
+          DentalFilterBar(
+            filters: [
               CruSegmentedControl<_Show>(
                 semanticLabel: 'Show',
                 segments: const [
@@ -774,16 +776,12 @@ class _RecallsScreenState extends ConsumerState<RecallsScreen> {
                 selected: _show,
                 onChanged: (s) => setState(() => _show = s),
               ),
-              const Spacer(),
-              SizedBox(
-                width: 280,
-                child: DentalSearchField(
-                  controller: _search,
-                  hint: 'Search patient or reason',
-                  onChanged: (v) => setState(() => _query = v),
-                ),
-              ),
             ],
+            search: DentalSearchField(
+              controller: _search,
+              hint: 'Search patient or reason',
+              onChanged: (v) => setState(() => _query = v),
+            ),
           ),
           const SizedBox(height: CruSpace.cardGap),
           Expanded(
@@ -903,6 +901,10 @@ class _RecallRow extends ConsumerWidget {
     final status = recallStatusOf(recall);
     final late = status.isOpen && recall.recordedAt.isBefore(today);
     final sent = recall.date('lastSentAt');
+    // Phone: the date leads the second line and WhatsApp / SMS move into
+    // the row's menu.
+    final phone = cruIsPhone(context);
+    final reach = status.isOpen && patient != null;
     return DentalListRow(
       semanticLabel:
           '${patient?.fullName ?? recall.str('patientName')}, ${recall.str('reason')}',
@@ -911,16 +913,18 @@ class _RecallRow extends ConsumerWidget {
       minHeight: 60,
       child: Row(
         children: [
-          SizedBox(
-            width: 76,
-            child: Text(
-              DentalFormat.shortDate(recall.recordedAt),
-              style: CruType.subhead.w600.tabular.tint(
-                late ? c.amberText : c.label,
+          if (!phone) ...[
+            SizedBox(
+              width: 76,
+              child: Text(
+                DentalFormat.shortDate(recall.recordedAt),
+                style: CruType.subhead.w600.tabular.tint(
+                  late ? c.amberText : c.label,
+                ),
               ),
             ),
-          ),
-          const SizedBox(width: CruSpace.s12),
+            const SizedBox(width: CruSpace.s12),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -933,6 +937,7 @@ class _RecallRow extends ConsumerWidget {
                 ),
                 Text(
                   [
+                    if (phone) DentalFormat.shortDate(recall.recordedAt),
                     recall.str('reason'),
                     if (sent != null)
                       '${recall.str('channel')} ${DentalFormat.day(sent, DateTime.now()).toLowerCase()}',
@@ -958,7 +963,7 @@ class _RecallRow extends ConsumerWidget {
             },
           ),
           const SizedBox(width: CruSpace.s10),
-          if (status.isOpen && patient != null) ...[
+          if (reach && !phone) ...[
             CruCapsuleButton(
               label: 'WhatsApp',
               icon: CruIcons.whatsapp,
@@ -972,6 +977,10 @@ class _RecallRow extends ConsumerWidget {
             icon: CruIcon(CruIcons.more, size: 18, color: c.label2),
             onSelected: (v) async {
               switch (v) {
+                case 'whatsapp':
+                  await _whatsApp(context, ref);
+                case 'sms':
+                  await _sms(context, ref);
                 case 'confirmed':
                   await _mark(ref, RecallStatus.confirmed);
                 case 'noResponse':
@@ -1000,6 +1009,14 @@ class _RecallRow extends ConsumerWidget {
               }
             },
             itemBuilder: (_) => [
+              if (reach && phone) ...[
+                const PopupMenuItem(
+                  value: 'whatsapp',
+                  child: Text('Remind on WhatsApp'),
+                ),
+                const PopupMenuItem(value: 'sms', child: Text('Remind by SMS')),
+                const PopupMenuDivider(),
+              ],
               const PopupMenuItem(
                 value: 'confirmed',
                 child: Text('Replied: confirmed'),

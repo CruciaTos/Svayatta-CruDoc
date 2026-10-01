@@ -707,7 +707,10 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
           backgroundColor: c.canvas,
           surfaceTintColor: c.canvas.withValues(alpha: 0),
           insetPadding: const EdgeInsets.all(CruSpace.s24),
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+          shape: cruShape(
+            CruRadius.card,
+            side: BorderSide(color: c.cardBorder),
+          ),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: BoxConstraints(

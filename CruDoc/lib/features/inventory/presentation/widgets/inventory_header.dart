@@ -48,6 +48,48 @@ class InventoryHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           );
 
+    if (cruIsPhone(context)) {
+      // Phone: title and count, then the two buttons side by side.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              'Inventory',
+              style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+            ),
+          ),
+          const SizedBox(height: CruSpace.s2),
+          SizedBox(
+            height: CruType.text.fontSize! * CruType.text.height!,
+            child: subtitle == null
+                ? const Align(
+                    alignment: Alignment.centerLeft,
+                    child: SkeletonBox(width: 180, height: 12),
+                  )
+                : subtitle,
+          ),
+          const SizedBox(height: CruSpace.s14),
+          Row(
+            children: [
+              CruButton(
+                label: 'New order',
+                kind: CruButtonKind.secondary,
+                icon: InventoryIcons.cart,
+                onPressed: onNewOrder,
+              ),
+              const SizedBox(width: CruSpace.s8),
+              CruButton(
+                label: 'Add item',
+                icon: CruIcons.plus,
+                onPressed: onAddItem,
+              ),
+            ],
+          ),
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [

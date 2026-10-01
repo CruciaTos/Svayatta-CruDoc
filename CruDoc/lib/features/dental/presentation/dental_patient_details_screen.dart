@@ -532,8 +532,7 @@ class _DentalPatientDetailsScreenState
             Column(
               children: [
                 for (var i = 0; i < studies.length; i++) ...[
-                  if (i > 0)
-                    const Divider(height: 16),
+                  if (i > 0) const Divider(height: 16),
                   InkWell(
                     onTap: () => openRadStudy(context, ref, studies[i]),
                     borderRadius: BorderRadius.circular(10),

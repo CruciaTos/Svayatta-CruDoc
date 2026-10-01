@@ -169,8 +169,13 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                       },
                     ),
                   ),
-                  const SizedBox(width: CruSpace.s8),
-                  CruKeycap(_shortcut),
+                  // The shortcut only exists in the desktop shell.
+                  if (!cruIsTouchPlatform &&
+                      MediaQuery.sizeOf(context).width >= 900) ...[
+                    const SizedBox(width: CruSpace.s8),
+                    CruKeycap(_shortcut),
+                  ] else
+                    const SizedBox(width: CruSpace.s4),
                 ],
               ),
             ),

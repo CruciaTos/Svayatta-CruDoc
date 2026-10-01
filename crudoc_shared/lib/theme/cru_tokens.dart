@@ -64,6 +64,9 @@ abstract final class CruSpace {
   static const EdgeInsets sidebarPadding = EdgeInsets.fromLTRB(20, 24, 12, 20);
   static const EdgeInsets mainPadding = EdgeInsets.fromLTRB(12, 28, 32, 32);
 
+  /// Main padding on a phone: even gutters, no sidebar to clear.
+  static const EdgeInsets mainPaddingPhone = EdgeInsets.fromLTRB(16, 8, 16, 24);
+
   /// Main padding below [CruBreakpoint.compact] (as the dashboard).
   static const EdgeInsets mainPaddingCompact = EdgeInsets.fromLTRB(
     12,

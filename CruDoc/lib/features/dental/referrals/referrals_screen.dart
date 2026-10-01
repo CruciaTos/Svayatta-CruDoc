@@ -116,38 +116,45 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header
-          DentalPageHeader(
-            title: 'Referrals',
-            subtitle: subtitle.isNotEmpty
-                ? subtitle
-                : 'Track referrals sent to and received from other doctors',
-            actions: [
-              CruButton(
-                label: 'Contacts',
-                icon: CruIcons.userPlus,
-                kind: CruButtonKind.secondary,
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const ContactDirectoryDialog(),
+          // Header (with the page gutter on a phone)
+          Padding(
+            padding: cruIsPhone(context)
+                ? const EdgeInsets.fromLTRB(16, 8, 16, 0)
+                : EdgeInsets.zero,
+            child: DentalPageHeader(
+              title: 'Referrals',
+              subtitle: subtitle.isNotEmpty
+                  ? subtitle
+                  : 'Track referrals sent to and received from other doctors',
+              actions: [
+                CruButton(
+                  label: 'Contacts',
+                  icon: CruIcons.userPlus,
+                  kind: CruButtonKind.secondary,
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const ContactDirectoryDialog(),
+                  ),
                 ),
-              ),
-              const SizedBox(width: CruSpace.s8),
-              CruButton(
-                label: 'New referral',
-                icon: CruIcons.plus,
-                kind: CruButtonKind.primary,
-                onPressed: () => showDialog<void>(
-                  context: context,
-                  builder: (_) => const ReferralEditDialog(),
+                const SizedBox(width: CruSpace.s8),
+                CruButton(
+                  label: 'New referral',
+                  icon: CruIcons.plus,
+                  kind: CruButtonKind.primary,
+                  onPressed: () => showDialog<void>(
+                    context: context,
+                    builder: (_) => const ReferralEditDialog(),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
 
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(CruSpace.s24),
+              padding: cruIsPhone(context)
+                  ? const EdgeInsets.fromLTRB(16, 16, 16, 24)
+                  : const EdgeInsets.all(CruSpace.s24),
               children: [
                 // Glance strip
                 GlanceStrip(
@@ -178,8 +185,8 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                 const SizedBox(height: CruSpace.s20),
 
                 // Controls row: Segments & Search
-                Row(
-                  children: [
+                DentalFilterBar(
+                  filters: [
                     CruSegmentedControl<_ReferralTab>(
                       semanticLabel: 'Filter referrals by status',
                       segments: const [
@@ -190,16 +197,12 @@ class _ReferralsScreenState extends ConsumerState<ReferralsScreen> {
                       selected: _tab,
                       onChanged: (t) => setState(() => _tab = t),
                     ),
-                    const Spacer(),
-                    SizedBox(
-                      width: 280,
-                      child: DentalSearchField(
-                        hint: 'Search patient, doctor, reason…',
-                        controller: _search,
-                        onChanged: (_) => setState(() {}),
-                      ),
-                    ),
                   ],
+                  search: DentalSearchField(
+                    hint: 'Search patient, doctor, reason…',
+                    controller: _search,
+                    onChanged: (_) => setState(() {}),
+                  ),
                 ),
                 const SizedBox(height: CruSpace.s16),
 
@@ -268,6 +271,8 @@ class _ReferralListRow extends ConsumerWidget {
     final targetName = r.contactName.isNotEmpty
         ? r.contactName
         : (isOut ? 'Specialist' : 'Referring Doctor');
+    final phone = cruIsPhone(context);
+    final name = patient?.fullName ?? 'Patient #${r.patientId.substring(0, 4)}';
 
     return DentalListRow(
       semanticLabel: '${r.reason} - ${patient?.fullName ?? 'Patient'}',
@@ -286,60 +291,84 @@ class _ReferralListRow extends ConsumerWidget {
           ),
           const SizedBox(width: CruSpace.s12),
 
-          // Date
-          SizedBox(
-            width: 80,
-            child: Text(
-              DentalFormat.date(r.recordedAt),
-              style: CruType.caption.tabular.tint(c.label2),
+          // Phone: patient over "To / From · reason", then the status.
+          if (phone) ...[
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.callout.w600.tint(c.label),
+                  ),
+                  Text(
+                    '${isOut ? 'To' : 'From'} $targetName · ${r.reason}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.subhead.tint(c.label2),
+                  ),
+                ],
+              ),
             ),
-          ),
-
-          // Patient name
-          SizedBox(
-            width: 140,
-            child: Text(
-              patient?.fullName ?? 'Patient #${r.patientId.substring(0, 4)}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CruType.callout.w600.tint(c.label),
+            const SizedBox(width: CruSpace.s8),
+          ] else ...[
+            // Date
+            SizedBox(
+              width: 80,
+              child: Text(
+                DentalFormat.date(r.recordedAt),
+                style: CruType.caption.tabular.tint(c.label2),
+              ),
             ),
-          ),
-          const SizedBox(width: CruSpace.s12),
 
-          // To or from contact
-          SizedBox(
-            width: 160,
-            child: Text(
-              '${isOut ? 'To: ' : 'From: '}$targetName',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CruType.note.tint(c.label2),
+            // Patient name
+            SizedBox(
+              width: 140,
+              child: Text(
+                patient?.fullName ?? 'Patient #${r.patientId.substring(0, 4)}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.callout.w600.tint(c.label),
+              ),
             ),
-          ),
-          const SizedBox(width: CruSpace.s12),
+            const SizedBox(width: CruSpace.s12),
 
-          // Reason
-          Expanded(
-            child: Text(
-              r.reason,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: CruType.callout.tint(c.label),
+            // To or from contact
+            SizedBox(
+              width: 160,
+              child: Text(
+                '${isOut ? 'To: ' : 'From: '}$targetName',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.note.tint(c.label2),
+              ),
             ),
-          ),
-          const SizedBox(width: CruSpace.s8),
+            const SizedBox(width: CruSpace.s12),
 
-          // Urgency pill (urgent is amber; red is strictly reserved for safety/allergies)
-          if (r.urgency == ReferralUrgency.urgent)
-            CruPill(
-              text: 'Urgent',
-              background: c.amberTint,
-              foreground: c.amberText,
-            )
-          else if (r.urgency == ReferralUrgency.soon)
-            CruPill(text: 'Soon', background: c.inset, foreground: c.label2),
-          const SizedBox(width: CruSpace.s8),
+            // Reason
+            Expanded(
+              child: Text(
+                r.reason,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: CruType.callout.tint(c.label),
+              ),
+            ),
+            const SizedBox(width: CruSpace.s8),
+
+            // Urgency pill (urgent is amber; red is strictly reserved for safety/allergies)
+            if (r.urgency == ReferralUrgency.urgent)
+              CruPill(
+                text: 'Urgent',
+                background: c.amberTint,
+                foreground: c.amberText,
+              )
+            else if (r.urgency == ReferralUrgency.soon)
+              CruPill(text: 'Soon', background: c.inset, foreground: c.label2),
+            const SizedBox(width: CruSpace.s8),
+          ],
 
           // Status pill
           CruPill(
@@ -359,8 +388,8 @@ class _ReferralListRow extends ConsumerWidget {
           ),
           const SizedBox(width: CruSpace.s8),
 
-          // WhatsApp Capsule button
-          if (patient != null)
+          // WhatsApp Capsule button (in the menu on a phone)
+          if (patient != null && !phone)
             CruCapsuleButton(
               label: 'WhatsApp',
               icon: CruIcons.phone,
@@ -373,6 +402,13 @@ class _ReferralListRow extends ConsumerWidget {
             tooltip: 'Actions',
             icon: CruIcon(CruIcons.more, size: 18, color: c.label2),
             itemBuilder: (ctx) => [
+              if (phone && patient != null) ...[
+                const PopupMenuItem(
+                  value: 'whatsapp',
+                  child: Text('Send on WhatsApp'),
+                ),
+                const PopupMenuDivider(),
+              ],
               if (isOut) ...[
                 if (r.status != ReferralStatus.acknowledged)
                   const PopupMenuItem(
@@ -413,6 +449,11 @@ class _ReferralListRow extends ConsumerWidget {
             ],
             onSelected: (action) async {
               switch (action) {
+                case 'whatsapp':
+                  if (patient != null) {
+                    await sendReferralWhatsApp(context, ref, r, patient!);
+                  }
+                  break;
                 case 'acknowledged':
                   await updateReferralStatus(
                     ref,

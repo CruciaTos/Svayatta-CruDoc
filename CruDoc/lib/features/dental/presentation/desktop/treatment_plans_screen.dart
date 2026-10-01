@@ -173,7 +173,9 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
         );
 
     return Padding(
-      padding: CruSpace.mainPadding,
+      padding: cruIsPhone(context)
+          ? CruSpace.mainPaddingPhone
+          : CruSpace.mainPadding,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -248,7 +250,7 @@ class _TreatmentPlansScreenState extends ConsumerState<TreatmentPlansScreen> {
                 onChanged: (f) => setState(() => _filter = f),
               );
               final search = SizedBox(
-                width: 280,
+                width: cruIsPhone(context) ? double.infinity : 280,
                 child: DentalSearchField(
                   controller: _search,
                   hint: 'Search patient or procedure',
@@ -362,6 +364,52 @@ class _PlanRow extends ConsumerWidget {
             foreground: c.greenText,
           )
         : CruPill(text: 'Declined', background: c.inset, foreground: c.label3);
+    if (cruIsPhone(context)) {
+      // Phone: who, what, and what's left to do with its state.
+      return DentalListRow(
+        semanticLabel: '${plan.patient.fullName}, treatment plan',
+        minHeight: 64,
+        onTap: () => showTreatmentPlanDialog(context, patient: plan.patient),
+        child: Row(
+          children: [
+            CruMonogram(name: plan.patient.fullName, size: 40),
+            const SizedBox(width: CruSpace.s12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    plan.patient.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.callout.w600.tint(c.label),
+                  ),
+                  Text(
+                    summary.isEmpty ? 'Every item declined' : summary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: CruType.subhead.tint(c.label2),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: CruSpace.s10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  openSum > 0 ? DashFormat.rupees(openSum) : '—',
+                  style: CruType.row.tabular.tint(c.label),
+                ),
+                const SizedBox(height: CruSpace.s4),
+                pill,
+              ],
+            ),
+          ],
+        ),
+      );
+    }
     return DentalListRow(
       semanticLabel: '${plan.patient.fullName}, treatment plan',
       minHeight: 64,

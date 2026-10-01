@@ -150,6 +150,23 @@ class _Columns extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const gap = SizedBox(width: InventorySize.columnGap);
+    if (cruIsPhone(context)) {
+      // Phone: the item and its stock; lasts and expiry open with the row.
+      return SizedBox(
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s8),
+          child: Row(
+            children: [
+              Expanded(child: item),
+              const SizedBox(width: CruSpace.s12),
+              SizedBox(width: 84, child: stock),
+              SizedBox(width: CruSize.tableChevronColumn, child: chevron),
+            ],
+          ),
+        ),
+      );
+    }
     return SizedBox(
       height: height,
       child: Padding(

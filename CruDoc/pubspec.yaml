@@ -111,6 +111,8 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/images/default_map.png
+    # The Revenue period cards' patterns (made once, see mobile_revenue.dart).
+    - assets/images/revenue_cards/
     # Offline speech model for the voice demo (lib/features/voice).
     # - assets/voice/parakeet/
 

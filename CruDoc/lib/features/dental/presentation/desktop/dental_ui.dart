@@ -304,6 +304,49 @@ class DentalPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    if (cruIsPhone(context)) {
+      // Phone: title and subtitle on their own lines, the buttons in one
+      // row under them that slides sideways when they don't fit.
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: CruType.largeTitle.copyWith(fontSize: 28).tint(c.label),
+            ),
+          ),
+          if (subtitle.isNotEmpty) ...[
+            const SizedBox(height: CruSpace.s2),
+            Text(
+              subtitle,
+              style: CruType.subhead.tabular.tint(c.accentText),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          if (actions.isNotEmpty) ...[
+            const SizedBox(height: CruSpace.s14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              child: Row(
+                children: [
+                  for (var i = 0; i < actions.length; i++) ...[
+                    if (i > 0) const SizedBox(width: CruSpace.s8),
+                    actions[i],
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
@@ -330,6 +373,59 @@ class DentalPageHeader extends StatelessWidget {
           SizedBox(width: i == 0 ? CruSpace.s24 : CruSpace.s10),
           actions[i],
         ],
+      ],
+    );
+  }
+}
+
+/// The controls over a list: [filters] (segments, a type menu) on the
+/// left and [search] on the right. On a phone they stack: the filters
+/// slide sideways and the search takes the full width.
+class DentalFilterBar extends StatelessWidget {
+  const DentalFilterBar({
+    super.key,
+    this.filters = const [],
+    this.search,
+    this.searchWidth = 280,
+  });
+
+  final List<Widget> filters;
+  final Widget? search;
+  final double searchWidth;
+
+  @override
+  Widget build(BuildContext context) {
+    if (cruIsPhone(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (filters.isNotEmpty)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  for (var i = 0; i < filters.length; i++) ...[
+                    if (i > 0) const SizedBox(width: CruSpace.s8),
+                    filters[i],
+                  ],
+                ],
+              ),
+            ),
+          if (filters.isNotEmpty && search != null)
+            const SizedBox(height: CruSpace.s10),
+          ?search,
+        ],
+      );
+    }
+    return Row(
+      children: [
+        for (var i = 0; i < filters.length; i++) ...[
+          if (i > 0) const SizedBox(width: CruSpace.s12),
+          filters[i],
+        ],
+        const Spacer(),
+        if (search != null) SizedBox(width: searchWidth, child: search),
       ],
     );
   }
@@ -558,7 +654,9 @@ class DentalPanelDialog extends StatelessWidget {
     return Dialog(
       backgroundColor: c.surface,
       surfaceTintColor: c.surface.withValues(alpha: 0),
-      insetPadding: const EdgeInsets.all(CruSpace.s32),
+      insetPadding: EdgeInsets.all(
+        cruIsPhone(context) ? CruSpace.s12 : CruSpace.s32,
+      ),
       shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
       clipBehavior: Clip.antiAlias,
       child: ConstrainedBox(

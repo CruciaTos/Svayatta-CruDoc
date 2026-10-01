@@ -8,6 +8,17 @@ import 'package:crudoc_shared/widgets/cru/cru_card.dart';
 import 'package:crudoc_shared/widgets/cru/cru_icons.dart';
 import 'package:crudoc_shared/widgets/cru/cru_pressable.dart';
 
+/// Below this width (a phone) form dialogs fill the screen, sections
+/// stack their label above the fields and wide field rows wrap.
+const double kCruFormPhoneWidth = 600;
+
+bool _phone(BuildContext context) =>
+    MediaQuery.sizeOf(context).width < kCruFormPhoneWidth;
+
+/// True on a phone-width screen: the phone app's pushed pages. Desktop
+/// layouts keep their own look above this width.
+bool cruIsPhone(BuildContext context) => _phone(context);
+
 /// Desktop form dialog: header (leading tile, title, subtitle, close),
 /// a scrolling body of [CruFormSection]s, an optional notice and a footer
 /// with Cancel and the one filled action.
@@ -69,7 +80,18 @@ class CruFormDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    final maxHeight = MediaQuery.sizeOf(context).height - CruSpace.s32 * 2;
+    final phone = _phone(context);
+    final pad = MediaQuery.paddingOf(context);
+    final inset = phone
+        ? EdgeInsets.fromLTRB(
+            CruSpace.s8,
+            pad.top + CruSpace.s8,
+            CruSpace.s8,
+            pad.bottom + CruSpace.s8,
+          )
+        : const EdgeInsets.all(CruSpace.s32);
+    final maxHeight = MediaQuery.sizeOf(context).height - inset.vertical;
+    final side = phone ? CruSpace.s16 : CruSpace.s24;
     final submit = busy ? null : onSubmit;
     return PopScope(
       canPop: !dirty && !busy,
@@ -86,8 +108,11 @@ class CruFormDialog extends StatelessWidget {
         child: Dialog(
           backgroundColor: c.surface,
           surfaceTintColor: c.surface.withValues(alpha: 0),
-          insetPadding: const EdgeInsets.all(CruSpace.s32),
-          shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+          insetPadding: inset,
+          shape: cruShape(
+            CruRadius.card,
+            side: BorderSide(color: c.cardBorder),
+          ),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: BoxConstraints(maxWidth: width, maxHeight: maxHeight),
@@ -104,10 +129,10 @@ class CruFormDialog extends StatelessWidget {
                 const CruSeparator(),
                 Flexible(
                   child: SingleChildScrollView(
-                    padding: const EdgeInsets.fromLTRB(
-                      CruSpace.s24,
+                    padding: EdgeInsets.fromLTRB(
+                      side,
                       CruSpace.s8,
-                      CruSpace.s24,
+                      side,
                       CruSpace.s8,
                     ),
                     child: body,
@@ -116,36 +141,61 @@ class CruFormDialog extends StatelessWidget {
                 if (notice != null) CruFormNotice(notice!),
                 const CruSeparator(),
                 Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: CruSpace.s24,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: side,
                     vertical: CruSpace.s16,
                   ),
-                  child: Row(
-                    children: [
-                      if (footerHint != null)
-                        Expanded(
-                          child: Text(
-                            footerHint!,
-                            style: CruType.caption.tint(c.label3),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                  child: phone
+                      // Thumb-sized: both actions share the width.
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: CruButton(
+                                label: cancelLabel,
+                                kind: CruButtonKind.secondary,
+                                large: true,
+                                expand: true,
+                                onPressed: busy ? null : () => _close(context),
+                              ),
+                            ),
+                            const SizedBox(width: CruSpace.s10),
+                            Expanded(
+                              flex: 2,
+                              child: CruButton(
+                                label: busy ? 'Saving…' : submitLabel,
+                                large: true,
+                                expand: true,
+                                onPressed: submit,
+                              ),
+                            ),
+                          ],
                         )
-                      else
-                        const Spacer(),
-                      const SizedBox(width: CruSpace.s12),
-                      CruButton(
-                        label: cancelLabel,
-                        kind: CruButtonKind.secondary,
-                        onPressed: busy ? null : () => _close(context),
-                      ),
-                      const SizedBox(width: CruSpace.s10),
-                      CruButton(
-                        label: busy ? 'Saving…' : submitLabel,
-                        onPressed: submit,
-                      ),
-                    ],
-                  ),
+                      : Row(
+                          children: [
+                            if (footerHint != null)
+                              Expanded(
+                                child: Text(
+                                  footerHint!,
+                                  style: CruType.caption.tint(c.label3),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              )
+                            else
+                              const Spacer(),
+                            const SizedBox(width: CruSpace.s12),
+                            CruButton(
+                              label: cancelLabel,
+                              kind: CruButtonKind.secondary,
+                              onPressed: busy ? null : () => _close(context),
+                            ),
+                            const SizedBox(width: CruSpace.s10),
+                            CruButton(
+                              label: busy ? 'Saving…' : submitLabel,
+                              onPressed: submit,
+                            ),
+                          ],
+                        ),
                 ),
               ],
             ),
@@ -284,6 +334,35 @@ class CruFormSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final fields = [
+      for (var i = 0; i < children.length; i++) ...[
+        if (i > 0) const SizedBox(height: CruSpace.s16),
+        children[i],
+      ],
+    ];
+    if (_phone(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (!first) const CruSeparator(),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: CruSpace.s16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(title, style: CruType.headline.tint(c.label)),
+                if (description != null) ...[
+                  const SizedBox(height: CruSpace.s2),
+                  Text(description!, style: CruType.caption.tint(c.label3)),
+                ],
+                const SizedBox(height: CruSpace.s14),
+                ...fields,
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -335,6 +414,18 @@ class CruFieldRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Three or more fields don't fit side by side on a phone: stack them.
+    if (children.length > 2 && _phone(context)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) const SizedBox(height: CruSpace.s16),
+            children[i],
+          ],
+        ],
+      );
+    }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

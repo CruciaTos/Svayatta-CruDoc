@@ -58,6 +58,7 @@ class GlanceStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    if (cruIsPhone(context) && cells.length > 2) return _grid(context);
     return CruCard(
       semanticLabel: semanticLabel,
       borderColor: borderColor,
@@ -89,6 +90,53 @@ class GlanceStrip extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+extension on GlanceStrip {
+  /// Phone: two cells a row, so every number keeps its full label.
+  Widget _grid(BuildContext context) {
+    final c = context.cru;
+    final line = BorderSide(
+      color: separatorColor ?? c.separator,
+      width: separatorWidth ?? 1,
+    );
+    Widget cell(int i, {required bool left}) => Expanded(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s16,
+          CruSpace.s14,
+          CruSpace.s12,
+          CruSpace.s14,
+        ),
+        decoration: left ? null : BoxDecoration(border: Border(left: line)),
+        alignment: Alignment.topLeft,
+        child: i < cells.length ? cells[i] : const SizedBox.shrink(),
+      ),
+    );
+    return CruCard(
+      semanticLabel: semanticLabel,
+      borderColor: borderColor,
+      borderWidth: borderWidth ?? 1,
+      padding: EdgeInsets.zero,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var r = 0; r < cells.length; r += 2)
+            Container(
+              decoration: r == 0
+                  ? null
+                  : BoxDecoration(border: Border(top: line)),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [cell(r, left: true), cell(r + 1, left: false)],
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

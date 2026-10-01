@@ -280,7 +280,9 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final async = ref.watch(inventoryViewProvider);
     final view = async.value;
     final width = MediaQuery.sizeOf(context).width;
-    final padding = width < CruBreakpoint.compact
+    final padding = cruIsPhone(context)
+        ? CruSpace.mainPaddingPhone
+        : width < CruBreakpoint.compact
         ? CruSpace.mainPaddingCompact
         : CruSpace.mainPadding;
 

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Voice Receptionist - Local Voice Sandbox</title>
+  <meta name="description" content="Local browser testing sandbox for AI Voice Receptionist backend without Twilio" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/voice-test/static/styles.css" />
+</head>
+<body>
+  <div class="ambient-glow glow-1"></div>
+  <div class="ambient-glow glow-2"></div>
+
+  <div class="app-layout">
+    <!-- Header -->
+    <header class="top-nav">
+      <div class="nav-brand">
+        <div class="logo-mark">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+            <line x1="12" y1="19" x2="12" y2="22"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="brand-title">Voice Receptionist <span class="badge dev-badge">Local Sandbox</span></h1>
+          <p class="brand-subtitle">Simulated browser audio path &bull; No Twilio phone number needed</p>
+        </div>
+      </div>
+      <div class="nav-status">
+        <div class="status-chip" id="wsStatusChip">
+          <span class="status-dot disconnected" id="wsStatusDot"></span>
+          <span id="wsStatusText">Disconnected</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+      <!-- Left Panel: Voice Control & Visualizer -->
+      <section class="card control-card">
+        <div class="card-header">
+          <h2>Voice Interaction</h2>
+          <span class="badge info-badge" id="sessionStateBadge">Idle</span>
+        </div>
+
+        <!-- Clinic Info Box -->
+        <div class="clinic-info-panel" id="clinicInfoPanel">
+          <div class="clinic-detail">
+            <span class="detail-label">Active Clinic</span>
+            <span class="detail-value" id="clinicNameDisplay">Connecting...</span>
+          </div>
+          <div class="clinic-detail">
+            <span class="detail-label">Audio Protocol</span>
+            <span class="detail-value mono">16kHz In &bull; 24kHz Out PCM16</span>
+          </div>
+        </div>
+
+        <!-- Visualizer Area -->
+        <div class="visualizer-container">
+          <div class="orb-wrapper" id="orbWrapper">
+            <div class="orb-core"></div>
+            <div class="orb-ring ring-1"></div>
+            <div class="orb-ring ring-2"></div>
+            <div class="orb-ring ring-3"></div>
+          </div>
+          <div class="visualizer-label" id="visualizerLabel">Click Start to begin testing</div>
+          <canvas id="waveformCanvas" width="400" height="60" class="waveform-canvas"></canvas>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls-actions">
+          <button id="btnStart" class="btn btn-primary">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="22"/>
+            </svg>
+            <span>Start Session</span>
+          </button>
+
+          <button id="btnStop" class="btn btn-danger" disabled>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="6" width="12" height="12" rx="2"/>
+            </svg>
+            <span>Stop Session</span>
+          </button>
+        </div>
+
+        <!-- Audio Device Info -->
+        <div class="device-status-row">
+          <div class="device-item">
+            <span class="icon">🎙️</span>
+            <div>
+              <div class="device-title">Microphone</div>
+              <div class="device-meta" id="micStatusText">Inactive</div>
+            </div>
+          </div>
+          <div class="device-item">
+            <span class="icon">🔊</span>
+            <div>
+              <div class="device-title">Speaker Audio</div>
+              <div class="device-meta" id="speakerStatusText">Ready</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Panel: Conversation Transcript & Logs -->
+      <section class="card transcript-card">
+        <div class="card-header">
+          <h2>Live Conversation Transcript</h2>
+          <button id="btnClearTranscript" class="btn btn-ghost btn-sm" title="Clear transcript">
+            Clear
+          </button>
+        </div>
+
+        <div class="transcript-feed" id="transcriptFeed">
+          <div class="empty-state" id="emptyState">
+            <div class="empty-icon">💬</div>
+            <h3>No conversation yet</h3>
+            <p>Start a session and say something like:</p>
+            <div class="prompt-chips">
+              <span class="chip">"Hello, how can you help me?"</span>
+              <span class="chip">"I want to book an appointment"</span>
+              <span class="chip">"Which doctors are available?"</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Log Drawer (Collapsible) -->
+        <div class="log-drawer">
+          <button class="log-toggle" id="logToggle">
+            <span>Diagnostic Event Logs</span>
+            <span class="log-badge" id="logCountBadge">0</span>
+          </button>
+          <div class="log-terminal hidden" id="logTerminal">
+            <pre class="terminal-content" id="logContent"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Notice -->
+    <footer class="app-footer">
+      <p>⚠️ <strong>Development Notice:</strong> This test suite interacts with live STT/LLM/TTS services (Sarvam/Gemini) if configured in <code>.env</code>, but routes all telephony calls to a sandboxed local audio transport without Twilio.</p>
+    </footer>
+  </div>
+
+  <script src="/voice-test/static/app.js"></script>
+</body>
+</html>

@@ -1,14 +1,19 @@
-# Pipecat AI pipeline + services
-pipecat-ai[google,sarvam,silero,runner]
-
-# Environment variables
-python-dotenv
-
-# HTTP client for CruDoc API calls
-aiohttp
-
-# Twilio REST API (live call transfer)
-twilio
-
-# Structured logging
-loguru
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.10.6
+pydantic-settings==2.5.2
+sqlalchemy[asyncio]==2.0.35
+asyncpg==0.29.0
+aiosqlite==0.21.0
+alembic==1.13.3
+redis==5.0.8
+twilio==9.3.7
+google-genai==1.57.0
+pipecat-ai[google,openai,sarvam,silero]==0.0.100
+python-dotenv==1.0.1
+structlog==24.4.0
+tenacity==9.0.0
+httpx==0.28.1
+pytest==8.3.3
+pytest-asyncio==0.24.0
+tzdata==2026.4

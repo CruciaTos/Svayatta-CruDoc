@@ -31,6 +31,7 @@ import 'package:doctor_management_app/features/patients/presentation/widgets/det
 import 'package:doctor_management_app/features/patients/presentation/widgets/details/visits_card.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_cards.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
+import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Main-area padding for Patient details (the dashboard's, 24 on top).
@@ -184,6 +185,7 @@ class _DetailsBody extends ConsumerWidget {
     final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
     final records = isDentist ? DentalRecordsCard(patient: p) : null;
     final physioPhotos = isPhysio ? PhysioPhotosCard(patient: p) : null;
+    final muscleChart = isPhysio ? MuscleChartCard(patient: p) : null;
     final noPlan = isDentist && !planLoading && items.isEmpty
         ? NoPlanCard(patient: p)
         : null;
@@ -246,6 +248,7 @@ class _DetailsBody extends ConsumerWidget {
                       child: _Stack([
                         ?imaging,
                         ?chart,
+                        ?muscleChart,
                         ?noPlan,
                         planOrPayments,
                         notes,
@@ -268,6 +271,7 @@ class _DetailsBody extends ConsumerWidget {
                 _Stack([
                   ?imaging,
                   ?chart,
+                  ?muscleChart,
                   ?noPlan,
                   planOrPayments,
                   ?procedures,

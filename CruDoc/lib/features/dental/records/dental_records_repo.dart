@@ -61,6 +61,9 @@ abstract final class RecKind {
 
   /// Physiotherapy session photo series (patientId = patient).
   static const physioPhotoSet = 'physioPhotoSet';
+
+  /// Physiotherapy 3D muscle chart findings (patientId = patient).
+  static const muscleChart = 'muscleChart';
 }
 
 /// One clinical record (a perio exam, an endo record, a signed consent,

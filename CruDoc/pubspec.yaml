@@ -79,6 +79,8 @@ dependencies:
   image: ^4.9.2
   desktop_drop: ^0.8.4
   sherpa_onnx: ^1.13.8
+  # 3D muscle chart (three.js in WebView2 on Windows, WKWebView on iPad).
+  flutter_inappwebview: ^6.1.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -113,6 +115,13 @@ flutter:
     - assets/images/default_map.png
     # The Revenue period cards' patterns (made once, see mobile_revenue.dart).
     - assets/images/revenue_cards/
+    # Physio 3D muscle chart viewer and model (see tool/muscle_pipeline).
+    - assets/muscle_viewer/
+    - assets/muscle_viewer/vendor/
+    - assets/muscle_viewer/vendor/addons/controls/
+    - assets/muscle_viewer/vendor/addons/libs/
+    - assets/muscle_viewer/vendor/addons/loaders/
+    - assets/muscle_viewer/vendor/addons/utils/
     # Offline speech model for the voice demo (lib/features/voice).
     # - assets/voice/parakeet/
 

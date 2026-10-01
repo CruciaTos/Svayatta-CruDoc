@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CruDoc Muscle Chart</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "./vendor/three.module.js",
+  "three/addons/": "./vendor/addons/"
+} }
+</script>
+</head>
+<body>
+<div id="app">
+  <section id="stage">
+    <div class="bar top">
+      <div class="seg" id="modes">
+        <button data-mode="anatomy" class="on">Anatomy</button>
+        <button data-mode="focus">Focus</button>
+        <button data-mode="isolate">Isolate</button>
+      </div>
+      <div class="hint">Drag to turn · Scroll to zoom · Right-drag to pan · Double-click a muscle to bring it close</div>
+      <div class="row">
+        <button class="pill toggle on" id="tSkeleton">Skeleton</button>
+        <button class="pill toggle on" id="tSuperficial">Superficial layer</button>
+        <button class="pill" id="bShowAll" title="Show muscles you hid">Show hidden</button>
+      </div>
+    </div>
+
+    <canvas id="gl"></canvas>
+    <div id="labels"></div>
+    <div id="tip"></div>
+    <div id="loading"><div class="lbar"><i></i></div><span>Loading muscles…</span></div>
+
+    <div class="bar bottom">
+      <div class="row wrap" id="views">
+        <button class="pill" data-view="front">Front</button>
+        <button class="pill" data-view="back">Back</button>
+        <button class="pill" data-view="left">Left side</button>
+        <button class="pill" data-view="right">Right side</button>
+        <span class="sep"></span>
+        <button class="pill" data-region="neck">Neck</button>
+        <button class="pill" data-region="shoulder">Shoulder</button>
+        <button class="pill" data-region="lowback">Low back</button>
+        <button class="pill" data-region="hip">Hip</button>
+        <button class="pill" data-region="knee">Knee</button>
+        <button class="pill" data-region="ankle">Ankle</button>
+      </div>
+      <div class="row">
+        <button class="sq" id="zOut" title="Zoom out">−</button>
+        <button class="sq" id="zIn" title="Zoom in">+</button>
+        <button class="sq" id="zReset" title="Reset view">↺</button>
+      </div>
+    </div>
+    <div id="perf"></div>
+  </section>
+
+  <aside id="panel">
+    <input id="search" type="search" placeholder="Search muscles (e.g. supraspinatus)" autocomplete="off">
+    <div id="results"></div>
+
+    <div id="card" hidden>
+      <div class="cardHead">
+        <div>
+          <div class="mname" id="cName"></div>
+          <div class="msub" id="cSub"></div>
+        </div>
+        <button class="x" id="cClose" title="Close">×</button>
+      </div>
+      <div class="chips" id="cActions"></div>
+      <label>Status</label>
+      <div class="seg small" id="cStatus">
+        <button data-status="">Healthy</button>
+        <button data-status="affected">Affected</button>
+        <button data-status="improving">Improving</button>
+        <button data-status="resolved">Resolved</button>
+      </div>
+      <label>Finding</label>
+      <select id="cCondition">
+        <option value="">—</option>
+        <option>Strain grade I</option><option>Strain grade II</option><option>Strain grade III / tear</option>
+        <option>Trigger point</option><option>Spasm</option><option>Tightness</option>
+        <option>Weakness</option><option>Tendinopathy</option><option>Contusion</option>
+      </select>
+      <label>Pain <b id="cPainV">0</b>/10</label>
+      <input id="cPain" type="range" min="0" max="10" value="0">
+      <div class="row">
+        <button class="pill" id="cFocus">Bring close</button>
+        <button class="pill" id="cHide">Hide muscle</button>
+      </div>
+    </div>
+
+    <div id="findings">
+      <h4>Findings</h4>
+      <div id="fList"><p class="muted">Click a muscle and set a status to record a finding.</p></div>
+    </div>
+
+    <div class="legend">
+      <span><i class="d healthy"></i>Healthy</span>
+      <span><i class="d affected"></i>Affected</span>
+      <span><i class="d improving"></i>Improving</span>
+      <span><i class="d resolved"></i>Resolved</span>
+    </div>
+    <p class="credit">3D anatomy: Z-Anatomy / BodyParts3D, CC BY-SA 4.0</p>
+  </aside>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

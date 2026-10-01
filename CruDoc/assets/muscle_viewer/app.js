@@ -463,6 +463,7 @@ function resize() {
 new ResizeObserver(resize).observe(stage);
 
 const perf = document.getElementById('perf');
+if (params.has('perf')) document.body.classList.add('perf');
 let frames = 0, lastT = performance.now(), gpu = '';
 try {
   const gl = renderer.getContext(), ext = gl.getExtension('WEBGL_debug_renderer_info');

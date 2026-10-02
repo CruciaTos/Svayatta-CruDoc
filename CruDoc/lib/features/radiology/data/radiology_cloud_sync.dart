@@ -105,22 +105,34 @@ abstract final class RadiologyCloudSync {
           marked[image.id] = RadCloudStatus.localOnlyTooLarge;
           continue;
         }
-        final bytes = await file.readAsBytes();
-        final id = await StorageSyncQueue.instance.enqueue(
-          kind: kind,
-          patientId: study.patientId,
-          bytes: bytes,
-          contentType: type,
-          compress: false, // Diagnostic originals stay untouched.
-          link: UploadLink.viaHandler(
-            linkHandler,
-            docId: study.id,
-            args: {'imageId': image.id},
-          ),
+        final link = UploadLink.viaHandler(
+          linkHandler,
+          docId: study.id,
+          args: {'imageId': image.id},
         );
+        // DICOM and TIFF originals can be hundreds of MB: they are copied
+        // and uploaded from disk, never held in memory. Pictures are small.
+        final id = kind == UploadKind.imagingOriginal
+            ? await StorageSyncQueue.instance.enqueueFile(
+                kind: kind,
+                patientId: study.patientId,
+                sourcePath: file.path,
+                contentType: type,
+                link: link,
+              )
+            : await StorageSyncQueue.instance.enqueue(
+                kind: kind,
+                patientId: study.patientId,
+                bytes: await file.readAsBytes(),
+                contentType: type,
+                compress: false, // Diagnostic originals stay untouched.
+                link: link,
+              );
         if (id != null) queued++;
         if (image.previewPath.isEmpty && !image.compressed) {
-          await _enqueuePreview(study, image, bytes);
+          // Decoding the preview needs the bytes once; they are dropped
+          // as soon as the small JPEG is made.
+          await _enqueuePreview(study, image, await file.readAsBytes());
         }
       }
 

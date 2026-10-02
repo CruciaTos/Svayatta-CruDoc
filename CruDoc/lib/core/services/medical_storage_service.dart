@@ -211,6 +211,47 @@ class MedicalStorageService {
     );
   }
 
+  /// The same as [uploadImagingOriginal], but streamed from [file] instead
+  /// of held in memory: a DICOM series can be hundreds of MB. Uploads are
+  /// resumable, so a dropped connection carries on where it stopped.
+  Future<StoredFile> uploadImagingOriginalFile({
+    required String doctorId,
+    required String patientId,
+    required File file,
+    required String contentType,
+  }) async {
+    if (kIsWeb) {
+      throw UnsupportedError(
+        'uploadImagingOriginalFile is not supported on web.',
+      );
+    }
+    _requireSignedInAs(doctorId);
+    _requireOneOf(contentType, _imagingTypes);
+    final category = 'clinical/${ClinicalMediaKind.imaging.folder}';
+    final path = _datedPath(
+      'doctors/$doctorId/patients/${_segment(patientId)}/$category',
+      contentType,
+    );
+    final size = await file.length();
+    final limit = maxUploadBytesFor(contentType);
+    if (size > limit) throw StorageFileTooLargeException(size, limit);
+    await _storage
+        .ref(path)
+        .putFile(
+          file,
+          SettableMetadata(
+            contentType: contentType,
+            cacheControl: 'private, max-age=3600',
+            customMetadata: {
+              'doctorId': doctorId,
+              'patientId': patientId,
+              'category': category,
+            },
+          ),
+        );
+    return StoredFile(path: path, contentType: contentType, sizeBytes: size);
+  }
+
   /// Voice dictation for transcription. Stored under `voice-scratch/`, which
   /// is write-once: each call creates a new object and nothing overwrites it.
   /// Delete it with [delete] once the transcript is saved.
@@ -423,11 +464,14 @@ class MedicalStorageService {
   }) async {
     final payload = compress ? await _compress(bytes) : bytes;
     final type = compress ? _jpeg : contentType;
+    return _put(_datedPath(folder, type), payload, type, metadata);
+  }
+
+  /// `{folder}/{YYYY}/{MM}/{fileId}.{ext}` for a new file of [contentType].
+  String _datedPath(String folder, String contentType) {
     final now = DateTime.now();
     final month = now.month.toString().padLeft(2, '0');
-    final path =
-        '$folder/${now.year}/$month/${_uuid.v4()}.${_extensions[type]}';
-    return _put(path, payload, type, metadata);
+    return '$folder/${now.year}/$month/${_uuid.v4()}.${_extensions[contentType]}';
   }
 
   Future<StoredFile> _put(

@@ -247,6 +247,14 @@ abstract class UploadStore {
   /// store fills in). Fails without leaving either half behind.
   Future<PendingUpload> stage(PendingUpload upload, Uint8List bytes);
 
+  /// Like [stage], but copies the file at [sourcePath] without reading it
+  /// into memory (large imaging files).
+  Future<PendingUpload> stageFile(PendingUpload upload, String sourcePath);
+
+  /// The staged copy on disk, so a large file can be uploaded straight from
+  /// it. Null when the store keeps bytes in memory or the copy is missing.
+  Future<File?> stagedFile(PendingUpload upload);
+
   Future<void> save(PendingUpload upload);
   Future<PendingUpload?> get(String id);
 
@@ -287,14 +295,30 @@ class SqliteUploadStore implements UploadStore {
       File(p.join((await _root()).path, relativePath));
 
   @override
-  Future<PendingUpload> stage(PendingUpload upload, Uint8List bytes) async {
+  Future<PendingUpload> stage(PendingUpload upload, Uint8List bytes) =>
+      _stageWith(upload, (temp) => temp.writeAsBytes(bytes, flush: true));
+
+  @override
+  Future<PendingUpload> stageFile(PendingUpload upload, String sourcePath) =>
+      _stageWith(upload, (temp) => File(sourcePath).copy(temp.path));
+
+  @override
+  Future<File?> stagedFile(PendingUpload upload) async {
+    final file = await _file(upload.localPath);
+    return await file.exists() ? file : null;
+  }
+
+  Future<PendingUpload> _stageWith(
+    PendingUpload upload,
+    Future<void> Function(File temp) write,
+  ) async {
     final relative = p.join(upload.doctorId, upload.id);
     final file = await _file(relative);
     await file.parent.create(recursive: true);
     // Write beside the target and rename, so a crash never leaves a
     // half-written file that looks complete.
     final temp = File('${file.path}.part');
-    await temp.writeAsBytes(bytes, flush: true);
+    await write(temp);
     await temp.rename(file.path);
 
     final staged = PendingUpload(
@@ -435,6 +459,15 @@ class MemoryUploadStore implements UploadStore {
     _rows[upload.id] = upload;
     return upload;
   }
+
+  @override
+  Future<PendingUpload> stageFile(
+    PendingUpload upload,
+    String sourcePath,
+  ) async => stage(upload, await File(sourcePath).readAsBytes());
+
+  @override
+  Future<File?> stagedFile(PendingUpload upload) async => null;
 
   @override
   Future<void> save(PendingUpload upload) async => _rows[upload.id] = upload;

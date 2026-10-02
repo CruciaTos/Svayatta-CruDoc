@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
@@ -520,12 +521,30 @@ void main() {
     });
 
     test('takes DICOM and TIFF as imaging originals only', () {
-      expect(acceptsContentType(UploadKind.imagingOriginal, 'application/dicom'), isTrue);
-      expect(acceptsContentType(UploadKind.imagingOriginal, 'image/tiff'), isTrue);
-      expect(acceptsContentType(UploadKind.imagingOriginal, 'image/jpeg'), isFalse);
-      expect(acceptsContentType(UploadKind.clinicalPhoto, 'image/tiff'), isFalse);
-      expect(acceptsContentType(UploadKind.clinicalXray, 'application/dicom'), isFalse);
-      expect(acceptsContentType(UploadKind.imagingPreview, 'image/jpeg'), isTrue);
+      expect(
+        acceptsContentType(UploadKind.imagingOriginal, 'application/dicom'),
+        isTrue,
+      );
+      expect(
+        acceptsContentType(UploadKind.imagingOriginal, 'image/tiff'),
+        isTrue,
+      );
+      expect(
+        acceptsContentType(UploadKind.imagingOriginal, 'image/jpeg'),
+        isFalse,
+      );
+      expect(
+        acceptsContentType(UploadKind.clinicalPhoto, 'image/tiff'),
+        isFalse,
+      );
+      expect(
+        acceptsContentType(UploadKind.clinicalXray, 'application/dicom'),
+        isFalse,
+      );
+      expect(
+        acceptsContentType(UploadKind.imagingPreview, 'image/jpeg'),
+        isTrue,
+      );
     });
   });
 
@@ -533,15 +552,198 @@ void main() {
     const mb = 1024 * 1024;
 
     test('allows DICOM and TIFF up to 250 MB', () {
-      expect(exceedsUploadLimit(250 * mb, contentType: 'application/dicom'), isFalse);
-      expect(exceedsUploadLimit(250 * mb + 1, contentType: 'application/dicom'), isTrue);
+      expect(
+        exceedsUploadLimit(250 * mb, contentType: 'application/dicom'),
+        isFalse,
+      );
+      expect(
+        exceedsUploadLimit(250 * mb + 1, contentType: 'application/dicom'),
+        isTrue,
+      );
       expect(exceedsUploadLimit(40 * mb, contentType: 'image/tiff'), isFalse);
     });
 
     test('keeps 15 MB for everything else', () {
       expect(exceedsUploadLimit(15 * mb, contentType: 'image/jpeg'), isFalse);
-      expect(exceedsUploadLimit(15 * mb + 1, contentType: 'image/jpeg'), isTrue);
+      expect(
+        exceedsUploadLimit(15 * mb + 1, contentType: 'image/jpeg'),
+        isTrue,
+      );
       expect(exceedsUploadLimit(15 * mb + 1), isTrue);
     });
   });
+
+  group('large files from disk', () {
+    late Directory dir;
+    late _DiskStore store;
+    late List<String> fromFile;
+    late List<String> fromBytes;
+    late StorageSyncQueue queue;
+
+    setUp(() async {
+      dir = await Directory.systemTemp.createTemp('crudoc_stream_');
+      store = _DiskStore(dir);
+      fromFile = [];
+      fromBytes = [];
+      queue = StorageSyncQueue.forTesting(
+        store: store,
+        currentDoctorId: () => 'doc-a',
+        deleteObject: (_) async {},
+        upload: (item, bytes) async {
+          fromBytes.add(item.kind.name);
+          return StoredFile(
+            path: 'doctors/doc-a/b/${item.id}',
+            contentType: item.contentType,
+            sizeBytes: bytes.length,
+          );
+        },
+        uploadFile: (item, file) async {
+          fromFile.add(item.kind.name);
+          return StoredFile(
+            path: 'doctors/doc-a/f/${item.id}',
+            contentType: item.contentType,
+            sizeBytes: await file.length(),
+          );
+        },
+      );
+    });
+
+    tearDown(() async {
+      if (await dir.exists()) await dir.delete(recursive: true);
+    });
+
+    Future<String> source(String name, int size) async {
+      final file = File('${dir.path}${Platform.pathSeparator}$name');
+      final raf = await file.open(mode: FileMode.write);
+      await raf.truncate(size);
+      await raf.close();
+      return file.path;
+    }
+
+    test(
+      'a DICOM original is uploaded straight from its staged file',
+      () async {
+        final path = await source('ct.dcm', 3 * 1024 * 1024);
+        final id = await queue.enqueueFile(
+          kind: UploadKind.imagingOriginal,
+          sourcePath: path,
+          contentType: 'application/dicom',
+          patientId: 'p1',
+        );
+        await queue.processPending();
+
+        expect(fromFile, ['imagingOriginal']);
+        expect(fromBytes, isEmpty, reason: 'never loaded into memory');
+        final row = await queue.get(id!);
+        expect(row?.status, UploadStatus.done);
+        expect(row?.resultPath, 'doctors/doc-a/f/$id');
+        expect(
+          await store.stagedFile(row!),
+          isNull,
+          reason: 'staged copy removed',
+        );
+      },
+    );
+
+    test(
+      'the source file is copied, so the original can be moved away',
+      () async {
+        final path = await source('ct.dcm', 1024);
+        await queue.enqueueFile(
+          kind: UploadKind.imagingOriginal,
+          sourcePath: path,
+          contentType: 'application/dicom',
+          patientId: 'p1',
+        );
+        await File(path).delete();
+        await queue.processPending();
+        expect(fromFile, ['imagingOriginal']);
+      },
+    );
+
+    test('smaller kinds queued from a file still upload from bytes', () async {
+      final path = await source('scan.pdf', 2048);
+      await queue.enqueueFile(
+        kind: UploadKind.clinicalLab,
+        sourcePath: path,
+        contentType: 'application/pdf',
+        patientId: 'p1',
+      );
+      await queue.processPending();
+      expect(fromBytes, ['clinicalLab']);
+      expect(fromFile, isEmpty);
+    });
+
+    test('a DICOM file over 250 MB is refused and nothing is staged', () async {
+      final path = await source('huge.dcm', 250 * 1024 * 1024 + 1);
+      final id = await queue.enqueueFile(
+        kind: UploadKind.imagingOriginal,
+        sourcePath: path,
+        contentType: 'application/dicom',
+        patientId: 'p1',
+      );
+      expect(id, isNull);
+      expect(store.stagedCount, 0);
+    });
+
+    test(
+      'a staged copy that has gone missing fails without retrying',
+      () async {
+        final path = await source('ct.dcm', 1024);
+        final id = await queue.enqueueFile(
+          kind: UploadKind.imagingOriginal,
+          sourcePath: path,
+          contentType: 'application/dicom',
+          patientId: 'p1',
+        );
+        await store.deleteBytes((await queue.get(id!))!);
+        await queue.processPending();
+        expect((await queue.get(id))?.status, UploadStatus.failed);
+        expect(fromFile, isEmpty);
+      },
+    );
+  });
+}
+
+/// An in-memory store whose staged copies are real files in [dir], like
+/// the on-device store, so streaming from disk can be checked.
+class _DiskStore extends MemoryUploadStore {
+  _DiskStore(this.dir);
+
+  final Directory dir;
+  final Map<String, File> _files = {};
+
+  int get stagedCount => _files.length;
+
+  @override
+  Future<PendingUpload> stageFile(
+    PendingUpload upload,
+    String sourcePath,
+  ) async {
+    final copy = await File(
+      sourcePath,
+    ).copy('${dir.path}${Platform.pathSeparator}staged-${upload.id}');
+    _files[upload.id] = copy;
+    await save(upload);
+    return upload;
+  }
+
+  @override
+  Future<File?> stagedFile(PendingUpload upload) async {
+    final file = _files[upload.id];
+    return file != null && await file.exists() ? file : null;
+  }
+
+  @override
+  Future<Uint8List?> readBytes(PendingUpload upload) async {
+    final file = await stagedFile(upload);
+    return file == null ? super.readBytes(upload) : file.readAsBytes();
+  }
+
+  @override
+  Future<void> deleteBytes(PendingUpload upload) async {
+    final file = _files.remove(upload.id);
+    if (file != null && await file.exists()) await file.delete();
+    await super.deleteBytes(upload);
+  }
 }

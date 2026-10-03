@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import 'package:crudoc_shared/subscription/feature_catalog.dart';
 import 'package:crudoc_shared/subscription/upgrade_request_model.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
+import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 
 export 'package:crudoc_shared/subscription/feature_catalog.dart';
 
@@ -174,6 +175,11 @@ class DoctorSubscriptionService {
       'status': 'success',
       'timestamp': Timestamp.fromDate(now),
     });
+
+    // 5. A paid month earns a loyalty stamp (one per calendar month).
+    try {
+      await LoyaltyService.stampThisMonth();
+    } catch (_) {}
 
     return (
       success: true,

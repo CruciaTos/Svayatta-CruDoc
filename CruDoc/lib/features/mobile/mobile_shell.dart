@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/services/feature_usage_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/inventory/presentation/inventory_alert_listener.dart';
@@ -174,6 +175,15 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                             itemCount: MobileTab.count,
                             onPageChanged: (i) {
                               setState(() => _index = i);
+                              FeatureUsageService.log(
+                                const [
+                                  'Home',
+                                  'Schedule',
+                                  'Patients',
+                                  'Revenue',
+                                  'More',
+                                ][i],
+                              );
                               ref
                                       .read(mobileCurrentTabProvider.notifier)
                                       .state =

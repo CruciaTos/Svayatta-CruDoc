@@ -162,6 +162,11 @@ service cloud.firestore {
       match /active_sessions/{sessionId} {
         allow read, delete: if isSuperAdmin();
       }
+
+      // Super Admin sees which features each doctor uses (trial tracking).
+      match /feature_usage/{moduleKey} {
+        allow read: if isSuperAdmin();
+      }
     }
 
     // ============================================================

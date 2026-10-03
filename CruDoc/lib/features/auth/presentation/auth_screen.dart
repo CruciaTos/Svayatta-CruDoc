@@ -17,7 +17,7 @@ import 'package:doctor_management_app/core/services/demo_data_seeder.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/device_session_service.dart';
 import 'package:doctor_management_app/features/auth/presentation/phone_auth_sheet.dart';
-import 'package:doctor_management_app/features/auth/presentation/widgets/specialty_onboarding_dialog.dart';
+import 'package:doctor_management_app/features/onboarding/presentation/onboarding_flow.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key});
@@ -29,16 +29,20 @@ class AuthScreen extends ConsumerStatefulWidget {
 class _AuthScreenState extends ConsumerState<AuthScreen>
     with TickerProviderStateMixin {
   // Mobile Controllers
-  late final PageController _pageController;
   late final AnimationController _backgroundController;
-  late final AnimationController _contentController;
 
   // Web Scroll Controller (initialized eagerly to prevent LateInitializationError)
   final ScrollController _webScrollController = ScrollController();
 
   final AuthService _authService = AuthService();
 
-  int _currentPage = 1; // Start on login page for mobile
+  /// The phone has one sign-in screen; "Sign up" switches the form in place.
+  _AuthMode _mobileMode = _AuthMode.login;
+
+  /// Phone, first launch: Get started (onboarding questions) comes before
+  /// sign-in. Null while the flag loads.
+  bool? _getStarted;
+  static const _kSeenGetStarted = 'seen_get_started';
   bool _obscurePassword = true;
   bool _isLoading = false;
   bool _rememberMe = true;
@@ -52,19 +56,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   @override
   void initState() {
     super.initState();
-    _pageController = PageController(initialPage: _currentPage);
-
     _backgroundController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 8),
     )..repeat(reverse: true);
 
-    _contentController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 680),
-    )..forward();
-
     _loadRememberedCredentials();
+    _secureStorage
+        .read(key: _kSeenGetStarted)
+        .then((v) => v == 'true', onError: (_) => false)
+        .then((seen) {
+          if (mounted) setState(() => _getStarted = !seen);
+        });
 
     // Clean empty text controllers by default
   }
@@ -94,9 +97,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   @override
   void dispose() {
-    _pageController.dispose();
     _backgroundController.dispose();
-    _contentController.dispose();
     _webScrollController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -169,14 +170,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     }
     if (mounted) setState(() => _isLoading = false);
     _enterApp();
-  }
-
-  void _goToPage(int index) {
-    _pageController.animateToPage(
-      index,
-      duration: const Duration(milliseconds: 520),
-      curve: Curves.easeOutCubic,
-    );
   }
 
   Future<void> _syncUserProfile(User user, {String? name}) async {
@@ -570,7 +563,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       final user = userCredential.user;
       if (user != null) {
         await DeviceSessionService.instance.registerNewSession(user.uid);
-        if (mounted) await _maybeOnboardSpecialty(user);
+        await _syncUserProfile(user);
       }
       if (!mounted) return;
       _enterApp();
@@ -596,30 +589,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
       final currentUser = FirebaseAuth.instance.currentUser;
       if (currentUser != null) {
         await DeviceSessionService.instance.registerNewSession(currentUser.uid);
-        if (mounted) await _maybeOnboardSpecialty(currentUser);
+        await _syncUserProfile(currentUser);
       }
       if (mounted) {
         _enterApp();
       }
     }
-  }
-
-  /// Shows the specialty onboarding dialog if the user has no specialty set.
-  Future<void> _maybeOnboardSpecialty(User user) async {
-    try {
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final data = doc.data();
-      final hasSpecialty =
-          data != null &&
-          ((data['specialty'] as String?)?.trim().isNotEmpty == true ||
-              (data['specialization'] as String?)?.trim().isNotEmpty == true);
-      if (!hasSpecialty && mounted) {
-        await showSpecialtyOnboardingDialog(context);
-      }
-    } catch (_) {}
   }
 
   @override
@@ -641,7 +616,31 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   // ==================== MOBILE AUTH VIEW (UNCHANGED) ====================
 
+  void _leaveGetStarted({OnboardingAnswers? answers}) {
+    _secureStorage
+        .write(key: _kSeenGetStarted, value: 'true')
+        .catchError((_) {});
+    OnboardingAnswers.pending = answers;
+    setState(() {
+      _getStarted = false;
+      if (answers != null) {
+        _mobileMode = _AuthMode.signup;
+        _nameController.text = answers.name;
+      }
+    });
+  }
+
   Widget _buildMobileAuthView(BuildContext context) {
+    if (_getStarted == null) {
+      return const Scaffold(backgroundColor: Color(0xFF087DFF));
+    }
+    if (_getStarted!) {
+      return OnboardingFlow(
+        onDone: () {},
+        onAnswered: (a) => _leaveGetStarted(answers: a),
+        onHaveAccount: _leaveGetStarted,
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFF087DFF),
       body: AnimatedBuilder(
@@ -657,65 +656,32 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                 ),
               ),
               SafeArea(
-                child: PageView(
-                  controller: _pageController,
-                  onPageChanged: _handlePageChanged,
-                  children: [
-                    // Page 0: Intro
-                    _IntroPanel(
-                      progress: _backgroundController.value,
-                      onLogin: () => _goToPage(1),
-                      onSignup: () => _goToPage(2),
-                    ),
-                    // Page 1: Login
-                    _AuthFormPanel(
-                      progress: _backgroundController.value,
-                      mode: _AuthMode.login,
-                      obscurePassword: _obscurePassword,
-                      isLoading: _isLoading,
-                      emailController: _emailController,
-                      passwordController: _passwordController,
-                      nameController: _nameController,
-                      onBack: () => _goToPage(0),
-                      onObscureToggle: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                      onPrimary: _handleEmailLogin,
-                      selectedSpecialty: ref.watch(authSpecialtyProvider),
-                      onSpecialtySelected: (spec) {
-                        ref.read(authSpecialtyProvider.notifier).select(spec);
-                      },
-                      onSecondary: () => _goToPage(2),
-                      onGoogleSignIn: _handleGoogleSignIn,
-                      onPhoneSignIn: _handlePhoneSignIn,
-                    ),
-                    // Page 2: Signup
-                    _AuthFormPanel(
-                      progress: _backgroundController.value,
-                      mode: _AuthMode.signup,
-                      obscurePassword: _obscurePassword,
-                      isLoading: _isLoading,
-                      emailController: _emailController,
-                      passwordController: _passwordController,
-                      nameController: _nameController,
-                      onBack: () => _goToPage(1),
-                      onObscureToggle: () =>
-                          setState(() => _obscurePassword = !_obscurePassword),
-                      onPrimary: _handleEmailSignup,
-                      onSecondary: () => _goToPage(1),
-                      onGoogleSignIn: _handleGoogleSignIn,
-                      onPhoneSignIn: _handlePhoneSignIn,
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 16,
-                child: _PageDots(
-                  count: 3,
-                  activeIndex: _currentPage,
-                  onDotTap: _goToPage,
+                child: _AuthFormPanel(
+                  progress: _backgroundController.value,
+                  mode: _mobileMode,
+                  obscurePassword: _obscurePassword,
+                  isLoading: _isLoading,
+                  emailController: _emailController,
+                  passwordController: _passwordController,
+                  nameController: _nameController,
+                  onObscureToggle: () =>
+                      setState(() => _obscurePassword = !_obscurePassword),
+                  onPrimary: _mobileMode == _AuthMode.login
+                      ? _handleEmailLogin
+                      : _handleEmailSignup,
+                  selectedSpecialty: _mobileMode == _AuthMode.login
+                      ? ref.watch(authSpecialtyProvider)
+                      : null,
+                  onSpecialtySelected: (spec) {
+                    ref.read(authSpecialtyProvider.notifier).select(spec);
+                  },
+                  onSecondary: () => setState(
+                    () => _mobileMode = _mobileMode == _AuthMode.login
+                        ? _AuthMode.signup
+                        : _AuthMode.login,
+                  ),
+                  onGoogleSignIn: _handleGoogleSignIn,
+                  onPhoneSignIn: _handlePhoneSignIn,
                 ),
               ),
             ],
@@ -723,13 +689,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         },
       ),
     );
-  }
-
-  void _handlePageChanged(int index) {
-    setState(() => _currentPage = index);
-    _contentController
-      ..reset()
-      ..forward();
   }
 
   // ==================== WEB AUTH VIEW — CLEAN MEDICAL SPLIT DESIGN ====================
@@ -1543,89 +1502,6 @@ class _WebTextField extends StatelessWidget {
 
 // ==================== ORIGINAL MOBILE INTRO PANEL ====================
 
-class _IntroPanel extends StatelessWidget {
-  const _IntroPanel({
-    required this.progress,
-    required this.onLogin,
-    required this.onSignup,
-  });
-
-  final double progress;
-  final VoidCallback onLogin;
-  final VoidCallback onSignup;
-
-  @override
-  Widget build(BuildContext context) {
-    return _AnimatedPanel(
-      progress: progress,
-      whiteWaveHeight: 0,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'cru.doc',
-              style: TextStyle(
-                color: Colors.white,
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-              ),
-            ),
-            const Spacer(),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: 1),
-              duration: const Duration(milliseconds: 820),
-              curve: Curves.easeOutCubic,
-              builder: (context, value, child) {
-                return Opacity(
-                  opacity: value,
-                  child: Transform.translate(
-                    offset: Offset(0, 24 * (1 - value)),
-                    child: child,
-                  ),
-                );
-              },
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Doctor\nmanagement',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontFamily: AppColors.headingFontFamily,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800,
-                      height: 1.05,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Manage patients, visits, inventory, and revenue from one smooth workspace.',
-                    style: TextStyle(
-                      color: Color(0xC7FFFFFF),
-                      fontFamily: AppColors.bodyFontFamily,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      height: 1.4,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            _AuthButton(label: 'Log in', filled: false, onPressed: onLogin),
-            const SizedBox(height: 10),
-            _AuthButton(label: 'Sign up', filled: true, onPressed: onSignup),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 // ==================== AUTH MODE ENUM ====================
 
 enum _AuthMode { login, signup }
@@ -1641,7 +1517,6 @@ class _AuthFormPanel extends StatelessWidget {
     required this.emailController,
     required this.passwordController,
     required this.nameController,
-    required this.onBack,
     required this.onObscureToggle,
     required this.onPrimary,
     this.selectedSpecialty,
@@ -1658,7 +1533,6 @@ class _AuthFormPanel extends StatelessWidget {
   final TextEditingController emailController;
   final TextEditingController passwordController;
   final TextEditingController nameController;
-  final VoidCallback onBack;
   final VoidCallback onObscureToggle;
   final VoidCallback onPrimary;
   final DoctorSpecialty? selectedSpecialty;
@@ -1676,15 +1550,17 @@ class _AuthFormPanel extends StatelessWidget {
       whiteWaveHeight: 0.32,
       child: Stack(
         children: [
-          Positioned(
-            top: 18,
-            left: 14,
-            child: IconButton(
-              onPressed: onBack,
-              icon: const Icon(Icons.chevron_left_rounded, color: Colors.white),
-              style: IconButton.styleFrom(
-                backgroundColor: Colors.white.withValues(alpha: 0.16),
-                padding: const EdgeInsets.all(8),
+          const Positioned(
+            top: 24,
+            left: 20,
+            child: Text(
+              'cru.doc',
+              style: TextStyle(
+                color: Colors.white,
+                fontFamily: AppColors.headingFontFamily,
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.3,
               ),
             ),
           ),
@@ -2228,43 +2104,6 @@ class _AnimatedPanel extends StatelessWidget {
 }
 
 // ==================== ORIGINAL PAGE DOTS ====================
-
-class _PageDots extends StatelessWidget {
-  const _PageDots({
-    required this.count,
-    required this.activeIndex,
-    required this.onDotTap,
-  });
-
-  final int count;
-  final int activeIndex;
-  final ValueChanged<int> onDotTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(count, (index) {
-        final bool active = activeIndex == index;
-        return GestureDetector(
-          onTap: () => onDotTap(index),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 260),
-            margin: const EdgeInsets.symmetric(horizontal: 4),
-            width: active ? 18 : 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: active ? 0.9 : 0.42),
-              borderRadius: BorderRadius.circular(99),
-            ),
-          ),
-        );
-      }),
-    );
-  }
-}
-
-// ==================== ORIGINAL PAINTERS ====================
 
 class _WaterPanelPainter extends CustomPainter {
   _WaterPanelPainter({required this.progress, required this.whiteWaveHeight});

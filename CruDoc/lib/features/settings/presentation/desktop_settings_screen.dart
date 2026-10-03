@@ -21,6 +21,8 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
+import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
+import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
@@ -34,6 +36,7 @@ enum SettingsSection {
   clinic('Clinic & letterhead', CruIcons.pen),
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
+  plan('Plan & rewards', CruIcons.wallet),
   appearance('Appearance', CruIcons.sun),
 
   /// Dentists and dental specialists only.
@@ -91,6 +94,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.clinic => _ClinicSection(user: user, profile: profile),
       SettingsSection.accounts => const _AccountsSection(),
       SettingsSection.devices => _DevicesSection(user: user),
+      SettingsSection.plan => const _PlanSection(),
       SettingsSection.appearance => const _AppearanceSection(),
       SettingsSection.dental => const _DentalSection(),
       SettingsSection.radiology => const RadSettingsSection(),
@@ -1553,6 +1557,47 @@ class _DentalSection extends ConsumerWidget {
 // =============================================================================
 // ABOUT
 // =============================================================================
+
+/// The loyalty card: a stamp per month with CruDoc, the 6th month free.
+class _PlanSection extends ConsumerStatefulWidget {
+  const _PlanSection();
+
+  @override
+  ConsumerState<_PlanSection> createState() => _PlanSectionState();
+}
+
+class _PlanSectionState extends ConsumerState<_PlanSection> {
+  bool _claiming = false;
+
+  Future<void> _claim() async {
+    if (_claiming) return;
+    setState(() => _claiming = true);
+    try {
+      await LoyaltyService.claimFreeMonth();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Free month added to your plan.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not claim. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final card = ref.watch(loyaltyCardProvider).value;
+    // Hide until the card exists (it is created on entering the app).
+    if (card == null) return const SizedBox.shrink();
+    return LoyaltyCardView(card: card, onClaim: _claiming ? null : _claim);
+  }
+}
 
 class _AboutSection extends ConsumerStatefulWidget {
   const _AboutSection();

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:doctor_management_app/core/services/feature_usage_service.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
@@ -237,6 +238,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     ref.read(shellCurrentTabProvider.notifier).state = index;
     setState(() => _currentIndex = index);
     unawaited(_shellPrefs.setLastTabIndex(index));
+    unawaited(FeatureUsageService.log(_labels[index]));
   }
 
   void _focusSearch() {

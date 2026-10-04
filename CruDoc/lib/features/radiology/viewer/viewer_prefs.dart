@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
@@ -190,6 +192,7 @@ class RadViewerPrefs {
     this.panelWidth = defaultPanelWidth,
     this.panelOpen = true,
     this.thumbs = true,
+    this.fullQuality = true,
     this.states = const {},
   });
 
@@ -206,6 +209,7 @@ class RadViewerPrefs {
   final double panelWidth;
   final bool panelOpen;
   final bool thumbs;
+  final bool fullQuality;
 
   /// Last state by study type name: layout, tool, link, tab.
   final Map<String, Map<String, dynamic>> states;
@@ -215,7 +219,13 @@ class RadViewerPrefs {
   static const presetsKey = 'v2d.presets';
   static const panelWidthKey = 'v2d.panelWidth';
   static const panelOpenKey = 'v2d.panelOpen';
+  static bool defaultFullQuality() {
+    if (kIsWeb) return true;
+    return !(Platform.isAndroid || Platform.isIOS);
+  }
+
   static const thumbsKey = 'v2d.thumbs';
+  static const fullQualityKey = 'v2d.fullQuality';
   static String stateKey(RadModality m) => 'v2d.state.${m.name}';
 
   factory RadViewerPrefs.from(Map<String, dynamic> v) {
@@ -251,6 +261,7 @@ class RadViewerPrefs {
           : defaultPanelWidth,
       panelOpen: v[panelOpenKey] != false,
       thumbs: v[thumbsKey] != false,
+      fullQuality: v.containsKey(fullQualityKey) ? (v[fullQualityKey] == true) : defaultFullQuality(),
       states: states,
     );
   }
@@ -285,6 +296,7 @@ class RadViewerPrefs {
     double? panelWidth,
     bool? panelOpen,
     bool? thumbs,
+    bool? fullQuality,
     Map<String, Map<String, dynamic>>? states,
   }) => RadViewerPrefs(
     keys: keys ?? this.keys,
@@ -295,6 +307,7 @@ class RadViewerPrefs {
     panelWidth: panelWidth ?? this.panelWidth,
     panelOpen: panelOpen ?? this.panelOpen,
     thumbs: thumbs ?? this.thumbs,
+    fullQuality: fullQuality ?? this.fullQuality,
     states: states ?? this.states,
   );
 }

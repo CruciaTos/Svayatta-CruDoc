@@ -2,6 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart'
+    show RadUnsupportedImage;
+
 /// DICOM tags the radiology module reads, as (group << 16) | element.
 abstract final class DicomTag {
   static const transferSyntax = 0x00020010;
@@ -452,6 +455,82 @@ class DicomFile {
     if (off + frameBytes > bytes.length)
       throw DicomFormatException('Pixel data is cut short');
     return off;
+  }
+
+  /// Extracts encapsulated pixel data for [frame] from sequence fragments.
+  Uint8List encapsulatedFrame(int frame) {
+    final e = _top[DicomTag.pixelData];
+    if (e == null) throw DicomFormatException('No pixel data');
+
+    var pos = e.valueOffset;
+    final end = e.end;
+
+    int u16(int p) =>
+        littleEndian ? bytes[p] | (bytes[p + 1] << 8) : (bytes[p] << 8) | bytes[p + 1];
+    int u32(int p) => littleEndian
+        ? bytes[p] |
+            (bytes[p + 1] << 8) |
+            (bytes[p + 2] << 16) |
+            (bytes[p + 3] << 24)
+        : (bytes[p] << 24) |
+            (bytes[p + 1] << 16) |
+            (bytes[p + 2] << 8) |
+            bytes[p + 3];
+
+    // Item 1 is the Basic Offset Table (BOT). Skip it.
+    if (pos + 8 > bytes.length) {
+      throw DicomFormatException('Pixel data is cut short');
+    }
+    final firstTag = (u16(pos) << 16) | u16(pos + 2);
+    if (firstTag != DicomTag.item) {
+      throw DicomFormatException('Expected Item tag for Basic Offset Table');
+    }
+    final botLen = u32(pos + 4);
+    pos += 8;
+    if (botLen != _undefined) {
+      pos += botLen;
+    }
+
+    final fragments = <Uint8List>[];
+    while (pos + 8 <= bytes.length && pos < end) {
+      final tag = (u16(pos) << 16) | u16(pos + 2);
+      final len = u32(pos + 4);
+      pos += 8;
+      if (tag == DicomTag.sequenceDelimiter) {
+        break;
+      }
+      if (tag != DicomTag.item) {
+        break;
+      }
+      if (len == _undefined) {
+        throw RadUnsupportedImage('Undefined-length fragment not supported');
+      }
+      if (pos + len > bytes.length) {
+        throw DicomFormatException('Fragment data is cut short');
+      }
+      fragments.add(bytes.sublist(pos, pos + len));
+      pos += len;
+    }
+
+    final totalFrames = frames;
+    if (fragments.length == totalFrames) {
+      if (frame < 0 || frame >= fragments.length) {
+        throw RangeError.index(frame, fragments);
+      }
+      return fragments[frame];
+    }
+
+    if (totalFrames == 1 && fragments.isNotEmpty) {
+      final bb = BytesBuilder(copy: false);
+      for (final f in fragments) {
+        bb.add(f);
+      }
+      return bb.takeBytes();
+    }
+
+    throw RadUnsupportedImage(
+      'Encapsulated fragments (${fragments.length}) do not match frames ($totalFrames)',
+    );
   }
 
   /// One frame's stored values as signed integers (masked to Bits Stored

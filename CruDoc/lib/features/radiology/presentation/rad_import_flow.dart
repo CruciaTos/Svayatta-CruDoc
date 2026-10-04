@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:crudoc_j2k/crudoc_j2k.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -638,7 +639,7 @@ class _RadStudyFormDialogState extends ConsumerState<RadStudyFormDialog> {
                     title:
                         '${RadFormat.images(g.compressedCount)} use a compressed format',
                     body:
-                        'JPEG 2000 / JPEG-LS scans are kept with the study but can\'t be '
+                        '${j2kSupported ? "JPEG-LS" : "JPEG 2000 / JPEG-LS"} scans are kept with the study but can\'t be '
                         'shown yet. Ask the scanner or PACS to export uncompressed DICOM '
                         'to read them now.',
                   ),

@@ -11,6 +11,11 @@ import 'package:doctor_management_app/core/services/auth_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_cloud_fetch.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
+import 'package:crudoc_j2k/crudoc_j2k.dart';
+import 'package:doctor_management_app/features/radiology/data/rad_progressive_flag.dart';
+import 'package:doctor_management_app/features/radiology/data/radiology_view_fetch.dart';
+import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
+import 'package:doctor_management_app/features/radiology/imaging/rad_view_pixels.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 
 const _uuid = Uuid();
@@ -215,6 +220,68 @@ class RadiologyController {
     final image = s.images.where((i) => i.path == relativePath).firstOrNull;
     if (image == null || image.storagePath.isEmpty) return file;
     return RadCloudFetch.instance.fetch(image.storagePath, file);
+  }
+
+  /// Pixels for [image]. Uses the progressive viewing file when possible
+  /// (see handoff Design), otherwise the original as before.
+  Future<RadPixels> pixelsOf(
+    RadStudy s,
+    RadImageRef image,
+    int frame, {
+    required bool full,
+  }) async {
+    Future<RadPixels> oldPath() async {
+      return loadRadPixels(
+        await fileOf(s, image.path),
+        image.kind,
+        frame: frame,
+      );
+    }
+
+    if (kIsWeb ||
+        !j2kSupported ||
+        image.storagePath.isEmpty ||
+        image.kind != RadFileKind.dicom) {
+      return oldPath();
+    }
+
+    final localOriginal = await _repo.fileOf(doctorId, s.id, image.path);
+    if (await localOriginal.exists()) {
+      return oldPath();
+    }
+
+    if (!(await radProgressiveViewEnabled())) {
+      return oldPath();
+    }
+
+    try {
+      final info = await RadViewFetch.instance.info(image.storagePath);
+      if (info == null || !info.ready) {
+        return oldPath();
+      }
+
+      final dir = await studyDir(s.id);
+      final file = await RadViewFetch.instance.ensure(
+        studyDir: dir,
+        imageId: image.id,
+        storagePath: image.storagePath,
+        frame: frame,
+        full: full,
+      );
+
+      return await loadRadViewPixels(
+        file,
+        info,
+        frame: frame,
+        full: full,
+        pixelSpacingMm: image.pixelSpacingMm,
+      );
+    } catch (e) {
+      debugPrint(
+        '[rad] Progressive view failed (${e.runtimeType}), falling back to original',
+      );
+      return oldPath();
+    }
   }
 
   /// What to draw [image]'s thumbnail from: the original when it's on this

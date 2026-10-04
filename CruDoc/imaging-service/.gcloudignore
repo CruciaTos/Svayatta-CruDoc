@@ -1,0 +1,10 @@
+# Upload only what the service needs to Cloud Build.
+.gcloudignore
+.gitignore
+.gitattributes
+README.md
+spike/
+tests/
+backfill.py
+__pycache__/
+.pytest_cache/

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
+import 'package:doctor_management_app/features/radiology/viewer/viewer_prefs.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_providers.dart';
 import 'package:doctor_management_app/features/radiology/presentation/pacs_dialogs.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_dialogs.dart';
@@ -62,6 +63,40 @@ class RadSettingsSection extends ConsumerWidget {
                     'AE title ${settings.aeTitle} · port ${settings.dicomPort} · not connected yet',
                 action: 'Set up',
                 onTap: () => showRadDicomReceiverDialog(context),
+              ),
+              const CruSeparator(),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Always open scans at full quality',
+                            style: CruType.callout.tint(context.cru.label),
+                          ),
+                          const SizedBox(height: CruSpace.s2),
+                          Text(
+                            'Off: scans open as a quick preview and sharpen when you zoom or measure.',
+                            style: CruType.caption.tint(context.cru.label2),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: CruSpace.s16),
+                    _SettingToggle(
+                      label: 'Always open scans at full quality',
+                      value: RadViewerPrefs.from(settings.viewer).fullQuality,
+                      onChanged: (value) => ref
+                          .read(radiologyProvider)
+                          .saveViewerPrefs({
+                        RadViewerPrefs.fullQualityKey: value,
+                      }),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
@@ -392,6 +427,53 @@ class _StorageCardState extends ConsumerState<_StorageCard> {
             onTap: () => showRadAuditDialog(context),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingToggle extends StatelessWidget {
+  const _SettingToggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Semantics(
+      toggled: value,
+      child: CruPressable(
+        onTap: () => onChanged(!value),
+        semanticLabel: label,
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          width: CruSpace.s32 + CruSpace.s8,
+          height: CruSpace.s24,
+          padding: const EdgeInsets.all(CruSpace.s2),
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          decoration: ShapeDecoration(
+            color: value
+                ? c.accent
+                : (hovered ? cruHoverShade(c.track, c) : c.track),
+            shape: const StadiumBorder(),
+          ),
+          child: Container(
+            width: CruSpace.s20,
+            height: CruSpace.s20,
+            decoration: ShapeDecoration(
+              color: c.surface,
+              shape: const CircleBorder(),
+              shadows: const [],
+            ),
+          ),
+        ),
       ),
     );
   }

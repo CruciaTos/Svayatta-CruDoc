@@ -31,6 +31,7 @@ abstract final class RadInk {
   static const overlay = Color(0xE6FFFFFF);
   static const overlayQuiet = Color(0x99FFFFFF);
   static const overlayFill = Color(0x99000000);
+  static const overlayBorder = Color(0x33FFFFFF);
   static const loupeRing = Color(0xCCFFFFFF);
 
   /// Colours the doctor can give an annotation.

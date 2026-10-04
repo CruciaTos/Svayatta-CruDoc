@@ -122,6 +122,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   RadPanelTab _tab = RadPanelTab.measure;
   String? _selectedId;
   bool _busy = false;
+  final Set<String> _fullQualityIds = {};
 
   RadPane get _pane => _panes[_active.clamp(0, _panes.length - 1)];
 
@@ -187,7 +188,12 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     final s = _studies[studyId];
     final i = s?.images.where((x) => x.id == imageId).firstOrNull;
     if (s == null || i == null) throw StateError('Image not found');
-    return loadRadPixels(await _ctl.fileOf(s, i.path), i.kind, frame: frame);
+    return _ctl.pixelsOf(
+      s,
+      i,
+      frame,
+      full: _prefs.fullQuality || _fullQualityIds.contains(imageId),
+    );
   }
 
   /// Takes the provider's copy unless ours is newer (just saved).
@@ -249,20 +255,21 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
       p.imageId == id || (p.stack?.contains(id) ?? false);
 
   /// Opens an image in [p] (a slice of a stack brings the whole stack).
-  void _show(
+  Future<void> _show(
     RadPane p,
     String studyId,
     String imageId, {
     bool keepView = false,
-  }) {
+  }) async {
     final s = _studies[studyId];
     final img = s?.images.where((i) => i.id == imageId).firstOrNull;
     if (s == null || img == null) {
       p.clear();
       return;
     }
-    if (_panes.isNotEmpty && identical(p, _pane) && p.imageId != imageId)
+    if (_panes.isNotEmpty && identical(p, _pane) && p.imageId != imageId) {
       _selectedId = null;
+    }
     p.stack = _stackFor(studyId, imageId);
     final unsupported = img.compressed
         ? '${img.transferSyntax.isEmpty ? 'Compressed' : DicomSyntax.name(img.transferSyntax)} '
@@ -272,37 +279,67 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     if (thumb == null && !img.compressed) {
       _thumbs.request(s, img, priority: true);
     }
-    p
-        .show(
-          studyId,
-          imageId,
-          _cache,
-          keepView: keepView,
-          unsupported: unsupported,
-          placeholder: thumb,
-          nominalWidth: img.width,
-          nominalHeight: img.height,
-          onThumbArrived: (cb) {
-            void listener() {
-              final t = _thumbs.image(studyId, imageId);
-              if (t != null) cb(t);
-            }
+    await p.show(
+      studyId,
+      imageId,
+      _cache,
+      keepView: keepView,
+      unsupported: unsupported,
+      placeholder: thumb,
+      nominalWidth: img.width,
+      nominalHeight: img.height,
+      onThumbArrived: (cb) {
+        void listener() {
+          final t = _thumbs.image(studyId, imageId);
+          if (t != null) cb(t);
+        }
 
-            _thumbs.addListener(listener);
-            return () => _thumbs.removeListener(listener);
-          },
-        )
-        .then((_) {
-          if (!mounted ||
-              !_link ||
-              keepView ||
-              _panes.isEmpty ||
-              identical(p, _pane))
-            return;
-          p.scale = _pane.scale;
-          p.pan = _pane.pan;
-          p.touch();
-        });
+        _thumbs.addListener(listener);
+        return () => _thumbs.removeListener(listener);
+      },
+    );
+    if (!mounted) return;
+    if (_link && !keepView && _panes.isNotEmpty && !identical(p, _pane)) {
+      p.scale = _pane.scale;
+      p.pan = _pane.pan;
+      p.touch();
+    }
+    _checkZoomUpgrade();
+  }
+
+  Future<void> _upgradeToFull(Iterable<String> imageIds) async {
+    final ids = imageIds.toSet();
+    if (ids.isEmpty) return;
+    _fullQualityIds.addAll(ids);
+    for (final id in ids) {
+      _cache.evict(id);
+    }
+    final affectedPanes = _panes
+        .where((p) => ids.contains(p.imageId) && p.studyId.isNotEmpty)
+        .toList();
+    if (affectedPanes.isEmpty) return;
+
+    for (final p in affectedPanes) {
+      p.upgrading = true;
+      p.touch();
+    }
+    try {
+      final futures = <Future<void>>[];
+      for (final p in affectedPanes) {
+        futures.add(_show(p, p.studyId, p.imageId, keepView: true));
+      }
+      await Future.wait(futures);
+    } finally {
+      for (final p in affectedPanes) {
+        p.upgrading = false;
+        p.touch();
+      }
+    }
+  }
+
+  @override
+  void upgradeToFull(String imageId) {
+    _upgradeToFull([imageId]);
   }
 
   void _start(RadStudy s) {
@@ -478,8 +515,30 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   }
 
   void _setTool(RadTool t) {
-    if (t == RadTool.calibrate && _tool != RadTool.calibrate)
+    if (t == RadTool.calibrate && _tool != RadTool.calibrate) {
       _toolBeforeCalibrate = _tool;
+    }
+    const measuringTools = {
+      RadTool.length,
+      RadTool.angle,
+      RadTool.polygon,
+      RadTool.ellipse,
+      RadTool.rect,
+      RadTool.polyline,
+      RadTool.calibrate,
+    };
+    if (measuringTools.contains(t)) {
+      final previewIds = [
+        for (final p in _panes)
+          if (p.px?.isPreview == true &&
+              p.imageId.isNotEmpty &&
+              !_fullQualityIds.contains(p.imageId))
+            p.imageId,
+      ];
+      if (previewIds.isNotEmpty) {
+        _upgradeToFull(previewIds);
+      }
+    }
     for (final p in _panes) {
       if (p.draft != null) {
         p.draft = null;
@@ -740,12 +799,29 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   @override
   void viewChanged(RadPane pane) {
-    if (!_link) return;
+    if (_link) {
+      for (final p in _panes) {
+        if (identical(p, pane) || !p.hasImage) continue;
+        p.scale = pane.scale;
+        p.pan = pane.pan;
+        p.touch();
+      }
+    }
+    _checkZoomUpgrade();
+  }
+
+  void _checkZoomUpgrade() {
+    final toUpgrade = <String>[];
     for (final p in _panes) {
-      if (identical(p, pane) || !p.hasImage) continue;
-      p.scale = pane.scale;
-      p.pan = pane.pan;
-      p.touch();
+      if (p.hasImage &&
+          p.px?.isPreview == true &&
+          p.zoom > 0.5 &&
+          !_fullQualityIds.contains(p.imageId)) {
+        toUpgrade.add(p.imageId);
+      }
+    }
+    if (toUpgrade.isNotEmpty) {
+      _upgradeToFull(toUpgrade);
     }
   }
 
@@ -837,6 +913,15 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     if (p.studyId != s.id) {
       radToast(context, 'Key images come from the study being read');
       return;
+    }
+    if (p.px?.isPreview == true) {
+      setState(() => _busy = true);
+      try {
+        await _upgradeToFull([p.imageId]);
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+      if (!mounted) return;
     }
     setState(() => _busy = true);
     try {

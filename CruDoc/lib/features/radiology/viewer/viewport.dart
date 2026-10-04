@@ -43,6 +43,9 @@ abstract interface class RadViewportHost {
 
   /// Shows slice (of a stack) or frame (of a multi-frame file) [index].
   void setFrame(RadPane pane, int index);
+
+  /// Upgrades [imageId] to full quality.
+  void upgradeToFull(String imageId);
 }
 
 enum _Drag { none, pan, zoom, window, draw, angleArm, freehand, edit }
@@ -793,11 +796,24 @@ class _Corners extends StatelessWidget {
               left: CruSpace.s12,
               top: CruSpace.s10,
               right: 140,
-              child: Text(
-                title,
-                style: style,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    style: style,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (px.isPreview) ...[
+                    const SizedBox(height: CruSpace.s6),
+                    _PreviewPill(
+                      upgrading: pane.upgrading,
+                      onUpgrade: () => host.upgradeToFull(pane.imageId),
+                    ),
+                  ],
+                ],
               ),
             ),
             Positioned(
@@ -887,6 +903,64 @@ class _FrameSlider extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+
+class _PreviewPill extends StatelessWidget {
+  const _PreviewPill({
+    required this.upgrading,
+    required this.onUpgrade,
+  });
+
+  final bool upgrading;
+  final VoidCallback onUpgrade;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Container(
+      height: CruSize.pill,
+      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+      decoration: const ShapeDecoration(
+        color: RadInk.overlayFill,
+        shape: StadiumBorder(
+          side: BorderSide(color: RadInk.overlayBorder),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Preview',
+            style: CruType.caption.w600.tabular.copyWith(color: RadInk.overlay),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          if (upgrading)
+            const SizedBox(
+              width: CruSpace.s12,
+              height: CruSpace.s12,
+              child: CircularProgressIndicator(
+                strokeWidth: 1.5,
+                valueColor: AlwaysStoppedAnimation<Color>(RadInk.overlay),
+              ),
+            )
+          else
+            CruPressable(
+              onTap: onUpgrade,
+              semanticLabel: 'Full quality',
+              builder: (context, hovered) => Text(
+                'Full quality',
+                style: CruType.caption.w600.copyWith(
+                  color: hovered ? c.accentText : c.accent,
+                  decoration:
+                      hovered ? TextDecoration.underline : TextDecoration.none,
+                ),
+              ),
+            ),
         ],
       ),
     );

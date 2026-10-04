@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:isolate';
 import 'dart:typed_data';
 
+import 'package:crudoc_j2k/crudoc_j2k.dart';
 import 'package:image/image.dart' as img;
 
 import 'package:doctor_management_app/features/radiology/data/radiology_models.dart';
@@ -25,6 +26,7 @@ class RadPixels {
     this.invert = false,
     this.pixelSpacingMm,
     this.frames = 1,
+    this.isPreview = false,
   });
 
   final int width;
@@ -52,6 +54,7 @@ class RadPixels {
   /// Millimetres per pixel from the file.
   final double? pixelSpacingMm;
   final int frames;
+  final bool isPreview;
 
   bool get isColor => rgba != null;
 
@@ -95,12 +98,18 @@ RadPixels decodeRadPixels(Uint8List bytes, RadFileKind kind, {int frame = 0}) {
 RadPixels _fromDicom(Uint8List bytes, int frame) {
   final d = DicomFile.parse(bytes);
   if (!d.hasPixels) throw RadUnsupportedImage('This DICOM file has no image');
-  if (d.isCompressed) {
+  final isJ2k = d.isCompressed &&
+      (d.transferSyntax.startsWith('1.2.840.10008.1.2.4.9') ||
+          d.transferSyntax.startsWith('1.2.840.10008.1.2.4.20')) &&
+      j2kSupported &&
+      !d.isColor;
+
+  if (d.isCompressed && !isJ2k) {
     throw RadUnsupportedImage(
       '${DicomSyntax.name(d.transferSyntax)} DICOM images are not supported yet',
     );
   }
-  final w = d.columns, h = d.rows;
+  var w = d.columns, h = d.rows;
   final f = frame.clamp(0, (d.frames - 1).clamp(0, 1 << 30));
   if (d.isColor) {
     final rgba = d.frameRgba(f);
@@ -120,7 +129,27 @@ RadPixels _fromDicom(Uint8List bytes, int frame) {
       frames: d.frames,
     );
   }
-  final values = d.frameValues(f);
+  final Float32List values;
+  if (isJ2k) {
+    final J2kImage j2k;
+    try {
+      j2k = decodeJ2k(d.encapsulatedFrame(f));
+    } on Object {
+      throw RadUnsupportedImage('This JPEG 2000 image could not be decoded');
+    }
+    if (w == 0 || h == 0) {
+      w = j2k.width;
+      h = j2k.height;
+    }
+    final pixels = j2k.pixels;
+    final s = d.slope, b = d.intercept;
+    values = Float32List(pixels.length);
+    for (var i = 0; i < pixels.length; i++) {
+      values[i] = pixels[i] * s + b;
+    }
+  } else {
+    values = d.frameValues(f);
+  }
   return _withStats(
     values,
     w,
@@ -163,6 +192,50 @@ bool _looksColour(img.Image image) {
     if ((p.r - p.g).abs() > 12 || (p.g - p.b).abs() > 12) return true;
   }
   return false;
+}
+
+
+/// Wraps [_withStats] to compute pixel stats and return a [RadPixels] with [isPreview] set.
+RadPixels radPixelsWithStats(
+  Float32List values,
+  int w,
+  int h, {
+  Uint8List? rgba,
+  double? center,
+  double? width,
+  bool invert = false,
+  double? spacing,
+  int frames = 1,
+  bool isPreview = false,
+}) {
+  final p = _withStats(
+    values,
+    w,
+    h,
+    rgba: rgba,
+    center: center,
+    width: width,
+    invert: invert,
+    spacing: spacing,
+    frames: frames,
+  );
+  if (!isPreview) return p;
+  return RadPixels(
+    width: p.width,
+    height: p.height,
+    values: p.values,
+    rgba: p.rgba,
+    minValue: p.minValue,
+    maxValue: p.maxValue,
+    lowPct: p.lowPct,
+    highPct: p.highPct,
+    windowCenter: p.windowCenter,
+    windowWidth: p.windowWidth,
+    invert: p.invert,
+    pixelSpacingMm: p.pixelSpacingMm,
+    frames: p.frames,
+    isPreview: true,
+  );
 }
 
 RadPixels _withStats(

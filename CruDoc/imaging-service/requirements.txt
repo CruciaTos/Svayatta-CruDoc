@@ -1,0 +1,9 @@
+pydicom>=3.0
+numpy>=1.26
+pylibjpeg>=2.0
+pylibjpeg-libjpeg>=2.1
+pylibjpeg-openjpeg>=2.3
+functions-framework>=3.8
+google-cloud-storage>=2.18
+google-cloud-firestore>=2.19
+pytest>=8.0

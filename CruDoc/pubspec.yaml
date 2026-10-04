@@ -47,6 +47,8 @@ dependencies:
   # (CrudocSuper-admin, next to this repo).
   crudoc_shared:
     path: ../crudoc_shared
+  crudoc_j2k:
+    path: packages/crudoc_j2k
   go_router: ^17.3.0
   firebase_auth: ^6.6.1
   cloud_functions: ^6.4.0

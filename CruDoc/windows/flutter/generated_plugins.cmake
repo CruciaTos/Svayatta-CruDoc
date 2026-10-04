@@ -21,6 +21,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
 )
 
 list(APPEND FLUTTER_FFI_PLUGIN_LIST
+  crudoc_j2k
   jni
   sherpa_onnx_windows
 )

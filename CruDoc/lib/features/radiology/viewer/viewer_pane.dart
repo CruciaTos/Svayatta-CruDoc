@@ -98,6 +98,10 @@ class RadPixelCache {
     }
     return f;
   }
+
+  void evict(String imageId) {
+    _entries.removeWhere((key, _) => key.contains('/$imageId#'));
+  }
 }
 
 /// One viewport's image and how it is shown: window, filters, zoom, pan,
@@ -124,6 +128,9 @@ class RadPane extends ChangeNotifier {
   Float32List? values;
   bool loading = false;
   String? error;
+
+  /// True while upgrading from preview to full quality codestream.
+  bool upgrading = false;
 
   // ── Display ──
   double center = 0;

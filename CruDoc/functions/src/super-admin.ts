@@ -28,7 +28,7 @@ const auth: admin.auth.Auth = new Proxy({} as admin.auth.Auth, {
 // 1. LOG ADMIN ACTION
 // ============================================================
 
-export const logAdminAction = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const logAdminAction = functions.region("asia-south1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   // Verify Super Admin
   if (!context.auth || context.auth.token.role !== "superAdmin") {
     throw new functions.https.HttpsError(
@@ -227,7 +227,7 @@ function encryptDoctorValue(value: string, doctorId: string): string {
 // 3. DELETE DOCTOR (SOFT DELETE WITH CASCADE)
 // ============================================================
 
-export const deleteDoctor = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const deleteDoctor = functions.region("asia-south1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   if (!context.auth || context.auth.token.role !== "superAdmin") {
     throw new functions.https.HttpsError("permission-denied", "Unauthorized");
   }
@@ -268,7 +268,7 @@ export const deleteDoctor = functions.https.onCall(async (data: any, context: fu
 // 4. CHANGE DOCTOR SUBSCRIPTION PLAN
 // ============================================================
 
-export const changeDoctorPlan = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const changeDoctorPlan = functions.region("asia-south1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   if (!context.auth || context.auth.token.role !== "superAdmin") {
     throw new functions.https.HttpsError("permission-denied", "Unauthorized");
   }
@@ -338,7 +338,7 @@ export const changeDoctorPlan = functions.https.onCall(async (data: any, context
 // 5. CALCULATE DASHBOARD STATS (SCHEDULED)
 // ============================================================
 
-export const calculateDashboardStats = functions.pubsub
+export const calculateDashboardStats = functions.region("asia-south1").pubsub
   .schedule("every 1 hours")
   .onRun(async () => {
     try {
@@ -416,7 +416,7 @@ export const calculateDashboardStats = functions.pubsub
 // 6. EXTEND DOCTOR TRIAL
 // ============================================================
 
-export const extendTrial = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const extendTrial = functions.region("asia-south1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   if (!context.auth || context.auth.token.role !== "superAdmin") {
     throw new functions.https.HttpsError("permission-denied", "Unauthorized");
   }
@@ -461,7 +461,7 @@ export const extendTrial = functions.https.onCall(async (data: any, context: fun
 // 7. SEND ANNOUNCEMENT
 // ============================================================
 
-export const sendAnnouncement = functions.https.onCall(async (data: any, context: functions.https.CallableContext) => {
+export const sendAnnouncement = functions.region("asia-south1").https.onCall(async (data: any, context: functions.https.CallableContext) => {
   if (!context.auth || context.auth.token.role !== "superAdmin") {
     throw new functions.https.HttpsError("permission-denied", "Unauthorized");
   }
@@ -526,7 +526,7 @@ export const sendAnnouncement = functions.https.onCall(async (data: any, context
 // 8. SUSPEND/ACTIVATE DOCTOR
 // ============================================================
 
-export const toggleDoctorStatus = functions.https.onCall(
+export const toggleDoctorStatus = functions.region("asia-south1").https.onCall(
   async (data: any, context: functions.https.CallableContext) => {
     if (!context.auth || context.auth.token.role !== "superAdmin") {
       throw new functions.https.HttpsError("permission-denied", "Unauthorized");

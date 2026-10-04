@@ -37,6 +37,13 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Main-area padding for Patient details (the dashboard's, 24 on top).
 final EdgeInsets _padding = CruSpace.mainPadding.copyWith(top: CruSpace.s24);
 
+/// Phones: even 16 px sides (the desktop's padding is lopsided for the
+/// sidebar), 8 on top under the safe area.
+const EdgeInsets _phonePadding = EdgeInsets.fromLTRB(16, 8, 16, 32);
+
+/// Narrower than this, Patient details uses [_phonePadding].
+const double _phoneWidth = 600;
+
 /// Patient details content (no Scaffold): top bar, identity header,
 /// facts strip, then the cards in two columns when there is room.
 ///
@@ -202,11 +209,14 @@ class _DetailsBody extends ConsumerWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final padding = constraints.maxWidth < _phoneWidth
+            ? _phonePadding
+            : _padding;
         final wide =
-            constraints.maxWidth - _padding.horizontal >=
+            constraints.maxWidth - padding.horizontal >=
             CruBreakpoint.detailsTwoColumn;
         return SingleChildScrollView(
-          padding: _padding,
+          padding: padding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

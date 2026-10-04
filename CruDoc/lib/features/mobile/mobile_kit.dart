@@ -243,6 +243,27 @@ enum MobileTone { blue, sky, indigo, teal, green, amber, violet, slate }
   };
 }
 
+/// Quick-action tile gradients (top-left, bottom-right) by position:
+/// the first row of four in shades of blue, the second in shades of pink.
+/// The glyph on them is white. Same in Day and Evening.
+const List<(Color, Color)> _quickActionBlues = [
+  (Color(0xFF7DD3FC), Color(0xFF0EA5E9)),
+  (Color(0xFF60A5FA), Color(0xFF2563EB)),
+  (Color(0xFF3B82F6), Color(0xFF1D4ED8)),
+  (Color(0xFF2563EB), Color(0xFF1E3A8A)),
+];
+const List<(Color, Color)> _quickActionPinks = [
+  (Color(0xFFFBCFE8), Color(0xFFF472B6)),
+  (Color(0xFFF9A8D4), Color(0xFFEC4899)),
+  (Color(0xFFF472B6), Color(0xFFDB2777)),
+  (Color(0xFFEC4899), Color(0xFF9D174D)),
+];
+
+(Color, Color) mobileQuickActionGradient(int index) {
+  final row = index < 4 ? _quickActionBlues : _quickActionPinks;
+  return row[index % 4];
+}
+
 /// Icon fills: one blue family everywhere (lavender circle, blue glyph),
 /// like the reference; only quiet utility icons stay grey. Colour is kept
 /// for status pills (waiting, done), not for icons.

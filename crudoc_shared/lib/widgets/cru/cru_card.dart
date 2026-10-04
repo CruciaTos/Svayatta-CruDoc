@@ -70,6 +70,13 @@ class CruInkCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final String? semanticLabel;
 
+  /// The ink fill, shared with anything that should match this card.
+  static const gradient = LinearGradient(
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+    colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
+  );
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -81,11 +88,7 @@ class CruInkCard extends StatelessWidget {
       label: semanticLabel,
       child: DecoratedBox(
         decoration: ShapeDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: const [Color(0xFF1E3A8A), Color(0xFF2563EB)],
-          ),
+          gradient: gradient,
           shape: cruShape(
             CruRadius.card,
             side: isEv

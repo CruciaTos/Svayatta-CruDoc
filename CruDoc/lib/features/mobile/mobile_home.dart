@@ -21,6 +21,7 @@ import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Home: who's next, how the day is going, and every common task one tap
@@ -514,7 +515,7 @@ class _HomeHeader extends ConsumerWidget {
           ),
           const SizedBox(width: CruSpace.s12),
           CruPressable(
-            onTap: () => _toTab(ref, MobileTab.more),
+            onTap: () => pushMobile(context, const ProfileScreen()),
             semanticLabel: 'Your profile',
             builder: (context, _) => MobileAvatar(name: name, size: 38),
           ),
@@ -800,10 +801,10 @@ class _QuickActions extends ConsumerWidget {
                   spacing: gap,
                   runSpacing: gap,
                   children: [
-                    for (final a in actions)
+                    for (var i = 0; i < actions.length; i++)
                       SizedBox(
                         width: width,
-                        child: _ActionTile(action: a),
+                        child: _ActionTile(action: actions[i], index: i),
                       ),
                   ],
                 );
@@ -816,48 +817,61 @@ class _QuickActions extends ConsumerWidget {
   }
 }
 
-/// One quick action: a card-style tile with a large icon and its label.
+/// One quick action, payments-app style: a rounded square in a bright
+/// gradient (blue on the first row, pink on the second) with a white glyph, its label underneath straight on
+/// the background.
 class _ActionTile extends ConsumerWidget {
-  const _ActionTile({required this.action});
+  const _ActionTile({required this.action, required this.index});
 
   final _Action action;
 
+  /// Position in the grid: the first row is blue, the second pink.
+  final int index;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = context.cru;
     return CruPressable(
       onTap: () {
         MobileHaptics.tap();
         action.run(context, ref);
       },
       semanticLabel: action.label,
-      builder: (context, _) => Container(
-        height: 92,
-        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s4),
-        decoration: ShapeDecoration(
-          color: c.surface,
-          shape: cruShape(18, side: mobileBorder(c)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            MobileIconTile(
-              icon: action.icon,
-              tone: action.tone,
-              size: 44,
-              iconSize: 22,
-            ),
-            const SizedBox(height: CruSpace.s8),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              child: Text(
-                action.label,
-                maxLines: 1,
-                style: MobileType.subhead.w600.tint(c.label),
+      builder: (context, _) => LayoutBuilder(
+        builder: (context, box) {
+          final side = box.maxWidth * 0.84;
+          final (top, bottom) = mobileQuickActionGradient(index);
+          return Column(
+            children: [
+              Container(
+                width: side,
+                height: side,
+                alignment: Alignment.center,
+                decoration: ShapeDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [top, bottom],
+                  ),
+                  shape: cruShape(side * 0.3),
+                ),
+                child: CruIcon(
+                  action.icon,
+                  size: side * 0.4,
+                  strokeWidth: 1.8,
+                  color: Colors.white,
+                ),
               ),
-            ),
-          ],
-        ),
+              const SizedBox(height: CruSpace.s8),
+              Text(
+                action.label,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: MobileType.subhead.tint(mobileInk(context)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }

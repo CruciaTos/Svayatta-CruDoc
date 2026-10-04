@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_anatomy.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_textures.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 // ================================================================== look
@@ -263,7 +264,7 @@ _Form _permanent(bool upper, int p) {
         cejSide: 0.88,
         cejDip: 0.12,
         leg: 0.7,
-        curve: 0.14,
+        curve: 0.08,
         grooves: [
           _pts([0.34, 0.06, 0.3, 0.4]),
           _pts([-0.34, 0.07, -0.3, 0.4]),
@@ -363,7 +364,7 @@ _Form _permanent(bool upper, int p) {
         sep: 0.5,
         leg: 0.3,
         trunk: 0.3,
-        curve: 0.12,
+        curve: 0.06,
         back: true,
         grooves: [
           _pts([-0.06, 0.15, -0.04, 0.32, -0.02, 0.5]),
@@ -399,7 +400,7 @@ _Form _permanent(bool upper, int p) {
         sep: 0.42,
         leg: 0.3,
         trunk: 0.38,
-        curve: 0.2,
+        curve: 0.08,
         back: true,
         grooves: [
           _pts([-0.16, 0.16, -0.14, 0.32, -0.12, 0.48]),
@@ -431,7 +432,7 @@ _Form _permanent(bool upper, int p) {
         sep: 0.3,
         leg: 0.32,
         trunk: 0.55,
-        curve: 0.28,
+        curve: 0.1,
         grooves: [
           _pts([-0.15, 0.12, -0.12, 0.26, -0.1, 0.4]),
         ],
@@ -549,7 +550,7 @@ _Form _permanent(bool upper, int p) {
       sep: 0.54,
       leg: 0.3,
       trunk: 0.22,
-      curve: 0.1,
+      curve: 0.06,
       grooves: [
         _pts([0.22, 0.12, 0.21, 0.3, 0.2, 0.5]),
         _pts([-0.52, 0.12, -0.51, 0.28, -0.5, 0.45]),
@@ -585,7 +586,7 @@ _Form _permanent(bool upper, int p) {
       sep: 0.46,
       leg: 0.3,
       trunk: 0.3,
-      curve: 0.18,
+      curve: 0.08,
       grooves: [
         _pts([0.02, 0.14, 0.02, 0.32, 0.02, 0.5]),
       ],
@@ -616,7 +617,7 @@ _Form _permanent(bool upper, int p) {
       sep: 0.32,
       leg: 0.32,
       trunk: 0.45,
-      curve: 0.3,
+      curve: 0.1,
       grooves: [
         _pts([-0.05, 0.1, -0.04, 0.26, -0.03, 0.42]),
       ],
@@ -1198,6 +1199,10 @@ class BuccalShape {
   bool get upper => spec.upper;
   bool get mirror => !spec.patientRight;
   double get _w => spec.md / 2;
+
+  /// The neck's half-width as a share of the crown's: a little narrower
+  /// than the forms say, so crowns bell out over their roots.
+  double get _cervix => _f.cervix * 0.88;
   double get _ch => spec.crown;
   double get _rl => spec.root;
   bool get front =>
@@ -1212,41 +1217,41 @@ class BuccalShape {
 
   /// The neck's y at [x] (model mm).
   double cejY(double x) {
-    final u = (x / (_f.cervix * _w)).clamp(-1.0, 1.0);
+    final u = (x / (_cervix * _w)).clamp(-1.0, 1.0);
     return (_f.cejSide + _f.cejDip * (1 - u * u)) * _ch;
   }
 
   // ------------------------------------------------------------ crown
 
   /// The neck's corners, where crown, root and outline meet.
-  late final Offset _neckM = Offset(_f.cervix * _w, cejY(_f.cervix * _w));
-  late final Offset _neckD = Offset(-_f.cervix * _w, cejY(-_f.cervix * _w));
+  late final Offset _neckM = Offset(_cervix * _w, cejY(_cervix * _w));
+  late final Offset _neckD = Offset(-_cervix * _w, cejY(-_cervix * _w));
 
   late final Path crown = () {
     final f = _f;
     final w = _w, ch = _ch;
+    final cervix = _cervix;
+    // Bell-shaped sides: full out to well past the contact, then curving
+    // in to the narrow neck (not a straight taper).
     Offset side(double contact, double t, double sign) => Offset(
-      sign * (1 - (1 - f.cervix) * math.pow(t, 1.15)) * w,
+      sign * (1 - (1 - cervix) * math.pow(t, 2.1)) * w,
       (contact + (f.cejSide - contact) * t) * ch,
     );
+    const ts = [0.2, 0.42, 0.62, 0.78, 0.9, 0.97];
     // Up the mesial side, over the biting edge, down the distal side.
     final over = [
       _neckM,
-      side(f.contactM, 0.93, 1),
-      side(f.contactM, 0.7, 1),
-      side(f.contactM, 0.36, 1),
+      for (final t in ts.reversed) side(f.contactM, t, 1),
       if (f.contactM > f.edge.last.dy + 0.04) Offset(w, f.contactM * ch),
       for (final e in f.edge.reversed) Offset(e.dx * w, e.dy * ch),
       if (f.contactD > f.edge.first.dy + 0.04) Offset(-w, f.contactD * ch),
-      side(f.contactD, 0.36, -1),
-      side(f.contactD, 0.7, -1),
-      side(f.contactD, 0.93, -1),
+      for (final t in ts) side(f.contactD, t, -1),
       _neckD,
     ];
     // Back along the neck, dipping rootwards in the middle.
     final neck = [
       for (final u in const [-1.0, -0.55, 0.0, 0.55, 1.0])
-        Offset(u * f.cervix * w, cejY(u * f.cervix * w)),
+        Offset(u * cervix * w, cejY(u * cervix * w)),
     ];
     final first = at(over.first.dx, over.first.dy);
     final path = Path()..moveTo(first.dx, first.dy);
@@ -1260,7 +1265,7 @@ class BuccalShape {
   /// The neck line, distal to mesial.
   late final List<Offset> neck = [
     for (final u in const [-1.0, -0.66, -0.33, 0.0, 0.33, 0.66, 1.0])
-      at(u * _f.cervix * _w, cejY(u * _f.cervix * _w)),
+      at(u * _cervix * _w, cejY(u * _cervix * _w)),
   ];
 
   /// Grooves and the lit ridge on the cheek face.
@@ -1280,7 +1285,7 @@ class BuccalShape {
   double _curveAt(double t) => -_f.curve * _rl * math.pow(t, 2.4);
 
   late final double _neck = _f.cejSide * _ch;
-  late final double _r0 = _f.cervix * _w;
+  late final double _r0 = _cervix * _w;
 
   /// Centre of a root leg at [t] (0 at the fork, 1 at the tip); side is
   /// +1 for the mesial leg, -1 for the distal one.
@@ -1293,7 +1298,10 @@ class BuccalShape {
     return Offset(x, yF + t * _rl * (1 - _f.trunk));
   }
 
-  double _legHalf(double t) => _f.leg * _w * (1 - 0.8 * math.pow(t, 1.5));
+  /// Half a root leg's width at [t]: broad at the fork (a molar's roots
+  /// fill most of the crown's width), tapering to the tip.
+  double _legHalf(double t) =>
+      _f.leg * 1.25 * _w * (1 - 0.8 * math.pow(t, 1.5));
 
   /// The roots' outline from the mesial neck corner round to the distal
   /// one; the top is closed out of sight under the crown.
@@ -1337,7 +1345,7 @@ class BuccalShape {
     final path = Path()..moveTo(pts.first.dx, pts.first.dy);
     appendSmooth(path, pts);
     final top = (_f.cejSide - 0.3) * _ch;
-    final inner = _f.cervix * _w * 0.8;
+    final inner = _cervix * _w * 0.8;
     final a = at(-inner, top), b = at(inner, top);
     return path
       ..lineTo(a.dx, a.dy)
@@ -1401,11 +1409,12 @@ class BuccalShape {
         ];
 
   /// Width of a root (a leg of it) near the neck, in pixels.
-  double get rootThickness => (_f.legs == 1 ? _r0 * 2 : _f.leg * _w * 2) * k;
+  double get rootThickness =>
+      (_f.legs == 1 ? _r0 * 2 : _f.leg * 1.25 * _w * 2) * k;
 
   /// The pulp chamber inside the crown.
   late final Path chamber = () {
-    final c = _f.cervix * _w;
+    final c = _cervix * _w;
     final floor = _neck + (_f.legs == 1 ? 0.02 : 0.06) * _ch;
     final pts = front
         ? [
@@ -1480,7 +1489,7 @@ class BuccalShape {
   late final Path implant = () {
     final top = _neck - _ch * 0.1;
     final len = _rl * 0.86;
-    final r = _f.cervix * _w * 0.62;
+    final r = _cervix * _w * 0.62;
     return smoothClosed([
       for (final p in [
         Offset(r, top),
@@ -1499,7 +1508,7 @@ class BuccalShape {
   late final List<(Offset, Offset)> threads = () {
     final top = _neck + _ch * 0.1;
     final len = _rl * 0.74;
-    final r = _f.cervix * _w * 0.62;
+    final r = _cervix * _w * 0.62;
     const n = 8;
     return [
       for (var i = 0; i < n; i++)
@@ -1686,8 +1695,9 @@ abstract final class ToothArt {
     Canvas canvas,
     BuccalShape s,
     ToothLook look,
-    CruColors c,
-  ) {
+    CruColors c, {
+    ToothTexture? texture,
+  }) {
     canvas.save();
     _pose(canvas, s, look);
     if (look.missing) {
@@ -1705,29 +1715,31 @@ abstract final class ToothArt {
       );
     }
 
-    // Roots, or the implant that replaced them.
-    if (look.implant) {
-      _implant(canvas, s, c);
-    } else {
-      if (s.backRoot != null) _root(canvas, s.backRoot!, s, c, back: true);
-      _root(canvas, s.roots, s, c);
-      if (look.rootCanal && !look.pulp)
+    if (texture != null && !look.implant) {
+      // The drawn tooth, filled with the real tooth's surface.
+      final roots = s.backRoot == null
+          ? s.roots
+          : Path.combine(PathOperation.union, s.backRoot!, s.roots);
+      _texture(canvas, texture.root, roots, roots.getBounds());
+      if (s.backRoot != null) {
+        // The root behind sits in shade.
+        canvas.drawPath(
+          Path.combine(PathOperation.difference, s.backRoot!, s.roots),
+          Paint()..color = c.toothShadow.withValues(alpha: 0.18),
+        );
+      }
+      if (look.rootCanal && !look.pulp) {
         _canals(canvas, s, c, c.greenText, clip: s.roots);
-    }
-
-    // Crown.
-    _enamel(
-      canvas,
-      s.crown,
-      s.crownRect,
-      c,
-      biteUp: !s.upper,
-      front: s.front,
-      k: s.k,
-    );
-    _faceDetail(canvas, s, c);
-    // The crown's shadow on the root just below the neck.
-    if (!look.implant) {
+      }
+      canvas.drawPath(
+        roots,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _line(s.k) * 0.8
+          ..color = c.enamelEdge.withValues(alpha: 0.45),
+      );
+      _texture(canvas, texture.crown, s.crown, s.crownRect);
+      // The crown's shadow on the root just below the neck.
       canvas.save();
       canvas.clipPath(s.roots);
       canvas.drawPath(
@@ -1737,14 +1749,55 @@ abstract final class ToothArt {
           ..strokeWidth = s.k * 0.7,
       );
       canvas.restore();
+      canvas.drawPath(
+        s.crown,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _line(s.k)
+          ..color = c.enamelEdge.withValues(alpha: 0.8),
+      );
+    } else {
+      // Roots, or the implant that replaced them.
+      if (look.implant) {
+        _implant(canvas, s, c);
+      } else {
+        if (s.backRoot != null) _root(canvas, s.backRoot!, s, c, back: true);
+        _root(canvas, s.roots, s, c);
+        if (look.rootCanal && !look.pulp)
+          _canals(canvas, s, c, c.greenText, clip: s.roots);
+      }
+
+      // Crown.
+      _enamel(
+        canvas,
+        s.crown,
+        s.crownRect,
+        c,
+        biteUp: !s.upper,
+        front: s.front,
+        k: s.k,
+      );
+      _faceDetail(canvas, s, c);
+      // The crown's shadow on the root just below the neck.
+      if (!look.implant) {
+        canvas.save();
+        canvas.clipPath(s.roots);
+        canvas.drawPath(
+          smoothOpen(s.neck),
+          _blurred(c.toothShadow.withValues(alpha: 0.16), s.k * 0.45)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = s.k * 0.7,
+        );
+        canvas.restore();
+      }
+      canvas.drawPath(
+        s.crown,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _line(s.k)
+          ..color = c.enamelEdge.withValues(alpha: 0.8),
+      );
     }
-    canvas.drawPath(
-      s.crown,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = _line(s.k)
-        ..color = c.enamelEdge.withValues(alpha: 0.8),
-    );
 
     // Found and done.
     if (look.capped) {
@@ -1795,6 +1848,19 @@ abstract final class ToothArt {
   }
 
   static double _line(double k) => (k * 0.14).clamp(0.7, 1.6);
+
+  /// [image] stretched over [box], seen only inside [clip].
+  static void _texture(Canvas canvas, ui.Image image, Path clip, Rect box) {
+    canvas.save();
+    canvas.clipPath(clip);
+    canvas.drawImageRect(
+      image,
+      Rect.fromLTWH(0, 0, image.width.toDouble(), image.height.toDouble()),
+      box,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+    canvas.restore();
+  }
 
   /// Enamel: lit from the upper left, rounding away at the sides, warm
   /// near the neck, clear at the biting edge of front teeth.
@@ -2328,8 +2394,9 @@ abstract final class ToothArt {
     Canvas canvas,
     OcclusalShape s,
     ToothLook look,
-    CruColors c,
-  ) {
+    CruColors c, {
+    ToothTexture? texture,
+  }) {
     if (look.missing) {
       _ghost(canvas, [s.outline], c);
       if (look.implant) {
@@ -2349,7 +2416,18 @@ abstract final class ToothArt {
         Paint()..color = Color.fromRGBO(0, 0, 0, look.dim ? 0.42 : 0.45),
       );
     }
-    _biting(canvas, s, c);
+    if (texture != null) {
+      _texture(canvas, texture.occlusal, s.outline, s.rect);
+      canvas.drawPath(
+        s.outline,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = _line(s.k)
+          ..color = c.enamelEdge.withValues(alpha: 0.8),
+      );
+    } else {
+      _biting(canvas, s, c);
+    }
     if (look.capped) {
       _cap(canvas, s.outline, s.rect, c, s.k);
     } else {

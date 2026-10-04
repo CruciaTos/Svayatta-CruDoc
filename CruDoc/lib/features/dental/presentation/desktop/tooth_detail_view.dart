@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +12,7 @@ import 'package:doctor_management_app/features/dental/data/models/tooth_chart_en
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/cached_paint.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_anatomy.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_render.dart';
@@ -33,6 +35,8 @@ Future<void> showToothDetail(
   required String tooth,
 }) => showDialog<void>(
   context: context,
+  // Phones: edge to edge (the view pads itself clear of the notch).
+  useSafeArea: MediaQuery.sizeOf(context).width >= 600,
   builder: (_) => ToothDetailView(patient: patient, tooth: tooth),
 );
 
@@ -359,6 +363,8 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     );
 
     final shown = _allHistory ? timeline : timeline.take(4).toList();
+    // Phones: each entry on two lines instead of a four-column table.
+    final narrowHistory = MediaQuery.sizeOf(context).width < 600;
     final history = CruCard(
       semanticLabel: 'History',
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
@@ -382,7 +388,63 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
                 style: CruType.subhead.tint(c.label2),
               ),
             )
-          else ...[
+          else if (narrowHistory) ...[
+            const CruSeparator(),
+            for (final (date, title, note, pill, onTap) in shown)
+              DentalListRow(
+                semanticLabel: '$title, ${DentalFormat.date(date)}',
+                onTap: onTap,
+                minHeight: 52,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: CruType.text.tint(
+                              onTap == null ? c.label : c.accentText,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: CruSpace.s8),
+                        pill ??
+                            Text(
+                              'Finding',
+                              style: CruType.caption.tint(c.label3),
+                            ),
+                      ],
+                    ),
+                    const SizedBox(height: CruSpace.s2),
+                    Text(
+                      [
+                        DentalFormat.date(date),
+                        if (note != null && note.isNotEmpty) note,
+                      ].join(' · '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: CruType.subhead.tabular.tint(c.label2),
+                    ),
+                  ],
+                ),
+              ),
+            if (timeline.length > 4)
+              Padding(
+                padding: const EdgeInsets.only(
+                  left: CruSpace.s12,
+                  top: CruSpace.s4,
+                ),
+                child: CruLink(
+                  label: _allHistory
+                      ? 'Show fewer'
+                      : 'Show all ${timeline.length}',
+                  onPressed: () => setState(() => _allHistory = !_allHistory),
+                ),
+              ),
+          ] else ...[
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: CruSpace.s12),
               child: Row(
@@ -680,7 +742,10 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(child: left),
+            // Phones: the tooth column takes the full width.
+            w < 600
+                ? SizedBox(width: w, child: left.child)
+                : Center(child: left),
             gap,
             middle,
             gap,
@@ -691,6 +756,8 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
     );
 
     final size = MediaQuery.sizeOf(context);
+    // Phones: the dialog fills the screen.
+    final phone = size.width < 600;
     return PopScope(
       canPop: !_dirty,
       onPopInvokedWithResult: (didPop, _) async {
@@ -706,19 +773,27 @@ class _ToothDetailViewState extends ConsumerState<ToothDetailView> {
         child: Dialog(
           backgroundColor: c.canvas,
           surfaceTintColor: c.canvas.withValues(alpha: 0),
-          insetPadding: const EdgeInsets.all(CruSpace.s24),
-          shape: cruShape(
-            CruRadius.card,
-            side: BorderSide(color: c.cardBorder),
-          ),
+          insetPadding: phone
+              ? EdgeInsets.zero
+              : const EdgeInsets.all(CruSpace.s24),
+          shape: phone
+              ? const RoundedRectangleBorder()
+              : cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
           clipBehavior: Clip.antiAlias,
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              maxWidth: 1280,
-              maxHeight: size.height - CruSpace.s24 * 2,
+              maxWidth: phone ? size.width : 1280,
+              maxHeight: phone ? size.height : size.height - CruSpace.s24 * 2,
             ),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(CruSpace.s16),
+              padding: phone
+                  ? EdgeInsets.fromLTRB(
+                      CruSpace.s12,
+                      MediaQuery.paddingOf(context).top + CruSpace.s8,
+                      CruSpace.s12,
+                      MediaQuery.paddingOf(context).bottom + CruSpace.s16,
+                    )
+                  : const EdgeInsets.all(CruSpace.s16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [header, gap, body],
@@ -764,70 +839,96 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return CruCard(
-      padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-      child: Row(
+    final title = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          DentalChart.name(tooth),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: CruType.title2.tint(c.label),
+        ),
+        Text(
+          'Tooth ${toothLabel(tooth, numbering)} · $patientName',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: CruType.subhead.tint(c.label2),
+        ),
+      ],
+    );
+    Widget fact(String label, String value) => ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 220),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          ToothBadge(tooth: tooth, state: state),
-          const SizedBox(width: CruSpace.s14),
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 320),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  DentalChart.name(tooth),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.title2.tint(c.label),
-                ),
-                Text(
-                  'Tooth ${toothLabel(tooth, numbering)} · $patientName',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: CruType.subhead.tint(c.label2),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: CruSpace.s24),
-          Expanded(
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              spacing: CruSpace.s32,
-              runSpacing: CruSpace.s8,
-              children: [
-                for (final (label, value) in facts)
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(label, style: CruType.caption.tint(c.label3)),
-                        Text(
-                          value,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: CruType.subhead.w500.tint(c.label),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
-          ),
-          const SizedBox(width: CruSpace.s16),
-          CruIconButton(
-            icon: CruIcons.close,
-            size: CruSize.squareButton,
-            iconSize: 18,
-            semanticLabel: 'Close',
-            tooltip: 'Close',
-            onPressed: () => Navigator.of(context).maybePop(),
+          Text(label, style: CruType.caption.tint(c.label3)),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: CruType.subhead.w500.tint(c.label),
           ),
         ],
+      ),
+    );
+    final close = CruIconButton(
+      icon: CruIcons.close,
+      size: CruSize.squareButton,
+      iconSize: 18,
+      semanticLabel: 'Close',
+      tooltip: 'Close',
+      onPressed: () => Navigator.of(context).maybePop(),
+    );
+    return CruCard(
+      padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
+      child: LayoutBuilder(
+        builder: (context, box) {
+          // Phones: badge, name and close on top, the facts under them.
+          if (box.maxWidth < 560) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  children: [
+                    ToothBadge(tooth: tooth, state: state),
+                    const SizedBox(width: CruSpace.s12),
+                    Expanded(child: title),
+                    close,
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s12),
+                Wrap(
+                  spacing: CruSpace.s24,
+                  runSpacing: CruSpace.s8,
+                  children: [for (final (l, v) in facts) fact(l, v)],
+                ),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              ToothBadge(tooth: tooth, state: state),
+              const SizedBox(width: CruSpace.s14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 320),
+                child: title,
+              ),
+              const SizedBox(width: CruSpace.s24),
+              Expanded(
+                child: Wrap(
+                  alignment: WrapAlignment.end,
+                  spacing: CruSpace.s32,
+                  runSpacing: CruSpace.s8,
+                  children: [for (final (l, v) in facts) fact(l, v)],
+                ),
+              ),
+              const SizedBox(width: CruSpace.s16),
+              close,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1185,11 +1286,12 @@ class _ToothArtState extends State<_ToothArt> {
           child: Stack(
             children: [
               Positioned.fill(
-                child: CustomPaint(
+                child: CachedPaint(
                   painter: _ArtPainter(
                     geo: geo,
                     visual: widget.visual,
-                    surfaces: widget.surfaces,
+                    // A copy: the caller's set changes in place.
+                    surfaces: Set.of(widget.surfaces),
                     hover: _hover,
                     tone: widget.tone,
                     perio: widget.perio,
@@ -1552,7 +1654,28 @@ class _ArtPainter extends CustomPainter {
   // The draft and the perio readings are rebuilt on every change, and
   // one tooth is cheap to paint.
   @override
-  bool shouldRepaint(_ArtPainter old) => true;
+  bool shouldRepaint(_ArtPainter old) =>
+      old.geo != geo ||
+      old.visual.state != visual.state ||
+      old.visual.condition != visual.condition ||
+      old.visual.treatment != visual.treatment ||
+      !listEquals(old.visual.planned, visual.planned) ||
+      !setEquals(old.surfaces, surfaces) ||
+      old.hover != hover ||
+      old.tone != tone ||
+      !_samePerio(old.perio, perio) ||
+      old.colors != colors;
+
+  static bool _samePerio(PerioTooth? a, PerioTooth? b) =>
+      identical(a, b) ||
+      (a != null &&
+          b != null &&
+          listEquals(a.pd, b.pd) &&
+          listEquals(a.rec, b.rec) &&
+          listEquals(a.bop, b.bop) &&
+          listEquals(a.sup, b.sup) &&
+          a.furcation == b.furcation &&
+          a.mobility == b.mobility);
 }
 
 // ================================================================== tiles
@@ -1691,8 +1814,7 @@ class _Tile extends StatelessWidget {
           child: Column(
             children: [
               Expanded(
-                child: CustomPaint(
-                  size: Size.infinite,
+                child: CachedPaint(
                   painter: _MiniTooth(spec: spec, visual: visual, colors: c),
                 ),
               ),

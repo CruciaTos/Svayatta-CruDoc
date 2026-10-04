@@ -9,6 +9,21 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/dental/records/perio_chart_screen.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 
+/// The last chart built per patient, with the lists it came from. The
+/// providers hand back the same lists until something changes, so the
+/// chart (and its painted picture) is reused instead of rebuilt.
+final _charts =
+    <
+      String,
+      (
+        List<Object?>,
+        List<Object?>,
+        List<Object?>,
+        List<Object?>,
+        ToothChartData,
+      )
+    >{};
+
 /// A patient's chart from every source: findings, the plan, the latest
 /// perio exam and the endo records.
 ToothChartData watchPatientChart(WidgetRef ref, String patientId) {
@@ -32,12 +47,22 @@ ToothChartData watchPatientChart(WidgetRef ref, String patientId) {
           )
           .value ??
       const <DentalRecord>[];
-  return ToothChartData.from(
+  final last = _charts[patientId];
+  if (last != null &&
+      identical(last.$1, entries) &&
+      identical(last.$2, plan) &&
+      identical(last.$3, perio) &&
+      identical(last.$4, endo)) {
+    return last.$5;
+  }
+  final data = ToothChartData.from(
     entries,
     plan,
     perioExam: perio.isEmpty ? null : perio.first,
     endo: endo,
   );
+  _charts[patientId] = (entries, plan, perio, endo, data);
+  return data;
 }
 
 /// Opens the patient's perio chart full screen.

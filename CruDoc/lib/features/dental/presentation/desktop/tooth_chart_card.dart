@@ -116,9 +116,31 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
         ? null
         : 'Perio exam ${DentalFormat.date(data.perioExam!.recordedAt)}';
 
+    // Phones: thinner sides so the teeth get the width.
+    final phone = MediaQuery.sizeOf(context).width < 600;
+    final teeth = CruSegmentedControl<bool>(
+      semanticLabel: 'Teeth',
+      segments: const [
+        CruSegment(false, 'Adult'),
+        CruSegment(true, 'Milk teeth'),
+      ],
+      selected: child,
+      onChanged: (v) => setState(() {
+        _child = v;
+        _selected = null;
+      }),
+    );
+    final legend = _threeD
+        ? _StateLegend(plan: layer == ChartLayer.plan)
+        : ChartLegend(
+            layer: layer,
+            trailing: layer.showsPerio ? perioDate : null,
+          );
     return CruCard(
       semanticLabel: 'Tooth chart',
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+      padding: phone
+          ? const EdgeInsets.fromLTRB(12, 20, 12, 16)
+          : const EdgeInsets.fromLTRB(24, 22, 24, 20),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final narrow = constraints.maxWidth < 780;
@@ -181,31 +203,18 @@ class _ToothChartCardState extends ConsumerState<ToothChartCard> {
                 ),
               ],
               const SizedBox(height: CruSpace.s14),
-              Row(
-                children: [
-                  Expanded(
-                    child: _threeD
-                        ? _StateLegend(plan: layer == ChartLayer.plan)
-                        : ChartLegend(
-                            layer: layer,
-                            trailing: layer.showsPerio ? perioDate : null,
-                          ),
-                  ),
-                  const SizedBox(width: CruSpace.s12),
-                  CruSegmentedControl<bool>(
-                    semanticLabel: 'Teeth',
-                    segments: const [
-                      CruSegment(false, 'Adult'),
-                      CruSegment(true, 'Milk teeth'),
-                    ],
-                    selected: child,
-                    onChanged: (v) => setState(() {
-                      _child = v;
-                      _selected = null;
-                    }),
-                  ),
-                ],
-              ),
+              if (narrow) ...[
+                Align(alignment: Alignment.centerLeft, child: teeth),
+                const SizedBox(height: CruSpace.s12),
+                legend,
+              ] else
+                Row(
+                  children: [
+                    Expanded(child: legend),
+                    const SizedBox(width: CruSpace.s12),
+                    teeth,
+                  ],
+                ),
             ],
           );
         },

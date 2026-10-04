@@ -6,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:doctor_management_app/features/dental/data/models/tooth_chart_entry_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/cached_paint.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_anatomy.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_art.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_chart_data.dart';
+import 'package:doctor_management_app/features/dental/presentation/desktop/chart/tooth_textures.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Which rows the chart draws.
@@ -75,7 +77,20 @@ class _ToothChart2DState extends State<ToothChart2D> {
   String? _cursor;
 
   @override
+  void initState() {
+    super.initState();
+    ToothTextures.instance
+      ..addListener(_texturesReady)
+      ..ensureLoaded();
+  }
+
+  void _texturesReady() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   void dispose() {
+    ToothTextures.instance.removeListener(_texturesReady);
     _focus.dispose();
     super.dispose();
   }
@@ -170,14 +185,16 @@ class _ToothChart2DState extends State<ToothChart2D> {
                 clipBehavior: Clip.none,
                 children: [
                   Positioned.fill(
-                    child: RepaintBoundary(
-                      child: CustomPaint(
-                        painter: _TeethPainter(
-                          layout: l,
-                          data: widget.data,
-                          layer: widget.layer,
-                          colors: c,
-                        ),
+                    child: CachedPaint(
+                      // Textured teeth need full resolution (drawn once,
+                      // then only blitted).
+                      quality: 1,
+                      painter: _TeethPainter(
+                        layout: l,
+                        data: widget.data,
+                        layer: widget.layer,
+                        colors: c,
+                        textures: ToothTextures.instance,
                       ),
                     ),
                   ),
@@ -279,7 +296,8 @@ class _Layout {
   }) {
     final full = rows == ChartRows.full;
     final side = full ? 24.0 : 6.0;
-    const gapMm = 0.35;
+    // Neighbours just touch at their contacts.
+    const gapMm = 0.12;
     final (upper, lower) = ToothSpec.arches(child: child);
     double rowMm(List<String> r) =>
         r.fold<double>(0, (s, n) => s + ToothSpec.of(n).md) +
@@ -464,12 +482,18 @@ class _TeethPainter extends CustomPainter {
     required this.data,
     required this.layer,
     required this.colors,
-  });
+    this.textures,
+  }) : texturesVersion = textures?.version ?? 0;
 
   final _Layout layout;
   final ToothChartData data;
   final ChartLayer layer;
   final CruColors colors;
+
+  /// Real tooth surfaces to fill the drawn teeth with; null (or not yet
+  /// loaded) keeps them painted.
+  final ToothTextures? textures;
+  final int texturesVersion;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -502,8 +526,11 @@ class _TeethPainter extends CustomPainter {
     for (final s in layout.slots) {
       final v = data.of(s.number);
       final look = v.look(layer);
-      if (s.buccal != null) ToothArt.buccal(canvas, s.buccal!, look, c);
-      ToothArt.occlusal(canvas, s.occlusal, look, c);
+      final texture = textures?.of(s.number);
+      if (s.buccal != null) {
+        ToothArt.buccal(canvas, s.buccal!, look, c, texture: texture);
+      }
+      ToothArt.occlusal(canvas, s.occlusal, look, c, texture: texture);
     }
     _bridges(canvas);
     if (layout.perio && full) _perio(canvas);
@@ -624,6 +651,7 @@ class _TeethPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_TeethPainter old) =>
+      old.texturesVersion != texturesVersion ||
       old.layout != layout ||
       old.data != data ||
       old.layer != layer ||
@@ -708,6 +736,16 @@ class _OverlayPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout();
     final center = Offset(s.cx, y);
+    // Narrow front teeth: shrink the number to its tooth's width so
+    // neighbours don't run together.
+    final room = s.spec.md * layout.k + 0.35 * layout.k - 2;
+    final fit = isSel || tp.width <= room ? 1.0 : room / tp.width;
+    if (fit < 1) {
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.scale(fit);
+      canvas.translate(-center.dx, -center.dy);
+    }
     if (isSel) {
       final r = RRect.fromRectAndRadius(
         Rect.fromCenter(
@@ -731,6 +769,7 @@ class _OverlayPainter extends CustomPainter {
       );
     }
     tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
+    if (fit < 1) canvas.restore();
     // A dot marks planned work (when the plan isn't on show).
     if (!isSel && !layer.showsPlan && v.isPlanned) {
       canvas.drawCircle(

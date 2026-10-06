@@ -257,7 +257,6 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: 'Quantity (${med.unit}) *',
-                      border: const OutlineInputBorder(),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -267,7 +266,6 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                       labelText: 'Reason / Audit Note',
                       hintText:
                           'e.g. Received shipment, expired batch, physical count correction',
-                      border: OutlineInputBorder(),
                     ),
                   ),
                 ],

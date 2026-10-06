@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/core/services/google_places_service.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 
 /// Result returned by [PlacesAutocompleteField] when the user selects a
@@ -52,7 +53,8 @@ class PlacesAutocompleteField extends ConsumerStatefulWidget {
 
   /// Decoration style variant — `'sheet'` uses the bottom-sheet white
   /// style with rounded corners, `'dialog'` uses the dialog-style with
-  /// cardSurface fill. Defaults to `'sheet'`.
+  /// cardSurface fill, `'cru'` uses the Calm Clinical theme field (the
+  /// caller shows the label above it). Defaults to `'sheet'`.
   final String style;
 
   const PlacesAutocompleteField({
@@ -165,7 +167,34 @@ class _PlacesAutocompleteFieldState
     }
   }
 
+  bool get _cru => widget.style == 'cru';
+
   InputDecoration get _decoration {
+    if (_cru) {
+      final c = context.cru;
+      // Dense with a 40 px icon box: 44 px like the other Cru fields.
+      return InputDecoration(
+        hintText: widget.hint,
+        isDense: true,
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: CruSize.control,
+          minHeight: CruSize.control,
+        ),
+        suffixIcon: _loading
+            ? Padding(
+                padding: const EdgeInsets.all(CruSpace.s12),
+                child: SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: c.accent,
+                  ),
+                ),
+              )
+            : const Icon(Icons.location_on_outlined, size: 20),
+      );
+    }
     if (widget.style == 'dialog') {
       return InputDecoration(
         labelText: widget.label,
@@ -257,7 +286,9 @@ class _PlacesAutocompleteFieldState
           controller: widget.controller,
           focusNode: _focusNode,
           enabled: widget.enabled,
-          style: widget.style == 'dialog'
+          style: _cru
+              ? CruType.input.tint(context.cru.label)
+              : widget.style == 'dialog'
               ? AppColors.bodyLarge
               : AppColors.bodyMedium,
           onChanged: _onChanged,
@@ -267,44 +298,57 @@ class _PlacesAutocompleteFieldState
           Container(
             margin: const EdgeInsets.only(top: 4),
             constraints: const BoxConstraints(maxHeight: 220),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: AppColors.chartBarLight.withValues(alpha: 0.25),
-              ),
-              boxShadow: const [],
-            ),
+            decoration: _cru
+                ? BoxDecoration(
+                    color: context.cru.surface,
+                    borderRadius: BorderRadius.circular(CruRadius.control),
+                    border: Border.all(color: context.cru.cardBorder),
+                  )
+                : BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: AppColors.chartBarLight.withValues(alpha: 0.25),
+                    ),
+                    boxShadow: const [],
+                  ),
             child: ListView.separated(
               padding: EdgeInsets.zero,
               shrinkWrap: true,
               itemCount: _predictions.length,
               separatorBuilder: (_, _) => Divider(
                 height: 1,
-                color: AppColors.textSecondary.withValues(alpha: 0.10),
+                color: _cru
+                    ? context.cru.separator
+                    : AppColors.textSecondary.withValues(alpha: 0.10),
               ),
               itemBuilder: (context, index) {
                 final p = _predictions[index];
+                final c = context.cru;
                 return ListTile(
                   dense: true,
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.place_outlined,
                     size: 18,
-                    color: AppColors.chartBarLight,
+                    color: _cru ? c.label3 : AppColors.chartBarLight,
                   ),
                   title: Text(
                     p.mainText,
-                    style: AppColors.bodyMedium.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: _cru
+                        ? CruType.callout.tint(c.label)
+                        : AppColors.bodyMedium.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   subtitle: Text(
                     p.secondaryText,
-                    style: AppColors.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+                    style: _cru
+                        ? CruType.caption.tint(c.label2)
+                        : AppColors.bodySmall.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

@@ -228,6 +228,7 @@ class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
                   },
                 )
               : null,
+          filled: false,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 14,

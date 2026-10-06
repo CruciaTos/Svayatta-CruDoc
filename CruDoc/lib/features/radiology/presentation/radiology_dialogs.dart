@@ -714,6 +714,8 @@ class _InlineFieldState extends State<_InlineField> {
               cursorColor: c.accent,
               decoration: const InputDecoration(
                 isCollapsed: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
               ),
               onSubmitted: (_) => widget.onDone(),

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Interactive in-app checkout modal that processes doctor payment and
 /// immediately unlocks and activates the selected features for 1 month (30 days).
@@ -110,15 +109,8 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     super.dispose();
   }
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
   @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
-
-  Widget _buildOnDay(BuildContext context) {
+  Widget build(BuildContext context) {
     final currencyFormatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',
@@ -551,7 +543,6 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                   decoration: InputDecoration(
                     isDense: true,
                     labelText: 'MM / YY',
-                    border: OutlineInputBorder(),
                     filled: true,
                     fillColor: Colors.white,
                   ),
@@ -564,7 +555,6 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                   decoration: InputDecoration(
                     isDense: true,
                     labelText: 'CVV',
-                    border: OutlineInputBorder(),
                     filled: true,
                     fillColor: Colors.white,
                   ),

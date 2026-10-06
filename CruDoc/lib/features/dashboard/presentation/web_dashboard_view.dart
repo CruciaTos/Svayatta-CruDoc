@@ -1827,6 +1827,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               color: Color(0xFF94A3B8),
                               size: 18,
                             ),
+                            filled: false,
                             border: InputBorder.none,
                             contentPadding: EdgeInsets.symmetric(vertical: 10),
                           ),
@@ -2506,7 +2507,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                                   hintText:
                                                       'Type patient name or phone number...',
                                                   isDense: true,
-                                                  border: OutlineInputBorder(),
                                                   prefixIcon: Icon(
                                                     Icons.person_search_rounded,
                                                     size: 20,
@@ -2678,7 +2678,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         decoration: const InputDecoration(
                                           hintText:
                                               'Enter clinical observations, symptoms or diagnosis notes...',
-                                          border: OutlineInputBorder(),
                                           isDense: true,
                                         ),
                                       ),
@@ -2720,7 +2719,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                             hintText:
                                                 'Treatment (e.g. Followup Consultation)',
                                             isDense: true,
-                                            border: OutlineInputBorder(),
                                           ),
                                         ),
                                       ),
@@ -2733,7 +2731,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                           decoration: const InputDecoration(
                                             hintText: 'Price (₹)',
                                             isDense: true,
-                                            border: OutlineInputBorder(),
                                           ),
                                         ),
                                       ),
@@ -2871,7 +2868,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                             hintText:
                                                 'Medicine (e.g. Tab Rantac 150mg)',
                                             isDense: true,
-                                            border: OutlineInputBorder(),
                                           ),
                                         ),
                                       ),
@@ -2883,7 +2879,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                           decoration: const InputDecoration(
                                             hintText: 'Dosage (e.g. 1-1-1 3d)',
                                             isDense: true,
-                                            border: OutlineInputBorder(),
                                           ),
                                         ),
                                       ),
@@ -2896,7 +2891,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                           decoration: const InputDecoration(
                                             hintText: 'Price (₹)',
                                             isDense: true,
-                                            border: OutlineInputBorder(),
                                           ),
                                         ),
                                       ),
@@ -3090,7 +3084,6 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                                     horizontal: 8,
                                                     vertical: 6,
                                                   ),
-                                              border: OutlineInputBorder(),
                                             ),
                                           ),
                                         ),

@@ -769,7 +769,7 @@ class _QuickActions extends ConsumerWidget {
         _Action(
           'Expense',
           CruIcons.wallet,
-          MobileTone.slate,
+          MobileTone.blue,
           (ctx, _) => showDesktopAddTransactionDialog(
             mobileRoot(ctx),
             initialKind: TransactionKind.expense,

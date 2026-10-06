@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/scribe/data/models/physio_findings.dart';
 import 'package:doctor_management_app/features/scribe/data/repo/consultation_note_repository.dart';
@@ -827,7 +828,6 @@ class _TableRowEditor extends StatelessWidget {
     InputDecoration deco(String hint) => palette
         .fieldDecoration(hint, dense: true)
         .copyWith(
-          fillColor: palette.card,
           labelText: hint,
           floatingLabelBehavior: FloatingLabelBehavior.auto,
         );
@@ -836,7 +836,7 @@ class _TableRowEditor extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(12, 10, 4, 12),
       decoration: BoxDecoration(
-        color: palette.field.withValues(alpha: 0.6),
+        color: palette.card,
         borderRadius: BorderRadius.circular(palette.fieldRadius + 2),
         border: Border.all(color: palette.border),
       ),
@@ -1156,7 +1156,7 @@ class _MedicineRowEditor extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.fromLTRB(12, 10, 4, 12),
       decoration: BoxDecoration(
-        color: palette.field.withValues(alpha: 0.6),
+        color: palette.card,
         borderRadius: BorderRadius.circular(palette.fieldRadius + 2),
         border: Border.all(color: palette.border),
       ),
@@ -1167,7 +1167,7 @@ class _MedicineRowEditor extends StatelessWidget {
               Icon(
                 Icons.medication_rounded,
                 size: 18,
-                color: palette.diagnosis,
+                color: palette.textSecondary,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1178,9 +1178,10 @@ class _MedicineRowEditor extends StatelessWidget {
                     controller: row.name,
                     textCapitalization: TextCapitalization.words,
                     style: style.copyWith(fontWeight: FontWeight.w600),
-                    decoration: palette
-                        .fieldDecoration('Medicine name', dense: true)
-                        .copyWith(fillColor: palette.card),
+                    decoration: palette.fieldDecoration(
+                      'Medicine name',
+                      dense: true,
+                    ),
                   ),
                 ),
               ),
@@ -1190,7 +1191,7 @@ class _MedicineRowEditor extends StatelessWidget {
                 icon: Icon(
                   Icons.delete_outline_rounded,
                   size: 20,
-                  color: palette.danger,
+                  color: palette.textSecondary,
                 ),
                 onPressed: onRemove,
               ),
@@ -1209,10 +1210,11 @@ class _MedicineRowEditor extends StatelessWidget {
                       controller: row.dosage,
                       minLines: 1,
                       maxLines: 3,
-                      style: style,
-                      decoration: palette
-                          .fieldDecoration('Dose & frequency', dense: true)
-                          .copyWith(fillColor: palette.card),
+                      style: style.copyWith(fontFeatures: CruType.tabular),
+                      decoration: palette.fieldDecoration(
+                        'Dose & frequency',
+                        dense: true,
+                      ),
                     ),
                   ),
                 ),
@@ -1226,9 +1228,10 @@ class _MedicineRowEditor extends StatelessWidget {
                       minLines: 1,
                       maxLines: 3,
                       style: style,
-                      decoration: palette
-                          .fieldDecoration('Instructions', dense: true)
-                          .copyWith(fillColor: palette.card),
+                      decoration: palette.fieldDecoration(
+                        'Instructions',
+                        dense: true,
+                      ),
                     ),
                   ),
                 ),

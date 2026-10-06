@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Colour and shape tokens for the scribe UI.
 ///
@@ -98,7 +99,7 @@ class ScribePalette {
     diagnosis: Color(0xFF8B5CF6),
     existing: Color(0xFF0D9488),
     cardRadius: 16,
-    fieldRadius: 12,
+    fieldRadius: CruRadius.control,
     labelsOutsideCards: true,
   );
 
@@ -109,8 +110,9 @@ class ScribePalette {
     border: Color(0xFFE2E8F0),
     card: Colors.white,
     cardBorder: Color(0xFFE2E8F0),
-    field: Color(0xFFF8FAFC),
-    fieldBorder: Color(0xFFE2E8F0),
+    // Calm Clinical inset field: Day inset fill, no resting outline.
+    field: AppColors.inputBackground,
+    fieldBorder: null,
     primary: Color(0xFF0284C7),
     accent: Color(0xFF0284C7),
     accentSoft: Color(0xFFF0F9FF),
@@ -123,7 +125,7 @@ class ScribePalette {
     diagnosis: Color(0xFF7C3AED),
     existing: Color(0xFF10B981),
     cardRadius: 14,
-    fieldRadius: 10,
+    fieldRadius: CruRadius.control,
     labelsOutsideCards: false,
   );
 
@@ -166,6 +168,10 @@ class ScribePalette {
     color: textSecondary.withValues(alpha: 0.85),
   );
 
+  /// A Calm Clinical inset field: [field] fill, radius 12, a 1.5 px
+  /// brand-accent ring on focus and an amber ring on a validation error
+  /// (red is kept for allergies). Accent and amber are the same in Day
+  /// and Evening.
   InputDecoration fieldDecoration(String hint, {bool dense = false}) {
     OutlineInputBorder outline(Color? color, [double width = 1]) =>
         OutlineInputBorder(
@@ -181,12 +187,15 @@ class ScribePalette {
       fillColor: field,
       isDense: dense,
       contentPadding: EdgeInsets.symmetric(
-        horizontal: 12,
-        vertical: dense ? 10 : 12,
+        horizontal: CruSpace.s14,
+        vertical: dense ? CruSpace.s10 : CruSpace.s12,
       ),
       border: outline(fieldBorder),
       enabledBorder: outline(fieldBorder),
-      focusedBorder: outline(accent, 1.5),
+      focusedBorder: outline(CruColors.day.accent, 1.5),
+      errorBorder: outline(CruColors.day.amber, 1.5),
+      focusedErrorBorder: outline(CruColors.day.amber, 1.5),
+      errorStyle: CruType.caption.w500.tint(CruColors.day.amberText),
     );
   }
 }

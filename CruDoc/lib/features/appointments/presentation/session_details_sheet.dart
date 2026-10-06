@@ -17,7 +17,6 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 
@@ -73,7 +72,7 @@ Future<void> showSessionDetailsSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    backgroundColor: AppColors.cardSurface,
+    backgroundColor: Theme.of(context).colorScheme.surface,
     builder: (_) => _SessionDetailsSheet(initial: vw),
   );
 }
@@ -170,7 +169,7 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardSurface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
@@ -286,15 +285,8 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
     }
   }
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
   @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
-
-  Widget _buildOnDay(BuildContext context) {
+  Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final patient = _patient;
     final statusColor = _colorForStatus(_visit.status);

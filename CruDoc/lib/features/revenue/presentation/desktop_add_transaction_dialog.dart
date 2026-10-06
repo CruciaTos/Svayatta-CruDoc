@@ -181,26 +181,12 @@ class _DesktopAddTransactionDialogState
   }
 
   Future<void> _pickDate() async {
-    final c = context.cru;
     final picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 365)),
       helpText: 'Transaction date',
-      builder: (ctx, child) {
-        return Theme(
-          data: Theme.of(ctx).copyWith(
-            colorScheme: Theme.of(ctx).colorScheme.copyWith(
-              primary: c.accent,
-              onPrimary: c.onAccent,
-              surface: c.surface,
-              onSurface: c.label,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked == null || !mounted) return;
     setState(() {

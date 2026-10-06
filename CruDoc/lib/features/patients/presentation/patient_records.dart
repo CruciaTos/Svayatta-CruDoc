@@ -144,6 +144,8 @@ class _SearchBarState extends ConsumerState<_SearchBar> {
                   fontWeight: FontWeight.w400,
                   color: Color(0xFF94A3B8),
                 ),
+                filled: false,
+                contentPadding: EdgeInsets.symmetric(vertical: 4),
                 border: InputBorder.none,
                 isDense: true,
               ),

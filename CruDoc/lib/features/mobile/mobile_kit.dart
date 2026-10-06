@@ -1413,6 +1413,8 @@ class MobileSearchField extends StatelessWidget {
               cursorColor: MobileBlue.neon,
               decoration: InputDecoration(
                 isCollapsed: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hintText: hint,
                 hintStyle: MobileType.input.tint(c.label3),

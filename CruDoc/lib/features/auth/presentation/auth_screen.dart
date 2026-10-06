@@ -1850,6 +1850,8 @@ class _AuthTextField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         isDense: true,
+        // Underline style of its own: keep the theme's inset fill off.
+        filled: false,
         hintText: hintText,
         hintStyle: const TextStyle(
           color: Color(0xFFB7B7B7),

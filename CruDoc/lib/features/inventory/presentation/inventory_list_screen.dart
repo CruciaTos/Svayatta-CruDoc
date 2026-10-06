@@ -221,6 +221,8 @@ class _SearchBar extends StatelessWidget {
                   fontWeight: FontWeight.w400,
                   color: AppColors.textSecondary,
                 ),
+                filled: false,
+                contentPadding: EdgeInsets.symmetric(vertical: 8),
                 border: InputBorder.none,
               ),
             ),

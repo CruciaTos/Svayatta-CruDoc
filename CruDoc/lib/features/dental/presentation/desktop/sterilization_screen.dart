@@ -385,21 +385,9 @@ class _CycleDialogState extends ConsumerState<_CycleDialog> {
   }
 
   Future<void> _pickTime() async {
-    final c = context.cru;
     final t = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(_at),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: Theme.of(ctx).colorScheme.copyWith(
-            primary: c.accent,
-            onPrimary: c.onAccent,
-            surface: c.surface,
-            onSurface: c.label,
-          ),
-        ),
-        child: child!,
-      ),
     );
     if (t == null) return;
     setState(

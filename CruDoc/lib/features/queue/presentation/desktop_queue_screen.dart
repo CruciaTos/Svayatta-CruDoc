@@ -1453,6 +1453,8 @@ class _QueueSearchField extends StatelessWidget {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 isCollapsed: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hint: Text(
                   'Search patient or token #',

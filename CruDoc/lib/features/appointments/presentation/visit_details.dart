@@ -94,17 +94,6 @@ Widget _buildPickDateButton(
         initialDate: date,
         firstDate: DateTime.now(),
         lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-        builder: (context, child) => Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.slateBlue,
-              onPrimary: AppColors.textPrimary,
-              surface: AppColors.cardSurface,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        ),
       );
       onPicked(picked);
     },
@@ -135,17 +124,6 @@ Widget _buildPickTimeButton(
       final picked = await showTimePicker(
         context: context,
         initialTime: time,
-        builder: (context, child) => Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.slateBlue,
-              onPrimary: AppColors.textPrimary,
-              surface: AppColors.cardSurface,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        ),
       );
       onPicked(picked);
     },

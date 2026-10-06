@@ -148,6 +148,8 @@ class _DashboardSearchFieldState extends ConsumerState<DashboardSearchField> {
                       textInputAction: TextInputAction.search,
                       decoration: InputDecoration(
                         isCollapsed: true,
+                        filled: false,
+                        contentPadding: EdgeInsets.zero,
                         border: InputBorder.none,
                         // A widget hint so the placeholder is clipped at
                         // the edge rather than ellipsised.

@@ -597,6 +597,7 @@ class _ChatbotScreenState extends State<ChatbotScreen>
                     fontSize: 13.5,
                     color: AppColors.textSecondary.withValues(alpha: 0.6),
                   ),
+                  filled: false,
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,

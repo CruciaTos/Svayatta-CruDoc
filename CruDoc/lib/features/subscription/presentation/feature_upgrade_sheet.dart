@@ -4,7 +4,6 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
 import 'package:doctor_management_app/features/subscription/data/upgrade_request_model.dart';
 import 'package:doctor_management_app/features/subscription/presentation/payment_checkout_sheet.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
 
 /// Modal bottom sheet that lets doctors view available features,
 /// calculate monthly totals, and submit an upgrade request.
@@ -121,15 +120,8 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     }
   }
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
   @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
-
-  Widget _buildOnDay(BuildContext context) {
+  Widget build(BuildContext context) {
     final currencyFormatter = NumberFormat.currency(
       locale: 'en_IN',
       symbol: '₹',

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_voice_fill_bar.dart';
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 export 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 
 // ==============================================================================
@@ -250,19 +250,6 @@ class PatientFormState extends State<PatientForm> {
       initialDate: _dateOfBirth ?? DateTime(now.year - 30),
       firstDate: DateTime(1900),
       lastDate: now,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF2563EB),
-              onPrimary: Colors.white,
-              surface: Colors.white,
-              onSurface: Color(0xFF0F172A),
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) {
       setState(() => _dateOfBirth = picked);
@@ -311,6 +298,7 @@ class PatientFormState extends State<PatientForm> {
             label: 'Phone Number',
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            tabular: true,
             validator: (value) {
               final trimmed = value?.trim() ?? '';
               if (trimmed.isEmpty) return 'Required';
@@ -352,7 +340,7 @@ class PatientFormState extends State<PatientForm> {
               const _SectionLabel(text: 'Diagnosis'),
               Text(
                 '${_diagnosisControllers.length}/$_maxDiagnoses',
-                style: AppColors.bodySmall,
+                style: CruType.caption.tabular.tint(context.cru.label3),
               ),
             ],
           ),
@@ -372,6 +360,7 @@ class PatientFormState extends State<PatientForm> {
           _FormField(
             label: 'Package Balance',
             controller: _packageBalanceController,
+            tabular: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             validator: (value) {
               final trimmed = value?.trim() ?? '';
@@ -395,70 +384,35 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppColors.bodyMeta.copyWith(fontWeight: FontWeight.w600),
-    );
+    return Text(text, style: CruType.subhead.w500.tint(context.cru.label2));
   }
 }
 
 // ---------- TEXT FORM FIELD ----------
+/// A labelled 44 px inset field (accent focus ring, amber error).
 class _FormField extends StatelessWidget {
   final String label;
   final TextEditingController controller;
   final TextInputType? keyboardType;
-  final int maxLines;
   final String? Function(String?)? validator;
+  final bool tabular;
 
   const _FormField({
     required this.label,
     required this.controller,
     this.keyboardType,
     this.validator,
-  }) : maxLines = 1;
+    this.tabular = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _SectionLabel(text: label),
-        const SizedBox(height: 8),
-        TextFormField(
-          controller: controller,
-          keyboardType: keyboardType,
-          maxLines: maxLines,
-          validator: validator,
-          style: AppColors.bodyMedium,
-          decoration: InputDecoration(
-            filled: true,
-            fillColor: const Color(0xFFF8FAFC),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 14,
-              vertical: 14,
-            ),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.transparent),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(
-                color: Color(0xFF2563EB),
-                width: 1.5,
-              ),
-            ),
-            errorBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: Colors.redAccent),
-            ),
-          ),
-        ),
-      ],
+    return CruTextField(
+      label: label,
+      controller: controller,
+      keyboardType: keyboardType,
+      validator: validator,
+      tabular: tabular,
     );
   }
 }
@@ -480,61 +434,28 @@ class _DiagnosisFieldRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: CruSpace.s10),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: TextFormField(
               controller: controller,
-              style: AppColors.bodyMedium,
+              style: CruType.input.tint(context.cru.label),
+              // Dense: 44 px like the labelled fields.
               decoration: InputDecoration(
                 hintText: 'Diagnosis ${index + 1}',
-                hintStyle: AppColors.bodyMedium.copyWith(
-                  color: const Color(0xFF94A3B8),
-                ),
-                filled: true,
-                fillColor: const Color(0xFFF8FAFC),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 14,
-                ),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.transparent),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Colors.transparent),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2563EB),
-                    width: 1.5,
-                  ),
-                ),
+                isDense: true,
               ),
             ),
           ),
           if (canRemove) ...[
-            const SizedBox(width: 8),
-            InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFEE2E2),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFFCA5A5)),
-                ),
-                child: const Icon(
-                  Icons.close,
-                  size: 16,
-                  color: Color(0xFFEF4444),
-                ),
-              ),
+            const SizedBox(width: CruSpace.s8),
+            CruIconButton(
+              icon: CruIcons.close,
+              onPressed: onRemove,
+              semanticLabel: 'Remove diagnosis ${index + 1}',
+              iconSize: 16,
             ),
           ],
         ],
@@ -550,39 +471,18 @@ class _AddDiagnosisButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFFEFF6FF),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFF2563EB).withValues(alpha: 0.3),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.add, size: 16, color: Color(0xFF2563EB)),
-            const SizedBox(width: 6),
-            Text(
-              'Add another diagnosis',
-              style: AppColors.bodyMeta.copyWith(
-                color: const Color(0xFF2563EB),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ),
+    return CruButton(
+      label: 'Add another diagnosis',
+      icon: CruIcons.plus,
+      kind: CruButtonKind.secondary,
+      expand: true,
+      onPressed: onTap,
     );
   }
 }
 
 // ---------- GENDER SELECTOR ----------
+/// Full-width segmented choice: inset track, raised selected segment.
 class _GenderSelector extends StatelessWidget {
   final List<String> options;
   final String selected;
@@ -596,41 +496,46 @@ class _GenderSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: options.map((option) {
-        final isSelected = option == selected;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: option == options.last ? 0 : 8),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => onChanged(option),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? const Color(0xFF2563EB)
-                      : const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
+    final c = context.cru;
+    return Container(
+      padding: const EdgeInsets.all(3),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.segmentOuter),
+      ),
+      child: Row(
+        children: options.map((option) {
+          final isSelected = option == selected;
+          return Expanded(
+            child: Semantics(
+              button: true,
+              selected: isSelected,
+              child: GestureDetector(
+                onTap: () => onChanged(option),
+                child: AnimatedContainer(
+                  duration: CruMotion.of(context, CruMotion.fast),
+                  curve: CruMotion.curve,
+                  height: CruSize.segmentItem + CruSpace.s8,
+                  alignment: Alignment.center,
+                  decoration: ShapeDecoration(
                     color: isSelected
-                        ? const Color(0xFF2563EB)
-                        : const Color(0xFFE2E8F0),
+                        ? c.segmentSelected
+                        : c.segmentSelected.withValues(alpha: 0),
+                    shape: cruShape(CruRadius.segmentInner),
+                    shadows: isSelected ? c.segmentShadow : const [],
                   ),
-                ),
-                child: Text(
-                  option,
-                  style: AppColors.bodyMeta.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: isSelected ? Colors.white : const Color(0xFF475569),
+                  child: Text(
+                    option,
+                    style: CruType.subhead.w600.tint(
+                      isSelected ? c.label : c.label2,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -644,39 +549,39 @@ class _DateOfBirthField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final label = date == null
         ? 'Select date of birth'
         : '${date!.day.toString().padLeft(2, '0')}/'
               '${date!.month.toString().padLeft(2, '0')}/'
               '${date!.year}';
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
+    return CruPressable(
       onTap: onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+      semanticLabel: 'Date of birth, $label',
+      scaleOnPress: false,
+      builder: (context, hovered) => Container(
+        height: CruSize.actionButton,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+        decoration: ShapeDecoration(
+          color: hovered ? cruHoverShade(c.inset, c) : c.inset,
+          shape: cruShape(CruRadius.control),
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.calendar_today_outlined,
-              color: const Color(0xFF2563EB).withValues(alpha: 0.7),
-              size: 18,
-            ),
-            const SizedBox(width: 10),
-            Text(
-              label,
-              style: AppColors.bodyMedium.copyWith(
-                color: date == null
-                    ? const Color(0xFF94A3B8)
-                    : const Color(0xFF0F172A),
+            CruIcon(CruIcons.calendar, size: 17, strokeWidth: 2, color: c.label3),
+            const SizedBox(width: CruSpace.s10),
+            Expanded(
+              child: Text(
+                label,
+                style: CruType.input.tabular.tint(
+                  date == null ? c.label3 : c.label,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            CruIcon(CruIcons.chevronDown, size: 16, color: c.label3),
           ],
         ),
       ),
@@ -701,8 +606,10 @@ Future<bool?> showAddPatientSheet(
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    shape: const RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(CruRadius.card),
+      ),
     ),
     builder: (_) => AddPatientSheet(repository: repository),
   );
@@ -726,8 +633,10 @@ Future<bool?> showEditPatientSheet(
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    shape: const RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(CruRadius.card),
+      ),
     ),
     builder: (_) => EditPatientSheet(patient: patient, repository: repository),
   );
@@ -801,12 +710,17 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(CruRadius.card),
+      ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(CruRadius.card),
+          ),
         ),
         child: SafeArea(
           child: Padding(
@@ -826,44 +740,20 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                     Container(
                       width: 44,
                       height: 5,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
-                        borderRadius: BorderRadius.circular(999),
+                      decoration: ShapeDecoration(
+                        color: c.track,
+                        shape: cruShape(CruRadius.full),
                       ),
                     ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Row(
-                          children: [
-                            Icon(
-                              Icons.person_add_alt_1_rounded,
-                              color: Color(0xFF2563EB),
-                              size: 22,
-                            ),
-                            SizedBox(width: 10),
-                            Text(
-                              'Add New Patient',
-                              style: TextStyle(
-                                color: Color(0xFF0F172A),
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: Color(0xFF64748B),
-                            size: 20,
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
+                    const SizedBox(height: CruSpace.s16),
+                    _SheetHeader(
+                      icon: CruIcons.userPlus,
+                      title: 'Add new patient',
+                      onClose: () => Navigator.of(context).pop(),
                     ),
-                    const Divider(height: 20),
+                    const SizedBox(height: CruSpace.s8),
+                    const CruSeparator(),
+                    const SizedBox(height: CruSpace.s8),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -875,39 +765,11 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _onSavePressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor: const Color(
-                            0xFF2563EB,
-                          ).withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Save Patient',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                      ),
+                    CruButton(
+                      label: _isSaving ? 'Saving…' : 'Save patient',
+                      large: true,
+                      expand: true,
+                      onPressed: _isSaving ? null : _onSavePressed,
                     ),
                   ],
                 ),
@@ -1009,39 +871,11 @@ class _AddPatientPageState extends State<AddPatientPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isSaving ? null : _onSavePressed,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.slateBlue,
-                      disabledBackgroundColor: AppColors.slateBlue.withValues(
-                        alpha: 0.5,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              color: AppColors.textPrimary,
-                            ),
-                          )
-                        : const Text(
-                            'Save Patient',
-                            style: TextStyle(
-                              fontFamily: AppColors.bodyFontFamily,
-                              color: AppColors.textPrimary,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
+                CruButton(
+                  label: _isSaving ? 'Saving…' : 'Save patient',
+                  large: true,
+                  expand: true,
+                  onPressed: _isSaving ? null : _onSavePressed,
                 ),
               ],
             ),
@@ -1058,27 +892,59 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Row(
       children: [
-        IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
-            size: 20,
-          ),
-          padding: EdgeInsets.zero,
-          constraints: const BoxConstraints(),
+        CruIconButton(
+          icon: CruIcons.chevronLeft,
+          semanticLabel: 'Back',
+          size: CruSize.control,
           onPressed: () => Navigator.pop(context),
         ),
-        const SizedBox(width: 10),
-        const Text(
-          'Add Patient',
-          style: TextStyle(
-            fontFamily: AppColors.bodyFontFamily,
-            color: AppColors.textPrimary,
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
+        const SizedBox(width: CruSpace.s8),
+        Text('Add patient', style: CruType.title2.tint(c.label)),
+      ],
+    );
+  }
+}
+
+/// Sheet title row: a quiet icon tile, the title and Close.
+class _SheetHeader extends StatelessWidget {
+  const _SheetHeader({
+    required this.icon,
+    required this.title,
+    required this.onClose,
+  });
+
+  final CruIconData icon;
+  final String title;
+  final VoidCallback onClose;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Row(
+      children: [
+        Container(
+          width: CruSize.iconTile,
+          height: CruSize.iconTile,
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            color: c.inset,
+            shape: cruShape(CruRadius.iconTile),
           ),
+          child: CruIcon(icon, size: 18, color: c.label2),
+        ),
+        const SizedBox(width: CruSpace.s12),
+        Expanded(
+          child: Text(title, style: CruType.title2.tint(c.label)),
+        ),
+        CruIconButton(
+          icon: CruIcons.close,
+          semanticLabel: 'Close',
+          size: CruSize.control,
+          iconSize: 18,
+          onPressed: onClose,
         ),
       ],
     );
@@ -1149,12 +1015,17 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return ClipRRect(
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      borderRadius: const BorderRadius.vertical(
+        top: Radius.circular(CruRadius.card),
+      ),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(CruRadius.card),
+          ),
         ),
         child: SafeArea(
           child: Padding(
@@ -1170,45 +1041,14 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: const Icon(
-                                Icons.edit_note,
-                                color: Color(0xFF2563EB),
-                                size: 20,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            const Text(
-                              'Edit Patient',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
-                              ),
-                            ),
-                          ],
-                        ),
-                        IconButton(
-                          icon: const Icon(
-                            Icons.close_rounded,
-                            color: Color(0xFF64748B),
-                            size: 20,
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                        ),
-                      ],
+                    _SheetHeader(
+                      icon: CruIcons.pen,
+                      title: 'Edit patient',
+                      onClose: () => Navigator.of(context).pop(),
                     ),
-                    const Divider(height: 20),
+                    const SizedBox(height: CruSpace.s8),
+                    const CruSeparator(),
+                    const SizedBox(height: CruSpace.s8),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -1228,39 +1068,11 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                       ),
                     ),
                     const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 50,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _onSavePressed,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor: const Color(
-                            0xFF2563EB,
-                          ).withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isSaving
-                            ? const SizedBox(
-                                width: 22,
-                                height: 22,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.4,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Update Patient',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                      ),
+                    CruButton(
+                      label: _isSaving ? 'Saving…' : 'Update patient',
+                      large: true,
+                      expand: true,
+                      onPressed: _isSaving ? null : _onSavePressed,
                     ),
                   ],
                 ),

@@ -109,6 +109,8 @@ class _PatientsSearchBarState extends ConsumerState<PatientsSearchBar> {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 isCollapsed: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hint: Text(
                   'Search by name, phone, patient ID or condition',

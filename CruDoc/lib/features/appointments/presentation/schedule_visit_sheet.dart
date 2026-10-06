@@ -2,14 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_schedule_visit_dialog.dart';
 
 /// Opens a bottom sheet (or desktop dialog on desktop viewports) to schedule a visit for [patient].
@@ -30,12 +29,16 @@ Future<bool> showScheduleVisitSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: AppColors.cardSurface,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+    backgroundColor: context.cru.surface,
+    shape: const RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.vertical(
+        top: Radius.circular(CruRadius.card),
+      ),
     ),
-    builder: (_) =>
-        ScheduleVisitSheet(patient: patient, visitRepository: visitRepository),
+    builder: (_) => ScheduleVisitSheet(
+      patient: patient,
+      visitRepository: visitRepository,
+    ),
   ).then((value) => value ?? false);
 }
 
@@ -76,6 +79,15 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
     super.dispose();
   }
 
+  static const _durations = [
+    '15 min',
+    '30 min',
+    '45 min',
+    '60 min',
+    '90 min',
+    '120 min',
+  ];
+
   int get _durationMinutes =>
       int.tryParse(_selectedDuration.split(' ').first) ?? 30;
 
@@ -85,19 +97,6 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
       initialDate: _selectedDate,
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.slateBlue,
-              onPrimary: AppColors.textPrimary,
-              surface: AppColors.cardSurface,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) setState(() => _selectedDate = picked);
   }
@@ -106,19 +105,6 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
     final picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.slateBlue,
-              onPrimary: AppColors.textPrimary,
-              surface: AppColors.cardSurface,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) setState(() => _selectedTime = picked);
   }
@@ -167,26 +153,33 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
       if (!mounted) return;
       setState(() => _isSaving = false);
 
+      final c = context.cru;
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          backgroundColor: AppColors.cardSurface,
+          backgroundColor: c.surface,
+          surfaceTintColor: c.surface.withValues(alpha: 0),
+          shape: cruShape(
+            CruRadius.card,
+            side: BorderSide(color: c.cardBorder),
+          ),
           title: Text(
             'Overlapping visit',
-            style: AppColors.sectionHeading.copyWith(fontSize: 18),
+            style: CruType.title2.tint(c.label),
           ),
           content: Text(
             'This overlaps ${e.conflicts.length} existing visit(s) at this time. Save anyway?',
-            style: AppColors.bodyMedium,
+            style: CruType.text.tint(c.label2),
           ),
           actions: [
-            TextButton(
+            CruButton(
+              label: 'Cancel',
+              kind: CruButtonKind.secondary,
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Cancel'),
             ),
-            FilledButton(
+            CruButton(
+              label: 'Save anyway',
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Save Anyway'),
             ),
           ],
         ),
@@ -210,86 +203,41 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
     }
   }
 
-  InputDecoration _fieldDecoration(String hint) {
-    return InputDecoration(
-      hintText: hint,
-      hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
-      filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-    );
-  }
-
-  Widget _label(String text) => Text(
-    text,
-    style: const TextStyle(
-      fontFamily: AppColors.bodyFontFamily,
-      fontSize: 13,
-      fontWeight: FontWeight.w600,
-      color: AppColors.textPrimary,
-    ),
-  );
-
-  Widget _pickerTile({
-    required IconData icon,
-    required String label,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        onTap: _isSaving ? null : onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: AppColors.chartBarLight),
-              const SizedBox(width: 10),
-              Expanded(child: Text(label, style: AppColors.bodyMedium)),
-              const Icon(Icons.chevron_right, color: AppColors.textSecondary),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVisitTypeToggle() {
+  Widget _buildVisitTypeToggle(CruColors c) {
     return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.all(3),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.segmentOuter),
       ),
       child: Row(
         children: VisitType.values.map((type) {
           final selected = type == _selectedType;
           return Expanded(
-            child: GestureDetector(
-              onTap: _isSaving
-                  ? null
-                  : () => setState(() => _selectedType = type),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColors.chartBarLight
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  type == VisitType.clinic ? 'Clinic' : 'Home Visit',
-                  style: AppColors.bodyMedium.copyWith(
-                    color: selected ? Colors.white : AppColors.textPrimary,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+            child: Semantics(
+              button: true,
+              selected: selected,
+              child: GestureDetector(
+                onTap: _isSaving
+                    ? null
+                    : () => setState(() => _selectedType = type),
+                child: AnimatedContainer( 
+                  duration: CruMotion.of(context, CruMotion.fast),
+                  curve: CruMotion.curve,
+                  height: CruSize.segmentItem + CruSpace.s8,
+                  decoration: ShapeDecoration(
+                    color: selected
+                        ? c.segmentSelected
+                        : c.segmentSelected.withValues(alpha: 0),
+                    shape: cruShape(CruRadius.segmentInner),
+                    shadows: selected ? c.segmentShadow : const [],
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    type == VisitType.clinic ? 'Clinic' : 'Home visit',
+                    style: CruType.subhead.w600.tint(
+                      selected ? c.label : c.label2,
+                    ),
                   ),
                 ),
               ),
@@ -300,214 +248,143 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
     );
   }
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
   @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
-
-  Widget _buildOnDay(BuildContext context) {
+  Widget build(BuildContext context) {
+    final c = context.cru;
     final dateLabel = DateFormat('d MMM yyyy').format(_selectedDate);
     final timeLabel = _selectedTime.format(context);
+    final whatsApp = WhatsAppTemplateService.isValidWhatsAppPhone(
+      widget.patient.phone,
+    );
 
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
       ),
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+        padding: const EdgeInsets.fromLTRB(
+          CruSpace.s24,
+          CruSpace.s12,
+          CruSpace.s24,
+          CruSpace.s24,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(
               child: Container(
                 width: 44,
                 height: 5,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(999),
+                margin: const EdgeInsets.only(bottom: CruSpace.s20),
+                decoration: ShapeDecoration(
+                  color: c.track,
+                  shape: cruShape(CruRadius.full),
                 ),
               ),
             ),
-            Text(
-              'Schedule Session',
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
-            ),
+            Text('Schedule session', style: CruType.title2.tint(c.label)),
+            const SizedBox(height: CruSpace.s2),
             Row(
               children: [
                 Expanded(
                   child: Text(
                     widget.patient.fullName,
-                    style: AppColors.bodyMedium.copyWith(
-                      color: AppColors.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: CruType.subhead.w500.tint(c.label2),
                   ),
                 ),
-                if (WhatsAppTemplateService.isValidWhatsAppPhone(
-                  widget.patient.phone,
-                )) ...[
-                  const Icon(
-                    Icons.chat_outlined,
-                    size: 13,
-                    color: Color(0xFF25D366),
-                  ),
-                  const SizedBox(width: 4),
+                if (whatsApp) ...[
+                  CruIcon(CruIcons.whatsapp, size: 13, color: c.label3),
+                  const SizedBox(width: CruSpace.s4),
                   Text(
-                    'WhatsApp Auto-Notify',
-                    style: AppColors.bodySmall.copyWith(
-                      color: const Color(0xFF25D366),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 11,
-                    ),
+                    'WhatsApp auto-notify',
+                    style: CruType.caption.w500.tint(c.label3),
                   ),
-                ] else ...[
+                ] else
                   Text(
                     'No WhatsApp mobile',
-                    style: AppColors.bodySmall.copyWith(
-                      color: AppColors.textSecondary,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 11,
-                    ),
+                    style: CruType.caption.tint(c.label3),
                   ),
-                ],
               ],
             ),
-            const SizedBox(height: 16),
-            _buildVisitTypeToggle(),
-            const SizedBox(height: 14),
-            _label('Date'),
-            const SizedBox(height: 8),
-            _pickerTile(
-              icon: Icons.calendar_today_outlined,
-              label: dateLabel,
-              onTap: _pickDate,
+            const SizedBox(height: CruSpace.s16),
+            _buildVisitTypeToggle(c),
+            const SizedBox(height: CruSpace.s16),
+            CruPickerField(
+              label: 'Date',
+              icon: CruIcons.calendar,
+              value: dateLabel,
+              placeholder: 'Pick a date',
+              onTap: () {
+                if (!_isSaving) _pickDate();
+              },
             ),
-            const SizedBox(height: 14),
-            _label('Time'),
-            const SizedBox(height: 8),
-            _pickerTile(
-              icon: Icons.access_time,
-              label: timeLabel,
-              onTap: _pickTime,
+            const SizedBox(height: CruSpace.s16),
+            CruPickerField(
+              label: 'Time',
+              icon: CruIcons.clock,
+              value: timeLabel,
+              placeholder: 'Pick a time',
+              onTap: () {
+                if (!_isSaving) _pickTime();
+              },
             ),
-            const SizedBox(height: 14),
-            _label('Duration'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedDuration,
-                  isExpanded: true,
-                  items: const [
-                    DropdownMenuItem(value: '15 min', child: Text('15 min')),
-                    DropdownMenuItem(value: '30 min', child: Text('30 min')),
-                    DropdownMenuItem(value: '45 min', child: Text('45 min')),
-                    DropdownMenuItem(value: '60 min', child: Text('60 min')),
-                    DropdownMenuItem(value: '90 min', child: Text('90 min')),
-                    DropdownMenuItem(value: '120 min', child: Text('120 min')),
-                  ],
-                  onChanged: _isSaving
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            setState(() => _selectedDuration = value);
-                          }
-                        },
-                ),
-              ),
+            const SizedBox(height: CruSpace.s16),
+            CruDropdownField<String>(
+              label: 'Duration',
+              value: _selectedDuration,
+              items: _durations,
+              itemLabel: (d) => d,
+              tabular: true,
+              onChanged: _isSaving
+                  ? null
+                  : (value) => setState(() => _selectedDuration = value),
             ),
             if (_selectedType == VisitType.home) ...[
-              const SizedBox(height: 14),
-              _label('Home Address (optional)'),
-              const SizedBox(height: 8),
-              PlacesAutocompleteField(
-                controller: _addressController,
-                enabled: !_isSaving,
-                hint: 'Start typing to search places',
-                onPlaceSelected: (selection) {
-                  setState(() {
-                    _resolvedLat = selection.latitude;
-                    _resolvedLng = selection.longitude;
-                    _mapsLinkController.text = 'https://www.google.com/maps/search/?api=1&query=${selection.latitude},${selection.longitude}';
-                  });
-                },
-              ),
-            ],
-            const SizedBox(height: 14),
-            _label('Google Maps Link (optional)'),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _mapsLinkController,
-              enabled: !_isSaving,
-              style: AppColors.bodyMedium,
-              decoration: _fieldDecoration('https://maps.google.com/...'),
-            ),
-            if (_errorText != null) ...[
-              const SizedBox(height: 12),
-              Text(
-                _errorText!,
-                style: const TextStyle(
-                  fontFamily: AppColors.bodyFontFamily,
-                  color: Colors.redAccent,
-                  fontSize: 12,
+              const SizedBox(height: CruSpace.s16),
+              CruFieldFrame(
+                label: 'Home address',
+                optional: true,
+                child: PlacesAutocompleteField(
+                  controller: _addressController,
+                  enabled: !_isSaving,
+                  hint: 'Start typing to search places',
+                  style: 'cru',
+                  onPlaceSelected: (selection) {
+                    setState(() {
+                      _resolvedLat = selection.latitude;
+                      _resolvedLng = selection.longitude;
+                      _mapsLinkController.text = 'https://www.google.com/maps/search/?api=1&query=${selection.latitude},${selection.longitude}';
+                    });
+                  },
                 ),
               ),
             ],
-            const SizedBox(height: 20),
+            const SizedBox(height: CruSpace.s16),
+            CruTextField(
+              label: 'Google Maps link',
+              optional: true,
+              controller: _mapsLinkController,
+              enabled: !_isSaving,
+              keyboardType: TextInputType.url,
+              hint: 'https://maps.google.com/...',
+            ),
+            if (_errorText != null) CruFieldError(_errorText!),
+            const SizedBox(height: CruSpace.s20),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                TextButton(
+                CruButton(
+                  label: 'Cancel',
+                  kind: CruButtonKind.secondary,
+                  large: true,
                   onPressed: _isSaving ? null : () => Navigator.pop(context),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.slateBlue,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton(
+                const SizedBox(width: CruSpace.s8),
+                CruButton(
+                  label: _isSaving ? 'Scheduling…' : 'Schedule',
+                  large: true,
                   onPressed: _isSaving ? null : _submit,
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
-                    ),
-                    backgroundColor: AppColors.chartBarLight,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: _isSaving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text(
-                          'Schedule',
-                          style: TextStyle(
-                            fontFamily: AppColors.bodyFontFamily,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
                 ),
               ],
             ),

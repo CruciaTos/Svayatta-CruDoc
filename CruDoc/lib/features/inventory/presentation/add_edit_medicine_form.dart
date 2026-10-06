@@ -114,19 +114,6 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
       initialDate: _expiryDate ?? now,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 10),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: AppColors.slateBlue,
-              onPrimary: AppColors.textPrimary,
-              surface: AppColors.cardSurface,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
     );
     if (picked != null) setState(() => _expiryDate = picked);
   }

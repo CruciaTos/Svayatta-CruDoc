@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/patients/data/repo/patient_reposi
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
 import 'package:doctor_management_app/features/revenue/data/services/paddle_ocr_service.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 export 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 
 class InvoicesScreen extends StatefulWidget {
@@ -1250,9 +1251,22 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
     }
   }
 
+  /// A 44 px theme field for the dense add-item rows: smaller hint and
+  /// padding so three fields and a button share a phone-width row.
+  InputDecoration _compactField(CruColors c, String hint) => InputDecoration(
+    hintText: hint,
+    isDense: true,
+    hintStyle: CruType.subhead.tint(c.label3),
+    contentPadding: const EdgeInsets.symmetric(
+      horizontal: CruSpace.s10,
+      vertical: CruSpace.s12,
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
-    const primaryBlue = Color(0xFF2563EB);
+    final c = context.cru;
+    final primaryBlue = c.accent;
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Container(
@@ -1266,9 +1280,11 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
           // 1. Royal Blue Header Banner (Matching Image Top Bar)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: primaryBlue,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: Row(
               children: [
@@ -1481,17 +1497,13 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                         _selectedPatient = null;
                                       });
                                     },
+                                    style: CruType.input.tint(c.label),
                                     decoration: InputDecoration(
                                       hintText:
                                           'Search Existing Patient or Add New Name',
-                                      hintStyle: const TextStyle(
-                                        fontSize: 13,
-                                        color: Color(0xFF94A3B8),
-                                      ),
                                       prefixIcon: const Icon(
                                         Icons.person_search_outlined,
                                         size: 20,
-                                        color: Color(0xFF64748B),
                                       ),
                                       suffixIcon:
                                           _patientController.text.isNotEmpty
@@ -1510,19 +1522,6 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                               },
                                             )
                                           : null,
-                                      filled: true,
-                                      fillColor: Colors.white,
-                                      contentPadding:
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 10,
-                                          ),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(10),
-                                        borderSide: const BorderSide(
-                                          color: Colors.transparent,
-                                        ),
-                                      ),
                                     ),
                                     validator: (val) =>
                                         val == null || val.trim().isEmpty
@@ -1707,14 +1706,10 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                               child: TextFormField(
                                 controller: _clinicalNotesController,
                                 maxLines: 2,
+                                style: CruType.input.tint(c.label),
                                 decoration: const InputDecoration(
                                   hintText:
                                       'Enter patient observations, diagnosis, or clinical notes...',
-                                  hintStyle: TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF94A3B8),
-                                  ),
-                                  border: OutlineInputBorder(),
                                 ),
                               ),
                             ),
@@ -1750,19 +1745,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 flex: 3,
                                 child: TextFormField(
                                   controller: _treatmentNameController,
-                                  decoration: const InputDecoration(
-                                    hintText:
-                                        'Treatment (e.g. Followup Consulta...)',
-                                    hintStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 8,
-                                    ),
-                                    border: OutlineInputBorder(),
-                                  ),
+                                  style: CruType.text.tint(c.label),
+                                  decoration: _compactField(c, 'Treatment (e.g. Followup Consulta...)'),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -1771,18 +1755,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 child: TextFormField(
                                   controller: _treatmentPriceController,
                                   keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Price (₹)',
-                                    hintStyle: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 8,
-                                    ),
-                                    border: OutlineInputBorder(),
-                                  ),
+                                  style: CruType.text.tabular.tint(c.label),
+                                  decoration: _compactField(c, 'Price (₹)'),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -1835,10 +1809,11 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       const Spacer(),
                                       Text(
                                         '₹${item.price.toInt()}',
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w800,
                                           color: primaryBlue,
+                                          fontFeatures: CruType.tabular,
                                         ),
                                       ),
                                       const SizedBox(width: 6),
@@ -1892,18 +1867,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 flex: 3,
                                 child: TextFormField(
                                   controller: _medicineNameController,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Medicine (e.g. Tab Ran...)',
-                                    hintStyle: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 8,
-                                    ),
-                                    border: OutlineInputBorder(),
-                                  ),
+                                  style: CruType.text.tint(c.label),
+                                  decoration: _compactField(c, 'Medicine (e.g. Tab Ran...)'),
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -1911,18 +1876,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 flex: 2,
                                 child: TextFormField(
                                   controller: _dosageController,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Dosage (e.g. 1-0-1)',
-                                    hintStyle: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 8,
-                                    ),
-                                    border: OutlineInputBorder(),
-                                  ),
+                                  style: CruType.text.tint(c.label),
+                                  decoration: _compactField(c, 'Dosage (e.g. 1-0-1)'),
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -1931,18 +1886,8 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                 child: TextFormField(
                                   controller: _medicinePriceController,
                                   keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    hintText: 'Price (₹)',
-                                    hintStyle: TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                    contentPadding: EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 8,
-                                    ),
-                                    border: OutlineInputBorder(),
-                                  ),
+                                  style: CruType.text.tabular.tint(c.label),
+                                  decoration: _compactField(c, 'Price (₹)'),
                                 ),
                               ),
                               const SizedBox(width: 6),
@@ -2063,10 +2008,11 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                           ),
                           Text(
                             '₹${_calculatedTotal.toInt()}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: primaryBlue,
+                              fontFeatures: CruType.tabular,
                             ),
                           ),
                         ],

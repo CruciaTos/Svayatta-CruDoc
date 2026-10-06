@@ -554,6 +554,7 @@ class CruTextField extends StatefulWidget {
     this.onSubmitted,
     this.focusNode,
     this.tabular = false,
+    this.enabled = true,
     this.aiRevealKey,
     this.aiPending = false,
     this.aiStagger = Duration.zero,
@@ -594,6 +595,9 @@ class CruTextField extends StatefulWidget {
 
   /// Tabular figures for numbers.
   final bool tabular;
+
+  /// False while saving: the value dims and can't be edited.
+  final bool enabled;
 
   @override
   State<CruTextField> createState() => _CruTextFieldState();
@@ -670,7 +674,7 @@ class _CruTextFieldState extends State<CruTextField> {
             : focused
             ? BorderSide(color: c.accent, width: 1.5)
             : BorderSide(color: c.inset.withValues(alpha: 0), width: 1.5);
-        final base = CruType.input.tint(c.label);
+        final base = CruType.input.tint(widget.enabled ? c.label : c.label3);
 
         // Snapshot widget for real outgoing user text dissolving into fog
         final outgoingText = _outgoingText;
@@ -736,6 +740,7 @@ class _CruTextFieldState extends State<CruTextField> {
                     child: TextField(
                       controller: widget.controller,
                       focusNode: _focus,
+                      enabled: widget.enabled,
                       autofocus: widget.autofocus,
                       minLines: multiline ? widget.maxLines : 1,
                       maxLines: widget.maxLines,
@@ -934,6 +939,167 @@ class _CruPickerFieldState extends State<CruPickerField> {
                 const SizedBox(width: CruSpace.s8),
               ],
               CruIcon(CruIcons.chevronDown, size: 16, color: c.label3),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A 44 px inset choice field (radius 12): optional icon, the chosen
+/// [items] entry (or [placeholder]) and a chevron. Opens a
+/// [DropdownButton] menu, so keyboard and screen readers work as usual.
+///
+/// Focus draws a 1.5 px accent ring on a surface fill; [error] draws an
+/// amber ring and the message below. A null [onChanged] disables it.
+class CruDropdownField<T> extends StatefulWidget {
+  const CruDropdownField({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.itemLabel,
+    required this.onChanged,
+    this.placeholder = 'Select',
+    this.icon,
+    this.optional = false,
+    this.help,
+    this.error,
+    this.tabular = false,
+  });
+
+  final String label;
+  final T? value;
+  final List<T> items;
+  final String Function(T item) itemLabel;
+  final ValueChanged<T>? onChanged;
+  final String placeholder;
+  final CruIconData? icon;
+  final bool optional;
+  final String? help;
+  final String? error;
+
+  /// Tabular figures for numeric choices (durations, quantities).
+  final bool tabular;
+
+  @override
+  State<CruDropdownField<T>> createState() => _CruDropdownFieldState<T>();
+}
+
+class _CruDropdownFieldState<T> extends State<CruDropdownField<T>> {
+  final _focus = FocusNode();
+  bool _hovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(_onFocus);
+  }
+
+  @override
+  void dispose() {
+    _focus.removeListener(_onFocus);
+    _focus.dispose();
+    super.dispose();
+  }
+
+  void _onFocus() => setState(() {});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final enabled = widget.onChanged != null;
+    final focused = _focus.hasFocus;
+    final base = widget.tabular ? CruType.input.tabular : CruType.input;
+    final ring = widget.error != null
+        ? BorderSide(color: c.amber, width: 1.5)
+        : focused
+        ? BorderSide(color: c.accent, width: 1.5)
+        : BorderSide(color: c.inset.withValues(alpha: 0), width: 1.5);
+    final fill = focused
+        ? c.surface
+        : _hovered && enabled
+        ? cruHoverShade(c.inset, c)
+        : c.inset;
+    final value = widget.value;
+
+    return CruFieldFrame(
+      label: widget.label,
+      optional: widget.optional,
+      help: widget.help,
+      error: widget.error,
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hovered = true),
+        onExit: (_) => setState(() => _hovered = false),
+        child: AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          height: CruSize.actionButton,
+          padding: const EdgeInsets.only(
+            left: CruSpace.s14,
+            right: CruSpace.s12,
+          ),
+          decoration: ShapeDecoration(
+            color: fill,
+            shape: cruShape(CruRadius.control, side: ring),
+          ),
+          child: Row(
+            children: [
+              if (widget.icon != null) ...[
+                CruIcon(widget.icon!, size: 17, strokeWidth: 2, color: c.label3),
+                const SizedBox(width: CruSpace.s10),
+              ],
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<T>(
+                    value: value,
+                    focusNode: _focus,
+                    focusColor: c.surface.withValues(alpha: 0),
+                    isExpanded: true,
+                    isDense: true,
+                    menuMaxHeight: 320,
+                    dropdownColor: c.surface,
+                    borderRadius: BorderRadius.circular(CruRadius.control),
+                    icon: CruIcon(
+                      CruIcons.chevronDown,
+                      size: 16,
+                      color: c.label3,
+                    ),
+                    style: base.tint(c.label),
+                    hint: Text(
+                      widget.placeholder,
+                      style: base.tint(c.label3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    disabledHint: Text(
+                      value == null
+                          ? widget.placeholder
+                          : widget.itemLabel(value),
+                      style: base.tint(c.label3),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    items: [
+                      for (final item in widget.items)
+                        DropdownMenuItem<T>(
+                          value: item,
+                          child: Text(
+                            widget.itemLabel(item),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                    ],
+                    onChanged: enabled
+                        ? (v) {
+                            if (v != null) widget.onChanged!(v);
+                          }
+                        : null,
+                  ),
+                ),
+              ),
             ],
           ),
         ),

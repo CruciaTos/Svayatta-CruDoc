@@ -3,11 +3,10 @@ import 'package:intl/intl.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Drug row model for clinical prescription.
 class PrescriptionDrugRow {
@@ -132,32 +131,35 @@ class _PrescriptionGenerationSheetState
     super.dispose();
   }
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
   @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
-
-  Widget _buildOnDay(BuildContext context) {
+  Widget build(BuildContext context) {
     final cfg = widget.letterheadConfig;
+    final c = context.cru;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.94,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: c.canvas,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
       child: Column(
         children: [
           // ---- Drag Handle & Top Bar ----
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              CruSpace.s12,
+              CruSpace.s16,
+              CruSpace.s12,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(CruRadius.card),
+              ),
+              border: Border(bottom: BorderSide(color: c.separator)),
             ),
             child: Column(
               children: [
@@ -165,46 +167,41 @@ class _PrescriptionGenerationSheetState
                   child: Container(
                     width: 40,
                     height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+                    decoration: ShapeDecoration(
+                      color: c.track,
+                      shape: cruShape(CruRadius.full),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: CruSpace.s10),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF8B5CF6,
-                            ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.medication_rounded,
-                            color: Color(0xFF8B5CF6),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Generate Prescription (Rx)',
-                          style: TextStyle(
-                            fontFamily: AppColors.headingFontFamily,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
+                    Container(
+                      width: CruSize.iconTile,
+                      height: CruSize.iconTile,
+                      alignment: Alignment.center,
+                      decoration: ShapeDecoration(
+                        color: c.inset,
+                        shape: cruShape(CruRadius.iconTile),
+                      ),
+                      child: Icon(
+                        Icons.medication_rounded,
+                        color: c.label2,
+                        size: 18,
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                    const SizedBox(width: CruSpace.s10),
+                    Expanded(
+                      child: Text(
+                        'Generate prescription (Rx)',
+                        style: CruType.headline.tint(c.label),
+                      ),
+                    ),
+                    CruIconButton(
+                      icon: CruIcons.close,
+                      semanticLabel: 'Close',
+                      size: CruSize.control,
+                      iconSize: 18,
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -216,434 +213,179 @@ class _PrescriptionGenerationSheetState
           // ---- Prescription Body & Live Letterhead ----
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(CruSpace.s20),
               children: [
                 // ---- Doctor & Clinic Letterhead Banner ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (cfg.logoUrl != null &&
-                              cfg.logoUrl!.trim().isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: CachedNetworkImage(
-                                  imageUrl: cfg.logoUrl!,
-                                  width: 54,
-                                  height: 54,
-                                  fit: BoxFit.cover,
-                                  errorWidget: (context, url, error) =>
-                                      const Icon(
-                                        Icons.local_hospital_rounded,
-                                        size: 36,
-                                        color: Color(0xFF8B5CF6),
-                                      ),
+                _section(
+                  c,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (cfg.logoUrl != null &&
+                            cfg.logoUrl!.trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              right: CruSpace.s14,
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.control,
+                              ),
+                              child: CachedNetworkImage(
+                                imageUrl: cfg.logoUrl!,
+                                width: 54,
+                                height: 54,
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, error) => Icon(
+                                  Icons.local_hospital_rounded,
+                                  size: 36,
+                                  color: c.label3,
                                 ),
                               ),
-                            )
-                          else
-                            Container(
-                              width: 54,
-                              height: 54,
-                              margin: const EdgeInsets.only(right: 14),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF8B5CF6,
-                                ).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.local_hospital_rounded,
-                                size: 30,
-                                color: Color(0xFF8B5CF6),
-                              ),
                             ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  cfg.clinicName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${cfg.doctorName} • ${cfg.qualifications}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF8B5CF6),
-                                  ),
-                                ),
-                                Text(
-                                  '${cfg.specialty} | Reg. No: ${cfg.registrationNumber}',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: Colors.grey.shade700,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                              ],
+                          )
+                        else
+                          Container(
+                            width: 54,
+                            height: 54,
+                            margin: const EdgeInsets.only(right: CruSpace.s14),
+                            decoration: ShapeDecoration(
+                              color: c.inset,
+                              shape: cruShape(CruRadius.control),
+                            ),
+                            child: Icon(
+                              Icons.local_hospital_rounded,
+                              size: 30,
+                              color: c.label3,
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        height: 2,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF8B5CF6), Color(0xFF1E78FF)],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ---- Patient Info & Vitals Header ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Patient & Consultation Info',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 13.5,
-                              color: Color(0xFF334155),
-                            ),
-                          ),
-                          Text(
-                            'Rx: $_rxNumber | ${DateFormat('dd MMM yyyy').format(_rxDate)}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: _buildInput(
-                              _patientNameCtrl,
-                              'Patient Name',
-                              Icons.person_rounded,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            flex: 2,
-                            child: _buildInput(
-                              _patientAgeGenderCtrl,
-                              'Age / Gender',
-                              Icons.cake_rounded,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      _buildInput(
-                        _vitalsCtrl,
-                        'Vitals (BP, Pulse, Weight, SpO2)',
-                        Icons.monitor_heart_rounded,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ---- Clinical Complaints & Diagnosis ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Clinical Findings',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13.5,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInput(
-                        _complaintsCtrl,
-                        'Chief Complaints & History',
-                        Icons.chat_bubble_outline_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildInput(
-                        _diagnosisCtrl,
-                        'Diagnosis / Impression',
-                        Icons.medical_information_rounded,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ---- Rx Medications Table ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: const [
-                              Text(
-                                '℞',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w900,
-                                  color: Color(0xFF8B5CF6),
-                                ),
-                              ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Prescribed Medications',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 14,
-                                  color: Color(0xFF334155),
-                                ),
-                              ),
-                            ],
-                          ),
-                          TextButton.icon(
-                            onPressed: _addNewDrug,
-                            icon: const Icon(
-                              Icons.add_circle_outline_rounded,
-                              size: 16,
-                              color: Color(0xFF8B5CF6),
-                            ),
-                            label: const Text(
-                              'Add Drug',
-                              style: TextStyle(
-                                color: Color(0xFF8B5CF6),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ..._drugs.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final drug = entry.value;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFAF5FF),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: const Color(0xFFE9D5FF)),
-                          ),
+                        Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    flex: 3,
-                                    child: TextFormField(
-                                      initialValue: drug.drugName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        fontSize: 13.5,
-                                      ),
-                                      decoration: const InputDecoration(
-                                        labelText:
-                                            'Drug Name (Tab / Cap / Syp)',
-                                        isDense: true,
-                                        border: InputBorder.none,
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => drug.drugName = v),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    flex: 1,
-                                    child: TextFormField(
-                                      initialValue: drug.dosage,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Dosage',
-                                        isDense: true,
-                                        border: InputBorder.none,
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => drug.dosage = v),
-                                    ),
-                                  ),
-                                  if (_drugs.length > 1)
-                                    IconButton(
-                                      icon: const Icon(
-                                        Icons.delete_outline_rounded,
-                                        color: Color(0xFFEF4444),
-                                        size: 18,
-                                      ),
-                                      onPressed: () =>
-                                          setState(() => _drugs.removeAt(idx)),
-                                    ),
-                                ],
+                              Text(
+                                cfg.clinicName,
+                                style: CruType.headline.tint(c.label),
                               ),
-                              const Divider(
-                                height: 12,
-                                color: Color(0xFFE9D5FF),
+                              const SizedBox(height: CruSpace.s2),
+                              Text(
+                                '${cfg.doctorName} • ${cfg.qualifications}',
+                                style: CruType.subhead.w600.tint(c.label2),
                               ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: drug.frequency,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Frequency (e.g. 1-0-1)',
-                                        isDense: true,
-                                        border: InputBorder.none,
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => drug.frequency = v),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: drug.duration,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Duration (e.g. 5 Days)',
-                                        isDense: true,
-                                        border: InputBorder.none,
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => drug.duration = v),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextFormField(
-                                      initialValue: drug.instructions,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Timing (After Food)',
-                                        isDense: true,
-                                        border: InputBorder.none,
-                                      ),
-                                      onChanged: (v) =>
-                                          setState(() => drug.instructions = v),
-                                    ),
-                                  ),
-                                ],
+                              Text(
+                                '${cfg.specialty} | Reg. No: ${cfg.registrationNumber}',
+                                style: CruType.caption.tint(c.label3),
+                              ),
+                              const SizedBox(height: CruSpace.s2),
+                              Text(
+                                '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
+                                style: CruType.caption.tabular.tint(c.label3),
                               ),
                             ],
                           ),
-                        );
-                      }),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: CruSpace.s16),
+
+                // ---- Patient Info & Vitals Header ----
+                _section(
+                  c,
+                  title: 'Patient & consultation info',
+                  trailing: Text(
+                    'Rx: $_rxNumber | ${DateFormat('dd MMM yyyy').format(_rxDate)}',
+                    style: CruType.caption.w500.tabular.tint(c.label3),
+                  ),
+                  children: [
+                    CruFieldRow(
+                      flex: const [3, 2],
+                      children: [
+                        CruTextField(
+                          label: 'Patient name',
+                          controller: _patientNameCtrl,
+                          icon: CruIcons.user,
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                        CruTextField(
+                          label: 'Age / gender',
+                          controller: _patientAgeGenderCtrl,
+                          tabular: true,
+                        ),
+                      ],
+                    ),
+                    CruTextField(
+                      label: 'Vitals (BP, pulse, weight, SpO2)',
+                      controller: _vitalsCtrl,
+                      tabular: true,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s16),
+
+                // ---- Clinical Complaints & Diagnosis ----
+                _section(
+                  c,
+                  title: 'Clinical findings',
+                  children: [
+                    CruTextField(
+                      label: 'Chief complaints & history',
+                      controller: _complaintsCtrl,
+                    ),
+                    CruTextField(
+                      label: 'Diagnosis / impression',
+                      controller: _diagnosisCtrl,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s16),
+
+                // ---- Rx Medications Table ----
+                _section(
+                  c,
+                  title: '℞  Prescribed medications',
+                  trailing: CruCapsuleButton(
+                    label: 'Add drug',
+                    icon: CruIcons.plus,
+                    onPressed: _addNewDrug,
+                  ),
+                  gap: CruSpace.s12,
+                  children: [
+                    for (final entry in _drugs.asMap().entries)
+                      _buildDrugCard(c, entry.key, entry.value),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s16),
 
                 // ---- Lab Tests, Advice & Follow Up ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Advice & Investigations',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13.5,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildInput(
-                        _labTestsCtrl,
-                        'Lab Tests / Investigations Advised',
-                        Icons.biotech_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildInput(
-                        _adviceCtrl,
-                        'Diet & Lifestyle Advice',
-                        Icons.tips_and_updates_rounded,
-                      ),
-                      const SizedBox(height: 10),
-                      _buildInput(
-                        _followUpCtrl,
-                        'Follow-up Date / Instructions',
-                        Icons.event_repeat_rounded,
-                      ),
-                    ],
-                  ),
+                _section(
+                  c,
+                  title: 'Advice & investigations',
+                  children: [
+                    CruTextField(
+                      label: 'Lab tests / investigations advised',
+                      controller: _labTestsCtrl,
+                    ),
+                    CruTextField(
+                      label: 'Diet & lifestyle advice',
+                      controller: _adviceCtrl,
+                    ),
+                    CruTextField(
+                      label: 'Follow-up date / instructions',
+                      controller: _followUpCtrl,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: CruSpace.s16),
 
                 // ---- Signature & Stamp Area ----
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  padding: const EdgeInsets.all(CruSpace.s16),
+                  decoration: ShapeDecoration(
+                    color: c.inset,
+                    shape: cruShape(CruRadius.card),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -651,84 +393,64 @@ class _PrescriptionGenerationSheetState
                       Expanded(
                         child: Text(
                           cfg.footerDisclaimer,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: Colors.grey.shade600,
-                          ),
+                          style: CruType.caption.tint(c.label3),
                         ),
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
-                          const Icon(
-                            Icons.draw_rounded,
-                            color: Color(0xFF8B5CF6),
-                            size: 24,
-                          ),
-                          const SizedBox(height: 4),
+                          Icon(Icons.draw_rounded, color: c.label2, size: 24),
+                          const SizedBox(height: CruSpace.s4),
                           Text(
                             cfg.doctorName,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                            ),
+                            style: CruType.subhead.w600.tint(c.label),
                           ),
                           Text(
                             'Reg: ${cfg.registrationNumber}',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: Colors.grey.shade600,
-                            ),
+                            style: CruType.micro.tabular.tint(c.label3),
                           ),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: CruSpace.s24),
               ],
             ),
           ),
 
           // ---- Bottom Action Toolbar ----
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              CruSpace.s14,
+              CruSpace.s20,
+              CruSpace.s24,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              border: Border(top: BorderSide(color: c.separator)),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: CruButton(
+                    label: 'WhatsApp Rx',
+                    icon: CruIcons.whatsapp,
+                    kind: CruButtonKind.secondary,
+                    large: true,
+                    expand: true,
                     onPressed: _shareRxWhatsApp,
-                    icon: const Icon(Icons.share_rounded, size: 16),
-                    label: const Text('WhatsApp Rx'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF16A34A),
-                      side: const BorderSide(color: Color(0xFF86EFAC)),
-                      backgroundColor: const Color(0xFFF0FDF4),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: CruSpace.s12),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: CruButton(
+                    label: 'Save & print Rx',
+                    icon: CruIcons.fileText,
+                    large: true,
+                    expand: true,
                     onPressed: _generateAndSavePrescription,
-                    icon: const Icon(Icons.print_rounded, size: 16),
-                    label: const Text('Save & Print Rx'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF8B5CF6),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -753,30 +475,146 @@ class _PrescriptionGenerationSheetState
     });
   }
 
-  Widget _buildInput(TextEditingController ctrl, String label, IconData icon) {
-    return TextField(
-      controller: ctrl,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 16, color: const Color(0xFF8B5CF6)),
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF8B5CF6), width: 1.5),
-        ),
+  /// A surface card (radius 24) with an optional title row.
+  Widget _section(
+    CruColors c, {
+    String? title,
+    Widget? trailing,
+    double gap = CruSpace.s16,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s16),
+      decoration: ShapeDecoration(
+        color: c.surface,
+        shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(title, style: CruType.callout.tint(c.label)),
+                ),
+                ?trailing,
+              ],
+            ),
+            SizedBox(height: gap),
+          ],
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) SizedBox(height: gap),
+            children[i],
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// One drug: an inset panel (radius 12) of borderless fields — name and
+  /// dosage, then frequency, duration and timing.
+  Widget _buildDrugCard(CruColors c, int idx, PrescriptionDrugRow drug) {
+    final input = CruType.input.tint(c.label);
+    InputDecoration cell(String label) => InputDecoration(
+      labelText: label,
+      isDense: true,
+      filled: false,
+      border: InputBorder.none,
+      contentPadding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
+    );
+    return Container(
+      key: ObjectKey(drug),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        CruSpace.s8,
+        CruSpace.s4,
+        CruSpace.s8,
+      ),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: TextFormField(
+                  initialValue: drug.drugName,
+                  style: input.w600,
+                  decoration: cell('Drug name (Tab / Cap / Syp)'),
+                  onChanged: (v) => setState(() => drug.drugName = v),
+                ),
+              ),
+              const SizedBox(width: CruSpace.s8),
+              Expanded(
+                flex: 1,
+                child: TextFormField(
+                  initialValue: drug.dosage,
+                  style: input.tabular,
+                  decoration: cell('Dosage'),
+                  onChanged: (v) => setState(() => drug.dosage = v),
+                ),
+              ),
+              if (_drugs.length > 1)
+                IconButton(
+                  tooltip: 'Remove drug',
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: c.label3,
+                    size: 18,
+                  ),
+                  onPressed: () => setState(() => _drugs.removeAt(idx)),
+                )
+              else
+                const SizedBox(width: CruSpace.s8),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(
+              top: CruSpace.s6,
+              bottom: CruSpace.s6,
+              right: CruSpace.s8,
+            ),
+            child: Divider(height: 1, thickness: 1, color: c.separator),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: CruSpace.s8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextFormField(
+                    initialValue: drug.frequency,
+                    style: input.tabular,
+                    decoration: cell('Frequency (e.g. 1-0-1)'),
+                    onChanged: (v) => setState(() => drug.frequency = v),
+                  ),
+                ),
+                const SizedBox(width: CruSpace.s8),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: drug.duration,
+                    style: input.tabular,
+                    decoration: cell('Duration (e.g. 5 Days)'),
+                    onChanged: (v) => setState(() => drug.duration = v),
+                  ),
+                ),
+                const SizedBox(width: CruSpace.s8),
+                Expanded(
+                  child: TextFormField(
+                    initialValue: drug.instructions,
+                    style: input,
+                    decoration: cell('Timing (After Food)'),
+                    onChanged: (v) => setState(() => drug.instructions = v),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -787,7 +625,6 @@ class _PrescriptionGenerationSheetState
         content: Text(
           'Prescription $_rxNumber saved! (Ready for PDF Generation)',
         ),
-        backgroundColor: const Color(0xFF8B5CF6),
       ),
     );
     Navigator.pop(context);

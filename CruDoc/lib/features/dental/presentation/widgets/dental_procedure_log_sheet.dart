@@ -288,7 +288,6 @@ class _DentalProcedureLogSheetState
                     decoration: const InputDecoration(
                       labelText: 'Procedure Name *',
                       hintText: 'e.g. Root Canal Treatment',
-                      border: OutlineInputBorder(),
                     ),
                   ),
 
@@ -359,7 +358,6 @@ class _DentalProcedureLogSheetState
                               horizontal: 12,
                               vertical: 10,
                             ),
-                            border: OutlineInputBorder(),
                           ),
                           onSubmitted: (val) {
                             final trimmed = val.trim();
@@ -468,7 +466,6 @@ class _DentalProcedureLogSheetState
                             initialValue: _selectedVisitId,
                             decoration: const InputDecoration(
                               labelText: 'Link to Appointment Visit (Optional)',
-                              border: OutlineInputBorder(),
                             ),
                             items: [
                               const DropdownMenuItem<String?>(
@@ -503,7 +500,6 @@ class _DentalProcedureLogSheetState
                     decoration: const InputDecoration(
                       labelText: 'Clinical Notes',
                       hintText: 'Diagnosis, pulp status, prep details...',
-                      border: OutlineInputBorder(),
                     ),
                   ),
 
@@ -516,7 +512,6 @@ class _DentalProcedureLogSheetState
                       labelText: 'Materials Used (Optional)',
                       hintText:
                           'e.g. Composite shade A2, Gutta-percha 25 0.04...',
-                      border: OutlineInputBorder(),
                     ),
                   ),
 
@@ -580,7 +575,6 @@ class _DentalProcedureLogSheetState
                                   horizontal: 12,
                                   vertical: 8,
                                 ),
-                                border: OutlineInputBorder(),
                               ),
                               items: [
                                 const DropdownMenuItem<String?>(

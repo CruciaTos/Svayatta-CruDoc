@@ -5,11 +5,10 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/core/pdf/models/pdf_document_models.dart';
 import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_screen.dart';
-import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/core/theme/cru_theme.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Item row model for dynamic invoice billing.
 class BillItemRow {
@@ -110,32 +109,42 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
   double get _balanceDue =>
       (_grandTotal - _paidAmount > 0) ? (_grandTotal - _paidAmount) : 0.0;
 
-  // Built for the Day palette: stays on Day even when opened from a
-  // screen in night mode.
-  @override
-  Widget build(BuildContext context) => Theme(
-    data: CruTheme.day(),
-    child: Builder(builder: _buildOnDay),
-  );
+  static const _paymentModes = [
+    'UPI / Online',
+    'Cash',
+    'Card / POS',
+    'Net Banking',
+  ];
 
-  Widget _buildOnDay(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
     final cfg = widget.letterheadConfig;
+    final c = context.cru;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.92,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: c.canvas,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(CruRadius.card),
+        ),
       ),
       child: Column(
         children: [
           // ---- Drag Handle & Top Bar ----
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              CruSpace.s12,
+              CruSpace.s16,
+              CruSpace.s12,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(CruRadius.card),
+              ),
+              border: Border(bottom: BorderSide(color: c.separator)),
             ),
             child: Column(
               children: [
@@ -143,46 +152,41 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
                   child: Container(
                     width: 40,
                     height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+                    decoration: ShapeDecoration(
+                      color: c.track,
+                      shape: cruShape(CruRadius.full),
                     ),
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: CruSpace.s10),
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: const Color(
-                              0xFF0D9488,
-                            ).withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.receipt_long_rounded,
-                            color: Color(0xFF0D9488),
-                            size: 20,
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        const Text(
-                          'Generate Invoice / Bill',
-                          style: TextStyle(
-                            fontFamily: AppColors.headingFontFamily,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF0F172A),
-                          ),
-                        ),
-                      ],
+                    Container(
+                      width: CruSize.iconTile,
+                      height: CruSize.iconTile,
+                      alignment: Alignment.center,
+                      decoration: ShapeDecoration(
+                        color: c.inset,
+                        shape: cruShape(CruRadius.iconTile),
+                      ),
+                      child: Icon(
+                        Icons.receipt_long_rounded,
+                        color: c.label2,
+                        size: 18,
+                      ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                    const SizedBox(width: CruSpace.s10),
+                    Expanded(
+                      child: Text(
+                        'Generate invoice / bill',
+                        style: CruType.headline.tint(c.label),
+                      ),
+                    ),
+                    CruIconButton(
+                      icon: CruIcons.close,
+                      semanticLabel: 'Close',
+                      size: CruSize.control,
+                      iconSize: 18,
                       onPressed: () => Navigator.pop(context),
                     ),
                   ],
@@ -194,557 +198,258 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
           // ---- Main Bill Form & Live Letterhead Preview ----
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(CruSpace.s20),
               children: [
                 // ---- Letterhead Branding Banner ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                    boxShadow: const [],
-                  ),
-                  child: Column(
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (cfg.logoUrl != null &&
-                              cfg.logoUrl!.trim().isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 14),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(12),
-                                child: CachedNetworkImage(
-                                  imageUrl: cfg.logoUrl!,
-                                  width: 54,
-                                  height: 54,
-                                  fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => const Icon(
-                                    Icons.local_hospital_rounded,
-                                    size: 36,
-                                    color: Color(0xFF1E78FF),
-                                  ),
-                                ),
-                              ),
-                            )
-                          else
-                            Container(
-                              width: 54,
-                              height: 54,
-                              margin: const EdgeInsets.only(right: 14),
-                              decoration: BoxDecoration(
-                                color: const Color(
-                                  0xFF1E78FF,
-                                ).withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(
-                                Icons.local_hospital_rounded,
-                                size: 30,
-                                color: Color(0xFF1E78FF),
-                              ),
+                _section(
+                  c,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (cfg.logoUrl != null &&
+                            cfg.logoUrl!.trim().isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(
+                              right: CruSpace.s14,
                             ),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  cfg.clinicName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: Color(0xFF0F172A),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '${cfg.doctorName} • ${cfg.qualifications}',
-                                  style: const TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFF1E78FF),
-                                  ),
-                                ),
-                                Text(
-                                  '${cfg.specialty} | Reg: ${cfg.registrationNumber}',
-                                  style: TextStyle(
-                                    fontSize: 11.5,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Colors.grey.shade500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: double.infinity,
-                        height: 2,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xFF1E78FF), Color(0xFF0D9488)],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ---- Patient & Bill Metadata ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Invoice Details & Patient Info',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: Color(0xFF334155),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInput(
-                              _billNumberCtrl,
-                              'Invoice #',
-                              Icons.tag_rounded,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: InkWell(
-                              onTap: () async {
-                                final d = await showDatePicker(
-                                  context: context,
-                                  initialDate: _billDate,
-                                  firstDate: DateTime(2020),
-                                  lastDate: DateTime(2030),
-                                );
-                                if (d != null) setState(() => _billDate = d);
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 13,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF8FAFC),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(0xFFE2E8F0),
-                                  ),
-                                ),
-                                child: Row(
-                                  children: [
-                                    const Icon(
-                                      Icons.calendar_today_rounded,
-                                      size: 16,
-                                      color: Color(0xFF0D9488),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      DateFormat(
-                                        'dd MMM yyyy',
-                                      ).format(_billDate),
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(
+                                CruRadius.control,
+                              ),
+                              child: CachedNetworkImage(
+                                imageUrl: cfg.logoUrl!,
+                                width: 54,
+                                height: 54,
+                                fit: BoxFit.cover,
+                                errorWidget: (_, _, _) => Icon(
+                                  Icons.local_hospital_rounded,
+                                  size: 36,
+                                  color: c.label3,
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInput(
-                              _patientNameCtrl,
-                              'Patient Full Name',
-                              Icons.person_rounded,
+                          )
+                        else
+                          Container(
+                            width: 54,
+                            height: 54,
+                            margin: const EdgeInsets.only(right: CruSpace.s14),
+                            decoration: ShapeDecoration(
+                              color: c.inset,
+                              shape: cruShape(CruRadius.control),
+                            ),
+                            child: Icon(
+                              Icons.local_hospital_rounded,
+                              size: 30,
+                              color: c.label3,
                             ),
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildInput(
-                              _patientPhoneCtrl,
-                              'WhatsApp / Phone',
-                              Icons.phone_rounded,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // ---- Billing Line Items Table ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Bill Items & Services',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 14,
-                              color: Color(0xFF334155),
-                            ),
-                          ),
-                          TextButton.icon(
-                            onPressed: _addNewItem,
-                            icon: const Icon(
-                              Icons.add_circle_outline_rounded,
-                              size: 16,
-                              color: Color(0xFF0D9488),
-                            ),
-                            label: const Text(
-                              'Add Item',
-                              style: TextStyle(
-                                color: Color(0xFF0D9488),
-                                fontWeight: FontWeight.w700,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      ..._items.asMap().entries.map((entry) {
-                        final idx = entry.key;
-                        final item = entry.value;
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFF8FAFC),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFE2E8F0)),
-                          ),
-                          child: Row(
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                flex: 3,
-                                child: TextFormField(
-                                  initialValue: item.description,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Service / Procedure',
-                                    isDense: true,
-                                    border: InputBorder.none,
-                                  ),
-                                  onChanged: (v) =>
-                                      setState(() => item.description = v),
-                                ),
+                              Text(
+                                cfg.clinicName,
+                                style: CruType.headline.tint(c.label),
                               ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 1,
-                                child: TextFormField(
-                                  initialValue: item.quantity.toString(),
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Qty',
-                                    isDense: true,
-                                    border: InputBorder.none,
-                                  ),
-                                  onChanged: (v) => setState(
-                                    () => item.quantity = int.tryParse(v) ?? 1,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                flex: 2,
-                                child: TextFormField(
-                                  initialValue: item.unitPrice.toStringAsFixed(
-                                    0,
-                                  ),
-                                  keyboardType: TextInputType.number,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Rate (₹)',
-                                    isDense: true,
-                                    border: InputBorder.none,
-                                  ),
-                                  onChanged: (v) => setState(
-                                    () => item.unitPrice =
-                                        double.tryParse(v) ?? 0.0,
-                                  ),
-                                ),
+                              const SizedBox(height: CruSpace.s2),
+                              Text(
+                                '${cfg.doctorName} • ${cfg.qualifications}',
+                                style: CruType.subhead.w600.tint(c.label2),
                               ),
                               Text(
-                                '₹${item.total.toStringAsFixed(0)}',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 13,
-                                ),
+                                '${cfg.specialty} | Reg: ${cfg.registrationNumber}',
+                                style: CruType.caption.tint(c.label3),
                               ),
-                              if (_items.length > 1)
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline_rounded,
-                                    color: Color(0xFFEF4444),
-                                    size: 18,
-                                  ),
-                                  onPressed: () =>
-                                      setState(() => _items.removeAt(idx)),
-                                ),
+                              const SizedBox(height: CruSpace.s2),
+                              Text(
+                                '📍 ${cfg.clinicAddress} • 📞 ${cfg.clinicPhone}',
+                                style: CruType.caption.tabular.tint(c.label3),
+                              ),
                             ],
                           ),
-                        );
-                      }),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: CruSpace.s16),
+
+                // ---- Patient & Bill Metadata ----
+                _section(
+                  c,
+                  title: 'Invoice details & patient info',
+                  children: [
+                    CruFieldRow(
+                      children: [
+                        CruTextField(
+                          label: 'Invoice #',
+                          controller: _billNumberCtrl,
+                          tabular: true,
+                        ),
+                        CruPickerField(
+                          label: 'Date',
+                          icon: CruIcons.calendar,
+                          value: DateFormat('dd MMM yyyy').format(_billDate),
+                          placeholder: 'Pick a date',
+                          onTap: () async {
+                            final d = await showDatePicker(
+                              context: context,
+                              initialDate: _billDate,
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime(2030),
+                            );
+                            if (d != null) setState(() => _billDate = d);
+                          },
+                        ),
+                      ],
+                    ),
+                    CruFieldRow(
+                      children: [
+                        CruTextField(
+                          label: 'Patient full name',
+                          controller: _patientNameCtrl,
+                          icon: CruIcons.user,
+                          textCapitalization: TextCapitalization.words,
+                        ),
+                        CruTextField(
+                          label: 'WhatsApp / phone',
+                          controller: _patientPhoneCtrl,
+                          icon: CruIcons.phone,
+                          keyboardType: TextInputType.phone,
+                          tabular: true,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s16),
+
+                // ---- Billing Line Items Table ----
+                _section(
+                  c,
+                  title: 'Bill items & services',
+                  action: CruCapsuleButton(
+                    label: 'Add item',
+                    icon: CruIcons.plus,
+                    onPressed: _addNewItem,
+                  ),
+                  gap: CruSpace.s10,
+                  children: [
+                    for (final entry in _items.asMap().entries)
+                      _buildItemRow(c, entry.key, entry.value),
+                  ],
+                ),
+                const SizedBox(height: CruSpace.s16),
 
                 // ---- Calculations & Payment Mode ----
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Total & Payment Breakdown',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                          color: Color(0xFF334155),
+                _section(
+                  c,
+                  title: 'Total & payment breakdown',
+                  children: [
+                    _buildSummaryRow(c, 'Subtotal', '₹${_subtotal.toStringAsFixed(2)}'),
+                    CruFieldRow(
+                      children: [
+                        CruTextField(
+                          label: 'Discount',
+                          controller: _discountCtrl,
+                          prefix: '₹',
+                          keyboardType: TextInputType.number,
+                          tabular: true,
+                          onChanged: (_) => setState(() {}),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                      _buildSummaryRow(
-                        'Subtotal',
-                        '₹${_subtotal.toStringAsFixed(2)}',
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInput(
-                              _discountCtrl,
-                              'Discount (₹)',
-                              Icons.discount_rounded,
-                              isNumber: true,
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildInput(
-                              _taxPercentCtrl,
-                              'Tax / GST (%)',
-                              Icons.percent_rounded,
-                              isNumber: true,
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Divider(height: 24),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text(
-                            'Grand Total',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                          Text(
-                            '₹${_grandTotal.toStringAsFixed(2)}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0D9488),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildInput(
-                              _paidAmountCtrl,
-                              'Amount Paid (₹)',
-                              Icons.payments_rounded,
-                              isNumber: true,
-                              onChanged: (_) => setState(() {}),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: _balanceDue > 0
-                                    ? const Color(0xFFFEF2F2)
-                                    : const Color(0xFFF0FDF4),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(
-                                  color: _balanceDue > 0
-                                      ? const Color(0xFFFCA5A5)
-                                      : const Color(0xFFBBF7D0),
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Balance Due',
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${_balanceDue.toStringAsFixed(2)}',
-                                    style: TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800,
-                                      color: _balanceDue > 0
-                                          ? const Color(0xFFDC2626)
-                                          : const Color(0xFF16A34A),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Payment Mode selector
-                      const Text(
-                        'Payment Mode',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF475569),
+                        CruTextField(
+                          label: 'Tax / GST (%)',
+                          controller: _taxPercentCtrl,
+                          keyboardType: TextInputType.number,
+                          tabular: true,
+                          onChanged: (_) => setState(() {}),
                         ),
+                      ],
+                    ),
+                    const CruSeparator(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Grand total',
+                          style: CruType.headline.tint(c.label),
+                        ),
+                        Text(
+                          '₹${_grandTotal.toStringAsFixed(2)}',
+                          style: CruType.title2.tabular.tint(c.label),
+                        ),
+                      ],
+                    ),
+                    CruFieldRow(
+                      children: [
+                        CruTextField(
+                          label: 'Amount paid',
+                          controller: _paidAmountCtrl,
+                          prefix: '₹',
+                          keyboardType: TextInputType.number,
+                          tabular: true,
+                          onChanged: (_) => setState(() {}),
+                        ),
+                        _buildBalanceDue(c),
+                      ],
+                    ),
+                    CruFieldFrame(
+                      label: 'Payment mode',
+                      child: Wrap(
+                        spacing: CruSpace.s8,
+                        runSpacing: CruSpace.s8,
+                        children: [
+                          for (final mode in _paymentModes)
+                            _PaymentModeChip(
+                              label: mode,
+                              selected: _selectedPaymentMode == mode,
+                              onTap: () =>
+                                  setState(() => _selectedPaymentMode = mode),
+                            ),
+                        ],
                       ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        children:
-                            [
-                              'UPI / Online',
-                              'Cash',
-                              'Card / POS',
-                              'Net Banking',
-                            ].map((mode) {
-                              final isSelected = _selectedPaymentMode == mode;
-                              return ChoiceChip(
-                                label: Text(
-                                  mode,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w700
-                                        : FontWeight.w500,
-                                    color: isSelected
-                                        ? Colors.white
-                                        : const Color(0xFF334155),
-                                  ),
-                                ),
-                                selected: isSelected,
-                                selectedColor: const Color(0xFF0D9488),
-                                backgroundColor: const Color(0xFFF1F5F9),
-                                onSelected: (_) =>
-                                    setState(() => _selectedPaymentMode = mode),
-                              );
-                            }).toList(),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: CruSpace.s24),
               ],
             ),
           ),
 
           // ---- Bottom Action Toolbar ----
           Container(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s20,
+              CruSpace.s14,
+              CruSpace.s20,
+              CruSpace.s24,
+            ),
+            decoration: BoxDecoration(
+              color: c.surface,
+              border: Border(top: BorderSide(color: c.separator)),
             ),
             child: Row(
               children: [
                 Expanded(
-                  child: OutlinedButton.icon(
+                  child: CruButton(
+                    label: 'WhatsApp receipt',
+                    icon: CruIcons.whatsapp,
+                    kind: CruButtonKind.secondary,
+                    large: true,
+                    expand: true,
                     onPressed: _shareBillWhatsApp,
-                    icon: const Icon(Icons.share_rounded, size: 16),
-                    label: const Text('WhatsApp Receipt'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF16A34A),
-                      side: const BorderSide(color: Color(0xFF86EFAC)),
-                      backgroundColor: const Color(0xFFF0FDF4),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: CruSpace.s12),
                 Expanded(
-                  child: ElevatedButton.icon(
+                  child: CruButton(
+                    label: 'Save & print bill',
+                    icon: CruIcons.fileText,
+                    large: true,
+                    expand: true,
                     onPressed: _generateAndSaveBill,
-                    icon: const Icon(Icons.print_rounded, size: 16),
-                    label: const Text('Save & Print Bill'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D9488),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -767,59 +472,153 @@ class _BillGenerationSheetState extends State<BillGenerationSheet> {
     });
   }
 
-  Widget _buildSummaryRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-        ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF0F172A),
-          ),
-        ),
-      ],
+  /// A surface card (radius 24) with an optional title row.
+  Widget _section(
+    CruColors c, {
+    String? title,
+    Widget? action,
+    double gap = CruSpace.s16,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(CruSpace.s16),
+      decoration: ShapeDecoration(
+        color: c.surface,
+        shape: cruShape(CruRadius.card, side: BorderSide(color: c.cardBorder)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Text(title, style: CruType.callout.tint(c.label)),
+                ),
+                ?action,
+              ],
+            ),
+            SizedBox(height: gap),
+          ],
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0) SizedBox(height: gap),
+            children[i],
+          ],
+        ],
+      ),
     );
   }
 
-  Widget _buildInput(
-    TextEditingController ctrl,
-    String label,
-    IconData icon, {
-    bool isNumber = false,
-    ValueChanged<String>? onChanged,
-  }) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: isNumber ? TextInputType.number : TextInputType.text,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, size: 16, color: const Color(0xFF0D9488)),
-        filled: true,
-        fillColor: const Color(0xFFF8FAFC),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 10,
+  /// One line item: an inset row (radius 12) of borderless fields.
+  Widget _buildItemRow(CruColors c, int idx, BillItemRow item) {
+    final input = CruType.input.tint(c.label);
+    InputDecoration cell(String label) => InputDecoration(
+      labelText: label,
+      isDense: true,
+      filled: false,
+      border: InputBorder.none,
+      contentPadding: const EdgeInsets.symmetric(vertical: CruSpace.s4),
+    );
+    return Container(
+      key: ObjectKey(item),
+      padding: const EdgeInsets.fromLTRB(
+        CruSpace.s12,
+        CruSpace.s8,
+        CruSpace.s4,
+        CruSpace.s8,
+      ),
+      decoration: ShapeDecoration(
+        color: c.inset,
+        shape: cruShape(CruRadius.control),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 3,
+            child: TextFormField(
+              initialValue: item.description,
+              style: input,
+              decoration: cell('Service / procedure'),
+              onChanged: (v) => setState(() => item.description = v),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          Expanded(
+            flex: 1,
+            child: TextFormField(
+              initialValue: item.quantity.toString(),
+              keyboardType: TextInputType.number,
+              style: input.tabular,
+              decoration: cell('Qty'),
+              onChanged: (v) =>
+                  setState(() => item.quantity = int.tryParse(v) ?? 1),
+            ),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          Expanded(
+            flex: 2,
+            child: TextFormField(
+              initialValue: item.unitPrice.toStringAsFixed(0),
+              keyboardType: TextInputType.number,
+              style: input.tabular,
+              decoration: cell('Rate (₹)'),
+              onChanged: (v) =>
+                  setState(() => item.unitPrice = double.tryParse(v) ?? 0.0),
+            ),
+          ),
+          Text(
+            '₹${item.total.toStringAsFixed(0)}',
+            style: CruType.subhead.w600.tabular.tint(c.label),
+          ),
+          if (_items.length > 1)
+            IconButton(
+              tooltip: 'Remove item',
+              icon: Icon(
+                Icons.delete_outline_rounded,
+                color: c.label3,
+                size: 18,
+              ),
+              onPressed: () => setState(() => _items.removeAt(idx)),
+            )
+          else
+            const SizedBox(width: CruSpace.s8),
+        ],
+      ),
+    );
+  }
+
+  /// Amber while money is outstanding (waiting), green once settled.
+  Widget _buildBalanceDue(CruColors c) {
+    final due = _balanceDue > 0;
+    return CruFieldFrame(
+      label: 'Balance due',
+      child: Container(
+        height: CruSize.actionButton,
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+        alignment: Alignment.centerLeft,
+        decoration: ShapeDecoration(
+          color: due ? c.amberTint : c.greenTint,
+          shape: cruShape(CruRadius.control),
         ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF0D9488), width: 1.5),
+        child: Text(
+          '₹${_balanceDue.toStringAsFixed(2)}',
+          style: CruType.input.w600.tabular.tint(
+            due ? c.amberText : c.greenText,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       ),
+    );
+  }
+
+  Widget _buildSummaryRow(CruColors c, String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: CruType.subhead.tint(c.label2)),
+        Text(value, style: CruType.subhead.w600.tabular.tint(c.label)),
+      ],
     );
   }
 
@@ -910,5 +709,50 @@ Thank you for visiting! Contact: ${widget.letterheadConfig.clinicPhone}
     try {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     } catch (_) {}
+  }
+}
+
+/// A payment-mode choice: inset at rest, accent tint when selected (the
+/// patients filter-chip pattern).
+class _PaymentModeChip extends StatelessWidget {
+  const _PaymentModeChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Semantics(
+      selected: selected,
+      child: CruPressable(
+        onTap: onTap,
+        semanticLabel: label,
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          height: CruSize.filterChip,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            color: selected
+                ? c.accentTint
+                : (hovered ? cruHoverShade(c.inset, c) : c.inset),
+            shape: const StadiumBorder(),
+          ),
+          child: Text(
+            label,
+            style: (selected ? CruType.chip.w600 : CruType.chip).tint(
+              selected ? c.accentText : c.label,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

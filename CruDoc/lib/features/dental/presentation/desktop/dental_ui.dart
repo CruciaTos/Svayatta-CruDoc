@@ -146,24 +146,12 @@ Future<DateTime?> pickDentalDate(
   String? helpText,
   DateTime? last,
 }) {
-  final c = context.cru;
   return showDatePicker(
     context: context,
     initialDate: initial,
     firstDate: DateTime(2015),
     lastDate: last ?? DateTime.now().add(const Duration(days: 365)),
     helpText: helpText,
-    builder: (ctx, child) => Theme(
-      data: Theme.of(ctx).copyWith(
-        colorScheme: Theme.of(ctx).colorScheme.copyWith(
-          primary: c.accent,
-          onPrimary: c.onAccent,
-          surface: c.surface,
-          onSurface: c.label,
-        ),
-      ),
-      child: child!,
-    ),
   );
 }
 
@@ -468,6 +456,8 @@ class DentalSearchField extends StatelessWidget {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 isCollapsed: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hint: Text(
                   hint,

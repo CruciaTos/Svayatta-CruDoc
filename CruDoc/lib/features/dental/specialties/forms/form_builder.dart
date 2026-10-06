@@ -415,6 +415,8 @@ class _FieldEditorCard extends StatelessWidget {
                     style: CruType.callout.w600.tint(c.label),
                     decoration: const InputDecoration(
                       isDense: true,
+                      filled: false,
+                      contentPadding: EdgeInsets.symmetric(vertical: 4),
                       border: InputBorder.none,
                       hintText: 'Enter question label...',
                     ),
@@ -478,7 +480,6 @@ class _FieldEditorCard extends StatelessWidget {
                 decoration: const InputDecoration(
                   labelText: 'Options (comma-separated)',
                   isDense: true,
-                  border: OutlineInputBorder(),
                 ),
                 onChanged: (val) {
                   spec.options = val
@@ -500,7 +501,6 @@ class _FieldEditorCard extends StatelessWidget {
                 decoration: const InputDecoration(
                   labelText: 'Unit suffix (e.g. mm, days, kg)',
                   isDense: true,
-                  border: OutlineInputBorder(),
                 ),
                 onChanged: (val) {
                   spec.unit = val.trim();

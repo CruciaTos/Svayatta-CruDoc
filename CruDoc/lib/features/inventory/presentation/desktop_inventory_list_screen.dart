@@ -1299,6 +1299,8 @@ class _FilterRow extends StatelessWidget {
                       onChanged: onSearchChanged,
                       decoration: const InputDecoration(
                         hintText: 'Search items or vendor...',
+                        filled: false,
+                        contentPadding: EdgeInsets.symmetric(vertical: 8),
                         border: InputBorder.none,
                         hintStyle: TextStyle(fontSize: 13, color: Colors.grey),
                       ),
@@ -2948,6 +2950,8 @@ class _VendorsTabState extends State<_VendorsTab> {
                 decoration: const InputDecoration(
                   hintText: 'Search vendors...',
                   icon: Icon(Icons.search, size: 18, color: Colors.grey),
+                  filled: false,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
                   border: InputBorder.none,
                 ),
               ),

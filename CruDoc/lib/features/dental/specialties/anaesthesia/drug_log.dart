@@ -326,7 +326,6 @@ class _DrugLogDialogState extends ConsumerState<DrugLogDialog> {
                                 horizontal: 6,
                                 vertical: 4,
                               ),
-                              border: OutlineInputBorder(),
                             ),
                             onChanged: (val) {
                               final parsed = double.tryParse(val);

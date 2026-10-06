@@ -95,6 +95,8 @@ class _InventorySearchFieldState extends ConsumerState<InventorySearchField> {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 isCollapsed: true,
+                filled: false,
+                contentPadding: EdgeInsets.zero,
                 border: InputBorder.none,
                 hint: Text(
                   cruIsPhone(context)

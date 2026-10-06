@@ -483,6 +483,8 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                   color: AppColors.textPrimary,
                 ),
                 decoration: const InputDecoration(
+                  filled: false,
+                  contentPadding: EdgeInsets.symmetric(vertical: 8),
                   border: InputBorder.none,
                   hintText: 'Edit or type your query...',
                 ),

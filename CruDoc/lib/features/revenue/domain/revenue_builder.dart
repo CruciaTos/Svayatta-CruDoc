@@ -425,9 +425,12 @@ abstract final class RevenueBuilder {
 
   static bool _passes(RevenueEntry e, TxnFilter f) => switch (f) {
     TxnFilter.all => true,
-    TxnFilter.moneyIn => e.kind == TransactionKind.income,
+    TxnFilter.moneyIn || TxnFilter.top10 => e.kind == TransactionKind.income,
     TxnFilter.moneyOut => e.kind == TransactionKind.expense,
   };
+
+  /// How many rows the Top 10 filter keeps.
+  static const int topCount = 10;
 
   static List<RevenueEntry> inSpan(
     Iterable<RevenueEntry> entries,
@@ -460,6 +463,17 @@ abstract final class RevenueBuilder {
     final expenses = sum(entries, w.toDate, TransactionKind.expense);
     final todaySpan = DateSpan(w.today, addDays(w.today, 1));
     final inPeriod = inSpan(entries, w.toDate);
+    final matching = [
+      for (final e in inPeriod)
+        if (_passes(e, filter)) e,
+    ];
+    if (filter == TxnFilter.top10) {
+      // Stable sort: equal amounts stay newest first.
+      matching.sort((a, b) => b.amount.compareTo(a.amount));
+    }
+    final shown = filter == TxnFilter.top10
+        ? matching.take(topCount)
+        : matching;
     return RevenueOverview(
       window: w,
       subtitle: subtitle(w),
@@ -469,10 +483,7 @@ abstract final class RevenueBuilder {
       comparisonLabel: comparisonLabel(w),
       expenseCaption: expenseCaption(entries, w.toDate),
       chart: chart(entries, w),
-      transactions: [
-        for (final e in inPeriod)
-          if (_passes(e, filter)) row(e, w.today),
-      ],
+      transactions: [for (final e in shown) row(e, w.today)],
       periodTransactionCount: inPeriod.length,
       todayIn: sum(entries, todaySpan, TransactionKind.income),
       todayOut: sum(entries, todaySpan, TransactionKind.expense),

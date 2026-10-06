@@ -1,12 +1,26 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
+/// The dark olive surface a physiotherapist's home visit gets in place of
+/// the ink-blue Up next card (desktop and phone).
+abstract final class HomeVisitInk {
+  static const gradient = [Color(0xFF3F4A22), Color(0xFF5B6B2E)];
+  static const border = Color(0xFFA3B86C);
+
+  /// Soft olive for labels and the icon on the gradient.
+  static const accent = Color(0xFFD4E0A8);
+}
+
 /// The earliest waiting patient on the ink surface.
+///
+/// A physiotherapist's home visit gets the olive [HomeVisitInk] surface
+/// with the address, instead of the ink-blue one.
 ///
 /// The "Alerts and vitals" block from the design is not shown: patients
 /// have no allergy field and no pre-consultation vitals are recorded
@@ -19,8 +33,12 @@ class UpNextCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final home = data.isHomeVisit && ref.watch(isPhysiotherapyProvider);
+    final soft = home ? HomeVisitInk.accent : const Color(0xFFBFDBFE);
     return CruInkCard(
-      semanticLabel: 'Up next',
+      semanticLabel: home ? 'Up next, home visit' : 'Up next',
+      colors: home ? HomeVisitInk.gradient : null,
+      borderColor: home ? HomeVisitInk.border : null,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Builder(
         builder: (context) {
@@ -34,19 +52,19 @@ class UpNextCard extends ConsumerWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       CruIcon(
-                        CruIcons.sparkle,
+                        home ? CruIcons.home : CruIcons.sparkle,
                         size: 13,
-                        color: const Color(0xFF93C5FD),
+                        color: home ? soft : const Color(0xFF93C5FD),
                       ),
                       const SizedBox(width: 6),
                       Text(
-                        'UP NEXT',
+                        home ? 'UP NEXT · HOME VISIT' : 'UP NEXT',
                         style: TextStyle(
                           fontFamily: CruType.family,
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.0,
-                          color: const Color(0xFFBFDBFE),
+                          color: soft,
                         ),
                       ),
                     ],
@@ -100,9 +118,7 @@ class UpNextCard extends ConsumerWidget {
                         const SizedBox(height: CruSpace.s2),
                         Text(
                           data.details,
-                          style: CruType.caption.tabular.tint(
-                            const Color(0xFFBFDBFE),
-                          ),
+                          style: CruType.caption.tabular.tint(soft),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -141,6 +157,33 @@ class UpNextCard extends ConsumerWidget {
                   ],
                 ],
               ),
+              if (home && data.homeAddress != null) ...[
+                const SizedBox(height: CruSpace.s10),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: ShapeDecoration(
+                    color: Colors.white.withValues(alpha: 0.10),
+                    shape: cruShape(8),
+                  ),
+                  child: Row(
+                    children: [
+                      CruIcon(CruIcons.home, size: 14, color: soft),
+                      const SizedBox(width: CruSpace.s8),
+                      Expanded(
+                        child: Text(
+                          data.homeAddress!,
+                          style: CruType.callout.tint(Colors.white),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               if (data.reason != null) ...[
                 const SizedBox(height: CruSpace.s10),
                 Container(
@@ -177,7 +220,7 @@ class UpNextCard extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: CruButton(
-                      label: 'Start consultation',
+                      label: home ? 'Start session' : 'Start consultation',
                       icon: CruIcons.play,
                       onPressed: () => DashboardActions.startConsultation(
                         context,

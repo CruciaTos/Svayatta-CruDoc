@@ -34,6 +34,7 @@ import 'package:doctor_management_app/features/scribe/presentation/desktop_scrib
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
+import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -456,7 +457,9 @@ class _MobileSettingsList extends ConsumerWidget {
       for (final s in SettingsSection.values)
         if ((s != SettingsSection.radiology ||
                 ref.watch(isOralRadiologistProvider)) &&
-            (s != SettingsSection.dental || ref.watch(isDentistProvider)))
+            (s != SettingsSection.dental || ref.watch(isDentistProvider)) &&
+            (s != SettingsSection.reminders ||
+                ref.watch(whatsAppRemindersAvailableProvider)))
           s,
     ];
     return ListView(

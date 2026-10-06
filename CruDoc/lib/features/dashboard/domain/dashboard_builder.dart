@@ -286,6 +286,10 @@ _ScheduleResult _buildSchedule({
       patient: patient,
       isNextInCallOrder: rawWaiting.first.id == e.id,
       servingName: serving == null ? null : tokenName(serving),
+      isHomeVisit: visit?.visitType == VisitType.home,
+      homeAddress: visit?.visitType == VisitType.home
+          ? _clean(visit!.address)
+          : null,
     );
   }
 

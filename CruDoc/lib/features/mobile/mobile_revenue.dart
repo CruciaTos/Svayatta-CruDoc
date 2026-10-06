@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/revenue/domain/revenue_builder.da
 import 'package:doctor_management_app/features/revenue/domain/revenue_models.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
+import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Revenue: what came in for the period, who still owes, and every
@@ -138,12 +139,26 @@ class MobileRevenueScreen extends ConsumerWidget {
               : [
                   for (final t in o.transactions.take(40))
                     MobileRow(
-                      leading: MobileIconTile(
-                        icon: t.moneyOut
-                            ? CruIcons.arrowUp
-                            : CruIcons.arrowDown,
-                        tone: t.moneyOut ? MobileTone.slate : MobileTone.green,
-                      ),
+                      leading: t.moneyOut
+                          ? Container(
+                              width: 38,
+                              height: 38,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: c.redTint,
+                                shape: BoxShape.circle,
+                              ),
+                              child: CruIcon(
+                                CruIcons.arrowUp,
+                                size: 18,
+                                strokeWidth: 1.8,
+                                color: c.redText,
+                              ),
+                            )
+                          : const MobileIconTile(
+                              icon: CruIcons.arrowDown,
+                              tone: MobileTone.green,
+                            ),
                       title: t.title,
                       subtitle:
                           '${t.dayLabel} · ${t.time} ${t.meridiem}'
@@ -152,9 +167,13 @@ class MobileRevenueScreen extends ConsumerWidget {
                         t.amount,
                         style: MobileType.callout.tabular.tint(
                           t.moneyOut
-                              ? c.label
+                              ? c.redText
                               : mobileTone(c, MobileTone.green).$2,
                         ),
+                      ),
+                      onTap: () => pushMobile(
+                        context,
+                        TransactionDetailsPage(entry: t.entry),
                       ),
                     ),
                 ],

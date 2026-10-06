@@ -12,7 +12,6 @@ setGlobalOptions({
 
 export * from "./super-admin";
 export * from "./appointments";
-// WhatsApp endpoints are off until WhatsApp is set up; see
-// whatsapp-endpoints.ts.
+export * from "./whatsapp-endpoints";
 export * from "./ai";
 export * from "./imaging";

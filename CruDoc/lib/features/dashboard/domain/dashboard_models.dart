@@ -114,11 +114,17 @@ class UpNextData {
     this.reason,
     this.patient,
     this.servingName,
+    this.isHomeVisit = false,
+    this.homeAddress,
   });
 
   final String entryId;
   final String name;
   final int waitMinutes;
+
+  /// The linked visit is a home visit (physiotherapy visitation).
+  final bool isHomeVisit;
+  final String? homeAddress;
 
   /// "23 y · Female · Returning · Last visit 14 Aug, seasonal allergy".
   final String details;

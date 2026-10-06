@@ -131,6 +131,7 @@ flutter:
     - assets/muscle_viewer/vendor/addons/utils/
     # Offline speech model for the voice demo (lib/features/voice).
     # - assets/voice/parakeet/
+    # - assets/voice/whisper/   # uncomment for on-device Whisper (see tool/voice_server/README.md)
 
   fonts:
     - family: PlusJakartaSans

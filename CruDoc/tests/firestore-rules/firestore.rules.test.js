@@ -44,7 +44,6 @@ const DOCTOR_OWNED = [
   'dental_records',
   'radiology_docs',
   'homeopathy_case_sheets',
-  'whatsapp_notification_logs',
   'dental_procedure_catalog',
   'tooth_chart_entries',
   'procedure_log_entries',
@@ -355,6 +354,102 @@ describe('notifications and support tickets', () => {
     await assertSucceeds(setDoc(doc(doctor(A), 'support_tickets/t1'), { doctorId: A }));
     await assertFails(setDoc(doc(doctor(B), 'support_tickets/t2'), { doctorId: A }));
     await assertFails(getDoc(doc(doctor(B), 'support_tickets/t1')));
+  });
+});
+
+describe('whatsapp reminder log', () => {
+  it('a doctor reads their own delivery rows but cannot write them', async () => {
+    await seed('whatsapp_notification_logs/appt-1', {
+      doctorId: A, status: 'sent', recipientPhone: '919876543210',
+    });
+    await assertSucceeds(getDoc(doc(doctor(A), 'whatsapp_notification_logs/appt-1')));
+    await assertSucceeds(getDocs(query(
+      collection(doctor(A), 'whatsapp_notification_logs'),
+      where('doctorId', '==', A),
+    )));
+
+    // Only the functions that actually sent the message may say what happened.
+    await assertFails(
+      setDoc(doc(doctor(A), 'whatsapp_notification_logs/appt-2'), { doctorId: A }),
+    );
+    await assertFails(
+      updateDoc(doc(doctor(A), 'whatsapp_notification_logs/appt-1'), { status: 'read' }),
+    );
+    await assertFails(deleteDoc(doc(doctor(A), 'whatsapp_notification_logs/appt-1')));
+  });
+
+  it('keeps one doctor out of another doctor\'s delivery rows', async () => {
+    await seed('whatsapp_notification_logs/appt-1', { doctorId: A, status: 'sent' });
+    await assertFails(getDoc(doc(doctor(B), 'whatsapp_notification_logs/appt-1')));
+    await assertFails(getDocs(collection(doctor(B), 'whatsapp_notification_logs')));
+  });
+
+  it('hides opt-outs and auto-reply timers from everyone', async () => {
+    // Keyed by phone and shared across clinics, so a readable row would tell
+    // one doctor that a number also belongs to another practice's patient.
+    await seed('whatsapp_optouts/919876543210', { phone: '919876543210' });
+    await seed('whatsapp_autoreplies/919876543210', { phone: '919876543210' });
+    await assertFails(getDoc(doc(doctor(A), 'whatsapp_optouts/919876543210')));
+    await assertFails(getDocs(collection(doctor(A), 'whatsapp_optouts')));
+    await assertFails(getDoc(doc(doctor(A), 'whatsapp_autoreplies/919876543210')));
+    await assertFails(
+      setDoc(doc(doctor(A), 'whatsapp_optouts/919876543210'), { phone: 'x' }),
+    );
+  });
+});
+
+describe('whatsapp per-clinic credentials', () => {
+  it('keeps a doctor out of their own tenant record', async () => {
+    // It names the Secret Manager entry holding the token that sends to this
+    // clinic's patients. Only the Admin SDK may touch it.
+    await seed(`whatsapp_tenants/${A}`, {
+      doctorId: A,
+      wabaId: 'waba-1',
+      phoneNumberId: 'pn-1',
+      tokenSecretName: 'projects/p/secrets/wa_token_doctor-a',
+    });
+    await assertFails(getDoc(doc(doctor(A), `whatsapp_tenants/${A}`)));
+    await assertFails(getDocs(collection(doctor(A), 'whatsapp_tenants')));
+    await assertFails(setDoc(doc(doctor(A), `whatsapp_tenants/${A}`), { wabaId: 'x' }));
+    await assertFails(deleteDoc(doc(doctor(A), `whatsapp_tenants/${A}`)));
+  });
+
+  it('keeps a doctor out of the template subcollection too', async () => {
+    await seed(`whatsapp_tenants/${A}/templates/appt_confirmation`, { status: 'APPROVED' });
+    await assertFails(
+      getDoc(doc(doctor(A), `whatsapp_tenants/${A}/templates/appt_confirmation`)),
+    );
+    await assertFails(
+      setDoc(doc(doctor(A), `whatsapp_tenants/${A}/templates/x`), { status: 'APPROVED' }),
+    );
+  });
+
+  it('hides the message index and onboarding nonces from everyone', async () => {
+    await seed('whatsapp_message_index/wamid.abc', { doctorId: A });
+    await seed('whatsapp_onboarding_sessions/nonce-1', { doctorId: A });
+    await assertFails(getDoc(doc(doctor(A), 'whatsapp_message_index/wamid.abc')));
+    await assertFails(getDoc(doc(doctor(A), 'whatsapp_onboarding_sessions/nonce-1')));
+    // A readable nonce would let someone attach their own WhatsApp account to
+    // another doctor.
+    await assertFails(getDocs(collection(doctor(A), 'whatsapp_onboarding_sessions')));
+  });
+
+  it('lets a doctor read only their own connection status, and never write it', async () => {
+    await seed(`whatsapp_connections/${A}`, {
+      doctorId: A,
+      connected: true,
+      displayPhoneNumber: '+91 98765 43210',
+    });
+    await assertSucceeds(getDoc(doc(doctor(A), `whatsapp_connections/${A}`)));
+    await assertFails(getDoc(doc(doctor(B), `whatsapp_connections/${A}`)));
+    await assertFails(getDocs(collection(doctor(A), 'whatsapp_connections')));
+    // Marking yourself connected must not be possible from a client.
+    await assertFails(
+      setDoc(doc(doctor(A), `whatsapp_connections/${A}`), { connected: true }),
+    );
+    await assertFails(
+      updateDoc(doc(doctor(A), `whatsapp_connections/${A}`), { needsReauth: false }),
+    );
   });
 });
 

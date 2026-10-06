@@ -9,7 +9,6 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/appointments/presentation/appointment_actions.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/day/overlap_visit_row.dart';
 import 'package:doctor_management_app/features/appointments/presentation/widgets/shell/appt_format.dart';
-import 'package:doctor_management_app/features/messaging/data/providers/whatsapp_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 
@@ -36,7 +35,6 @@ class OverlapCard extends ConsumerStatefulWidget {
 }
 
 class _OverlapCardState extends ConsumerState<OverlapCard> {
-  bool _sendWhatsApp = true;
   bool _moving = false;
 
   /// The visit to move and where, or null when no slot is free.
@@ -65,10 +63,8 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
     setState(() => _moving = true);
     final messenger = ScaffoldMessenger.maybeOf(context);
     final repo = ref.read(visitRepositoryProvider);
-    final whatsapp = ref.read(whatsappRepositoryProvider);
     final controller = ref.read(apptsControllerProvider.notifier);
     final from = item.start;
-    final send = _sendWhatsApp;
     try {
       await repo.rescheduleVisit(item.id, newStart: slot);
     } on VisitException catch (e) {
@@ -96,14 +92,6 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
     }
 
     controller.select(item.id);
-    if (send) {
-      final moved = item.visit.copyWith(scheduledStart: slot);
-      try {
-        await whatsapp.sendAppointmentConfirmation(visit: moved);
-      } catch (_) {
-        // The move stands; the message is best effort.
-      }
-    }
     messenger?.showSnackBar(
       SnackBar(
         content: Text('Moved ${item.name} to ${ApptFormat.time(slot)}'),
@@ -139,7 +127,6 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
     final now = ref.watch(apptsNowProvider);
     final suggestion = _suggestion(now);
     final latest = ApptsBuilder.latestBooked(g);
-    final hasPhone = (latest.patient?.phone.trim() ?? '').isNotEmpty;
 
     return CruCard(
       semanticLabel: 'Overlap at ${ApptFormat.time(g.peakStart)}',
@@ -176,13 +163,7 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
           ],
           if (suggestion != null) ...[
             const SizedBox(height: CruSpace.s10),
-            _SuggestionBox(
-              item: suggestion.$1,
-              slot: suggestion.$2,
-              showWhatsApp: hasPhone,
-              sendWhatsApp: _sendWhatsApp,
-              onWhatsApp: (v) => setState(() => _sendWhatsApp = v),
-            ),
+            _SuggestionBox(item: suggestion.$1, slot: suggestion.$2),
           ],
           const SizedBox(height: CruSpace.s14),
           Row(
@@ -224,19 +205,10 @@ class _OverlapCardState extends ConsumerState<OverlapCard> {
 }
 
 class _SuggestionBox extends StatelessWidget {
-  const _SuggestionBox({
-    required this.item,
-    required this.slot,
-    required this.showWhatsApp,
-    required this.sendWhatsApp,
-    required this.onWhatsApp,
-  });
+  const _SuggestionBox({required this.item, required this.slot});
 
   final ApptItem item;
   final DateTime slot;
-  final bool showWhatsApp;
-  final bool sendWhatsApp;
-  final ValueChanged<bool> onWhatsApp;
 
   @override
   Widget build(BuildContext context) {
@@ -265,72 +237,7 @@ class _SuggestionBox extends StatelessWidget {
             'free slot.',
             style: CruType.caption.tabular.tint(c.label2),
           ),
-          if (showWhatsApp) ...[
-            const SizedBox(height: CruSpace.s12),
-            _CheckRow(
-              label: 'Send ${item.firstName} the new time on WhatsApp',
-              value: sendWhatsApp,
-              onChanged: onWhatsApp,
-            ),
-          ],
         ],
-      ),
-    );
-  }
-}
-
-/// An 18 px accent checkbox with its label.
-class _CheckRow extends StatelessWidget {
-  const _CheckRow({
-    required this.label,
-    required this.value,
-    required this.onChanged,
-  });
-
-  final String label;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  /// Checkbox size and corner (no shared token; NEEDS.md).
-  static const double _box = 18;
-  static const double _radius = 5;
-
-  @override
-  Widget build(BuildContext context) {
-    final c = context.cru;
-    return Semantics(
-      checked: value,
-      label: label,
-      excludeSemantics: true,
-      child: CruPressable(
-        onTap: () => onChanged(!value),
-        scaleOnPress: false,
-        builder: (context, hovered) => Row(
-          children: [
-            AnimatedContainer(
-              duration: CruMotion.of(context, CruMotion.fast),
-              curve: CruMotion.curve,
-              width: _box,
-              height: _box,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: value ? c.accent : c.surface,
-                borderRadius: BorderRadius.circular(_radius),
-                border: value ? null : Border.all(color: c.label3),
-              ),
-              child: value
-                  ? CruIcon(
-                      CruIcons.check,
-                      size: 13,
-                      strokeWidth: 2.6,
-                      color: c.onAccent,
-                    )
-                  : null,
-            ),
-            const SizedBox(width: CruSpace.s8),
-            Expanded(child: Text(label, style: CruType.subhead.tint(c.label))),
-          ],
-        ),
       ),
     );
   }

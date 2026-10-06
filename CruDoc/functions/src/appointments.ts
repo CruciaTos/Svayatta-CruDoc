@@ -2,7 +2,7 @@ import * as functions from "firebase-functions/v2/https";
 import * as admin from "firebase-admin";
 import * as crypto from "crypto";
 import {defineSecret} from "firebase-functions/params";
-import {dispatchAppointmentWhatsApp} from "./whatsapp";
+
 
 export const voiceBotApiKeySecret = defineSecret("VOICE_BOT_API_KEY");
 
@@ -447,19 +447,11 @@ export const createAppointment = functions.onRequest(
         `at ${scheduledStart.toISOString()}`,
       );
 
-      // Asynchronously trigger WhatsApp confirmation without blocking appointment response
-      dispatchAppointmentWhatsApp({
-        appointmentId: appointmentRef.id,
-        doctorId: doctorId,
-        patientId: patientId,
-        patientName: patientName,
-        phone: phone,
-        scheduledStart,
-        visitType: "clinic",
-        source: source,
-      }).catch((err) => {
-        console.error(`[WhatsApp] Failed to dispatch for appointment ${appointmentRef.id}:`, err);
-      });
+      // No WhatsApp here. CruDoc sends one reminder the evening before, from
+      // the scheduled sweep in whatsapp/reminders.ts, which picks this
+      // appointment up like any other. Sending a confirmation at booking time
+      // as well would be a second paid message and a second chance to annoy
+      // someone into blocking the shared number.
 
       res.status(201).json({
         success: true,

@@ -285,7 +285,7 @@ class CruPill extends StatelessWidget {
 }
 
 /// Category tint for [CruIconTile].
-enum CruTileTone { teal, amber, neutral, accent, green }
+enum CruTileTone { teal, amber, neutral, accent, green, red }
 
 /// 36 px icon tile (radius 10) tinted by category.
 class CruIconTile extends StatelessWidget {
@@ -303,6 +303,7 @@ class CruIconTile extends StatelessWidget {
       CruTileTone.neutral => (c.inset, c.label2),
       CruTileTone.accent => (c.accentTint, c.accentText),
       CruTileTone.green => (c.greenTint, c.greenText),
+      CruTileTone.red => (c.redTint, c.redText),
     };
     return Container(
       width: CruSize.iconTile,

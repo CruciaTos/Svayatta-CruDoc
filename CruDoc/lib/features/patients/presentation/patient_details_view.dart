@@ -190,7 +190,7 @@ class _DetailsBody extends ConsumerWidget {
     // Dentists: the tooth chart, their procedures, and a way into a plan.
     final chart = isDentist ? ToothChartCard(patient: p) : null;
     final procedures = isDentist ? DentalProceduresCard(patient: p) : null;
-    final records = isDentist ? DentalRecordsCard(patient: p) : null;
+    final records = isDentist ? DentalRecordsButton(patient: p) : null;
     final physioPhotos = isPhysio ? PhysioPhotosCard(patient: p) : null;
     final muscleChart = isPhysio ? MuscleChartCard(patient: p) : null;
     final noPlan = isDentist && !planLoading && items.isEmpty

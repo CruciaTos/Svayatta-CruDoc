@@ -64,17 +64,27 @@ import numpy as np  # noqa: E402
 from faster_whisper import WhisperModel  # noqa: E402
 
 
+MODELS_DIR = Path(__file__).resolve().parent / "models"
+
+
+def _path(name):
+    """Use the copy from download_models.py if present (offline), else the
+    Hugging Face name (downloaded and cached on first run)."""
+    local = MODELS_DIR / f"faster-whisper-{name}"
+    return str(local) if (local / "model.bin").is_file() else name
+
+
 def _load():
     try:
         loaded = {}
         for key, (name, compute) in MODELS.items():
-            m = WhisperModel(name, device="cuda", compute_type=compute)
+            m = WhisperModel(_path(name), device="cuda", compute_type=compute)
             list(m.transcribe(np.zeros(16000, dtype=np.float32), language="en")[0])
             loaded[key] = m
         return loaded, "cuda"
     except Exception as e:  # no GPU / CUDA libs: slower, still works
         print(f"GPU unavailable ({e}); using CPU", flush=True)
-        m = WhisperModel("small.en", device="cpu", compute_type="int8")
+        m = WhisperModel(_path("small.en"), device="cpu", compute_type="int8")
         return {key: m for key in MODELS}, "cpu"
 
 

@@ -162,3 +162,4 @@ app.*.map.json
 # Local speech models for the voice demo (hundreds of MB; download separately).
 /assets/voice/*/
 /tool/voice_server/.venv/
+/tool/voice_server/models/

@@ -80,7 +80,7 @@ class TransactionRow extends StatelessWidget {
             const SizedBox(width: CruSpace.s12),
             CruIconTile(
               icon: row.moneyOut ? RevenueIcons.receipt : CruIcons.rupee,
-              tone: CruTileTone.accent,
+              tone: row.moneyOut ? CruTileTone.red : CruTileTone.green,
             ),
             const SizedBox(width: CruSpace.s12),
             Expanded(

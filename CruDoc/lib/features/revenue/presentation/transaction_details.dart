@@ -105,7 +105,7 @@ class _TransactionHeader extends StatelessWidget {
         children: [
           CruIconTile(
             icon: isExpense ? RevenueIcons.receipt : CruIcons.rupee,
-            tone: CruTileTone.accent,
+            tone: isExpense ? CruTileTone.red : CruTileTone.green,
           ),
           const SizedBox(width: CruSpace.s14),
           Expanded(

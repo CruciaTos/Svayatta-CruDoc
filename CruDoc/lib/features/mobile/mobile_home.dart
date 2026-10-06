@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
@@ -17,6 +18,8 @@ import 'package:doctor_management_app/features/dashboard/data/providers/doctor_i
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
+import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart'
+    show HomeVisitInk;
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
@@ -264,19 +267,30 @@ class _NowCard extends ConsumerWidget {
 
     // The ink card with white text.
     final onInk = c.onInk();
+    // A physiotherapist's home visit: olive card with the address.
+    final home = up.isHomeVisit && ref.watch(isPhysiotherapyProvider);
+    final soft = home ? HomeVisitInk.accent : onInk.label2;
     return _Glow(
       child: CruInkCard(
+        colors: home ? HomeVisitInk.gradient : null,
+        borderColor: home ? HomeVisitInk.border : null,
         padding: const EdgeInsets.fromLTRB(20, 14, 10, 18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
+                if (home) ...[
+                  CruIcon(CruIcons.home, size: 15, color: soft),
+                  const SizedBox(width: CruSpace.s6),
+                ],
                 Text(
-                  serving != null
+                  home
+                      ? 'Home visit'
+                      : serving != null
                       ? 'Next, after ${serving.firstName}'
                       : 'Up next',
-                  style: MobileType.subhead.tint(onInk.label2),
+                  style: MobileType.subhead.tint(soft),
                 ),
                 const Spacer(),
                 if (up.tokenNumber != null)
@@ -307,8 +321,29 @@ class _NowCard extends ConsumerWidget {
                     up.details,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: MobileType.subhead.tint(onInk.label2),
+                    style: MobileType.subhead.tint(soft),
                   ),
+                  if (home && up.homeAddress != null) ...[
+                    const SizedBox(height: CruSpace.s8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: CruIcon(CruIcons.home, size: 14, color: soft),
+                        ),
+                        const SizedBox(width: CruSpace.s8),
+                        Expanded(
+                          child: Text(
+                            up.homeAddress!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: MobileType.subhead.tint(onInk.label),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: CruSpace.s12),
                   _InkPill(
                     'Waiting ${DashFormat.minutes(up.waitMinutes)}',
@@ -319,6 +354,8 @@ class _NowCard extends ConsumerWidget {
                   _InkButton(
                     label: serving != null
                         ? 'Finish & start ${_first(up.name)}'
+                        : home
+                        ? 'Start session'
                         : 'Start consultation',
                     icon: CruIcons.play,
                     onPressed: () {

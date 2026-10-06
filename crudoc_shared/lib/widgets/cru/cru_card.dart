@@ -64,6 +64,8 @@ class CruInkCard extends StatelessWidget {
     required this.child,
     this.padding = const EdgeInsets.fromLTRB(24, 22, 24, 24),
     this.semanticLabel,
+    this.colors,
+    this.borderColor,
   });
 
   final Widget child;
@@ -77,6 +79,13 @@ class CruInkCard extends StatelessWidget {
     colors: [Color(0xFF1E3A8A), Color(0xFF2563EB)],
   );
 
+  /// Replaces the ink fill, keeping its direction. A physiotherapist's home
+  /// visit uses this for the olive card.
+  final List<Color>? colors;
+
+  /// Replaces the daytime outline, to match [colors].
+  final Color? borderColor;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -88,13 +97,21 @@ class CruInkCard extends StatelessWidget {
       label: semanticLabel,
       child: DecoratedBox(
         decoration: ShapeDecoration(
-          gradient: gradient,
+          gradient: colors == null
+              ? gradient
+              : LinearGradient(
+                  begin: gradient.begin,
+                  end: gradient.end,
+                  colors: colors!,
+                ),
           shape: cruShape(
             CruRadius.card,
             side: isEv
                 ? BorderSide(color: c.inkBorder)
                 : BorderSide(
-                    color: const Color(0xFF60A5FA).withValues(alpha: 0.35),
+                    color: (borderColor ?? const Color(0xFF60A5FA)).withValues(
+                      alpha: 0.35,
+                    ),
                   ),
           ),
         ),

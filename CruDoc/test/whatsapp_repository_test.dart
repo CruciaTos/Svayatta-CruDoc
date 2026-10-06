@@ -1,175 +1,146 @@
-import 'dart:convert';
+// Firestore marks these classes sealed; mocking them is the only way to test
+// the repository without a live database.
+// ignore_for_file: subtype_of_sealed_class
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 
-import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/messaging/data/models/whatsapp_notification_log.dart';
 import 'package:doctor_management_app/features/messaging/data/repo/whatsapp_repository.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_log_local_service.dart';
-import 'package:doctor_management_app/features/patients/data/models/patient.dart';
-import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 
-class MockPatientRepository extends Mock implements PatientRepository {}
 class MockWhatsAppLogLocalService extends Mock implements WhatsAppLogLocalService {}
-class MockHttpClient extends Mock implements http.Client {}
+class MockFirebaseFirestore extends Mock implements FirebaseFirestore {}
+class MockCollectionReference extends Mock
+    implements CollectionReference<Map<String, dynamic>> {}
+class MockDocumentReference extends Mock
+    implements DocumentReference<Map<String, dynamic>> {}
+class MockDocumentSnapshot extends Mock
+    implements DocumentSnapshot<Map<String, dynamic>> {}
 
 void main() {
+  final now = DateTime(2026, 8, 19, 18, 0);
+
+  WhatsAppNotificationLog logFor(String visitId, WhatsAppNotificationStatus status) {
+    return WhatsAppNotificationLog(
+      id: visitId,
+      doctorId: 'doctor-abc',
+      patientId: 'patient-123',
+      visitId: visitId,
+      recipientPhone: '919876543210',
+      recipientName: 'Amit Verma',
+      status: status,
+      attemptedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
   setUpAll(() {
-    registerFallbackValue(Uri());
-    registerFallbackValue(WhatsAppNotificationLog(
-      id: '',
-      doctorId: '',
-      patientId: '',
-      visitId: '',
-      recipientPhone: '',
-      recipientName: '',
-      status: WhatsAppNotificationStatus.pending,
-      attemptedAt: DateTime.now(),
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
-    ));
-    registerFallbackValue(WhatsAppNotificationStatus.pending);
+    registerFallbackValue(logFor('', WhatsAppNotificationStatus.pending));
   });
 
-  late MockPatientRepository mockPatientRepo;
   late MockWhatsAppLogLocalService mockLocalLogService;
-  late MockHttpClient mockHttpClient;
+  late MockFirebaseFirestore mockFirestore;
+  late MockCollectionReference mockCollection;
+  late MockDocumentReference mockDoc;
+  late MockDocumentSnapshot mockSnapshot;
   late WhatsAppRepository repository;
 
-  final samplePatient = Patient(
-    id: 'patient-123',
-    doctorId: 'doctor-abc',
-    firstName: 'Amit',
-    lastName: 'Verma',
-    phone: '+91 98765 43210',
-    email: 'amit@example.com',
-    gender: 'Male',
-    dateOfBirth: DateTime(1985, 3, 20),
-    diagnosis: const ['Hypertension'],
-    packageBalance: 0,
-    isArchived: false,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-  );
-
-  final sampleVisit = Visit(
-    id: 'visit-999',
-    doctorId: 'doctor-abc',
-    patientId: 'patient-123',
-    scheduledStart: DateTime(2026, 8, 20, 11, 0),
-    durationMinutes: 30,
-    address: 'Clinic A',
-    visitType: VisitType.clinic,
-    status: VisitStatus.scheduled,
-    createdAt: DateTime.now(),
-    updatedAt: DateTime.now(),
-  );
-
   setUp(() {
-    mockPatientRepo = MockPatientRepository();
     mockLocalLogService = MockWhatsAppLogLocalService();
-    mockHttpClient = MockHttpClient();
+    mockFirestore = MockFirebaseFirestore();
+    mockCollection = MockCollectionReference();
+    mockDoc = MockDocumentReference();
+    mockSnapshot = MockDocumentSnapshot();
 
     repository = WhatsAppRepository(
-      patientRepository: mockPatientRepo,
       logLocalService: mockLocalLogService,
-      httpClient: mockHttpClient,
+      firestore: mockFirestore,
       currentDoctorId: 'doctor-abc',
     );
 
-    when(() => mockPatientRepo.getPatient('patient-123')).thenAnswer((_) async => samplePatient);
+    when(() => mockFirestore.collection('whatsapp_notification_logs'))
+        .thenReturn(mockCollection);
+    when(() => mockCollection.doc(any())).thenReturn(mockDoc);
+    when(() => mockDoc.get()).thenAnswer((_) async => mockSnapshot);
+    when(() => mockLocalLogService.getLogByVisitId(any(), any()))
+        .thenAnswer((_) async => null);
     when(() => mockLocalLogService.insertLog(any())).thenAnswer((_) async {});
-    when(() => mockLocalLogService.updateLogStatus(
-          any(),
-          any(),
-          whatsappMessageId: any(named: 'whatsappMessageId'),
-          failureReason: any(named: 'failureReason'),
-          sentAt: any(named: 'sentAt'),
-        )).thenAnswer((_) async {});
-    when(() => mockLocalLogService.getLogByVisitId(any(), any())).thenAnswer((_) async => null);
   });
 
-  group('WhatsAppRepository Tests', () {
-    test('skips notification and records skipped log when patient has no valid phone', () async {
-      final noPhonePatient = samplePatient.copyWith(phone: '');
-      when(() => mockPatientRepo.getPatient('patient-no-phone')).thenAnswer((_) async => noPhonePatient);
+  group('WhatsAppRepository.getLogForVisit', () {
+    test('returns null for an empty visit id without reading anything', () async {
+      final result = await repository.getLogForVisit('');
 
-      final visitNoPhone = Visit(
-        id: 'visit-no-phone',
-        doctorId: 'doctor-abc',
-        patientId: 'patient-no-phone',
-        scheduledStart: DateTime(2026, 8, 20, 11, 0),
-        durationMinutes: 30,
-        address: 'Clinic A',
-        visitType: VisitType.clinic,
-        status: VisitStatus.scheduled,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+      expect(result, isNull);
+      verifyNever(() => mockLocalLogService.getLogByVisitId(any(), any()));
+      verifyNever(() => mockFirestore.collection(any()));
+    });
 
-      final result = await repository.sendAppointmentConfirmation(
-        visit: visitNoPhone,
-        patientOverride: noPhonePatient,
-      );
+    test('returns the local copy without going to Firestore', () async {
+      final local = logFor('visit-999', WhatsAppNotificationStatus.delivered);
+      when(() => mockLocalLogService.getLogByVisitId('visit-999', 'doctor-abc'))
+          .thenAnswer((_) async => local);
 
-      expect(result, isFalse);
+      final result = await repository.getLogForVisit('visit-999');
+
+      expect(result, same(local));
+      verifyNever(() => mockFirestore.collection(any()));
+    });
+
+    test('falls back to Firestore and caches what it finds', () async {
+      when(() => mockSnapshot.exists).thenReturn(true);
+      when(() => mockSnapshot.id).thenReturn('visit-999');
+      when(() => mockSnapshot.data()).thenReturn({
+        'doctorId': 'doctor-abc',
+        'patientId': 'patient-123',
+        'appointmentId': 'visit-999',
+        'recipientPhone': '919876543210',
+        'recipientName': 'Amit Verma',
+        'status': WhatsAppNotificationStatus.sent.value,
+        'whatsappMessageId': 'wamid.HBgL98765',
+        'attemptedAt': now.millisecondsSinceEpoch,
+        'createdAt': now.millisecondsSinceEpoch,
+        'updatedAt': now.millisecondsSinceEpoch,
+      });
+
+      final result = await repository.getLogForVisit('visit-999');
+
+      expect(result, isNotNull);
+      expect(result!.visitId, 'visit-999');
+      expect(result.status, WhatsAppNotificationStatus.sent);
+      expect(result.whatsappMessageId, 'wamid.HBgL98765');
+      verify(() => mockCollection.doc('visit-999')).called(1);
       verify(() => mockLocalLogService.insertLog(any(that: predicate<WhatsAppNotificationLog>(
-            (log) => log.status == WhatsAppNotificationStatus.skipped,
+            (log) => log.visitId == 'visit-999',
           )))).called(1);
     });
 
-    test('idempotency: skips duplicate send if log is already completed', () async {
-      final completedLog = WhatsAppNotificationLog(
-        id: 'visit-999',
-        doctorId: 'doctor-abc',
-        patientId: 'patient-123',
-        visitId: 'visit-999',
-        recipientPhone: '919876543210',
-        recipientName: 'Amit Verma',
-        status: WhatsAppNotificationStatus.sent,
-        whatsappMessageId: 'wamid.123',
-        attemptedAt: DateTime.now(),
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
+    test('returns null when no reminder was recorded', () async {
+      when(() => mockSnapshot.exists).thenReturn(false);
+      when(() => mockSnapshot.data()).thenReturn(null);
 
-      when(() => mockLocalLogService.getLogByVisitId('visit-999', any()))
-          .thenAnswer((_) async => completedLog);
+      final result = await repository.getLogForVisit('visit-999');
 
-      final result = await repository.sendAppointmentConfirmation(
-        visit: sampleVisit,
-        patientOverride: samplePatient,
-      );
-
-      // Returns true (idempotent success) without dispatching new API call
-      expect(result, isTrue);
-      verifyNever(() => mockHttpClient.post(any(), headers: any(named: 'headers'), body: any(named: 'body')));
+      expect(result, isNull);
+      verifyNever(() => mockLocalLogService.insertLog(any()));
     });
 
-    test('dispatches notification and updates status to sent on 200 OK', () async {
-      when(() => mockHttpClient.post(
-            any(),
-            headers: any(named: 'headers'),
-            body: any(named: 'body'),
-          )).thenAnswer((_) async => http.Response(
-            jsonEncode({'success': true, 'messageId': 'wamid.HBgL98765'}),
-            200,
-          ));
+    test('returns null instead of throwing when Firestore fails', () async {
+      when(() => mockDoc.get()).thenThrow(Exception('offline'));
 
-      final result = await repository.sendAppointmentConfirmation(
-        visit: sampleVisit,
-        patientOverride: samplePatient,
-      );
+      final result = await repository.getLogForVisit('visit-999');
 
-      expect(result, isTrue);
-      verify(() => mockLocalLogService.insertLog(any())).called(1);
-      verify(() => mockLocalLogService.updateLogStatus(
-            any(),
-            WhatsAppNotificationStatus.sent,
-            whatsappMessageId: any(named: 'whatsappMessageId'),
-            sentAt: any(named: 'sentAt'),
-          )).called(1);
+      expect(result, isNull);
+    });
+  });
+
+  group('WhatsAppRepository.watchVisitWhatsAppStatus', () {
+    test('emits null for an empty visit id', () async {
+      expect(await repository.watchVisitWhatsAppStatus('').first, isNull);
+      verifyNever(() => mockFirestore.collection(any()));
     });
   });
 }

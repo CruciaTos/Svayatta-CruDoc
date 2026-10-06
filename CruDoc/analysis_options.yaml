@@ -9,6 +9,14 @@
 # packages, and plugins designed to encourage good coding practices.
 include: package:flutter_lints/flutter.yaml
 
+analyzer:
+  # tests/ holds Node tooling (Firestore rules tests). An npm install there once
+  # left a junction in node_modules pointing back at this folder, and the
+  # analyzer followed it into an endless loop of broken copies of the app.
+  exclude:
+    - tests/**
+    - "**/node_modules/**"
+
 linter:
   # The lint rules applied to this project can be customized in the
   # section below to disable rules from the `package:flutter_lints/flutter.yaml`

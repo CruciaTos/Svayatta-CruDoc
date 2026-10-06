@@ -363,3 +363,112 @@ class DentalRecordsCard extends ConsumerWidget {
     );
   }
 }
+
+/// Patient details' way into the clinical records: one button. The full
+/// [DentalRecordsCard] (about twenty record lookups) is built only on its
+/// own page, so opening Patient details stays light.
+class DentalRecordsButton extends StatelessWidget {
+  const DentalRecordsButton({super.key, required this.patient});
+
+  final Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return CruCard(
+      semanticLabel: 'Clinical records',
+      padding: const EdgeInsets.all(CruSpace.s16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Clinical records',
+              style: CruType.headline.tint(c.label),
+            ),
+          ),
+          CruButton(
+            label: 'Open',
+            icon: CruIcons.chevronRight,
+            kind: CruButtonKind.inset,
+            onPressed: () => Navigator.of(context, rootNavigator: true).push(
+              MaterialPageRoute<void>(
+                builder: (_) => Theme(
+                  data: Theme.of(context),
+                  child: _DentalRecordsPage(patient: patient),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DentalRecordsPage extends StatelessWidget {
+  const _DentalRecordsPage({required this.patient});
+
+  final Patient patient;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    return Scaffold(
+      backgroundColor: c.canvas,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                CruSpace.s16,
+                CruSpace.s12,
+                CruSpace.s16,
+                CruSpace.s4,
+              ),
+              child: Row(
+                children: [
+                  CruSquareButton(
+                    icon: CruIcons.chevronLeft,
+                    semanticLabel: 'Back',
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  const SizedBox(width: CruSpace.s12),
+                  Expanded(
+                    child: Semantics(
+                      header: true,
+                      child: Text(
+                        'Clinical records · ${patient.fullName}',
+                        style: CruType.title2.tint(c.label),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Align(
+                alignment: Alignment.topCenter,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(
+                      CruSpace.s16,
+                      CruSpace.s12,
+                      CruSpace.s16,
+                      CruSpace.s24,
+                    ),
+                    children: [DentalRecordsCard(patient: patient)],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

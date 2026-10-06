@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import 'package:doctor_management_app/features/voice/domain/medical_conditions.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/patient_voice_fill_bar.dart';
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
@@ -688,6 +691,7 @@ class _DesktopAddEditPatientDialogState
                     ),
                   ],
                 ),
+                const _ReminderNotice(),
               ],
             ),
             CruFormSection(
@@ -757,6 +761,47 @@ class _DesktopAddEditPatientDialogState
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Tells the patient, where they hand over their number, what it will be used
+/// for.
+///
+/// This is the consent the reminders rest on: the number is given for
+/// appointments, and the person giving it is told in the same breath that
+/// reminders come by WhatsApp and how to stop them. Shown only when this
+/// clinic actually has reminders switched on, so it never promises a message
+/// that will not arrive.
+class _ReminderNotice extends ConsumerWidget {
+  const _ReminderNotice();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final available = ref.watch(whatsAppRemindersAvailableProvider);
+    final enabled = ref.watch(whatsAppRemindersEnabledProvider);
+    if (!available || !enabled) return const SizedBox.shrink();
+
+    final c = context.cru;
+    return Padding(
+      padding: const EdgeInsets.only(top: CruSpace.s8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(top: CruSpace.s2),
+            child: CruIcon(CruIcons.whatsapp, size: 14, color: c.label3),
+          ),
+          const SizedBox(width: CruSpace.s8),
+          Expanded(
+            child: Text(
+              'Appointment reminders will be sent on WhatsApp. '
+              'Reply STOP to opt out.',
+              style: CruType.caption.tint(c.label2),
+            ),
+          ),
+        ],
       ),
     );
   }

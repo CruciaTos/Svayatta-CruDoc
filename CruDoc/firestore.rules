@@ -58,7 +58,6 @@ service cloud.firestore {
         'dental_records',
         'radiology_docs',
         'homeopathy_case_sheets',
-        'whatsapp_notification_logs',
         'dental_procedure_catalog',
         'tooth_chart_entries',
         'procedure_log_entries',
@@ -126,6 +125,80 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['wrappedKey', 'createdAt'])
         && request.resource.data.wrappedKey is string;
       allow update, delete: if false;
+    }
+
+    // ============================================================
+    // WHATSAPP - REMINDER DELIVERY LOG
+    // ============================================================
+    // Written only by Cloud Functions, which send the reminders and receive
+    // Meta's delivery receipts. A doctor reads their own rows to see whether a
+    // patient got their reminder, and cannot write them: a status the app
+    // could set would say nothing about what Meta actually did.
+
+    match /whatsapp_notification_logs/{logId} {
+      allow get: if isAuthenticated() && ownsExisting();
+      allow list: if isAuthenticated()
+        && resource.data.doctorId == request.auth.uid;
+      allow create, update, delete: if false;
+
+      // Every raw delivery event, kept for working out what happened.
+      match /events/{eventId} {
+        allow read: if isAuthenticated()
+          && get(/databases/$(database)/documents/whatsapp_notification_logs/$(logId))
+            .data.doctorId == request.auth.uid;
+        allow write: if false;
+      }
+    }
+
+    // Patients who replied STOP. Keyed by phone number and shared across all
+    // clinics, so it is never readable by a doctor: it would expose that a
+    // given number belongs to someone who also sees another practice.
+    match /whatsapp_optouts/{phone} {
+      allow read, write: if false;
+    }
+
+    // Rate limiting for the auto-reply, keyed by phone. Same reasoning.
+    match /whatsapp_autoreplies/{phone} {
+      allow read, write: if false;
+    }
+
+    // ============================================================
+    // WHATSAPP - PER-CLINIC CREDENTIALS AND ROUTING
+    // ============================================================
+    // Dormant at launch: reminders go from one shared CruDoc number. These
+    // stay closed so the collections cannot be written into existence from a
+    // client before the per-clinic upgrade lands.
+    // Each clinic connects their own WhatsApp number, so these hold the keys
+    // to messaging that clinic's patients. Cloud Functions reach them with the
+    // Admin SDK, which bypasses rules; nothing else may ever touch them.
+    //
+    // The tokens themselves live in Secret Manager, not here. These documents
+    // still name the secret and identify the WhatsApp account, so they stay
+    // closed to every client.
+
+    match /whatsapp_tenants/{doctorId}/{rest=**} {
+      allow read, write: if false;
+    }
+
+    // Maps a sent message id back to its clinic so delivery receipts can be
+    // routed. Reading it would expose other clinics' message ids.
+    match /whatsapp_message_index/{messageId} {
+      allow read, write: if false;
+    }
+
+    // Short-lived nonces binding an onboarding browser session to a doctor.
+    // A readable nonce would let someone attach their own WhatsApp account to
+    // another doctor.
+    match /whatsapp_onboarding_sessions/{nonce} {
+      allow read, write: if false;
+    }
+
+    // What the app shows on the Connect WhatsApp screen: connection state, the
+    // clinic's own number, template approval. No secrets. Server writes only,
+    // so a doctor cannot mark themselves connected.
+    match /whatsapp_connections/{doctorId} {
+      allow get: if isSelf(doctorId);
+      allow list, write: if false;
     }
 
     // ============================================================

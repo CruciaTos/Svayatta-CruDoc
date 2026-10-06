@@ -19,6 +19,7 @@ import 'package:doctor_management_app/core/update/models/update_check_result.dar
 import 'package:doctor_management_app/core/utils/device_info_helper.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
@@ -38,6 +39,9 @@ enum SettingsSection {
   devices('Devices', CruIcons.sidebar),
   plan('Plan & rewards', CruIcons.wallet),
   appearance('Appearance', CruIcons.sun),
+
+  /// Clinics whose plan includes messaging.
+  reminders('Patient reminders', CruIcons.whatsapp),
 
   /// Dentists and dental specialists only.
   dental('Dental', DentalIcons.tooth),
@@ -96,6 +100,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
       SettingsSection.devices => _DevicesSection(user: user),
       SettingsSection.plan => const _PlanSection(),
       SettingsSection.appearance => const _AppearanceSection(),
+      SettingsSection.reminders => const _RemindersSection(),
       SettingsSection.dental => const _DentalSection(),
       SettingsSection.radiology => const RadSettingsSection(),
       SettingsSection.about => const _AboutSection(),
@@ -149,7 +154,9 @@ class DesktopSettingsScreen extends ConsumerWidget {
                         if ((s != SettingsSection.radiology ||
                                 ref.watch(isOralRadiologistProvider)) &&
                             (s != SettingsSection.dental ||
-                                ref.watch(isDentistProvider)))
+                                ref.watch(isDentistProvider)) &&
+                            (s != SettingsSection.reminders ||
+                                ref.watch(whatsAppRemindersAvailableProvider)))
                           s,
                     ],
                     selected: section,
@@ -1549,6 +1556,68 @@ class _DentalSection extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    ]);
+  }
+}
+
+// =============================================================================
+// PATIENT REMINDERS
+// =============================================================================
+
+/// The clinic's one control over WhatsApp reminders.
+///
+/// Deliberately a single switch. Reminders go out the evening before every
+/// appointment without anybody choosing to send them, so the only decision a
+/// clinic has to make is whether they want them at all.
+class _RemindersSection extends ConsumerWidget {
+  const _RemindersSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final enabled = ref.watch(whatsAppRemindersEnabledProvider);
+
+    return _Stack([
+      _SettingsCard(
+        title: 'WhatsApp appointment reminders',
+        description:
+            'Patients get one WhatsApp message the evening before their '
+            'appointment, with the date, the time and your number to call if '
+            'they need to change it. Nothing to send by hand, and nothing '
+            'about their treatment is included.',
+        child: Row(
+          children: [
+            CruSegmentedControl<bool>(
+              semanticLabel: 'WhatsApp appointment reminders',
+              segments: const [
+                CruSegment(false, 'Off'),
+                CruSegment(true, 'On'),
+              ],
+              selected: enabled,
+              onChanged: (value) => setWhatsAppRemindersEnabled(value),
+            ),
+            const SizedBox(width: CruSpace.s16),
+            Expanded(
+              child: Text(
+                enabled
+                    ? 'Sent at 6:00 pm the day before, from the CruDoc number.'
+                    : 'No reminders are being sent. Patients will only hear '
+                          'from you directly.',
+                style: CruType.caption.tint(c.label2),
+              ),
+            ),
+          ],
+        ),
+      ),
+      _SettingsCard(
+        title: 'If a patient opts out',
+        description:
+            'Every reminder tells the patient they can reply STOP, and that '
+            'stops them immediately. A patient who opts out stays opted out '
+            'until they reply START, and you will see "Skipped" against their '
+            'appointment rather than a message that never arrived.',
+        child: const SizedBox.shrink(),
       ),
     ]);
   }

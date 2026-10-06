@@ -8,8 +8,9 @@ enum RevenueTab { overview, invoices }
 /// The period every figure on the Overview follows.
 enum RevenuePeriod { today, week, month, year }
 
-/// The Transactions card filter.
-enum TxnFilter { all, moneyIn, moneyOut }
+/// The Transactions card filter. [top10] is the ten largest money-in
+/// entries of the period, biggest first.
+enum TxnFilter { all, moneyIn, moneyOut, top10 }
 
 /// A half-open date range [start, end).
 class DateSpan {

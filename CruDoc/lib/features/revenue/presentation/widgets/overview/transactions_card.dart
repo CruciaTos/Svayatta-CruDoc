@@ -35,6 +35,7 @@ class TransactionsCard extends StatelessWidget {
     TxnFilter.all => 'No transactions in this period',
     TxnFilter.moneyIn => 'No money in during this period',
     TxnFilter.moneyOut => 'No money out during this period',
+    TxnFilter.top10 => 'No money in during this period',
   };
 
   @override
@@ -80,6 +81,7 @@ class TransactionsCard extends StatelessWidget {
                     CruSegment(TxnFilter.all, 'All'),
                     CruSegment(TxnFilter.moneyIn, 'Money in'),
                     CruSegment(TxnFilter.moneyOut, 'Money out'),
+                    CruSegment(TxnFilter.top10, 'Top 10'),
                   ],
                   selected: filter,
                   onChanged: onFilter,

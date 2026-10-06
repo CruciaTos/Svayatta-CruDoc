@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/inventory/data/models/medicine_mo
 import 'package:doctor_management_app/features/inventory/data/repo/inventory_repository.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_receipt_sync.dart';
 import 'package:doctor_management_app/features/inventory/data/services/ocr_service.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 
 /// Shows the Add/Edit Medicine dialog. Pass [medicine] to edit an existing
 /// one; omit it to create a new medicine.
@@ -18,11 +19,15 @@ Future<void> showAddEditMedicineForm(
   MedicineModel? medicine,
   InventoryRepository? repository,
 }) {
+  final surface = Theme.of(context).extension<CruColors>()?.surface ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening.surface
+          : CruColors.day.surface);
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    backgroundColor: AppColors.cardSurface,
+    backgroundColor: surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
@@ -44,6 +49,12 @@ class AddEditMedicineForm extends StatefulWidget {
 }
 
 class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
+
   final _formKey = GlobalKey<FormState>();
   late final InventoryRepository _repository =
       widget.repository ?? InventoryRepository();
@@ -250,15 +261,16 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
         const SizedBox(height: 4),
         Text(
           'Attach a receipt photo — OCR will auto-fill the form below',
-          style: AppColors.bodyMedium.copyWith(
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: _c.label2,
           ),
         ),
         const SizedBox(height: 8),
         if (_receiptImage == null)
           Material(
-            color: Colors.white,
+            color: _c.inset,
             borderRadius: BorderRadius.circular(16),
             child: InkWell(
               onTap: _showReceiptSourcePicker,
@@ -272,7 +284,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.chartBarDim.withValues(alpha: 0.45),
+                    color: _c.separator,
                     width: 1.5,
                   ),
                 ),
@@ -281,21 +293,24 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                     Icon(
                       Icons.receipt_long_outlined,
                       size: 36,
-                      color: AppColors.chartBarLight.withValues(alpha: 0.85),
+                      color: _c.accent,
                     ),
                     const SizedBox(height: 10),
                     Text(
                       'Tap to attach receipt',
-                      style: AppColors.bodyMedium.copyWith(
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
                         fontWeight: FontWeight.w600,
+                        color: _c.label,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       'Camera or gallery',
-                      style: AppColors.bodyMedium.copyWith(
+                      style: TextStyle(
+                        fontFamily: AppColors.bodyFontFamily,
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: _c.label2,
                       ),
                     ),
                   ],
@@ -307,8 +322,9 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
           Container(
             width: double.infinity,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _c.inset,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _c.separator),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -433,9 +449,10 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
         const SizedBox(height: 4),
         Text(
           'Upload a custom image for this item card',
-          style: AppColors.bodyMedium.copyWith(
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
             fontSize: 12,
-            color: AppColors.textSecondary,
+            color: _c.label2,
           ),
         ),
         const SizedBox(height: 8),
@@ -445,9 +462,9 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
             width: double.infinity,
             height: 100,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: _c.inset,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: _c.separator),
             ),
             child: _imageUrl != null && _imageUrl!.isNotEmpty
                 ? Stack(
@@ -499,14 +516,15 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                       Icon(
                         Icons.add_photo_alternate_outlined,
                         size: 24,
-                        color: AppColors.chartBarLight.withValues(alpha: 0.8),
+                        color: _c.accent,
                       ),
                       const SizedBox(width: 8),
                       Text(
                         'Upload custom item photo',
-                        style: AppColors.bodyMedium.copyWith(
+                        style: TextStyle(
+                          fontFamily: AppColors.bodyFontFamily,
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: _c.label2,
                         ),
                       ),
                     ],
@@ -602,41 +620,60 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
   InputDecoration _decoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(
+      hintStyle: TextStyle(
         fontFamily: AppColors.bodyFontFamily,
-        color: AppColors.textSecondary,
+        color: _c.label2,
       ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: _c.inset,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: _c.separator),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: _c.separator),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: _c.accent, width: 1.5),
       ),
     );
   }
 
   Widget _label(String text) => Text(
     text,
-    style: const TextStyle(
+    style: TextStyle(
       fontFamily: AppColors.bodyFontFamily,
       fontSize: 13,
       fontWeight: FontWeight.w600,
-      color: AppColors.textPrimary,
+      color: _c.label,
     ),
   );
 
   @override
   Widget build(BuildContext context) {
+    final fieldStyle = TextStyle(
+      fontFamily: AppColors.bodyFontFamily,
+      fontSize: 14,
+      color: _c.label,
+    );
+
     return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: _c.surface,
       titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       title: Text(
         _isEditing ? 'Edit Medicine' : 'Add Medicine',
-        style: AppColors.sectionHeading.copyWith(fontSize: 20),
+        style: TextStyle(
+          fontFamily: AppColors.bodyFontFamily,
+          fontSize: 20,
+          fontWeight: FontWeight.w700,
+          color: _c.label,
+        ),
       ),
       content: SizedBox(
         width: 360,
@@ -655,7 +692,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                 TextFormField(
                   controller: _nameController,
                   enabled: !_isSaving,
-                  style: AppColors.bodyMedium,
+                  style: fieldStyle,
                   decoration: _decoration('e.g. Amoxicillin 500mg'),
                   validator: (v) =>
                       (v == null || v.trim().isEmpty) ? 'Required' : null,
@@ -672,7 +709,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                           TextFormField(
                             controller: _categoryController,
                             enabled: !_isSaving,
-                            style: AppColors.bodyMedium,
+                            style: fieldStyle,
                             decoration: _decoration('Antibiotic'),
                           ),
                         ],
@@ -688,7 +725,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                           TextFormField(
                             controller: _unitController,
                             enabled: !_isSaving,
-                            style: AppColors.bodyMedium,
+                            style: fieldStyle,
                             decoration: _decoration('tablet, vial...'),
                             validator: (v) => (v == null || v.trim().isEmpty)
                                 ? 'Required'
@@ -712,7 +749,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                             controller: _stockController,
                             enabled: !_isSaving,
                             keyboardType: TextInputType.number,
-                            style: AppColors.bodyMedium,
+                            style: fieldStyle,
                             decoration: _decoration('0'),
                             validator: (v) =>
                                 int.tryParse(v?.trim() ?? '') == null
@@ -733,7 +770,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                             controller: _thresholdController,
                             enabled: !_isSaving,
                             keyboardType: TextInputType.number,
-                            style: AppColors.bodyMedium,
+                            style: fieldStyle,
                             decoration: _decoration('10'),
                             validator: (v) {
                               final n = int.tryParse(v?.trim() ?? '');
@@ -756,7 +793,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  style: AppColors.bodyMedium,
+                  style: fieldStyle,
                   decoration: _decoration('₹0.00'),
                   validator: (v) {
                     final trimmed = v?.trim() ?? '';
@@ -772,7 +809,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                 TextFormField(
                   controller: _supplierController,
                   enabled: !_isSaving,
-                  style: AppColors.bodyMedium,
+                  style: fieldStyle,
                   decoration: _decoration('Supplier name'),
                 ),
                 const SizedBox(height: 14),
@@ -781,7 +818,7 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                 TextFormField(
                   controller: _batchController,
                   enabled: !_isSaving,
-                  style: AppColors.bodyMedium,
+                  style: fieldStyle,
                   decoration: _decoration('Batch / lot number'),
                 ),
                 const SizedBox(height: 14),
@@ -799,10 +836,12 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                             _expiryDate == null
                                 ? 'Select a date'
                                 : '${_expiryDate!.day}/${_expiryDate!.month}/${_expiryDate!.year}',
-                            style: AppColors.bodyMedium.copyWith(
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              fontSize: 14,
                               color: _expiryDate == null
-                                  ? AppColors.textSecondary
-                                  : AppColors.textPrimary,
+                                  ? _c.label2
+                                  : _c.label,
                             ),
                           ),
                         ),
@@ -811,10 +850,10 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
                             onTap: _isSaving
                                 ? null
                                 : () => setState(() => _expiryDate = null),
-                            child: const Icon(
+                            child: Icon(
                               Icons.close,
                               size: 18,
-                              color: AppColors.silver,
+                              color: _c.label2,
                             ),
                           ),
                       ],
@@ -852,11 +891,11 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
       actions: [
         TextButton(
           onPressed: _isSaving ? null : () => Navigator.pop(context),
-          child: const Text(
+          child: Text(
             'Cancel',
             style: TextStyle(
               fontFamily: AppColors.bodyFontFamily,
-              color: AppColors.slateBlue,
+              color: _c.label2,
             ),
           ),
         ),
@@ -864,19 +903,19 @@ class _AddEditMedicineFormState extends State<AddEditMedicineForm> {
           onPressed: _isSaving ? null : _handleSubmit,
           style: FilledButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-            backgroundColor: AppColors.chartBarLight,
-            foregroundColor: Colors.white,
+            backgroundColor: _c.accent,
+            foregroundColor: _c.onAccent,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
             ),
           ),
           child: _isSaving
-              ? const SizedBox(
+              ? SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    color: Colors.white,
+                    color: _c.onAccent,
                   ),
                 )
               : const Text(

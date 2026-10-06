@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/visit_providers.dart';
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
@@ -34,6 +35,12 @@ class DentalProcedureLogSheet extends ConsumerStatefulWidget {
 
 class _DentalProcedureLogSheetState
     extends ConsumerState<DentalProcedureLogSheet> {
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
+
   final TextEditingController _procedureNameController =
       TextEditingController();
   final TextEditingController _notesController = TextEditingController();
@@ -192,9 +199,9 @@ class _DentalProcedureLogSheetState
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: _c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -204,23 +211,23 @@ class _DentalProcedureLogSheetState
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Log Dental Procedure',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: _c.label,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: _c.label2),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1),
+            Divider(height: 1, color: _c.separator),
 
             // Scrollable Form
             Expanded(
@@ -234,12 +241,12 @@ class _DentalProcedureLogSheetState
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Quick Pick from Catalog',
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: Color(0xFF64748B),
+                              color: _c.label2,
                             ),
                           ),
                           const SizedBox(height: 6),
@@ -249,22 +256,25 @@ class _DentalProcedureLogSheetState
                               scrollDirection: Axis.horizontal,
                               itemCount: catalog.length,
                               separatorBuilder: (context, sepIndex) =>
-                                  const SizedBox(width: 8),
+                                   const SizedBox(width: 8),
                               itemBuilder: (context, i) {
                                 final item = catalog[i];
                                 final isSelected =
                                     _selectedCatalogId == item.id;
                                 return ActionChip(
                                   backgroundColor: isSelected
-                                      ? const Color(0xFFCCFBF1)
-                                      : const Color(0xFFF1F5F9),
+                                      ? _c.accent.withValues(alpha: 0.15)
+                                      : _c.inset,
+                                  side: BorderSide(
+                                    color: isSelected ? _c.accent : _c.separator,
+                                  ),
                                   label: Text(
                                     item.name,
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: isSelected
-                                          ? _accentTeal
-                                          : const Color(0xFF334155),
+                                          ? _c.accent
+                                          : _c.label,
                                       fontWeight: isSelected
                                           ? FontWeight.w700
                                           : FontWeight.w500,
@@ -690,7 +700,8 @@ class _DentalProcedureLogSheetState
               padding: const EdgeInsets.all(16),
               child: FilledButton(
                 style: FilledButton.styleFrom(
-                  backgroundColor: _accentTeal,
+                  backgroundColor: _c.accent,
+                  foregroundColor: _c.onAccent,
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),

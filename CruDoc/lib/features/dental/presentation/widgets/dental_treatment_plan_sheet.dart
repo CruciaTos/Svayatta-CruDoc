@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/data/services/invoice_local_service.dart';
 import '../../data/models/treatment_plan_line_item_model.dart';
@@ -31,6 +32,12 @@ class DentalTreatmentPlanSheet extends ConsumerStatefulWidget {
 
 class _DentalTreatmentPlanSheetState
     extends ConsumerState<DentalTreatmentPlanSheet> {
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
+
   String get _currentDoctorId =>
       FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';
 
@@ -340,9 +347,9 @@ class _DentalTreatmentPlanSheetState
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.85,
         ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        decoration: BoxDecoration(
+          color: _c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: Column(
           children: [
@@ -355,70 +362,74 @@ class _DentalTreatmentPlanSheetState
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Treatment Plan & Quote',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
+                          color: _c.label,
                         ),
                       ),
                       Text(
                         widget.patientName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF64748B),
+                          color: _c.label2,
                         ),
                       ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(Icons.close, color: _c.label2),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1),
+            Divider(height: 1, color: _c.separator),
 
             // Item List
             Expanded(
               child: itemsAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => Center(
+                  child: CircularProgressIndicator(color: _c.accent),
+                ),
                 error: (err, _) =>
-                    Center(child: Text('Error loading treatment plan: $err')),
+                    Center(child: Text('Error loading treatment plan: $err', style: TextStyle(color: _c.label))),
                 data: (items) {
                   if (items.isEmpty) {
                     return Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.request_quote_outlined,
                             size: 48,
-                            color: Color(0xFF94A3B8),
+                            color: _c.label3,
                           ),
                           const SizedBox(height: 12),
-                          const Text(
+                          Text(
                             'No treatment plan items yet',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
+                              color: _c.label,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          const Text(
+                          Text(
                             'Add proposed procedures to build a treatment quote.',
                             style: TextStyle(
                               fontSize: 12,
-                              color: Color(0xFF64748B),
+                              color: _c.label2,
                             ),
                           ),
                           const SizedBox(height: 16),
                           FilledButton.icon(
                             style: FilledButton.styleFrom(
-                              backgroundColor: _accentTeal,
+                              backgroundColor: _c.accent,
+                              foregroundColor: _c.onAccent,
                             ),
                             icon: const Icon(Icons.add),
                             label: const Text('Add Procedure Item'),
@@ -446,7 +457,7 @@ class _DentalTreatmentPlanSheetState
                           ),
                           itemCount: items.length,
                           separatorBuilder: (context, sepIndex) =>
-                              const Divider(height: 1),
+                              Divider(height: 1, color: _c.separator),
                           itemBuilder: (context, idx) {
                             final item = items[idx];
                             return ListTile(
@@ -465,17 +476,17 @@ class _DentalTreatmentPlanSheetState
                                             ? TextDecoration.lineThrough
                                             : null,
                                         color: item.status == 'declined'
-                                            ? Colors.grey
-                                            : const Color(0xFF0F172A),
+                                            ? _c.label3
+                                            : _c.label,
                                       ),
                                     ),
                                   ),
                                   Text(
                                     '₹${item.estimatedPrice.toStringAsFixed(0)}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontWeight: FontWeight.w700,
                                       fontSize: 14,
-                                      color: Color(0xFF0F172A),
+                                      color: _c.label,
                                     ),
                                   ),
                                 ],
@@ -485,16 +496,16 @@ class _DentalTreatmentPlanSheetState
                                   if (item.toothNumbers.isNotEmpty)
                                     Text(
                                       'Teeth: ${item.toothNumbers.join(", ")} • ',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontSize: 12,
-                                        color: Color(0xFF64748B),
+                                        color: _c.label2,
                                       ),
                                     ),
                                   _buildStatusBadge(item.status),
                                 ],
                               ),
                               trailing: PopupMenuButton<String>(
-                                icon: const Icon(Icons.more_vert, size: 20),
+                                icon: Icon(Icons.more_vert, size: 20, color: _c.label2),
                                 onSelected: (action) {
                                   if (action == 'edit') {
                                     _addItemDialog(existing: item);
@@ -540,9 +551,9 @@ class _DentalTreatmentPlanSheetState
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: _c.inset,
                           border: Border(
-                            top: BorderSide(color: Colors.grey.shade200),
+                            top: BorderSide(color: _c.separator),
                           ),
                         ),
                         child: Column(
@@ -550,19 +561,20 @@ class _DentalTreatmentPlanSheetState
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Estimated Quote Total:',
                                   style: TextStyle(
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
+                                    color: _c.label,
                                   ),
                                 ),
                                 Text(
                                   '₹${totalProposedOrAccepted.toStringAsFixed(0)}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontWeight: FontWeight.w800,
                                     fontSize: 18,
-                                    color: _accentTeal,
+                                    color: _c.accent,
                                   ),
                                 ),
                               ],
@@ -572,6 +584,10 @@ class _DentalTreatmentPlanSheetState
                               children: [
                                 Expanded(
                                   child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      side: BorderSide(color: _c.separator),
+                                      foregroundColor: _c.label,
+                                    ),
                                     icon: const Icon(Icons.add, size: 16),
                                     label: const Text('Add Item'),
                                     onPressed: () => _addItemDialog(),
@@ -581,7 +597,8 @@ class _DentalTreatmentPlanSheetState
                                 Expanded(
                                   child: FilledButton.icon(
                                     style: FilledButton.styleFrom(
-                                      backgroundColor: _accentTeal,
+                                      backgroundColor: _c.accent,
+                                      foregroundColor: _c.onAccent,
                                     ),
                                     icon: const Icon(
                                       Icons.receipt_long,

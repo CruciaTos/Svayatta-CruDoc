@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -29,7 +30,7 @@ Future<bool> showScribeFlow(
     useSafeArea: true,
     // Drag-to-dismiss would bypass the "discard recording?" check.
     enableDrag: false,
-    backgroundColor: AppColors.cardSurface,
+    backgroundColor: context.cru.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
@@ -67,7 +68,7 @@ class ScribeRecordingSheet extends ConsumerStatefulWidget {
 }
 
 class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
-  static final _palette = ScribePalette.mobileSheet;
+  ScribePalette get _palette => ScribePalette.of(context);
 
   late final ScribeSessionController _session;
   bool _closed = false;
@@ -194,6 +195,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
   };
 
   Widget _buildHeader() {
+    final c = context.cru;
     final patientName = widget.patient?.fullName ?? 'Unknown patient';
     final when = DateFormat(
       'd MMM, h:mm a',
@@ -219,12 +221,17 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
                 style: AppColors.sectionHeading.copyWith(
                   fontSize: 20,
                   fontWeight: FontWeight.w600,
+                  color: c.label,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 '$patientName · $when',
-                style: AppColors.bodySmall,
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: c.label2,
+                  fontSize: 12,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -233,7 +240,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
         ),
         IconButton(
           tooltip: 'Close',
-          icon: const Icon(Icons.close_rounded, color: AppColors.textSecondary),
+          icon: Icon(Icons.close_rounded, color: c.label2),
           onPressed: _requestClose,
         ),
       ],
@@ -273,6 +280,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
   }
 
   Widget _buildReady() {
+    final c = context.cru;
     final pending = _session.pendingDraft;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -314,7 +322,7 @@ class _ScribeRecordingSheetState extends ConsumerState<ScribeRecordingSheet> {
         TextButton(
           onPressed: _session.startManualNote,
           style: TextButton.styleFrom(
-            foregroundColor: AppColors.textSecondary,
+            foregroundColor: c.label2,
             textStyle: const TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,

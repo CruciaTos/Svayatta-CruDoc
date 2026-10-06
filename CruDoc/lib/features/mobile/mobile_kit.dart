@@ -243,25 +243,16 @@ enum MobileTone { blue, sky, indigo, teal, green, amber, violet, slate }
   };
 }
 
-/// Quick-action tile gradients (top-left, bottom-right) by position:
-/// the first row of four in shades of blue, the second in shades of pink.
+/// Quick-action tile gradients (top-left, bottom-right):
+/// All tiles match the Payment button theme: deep royal blue gradient.
 /// The glyph on them is white. Same in Day and Evening.
-const List<(Color, Color)> _quickActionBlues = [
-  (Color(0xFF7DD3FC), Color(0xFF0EA5E9)),
-  (Color(0xFF60A5FA), Color(0xFF2563EB)),
-  (Color(0xFF3B82F6), Color(0xFF1D4ED8)),
-  (Color(0xFF2563EB), Color(0xFF1E3A8A)),
-];
-const List<(Color, Color)> _quickActionPinks = [
-  (Color(0xFFFBCFE8), Color(0xFFF472B6)),
-  (Color(0xFFF9A8D4), Color(0xFFEC4899)),
-  (Color(0xFFF472B6), Color(0xFFDB2777)),
-  (Color(0xFFEC4899), Color(0xFF9D174D)),
-];
+const (Color, Color) _paymentQuickActionGradient = (
+  Color(0xFF2563EB),
+  Color(0xFF1E3A8A),
+);
 
 (Color, Color) mobileQuickActionGradient(int index) {
-  final row = index < 4 ? _quickActionBlues : _quickActionPinks;
-  return row[index % 4];
+  return _paymentQuickActionGradient;
 }
 
 /// Icon fills: one blue family everywhere (lavender circle, blue glyph),
@@ -334,6 +325,8 @@ class MobileHeader extends StatelessWidget {
   const MobileHeader({
     super.key,
     required this.title,
+    this.titleTrailing,
+    this.onTitleTap,
     this.overline,
     this.subtitle,
     this.trailing,
@@ -341,6 +334,8 @@ class MobileHeader extends StatelessWidget {
   });
 
   final String title;
+  final Widget? titleTrailing;
+  final VoidCallback? onTitleTap;
   final String? overline;
   final String? subtitle;
   final Widget? trailing;
@@ -370,11 +365,26 @@ class MobileHeader extends StatelessWidget {
                   Text(overline!, style: MobileType.dateLine.tint(soft)),
                   const SizedBox(height: CruSpace.s2),
                 ],
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: MobileType.largeTitle.tint(ink),
+                GestureDetector(
+                  onTap: onTitleTap,
+                  behavior: HitTestBehavior.opaque,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: MobileType.largeTitle.tint(ink),
+                        ),
+                      ),
+                      if (titleTrailing != null) ...[
+                        const SizedBox(width: CruSpace.s8),
+                        titleTrailing!,
+                      ],
+                    ],
+                  ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: CruSpace.s2),

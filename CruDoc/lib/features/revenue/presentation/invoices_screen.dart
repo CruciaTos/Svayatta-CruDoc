@@ -105,7 +105,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -178,7 +178,7 @@ class _InvoicesScreenState extends State<InvoicesScreen> {
     }
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -1270,9 +1270,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
     final dateFormat = DateFormat('dd/MM/yyyy');
 
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -1366,9 +1366,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: c.inset,
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: c.separator),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1385,27 +1385,27 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: c.surface,
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
-                                        color: const Color(0xFFCBD5E1),
+                                        color: c.separator,
                                       ),
                                     ),
                                     child: Row(
                                       children: [
                                         Text(
                                           dateFormat.format(_selectedDate),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
-                                            color: Color(0xFF0F172A),
+                                            color: c.label,
                                           ),
                                         ),
                                         const Spacer(),
-                                        const Icon(
+                                        Icon(
                                           Icons.calendar_today_outlined,
                                           size: 16,
-                                          color: Color(0xFF64748B),
+                                          color: c.label2,
                                         ),
                                       ],
                                     ),
@@ -1422,27 +1422,27 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                       vertical: 10,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: Colors.white,
+                                      color: c.surface,
                                       borderRadius: BorderRadius.circular(10),
                                       border: Border.all(
-                                        color: const Color(0xFFCBD5E1),
+                                        color: c.separator,
                                       ),
                                     ),
                                     child: Row(
                                       children: [
                                         Text(
                                           _selectedTime.format(context),
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w600,
-                                            color: Color(0xFF0F172A),
+                                            color: c.label,
                                           ),
                                         ),
                                         const Spacer(),
-                                        const Icon(
+                                        Icon(
                                           Icons.access_time,
                                           size: 16,
-                                          color: Color(0xFF64748B),
+                                          color: c.label2,
                                         ),
                                       ],
                                     ),
@@ -1457,10 +1457,10 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                           // Doctor Label
                           Text(
                             'Doctor: $_doctorName',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF334155),
+                              color: c.label,
                             ),
                           ),
 
@@ -1538,10 +1538,10 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                         maxHeight: 180,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: Colors.white,
+                                        color: c.surface,
                                         borderRadius: BorderRadius.circular(12),
                                         border: Border.all(
-                                          color: const Color(0xFFCBD5E1),
+                                          color: c.separator,
                                         ),
                                         boxShadow: const [],
                                       ),
@@ -1551,8 +1551,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                             ? 5
                                             : suggestions.length,
                                         separatorBuilder: (_, _) =>
-                                            const Divider(
+                                            Divider(
                                               height: 1,
+                                              color: c.separator,
                                             ),
                                         itemBuilder: (context, index) {
                                           final p = suggestions[index];
@@ -1610,34 +1611,27 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                                       children: [
                                                         Text(
                                                           p.fullName,
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 13,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .w700,
-                                                                color: Color(
-                                                                  0xFF0F172A,
-                                                                ),
-                                                              ),
+                                                          style: TextStyle(
+                                                            fontSize: 13,
+                                                            fontWeight:
+                                                                FontWeight.w700,
+                                                            color: c.label,
+                                                          ),
                                                         ),
                                                         Text(
                                                           '${p.gender} • ${p.phone.isEmpty ? "No phone" : p.phone}',
-                                                          style:
-                                                              const TextStyle(
-                                                                fontSize: 11,
-                                                                color: Color(
-                                                                  0xFF64748B,
-                                                                ),
-                                                              ),
+                                                          style: TextStyle(
+                                                            fontSize: 11,
+                                                            color: c.label2,
+                                                          ),
                                                         ),
                                                       ],
                                                     ),
                                                   ),
-                                                  const Icon(
+                                                  Icon(
                                                     Icons.north_west_rounded,
                                                     size: 14,
-                                                    color: Color(0xFF94A3B8),
+                                                    color: c.label3,
                                                   ),
                                                 ],
                                               ),
@@ -1660,9 +1654,9 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                     // Clinical Notes Card
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: c.inset,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: c.separator),
                       ),
                       child: Column(
                         children: [
@@ -1680,12 +1674,12 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                               ),
                               child: Row(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Clinical Notes:',
                                     style: TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w700,
-                                      color: Color(0xFF0F172A),
+                                      color: c.label,
                                     ),
                                   ),
                                   const Spacer(),
@@ -1694,7 +1688,7 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                         ? Icons.remove
                                         : Icons.add,
                                     size: 20,
-                                    color: const Color(0xFF334155),
+                                    color: c.label2,
                                   ),
                                 ],
                               ),
@@ -1723,19 +1717,19 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: c.inset,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: c.separator),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Treatment:',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
+                              color: c.label,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -1794,16 +1788,18 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFEFF6FF),
+                                    color: c.surface,
                                     borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: c.separator),
                                   ),
                                   child: Row(
                                     children: [
                                       Text(
                                         item.name,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
+                                          color: c.label,
                                         ),
                                       ),
                                       const Spacer(),
@@ -1845,19 +1841,19 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: c.inset,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: c.separator),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Medicine:',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF0F172A),
+                              color: c.label,
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -1928,24 +1924,26 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                                     vertical: 6,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFF0FDF4),
+                                    color: c.surface,
                                     borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: c.separator),
                                   ),
                                   child: Row(
                                     children: [
                                       Text(
                                         item.name,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
+                                          color: c.label,
                                         ),
                                       ),
                                       if (item.dosage.isNotEmpty)
                                         Text(
                                           ' (${item.dosage})',
-                                          style: const TextStyle(
+                                          style: TextStyle(
                                             fontSize: 11,
-                                            color: Color(0xFF64748B),
+                                            color: c.label2,
                                           ),
                                         ),
                                       const Spacer(),
@@ -1989,21 +1987,21 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                         vertical: 12,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFEFF6FF),
+                        color: c.accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: primaryBlue.withValues(alpha: 0.3),
+                          color: c.accent.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Calculated Total Amount:',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w700,
-                              color: Color(0xFF1E3A8A),
+                              color: c.label,
                             ),
                           ),
                           Text(
@@ -2043,7 +2041,7 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
                                   vertical: 14,
-                                ),
+                                 ),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
@@ -2083,10 +2081,10 @@ class _CreateInvoiceSheetState extends State<_CreateInvoiceSheet> {
                         const SizedBox(height: 8),
                         TextButton(
                           onPressed: () => Navigator.pop(context),
-                          child: const Text(
+                          child: Text(
                             'Cancel',
                             style: TextStyle(
-                              color: Color(0xFF64748B),
+                              color: c.label2,
                               fontWeight: FontWeight.w600,
                               fontSize: 13,
                             ),
@@ -2118,6 +2116,7 @@ class _InvoiceDetailsSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final dateFormat = DateFormat('MMM dd, yyyy');
 
     return Padding(
@@ -2131,10 +2130,10 @@ class _InvoiceDetailsSheet extends StatelessWidget {
             children: [
               Text(
                 invoice.id,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
+                  color: c.label,
                 ),
               ),
               IconButton(
@@ -2143,16 +2142,16 @@ class _InvoiceDetailsSheet extends StatelessWidget {
               ),
             ],
           ),
-          const Divider(),
+          Divider(color: c.separator),
           const SizedBox(height: 8),
-          _detailRow('Patient Name', invoice.patientName),
-          _detailRow('Service / Description', invoice.service),
-          _detailRow('Amount Charged', '₹${invoice.amount.toInt()}'),
-          _detailRow('Date Created', dateFormat.format(invoice.date)),
+          _detailRow(c, 'Patient Name', invoice.patientName),
+          _detailRow(c, 'Service / Description', invoice.service),
+          _detailRow(c, 'Amount Charged', '₹${invoice.amount.toInt()}'),
+          _detailRow(c, 'Date Created', dateFormat.format(invoice.date)),
           if (invoice.dueDate != null)
-            _detailRow('Due Date', dateFormat.format(invoice.dueDate!)),
-          _detailRow('Current Status', invoice.status),
-          if (invoice.notes.isNotEmpty) _detailRow('Notes', invoice.notes),
+            _detailRow(c, 'Due Date', dateFormat.format(invoice.dueDate!)),
+          _detailRow(c, 'Current Status', invoice.status),
+          if (invoice.notes.isNotEmpty) _detailRow(c, 'Notes', invoice.notes),
           const SizedBox(height: 20),
           if (!invoice.isPaid)
             SizedBox(
@@ -2175,7 +2174,7 @@ class _InvoiceDetailsSheet extends StatelessWidget {
     );
   }
 
-  Widget _detailRow(String title, String value) {
+  Widget _detailRow(CruColors c, String title, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
@@ -2183,14 +2182,14 @@ class _InvoiceDetailsSheet extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 13, color: c.label2),
           ),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF0F172A),
+              color: c.label,
             ),
           ),
         ],

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/chatbot/services/voice_transcription_service.dart';
 
@@ -211,13 +212,14 @@ class _VoiceInputModalState extends State<VoiceInputModal>
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Container(
       padding: EdgeInsets.fromLTRB(20, 16, 20, 20 + bottomInset),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
         boxShadow: const [],
       ),
       child: Column(
@@ -228,7 +230,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
             width: 42,
             height: 4,
             decoration: BoxDecoration(
-              color: const Color(0xFFCBD5E1),
+              color: c.track,
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -243,14 +245,14 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF),
+                      color: c.inset,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       Icons.mic_rounded,
                       color: _isListening
                           ? const Color(0xFF1E78FF)
-                          : AppColors.slateBlue,
+                          : c.label2,
                       size: 20,
                     ),
                   ),
@@ -263,11 +265,11 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                               : (_textController.text.isNotEmpty
                                     ? 'Query Ready'
                                     : 'Voice Dictation')),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontFamily: AppColors.headingFontFamily,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: c.label,
                     ),
                   ),
                 ],
@@ -355,12 +357,12 @@ class _VoiceInputModalState extends State<VoiceInputModal>
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Speak your question naturally • Tap stop when finished',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 12,
-                color: AppColors.textSecondary,
+                color: c.label2,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -399,22 +401,22 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                     ),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Transcribing voice with Gemini AI...',
                     style: TextStyle(
                       fontFamily: AppColors.headingFontFamily,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textPrimary,
+                      color: c.label,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Converting your clinical voice query to text',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: c.label2,
                     ),
                   ),
                 ],
@@ -469,24 +471,28 @@ class _VoiceInputModalState extends State<VoiceInputModal>
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
+                color: c.inset,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
+                border: Border.all(color: c.separator),
               ),
               child: TextField(
                 controller: _textController,
                 maxLines: 3,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   filled: false,
-                  contentPadding: EdgeInsets.symmetric(vertical: 8),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 8),
                   border: InputBorder.none,
                   hintText: 'Edit or type your query...',
+                  hintStyle: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: c.label3,
+                  ),
                 ),
               ),
             ),
@@ -527,7 +533,7 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade600,
+                  color: c.label2,
                 ),
               ),
             ),
@@ -546,15 +552,15 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                       ),
                       label: Text(
                         suggestion,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: AppColors.bodyFontFamily,
                           fontSize: 12,
-                          color: AppColors.textPrimary,
+                          color: c.label,
                         ),
                       ),
-                      backgroundColor: const Color(0xFFEFF6FF),
+                      backgroundColor: c.inset,
                       side: BorderSide(
-                        color: AppColors.chartBarLight.withValues(alpha: 0.25),
+                        color: c.separator,
                       ),
                       onPressed: () {
                         setState(() {
@@ -581,13 +587,13 @@ class _VoiceInputModalState extends State<VoiceInputModal>
                       borderRadius: BorderRadius.circular(16),
                     ),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                      color: c.label2,
                     ),
                   ),
                 ),

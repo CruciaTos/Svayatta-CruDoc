@@ -817,15 +817,15 @@ class _QuickActions extends ConsumerWidget {
   }
 }
 
-/// One quick action, payments-app style: a rounded square in a bright
-/// gradient (blue on the first row, pink on the second) with a white glyph, its label underneath straight on
+/// One quick action: a rounded square in the unified payment button
+/// gradient (royal blue) with a white glyph, its label underneath straight on
 /// the background.
 class _ActionTile extends ConsumerWidget {
   const _ActionTile({required this.action, required this.index});
 
   final _Action action;
 
-  /// Position in the grid: the first row is blue, the second pink.
+  /// Position in the grid.
   final int index;
 
   @override

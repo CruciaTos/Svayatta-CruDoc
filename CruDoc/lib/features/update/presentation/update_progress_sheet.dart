@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/update/models/app_release.dart';
 import 'package:doctor_management_app/core/update/models/update_progress.dart';
@@ -23,7 +24,7 @@ Future<void> showUpdateProgressSheet(BuildContext context, AppRelease release) {
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    backgroundColor: AppColors.cardSurface,
+    backgroundColor: context.cru.surface,
     builder: (_) => UpdateProgressSheet(release: release),
   );
 }
@@ -54,6 +55,7 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final progress = ref.watch(updateProgressProvider);
     final state = progress?.state ?? UpdateProgressState.idle;
     final canDismiss =
@@ -79,7 +81,7 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppColors.divider,
+                      color: c.track,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -87,10 +89,20 @@ class _UpdateProgressSheetState extends ConsumerState<UpdateProgressSheet> {
                 const SizedBox(height: 20),
                 Text(
                   'Version ${widget.release.version}',
-                  style: AppColors.sectionHeading.copyWith(fontSize: 18),
+                  style: AppColors.sectionHeading.copyWith(
+                    fontSize: 18,
+                    color: c.label,
+                  ),
                 ),
                 const SizedBox(height: 4),
-                Text(_labelFor(state), style: AppColors.bodyMedium),
+                Text(
+                  _labelFor(state),
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: c.label2,
+                    fontSize: 14,
+                  ),
+                ),
                 const SizedBox(height: 20),
                 switch (state) {
                   UpdateProgressState.downloading => _DownloadingBody(
@@ -135,6 +147,7 @@ class _DownloadingBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final downloaded = progress?.bytesDownloaded ?? 0;
     final total = progress?.totalBytes ?? 0;
     final percent = _clamp01(progress?.percent ?? 0.0);
@@ -147,8 +160,8 @@ class _DownloadingBody extends StatelessWidget {
           child: LinearProgressIndicator(
             value: total > 0 ? percent : null,
             minHeight: 8,
-            backgroundColor: AppColors.divider,
-            valueColor: const AlwaysStoppedAnimation(AppColors.chartBarLight),
+            backgroundColor: c.separator,
+            valueColor: AlwaysStoppedAnimation(c.accent),
           ),
         ),
         const SizedBox(height: 8),
@@ -157,7 +170,11 @@ class _DownloadingBody extends StatelessWidget {
               ? '${_formatBytes(downloaded)} of ${_formatBytes(total)} · '
                     '${(percent * 100).toStringAsFixed(0)}%'
               : _formatBytes(downloaded),
-          style: AppColors.bodySmall,
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: c.label2,
+            fontSize: 12,
+          ),
         ),
       ],
     );
@@ -171,18 +188,26 @@ class _SpinnerRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Row(
       children: [
-        const SizedBox(
+        SizedBox(
           width: 18,
           height: 18,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: AppColors.chartBarLight,
+            color: c.accent,
           ),
         ),
         const SizedBox(width: 12),
-        Text(label, style: AppColors.bodyMedium),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            color: c.label,
+            fontSize: 14,
+          ),
+        ),
       ],
     );
   }
@@ -195,6 +220,7 @@ class _FailedBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -203,11 +229,15 @@ class _FailedBody extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
             const SizedBox(width: 8),
-            const Expanded(
+            Expanded(
               child: Text(
                 'Something went wrong. You can try again, or check for '
                 'updates later from Profile.',
-                style: AppColors.bodySmall,
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: c.label2,
+                  fontSize: 12,
+                ),
               ),
             ),
           ],
@@ -218,8 +248,8 @@ class _FailedBody extends StatelessWidget {
           child: FilledButton(
             onPressed: onRetry,
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.chartBarLight,
-              foregroundColor: Colors.white,
+              backgroundColor: c.accent,
+              foregroundColor: c.onAccent,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),

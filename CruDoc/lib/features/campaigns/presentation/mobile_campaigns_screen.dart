@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -689,13 +690,14 @@ class _RecipientLogsModalContentState
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final campaign = widget.campaign;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.86,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -705,9 +707,9 @@ class _RecipientLogsModalContentState
               width: 40,
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 12),
-              decoration: BoxDecoration(
-                color: AppColors.silver.withValues(alpha: 0.6),
-                borderRadius: BorderRadius.circular(999),
+              decoration: ShapeDecoration(
+                color: c.track,
+                shape: cruShape(CruRadius.full),
               ),
             ),
           ),
@@ -723,11 +725,11 @@ class _RecipientLogsModalContentState
                     children: [
                       Text(
                         campaign.title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: AppColors.headingFontFamily,
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: c.label,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -735,10 +737,10 @@ class _RecipientLogsModalContentState
                       const SizedBox(height: 2),
                       Text(
                         '${campaign.totalRecipients} targeted • ${campaign.successRate.toStringAsFixed(0)}% delivered',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontFamily: AppColors.bodyFontFamily,
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: c.label2,
                         ),
                       ),
                     ],
@@ -746,9 +748,9 @@ class _RecipientLogsModalContentState
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close_rounded,
-                    color: AppColors.textSecondary,
+                    color: c.label2,
                     size: 22,
                   ),
                   padding: EdgeInsets.zero,
@@ -776,7 +778,7 @@ class _RecipientLogsModalContentState
             ),
           ),
           const SizedBox(height: 12),
-          const Divider(height: 1),
+          Divider(height: 1, color: c.separator),
 
           // Stream of Recipient Delivery Logs
           Expanded(
@@ -824,7 +826,7 @@ class _RecipientLogsModalContentState
                   physics: const BouncingScrollPhysics(),
                   itemCount: filteredLogs.length,
                   separatorBuilder: (_, __) =>
-                      const Divider(height: 1),
+                      Divider(height: 1, color: c.separator),
                   itemBuilder: (context, i) {
                     final log = filteredLogs[i];
                     return Padding(
@@ -913,7 +915,7 @@ class _RecipientLogsModalContentState
 
           // Bottom Retry Action (if any failures exist)
           if (campaign.totalFailed > 0) ...[
-            const Divider(height: 1),
+            Divider(height: 1, color: c.separator),
             Padding(
               padding: const EdgeInsets.all(16),
               child: SizedBox(
@@ -965,6 +967,7 @@ class _RecipientLogsModalContentState
   }
 
   Widget _buildFilterTab(String label, String value) {
+    final c = context.cru;
     final isSelected = _filter == value;
     return GestureDetector(
       onTap: () => setState(() => _filter = value),
@@ -972,11 +975,11 @@ class _RecipientLogsModalContentState
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppColors.chartBarLight.withValues(alpha: 0.12)
-              : AppColors.inputBackground,
+              ? c.accent.withValues(alpha: 0.15)
+              : c.inset,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? AppColors.chartBarLight : Colors.transparent,
+            color: isSelected ? c.accent : c.separator,
           ),
         ),
         child: Text(
@@ -985,9 +988,7 @@ class _RecipientLogsModalContentState
             fontFamily: AppColors.bodyFontFamily,
             fontSize: 11.5,
             fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-            color: isSelected
-                ? AppColors.chartBarLight
-                : AppColors.textSecondary,
+            color: isSelected ? c.accent : c.label2,
           ),
         ),
       ),

@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -59,13 +60,15 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
     String category = 'Dental Consumable';
     String unit = 'Cartridges';
 
+    final c = context.cru;
     final saved = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: const Text('Add Dental Consumable'),
+              backgroundColor: c.surface,
+              title: Text('Add Dental Consumable', style: TextStyle(color: c.label)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -220,13 +223,15 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
     final noteController = TextEditingController();
     bool isRestock = true;
 
+    final c = context.cru;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setDlgState) {
             return AlertDialog(
-              title: Text('Adjust ${med.name}'),
+              backgroundColor: c.surface,
+              title: Text('Adjust ${med.name}', style: TextStyle(color: c.label)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -316,12 +321,14 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
 
   Future<void> _showItemDetailsDialog(MedicineModel med) async {
     final repo = ref.read(inventoryRepositoryProvider);
+    final c = context.cru;
 
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return DraggableScrollableSheet(
@@ -332,9 +339,20 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
           builder: (context, scrollController) {
             return Column(
               children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    margin: const EdgeInsets.only(top: 12),
+                    decoration: ShapeDecoration(
+                      color: c.track,
+                      shape: cruShape(CruRadius.full),
+                    ),
+                  ),
+                ),
                 // Header
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 16, 8),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 16, 8),
                   child: Row(
                     children: [
                       Expanded(
@@ -343,30 +361,31 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                           children: [
                             Text(
                               med.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
+                                color: c.label,
                               ),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               '${med.category} • ${med.unit}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF64748B),
+                                color: c.label2,
                               ),
                             ),
                           ],
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: Icon(Icons.close, color: c.label2),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
+                Divider(height: 1, color: c.separator),
 
                 // Content
                 Expanded(
@@ -378,20 +397,20 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
+                          color: c.inset,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          border: Border.all(color: c.separator),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             Column(
                               children: [
-                                const Text(
+                                Text(
                                   'Current Stock',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFF64748B),
+                                    color: c.label2,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
@@ -401,8 +420,8 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                     color: med.isLowStock
-                                        ? Colors.red
-                                        : const Color(0xFF0F172A),
+                                        ? c.redText
+                                        : c.label,
                                   ),
                                 ),
                               ],
@@ -410,23 +429,24 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                             Container(
                               width: 1,
                               height: 32,
-                              color: const Color(0xFFE2E8F0),
+                              color: c.separator,
                             ),
                             Column(
                               children: [
-                                const Text(
+                                Text(
                                   'Min. Reorder',
                                   style: TextStyle(
                                     fontSize: 11,
-                                    color: Color(0xFF64748B),
+                                    color: c.label2,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
                                   '${med.reorderThreshold} ${med.unit}',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
+                                    color: c.label,
                                   ),
                                 ),
                               ],
@@ -435,23 +455,24 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
                               Container(
                                 width: 1,
                                 height: 32,
-                                color: const Color(0xFFE2E8F0),
+                                color: c.separator,
                               ),
                               Column(
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Unit Cost',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFF64748B),
+                                      color: c.label2,
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     '₹${med.unitPrice!.toStringAsFixed(0)}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
+                                      color: c.label,
                                     ),
                                   ),
                                 ],
@@ -463,30 +484,61 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Action button
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: _accentTeal,
-                          side: const BorderSide(color: _accentTeal),
-                          minimumSize: const Size.fromHeight(42),
+                      // Action button (Royal blue gradient)
+                      Container(
+                        width: double.infinity,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
                         ),
-                        icon: const Icon(Icons.tune, size: 18),
-                        label: const Text('Adjust Stock with Audit Note'),
-                        onPressed: () {
-                          Navigator.pop(ctx);
-                          _showCustomAdjustmentDialog(med);
-                        },
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              _showCustomAdjustmentDialog(med);
+                            },
+                            child: const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(Icons.tune, size: 18, color: Colors.white),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Adjust Stock with Audit Note',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 13.5,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                       ),
 
                       const SizedBox(height: 20),
 
                       // Transaction history
-                      const Text(
+                      Text(
                         'Audit Trail & Stock History',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF1E293B),
+                          color: c.label,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -601,26 +653,28 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
   @override
   Widget build(BuildContext context) {
     final inventoryAsync = ref.watch(medicinesStreamProvider);
+    final c = context.cru;
 
     return Scaffold(
+      backgroundColor: c.canvas,
       appBar: AppBar(
-        title: const Text('Dental Consumables & Stock'),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        title: Text('Dental Consumables & Stock', style: TextStyle(color: c.label)),
+        backgroundColor: c.surface,
+        foregroundColor: c.label,
         elevation: 0,
         actions: [
           IconButton(
             tooltip: _dentalOnly ? 'Show All Clinic Stock' : 'Show Dental Only',
             icon: Icon(
               _dentalOnly ? Icons.filter_alt : Icons.filter_alt_off,
-              color: _accentTeal,
+              color: c.accent,
             ),
             onPressed: () => setState(() => _dentalOnly = !_dentalOnly),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: _accentTeal,
+        backgroundColor: const Color(0xFF2563EB),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
         label: const Text('Add Consumable'),
@@ -630,7 +684,7 @@ class _DentalInventoryScreenState extends ConsumerState<DentalInventoryScreen> {
         children: [
           // Search & Filters
           Container(
-            color: Colors.white,
+            color: c.surface,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
               controller: _searchController,

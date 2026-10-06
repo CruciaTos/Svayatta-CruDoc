@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -57,60 +58,105 @@ class _DentalPatientDetailsScreenState
 
   Future<void> _openNoteEditor() async {
     final controller = TextEditingController(text: _note);
+    final c = context.cru;
     final result = await showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => Padding(
         padding: EdgeInsets.only(
           left: 20,
           right: 20,
-          top: 20,
+          top: 14,
           bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text(
-              'Doctor\'s Note',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF0F172A),
+            Center(
+              child: Container(
+                width: 44,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: ShapeDecoration(
+                  color: c.track,
+                  shape: cruShape(CruRadius.full),
+                ),
               ),
+            ),
+            Text(
+              "Doctor's Note",
+              style: CruType.title2.tint(c.label),
             ),
             const SizedBox(height: 12),
             TextField(
               controller: controller,
               maxLines: 4,
               autofocus: true,
-              style: const TextStyle(fontSize: 14),
+              style: TextStyle(color: c.label, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'General dental notes...',
+                hintStyle: TextStyle(color: c.label2.withValues(alpha: 0.6)),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: c.inset,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: Colors.transparent),
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.accent, width: 1.5),
                 ),
               ),
             ),
             const SizedBox(height: 16),
-            FilledButton(
-              style: FilledButton.styleFrom(
-                backgroundColor: _accentTeal,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8),
+            Container(
+              height: 48,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(CruRadius.control),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(CruRadius.control),
+                  onTap: () => Navigator.pop(ctx, controller.text),
+                  child: const Center(
+                    child: Text(
+                      'Save Note',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Save Note'),
             ),
           ],
         ),

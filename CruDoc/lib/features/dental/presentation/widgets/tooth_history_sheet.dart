@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 import '../../data/models/tooth_chart_entry_model.dart';
 import '../../domain/tooth_numbering.dart';
 import '../providers/dental_providers.dart';
@@ -22,11 +23,15 @@ class ToothHistorySheet extends ConsumerStatefulWidget {
     required String patientId,
     required String toothNumber,
   }) {
+    final surface = Theme.of(context).extension<CruColors>()?.surface ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? CruColors.evening.surface
+            : CruColors.day.surface);
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -40,6 +45,12 @@ class ToothHistorySheet extends ConsumerStatefulWidget {
 }
 
 class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
+
   late Future<List<ToothChartEntryModel>> _historyFuture;
 
   @override
@@ -66,8 +77,7 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header Bar
+        children: [          // Header Bar
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -76,40 +86,40 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                 children: [
                   Text(
                     'Tooth $toothText History',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: _c.label,
                     ),
                   ),
                   Text(
                     getToothName(widget.toothNumber),
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: Color(0xFF64748B),
+                      color: _c.label2,
                     ),
                   ),
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                icon: Icon(Icons.close, color: _c.label2),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
           ),
 
-          const Divider(height: 20),
+          Divider(height: 20, color: _c.separator),
 
           // Event History List
           FutureBuilder<List<ToothChartEntryModel>>(
             future: _historyFuture,
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
                   child: Center(
                     child: CircularProgressIndicator(
-                      color: Color(0xFF0D9488),
+                      color: _c.accent,
                       strokeWidth: 2,
                     ),
                   ),
@@ -126,14 +136,14 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                         Icon(
                           Icons.history_toggle_off,
                           size: 40,
-                          color: Colors.grey.shade400,
+                          color: _c.label3,
                         ),
                         const SizedBox(height: 8),
                         Text(
                           'No clinical events logged for Tooth $toothText yet.',
                           style: TextStyle(
                             fontSize: 13,
-                            color: Colors.grey.shade600,
+                            color: _c.label2,
                           ),
                         ),
                       ],
@@ -149,7 +159,7 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: entries.length,
-                  separatorBuilder: (_, _) => const Divider(height: 16),
+                  separatorBuilder: (_, _) => Divider(height: 16, color: _c.separator),
                   itemBuilder: (context, index) {
                     final item = entries[index];
                     final dateLabel = dateFormat.format(item.recordedAt);
@@ -157,9 +167,9 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                     return Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
+                        color: _c.inset,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        border: Border.all(color: _c.separator),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,10 +179,10 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                             children: [
                               Text(
                                 dateLabel,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF475569),
+                                  color: _c.label2,
                                 ),
                               ),
                               if (item.surface != null &&
@@ -183,14 +193,16 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFE2E8F0),
+                                    color: _c.surface,
                                     borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(color: _c.separator),
                                   ),
                                   child: Text(
                                     item.surface!.toUpperCase(),
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
+                                      color: _c.label,
                                     ),
                                   ),
                                 ),
@@ -208,14 +220,15 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFFEE2E2),
+                                    color: Colors.redAccent.withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
                                   ),
                                   child: Text(
                                     item.condition!,
                                     style: const TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFFB91C1C),
+                                      color: Colors.redAccent,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -228,14 +241,15 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                                     vertical: 3,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFFDBEAFE),
+                                    color: const Color(0xFF2563EB).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF2563EB).withValues(alpha: 0.4)),
                                   ),
                                   child: Text(
                                     item.treatment!,
                                     style: const TextStyle(
                                       fontSize: 11,
-                                      color: Color(0xFF1D4ED8),
+                                      color: Color(0xFF2563EB),
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -246,9 +260,9 @@ class _ToothHistorySheetState extends ConsumerState<ToothHistorySheet> {
                             const SizedBox(height: 6),
                             Text(
                               item.notes,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFF1E293B),
+                                color: _c.label,
                               ),
                             ),
                           ],

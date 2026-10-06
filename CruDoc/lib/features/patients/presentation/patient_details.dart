@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -67,7 +68,7 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -603,6 +604,7 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -618,15 +620,15 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
                 width: 44,
                 height: 5,
                 margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(999),
+                decoration: ShapeDecoration(
+                  color: c.track,
+                  shape: cruShape(CruRadius.full),
                 ),
               ),
             ),
             Text(
               "Doctor's Note",
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+              style: CruType.title2.tint(c.label),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -634,32 +636,30 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
               autofocus: true,
               maxLines: 6,
               minLines: 4,
-              style: AppColors.bodyMedium,
+              style: TextStyle(color: c.label, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Type notes for this patient…',
-                hintStyle: AppColors.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+                hintStyle: TextStyle(
+                  color: c.label2.withValues(alpha: 0.6),
+                  fontSize: 14,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: c.inset,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: AppColors.chartBarLight,
-                    width: 1.5,
-                  ),
+                  borderSide: BorderSide(color: c.accent, width: 1.5),
                 ),
               ),
             ),
@@ -669,34 +669,51 @@ class _NoteEditorSheetState extends State<_NoteEditorSheet> {
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.slateBlue,
+                      color: c.label2,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () => Navigator.pop(context, _controller.text),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 22,
-                      vertical: 14,
+                Container(
+                  height: 44,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    backgroundColor: AppColors.chartBarLight,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
                   ),
-                  child: const Text(
-                    'Save',
-                    style: TextStyle(
-                      fontFamily: AppColors.bodyFontFamily,
-                      fontWeight: FontWeight.w600,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => Navigator.pop(context, _controller.text),
+                      child: const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 22),
+                        child: Center(
+                          child: Text(
+                            'Save',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontFamily: AppColors.bodyFontFamily,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),

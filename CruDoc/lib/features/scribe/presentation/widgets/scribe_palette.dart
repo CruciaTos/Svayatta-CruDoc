@@ -129,8 +129,36 @@ class ScribePalette {
     labelsOutsideCards: false,
   );
 
-  /// Mobile tokens for content on the light bottom-sheet surface, where the
-  /// default card colour would be invisible against the sheet.
+  /// Resolves theme-aware palette tokens from the active CruColors context.
+  static ScribePalette of(BuildContext context) {
+    final c = context.cru;
+    return ScribePalette(
+      textPrimary: c.label,
+      textSecondary: c.label2,
+      hint: c.label3,
+      border: c.separator,
+      card: c.surface,
+      cardBorder: c.separator,
+      field: c.inset,
+      fieldBorder: c.separator,
+      primary: c.accent,
+      accent: c.accent,
+      accentSoft: c.accent.withValues(alpha: 0.12),
+      danger: c.redText,
+      dangerSoft: c.redTint,
+      warning: c.amber,
+      warningSoft: c.amberTint,
+      success: const Color(0xFF10B981),
+      symptom: c.accent,
+      diagnosis: const Color(0xFF8B5CF6),
+      existing: const Color(0xFF0D9488),
+      cardRadius: 16,
+      fieldRadius: CruRadius.control,
+      labelsOutsideCards: true,
+    );
+  }
+
+  /// Mobile tokens for content on the bottom-sheet surface.
   static final mobileSheet = mobile.copyWith(
     card: Colors.white,
     cardBorder: AppColors.divider,

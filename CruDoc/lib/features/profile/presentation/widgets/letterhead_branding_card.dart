@@ -7,6 +7,7 @@ import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/reports/presentation/medical_report_generation_sheet.dart';
 import 'package:doctor_management_app/features/revenue/presentation/bill_generation_sheet.dart';
 import 'package:doctor_management_app/features/scribe/presentation/prescription_generation_sheet.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Interactive Profile Card for configuring custom Clinic Letterhead & Logo branding
 /// for automated Bill (Receipt) and Prescription (Rx) generation.
@@ -272,11 +273,12 @@ class LetterheadBrandingCard extends StatelessWidget {
     final logoUrlCtrl = TextEditingController(text: config.logoUrl ?? '');
 
     bool isSaving = false;
+    final c = context.cru;
 
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.white,
+      backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -295,30 +297,30 @@ class LetterheadBrandingCard extends StatelessWidget {
               children: [
                 Center(
                   child: Container(
-                    width: 40,
+                    width: 44,
                     height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+                    decoration: ShapeDecoration(
+                      color: c.track,
+                      shape: cruShape(CruRadius.full),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.edit_note_rounded,
-                      color: Color(0xFF1E78FF),
+                      color: c.accent,
                       size: 24,
                     ),
                     const SizedBox(width: 8),
-                    const Text(
+                    Text(
                       'Customize Letterhead & Logo',
                       style: TextStyle(
                         fontFamily: AppColors.headingFontFamily,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFF0F172A),
+                        color: c.label,
                       ),
                     ),
                   ],
@@ -326,12 +328,13 @@ class LetterheadBrandingCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'This header will automatically appear on all generated Bills and Prescriptions.',
-                  style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 12.5, color: c.label2),
                 ),
                 const SizedBox(height: 20),
 
                 // Clinic Name
                 _buildField(
+                  c,
                   clinicNameCtrl,
                   'Clinic / Hospital Name',
                   Icons.local_hospital_rounded,
@@ -343,6 +346,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _buildField(
+                        c,
                         qualCtrl,
                         'Degrees (e.g. MBBS, MD)',
                         Icons.school_rounded,
@@ -351,6 +355,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _buildField(
+                        c,
                         regNoCtrl,
                         'Reg. No (e.g. MMC-1234)',
                         Icons.badge_rounded,
@@ -362,6 +367,7 @@ class LetterheadBrandingCard extends StatelessWidget {
 
                 // Address
                 _buildField(
+                  c,
                   addressCtrl,
                   'Clinic Address / Location',
                   Icons.location_on_rounded,
@@ -373,6 +379,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _buildField(
+                        c,
                         phoneCtrl,
                         'Contact Phone',
                         Icons.phone_rounded,
@@ -381,6 +388,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                     const SizedBox(width: 10),
                     Expanded(
                       child: _buildField(
+                        c,
                         emailCtrl,
                         'Clinic Email',
                         Icons.email_rounded,
@@ -392,6 +400,7 @@ class LetterheadBrandingCard extends StatelessWidget {
 
                 // Logo URL
                 _buildField(
+                  c,
                   logoUrlCtrl,
                   'Logo Image URL (Optional)',
                   Icons.image_rounded,
@@ -400,12 +409,14 @@ class LetterheadBrandingCard extends StatelessWidget {
 
                 // Tagline & Footer
                 _buildField(
+                  c,
                   taglineCtrl,
                   'Header Tagline / Subtitle',
                   Icons.short_text_rounded,
                 ),
                 const SizedBox(height: 12),
                 _buildField(
+                  c,
                   footerCtrl,
                   'Footer Disclaimer / Notes',
                   Icons.notes_rounded,
@@ -413,76 +424,91 @@ class LetterheadBrandingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // Save Button
-                SizedBox(
+                // Save Button (Royal Blue Payment Gradient)
+                Container(
                   width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: isSaving
-                        ? null
-                        : () async {
-                            setSheetState(() => isSaving = true);
-                            try {
-                              await DoctorProfileHelper.updateLetterheadBranding(
-                                clinicName: clinicNameCtrl.text,
-                                doctorQualifications: qualCtrl.text,
-                                registrationNumber: regNoCtrl.text,
-                                clinicAddress: addressCtrl.text,
-                                clinicPhone: phoneCtrl.text,
-                                clinicEmail: emailCtrl.text,
-                                tagline: taglineCtrl.text,
-                                footerDisclaimer: footerCtrl.text,
-                                logoUrl: logoUrlCtrl.text.isNotEmpty
-                                    ? logoUrlCtrl.text
-                                    : null,
-                                user: user,
-                              );
-                              if (ctx.mounted) Navigator.pop(ctx);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Letterhead & Branding saved successfully!',
+                  height: 48,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFF2563EB), Color(0xFF1E3A8A)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                        blurRadius: 8,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(CruRadius.control),
+                      onTap: isSaving
+                          ? null
+                          : () async {
+                              setSheetState(() => isSaving = true);
+                              try {
+                                await DoctorProfileHelper.updateLetterheadBranding(
+                                  clinicName: clinicNameCtrl.text,
+                                  doctorQualifications: qualCtrl.text,
+                                  registrationNumber: regNoCtrl.text,
+                                  clinicAddress: addressCtrl.text,
+                                  clinicPhone: phoneCtrl.text,
+                                  clinicEmail: emailCtrl.text,
+                                  tagline: taglineCtrl.text,
+                                  footerDisclaimer: footerCtrl.text,
+                                  logoUrl: logoUrlCtrl.text.isNotEmpty
+                                      ? logoUrlCtrl.text
+                                      : null,
+                                  user: user,
+                                );
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Letterhead & Branding saved successfully!',
+                                      ),
+                                      backgroundColor: Color(0xFF16A34A),
                                     ),
-                                    backgroundColor: Color(0xFF16A34A),
-                                  ),
-                                );
+                                  );
+                                }
+                              } catch (e) {
+                                setSheetState(() => isSaving = false);
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error saving: $e'),
+                                      backgroundColor: const Color(0xFFEF4444),
+                                    ),
+                                  );
+                                }
                               }
-                            } catch (e) {
-                              setSheetState(() => isSaving = false);
-                              if (ctx.mounted) {
-                                ScaffoldMessenger.of(ctx).showSnackBar(
-                                  SnackBar(
-                                    content: Text('Error saving: $e'),
-                                    backgroundColor: const Color(0xFFEF4444),
-                                  ),
-                                );
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E78FF),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                            },
+                      child: Center(
+                        child: isSaving
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                'Save Letterhead Settings',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 15,
+                                ),
+                              ),
                       ),
                     ),
-                    child: isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text(
-                            'Save Letterhead Settings',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 15,
-                            ),
-                          ),
                   ),
                 ),
               ],
@@ -494,6 +520,7 @@ class LetterheadBrandingCard extends StatelessWidget {
   }
 
   Widget _buildField(
+    CruColors c,
     TextEditingController ctrl,
     String label,
     IconData icon, {
@@ -502,26 +529,28 @@ class LetterheadBrandingCard extends StatelessWidget {
     return TextField(
       controller: ctrl,
       maxLines: maxLines,
+      style: TextStyle(color: c.label, fontSize: 13.5),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 18, color: const Color(0xFF1E78FF)),
+        labelStyle: TextStyle(color: c.label2),
+        prefixIcon: Icon(icon, size: 18, color: c.accent),
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: c.inset,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 14,
           vertical: 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
+          borderSide: BorderSide(color: c.separator),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
+          borderSide: BorderSide(color: c.separator),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1E78FF), width: 1.5),
+          borderSide: BorderSide(color: c.accent, width: 1.5),
         ),
       ),
     );

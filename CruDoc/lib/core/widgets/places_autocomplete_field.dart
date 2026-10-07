@@ -196,13 +196,14 @@ class _PlacesAutocompleteFieldState
       );
     }
     if (widget.style == 'dialog') {
+      final c = context.cru;
       return InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
-        labelStyle: AppColors.bodyMedium,
-        hintStyle: AppColors.bodySmall.copyWith(color: Colors.grey.shade600),
+        labelStyle: AppColors.bodyMedium.copyWith(color: c.label2),
+        hintStyle: AppColors.bodySmall.copyWith(color: c.label2.withValues(alpha: 0.6)),
         filled: true,
-        fillColor: AppColors.cardSurface,
+        fillColor: c.inset,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide.none,
@@ -229,16 +230,17 @@ class _PlacesAutocompleteFieldState
     }
 
     // Default 'sheet' style — matches the existing bottom-sheet fields.
+    final c = context.cru;
     return InputDecoration(
       labelText: widget.label,
       hintText: widget.hint,
       labelStyle: AppColors.bodyMedium.copyWith(
-        color: AppColors.textSecondary,
+        color: c.label2,
         fontWeight: FontWeight.w600,
       ),
-      hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
+      hintStyle: AppColors.bodyMedium.copyWith(color: c.label2.withValues(alpha: 0.6)),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: c.inset,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: BorderSide.none,
@@ -288,9 +290,9 @@ class _PlacesAutocompleteFieldState
           enabled: widget.enabled,
           style: _cru
               ? CruType.input.tint(context.cru.label)
-              : widget.style == 'dialog'
-              ? AppColors.bodyLarge
-              : AppColors.bodyMedium,
+              : (widget.style == 'dialog'
+                  ? AppColors.bodyLarge
+                  : AppColors.bodyMedium).copyWith(color: context.cru.label),
           onChanged: _onChanged,
           decoration: _decoration,
         ),
@@ -305,10 +307,10 @@ class _PlacesAutocompleteFieldState
                     border: Border.all(color: context.cru.cardBorder),
                   )
                 : BoxDecoration(
-                    color: Colors.white,
+                    color: context.cru.surface,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.chartBarLight.withValues(alpha: 0.25),
+                      color: context.cru.separator,
                     ),
                     boxShadow: const [],
                   ),
@@ -338,6 +340,7 @@ class _PlacesAutocompleteFieldState
                         ? CruType.callout.tint(c.label)
                         : AppColors.bodyMedium.copyWith(
                             fontWeight: FontWeight.w600,
+                            color: c.label,
                           ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -347,7 +350,7 @@ class _PlacesAutocompleteFieldState
                     style: _cru
                         ? CruType.caption.tint(c.label2)
                         : AppColors.bodySmall.copyWith(
-                            color: AppColors.textSecondary,
+                            color: c.label2,
                           ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

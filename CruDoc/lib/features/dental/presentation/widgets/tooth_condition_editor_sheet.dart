@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 import '../../data/models/tooth_chart_entry_model.dart';
 import '../../domain/tooth_numbering.dart';
 import '../providers/dental_providers.dart';
@@ -28,11 +29,15 @@ class ToothConditionEditorSheet extends ConsumerStatefulWidget {
     required String toothNumber,
     ToothChartEntryModel? existingEntry,
   }) {
+    final surface = Theme.of(context).extension<CruColors>()?.surface ??
+        (Theme.of(context).brightness == Brightness.dark
+            ? CruColors.evening.surface
+            : CruColors.day.surface);
     return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: Colors.white,
+      backgroundColor: surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -52,6 +57,12 @@ class ToothConditionEditorSheet extends ConsumerStatefulWidget {
 
 class _ToothConditionEditorSheetState
     extends ConsumerState<ToothConditionEditorSheet> {
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
+
   final _uuid = const Uuid();
   late final TextEditingController _notesController;
 
@@ -190,39 +201,39 @@ class _ToothConditionEditorSheetState
                     children: [
                       Text(
                         'Tooth ${toothLabel(widget.toothNumber, numbering)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFF0F172A),
+                          color: _c.label,
                         ),
                       ),
                       Text(
                         getToothName(widget.toothNumber),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: Color(0xFF64748B),
+                          color: _c.label2,
                         ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                  icon: Icon(Icons.close, color: _c.label2),
                   onPressed: () => Navigator.pop(context, false),
                 ),
               ],
             ),
 
-            const Divider(height: 24),
+            Divider(height: 24, color: _c.separator),
 
             // Section: Surface
-            const Text(
+            Text(
               'TOOTH SURFACE',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: Color(0xFF64748B),
+                color: _c.label2,
               ),
             ),
             const SizedBox(height: 6),
@@ -234,10 +245,16 @@ class _ToothConditionEditorSheetState
                 return ChoiceChip(
                   label: Text(
                     s.toUpperCase(),
-                    style: const TextStyle(fontSize: 11),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: isSelected ? _c.accent : _c.label,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
                   ),
                   selected: isSelected,
-                  selectedColor: const Color(0xFFCCFBF1),
+                  selectedColor: _c.accent.withValues(alpha: 0.15),
+                  backgroundColor: _c.inset,
+                  side: BorderSide(color: isSelected ? _c.accent : _c.separator),
                   onSelected: (selected) {
                     setState(() => _selectedSurface = selected ? s : null);
                   },
@@ -248,13 +265,13 @@ class _ToothConditionEditorSheetState
             const SizedBox(height: 16),
 
             // Section: Condition
-            const Text(
+            Text(
               'CLINICAL FINDING / CONDITION',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: Color(0xFF64748B),
+                color: _c.label2,
               ),
             ),
             const SizedBox(height: 6),
@@ -264,9 +281,18 @@ class _ToothConditionEditorSheetState
               children: _conditions.map((c) {
                 final isSelected = _selectedCondition == c;
                 return ChoiceChip(
-                  label: Text(c, style: const TextStyle(fontSize: 12)),
+                  label: Text(
+                    c,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isSelected ? Colors.redAccent : _c.label,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                   selected: isSelected,
-                  selectedColor: const Color(0xFFFEE2E2),
+                  selectedColor: Colors.redAccent.withValues(alpha: 0.15),
+                  backgroundColor: _c.inset,
+                  side: BorderSide(color: isSelected ? Colors.redAccent : _c.separator),
                   onSelected: (selected) {
                     setState(() => _selectedCondition = selected ? c : null);
                   },
@@ -277,13 +303,13 @@ class _ToothConditionEditorSheetState
             const SizedBox(height: 16),
 
             // Section: Treatment
-            const Text(
+            Text(
               'TREATMENT / PROCEDURE',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: Color(0xFF64748B),
+                color: _c.label2,
               ),
             ),
             const SizedBox(height: 6),
@@ -293,9 +319,18 @@ class _ToothConditionEditorSheetState
               children: _treatments.map((t) {
                 final isSelected = _selectedTreatment == t;
                 return ChoiceChip(
-                  label: Text(t, style: const TextStyle(fontSize: 12)),
+                  label: Text(
+                    t,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isSelected ? const Color(0xFF2563EB) : _c.label,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
                   selected: isSelected,
-                  selectedColor: const Color(0xFFDBEAFE),
+                  selectedColor: const Color(0xFF2563EB).withValues(alpha: 0.15),
+                  backgroundColor: _c.inset,
+                  side: BorderSide(color: isSelected ? const Color(0xFF2563EB) : _c.separator),
                   onSelected: (selected) {
                     setState(() => _selectedTreatment = selected ? t : null);
                   },
@@ -306,27 +341,36 @@ class _ToothConditionEditorSheetState
             const SizedBox(height: 16),
 
             // Section: Clinical Notes
-            const Text(
+            Text(
               'CLINICAL NOTES',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
-                color: Color(0xFF64748B),
+                color: _c.label2,
               ),
             ),
             const SizedBox(height: 6),
             TextField(
               controller: _notesController,
               maxLines: 3,
-              style: const TextStyle(fontSize: 13),
+              style: TextStyle(fontSize: 13, color: _c.label),
               decoration: InputDecoration(
                 hintText: 'Add clinical notes for this tooth...',
+                hintStyle: TextStyle(fontSize: 13, color: _c.label2),
                 filled: true,
-                fillColor: const Color(0xFFF8FAFC),
+                fillColor: _c.inset,
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Colors.transparent),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: _c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: _c.separator),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: _c.accent, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.all(12),
               ),
@@ -344,8 +388,10 @@ class _ToothConditionEditorSheetState
                         : () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
+                      side: BorderSide(color: _c.separator),
+                      foregroundColor: _c.label,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: const Text('Cancel'),
@@ -356,18 +402,19 @@ class _ToothConditionEditorSheetState
                   child: FilledButton(
                     onPressed: _isSaving ? null : _handleSave,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D9488),
+                      backgroundColor: _c.accent,
+                      foregroundColor: _c.onAccent,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
                     child: _isSaving
-                        ? const SizedBox(
+                        ? SizedBox(
                             width: 18,
                             height: 18,
                             child: CircularProgressIndicator(
-                              color: Colors.white,
+                              color: _c.onAccent,
                               strokeWidth: 2,
                             ),
                           )

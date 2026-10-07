@@ -46,6 +46,14 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
   /// Week pages around the current week; page [_anchor] is this week.
   static const _anchor = 520;
   late final PageController _weeks = PageController(initialPage: _anchor);
+  bool _isMonthExpanded = false;
+  late DateTime _monthDate;
+
+  @override
+  void initState() {
+    super.initState();
+    _monthDate = DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -76,6 +84,17 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
         curve: CruMotion.curve,
       );
     }
+  }
+
+  void _toggleCalendarView() {
+    MobileHaptics.tap();
+    setState(() {
+      _isMonthExpanded = !_isMonthExpanded;
+      if (_isMonthExpanded) {
+        final currentDay = ref.read(mobileScheduleDayProvider);
+        _monthDate = DateTime(currentDay.year, currentDay.month);
+      }
+    });
   }
 
   Future<void> _book(DateTime day) async {
@@ -113,8 +132,13 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
       slivers: [
         SliverToBoxAdapter(
           child: MobileHeader(
-            overline: DateFormat('MMMM y').format(day),
+            overline: DateFormat('MMMM y').format(_isMonthExpanded ? _monthDate : day),
             title: 'Schedule',
+            titleTrailing: _ViewDropdown(
+              isMonth: _isMonthExpanded,
+              onTap: _toggleCalendarView,
+            ),
+            onTitleTap: _toggleCalendarView,
             trailing: MobileCircleButton(
               icon: CruIcons.plus,
               semanticLabel: 'Book a visit',
@@ -124,16 +148,40 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: CruSpace.s16)),
         SliverToBoxAdapter(
-          child: SizedBox(
-            height: 74,
-            child: PageView.builder(
-              controller: _weeks,
-              itemBuilder: (context, page) => _WeekStrip(
-                start: _weekStart(page),
-                selected: day,
-                today: now,
-                onSelect: _select,
+          child: AnimatedCrossFade(
+            duration: CruMotion.standard,
+            firstCurve: CruMotion.curve,
+            secondCurve: CruMotion.curve,
+            sizeCurve: CruMotion.curve,
+            crossFadeState: _isMonthExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: SizedBox(
+              height: 74,
+              child: PageView.builder(
+                controller: _weeks,
+                itemBuilder: (context, page) => _WeekStrip(
+                  start: _weekStart(page),
+                  selected: day,
+                  today: now,
+                  onSelect: _select,
+                ),
               ),
+            ),
+            secondChild: _MonthGrid(
+              month: _monthDate,
+              selected: day,
+              today: now,
+              onSelect: (picked) {
+                _select(picked);
+                setState(() {
+                  _isMonthExpanded = false;
+                  _monthDate = DateTime(picked.year, picked.month);
+                });
+              },
+              onMonthChange: (newMonth) {
+                setState(() => _monthDate = newMonth);
+              },
             ),
           ),
         ),
@@ -765,4 +813,252 @@ class _ApptRow extends ConsumerWidget {
 
 extension on String {
   String ifEmpty(String other) => isEmpty ? other : this;
+}
+
+/// The dropdown pill beside "Schedule": toggles between Week and Month view.
+class _ViewDropdown extends StatelessWidget {
+  const _ViewDropdown({
+    required this.isMonth,
+    required this.onTap,
+  });
+
+  final bool isMonth;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final eve = mobileOnDark(context);
+    final accent = eve ? Colors.white : MobileBlue.neon;
+    final bg = accent.withValues(alpha: 0.12);
+
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: isMonth ? 'Switch to weekly view' : 'Switch to monthly view',
+      scaleOnPress: true,
+      builder: (context, hovered) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: hovered ? bg.withValues(alpha: 0.22) : bg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: accent.withValues(alpha: 0.28),
+            width: 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isMonth ? 'Month' : 'Week',
+              style: MobileType.caption.w600.tint(accent),
+            ),
+            const SizedBox(width: 4),
+            AnimatedRotation(
+              turns: isMonth ? 0.5 : 0.0,
+              duration: CruMotion.standard,
+              curve: CruMotion.curve,
+              child: CruIcon(
+                CruIcons.chevronDown,
+                size: 13,
+                color: accent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Expanded month grid with appointment dots and month stepper.
+class _MonthGrid extends ConsumerWidget {
+  const _MonthGrid({
+    required this.month,
+    required this.selected,
+    required this.today,
+    required this.onSelect,
+    required this.onMonthChange,
+  });
+
+  final DateTime month;
+  final DateTime selected;
+  final DateTime today;
+  final ValueChanged<DateTime> onSelect;
+  final ValueChanged<DateTime> onMonthChange;
+
+  static const _weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final eve = mobileOnDark(context);
+    final ink = mobileInk(context);
+    final selFill = eve ? Colors.white : MobileBlue.neon;
+    final selText = eve ? MobileBlue.neon : Colors.white;
+    final accent = eve ? Colors.white : MobileBlue.neon;
+    final days = ApptsBuilder.monthGrid(month);
+    final isCurrentMonth = month.year == today.year && month.month == today.month;
+    final weeks = <List<DateTime>>[
+      for (var i = 0; i < days.length; i += 7) days.sublist(i, i + 7),
+    ];
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onHorizontalDragEnd: (details) {
+        final v = details.primaryVelocity ?? 0;
+        if (v.abs() < 250) return;
+        MobileHaptics.select();
+        if (v < 0) {
+          onMonthChange(DateTime(month.year, month.month + 1));
+        } else {
+          onMonthChange(DateTime(month.year, month.month - 1));
+        }
+      },
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Month navigation bar
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      DateFormat('MMMM yyyy').format(month),
+                      style: MobileType.headline.tint(ink),
+                    ),
+                  ),
+                  if (!isCurrentMonth) ...[
+                    CruCapsuleButton(
+                      label: 'Today',
+                      height: 28,
+                      onPressed: () {
+                        MobileHaptics.select();
+                        onMonthChange(DateTime(today.year, today.month));
+                      },
+                    ),
+                    const SizedBox(width: CruSpace.s6),
+                  ],
+                  CruIconButton(
+                    icon: CruIcons.chevronLeft,
+                    semanticLabel: 'Previous month',
+                    size: 32,
+                    iconSize: 16,
+                    onPressed: () {
+                      MobileHaptics.select();
+                      onMonthChange(DateTime(month.year, month.month - 1));
+                    },
+                  ),
+                  const SizedBox(width: CruSpace.s4),
+                  CruIconButton(
+                    icon: CruIcons.chevronRight,
+                    semanticLabel: 'Next month',
+                    size: 32,
+                    iconSize: 16,
+                    onPressed: () {
+                      MobileHaptics.select();
+                      onMonthChange(DateTime(month.year, month.month + 1));
+                    },
+                  ),
+                ],
+              ),
+            ),
+            // Weekday initials
+            Row(
+              children: [
+                for (final d in _weekdays)
+                  Expanded(
+                    child: Text(
+                      d,
+                      textAlign: TextAlign.center,
+                      style: MobileType.micro.tint(ink.withValues(alpha: 0.55)),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: CruSpace.s6),
+            // Month week rows
+            for (final week in weeks)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Row(
+                  children: [
+                    for (final d in week)
+                      Expanded(
+                        child: Builder(
+                          builder: (context) {
+                            final inMonth = d.month == month.month;
+                            final isSel = ApptsBuilder.sameDay(d, selected);
+                            final isToday = ApptsBuilder.sameDay(d, today);
+                            final booked = ref
+                                    .watch(apptDayItemsProvider(d))
+                                    .value
+                                    ?.isNotEmpty ??
+                                false;
+                            final dayInk = inMonth
+                                ? ink
+                                : ink.withValues(alpha: 0.28);
+
+                            return CruPressable(
+                              onTap: () => onSelect(d),
+                              semanticLabel: DateFormat('EEEE d MMMM').format(d),
+                              scaleOnPress: false,
+                              builder: (context, _) => Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  AnimatedContainer(
+                                    duration: CruMotion.of(
+                                      context,
+                                      CruMotion.fast,
+                                    ),
+                                    curve: CruMotion.curve,
+                                    width: 36,
+                                    height: 36,
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: isSel
+                                          ? selFill
+                                          : (isToday
+                                              ? accent.withValues(
+                                                  alpha: eve ? 0.2 : 0.1,
+                                                )
+                                              : null),
+                                    ),
+                                    child: Text(
+                                      '${d.day}',
+                                      style: MobileType.row.tabular.tint(
+                                        isSel
+                                            ? selText
+                                            : (isToday ? accent : dayInk),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    width: 4,
+                                    height: 4,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: booked && inMonth
+                                          ? accent.withValues(alpha: 0.7)
+                                          : Colors.transparent,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }

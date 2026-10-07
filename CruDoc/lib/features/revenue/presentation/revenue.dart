@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/errors/revenue_exceptions.dart';
 import 'package:doctor_management_app/features/appointments/data/repo/visits_repo.dart';
@@ -99,7 +100,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       builder: (_) => const _TransactionFormSheet(
         includeKindToggle: true,
         includePayerField: true,
@@ -125,7 +126,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       builder: (_) => const _TransactionFormSheet(
         includeKindToggle: false,
         includePayerField: false,
@@ -142,7 +143,7 @@ class _RevenueScreenState extends State<RevenueScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       builder: (_) => _PendingPaymentDetailsSheet(pending: pending),
     );
   }
@@ -932,6 +933,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     return Padding(
       padding: EdgeInsets.only(
@@ -952,7 +954,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.5),
+                  color: c.label2.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -960,7 +962,10 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
             const SizedBox(height: 20),
             Text(
               widget.title,
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+              style: AppColors.sectionHeading.copyWith(
+                fontSize: 20,
+                color: c.label,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -970,7 +975,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: c.label2,
                 height: 1.4,
               ),
             ),
@@ -984,7 +989,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
               ),
               const SizedBox(height: 8),
@@ -1007,7 +1012,9 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                 fillColor: _selectedKind == TransactionKind.income
                     ? AppColors.positiveGreen
                     : AppColors.negativeRed,
-                color: AppColors.textSecondary,
+                color: c.label2,
+                borderColor: c.separator,
+                selectedBorderColor: c.accent,
                 constraints: const BoxConstraints(minWidth: 100, minHeight: 42),
                 textStyle: const TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
@@ -1029,34 +1036,38 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _payerController,
                 enabled: !_isSaving,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
                 decoration: InputDecoration(
                   hintText: _selectedKind == TransactionKind.expense
                       ? 'e.g. "Staff salary — Priya" (optional)'
                       : 'e.g. "Patient name" (optional)',
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                     fontFamily: AppColors.bodyFontFamily,
-                    color: AppColors.textSecondary,
+                    color: c.label2,
                   ),
                   filled: true,
-                  fillColor: Colors.white,
+                  fillColor: c.inset,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
                     vertical: 14,
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: c.separator),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: c.separator),
                   ),
                 ),
               ),
@@ -1070,34 +1081,38 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _descController,
               enabled: !_isSaving,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
               decoration: InputDecoration(
                 hintText: widget.includeKindToggle
                     ? 'e.g. "Consultation fee"'
                     : 'e.g. "Lab test"',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: c.inset,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: c.separator),
                 ),
               ),
               validator: (value) {
@@ -1117,7 +1132,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
@@ -1127,25 +1142,29 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
               decoration: InputDecoration(
                 hintText: '₹0.00',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: c.inset,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: c.separator),
                 ),
               ),
               validator: (value) {
@@ -1169,7 +1188,7 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
@@ -1183,22 +1202,23 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.inset,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: c.separator),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.calendar_today,
                       size: 18,
-                      color: AppColors.textSecondary,
+                      color: c.label2,
                     ),
                     const SizedBox(width: 10),
                     Text(
                       DateFormat('d MMM yyyy').format(_selectedDate),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        color: AppColors.textPrimary,
+                        color: c.label,
                       ),
                     ),
                   ],
@@ -1214,11 +1234,11 @@ class _TransactionFormSheetState extends State<_TransactionFormSheet> {
               children: [
                 TextButton(
                   onPressed: _isSaving ? null : () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.slateBlue,
+                      color: c.label2,
                     ),
                   ),
                 ),
@@ -1373,6 +1393,7 @@ class _PendingPaymentDetailsSheetState
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final patientName = widget.pending.payer?.trim();
     final hasPatientName = patientName != null && patientName.isNotEmpty;
@@ -1396,7 +1417,7 @@ class _PendingPaymentDetailsSheetState
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.5),
+                  color: c.label2.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -1404,7 +1425,10 @@ class _PendingPaymentDetailsSheetState
             const SizedBox(height: 20),
             Text(
               'Pending Payment',
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+              style: AppColors.sectionHeading.copyWith(
+                fontSize: 20,
+                color: c.label,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -1412,7 +1436,7 @@ class _PendingPaymentDetailsSheetState
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
-                color: AppColors.textSecondary,
+                color: c.label2,
                 height: 1.4,
               ),
             ),
@@ -1426,24 +1450,24 @@ class _PendingPaymentDetailsSheetState
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
               ),
               const SizedBox(height: 8),
               TextFormField(
                 initialValue: patientName,
                 enabled: false,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
                 decoration: InputDecoration(
                   filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.6),
-                  suffixIcon: const Icon(
+                  fillColor: c.inset,
+                  suffixIcon: Icon(
                     Icons.lock_outline,
                     size: 16,
-                    color: AppColors.textSecondary,
+                    color: c.label2,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -1451,7 +1475,11 @@ class _PendingPaymentDetailsSheetState
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide.none,
+                    borderSide: BorderSide(color: c.separator),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: c.separator),
                   ),
                 ),
               ),
@@ -1465,32 +1493,36 @@ class _PendingPaymentDetailsSheetState
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
             TextFormField(
               controller: _descController,
               enabled: !_isSaving,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
               decoration: InputDecoration(
                 hintText: 'e.g. "Payment Received for Visitation"',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: c.inset,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: c.separator),
                 ),
               ),
               validator: (value) {
@@ -1510,7 +1542,7 @@ class _PendingPaymentDetailsSheetState
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
@@ -1520,25 +1552,29 @@ class _PendingPaymentDetailsSheetState
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
               decoration: InputDecoration(
                 hintText: '₹0.00',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: c.inset,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: c.separator),
                 ),
               ),
               validator: (value) {
@@ -1562,7 +1598,7 @@ class _PendingPaymentDetailsSheetState
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
@@ -1571,25 +1607,29 @@ class _PendingPaymentDetailsSheetState
               enabled: !_isSaving,
               minLines: 2,
               maxLines: 4,
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
               decoration: InputDecoration(
                 hintText: 'Add any additional notes (optional)',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                 ),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: c.inset,
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 16,
                   vertical: 14,
                 ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+                  borderSide: BorderSide(color: c.separator),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: c.separator),
                 ),
               ),
             ),
@@ -1603,7 +1643,7 @@ class _PendingPaymentDetailsSheetState
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 8),
@@ -1617,22 +1657,23 @@ class _PendingPaymentDetailsSheetState
                   vertical: 14,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: c.inset,
                   borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: c.separator),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.calendar_today,
                       size: 18,
-                      color: AppColors.textSecondary,
+                      color: c.label2,
                     ),
                     const SizedBox(width: 10),
                     Text(
                       DateFormat('d MMM yyyy').format(_selectedDate),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
-                        color: AppColors.textPrimary,
+                        color: c.label,
                       ),
                     ),
                   ],
@@ -1648,11 +1689,11 @@ class _PendingPaymentDetailsSheetState
               children: [
                 TextButton(
                   onPressed: _isSaving ? null : () => Navigator.pop(context),
-                  child: const Text(
+                  child: Text(
                     'Cancel',
                     style: TextStyle(
                       fontFamily: AppColors.bodyFontFamily,
-                      color: AppColors.slateBlue,
+                      color: c.label2,
                     ),
                   ),
                 ),

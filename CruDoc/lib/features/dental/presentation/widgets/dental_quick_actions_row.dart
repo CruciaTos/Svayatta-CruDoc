@@ -1,3 +1,4 @@
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
@@ -32,10 +33,12 @@ class DentalQuickActionsRow extends ConsumerWidget {
       return;
     }
 
+    final c = context.cru;
     showModalBottomSheet(
       context: context,
+      backgroundColor: c.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return Container(
@@ -44,14 +47,25 @@ class DentalQuickActionsRow extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-                child: Text(
-                  'Select Patient for Tooth Chart',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              Center(
+                child: Container(
+                  width: 44,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: ShapeDecoration(
+                    color: c.track,
+                    shape: cruShape(CruRadius.full),
+                  ),
                 ),
               ),
-              const Divider(),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                child: Text(
+                  'Select Patient for Tooth Chart',
+                  style: CruType.headline.tint(c.label),
+                ),
+              ),
+              Divider(color: c.separator),
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 300),
                 child: ListView.builder(
@@ -60,18 +74,19 @@ class DentalQuickActionsRow extends ConsumerWidget {
                   itemBuilder: (context, i) {
                     final p = patients[i];
                     return ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: _accentTealLight,
-                        child: Icon(Icons.person, color: _accentTeal, size: 20),
+                      leading: CircleAvatar(
+                        backgroundColor: c.inset,
+                        child: Icon(Icons.person, color: c.accent, size: 20),
                       ),
                       title: Text(
                         p.fullName,
-                        style: const TextStyle(fontWeight: FontWeight.w600),
+                        style: TextStyle(fontWeight: FontWeight.w600, color: c.label),
                       ),
                       subtitle: Text(
                         'ID: ${p.id.substring(0, p.id.length > 8 ? 8 : p.id.length)}',
+                        style: TextStyle(color: c.label2),
                       ),
-                      trailing: const Icon(Icons.chevron_right, size: 18),
+                      trailing: Icon(Icons.chevron_right, size: 18, color: c.label2),
                       onTap: () {
                         Navigator.pop(ctx);
                         Navigator.push(

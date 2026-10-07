@@ -8,12 +8,14 @@ import 'package:doctor_management_app/features/messaging/data/services/gmail_aut
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_enums.dart';
 import '../data/services/campaign_audience_helper.dart';
 import '../data/services/campaign_dispatch_service.dart';
 
-/// Touch-friendly, CruDoc-themed Campaign composer bottom sheet modal.
+/// Touch-friendly Campaign composer bottom sheet modal.
+/// Fully respects CruColors day/evening (light/dark) theme.
 class MobilePostCampaignSheet extends StatefulWidget {
   const MobilePostCampaignSheet({
     super.key,
@@ -85,6 +87,15 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   int _dispatchTotal = 0;
   CampaignModel? _dispatchedCampaign;
   String? _dispatchError;
+
+  /// Semantic colour tokens for the current theme (day = light, evening = dark).
+  CruColors get _c {
+    final ext = Theme.of(context).extension<CruColors>();
+    if (ext != null) return ext;
+    return Theme.of(context).brightness == Brightness.dark
+        ? CruColors.evening
+        : CruColors.day;
+  }
 
   @override
   void initState() {
@@ -172,13 +183,14 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final c = _c;
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.90,
       margin: EdgeInsets.only(bottom: bottomInset),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -189,35 +201,31 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               decoration: BoxDecoration(
-                color: AppColors.silver.withValues(alpha: 0.6),
+                color: c.separator,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
           ),
 
           // Header
-          _buildSheetHeader(),
-          const Divider(height: 1),
+          _buildSheetHeader(c),
+          Divider(height: 1, color: c.separator),
 
           // Body Step
           Expanded(
             child: _isLoadingPatients
-                ? const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.chartBarLight,
-                    ),
-                  )
-                : _buildStepBody(),
+                ? Center(child: CircularProgressIndicator(color: c.accent))
+                : _buildStepBody(c),
           ),
 
           // Footer Actions
-          _buildFooter(),
+          _buildFooter(c),
         ],
       ),
     );
   }
 
-  Widget _buildSheetHeader() {
+  Widget _buildSheetHeader(CruColors c) {
     final stepTitles = [
       '1. Compose Message',
       '2. Target Audience',
@@ -234,14 +242,10 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.chartBarLight.withValues(alpha: 0.12),
+                  color: c.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.campaign_rounded,
-                  color: AppColors.chartBarLight,
-                  size: 20,
-                ),
+                child: Icon(Icons.campaign_rounded, color: c.accent, size: 20),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -250,20 +254,20 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                   children: [
                     Text(
                       stepTitles[_currentStep.clamp(0, 3)],
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: AppColors.headingFontFamily,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
+                        color: c.label,
                       ),
                     ),
                     const SizedBox(height: 1),
                     Text(
                       'Step ${_currentStep + 1} of 4',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontFamily: AppColors.bodyFontFamily,
                         fontSize: 11.5,
-                        color: AppColors.textSecondary,
+                        color: c.label2,
                       ),
                     ),
                   ],
@@ -271,19 +275,14 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
               IconButton(
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(
-                  Icons.close_rounded,
-                  color: AppColors.textSecondary,
-                  size: 22,
-                ),
+                icon: Icon(Icons.close_rounded, color: c.label2, size: 22),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
             ],
           ),
           const SizedBox(height: 10),
-
-          // Progress Step Indicators
+          // Progress bars
           Row(
             children: List.generate(4, (index) {
               final isDone = index < _currentStep;
@@ -293,9 +292,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                   height: 3.5,
                   margin: EdgeInsets.only(right: index < 3 ? 6 : 0),
                   decoration: BoxDecoration(
-                    color: isDone || isCurrent
-                        ? AppColors.chartBarLight
-                        : AppColors.divider,
+                    color: isDone || isCurrent ? c.accent : c.separator,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -307,16 +304,16 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
     );
   }
 
-  Widget _buildStepBody() {
+  Widget _buildStepBody(CruColors c) {
     switch (_currentStep) {
       case 0:
-        return _buildStep1Compose();
+        return _buildStep1Compose(c);
       case 1:
-        return _buildStep2Audience();
+        return _buildStep2Audience(c);
       case 2:
-        return _buildStep3Preview();
+        return _buildStep3Preview(c);
       case 3:
-        return _buildStep4Dispatch();
+        return _buildStep4Dispatch(c);
       default:
         return const SizedBox.shrink();
     }
@@ -325,20 +322,20 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   // STEP 1: COMPOSE
   // ===========================================================================
-  Widget _buildStep1Compose() {
+  Widget _buildStep1Compose(CruColors c) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
       physics: const BouncingScrollPhysics(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Campaign Category',
             style: TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: c.label,
             ),
           ),
           const SizedBox(height: 8),
@@ -375,7 +372,8 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                           Icon(
                             category.icon,
                             size: 14,
-                            color: isSelected ? Colors.white : category.color,
+                            color:
+                                isSelected ? Colors.white : category.color,
                           ),
                           const SizedBox(width: 5),
                           Text(
@@ -384,7 +382,8 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                               fontFamily: AppColors.bodyFontFamily,
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
-                              color: isSelected ? Colors.white : category.color,
+                              color:
+                                  isSelected ? Colors.white : category.color,
                             ),
                           ),
                         ],
@@ -397,36 +396,39 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
           ),
           const SizedBox(height: 18),
 
-          const Text(
+          Text(
             'Campaign Title *',
             style: TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: c.label,
             ),
           ),
           const SizedBox(height: 6),
           TextField(
             controller: _titleController,
-            style: AppColors.bodyMedium,
+            style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontSize: 14,
+              color: c.label,
+            ),
             decoration: InputDecoration(
               hintText: 'e.g. Free Diabetes Screening & Checkup Camp',
-              hintStyle: AppColors.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+              hintStyle: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 14,
+                color: c.label2,
               ),
               filled: true,
-              fillColor: AppColors.inputBackground,
+              fillColor: c.inset,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: AppColors.chartBarLight,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: c.accent, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -438,87 +440,90 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
 
           Row(
             children: [
-              const Text(
+              Text(
                 'Message Body *',
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
               ),
               const Spacer(),
-              _buildTagChip('+ Patient', '{{patient_name}}'),
+              _buildTagChip(c, '+ Patient', '{{patient_name}}'),
               const SizedBox(width: 5),
-              _buildTagChip('+ Clinic', '{{clinic_name}}'),
+              _buildTagChip(c, '+ Clinic', '{{clinic_name}}'),
               const SizedBox(width: 5),
-              _buildTagChip('+ Doctor', '{{doctor_name}}'),
+              _buildTagChip(c, '+ Doctor', '{{doctor_name}}'),
             ],
           ),
           const SizedBox(height: 6),
           TextField(
             controller: _messageController,
             maxLines: 5,
-            style: AppColors.bodyMedium,
+            style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontSize: 14,
+              color: c.label,
+            ),
             decoration: InputDecoration(
               hintText:
                   'Dear {{patient_name}},\n\nWe are hosting a free health checkup camp at {{clinic_name}} this Sunday.\n\nBest regards,\n{{doctor_name}}',
-              hintStyle: AppColors.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+              hintStyle: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 14,
+                color: c.label2,
               ),
               filled: true,
-              fillColor: AppColors.inputBackground,
+              fillColor: c.inset,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: AppColors.chartBarLight,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: c.accent, width: 1.5),
               ),
               contentPadding: const EdgeInsets.all(16),
             ),
           ),
           const SizedBox(height: 18),
 
-          const Text(
+          Text(
             'Banner Image URL (Optional)',
             style: TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: c.label,
             ),
           ),
           const SizedBox(height: 6),
           TextField(
             controller: _mediaUrlController,
-            style: AppColors.bodyMedium,
+            style: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontSize: 14,
+              color: c.label,
+            ),
             decoration: InputDecoration(
               hintText: 'https://example.com/clinic-camp.jpg',
-              hintStyle: AppColors.bodyMedium.copyWith(
-                color: AppColors.textSecondary,
+              hintStyle: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 14,
+                color: c.label2,
               ),
-              prefixIcon: const Icon(
-                Icons.image_outlined,
-                size: 20,
-                color: AppColors.slateBlue,
-              ),
+              prefixIcon:
+                  Icon(Icons.image_outlined, size: 20, color: c.label2),
               filled: true,
-              fillColor: AppColors.inputBackground,
+              fillColor: c.inset,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(
-                  color: AppColors.chartBarLight,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide(color: c.accent, width: 1.5),
               ),
               contentPadding: const EdgeInsets.symmetric(
                 horizontal: 16,
@@ -531,23 +536,23 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
     );
   }
 
-  Widget _buildTagChip(String label, String token) {
+  Widget _buildTagChip(CruColors c, String label, String token) {
     return InkWell(
       onTap: () => _insertPlaceholder(token),
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
         decoration: BoxDecoration(
-          color: AppColors.chartBarLight.withValues(alpha: 0.1),
+          color: c.accent.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
           label,
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: AppColors.bodyFontFamily,
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: AppColors.chartBarLight,
+            color: c.accent,
           ),
         ),
       ),
@@ -557,7 +562,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   // STEP 2: AUDIENCE & CHANNELS
   // ===========================================================================
-  Widget _buildStep2Audience() {
+  Widget _buildStep2Audience(CruColors c) {
     final count = _filteredAudience.length;
     final emailEligible = _filteredAudience
         .where((p) => CampaignAudienceHelper.isValidEmail(p.email))
@@ -572,13 +577,13 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Target Patient Cohort',
             style: TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: c.label,
             ),
           ),
           const SizedBox(height: 8),
@@ -596,13 +601,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                   ),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.chartBarLight.withValues(alpha: 0.08)
-                        : AppColors.inputBackground,
+                        ? c.accent.withValues(alpha: 0.08)
+                        : c.inset,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isSelected
-                          ? AppColors.chartBarLight
-                          : Colors.transparent,
+                      color: isSelected ? c.accent : Colors.transparent,
                     ),
                   ),
                   child: Row(
@@ -612,9 +615,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                             ? Icons.radio_button_checked
                             : Icons.radio_button_off,
                         size: 18,
-                        color: isSelected
-                            ? AppColors.chartBarLight
-                            : AppColors.textSecondary,
+                        color: isSelected ? c.accent : c.label2,
                       ),
                       const SizedBox(width: 10),
                       Text(
@@ -625,9 +626,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                           fontWeight: isSelected
                               ? FontWeight.w700
                               : FontWeight.w500,
-                          color: isSelected
-                              ? AppColors.chartBarLight
-                              : AppColors.textPrimary,
+                          color: isSelected ? c.accent : c.label,
                         ),
                       ),
                     ],
@@ -642,17 +641,27 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
             TextField(
               controller: _conditionFilterController,
               onChanged: (_) => setState(() {}),
-              style: AppColors.bodyMedium,
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 14,
+                color: c.label,
+              ),
               decoration: InputDecoration(
                 hintText: 'Condition filter: Diabetes, Hypertension...',
-                hintStyle: AppColors.bodyMedium.copyWith(
-                  color: AppColors.textSecondary,
+                hintStyle: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  fontSize: 14,
+                  color: c.label2,
                 ),
                 filled: true,
-                fillColor: AppColors.inputBackground,
+                fillColor: c.inset,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide(color: c.accent, width: 1.5),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: 14,
@@ -664,7 +673,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
 
           const SizedBox(height: 16),
 
-          // Audience Summary Badge Tile
+          // Audience Summary Badge
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
@@ -697,11 +706,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '📧 $emailEligible with Email • 💬 $waEligible with WhatsApp',
-                        style: const TextStyle(
+                        '\u{1F4E7} $emailEligible with Email \u2022 \u{1F4AC} $waEligible with WhatsApp',
+                        style: TextStyle(
                           fontFamily: AppColors.bodyFontFamily,
                           fontSize: 11.5,
-                          color: AppColors.textSecondary,
+                          color: c.label2,
                         ),
                       ),
                     ],
@@ -713,28 +722,28 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
 
           const SizedBox(height: 18),
 
-          const Text(
+          Text(
             'Broadcast Channels',
             style: TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
+              color: c.label,
             ),
           ),
           const SizedBox(height: 6),
           SwitchListTile(
             dense: true,
-            activeColor: AppColors.chartBarLight,
+            activeThumbColor: c.accent,
             contentPadding: EdgeInsets.zero,
             value: _enableEmail,
-            title: const Text(
+            title: Text(
               'Email Broadcast',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontWeight: FontWeight.w600,
                 fontSize: 13.5,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             subtitle: _connectedGmail != null
@@ -745,12 +754,9 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                       color: AppColors.positiveGreen,
                     ),
                   )
-                : const Text(
+                : Text(
                     'Connect Gmail in Profile to send live emails.',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textSecondary,
-                    ),
+                    style: TextStyle(fontSize: 11, color: c.label2),
                   ),
             onChanged: (v) {
               if (v == false && !_enableWhatsApp) return;
@@ -759,21 +765,21 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
           ),
           SwitchListTile(
             dense: true,
-            activeColor: const Color(0xFF10B981),
+            activeThumbColor: const Color(0xFF10B981),
             contentPadding: EdgeInsets.zero,
             value: _enableWhatsApp,
-            title: const Text(
+            title: Text(
               'WhatsApp Broadcast',
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontWeight: FontWeight.w600,
                 fontSize: 13.5,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
-            subtitle: const Text(
+            subtitle: Text(
               'Delivers automatically via WhatsApp Business Cloud API.',
-              style: TextStyle(fontSize: 11, color: AppColors.textSecondary),
+              style: TextStyle(fontSize: 11, color: c.label2),
             ),
             onChanged: (v) {
               if (v == false && !_enableEmail) return;
@@ -788,7 +794,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   // STEP 3: PREVIEW
   // ===========================================================================
-  Widget _buildStep3Preview() {
+  Widget _buildStep3Preview(CruColors c) {
     final samplePatient = _filteredAudience.isNotEmpty
         ? _filteredAudience.first
         : Patient(
@@ -819,14 +825,28 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
       doctorName: _doctorName,
     );
 
+    // WhatsApp dark-mode aware brand colors
+    final waBg = c.isEvening
+        ? const Color(0xFF0D1418)
+        : const Color(0xFFE5DDD5);
+    final waBubble = c.isEvening
+        ? const Color(0xFF025144)
+        : const Color(0xFFDCF8C6);
+    final waText = c.isEvening
+        ? const Color(0xFFE9EDEF)
+        : const Color(0xFF111B21);
+    final waTime = c.isEvening
+        ? const Color(0xFF8696A0)
+        : const Color(0xFF667781);
+
     return DefaultTabController(
       length: 2,
       child: Column(
         children: [
           TabBar(
-            labelColor: AppColors.chartBarLight,
-            unselectedLabelColor: AppColors.textSecondary,
-            indicatorColor: AppColors.chartBarLight,
+            labelColor: c.accent,
+            unselectedLabelColor: c.label2,
+            indicatorColor: c.accent,
             labelStyle: const TextStyle(
               fontFamily: AppColors.bodyFontFamily,
               fontWeight: FontWeight.w700,
@@ -838,24 +858,23 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               fontSize: 13,
             ),
             tabs: const [
-              Tab(text: '📧 Email Preview'),
-              Tab(text: '💬 WhatsApp Preview'),
+              Tab(text: 'Email Preview'),
+              Tab(text: 'WhatsApp Preview'),
             ],
           ),
           Expanded(
             child: TabBarView(
               children: [
-                // Email Preview Card
+                // Email Preview
                 SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   physics: const BouncingScrollPhysics(),
                   child: Container(
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: c.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.divider),
-                      boxShadow: const [],
+                      border: Border.all(color: c.separator),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,25 +884,23 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                             Container(
                               padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: AppColors.chartBarLight.withValues(
-                                  alpha: 0.1,
-                                ),
+                                color: c.accent.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.local_hospital_rounded,
                                 size: 16,
-                                color: AppColors.chartBarLight,
+                                color: c.accent,
                               ),
                             ),
                             const SizedBox(width: 8),
                             Text(
                               _clinicName,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontFamily: AppColors.headingFontFamily,
                                 fontWeight: FontWeight.w700,
                                 fontSize: 14,
-                                color: AppColors.textPrimary,
+                                color: c.label,
                               ),
                             ),
                           ],
@@ -893,11 +910,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                           _titleController.text.isNotEmpty
                               ? _titleController.text
                               : 'Campaign Title',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: AppColors.headingFontFamily,
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
-                            color: AppColors.textPrimary,
+                            color: c.label,
                           ),
                         ),
                         const SizedBox(height: 8),
@@ -910,23 +927,23 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                             clinicName: _clinicName,
                             doctorName: _doctorName,
                           ),
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontFamily: AppColors.bodyFontFamily,
                             fontSize: 13,
                             height: 1.5,
-                            color: AppColors.charcoalGray,
+                            color: c.label,
                           ),
                         ),
                         const SizedBox(height: 16),
-                        const Divider(height: 1),
+                        Divider(height: 1, color: c.separator),
                         const SizedBox(height: 10),
                         Text(
-                          'Warm regards,\n$_doctorName • $_clinicName',
-                          style: const TextStyle(
+                          'Warm regards,\n$_doctorName \u2022 $_clinicName',
+                          style: TextStyle(
                             fontFamily: AppColors.bodyFontFamily,
                             fontWeight: FontWeight.w600,
                             fontSize: 12,
-                            color: AppColors.textSecondary,
+                            color: c.label2,
                           ),
                         ),
                       ],
@@ -934,24 +951,57 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                   ),
                 ),
 
-                // WhatsApp Preview Bubble
+                // WhatsApp Preview
                 SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   physics: const BouncingScrollPhysics(),
                   child: Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDCF8C6),
+                      color: waBg,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: const [],
                     ),
-                    child: Text(
-                      whatsAppText,
-                      style: const TextStyle(
-                        fontFamily: AppColors.bodyFontFamily,
-                        fontSize: 13,
-                        height: 1.45,
-                        color: Color(0xFF111B21),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: waBubble,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            whatsAppText,
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              fontSize: 13,
+                              height: 1.45,
+                              color: waText,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Align(
+                            alignment: Alignment.bottomRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Just now',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: waTime,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.done_all_rounded,
+                                  size: 14,
+                                  color: Color(0xFF53BDEB),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -967,34 +1017,33 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   // STEP 4: DISPATCH
   // ===========================================================================
-  Widget _buildStep4Dispatch() {
+  Widget _buildStep4Dispatch(CruColors c) {
     if (_isDispatching) {
-      final percent = _dispatchTotal > 0
-          ? (_dispatchProcessed / _dispatchTotal)
-          : 0.0;
+      final percent =
+          _dispatchTotal > 0 ? (_dispatchProcessed / _dispatchTotal) : 0.0;
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const CircularProgressIndicator(color: AppColors.chartBarLight),
+              CircularProgressIndicator(color: c.accent),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Broadcasting Campaign...',
                 style: TextStyle(
                   fontFamily: AppColors.headingFontFamily,
                   fontWeight: FontWeight.w800,
                   fontSize: 17,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 'Processed $_dispatchProcessed of $_dispatchTotal patients',
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                   fontSize: 13,
                 ),
               ),
@@ -1004,7 +1053,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 child: LinearProgressIndicator(
                   value: percent,
                   minHeight: 6,
-                  backgroundColor: AppColors.inputBackground,
+                  backgroundColor: c.inset,
                   valueColor: const AlwaysStoppedAnimation(
                     AppColors.positiveGreen,
                   ),
@@ -1023,17 +1072,13 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                color: Colors.red,
-                size: 48,
-              ),
+              Icon(Icons.error_outline_rounded, color: c.redText, size: 48),
               const SizedBox(height: 14),
               Text(
                 _dispatchError!,
-                style: const TextStyle(
+                style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: Colors.red,
+                  color: c.redText,
                   fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
@@ -1042,7 +1087,8 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               FilledButton(
                 onPressed: () => setState(() => _currentStep = 2),
                 style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.chartBarLight,
+                  backgroundColor: c.accent,
+                  foregroundColor: c.onAccent,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -1055,6 +1101,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
       );
     }
 
+    // Success state
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -1074,21 +1121,21 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Campaign Published! 🎉',
+            Text(
+              'Campaign Published! \u{1F389}',
               style: TextStyle(
                 fontFamily: AppColors.headingFontFamily,
                 fontWeight: FontWeight.w800,
                 fontSize: 18,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               'Dispatched to ${_dispatchedCampaign?.totalRecipients ?? _dispatchTotal} patients.',
-              style: const TextStyle(
+              style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
-                color: AppColors.textSecondary,
+                color: c.label2,
                 fontSize: 13,
               ),
             ),
@@ -1099,8 +1146,8 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 Navigator.pop(context, true);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.chartBarLight,
-                foregroundColor: Colors.white,
+                backgroundColor: c.accent,
+                foregroundColor: c.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 28,
                   vertical: 13,
@@ -1126,7 +1173,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // ===========================================================================
   // FOOTER ACTIONS
   // ===========================================================================
-  Widget _buildFooter() {
+  Widget _buildFooter(CruColors c) {
     if (_currentStep == 3) return const SizedBox.shrink();
 
     return Padding(
@@ -1136,11 +1183,11 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
           if (_currentStep > 0)
             TextButton(
               onPressed: () => setState(() => _currentStep--),
-              child: const Text(
+              child: Text(
                 'Back',
                 style: TextStyle(
                   fontFamily: AppColors.bodyFontFamily,
-                  color: AppColors.slateBlue,
+                  color: c.accent,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -1164,8 +1211,8 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 setState(() => _currentStep++);
               },
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.chartBarLight,
-                foregroundColor: Colors.white,
+                backgroundColor: c.accent,
+                foregroundColor: c.onAccent,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
                   vertical: 13,

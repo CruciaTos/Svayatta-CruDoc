@@ -4,6 +4,7 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
 import 'package:doctor_management_app/features/subscription/data/upgrade_request_model.dart';
 import 'package:doctor_management_app/features/subscription/presentation/payment_checkout_sheet.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 
 /// Modal bottom sheet that lets doctors view available features,
 /// calculate monthly totals, and submit an upgrade request.
@@ -33,6 +34,12 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
       DoctorSubscriptionService();
   final Set<String> _selectedModuleKeys = {};
   String? _successMessage;
+
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
 
   @override
   void initState() {
@@ -132,9 +139,9 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: Column(
         children: [
@@ -145,7 +152,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
               height: 4,
               margin: const EdgeInsets.only(top: 12, bottom: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFFCBD5E1),
+                color: _c.separator,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -159,12 +166,12 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E78FF).withValues(alpha: 0.1),
+                    color: _c.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.workspace_premium_rounded,
-                    color: Color(0xFF1E78FF),
+                    color: _c.accent,
                     size: 24,
                   ),
                 ),
@@ -173,12 +180,12 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Customize & Upgrade Plan',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
+                          color: _c.label,
                           fontFamily: AppColors.headingFontFamily,
                         ),
                       ),
@@ -187,7 +194,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                         'Select modules you need for your clinical practice',
                         style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary.withValues(alpha: 0.9),
+                          color: _c.label2,
                         ),
                       ),
                     ],
@@ -195,15 +202,15 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.close_rounded,
-                    color: AppColors.textSecondary,
+                    color: _c.label2,
                   ),
                 ),
               ],
             ),
           ),
-          const Divider(height: 1),
+          Divider(height: 1, color: _c.separator),
 
           // Content body
           Expanded(
@@ -235,21 +242,21 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              const Text(
+                              Text(
                                 'AVAILABLE CLINICAL MODULES',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 1.1,
-                                  color: AppColors.slateBlue,
+                                  color: _c.label2,
                                 ),
                               ),
                               Text(
                                 '${_selectedModuleKeys.length} Selected',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600,
-                                  color: Color(0xFF1E78FF),
+                                  color: _c.accent,
                                 ),
                               ),
                             ],
@@ -392,10 +399,10 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFF0F7FF) : const Color(0xFFF8FAFC),
+        color: isSelected ? _c.accent.withValues(alpha: 0.1) : _c.inset,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? const Color(0xFF1E78FF) : const Color(0xFFE2E8F0),
+          color: isSelected ? _c.accent : _c.separator,
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
@@ -421,13 +428,13 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                 height: 38,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? const Color(0xFF1E78FF)
-                      : const Color(0xFFE2E8F0),
+                      ? _c.accent
+                      : _c.separator.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   _getIconForName(item.iconName),
-                  color: isSelected ? Colors.white : const Color(0xFF64748B),
+                  color: isSelected ? _c.onAccent : _c.label2,
                   size: 20,
                 ),
               ),
@@ -441,10 +448,10 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                         Flexible(
                           child: Text(
                             item.title,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13.5,
                               fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
+                              color: _c.label,
                             ),
                           ),
                         ),
@@ -474,9 +481,9 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                     const SizedBox(height: 2),
                     Text(
                       item.description,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: Color(0xFF64748B),
+                        color: _c.label2,
                       ),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -498,8 +505,8 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                       color: isBase
                           ? const Color(0xFF16A34A)
                           : (isSelected
-                                ? const Color(0xFF1E78FF)
-                                : AppColors.textPrimary),
+                                ? _c.accent
+                                : _c.label),
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -516,7 +523,7 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
                               }
                             });
                           },
-                    activeColor: const Color(0xFF1E78FF),
+                    activeColor: _c.accent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(4),
                     ),
@@ -536,39 +543,39 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _c.inset,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _c.separator),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
               Icon(
                 Icons.info_outline_rounded,
                 size: 18,
-                color: Color(0xFF64748B),
+                color: _c.label2,
               ),
-              SizedBox(width: 8),
+              const SizedBox(width: 8),
               Text(
                 'How Activation Works',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: _c.label,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             '1. Select desired modules and tap "Submit Upgrade Request".\n'
             '2. Complete the payment offline via UPI (PhonePe / GPay / Paytm) or Bank Transfer.\n'
             '3. Super Admin verifies payment and unlocks the selected modules in real time for 1 month.',
             style: TextStyle(
               fontSize: 11.5,
-              color: Color(0xFF64748B),
+              color: _c.label2,
               height: 1.4,
             ),
           ),
@@ -580,7 +587,10 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
   Widget _buildBottomBar(NumberFormat currencyFormatter) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        border: Border(top: BorderSide(color: _c.separator)),
+      ),
       child: SafeArea(
         top: false,
         child: Row(
@@ -589,22 +599,22 @@ class _FeatureUpgradeSheetState extends State<FeatureUpgradeSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text(
+                Text(
                   'MONTHLY TOTAL',
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1.0,
-                    color: AppColors.slateBlue,
+                    color: _c.label2,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   currencyFormatter.format(_calculatedTotal),
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
-                    color: Color(0xFF1E78FF),
+                    color: _c.accent,
                     fontFamily: AppColors.headingFontFamily,
                   ),
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/core/theme/cru_theme.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -22,14 +23,14 @@ import 'package:doctor_management_app/features/appointments/presentation/session
 import 'package:doctor_management_app/features/appointments/presentation/appointment_calendar_sheet.dart';
 
 // ---------- SHARED BOTTOM-SHEET FORM HELPERS ----------
-Widget _buildSheetHandle() {
+Widget _buildSheetHandle([CruColors? c]) {
   return Center(
     child: Container(
       width: 44,
       height: 5,
       margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
-        color: AppColors.silver.withValues(alpha: 0.6),
+        color: (c?.track) ?? AppColors.silver.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(999),
       ),
     ),
@@ -43,16 +44,17 @@ Widget _buildSheetActions({
   required String submitLabel,
   bool isSaving = false,
 }) {
+  final c = context.cru;
   return Row(
     mainAxisAlignment: MainAxisAlignment.end,
     children: [
       TextButton(
         onPressed: isSaving ? null : onCancel,
-        child: const Text(
+        child: Text(
           'Cancel',
           style: TextStyle(
             fontFamily: AppColors.bodyFontFamily,
-            color: AppColors.slateBlue,
+            color: c.label2,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -62,8 +64,8 @@ Widget _buildSheetActions({
         onPressed: isSaving ? null : onSubmit,
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-          backgroundColor: AppColors.chartBarLight,
-          foregroundColor: Colors.white,
+          backgroundColor: c.accent,
+          foregroundColor: c.onAccent,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -81,37 +83,49 @@ Widget _buildSheetActions({
 }
 
 Widget _buildTextField(
+  BuildContext context,
   String label,
   TextEditingController controller, {
   String? hint,
   ValueChanged<String>? onChanged,
 }) {
+  final c = context.cru;
   return TextField(
     controller: controller,
     onChanged: onChanged,
-    style: AppColors.bodyMedium,
+    style: TextStyle(
+      fontFamily: AppColors.bodyFontFamily,
+      color: c.label,
+      fontSize: 14,
+    ),
     decoration: InputDecoration(
       labelText: label,
       hintText: hint,
-      labelStyle: AppColors.bodyMedium.copyWith(
-        color: AppColors.textSecondary,
+      labelStyle: TextStyle(
+        fontFamily: AppColors.bodyFontFamily,
+        color: c.label2,
         fontWeight: FontWeight.w600,
+        fontSize: 14,
       ),
-      hintStyle: AppColors.bodyMedium.copyWith(color: AppColors.textSecondary),
+      hintStyle: TextStyle(
+        fontFamily: AppColors.bodyFontFamily,
+        color: c.label3,
+        fontSize: 14,
+      ),
       filled: true,
-      fillColor: Colors.white,
+      fillColor: c.inset,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: c.separator),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: BorderSide(color: c.separator),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(
-          color: AppColors.chartBarLight,
+        borderSide: BorderSide(
+          color: c.accent,
           width: 1.5,
         ),
       ),
@@ -125,6 +139,7 @@ Widget _buildPickDateButton(
   DateTime date,
   ValueChanged<DateTime?> onPicked,
 ) {
+  final c = context.cru;
   final dateStr = '${date.day} ${_monthName(date.month)} ${date.year}';
   return InkWell(
     onTap: () async {
@@ -139,19 +154,29 @@ Widget _buildPickDateButton(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.inset,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.separator),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.calendar_today_outlined,
-            color: AppColors.chartBarLight,
+            color: c.accent,
             size: 18,
           ),
           const SizedBox(width: 10),
-          Expanded(child: Text(dateStr, style: AppColors.bodyMedium)),
-          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          Expanded(
+            child: Text(
+              dateStr,
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: c.label,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Icon(Icons.chevron_right, color: c.label2),
         ],
       ),
     ),
@@ -163,6 +188,7 @@ Widget _buildPickTimeButton(
   TimeOfDay time,
   ValueChanged<TimeOfDay?> onPicked,
 ) {
+  final c = context.cru;
   final timeStr = time.format(context);
   return InkWell(
     onTap: () async {
@@ -175,19 +201,29 @@ Widget _buildPickTimeButton(
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.inset,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: c.separator),
       ),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.access_time,
-            color: AppColors.chartBarLight,
+            color: c.accent,
             size: 18,
           ),
           const SizedBox(width: 10),
-          Expanded(child: Text(timeStr, style: AppColors.bodyMedium)),
-          const Icon(Icons.chevron_right, color: AppColors.textSecondary),
+          Expanded(
+            child: Text(
+              timeStr,
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                color: c.label,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Icon(Icons.chevron_right, color: c.label2),
         ],
       ),
     ),
@@ -195,9 +231,11 @@ Widget _buildPickTimeButton(
 }
 
 Widget _buildDurationDropdown(
+  BuildContext context,
   String currentValue,
   ValueChanged<String?> onChanged,
 ) {
+  final c = context.cru;
   const durations = [
     '15 min',
     '30 min',
@@ -209,21 +247,29 @@ Widget _buildDurationDropdown(
   return Container(
     padding: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: c.inset,
       borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: c.separator),
     ),
     child: DropdownButtonHideUnderline(
       child: DropdownButton<String>(
         value: currentValue,
         isExpanded: true,
         menuMaxHeight: 200,
-        dropdownColor: Colors.white,
-        style: AppColors.bodyMedium,
+        dropdownColor: c.surface,
+        style: TextStyle(
+          fontFamily: AppColors.bodyFontFamily,
+          color: c.label,
+          fontSize: 14,
+        ),
         items: durations.map((d) {
-          return DropdownMenuItem(value: d, child: Text(d));
+          return DropdownMenuItem(
+            value: d,
+            child: Text(d, style: TextStyle(color: c.label)),
+          );
         }).toList(),
         onChanged: onChanged,
-        icon: const Icon(Icons.arrow_drop_down, color: AppColors.textSecondary),
+        icon: Icon(Icons.arrow_drop_down, color: c.label2),
       ),
     ),
   );
@@ -363,7 +409,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -392,7 +438,7 @@ class _EventsScreenState extends ConsumerState<EventsScreen>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: AppColors.cardSurface,
+      backgroundColor: context.cru.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -1079,6 +1125,7 @@ class _AddOnlineSessionSheetState extends State<_AddOnlineSessionSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -1089,13 +1136,16 @@ class _AddOnlineSessionSheetState extends State<_AddOnlineSessionSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSheetHandle(),
+            _buildSheetHandle(c),
             Text(
               'Add Online Session',
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+              style: AppColors.sectionHeading.copyWith(
+                fontSize: 20,
+                color: c.label,
+              ),
             ),
             const SizedBox(height: 16),
-            _buildTextField('Title', _titleController),
+            _buildTextField(context, 'Title', _titleController),
             const SizedBox(height: 12),
             _buildPickDateButton(context, _selectedDate, (picked) {
               if (picked != null) setState(() => _selectedDate = picked);
@@ -1106,6 +1156,7 @@ class _AddOnlineSessionSheetState extends State<_AddOnlineSessionSheet> {
             }),
             const SizedBox(height: 12),
             _buildTextField(
+              context,
               'Meeting Link (URL)',
               _linkController,
               hint: 'https://meet.google.com/...',
@@ -1226,12 +1277,13 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
   }
 
   // ---------- Clinic Booking / Home Visitation toggle ----------
-  Widget _buildVisitTypeToggle() {
+  Widget _buildVisitTypeToggle(CruColors c) {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.inset,
         borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: c.separator),
       ),
       child: Row(
         children: vmodel.VisitType.values.map((type) {
@@ -1244,7 +1296,7 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 decoration: BoxDecoration(
                   color: selected
-                      ? AppColors.chartBarLight
+                      ? c.accent
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -1253,9 +1305,11 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                   type == vmodel.VisitType.clinic
                       ? 'Clinic Booking'
                       : 'Home Visitation',
-                  style: AppColors.bodyMedium.copyWith(
-                    color: selected ? Colors.white : Colors.black87,
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: selected ? c.onAccent : c.label2,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    fontSize: 14,
                   ),
                 ),
               ),
@@ -1268,6 +1322,7 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final visiblePatientMatches = _patientMatches
         .take(5)
         .toList(growable: false);
@@ -1282,15 +1337,19 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildSheetHandle(),
+            _buildSheetHandle(c),
             Text(
               'Add Visit',
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+              style: AppColors.sectionHeading.copyWith(
+                fontSize: 20,
+                color: c.label,
+              ),
             ),
             const SizedBox(height: 16),
-            _buildVisitTypeToggle(),
+            _buildVisitTypeToggle(c),
             const SizedBox(height: 12),
             _buildTextField(
+              context,
               'Patient Name',
               _nameController,
               hint: 'Start typing to search existing patients',
@@ -1310,12 +1369,12 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                 margin: const EdgeInsets.only(top: 6),
                 width: double.infinity,
                 child: Material(
-                  color: Colors.white,
+                  color: c.surface,
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                     side: BorderSide(
-                      color: AppColors.chartBarDim.withValues(alpha: 0.22),
+                      color: c.separator,
                     ),
                   ),
                   child: Column(
@@ -1330,22 +1389,27 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                           dense: true,
                           title: Text(
                             visiblePatientMatches[i].fullName,
-                            style: AppColors.bodyMedium.copyWith(
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
                               fontWeight: FontWeight.w600,
+                              color: c.label,
+                              fontSize: 14,
                             ),
                           ),
                           subtitle: Text(
                             visiblePatientMatches[i].phone,
-                            style: AppColors.bodySmall,
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: c.label2,
+                              fontSize: 12,
+                            ),
                           ),
                           onTap: () => _selectPatient(visiblePatientMatches[i]),
                         ),
                         if (i != visiblePatientMatches.length - 1)
                           Divider(
                             height: 1,
-                            color: AppColors.textSecondary.withValues(
-                              alpha: 0.12,
-                            ),
+                            color: c.separator,
                           ),
                       ],
                       if (_patientMatches.length > visiblePatientMatches.length)
@@ -1353,8 +1417,10 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                           padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
                           child: Text(
                             'Showing first ${visiblePatientMatches.length} matches. Keep typing to narrow results.',
-                            style: AppColors.bodySmall.copyWith(
-                              color: AppColors.textSecondary,
+                            style: TextStyle(
+                              fontFamily: AppColors.bodyFontFamily,
+                              color: c.label2,
+                              fontSize: 12,
                             ),
                           ),
                         ),
@@ -1368,8 +1434,10 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
                 padding: const EdgeInsets.only(top: 6, left: 4),
                 child: Text(
                   'No matching patient — add them in Patient Records first.',
-                  style: AppColors.bodyMedium.copyWith(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: c.label2,
+                    fontSize: 13,
                   ),
                 ),
               ),
@@ -1382,7 +1450,7 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
               if (picked != null) setState(() => _selectedTime = picked);
             }),
             const SizedBox(height: 12),
-            _buildDurationDropdown(_selectedDuration, (value) {
+            _buildDurationDropdown(context, _selectedDuration, (value) {
               if (value != null) setState(() => _selectedDuration = value);
             }),
             const SizedBox(height: 12),
@@ -1401,6 +1469,7 @@ class _AddVisitSheetState extends State<_AddVisitSheet> {
             ),
             const SizedBox(height: 12),
             _buildTextField(
+              context,
               'Google Maps Link (optional)',
               _mapsLinkController,
               hint: 'https://maps.google.com/...',
@@ -1427,16 +1496,18 @@ class _OnlineSessionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.cardSurface,
+        color: c.surface,
         borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.separator),
       ),
       child: Row(
         children: [
-          const Icon(Icons.videocam, color: AppColors.silver, size: 22),
+          Icon(Icons.videocam, color: c.accent, size: 22),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -1444,21 +1515,28 @@ class _OnlineSessionCard extends StatelessWidget {
               children: [
                 Text(
                   session.title,
-                  style: AppColors.sectionHeading.copyWith(fontSize: 15),
+                  style: AppColors.sectionHeading.copyWith(
+                    fontSize: 15,
+                    color: c.label,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   '${session.date}  •  ${session.time}',
-                  style: AppColors.bodySmall,
+                  style: TextStyle(
+                    fontFamily: AppColors.bodyFontFamily,
+                    color: c.label2,
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),
           ),
           GestureDetector(
             onTap: onTap,
-            child: const Icon(
+            child: Icon(
               Icons.open_in_new,
-              color: AppColors.beige,
+              color: c.label2,
               size: 20,
             ),
           ),

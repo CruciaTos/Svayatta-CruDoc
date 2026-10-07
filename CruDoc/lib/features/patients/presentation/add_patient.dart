@@ -5,6 +5,7 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 
 export 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 
@@ -130,12 +131,13 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
           child: Padding(
@@ -156,7 +158,7 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                       width: 44,
                       height: 5,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFCBD5E1),
+                        color: c.separator,
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ),
@@ -164,18 +166,18 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Row(
+                        Row(
                           children: [
                             Icon(
                               Icons.person_add_alt_1_rounded,
-                              color: Color(0xFF2563EB),
+                              color: c.accent,
                               size: 22,
                             ),
-                            SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             Text(
                               'Add New Patient',
                               style: TextStyle(
-                                color: Color(0xFF0F172A),
+                                color: c.label,
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -183,16 +185,16 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                           ],
                         ),
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close_rounded,
-                            color: Color(0xFF64748B),
+                            color: c.label2,
                             size: 20,
                           ),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ],
                     ),
-                    const Divider(height: 20),
+                    Divider(height: 20, color: c.separator),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -211,28 +213,26 @@ class _AddPatientSheetState extends State<AddPatientSheet> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _onSavePressed,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor: const Color(
-                            0xFF2563EB,
-                          ).withValues(alpha: 0.5),
+                          backgroundColor: c.accent,
+                          disabledBackgroundColor: c.accent.withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
                         child: _isSaving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 22,
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.4,
-                                  color: Colors.white,
+                                  color: c.onAccent,
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Save Patient',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: c.onAccent,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                 ),
@@ -377,12 +377,13 @@ class _TopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Row(
       children: [
         IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
+            color: c.label,
             size: 20,
           ),
           padding: EdgeInsets.zero,
@@ -390,11 +391,11 @@ class _TopBar extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
         ),
         const SizedBox(width: 10),
-        const Text(
+        Text(
           'Add Patient',
           style: TextStyle(
             fontFamily: AppColors.bodyFontFamily,
-            color: AppColors.textPrimary,
+            color: c.label,
             fontSize: 18,
             fontWeight: FontWeight.w700,
           ),
@@ -465,12 +466,13 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       child: Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: c.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: SafeArea(
           child: Padding(
@@ -486,6 +488,16 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Drag handle
+                    Container(
+                      width: 44,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: c.separator,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -494,37 +506,37 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                             Container(
                               padding: const EdgeInsets.all(8),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFEFF6FF),
+                                color: c.accent.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.edit_note,
-                                color: Color(0xFF2563EB),
+                                color: c.accent,
                                 size: 20,
                               ),
                             ),
                             const SizedBox(width: 12),
-                            const Text(
+                            Text(
                               'Edit Patient',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
-                                color: Color(0xFF0F172A),
+                                color: c.label,
                               ),
                             ),
                           ],
                         ),
                         IconButton(
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close_rounded,
-                            color: Color(0xFF64748B),
+                            color: c.label2,
                             size: 20,
                           ),
                           onPressed: () => Navigator.of(context).pop(),
                         ),
                       ],
                     ),
-                    const Divider(height: 20),
+                    Divider(height: 20, color: c.separator),
                     Flexible(
                       child: SingleChildScrollView(
                         physics: const ClampingScrollPhysics(),
@@ -550,28 +562,26 @@ class _EditPatientSheetState extends State<EditPatientSheet> {
                       child: ElevatedButton(
                         onPressed: _isSaving ? null : _onSavePressed,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2563EB),
-                          disabledBackgroundColor: const Color(
-                            0xFF2563EB,
-                          ).withValues(alpha: 0.5),
+                          backgroundColor: c.accent,
+                          disabledBackgroundColor: c.accent.withValues(alpha: 0.5),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
                           elevation: 0,
                         ),
                         child: _isSaving
-                            ? const SizedBox(
+                            ? SizedBox(
                                 width: 22,
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.4,
-                                  color: Colors.white,
+                                  color: c.onAccent,
                                 ),
                               )
-                            : const Text(
+                            : Text(
                                 'Update Patient',
                                 style: TextStyle(
-                                  color: Colors.white,
+                                  color: c.onAccent,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                 ),

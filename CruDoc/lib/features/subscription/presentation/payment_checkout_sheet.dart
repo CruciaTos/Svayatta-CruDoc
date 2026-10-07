@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 
 /// Interactive in-app checkout modal that processes doctor payment and
 /// immediately unlocks and activates the selected features for 1 month (30 days).
@@ -38,6 +39,12 @@ class PaymentCheckoutSheet extends StatefulWidget {
 class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   final DoctorSubscriptionService _subscriptionService =
       DoctorSubscriptionService();
+
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
 
   String _selectedMethod = 'upi'; // 'upi', 'card', 'netbanking'
   String _selectedUpiApp = 'gpay'; // 'gpay', 'phonepe', 'paytm', 'bhim'
@@ -121,9 +128,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       constraints: BoxConstraints(
         maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
       ),
       child: _isSuccess
           ? _buildSuccessReceipt(currencyFormatter)
@@ -136,7 +143,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                     height: 4,
                     margin: const EdgeInsets.only(top: 12, bottom: 8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
+                      color: _c.separator,
                       borderRadius: BorderRadius.circular(999),
                     ),
                   ),
@@ -150,7 +157,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF16A34A).withValues(alpha: 0.1),
+                          color: const Color(0xFF16A34A).withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(14),
                         ),
                         child: const Icon(
@@ -164,12 +171,12 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               'Secure Checkout & Activation',
                               style: TextStyle(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary,
+                                color: _c.label,
                                 fontFamily: AppColors.headingFontFamily,
                               ),
                             ),
@@ -178,9 +185,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                               'Instant 1-month clinical feature activation',
                               style: TextStyle(
                                 fontSize: 12,
-                                color: AppColors.textSecondary.withValues(
-                                  alpha: 0.9,
-                                ),
+                                color: _c.label2,
                               ),
                             ),
                           ],
@@ -190,15 +195,15 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                         onPressed: _isProcessing
                             ? null
                             : () => Navigator.pop(context),
-                        icon: const Icon(
+                        icon: Icon(
                           Icons.close_rounded,
-                          color: AppColors.textSecondary,
+                          color: _c.label2,
                         ),
                       ),
                     ],
                   ),
                 ),
-                const Divider(height: 1),
+                Divider(height: 1, color: _c.separator),
 
                 // Body content
                 Expanded(
@@ -209,13 +214,13 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                       _buildOrderSummaryBox(currencyFormatter),
                       const SizedBox(height: 20),
 
-                      const Text(
+                      Text(
                         'SELECT PAYMENT METHOD',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.1,
-                          color: AppColors.slateBlue,
+                          color: _c.label2,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -267,9 +272,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _c.inset,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _c.separator),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -277,18 +282,18 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Order Summary',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: _c.label,
                 ),
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFDCFCE7),
+                  color: const Color(0xFF16A34A).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: const Text(
@@ -317,18 +322,18 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                   Expanded(
                     child: Text(
                       _getModuleTitle(modKey),
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12.5,
-                        color: Color(0xFF334155),
+                        color: _c.label,
                       ),
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Active',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E78FF),
+                      color: _c.accent,
                     ),
                   ),
                 ],
@@ -336,25 +341,25 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             );
           }),
           const SizedBox(height: 12),
-          const Divider(height: 1),
+          Divider(height: 1, color: _c.separator),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Total Payable Amount:',
                 style: TextStyle(
                   fontSize: 13.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: _c.label,
                 ),
               ),
               Text(
                 currencyFormatter.format(widget.totalAmount),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF1E78FF),
+                  color: _c.accent,
                 ),
               ),
             ],
@@ -375,10 +380,10 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
 
     return Container(
       decoration: BoxDecoration(
-        color: isSelected ? const Color(0xFFF0F7FF) : const Color(0xFFF8FAFC),
+        color: isSelected ? _c.accent.withValues(alpha: 0.1) : _c.inset,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isSelected ? const Color(0xFF1E78FF) : const Color(0xFFE2E8F0),
+          color: isSelected ? _c.accent : _c.separator,
           width: isSelected ? 1.5 : 1.0,
         ),
       ),
@@ -396,16 +401,14 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                     height: 36,
                     decoration: BoxDecoration(
                       color: isSelected
-                          ? const Color(0xFF1E78FF)
-                          : const Color(0xFFE2E8F0),
+                          ? _c.accent
+                          : _c.separator.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(
                       icon,
                       size: 20,
-                      color: isSelected
-                          ? Colors.white
-                          : const Color(0xFF64748B),
+                      color: isSelected ? _c.onAccent : _c.label2,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -415,17 +418,17 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                       children: [
                         Text(
                           title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13.5,
                             fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary,
+                            color: _c.label,
                           ),
                         ),
                         Text(
                           subtitle,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Color(0xFF64748B),
+                            color: _c.label2,
                           ),
                         ),
                       ],
@@ -435,7 +438,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
                     value: id,
                     groupValue: _selectedMethod,
                     onChanged: (val) => setState(() => _selectedMethod = val!),
-                    activeColor: const Color(0xFF1E78FF),
+                    activeColor: _c.accent,
                     visualDensity: VisualDensity.compact,
                   ),
                 ],
@@ -454,7 +457,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Divider(height: 1, color: Color(0xFFDBEAFE)),
+          Divider(height: 1, color: _c.separator),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -472,14 +475,25 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
               isDense: true,
               labelText: 'UPI ID / VPA',
               hintText: 'e.g. yourname@oksbi',
-              prefixIcon: const Icon(Icons.alternate_email_rounded, size: 18),
+              labelStyle: TextStyle(color: _c.label2),
+              hintStyle: TextStyle(color: _c.label2),
+              prefixIcon: Icon(Icons.alternate_email_rounded, size: 18, color: _c.label2),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _c.separator),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _c.separator),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _c.accent, width: 1.5),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: _c.surface,
             ),
-            style: const TextStyle(fontSize: 13),
+            style: TextStyle(fontSize: 13, color: _c.label),
           ),
         ],
       ),
@@ -494,12 +508,10 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF1E78FF) : Colors.white,
+          color: isSelected ? _c.accent : _c.surface,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected
-                ? const Color(0xFF1E78FF)
-                : const Color(0xFFCBD5E1),
+            color: isSelected ? _c.accent : _c.separator,
           ),
         ),
         child: Text(
@@ -507,7 +519,7 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w600,
-            color: isSelected ? Colors.white : const Color(0xFF334155),
+            color: isSelected ? _c.onAccent : _c.label,
           ),
         ),
       ),
@@ -519,47 +531,83 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
       child: Column(
         children: [
-          const Divider(height: 1, color: Color(0xFFDBEAFE)),
+          Divider(height: 1, color: _c.separator),
           const SizedBox(height: 10),
           TextField(
             controller: _cardNumberController,
             decoration: InputDecoration(
               isDense: true,
               labelText: 'Card Number',
-              prefixIcon: const Icon(Icons.credit_card, size: 18),
+              labelStyle: TextStyle(color: _c.label2),
+              prefixIcon: Icon(Icons.credit_card, size: 18, color: _c.label2),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _c.separator),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _c.separator),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: _c.accent, width: 1.5),
               ),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: _c.surface,
             ),
-            style: const TextStyle(fontSize: 13),
+            style: TextStyle(fontSize: 13, color: _c.label),
           ),
           const SizedBox(height: 8),
-          const Row(
+          Row(
             children: [
               Expanded(
                 child: TextField(
                   decoration: InputDecoration(
                     isDense: true,
                     labelText: 'MM / YY',
+                    labelStyle: TextStyle(color: _c.label2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _c.separator),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _c.separator),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _c.accent, width: 1.5),
+                    ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: _c.surface,
                   ),
-                  style: TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: 13, color: _c.label),
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: TextField(
                   decoration: InputDecoration(
                     isDense: true,
                     labelText: 'CVV',
+                    labelStyle: TextStyle(color: _c.label2),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _c.separator),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _c.separator),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: _c.accent, width: 1.5),
+                    ),
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: _c.surface,
                   ),
                   obscureText: true,
-                  style: TextStyle(fontSize: 13),
+                  style: TextStyle(fontSize: 13, color: _c.label),
                 ),
               ),
             ],
@@ -573,20 +621,20 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: _c.inset,
         borderRadius: BorderRadius.circular(12),
       ),
-      child: const Row(
+      child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.shield_rounded, size: 16, color: Color(0xFF16A34A)),
-          SizedBox(width: 8),
+          const Icon(Icons.shield_rounded, size: 16, color: Color(0xFF16A34A)),
+          const SizedBox(width: 8),
           Text(
             '256-Bit Encrypted Healthcare Payment Gateway',
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
-              color: Color(0xFF475569),
+              color: _c.label2,
             ),
           ),
         ],
@@ -597,7 +645,10 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
   Widget _buildPayButtonBar(NumberFormat currencyFormatter) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        border: Border(top: BorderSide(color: _c.separator)),
+      ),
       child: SafeArea(
         top: false,
         child: SizedBox(
@@ -658,20 +709,20 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             ),
           ),
           const SizedBox(height: 20),
-          const Text(
+          Text(
             'Payment Successful!',
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w800,
-              color: AppColors.textPrimary,
+              color: _c.label,
               fontFamily: AppColors.headingFontFamily,
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Your selected clinical modules are now unlocked and active.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, color: Color(0xFF64748B)),
+            style: TextStyle(fontSize: 13.5, color: _c.label2),
           ),
           const SizedBox(height: 20),
 
@@ -680,9 +731,9 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8FAFC),
+              color: _c.inset,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              border: Border.all(color: _c.separator),
             ),
             child: Column(
               children: [
@@ -743,14 +794,14 @@ class _PaymentCheckoutSheetState extends State<PaymentCheckoutSheet> {
       children: [
         Text(
           label,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          style: TextStyle(fontSize: 12, color: _c.label2),
         ),
         Text(
           value,
           style: TextStyle(
             fontSize: 12.5,
             fontWeight: isBold ? FontWeight.w700 : FontWeight.w500,
-            color: isBold ? const Color(0xFF0F172A) : const Color(0xFF334155),
+            color: isBold ? _c.label : _c.label2,
           ),
         ),
       ],

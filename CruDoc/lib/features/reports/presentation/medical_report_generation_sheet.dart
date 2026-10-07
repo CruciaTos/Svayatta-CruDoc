@@ -7,6 +7,7 @@ import 'package:doctor_management_app/core/pdf/presentation/medical_pdf_preview_
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:crudoc_shared/theme/cru_colors.dart';
 
 /// Lightweight medical report generator that reuses the shared CruDoc
 /// letterhead PDF layer for clinical summaries, investigation reports,
@@ -28,6 +29,12 @@ class MedicalReportGenerationSheet extends StatefulWidget {
 
 class _MedicalReportGenerationSheetState
     extends State<MedicalReportGenerationSheet> {
+  CruColors get _c =>
+      Theme.of(context).extension<CruColors>() ??
+      (Theme.of(context).brightness == Brightness.dark
+          ? CruColors.evening
+          : CruColors.day);
+
   late final TextEditingController _patientNameCtrl;
   late final TextEditingController _patientAgeGenderCtrl;
   late final TextEditingController _patientPhoneCtrl;
@@ -110,9 +117,9 @@ class _MedicalReportGenerationSheetState
 
     return Container(
       height: MediaQuery.of(context).size.height * 0.94,
-      decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         children: [
@@ -141,10 +148,10 @@ class _MedicalReportGenerationSheetState
   Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 16, 12),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        border: Border(bottom: BorderSide(color: _c.separator)),
       ),
       child: Column(
         children: [
@@ -153,7 +160,7 @@ class _MedicalReportGenerationSheetState
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Colors.grey.shade300,
+                color: _c.separator,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -167,29 +174,29 @@ class _MedicalReportGenerationSheetState
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E78FF).withValues(alpha: 0.1),
+                      color: _c.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.description_rounded,
-                      color: Color(0xFF1E78FF),
+                      color: _c.accent,
                       size: 20,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Text(
+                  Text(
                     'Generate Medical Report',
                     style: TextStyle(
                       fontFamily: AppColors.headingFontFamily,
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
-                      color: Color(0xFF0F172A),
+                      color: _c.label,
                     ),
                   ),
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                icon: Icon(Icons.close_rounded, color: _c.label2),
                 onPressed: () => Navigator.pop(context),
               ),
             ],
@@ -203,9 +210,9 @@ class _MedicalReportGenerationSheetState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _c.inset,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _c.separator),
         boxShadow: const [],
       ),
       child: Column(
@@ -306,19 +313,19 @@ class _MedicalReportGenerationSheetState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _c.inset,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _c.separator),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Report Details & Patient Info',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 14,
-              color: Color(0xFF334155),
+              color: _c.label,
             ),
           ),
           const SizedBox(height: 12),
@@ -384,21 +391,21 @@ class _MedicalReportGenerationSheetState
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
         decoration: BoxDecoration(
-          color: const Color(0xFFF8FAFC),
+          color: _c.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: _c.separator),
         ),
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_rounded,
               size: 16,
-              color: Color(0xFF1E78FF),
+              color: _c.accent,
             ),
             const SizedBox(width: 8),
             Text(
               DateFormat('dd MMM yyyy').format(_reportDate),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: _c.label),
             ),
           ],
         ),
@@ -410,19 +417,19 @@ class _MedicalReportGenerationSheetState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: _c.inset,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _c.separator),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Structured Report Sections',
             style: TextStyle(
               fontWeight: FontWeight.w700,
               fontSize: 14,
-              color: Color(0xFF334155),
+              color: _c.label,
             ),
           ),
           const SizedBox(height: 12),
@@ -476,9 +483,9 @@ class _MedicalReportGenerationSheetState
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
+        color: _c.inset,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        border: Border.all(color: _c.separator),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -486,28 +493,29 @@ class _MedicalReportGenerationSheetState
           Expanded(
             child: Text(
               cfg.footerDisclaimer,
-              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+              style: TextStyle(fontSize: 11, color: _c.label2),
             ),
           ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Icon(
+              Icon(
                 Icons.draw_rounded,
-                color: Color(0xFF1E78FF),
+                color: _c.accent,
                 size: 24,
               ),
               const SizedBox(height: 4),
               Text(
                 cfg.doctorName,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
+                  color: _c.label,
                 ),
               ),
               Text(
                 'Reg: ${cfg.registrationNumber}',
-                style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+                style: TextStyle(fontSize: 10, color: _c.label2),
               ),
             ],
           ),
@@ -519,9 +527,9 @@ class _MedicalReportGenerationSheetState
   Widget _buildBottomToolbar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+      decoration: BoxDecoration(
+        color: _c.surface,
+        border: Border(top: BorderSide(color: _c.separator)),
       ),
       child: SizedBox(
         width: double.infinity,
@@ -530,8 +538,8 @@ class _MedicalReportGenerationSheetState
           icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
           label: const Text('Preview & Print Report'),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF1E78FF),
-            foregroundColor: Colors.white,
+            backgroundColor: _c.accent,
+            foregroundColor: _c.onAccent,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -551,26 +559,28 @@ class _MedicalReportGenerationSheetState
     return TextField(
       controller: controller,
       maxLines: maxLines,
+      style: TextStyle(color: _c.label, fontSize: 13.5),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, size: 16, color: const Color(0xFF1E78FF)),
+        labelStyle: TextStyle(color: _c.label2, fontSize: 13),
+        prefixIcon: Icon(icon, size: 16, color: _c.accent),
         filled: true,
-        fillColor: const Color(0xFFF8FAFC),
+        fillColor: _c.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,
           vertical: 10,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
+          borderSide: BorderSide(color: _c.separator),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.transparent),
+          borderSide: BorderSide(color: _c.separator),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Color(0xFF1E78FF), width: 1.5),
+          borderSide: BorderSide(color: _c.accent, width: 1.5),
         ),
       ),
     );

@@ -186,6 +186,8 @@ class Visit {
   final String? therapistNotes;
   final String? reminderStatus;
   final String? calendarEventId;
+  final String attendingDoctorUid;
+  final String createdByUid;
 
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -214,6 +216,8 @@ class Visit {
     this.therapistNotes,
     this.reminderStatus,
     this.calendarEventId,
+    this.attendingDoctorUid = '',
+    this.createdByUid = '',
   });
 
   /// The moment the visit is scheduled to end, derived from
@@ -264,6 +268,8 @@ class Visit {
       therapistNotes: map['therapistNotes'] as String?,
       reminderStatus: map['reminderStatus'] as String?,
       calendarEventId: map['calendarEventId'] as String?,
+      attendingDoctorUid: map['attendingDoctorUid'] as String? ?? '',
+      createdByUid: map['createdByUid'] as String? ?? '',
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
     );
@@ -293,6 +299,8 @@ class Visit {
       'therapistNotes': therapistNotes,
       'reminderStatus': reminderStatus,
       'calendarEventId': calendarEventId,
+      'attendingDoctorUid': attendingDoctorUid,
+      'createdByUid': createdByUid,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -321,6 +329,8 @@ class Visit {
     String? therapistNotes,
     String? reminderStatus,
     String? calendarEventId,
+    String? attendingDoctorUid,
+    String? createdByUid,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -346,6 +356,8 @@ class Visit {
       therapistNotes: therapistNotes ?? this.therapistNotes,
       reminderStatus: reminderStatus ?? this.reminderStatus,
       calendarEventId: calendarEventId ?? this.calendarEventId,
+      attendingDoctorUid: attendingDoctorUid ?? this.attendingDoctorUid,
+      createdByUid: createdByUid ?? this.createdByUid,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

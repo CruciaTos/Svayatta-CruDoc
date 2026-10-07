@@ -456,7 +456,13 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     final root = Navigator.of(context, rootNavigator: true).context;
     return SidebarCallbacks(
       onNavigate: _onNavTap,
-      onClinicSwitcher: () => showSpecialtySwitcherDialog(root),
+      // The specialty switcher changes the signed-in profile; a team member
+      // works in the clinic's specialty instead.
+      onClinicSwitcher: () {
+        final access = ref.read(clinicAccessProvider).value;
+        if (access != null && !access.isOwner) return;
+        showSpecialtySwitcherDialog(root);
+      },
       onUpgrade: () {
         final info = ref.read(subscriptionInfoProvider).value;
         if (info != null) {

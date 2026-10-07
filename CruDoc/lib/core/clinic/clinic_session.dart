@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,8 +39,20 @@ class ClinicSession {
       _streamController.stream; // emits on load, role change, removal, clear
 
   /// Tenant for data. Falls back to the signed-in uid (solo doctor).
-  String? get tenantId =>
-      access?.clinicId ?? FirebaseAuth.instance.currentUser?.uid;
+  String? get tenantId {
+    final fromAccess = access?.clinicId;
+    if (fromAccess != null && fromAccess.isNotEmpty) return fromAccess;
+    try {
+      return FirebaseAuth.instance.currentUser?.uid;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @visibleForTesting
+  void setAccessForTesting(ClinicAccess? access) {
+    _access = access;
+  }
 
   /// Emits once when the member doc goes inactive or disappears.
   Stream<void> get removed => _removedController.stream;

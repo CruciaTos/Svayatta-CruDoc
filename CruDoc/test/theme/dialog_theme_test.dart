@@ -22,6 +22,8 @@ class _FakeQueueRepo implements QueueRepository {
     String? walkInPhone,
     String? reason,
     QueuePriority priority = QueuePriority.normal,
+    String? attendingDoctorUid,
+    String? createdByUid,
   }) async {
     return QueueEntry(
       id: 'entry-1',

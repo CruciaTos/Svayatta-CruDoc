@@ -12,6 +12,7 @@ import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_format.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Width of the header's one filled button, the same in every Schedule
@@ -105,6 +106,7 @@ class ScheduleHeaderFrame extends StatelessWidget {
           const ScheduleViewSwitcher(),
           const SizedBox(width: CruSpace.s10),
         ],
+        const ScheduleDoctorFilter(),
         CruSquareButton(
           icon: CruIcons.search,
           semanticLabel: 'Search appointments',

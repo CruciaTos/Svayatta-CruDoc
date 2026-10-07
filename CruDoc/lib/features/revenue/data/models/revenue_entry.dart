@@ -98,6 +98,12 @@ class RevenueEntry {
   /// remains non‑breaking.
   final TransactionKind kind;
 
+  /// UID of the doctor who attended the patient / provided the service.
+  final String attendingDoctorUid;
+
+  /// UID of the user who recorded this revenue entry.
+  final String createdByUid;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -113,6 +119,8 @@ class RevenueEntry {
     this.payer,
     this.patientId,
     this.visitId,
+    this.attendingDoctorUid = '',
+    this.createdByUid = '',
     this.isDeleted = false,
     this.kind = TransactionKind.income,
   });
@@ -138,6 +146,8 @@ class RevenueEntry {
       payer: map['payer'] as String?,
       patientId: map['patientId'] as String?,
       visitId: map['visitId'] as String?,
+      attendingDoctorUid: map['attendingDoctorUid'] as String? ?? '',
+      createdByUid: map['createdByUid'] as String? ?? '',
       isDeleted: map['isDeleted'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
@@ -157,6 +167,8 @@ class RevenueEntry {
       'payer': payer,
       'patientId': patientId,
       'visitId': visitId,
+      'attendingDoctorUid': attendingDoctorUid,
+      'createdByUid': createdByUid,
       'isDeleted': isDeleted,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -171,6 +183,8 @@ class RevenueEntry {
     String? payer,
     String? patientId,
     String? visitId,
+    String? attendingDoctorUid,
+    String? createdByUid,
     bool? isDeleted,
     TransactionKind? kind,
     DateTime? createdAt,
@@ -186,6 +200,8 @@ class RevenueEntry {
       payer: payer ?? this.payer,
       patientId: patientId ?? this.patientId,
       visitId: visitId ?? this.visitId,
+      attendingDoctorUid: attendingDoctorUid ?? this.attendingDoctorUid,
+      createdByUid: createdByUid ?? this.createdByUid,
       isDeleted: isDeleted ?? this.isDeleted,
       kind: kind ?? this.kind,
       createdAt: createdAt ?? this.createdAt,
@@ -244,6 +260,12 @@ class PendingPayment {
   /// details sheet — e.g. a reason the amount was adjusted.
   final String? notes;
 
+  /// UID of the doctor who attended the patient / provided the service.
+  final String attendingDoctorUid;
+
+  /// UID of the user who recorded this pending payment.
+  final String createdByUid;
+
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -260,6 +282,8 @@ class PendingPayment {
     this.patientId,
     this.visitId,
     this.notes,
+    this.attendingDoctorUid = '',
+    this.createdByUid = '',
   });
 
   /// Builds a [PendingPayment] from a Firestore document snapshot.
@@ -286,6 +310,8 @@ class PendingPayment {
       patientId: map['patientId'] as String?,
       visitId: map['visitId'] as String?,
       notes: map['notes'] as String?,
+      attendingDoctorUid: map['attendingDoctorUid'] as String? ?? '',
+      createdByUid: map['createdByUid'] as String? ?? '',
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
     );
@@ -304,6 +330,8 @@ class PendingPayment {
       'patientId': patientId,
       'visitId': visitId,
       'notes': notes,
+      'attendingDoctorUid': attendingDoctorUid,
+      'createdByUid': createdByUid,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -318,6 +346,8 @@ class PendingPayment {
     String? patientId,
     String? visitId,
     String? notes,
+    String? attendingDoctorUid,
+    String? createdByUid,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -332,6 +362,8 @@ class PendingPayment {
       patientId: patientId ?? this.patientId,
       visitId: visitId ?? this.visitId,
       notes: notes ?? this.notes,
+      attendingDoctorUid: attendingDoctorUid ?? this.attendingDoctorUid,
+      createdByUid: createdByUid ?? this.createdByUid,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

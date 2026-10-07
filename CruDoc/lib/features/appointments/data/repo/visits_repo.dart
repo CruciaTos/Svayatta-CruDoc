@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/revenue/data/models/revenue_entry
 import 'package:doctor_management_app/features/revenue/repo/revenue_repo.dart';
 import 'package:doctor_management_app/features/messaging/data/repo/messaging_repository.dart';
 import 'package:doctor_management_app/core/services/maps_key.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Standard fee recorded when an appointment ([VisitType.clinic]) is
@@ -244,6 +245,16 @@ class VisitRepository {
       therapistNotes: visit.therapistNotes,
       reminderStatus: visit.reminderStatus,
       calendarEventId: visit.calendarEventId,
+      // No doctor chosen: a doctor books for themselves; staff book for the
+      // owner (empty means the owner), never for themselves.
+      attendingDoctorUid: visit.attendingDoctorUid.isNotEmpty
+          ? visit.attendingDoctorUid
+          : (ClinicSession.instance.access?.kind == MemberKind.doctor
+                ? (FirebaseAuth.instance.currentUser?.uid ?? '')
+                : ''),
+      createdByUid: visit.createdByUid.isNotEmpty
+          ? visit.createdByUid
+          : (FirebaseAuth.instance.currentUser?.uid ?? ''),
       createdAt: now,
       updatedAt: now,
     );

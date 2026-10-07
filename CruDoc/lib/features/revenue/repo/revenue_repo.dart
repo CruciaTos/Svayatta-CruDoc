@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Clean API the presentation layer talks to for anything revenue-related.
@@ -74,6 +75,15 @@ class RevenueRepository {
 
     final now = DateTime.now();
     final id = entry.id.trim().isEmpty ? const Uuid().v4() : entry.id;
+    final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+    final attending = entry.attendingDoctorUid.isNotEmpty
+        ? entry.attendingDoctorUid
+        : (isDoctor ? currentAuthUid : '');
+    final creator = entry.createdByUid.isNotEmpty
+        ? entry.createdByUid
+        : currentAuthUid;
+
     final entryWithId = RevenueEntry(
       id: id,
       doctorId: _currentDoctorId,
@@ -85,6 +95,8 @@ class RevenueRepository {
       payer: entry.payer,
       patientId: entry.patientId,
       visitId: entry.visitId,
+      attendingDoctorUid: attending,
+      createdByUid: creator,
       isDeleted: entry.isDeleted,
       createdAt: now,
       updatedAt: now,
@@ -249,6 +261,15 @@ class RevenueRepository {
 
     final now = DateTime.now();
     final id = payment.id.trim().isEmpty ? const Uuid().v4() : payment.id;
+    final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+    final attending = payment.attendingDoctorUid.isNotEmpty
+        ? payment.attendingDoctorUid
+        : (isDoctor ? currentAuthUid : '');
+    final creator = payment.createdByUid.isNotEmpty
+        ? payment.createdByUid
+        : currentAuthUid;
+
     final paymentWithId = PendingPayment(
       id: id,
       doctorId: _currentDoctorId,
@@ -260,6 +281,8 @@ class RevenueRepository {
       patientId: payment.patientId,
       visitId: payment.visitId,
       notes: payment.notes,
+      attendingDoctorUid: attending,
+      createdByUid: creator,
       createdAt: now,
       updatedAt: now,
     );
@@ -346,6 +369,8 @@ class RevenueRepository {
         payer: pending.payer,
         patientId: pending.patientId,
         visitId: pending.visitId,
+        attendingDoctorUid: pending.attendingDoctorUid,
+        createdByUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         createdAt: now,
         updatedAt: now,
       ),

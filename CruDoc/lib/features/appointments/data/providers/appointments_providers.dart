@@ -12,6 +12,8 @@ import 'package:doctor_management_app/features/appointments/data/model/visits_mo
 import 'package:doctor_management_app/core/services/google_places_service.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/core/services/device_location_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart' as clinic_tenant;
 
 /// "Now" for the Appointments screens: the dashboard clock (tests
 /// override `dashboardNowProvider`).
@@ -27,17 +29,42 @@ final apptItemsProvider = Provider<AsyncValue<List<ApptItem>>>((ref) {
   final patients = ref.watch(patientsStreamProvider);
   final queue = ref.watch(todaysQueueProvider);
   final now = ref.watch(apptsNowProvider);
+  final doctorFilter = ref.watch(scheduleDoctorFilterProvider);
+  final tenantId = clinic_tenant.ClinicSession.instance.tenantId ?? '';
+
   if (visits.hasError) {
     return AsyncValue.error(visits.error!, visits.stackTrace!);
   }
   final v = visits.value;
   final p = patients.value ?? (patients.hasError ? const [] : null);
   if (v == null || p == null) return const AsyncValue.loading();
+
+  final filteredVisits = doctorFilter == null
+      ? v
+      : v.where((visit) {
+          final docUid = visit.attendingDoctorUid;
+          final isOwner = doctorFilter == tenantId;
+          return isOwner
+              ? (docUid == tenantId || docUid.isEmpty)
+              : (docUid == doctorFilter);
+        }).toList();
+
+  final qList = queue.value ?? const [];
+  final filteredQueue = doctorFilter == null
+      ? qList
+      : qList.where((q) {
+          final docUid = q.attendingDoctorUid;
+          final isOwner = doctorFilter == tenantId;
+          return isOwner
+              ? (docUid == tenantId || docUid.isEmpty)
+              : (docUid == doctorFilter);
+        }).toList();
+
   return AsyncValue.data(
     ApptsBuilder.items(
-      visits: v,
+      visits: filteredVisits,
       patients: p,
-      todaysQueue: queue.value ?? const [],
+      todaysQueue: filteredQueue,
       now: now,
     ),
   );

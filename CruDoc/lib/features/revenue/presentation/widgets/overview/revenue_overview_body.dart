@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_view_providers.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/collections_by_day_card.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/pending_actions.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/pending_payments_card.dart';
+import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_by_doctor_card.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_glance.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/transactions_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
@@ -15,7 +17,8 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// with Pending payments in the 384 px right column. "By service" is a
 /// GAP (entries carry no service or category), so Pending payments
 /// sits at the top of the right column. Below 1200 px the right column
-/// stacks under the left.
+/// stacks under the left. When a clinic has more than one doctor, a
+/// "By doctor" breakdown card is displayed.
 class RevenueOverviewBody extends ConsumerWidget {
   const RevenueOverviewBody({super.key});
 
@@ -25,6 +28,8 @@ class RevenueOverviewBody extends ConsumerWidget {
     final pending = ref.watch(revenuePendingProvider);
     final view = ref.watch(revenueViewControllerProvider);
     final controller = ref.read(revenueViewControllerProvider.notifier);
+    final doctors = ref.watch(clinicDoctorsProvider).value ?? const [];
+    final showByDoctor = doctors.length > 1;
 
     void openEntry(RevenueEntry entry) {
       Navigator.of(context).push(
@@ -77,7 +82,19 @@ class RevenueOverviewBody extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: CruSpace.cardGap),
-              SizedBox(width: CruSize.rightColumn, child: pendingCard),
+              SizedBox(
+                width: CruSize.rightColumn,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (showByDoctor) ...[
+                      const RevenueByDoctorCard(),
+                      const SizedBox(height: CruSpace.cardGap),
+                    ],
+                    pendingCard,
+                  ],
+                ),
+              ),
             ],
           )
         : Column(
@@ -86,6 +103,10 @@ class RevenueOverviewBody extends ConsumerWidget {
               collections,
               const SizedBox(height: CruSpace.cardGap),
               transactions,
+              if (showByDoctor) ...[
+                const SizedBox(height: CruSpace.cardGap),
+                const RevenueByDoctorCard(),
+              ],
               const SizedBox(height: CruSpace.cardGap),
               pendingCard,
             ],

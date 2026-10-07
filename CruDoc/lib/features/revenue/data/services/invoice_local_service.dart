@@ -22,6 +22,8 @@ class InvoiceLocalService {
         date INTEGER NOT NULL,
         dueDate INTEGER,
         notes TEXT,
+        attendingDoctorUid TEXT NOT NULL DEFAULT '',
+        createdByUid TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL
       )

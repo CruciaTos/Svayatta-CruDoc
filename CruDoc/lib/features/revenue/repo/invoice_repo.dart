@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/data/services/invoice_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 class InvoiceRepository {
@@ -126,6 +127,8 @@ class InvoiceRepository {
     String? patientId,
     DateTime? dueDate,
     String notes = '',
+    String? attendingDoctorUid,
+    String? createdByUid,
   }) async {
     final doctorId = _currentDoctorId;
     if (doctorId == 'anonymous') {
@@ -140,6 +143,15 @@ class InvoiceRepository {
     final id =
         'INV-${now.year}-${now.millisecondsSinceEpoch.toString().substring(7)}';
 
+    final currentAuthUid = _auth.currentUser?.uid ?? '';
+    final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+    final attending = (attendingDoctorUid != null && attendingDoctorUid.trim().isNotEmpty)
+        ? attendingDoctorUid.trim()
+        : (isDoctor ? currentAuthUid : '');
+    final creator = (createdByUid != null && createdByUid.trim().isNotEmpty)
+        ? createdByUid.trim()
+        : currentAuthUid;
+
     final invoice = InvoiceModel(
       id: id,
       doctorId: doctorId,
@@ -151,6 +163,8 @@ class InvoiceRepository {
       date: now,
       dueDate: dueDate,
       notes: sanitizedNotes,
+      attendingDoctorUid: attending,
+      createdByUid: creator,
       createdAt: now,
       updatedAt: now,
     );

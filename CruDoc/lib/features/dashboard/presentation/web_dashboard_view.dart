@@ -23,6 +23,7 @@ import 'package:doctor_management_app/features/appointments/presentation/visit_d
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 // ==================== CAREDOC ALL-IN-ONE WEB DASHBOARD ====================
@@ -3241,6 +3242,14 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                   ),
                                   'doctorId': currentDoctorId,
                                   'doctorUid': currentDoctorId,
+                                  'attendingDoctorUid':
+                                      ClinicSession.instance.access?.kind ==
+                                              MemberKind.doctor
+                                          ? (FirebaseAuth.instance.currentUser?.uid ??
+                                              '')
+                                          : '',
+                                  'createdByUid':
+                                      FirebaseAuth.instance.currentUser?.uid ?? '',
                                 };
                                 await FirebaseFirestore.instance
                                     .collection('invoices')

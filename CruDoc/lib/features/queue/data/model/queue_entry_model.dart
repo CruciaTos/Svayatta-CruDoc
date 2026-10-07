@@ -143,6 +143,13 @@ class QueueEntry {
   /// move through the queue as one.
   final String? groupId;
 
+  /// UID of the doctor attending this patient. Empty string defaults
+  /// to the clinic owner.
+  final String attendingDoctorUid;
+
+  /// UID of the user who checked this patient into the queue.
+  final String createdByUid;
+
   /// True once this token has been soft-deleted (e.g. created by
   /// mistake). Hidden from every default query, but the document is
   /// never removed — matches [Visit.isDeleted].
@@ -168,6 +175,8 @@ class QueueEntry {
     this.completedAt,
     this.linkedVisitId,
     this.groupId,
+    this.attendingDoctorUid = '',
+    this.createdByUid = '',
     this.isDeleted = false,
     required this.createdAt,
     required this.updatedAt,
@@ -208,6 +217,8 @@ class QueueEntry {
       completedAt: _nullableTimestampToDate(map['completedAt']),
       linkedVisitId: map['linkedVisitId'] as String?,
       groupId: map['groupId'] as String?,
+      attendingDoctorUid: map['attendingDoctorUid'] as String? ?? '',
+      createdByUid: map['createdByUid'] as String? ?? '',
       isDeleted: map['isDeleted'] as bool? ?? false,
       createdAt: _timestampToDate(map['createdAt']),
       updatedAt: _timestampToDate(map['updatedAt']),
@@ -237,6 +248,8 @@ class QueueEntry {
           : Timestamp.fromDate(completedAt!),
       'linkedVisitId': linkedVisitId,
       'groupId': groupId,
+      'attendingDoctorUid': attendingDoctorUid,
+      'createdByUid': createdByUid,
       'isDeleted': isDeleted,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
@@ -258,6 +271,8 @@ class QueueEntry {
     DateTime? completedAt,
     String? linkedVisitId,
     String? groupId,
+    String? attendingDoctorUid,
+    String? createdByUid,
     bool? isDeleted,
     DateTime? updatedAt,
   }) {
@@ -279,6 +294,8 @@ class QueueEntry {
       completedAt: completedAt ?? this.completedAt,
       linkedVisitId: linkedVisitId ?? this.linkedVisitId,
       groupId: groupId ?? this.groupId,
+      attendingDoctorUid: attendingDoctorUid ?? this.attendingDoctorUid,
+      createdByUid: createdByUid ?? this.createdByUid,
       isDeleted: isDeleted ?? this.isDeleted,
       createdAt: createdAt,
       updatedAt: updatedAt ?? this.updatedAt,

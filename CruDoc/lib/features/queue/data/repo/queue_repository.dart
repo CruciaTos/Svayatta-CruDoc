@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/appointments/data/services/visits
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/services/queue_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Clean API the presentation layer talks to for anything walk-in-queue
@@ -70,6 +71,8 @@ class QueueRepository {
     String? walkInPhone,
     String? reason,
     QueuePriority priority = QueuePriority.normal,
+    String? attendingDoctorUid,
+    String? createdByUid,
   }) async {
     final trimmedPatientId = patientId?.trim() ?? '';
     final trimmedWalkInName = walkInName?.trim() ?? '';
@@ -101,6 +104,14 @@ class QueueRepository {
     final trimmedPhone = walkInPhone?.trim() ?? '';
     final trimmedReason = reason?.trim() ?? '';
     final now = DateTime.now();
+    final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+    final attending = (attendingDoctorUid != null && attendingDoctorUid.trim().isNotEmpty)
+        ? attendingDoctorUid.trim()
+        : (isDoctor ? currentAuthUid : '');
+    final creator = (createdByUid != null && createdByUid.trim().isNotEmpty)
+        ? createdByUid.trim()
+        : currentAuthUid;
 
     final draft = QueueEntry(
       id: const Uuid().v4(),
@@ -113,6 +124,8 @@ class QueueRepository {
       status: QueueStatus.waiting,
       priority: priority,
       reason: trimmedReason.isEmpty ? null : trimmedReason,
+      attendingDoctorUid: attending,
+      createdByUid: creator,
       checkedInAt: now,
       createdAt: now,
       updatedAt: now,

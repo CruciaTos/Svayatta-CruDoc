@@ -529,6 +529,8 @@ class FirestoreSyncService {
               : FieldCipher.encrypt(row['therapistNotes'] as String?),
           'reminderStatus': row['reminderStatus'] as String?,
           'calendarEventId': row['calendarEventId'] as String?,
+          'attendingDoctorUid': row['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': row['createdByUid'] as String? ?? '',
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -548,6 +550,8 @@ class FirestoreSyncService {
           'patientId': row['patientId'] as String?,
           'visitId': row['visitId'] as String?,
           'isDeleted': row['isDeleted'] == 1,
+          'attendingDoctorUid': row['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': row['createdByUid'] as String? ?? '',
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -568,6 +572,8 @@ class FirestoreSyncService {
           'notes': row['notes'] == null
               ? null
               : FieldCipher.encrypt(row['notes'] as String?),
+          'attendingDoctorUid': row['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': row['createdByUid'] as String? ?? '',
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -635,6 +641,8 @@ class FirestoreSyncService {
           'linkedVisitId': row['linkedVisitId'] as String?,
           'groupId': row['groupId'] as String?,
           'isDeleted': row['isDeleted'] == 1,
+          'attendingDoctorUid': row['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': row['createdByUid'] as String? ?? '',
           'createdAt': _timestampFromMillis(row['createdAt']),
           'updatedAt': FieldValue.serverTimestamp(),
         };
@@ -894,6 +902,8 @@ class FirestoreSyncService {
               : FieldCipher.decrypt(data['therapistNotes'] as String?),
           'reminderStatus': data['reminderStatus'] as String?,
           'calendarEventId': data['calendarEventId'] as String?,
+          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': data['createdByUid'] as String? ?? '',
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',
@@ -923,6 +933,8 @@ class FirestoreSyncService {
           'visitId': data['visitId'] as String?,
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
           'isActive': 1,
+          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': data['createdByUid'] as String? ?? '',
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',
@@ -953,6 +965,8 @@ class FirestoreSyncService {
               ? null
               : FieldCipher.decrypt(data['notes'] as String?),
           'isActive': 1,
+          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': data['createdByUid'] as String? ?? '',
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',
@@ -1035,6 +1049,8 @@ class FirestoreSyncService {
           'linkedVisitId': data['linkedVisitId'] as String?,
           'groupId': data['groupId'] as String?,
           'isDeleted': (data['isDeleted'] as bool? ?? false) ? 1 : 0,
+          'attendingDoctorUid': data['attendingDoctorUid'] as String? ?? '',
+          'createdByUid': data['createdByUid'] as String? ?? '',
           'createdAt': _timestampToMillis(data['createdAt'], fallback: now),
           'updatedAt': _timestampToMillis(data['updatedAt'], fallback: now),
           'syncStatus': 'synced',

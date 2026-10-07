@@ -12,6 +12,8 @@ class InvoiceModel {
   final DateTime date;
   final DateTime? dueDate;
   final String notes;
+  final String attendingDoctorUid;
+  final String createdByUid;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -26,6 +28,8 @@ class InvoiceModel {
     required this.date,
     this.dueDate,
     this.notes = '',
+    this.attendingDoctorUid = '',
+    this.createdByUid = '',
     required this.createdAt,
     required this.updatedAt,
   });
@@ -45,6 +49,8 @@ class InvoiceModel {
     DateTime? date,
     DateTime? dueDate,
     String? notes,
+    String? attendingDoctorUid,
+    String? createdByUid,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -59,6 +65,8 @@ class InvoiceModel {
       date: date ?? this.date,
       dueDate: dueDate ?? this.dueDate,
       notes: notes ?? this.notes,
+      attendingDoctorUid: attendingDoctorUid ?? this.attendingDoctorUid,
+      createdByUid: createdByUid ?? this.createdByUid,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -76,6 +84,8 @@ class InvoiceModel {
       'date': date.millisecondsSinceEpoch,
       'dueDate': dueDate?.millisecondsSinceEpoch,
       'notes': notes,
+      'attendingDoctorUid': attendingDoctorUid,
+      'createdByUid': createdByUid,
       'createdAt': createdAt.millisecondsSinceEpoch,
       'updatedAt': updatedAt.millisecondsSinceEpoch,
     };
@@ -103,6 +113,8 @@ class InvoiceModel {
           ? DateTime.fromMillisecondsSinceEpoch(map['dueDate'] as int)
           : null,
       notes: (map['notes'] ?? '').toString(),
+      attendingDoctorUid: (map['attendingDoctorUid'] ?? '').toString(),
+      createdByUid: (map['createdByUid'] ?? '').toString(),
       createdAt: map['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(map['createdAt'] as int)
           : DateTime.now(),

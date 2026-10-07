@@ -11,6 +11,8 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/repo/queue_repository.dart';
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 final queueRepositoryProvider = Provider<QueueRepository>(
   (ref) => QueueRepository(),
@@ -242,6 +244,8 @@ final periodQueueWithPatientsProvider = Provider<AsyncValue<List<QueueEntryWithP
   final bounds = ref.watch(activeQueueDateBoundsProvider);
   final sessionFilter = ref.watch(queueSessionFilterProvider);
   final sourceFilter = ref.watch(queueSourceFilterProvider);
+  final doctorFilter = ref.watch(scheduleDoctorFilterProvider);
+  final tenantId = ClinicSession.instance.tenantId ?? '';
   final isAppointmentsEnabled = ref.watch(isAppointmentsFeatureEnabledProvider);
 
   // If appointments enabled, also watch allVisitsProvider
@@ -332,6 +336,8 @@ final periodQueueWithPatientsProvider = Provider<AsyncValue<List<QueueEntryWithP
           checkedInAt: visit.scheduledStart,
           linkedVisitId: visit.id,
           groupId: visit.groupId,
+          attendingDoctorUid: visit.attendingDoctorUid,
+          createdByUid: visit.createdByUid,
           createdAt: visit.createdAt,
           updatedAt: visit.updatedAt,
         );
@@ -345,11 +351,21 @@ final periodQueueWithPatientsProvider = Provider<AsyncValue<List<QueueEntryWithP
     }
   }
 
-  // 3. Apply session (time-of-day) and source (walk-in vs prebooked) filters
+  // 3. Apply session (time-of-day), source (walk-in vs prebooked), and doctor filters
   final filtered = combinedByTokenId.values.where((item) {
     final time = item.appointmentTime ?? item.entry.checkedInAt;
     if (!_matchesSession(time, sessionFilter)) return false;
     if (!_matchesSource(item, sourceFilter)) return false;
+    if (doctorFilter != null) {
+      final docUid = item.entry.attendingDoctorUid.isNotEmpty
+          ? item.entry.attendingDoctorUid
+          : (item.linkedVisit?.attendingDoctorUid ?? '');
+      final isOwner = doctorFilter == tenantId;
+      final matches = isOwner
+          ? (docUid == tenantId || docUid.isEmpty)
+          : (docUid == doctorFilter);
+      if (!matches) return false;
+    }
     return true;
   }).toList();
 

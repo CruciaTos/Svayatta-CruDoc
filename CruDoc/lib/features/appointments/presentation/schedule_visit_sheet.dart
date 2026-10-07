@@ -1,6 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/core/widgets/places_autocomplete_field.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
@@ -42,7 +47,7 @@ Future<bool> showScheduleVisitSheet(
   ).then((value) => value ?? false);
 }
 
-class ScheduleVisitSheet extends StatefulWidget {
+class ScheduleVisitSheet extends ConsumerStatefulWidget {
   const ScheduleVisitSheet({
     super.key,
     required this.patient,
@@ -53,10 +58,10 @@ class ScheduleVisitSheet extends StatefulWidget {
   final VisitRepository visitRepository;
 
   @override
-  State<ScheduleVisitSheet> createState() => _ScheduleVisitSheetState();
+  ConsumerState<ScheduleVisitSheet> createState() => _ScheduleVisitSheetState();
 }
 
-class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
+class _ScheduleVisitSheetState extends ConsumerState<ScheduleVisitSheet> {
   final _addressController = TextEditingController();
   final _mapsLinkController = TextEditingController();
 
@@ -64,6 +69,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
   TimeOfDay _selectedTime = const TimeOfDay(hour: 10, minute: 0);
   String _selectedDuration = '30 min';
   VisitType _selectedType = VisitType.clinic;
+  String? _attendingDoctorUid;
   bool _isSaving = false;
   String? _errorText;
 
@@ -138,6 +144,7 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
           : _mapsLinkController.text.trim(),
       visitType: _selectedType,
       status: VisitStatus.scheduled,
+      attendingDoctorUid: _attendingDoctorUid ?? '',
       createdAt: now,
       updatedAt: now,
     );
@@ -257,6 +264,16 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
       widget.patient.phone,
     );
 
+    final doctorsAsync = ref.watch(clinicDoctorsProvider);
+    final doctors = doctorsAsync.value ?? const [];
+    if (doctors.length > 1 && _attendingDoctorUid == null) {
+      final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+      _attendingDoctorUid = (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
+          ? currentAuthUid
+          : doctors.first.uid;
+    }
+
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -340,6 +357,21 @@ class _ScheduleVisitSheetState extends State<ScheduleVisitSheet> {
                   ? null
                   : (value) => setState(() => _selectedDuration = value),
             ),
+            if (doctors.length > 1) ...[
+              const SizedBox(height: CruSpace.s16),
+              CruDropdownField<String>(
+                label: 'Doctor',
+                icon: CruIcons.user,
+                value: _attendingDoctorUid,
+                items: [for (final d in doctors) d.uid],
+                itemLabel: (uid) => doctors
+                    .firstWhere((d) => d.uid == uid, orElse: () => doctors.first)
+                    .name,
+                onChanged: _isSaving
+                    ? null
+                    : (value) => setState(() => _attendingDoctorUid = value),
+              ),
+            ],
             if (_selectedType == VisitType.home) ...[
               const SizedBox(height: CruSpace.s16),
               CruFieldFrame(

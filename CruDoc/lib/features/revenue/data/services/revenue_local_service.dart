@@ -292,6 +292,8 @@ class RevenueLocalService {
       'payer': entry.payer,
       'patientId': entry.patientId,
       'visitId': entry.visitId,
+      'attendingDoctorUid': entry.attendingDoctorUid,
+      'createdByUid': entry.createdByUid,
       'isDeleted': entry.isDeleted ? 1 : 0,
       'isActive': pendingDelete ? 0 : 1,
       'createdAt': _dateTimeToMillis(entry.createdAt),
@@ -330,6 +332,8 @@ class RevenueLocalService {
         case 'payer':
         case 'patientId':
         case 'visitId':
+        case 'attendingDoctorUid':
+        case 'createdByUid':
           row[entry.key] = entry.value;
           break;
         case 'type':
@@ -359,6 +363,8 @@ class RevenueLocalService {
       payer: row['payer'] as String?,
       patientId: row['patientId'] as String?,
       visitId: row['visitId'] as String?,
+      attendingDoctorUid: row['attendingDoctorUid'] as String? ?? '',
+      createdByUid: row['createdByUid'] as String? ?? '',
       isDeleted: row['isDeleted'] == 1,
       createdAt: _millisToDateTime(row['createdAt']),
       updatedAt: _millisToDateTime(row['updatedAt']),
@@ -382,6 +388,8 @@ class RevenueLocalService {
       'patientId': payment.patientId,
       'visitId': payment.visitId,
       'notes': payment.notes,
+      'attendingDoctorUid': payment.attendingDoctorUid,
+      'createdByUid': payment.createdByUid,
       'isActive': pendingDelete ? 0 : 1,
       'createdAt': _dateTimeToMillis(payment.createdAt),
       'updatedAt': _dateTimeToMillis(payment.updatedAt),
@@ -420,6 +428,8 @@ class RevenueLocalService {
         case 'patientId':
         case 'visitId':
         case 'notes':
+        case 'attendingDoctorUid':
+        case 'createdByUid':
           row[entry.key] = entry.value;
           break;
       }
@@ -439,6 +449,8 @@ class RevenueLocalService {
       patientId: row['patientId'] as String?,
       visitId: row['visitId'] as String?,
       notes: row['notes'] as String?,
+      attendingDoctorUid: row['attendingDoctorUid'] as String? ?? '',
+      createdByUid: row['createdByUid'] as String? ?? '',
       createdAt: _millisToDateTime(row['createdAt']),
       updatedAt: _millisToDateTime(row['updatedAt']),
     );

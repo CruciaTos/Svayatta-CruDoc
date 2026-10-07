@@ -6,6 +6,10 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// Modal dialog for checking a patient into today's walk-in queue.
@@ -28,6 +32,7 @@ class CheckInDialog extends ConsumerStatefulWidget {
 class _CheckInDialogState extends ConsumerState<CheckInDialog> {
   bool _isRegistered = true;
   Patient? _selectedPatient;
+  String? _attendingDoctorUid;
   final TextEditingController _walkInNameController = TextEditingController();
   final TextEditingController _walkInPhoneController = TextEditingController();
   final TextEditingController _reasonController = TextEditingController();
@@ -63,6 +68,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
           patientId: _selectedPatient!.id,
           reason: _reasonController.text.trim(),
           priority: _priority,
+          attendingDoctorUid: _attendingDoctorUid,
         );
       } else {
         final walkInName = _walkInNameController.text.trim();
@@ -76,6 +82,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
           walkInPhone: _walkInPhoneController.text.trim(),
           reason: _reasonController.text.trim(),
           priority: _priority,
+          attendingDoctorUid: _attendingDoctorUid,
         );
       }
 
@@ -103,6 +110,16 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
     final c = context.cru;
     final patientsAsync = ref.watch(patientsStreamProvider);
     final allPatients = patientsAsync.value ?? const <Patient>[];
+
+    final doctorsAsync = ref.watch(clinicDoctorsProvider);
+    final doctors = doctorsAsync.value ?? const [];
+    if (doctors.length > 1 && _attendingDoctorUid == null) {
+      final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+      _attendingDoctorUid = (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
+          ? currentAuthUid
+          : doctors.first.uid;
+    }
 
     return Dialog(
       shape: cruShape(
@@ -436,6 +453,20 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                       icon: CruIcons.fileText,
                       maxLines: 2,
                     ),
+
+                    if (doctors.length > 1) ...[
+                      const SizedBox(height: CruSpace.s14),
+                      CruDropdownField<String>(
+                        label: 'Doctor',
+                        icon: CruIcons.user,
+                        value: _attendingDoctorUid,
+                        items: [for (final d in doctors) d.uid],
+                        itemLabel: (uid) => doctors
+                            .firstWhere((d) => d.uid == uid, orElse: () => doctors.first)
+                            .name,
+                        onChanged: (v) => setState(() => _attendingDoctorUid = v),
+                      ),
+                    ],
 
                     const SizedBox(height: CruSpace.s16),
 

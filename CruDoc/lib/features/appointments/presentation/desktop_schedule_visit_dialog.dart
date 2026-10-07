@@ -21,6 +21,10 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/features/appointments/presentation/patient_picker_dialog.dart';
 import 'package:doctor_management_app/features/appointments/data/providers/appointments_providers.dart';
 import 'package:doctor_management_app/core/services/maps_key.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/clinic/clinic_doctors_provider.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Opens the desktop Schedule visit form.
 ///
@@ -97,6 +101,7 @@ class _DesktopScheduleVisitDialogState
   TimeOfDay _time = const TimeOfDay(hour: 10, minute: 0);
   int _duration = 30;
   VisitType _type = VisitType.clinic;
+  String? _attendingDoctorUid;
   bool _sendWhatsApp = true;
   bool _addToQueue = true;
 
@@ -413,6 +418,7 @@ class _DesktopScheduleVisitDialogState
       status: VisitStatus.scheduled,
       treatmentType: reason,
       therapistNotes: notes,
+      attendingDoctorUid: _attendingDoctorUid ?? '',
       createdAt: now,
       updatedAt: now,
     );
@@ -430,6 +436,7 @@ class _DesktopScheduleVisitDialogState
       status: VisitStatus.scheduled,
       treatmentType: _trimmedOrNull(_reason),
       therapistNotes: _trimmedOrNull(_notes),
+      attendingDoctorUid: _attendingDoctorUid ?? '',
       createdAt: now,
       updatedAt: now,
     );
@@ -570,6 +577,16 @@ class _DesktopScheduleVisitDialogState
     final showAfter = _canWhatsApp || queueOn;
     final start = _start;
 
+    final doctorsAsync = ref.watch(clinicDoctorsProvider);
+    final doctors = doctorsAsync.value ?? const [];
+    if (doctors.length > 1 && _attendingDoctorUid == null) {
+      final currentAuthUid = FirebaseAuth.instance.currentUser?.uid ?? '';
+      final isDoctor = ClinicSession.instance.access?.kind == MemberKind.doctor;
+      _attendingDoctorUid = (isDoctor && doctors.any((d) => d.uid == currentAuthUid))
+          ? currentAuthUid
+          : doctors.first.uid;
+    }
+
     return CruFormDialog(
       title: 'Schedule a visit',
       subtitle: phone.isEmpty
@@ -641,6 +658,22 @@ class _DesktopScheduleVisitDialogState
                   ),
                 ),
               ),
+              if (doctors.length > 1) ...[
+                const SizedBox(height: CruSpace.s16),
+                CruDropdownField<String>(
+                  label: 'Doctor',
+                  icon: CruIcons.user,
+                  value: _attendingDoctorUid,
+                  items: [for (final d in doctors) d.uid],
+                  itemLabel: (uid) => doctors
+                      .firstWhere((d) => d.uid == uid, orElse: () => doctors.first)
+                      .name,
+                  onChanged: (v) => setState(() {
+                    _attendingDoctorUid = v;
+                    _dirty = true;
+                  }),
+                ),
+              ],
             ],
           ),
           // Home visits are a physiotherapy workflow; everyone else books

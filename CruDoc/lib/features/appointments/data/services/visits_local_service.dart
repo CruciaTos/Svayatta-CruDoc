@@ -383,6 +383,8 @@ class VisitLocalService {
       'therapistNotes': visit.therapistNotes,
       'reminderStatus': visit.reminderStatus,
       'calendarEventId': visit.calendarEventId,
+      'attendingDoctorUid': visit.attendingDoctorUid,
+      'createdByUid': visit.createdByUid,
       'createdAt': _dateTimeToMillis(visit.createdAt),
       'updatedAt': _dateTimeToMillis(visit.updatedAt),
       'syncStatus': syncStatus,
@@ -435,6 +437,8 @@ class VisitLocalService {
         case 'therapistNotes':
         case 'reminderStatus':
         case 'calendarEventId':
+        case 'attendingDoctorUid':
+        case 'createdByUid':
           row[entry.key] = entry.value;
           break;
       }
@@ -465,6 +469,8 @@ class VisitLocalService {
       therapistNotes: row['therapistNotes'] as String?,
       reminderStatus: row['reminderStatus'] as String?,
       calendarEventId: row['calendarEventId'] as String?,
+      attendingDoctorUid: row['attendingDoctorUid'] as String? ?? '',
+      createdByUid: row['createdByUid'] as String? ?? '',
       createdAt: _millisToDateTime(row['createdAt']),
       updatedAt: _millisToDateTime(row['updatedAt']),
     );

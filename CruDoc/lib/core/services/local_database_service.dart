@@ -487,6 +487,8 @@ class LocalDatabaseService extends ChangeNotifier {
         therapistNotes TEXT,
         reminderStatus TEXT,
         calendarEventId TEXT,
+        attendingDoctorUid TEXT NOT NULL DEFAULT '',
+        createdByUid TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
         syncStatus TEXT NOT NULL DEFAULT 'synced'
@@ -514,6 +516,8 @@ class LocalDatabaseService extends ChangeNotifier {
         visitId TEXT,
         isDeleted INTEGER NOT NULL DEFAULT 0,
         isActive INTEGER NOT NULL DEFAULT 1,
+        attendingDoctorUid TEXT NOT NULL DEFAULT '',
+        createdByUid TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
         syncStatus TEXT NOT NULL DEFAULT 'synced'
@@ -538,6 +542,8 @@ class LocalDatabaseService extends ChangeNotifier {
         visitId TEXT,
         notes TEXT,
         isActive INTEGER NOT NULL DEFAULT 1,
+        attendingDoctorUid TEXT NOT NULL DEFAULT '',
+        createdByUid TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
         syncStatus TEXT NOT NULL DEFAULT 'synced'
@@ -992,6 +998,8 @@ class LocalDatabaseService extends ChangeNotifier {
   static const Map<String, String> _visitsColumns = {
     'id': 'id TEXT PRIMARY KEY',
     'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'attendingDoctorUid': "attendingDoctorUid TEXT NOT NULL DEFAULT ''",
+    'createdByUid': "createdByUid TEXT NOT NULL DEFAULT ''",
     'patientId': "patientId TEXT NOT NULL DEFAULT ''",
     'scheduledStart': 'scheduledStart INTEGER NOT NULL DEFAULT 0',
     'durationMinutes': 'durationMinutes INTEGER NOT NULL DEFAULT 30',
@@ -1022,6 +1030,8 @@ class LocalDatabaseService extends ChangeNotifier {
   static const Map<String, String> _revenueEntriesColumns = {
     'id': 'id TEXT PRIMARY KEY',
     'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'attendingDoctorUid': "attendingDoctorUid TEXT NOT NULL DEFAULT ''",
+    'createdByUid': "createdByUid TEXT NOT NULL DEFAULT ''",
     'date': 'date INTEGER NOT NULL DEFAULT 0',
     'description': "description TEXT NOT NULL DEFAULT ''",
     'amount': 'amount REAL NOT NULL DEFAULT 0',
@@ -1042,6 +1052,8 @@ class LocalDatabaseService extends ChangeNotifier {
   static const Map<String, String> _pendingPaymentsColumns = {
     'id': 'id TEXT PRIMARY KEY',
     'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'attendingDoctorUid': "attendingDoctorUid TEXT NOT NULL DEFAULT ''",
+    'createdByUid': "createdByUid TEXT NOT NULL DEFAULT ''",
     'date': 'date INTEGER NOT NULL DEFAULT 0',
     'description': "description TEXT NOT NULL DEFAULT ''",
     'amount': 'amount REAL NOT NULL DEFAULT 0',
@@ -1224,6 +1236,8 @@ class LocalDatabaseService extends ChangeNotifier {
         linkedVisitId TEXT,
         groupId TEXT,
         isDeleted INTEGER NOT NULL DEFAULT 0,
+        attendingDoctorUid TEXT NOT NULL DEFAULT '',
+        createdByUid TEXT NOT NULL DEFAULT '',
         createdAt INTEGER NOT NULL,
         updatedAt INTEGER NOT NULL,
         syncStatus TEXT NOT NULL DEFAULT 'synced',
@@ -1236,6 +1250,8 @@ class LocalDatabaseService extends ChangeNotifier {
   static const Map<String, String> _walkInQueueColumns = {
     'id': 'id TEXT PRIMARY KEY',
     'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'attendingDoctorUid': "attendingDoctorUid TEXT NOT NULL DEFAULT ''",
+    'createdByUid': "createdByUid TEXT NOT NULL DEFAULT ''",
     'patientId': 'patientId TEXT',
     'walkInName': 'walkInName TEXT',
     'walkInPhone': 'walkInPhone TEXT',

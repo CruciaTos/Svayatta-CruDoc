@@ -35,7 +35,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
 
   final AuthService _authService = AuthService();
 
-  /// The phone has one sign-in screen; "Sign up" switches the form in place.
+  /// One sign-in screen on phone and desktop; "Sign up" switches the form
+  /// in place.
   _AuthMode _mobileMode = _AuthMode.login;
 
   /// Phone, first launch: Get started (onboarding questions) comes before
@@ -629,7 +630,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
     });
   }
 
-  Widget _buildMobileAuthView(BuildContext context) {
+  /// First launch, before sign-in (phone and desktop): the onboarding
+  /// questions, or a blank screen while the flag loads. Null once seen.
+  Widget? _getStartedGate() {
     if (_getStarted == null) {
       return const Scaffold(backgroundColor: Color(0xFF087DFF));
     }
@@ -640,6 +643,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
         onHaveAccount: _leaveGetStarted,
       );
     }
+    return null;
+  }
+
+  Widget _buildMobileAuthView(BuildContext context) {
+    final gate = _getStartedGate();
+    if (gate != null) return gate;
     return Scaffold(
       backgroundColor: const Color(0xFF087DFF),
       body: AnimatedBuilder(
@@ -693,6 +702,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
   // ==================== WEB AUTH VIEW — CLEAN MEDICAL SPLIT DESIGN ====================
 
   Widget _buildWebAuthView(BuildContext context) {
+    final gate = _getStartedGate();
+    if (gate != null) return gate;
     final screenSize = MediaQuery.of(context).size;
     final selectedSpecialty = ref.watch(authSpecialtyProvider);
 
@@ -736,15 +747,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
                             obscurePassword: _obscurePassword,
                             isLoading: _isLoading,
                             rememberMe: _rememberMe,
+                            isLogin: _mobileMode == _AuthMode.login,
                             emailController: _emailController,
                             passwordController: _passwordController,
+                            nameController: _nameController,
                             selectedSpecialty: selectedSpecialty,
                             onObscureToggle: () => setState(
                               () => _obscurePassword = !_obscurePassword,
                             ),
                             onRememberMeToggle: () =>
                                 setState(() => _rememberMe = !_rememberMe),
-                            onPrimarySubmit: _handleEmailLogin,
+                            onPrimarySubmit: _mobileMode == _AuthMode.login
+                                ? _handleEmailLogin
+                                : _handleEmailSignup,
+                            onSecondary: () => setState(
+                              () => _mobileMode = _mobileMode == _AuthMode.login
+                                  ? _AuthMode.signup
+                                  : _AuthMode.login,
+                            ),
                           ),
                         ),
                       ),
@@ -1210,23 +1230,29 @@ class _WebAuthPortalCard extends StatelessWidget {
     required this.obscurePassword,
     required this.isLoading,
     required this.rememberMe,
+    required this.isLogin,
     required this.emailController,
     required this.passwordController,
+    required this.nameController,
     required this.selectedSpecialty,
     required this.onObscureToggle,
     required this.onRememberMeToggle,
     required this.onPrimarySubmit,
+    required this.onSecondary,
   });
 
   final bool obscurePassword;
   final bool isLoading;
   final bool rememberMe;
+  final bool isLogin;
   final TextEditingController emailController;
   final TextEditingController passwordController;
+  final TextEditingController nameController;
   final DoctorSpecialty selectedSpecialty;
   final VoidCallback onObscureToggle;
   final VoidCallback onRememberMeToggle;
   final VoidCallback onPrimarySubmit;
+  final VoidCallback onSecondary;
 
   @override
   Widget build(BuildContext context) {
@@ -1291,9 +1317,9 @@ class _WebAuthPortalCard extends StatelessWidget {
         const SizedBox(height: 36),
 
         // Welcome Doctor Title (specialty-adaptive)
-        const Text(
-          'Welcome Back Doctor !',
-          style: TextStyle(
+        Text(
+          isLogin ? 'Welcome Back Doctor !' : 'Create your account',
+          style: const TextStyle(
             color: Color(0xFF0F172A),
             fontSize: 28,
             fontWeight: FontWeight.w900,
@@ -1315,6 +1341,15 @@ class _WebAuthPortalCard extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 32),
+
+        if (!isLogin) ...[
+          _WebTextField(
+            controller: nameController,
+            hintText: 'Your name',
+            icon: Icons.badge_outlined,
+          ),
+          const SizedBox(height: 16),
+        ],
 
         // Email Field
         _WebTextField(
@@ -1343,42 +1378,43 @@ class _WebAuthPortalCard extends StatelessWidget {
         ),
         const SizedBox(height: 16),
 
-        // Remember Me
-        Row(
-          children: [
-            GestureDetector(
-              onTap: onRememberMeToggle,
-              child: MouseRegion(
-                cursor: SystemMouseCursors.click,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      rememberMe
-                          ? Icons.check_box_rounded
-                          : Icons.check_box_outline_blank_rounded,
-                      color: rememberMe
-                          ? const Color(0xFF2563EB)
-                          : const Color(0xFF94A3B8),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'Remember Me',
-                      style: TextStyle(
+        // Remember Me (sign-in only)
+        if (isLogin)
+          Row(
+            children: [
+              GestureDetector(
+                onTap: onRememberMeToggle,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        rememberMe
+                            ? Icons.check_box_rounded
+                            : Icons.check_box_outline_blank_rounded,
                         color: rememberMe
-                            ? const Color(0xFF0F172A)
-                            : const Color(0xFF64748B),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                            ? const Color(0xFF2563EB)
+                            : const Color(0xFF94A3B8),
+                        size: 20,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        'Remember Me',
+                        style: TextStyle(
+                          color: rememberMe
+                              ? const Color(0xFF0F172A)
+                              : const Color(0xFF64748B),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
         const SizedBox(height: 28),
 
         // Login Button — accent color matches selected specialty
@@ -1408,7 +1444,9 @@ class _WebAuthPortalCard extends StatelessWidget {
                       ),
                     )
                   : Text(
-                      'Login as ${selectedSpecialty.label}',
+                      isLogin
+                          ? 'Login as ${selectedSpecialty.label}'
+                          : 'Create account',
                       style: const TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
@@ -1416,6 +1454,20 @@ class _WebAuthPortalCard extends StatelessWidget {
                         fontFamily: AppColors.bodyFontFamily,
                       ),
                     ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Center(
+          child: TextButton(
+            onPressed: isLoading ? null : onSecondary,
+            child: Text(
+              isLogin ? 'New here? Sign up' : 'Have an account? Log in',
+              style: TextStyle(
+                color: selectedSpecialty.accentColor,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ),

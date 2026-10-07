@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import 'medical_storage_service.dart';
 import 'storage_upload_store.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 export 'storage_upload_store.dart'
     show PendingUpload, UploadKind, UploadLink, UploadStatus;
@@ -711,7 +712,7 @@ class StorageSyncQueue {
 
   static String? _signedInDoctorId() {
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final uid = ClinicSession.instance.tenantId;
       if (uid == null || uid.isEmpty || uid == kLocalDoctorId) return null;
       return uid;
     } catch (_) {
@@ -799,8 +800,9 @@ class StorageSyncQueue {
         contentType: type,
         compress: item.compress,
       ),
+      // The dictation scratch folder belongs to the person, not the clinic.
       UploadKind.voiceDictation => service.uploadVoiceDictation(
-        doctorId: doctorId,
+        doctorId: FirebaseAuth.instance.currentUser?.uid ?? doctorId,
         patientId: patientId,
         bytes: bytes,
         contentType: type,

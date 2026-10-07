@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// SQLite-backed walk-in queue data source.
 ///
@@ -40,7 +41,7 @@ class QueueLocalService {
   final StreamController<List<QueueEntry>> _allQueueController =
       StreamController<List<QueueEntry>>.broadcast();
 
-  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _currentDoctorId => ClinicSession.instance.tenantId ?? '';
 
   Future<void> notifyQueueChanged() => _emitTodaysQueue();
 

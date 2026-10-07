@@ -9,6 +9,8 @@ import 'package:doctor_management_app/features/revenue/presentation/desktop_invo
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_header.dart';
 import 'package:doctor_management_app/features/revenue/presentation/widgets/overview/revenue_overview_body.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// The Revenue tab (design/clinic-redesign/screens/revenue.png).
 ///
@@ -35,6 +37,9 @@ class _RevenueOverviewScreenState extends ConsumerState<RevenueOverviewScreen> {
     final subtitle = ref.watch(
       revenueOverviewProvider.select((o) => o?.subtitle),
     );
+    // Billing staff without revenue see invoices only: no totals or charts.
+    final seesRevenue = ref.watch(clinicCanProvider(ClinicPermission.revenue));
+    final tab = seesRevenue ? view.tab : RevenueTab.invoices;
 
     return Padding(
       padding: CruSpace.mainPadding,
@@ -42,20 +47,22 @@ class _RevenueOverviewScreenState extends ConsumerState<RevenueOverviewScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           RevenueHeader(
-            subtitle: view.tab == RevenueTab.invoices
+            subtitle: tab == RevenueTab.invoices
                 ? 'Invoices and bills'
                 : subtitle,
             onRecordExpense: () => _record(TransactionKind.expense),
             onRecordPayment: () => _record(TransactionKind.income),
           ),
           const SizedBox(height: CruSpace.cardGap),
-          RevenueControls(
-            tab: view.tab,
-            period: view.period,
-            onTab: controller.setTab,
-            onPeriod: controller.setPeriod,
-          ),
-          const SizedBox(height: CruSpace.cardGap),
+          if (seesRevenue) ...[
+            RevenueControls(
+              tab: view.tab,
+              period: view.period,
+              onTab: controller.setTab,
+              onPeriod: controller.setPeriod,
+            ),
+            const SizedBox(height: CruSpace.cardGap),
+          ],
           Expanded(
             child: AnimatedSwitcher(
               duration: CruMotion.of(context, CruMotion.fast),
@@ -66,7 +73,7 @@ class _RevenueOverviewScreenState extends ConsumerState<RevenueOverviewScreen> {
                 fit: StackFit.expand,
                 children: [...previous, ?current],
               ),
-              child: view.tab == RevenueTab.overview
+              child: tab == RevenueTab.overview
                   ? const RevenueOverviewBody(key: ValueKey('overview'))
                   // The Invoices list predates the tokens: Day in both
                   // appearances until it is redesigned.

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../data/models/dental_procedure_catalog_model.dart';
 import '../data/seed/dental_catalog_seed.dart';
 import 'providers/dental_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 const Color _accentTeal = Color(0xFF0D9488);
 
@@ -24,7 +25,7 @@ class _DentalProcedureCatalogScreenState
   final TextEditingController _searchController = TextEditingController();
 
   String get _currentDoctorId =>
-      FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';
+      ClinicSession.instance.tenantId ?? 'doc_dental';
 
   static const List<String> _categories = [
     'All',

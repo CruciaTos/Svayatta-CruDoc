@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/services/firestore_sync_service.dart'
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:doctor_management_app/features/inventory/data/services/inventory_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Clean API the presentation layer talks to for anything inventory-related.
 class InventoryRepository {
@@ -26,7 +27,7 @@ class InventoryRepository {
   /// (createMedicine/recordTransaction previously trusted a caller-supplied
   /// `doctorId`, which could be left blank).
   String get _currentDoctorId {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ClinicSession.instance.tenantId;
     if (uid == null || uid.isEmpty) {
       throw StateError('No signed-in doctor — cannot access inventory data.');
     }

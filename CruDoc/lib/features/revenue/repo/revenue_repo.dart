@@ -9,6 +9,7 @@ import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/revenue/data/models/revenue_entry.dart';
 import 'package:doctor_management_app/features/revenue/data/services/revenue_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Clean API the presentation layer talks to for anything revenue-related.
 class RevenueRepository {
@@ -24,7 +25,7 @@ class RevenueRepository {
   /// The signed-in doctor's UID — see PatientRepository for why this
   /// matters and what it guards against.
   String get _currentDoctorId {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ClinicSession.instance.tenantId;
     return (uid != null && uid.isNotEmpty) ? uid : 'anonymous';
   }
 
@@ -108,7 +109,7 @@ class RevenueRepository {
   Future<void> migrateUnencryptedAmountsInFirestore() async {
     if (!kIsWeb) return;
     try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final uid = ClinicSession.instance.tenantId;
       if (uid == null || uid.isEmpty) return;
 
       final revSnap = await FirebaseFirestore.instance
@@ -143,7 +144,7 @@ class RevenueRepository {
 
   /// Streams the live list of active (non-deleted) revenue entries.
   Stream<List<RevenueEntry>> watchRevenueEntries() {
-    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    final doctorId = ClinicSession.instance.tenantId;
     if (doctorId == null || doctorId.isEmpty) {
       return Stream.value(const <RevenueEntry>[]);
     }

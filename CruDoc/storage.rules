@@ -2,14 +2,27 @@ rules_version = '2';
 
 // Firebase Cloud Storage rules for CruDoc.
 //
-// Every object lives under the owning doctor's uid. The client-side
-// counterpart is lib/core/services/medical_storage_service.dart — keep the
-// size cap and content-type lists below in sync with it.
+// Every object lives under the owning doctor's uid (the clinic id). The
+// client-side counterpart is lib/core/services/medical_storage_service.dart —
+// keep the size cap and content-type lists below in sync with it.
 service firebase.storage {
   match /b/{bucket}/o {
 
     function isOwner(doctorId) {
       return request.auth != null && request.auth.uid == doctorId;
+    }
+
+    // Clinic membership; see firestore.rules. The clinic id is the owner's uid.
+    function memberAllows(doctorId, perm) {
+      let m = firestore.get(/databases/(default)/documents/clinics/$(doctorId)/members/$(request.auth.uid)).data;
+      return m.active == true
+        && (perm == 'member' || m.roleId == 'admin' || perm in m.perms);
+    }
+
+    // perm: a permission key, 'member' or 'admin' (owner and admin role only).
+    function can(doctorId, perm) {
+      return request.auth != null
+        && (request.auth.uid == doctorId || memberAllows(doctorId, perm));
     }
 
     function withinSizeLimit() {
@@ -44,9 +57,37 @@ service firebase.storage {
 
     // Permanent per-doctor files: patient records, clinic branding,
     // inventory receipts, sterilization strips, backups, exports.
+    // Catch-all: requires admin role or owner.
     match /doctors/{doctorId}/{allPaths=**} {
-      allow read, delete: if isOwner(doctorId);
-      allow create, update: if isOwner(doctorId)
+      allow read, delete: if can(doctorId, 'admin');
+      allow create, update: if can(doctorId, 'admin')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+    }
+
+    // Patient files: clinical media, prescriptions, invoices, avatars.
+    match /doctors/{doctorId}/patients/{allPaths=**} {
+      allow read: if can(doctorId, 'clinical.view');
+      allow create, update: if can(doctorId, 'clinical.edit')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+      allow delete: if can(doctorId, 'clinical.edit');
+    }
+
+    // Patient photos are part of the patient list, so anyone who may see
+    // patients sees them (on top of the clinical rule above).
+    match /doctors/{doctorId}/patients/{patientId}/avatar/{allPaths=**} {
+      allow read: if can(doctorId, 'patients.view');
+      allow create, update: if can(doctorId, 'patients.edit')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+      allow delete: if can(doctorId, 'patients.edit');
+    }
+
+    // Invoice PDFs belong to billing: the front desk prints and resends them.
+    match /doctors/{doctorId}/patients/{patientId}/invoices/{allPaths=**} {
+      allow read, delete: if can(doctorId, 'billing');
+      allow create, update: if can(doctorId, 'billing')
         && withinSizeLimit()
         && isAllowedMedicalType();
     }
@@ -55,16 +96,41 @@ service firebase.storage {
     // (or TIFF) per object, stored byte for byte. Larger limit than other
     // files; the type is accepted here only.
     match /doctors/{doctorId}/patients/{patientId}/clinical/imaging/{allPaths=**} {
-      allow create, update: if isOwner(doctorId)
+      allow create, update: if can(doctorId, 'clinical.edit')
         && request.resource.size <= 250 * 1024 * 1024
         && request.resource.contentType in ['application/dicom', 'image/tiff'];
+    }
+
+    // Clinic branding (logo, signature)
+    match /doctors/{doctorId}/clinic/branding/{allPaths=**} {
+      allow read: if can(doctorId, 'member');
+      allow create, update: if can(doctorId, 'settings')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+      allow delete: if can(doctorId, 'settings');
+    }
+
+    // Inventory receipts and autoclave indicator strips
+    match /doctors/{doctorId}/inventory-receipts/{allPaths=**} {
+      allow read, delete: if can(doctorId, 'inventory');
+      allow create, update: if can(doctorId, 'inventory')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
+    }
+
+    match /doctors/{doctorId}/sterilization-strips/{allPaths=**} {
+      allow read, delete: if can(doctorId, 'inventory');
+      allow create, update: if can(doctorId, 'inventory')
+        && withinSizeLimit()
+        && isAllowedMedicalType();
     }
 
     // Encrypted database backups (.enc) are opaque bytes. octet-stream is
     // accepted here only, so it can't be used to slip arbitrary files into
     // patient folders.
     match /doctors/{doctorId}/backups/{allPaths=**} {
-      allow create, update: if isOwner(doctorId)
+      allow read, delete: if can(doctorId, 'admin');
+      allow create, update: if can(doctorId, 'admin')
         && withinSizeLimit()
         && request.resource.contentType == 'application/octet-stream';
     }

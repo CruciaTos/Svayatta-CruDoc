@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/data/services/homeopathy_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Repository coordinating SQLite and Cloud Firestore for Homeopathy Case Sheets.
 class HomeopathyRepository {
@@ -20,7 +21,7 @@ class HomeopathyRepository {
   final FirebaseFirestore _firestore;
 
   String get _currentDoctorId {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ClinicSession.instance.tenantId;
     if (uid == null || uid.isEmpty) {
       throw StateError(
         'No signed-in doctor — cannot access homeopathy case data.',

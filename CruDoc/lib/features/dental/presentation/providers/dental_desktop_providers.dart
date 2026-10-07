@@ -6,12 +6,14 @@ import 'package:doctor_management_app/features/dental/data/models/dental_procedu
 import 'package:doctor_management_app/features/dental/data/models/sterilization_log_model.dart';
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/presentation/providers/dental_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Whose dental records these are: the signed-in doctor (the demo
 /// account when nobody is signed in, as the older dental screens do).
 final dentalDoctorIdProvider = Provider<String>((ref) {
   final user = ref.watch(authStateProvider).value;
-  return user?.uid ?? FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';
+  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
+  return clinicId ?? user?.uid ?? 'doc_dental';
 });
 
 /// The clinic's procedure list and fees, archived ones included.

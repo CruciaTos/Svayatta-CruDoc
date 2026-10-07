@@ -23,6 +23,7 @@ import 'package:doctor_management_app/features/radiology/data/radiology_provider
 import 'package:doctor_management_app/features/radiology/open_study.dart';
 import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 const Color _accentTeal = Color(0xFF0D9488);
 const Color _accentTealLight = Color(0xFFCCFBF1);
@@ -53,7 +54,7 @@ class _DentalPatientDetailsScreenState
   }
 
   String get _currentDoctorId =>
-      FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';
+      ClinicSession.instance.tenantId ?? 'doc_dental';
 
   Future<void> _openNoteEditor() async {
     final controller = TextEditingController(text: _note);

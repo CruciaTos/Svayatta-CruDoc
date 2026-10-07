@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
+
 /// Months a doctor collects before the next one is free.
 const int kLoyaltySlots = 5;
 
@@ -14,6 +16,7 @@ class LoyaltyCard {
     required this.stamps,
     required this.stampedMonths,
     this.freeMonthsClaimed = 0,
+    this.joinedAt,
   });
 
   /// 0–[kLoyaltySlots] in the current cycle.
@@ -22,6 +25,9 @@ class LoyaltyCard {
   /// Month keys ("2026-10") stamped in the current cycle.
   final List<String> stampedMonths;
   final int freeMonthsClaimed;
+
+  /// When the card was first stamped; null until the server time lands.
+  final DateTime? joinedAt;
 
   bool get freeMonthReady => stamps >= kLoyaltySlots;
 
@@ -33,6 +39,9 @@ class LoyaltyCard {
         for (final m in (raw['stampedMonths'] as List?) ?? const []) '$m',
       ],
       freeMonthsClaimed: ((raw['freeMonthsClaimed'] as num?) ?? 0).toInt(),
+      joinedAt: raw['joinedAt'] is Timestamp
+          ? (raw['joinedAt'] as Timestamp).toDate()
+          : null,
     );
   }
 }
@@ -42,6 +51,15 @@ String loyaltyMonthKey(DateTime d) =>
 
 /// The signed-in doctor's card; null until it is first created.
 final loyaltyCardProvider = StreamProvider<LoyaltyCard?>((ref) {
+  if (DemoSessionService.isDemoMode) {
+    return Stream.value(
+      const LoyaltyCard(
+        stamps: 3,
+        stampedMonths: ['2026-08', '2026-09', '2026-10'],
+        freeMonthsClaimed: 0,
+      ),
+    );
+  }
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return Stream.value(null);
   return FirebaseFirestore.instance
@@ -79,6 +97,7 @@ class LoyaltyService {
         stamps: card.stamps + 1,
         stampedMonths: [...card.stampedMonths, month],
         freeMonthsClaimed: card.freeMonthsClaimed,
+        joinedAt: card.joinedAt,
       );
       tx.set(ref, {
         'loyalty': {

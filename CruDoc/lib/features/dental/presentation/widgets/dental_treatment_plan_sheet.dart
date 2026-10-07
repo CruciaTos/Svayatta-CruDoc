@@ -7,6 +7,7 @@ import 'package:doctor_management_app/features/revenue/data/services/invoice_loc
 import '../../data/models/treatment_plan_line_item_model.dart';
 import '../../data/models/dental_procedure_catalog_model.dart';
 import '../providers/dental_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 const Color _accentTeal = Color(0xFF0D9488);
 
@@ -32,7 +33,7 @@ class DentalTreatmentPlanSheet extends ConsumerStatefulWidget {
 class _DentalTreatmentPlanSheetState
     extends ConsumerState<DentalTreatmentPlanSheet> {
   String get _currentDoctorId =>
-      FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';
+      ClinicSession.instance.tenantId ?? 'doc_dental';
 
   Future<void> _addItemDialog({TreatmentPlanLineItemModel? existing}) async {
     final catalogAsync = ref.read(dentalCatalogProvider(_currentDoctorId));

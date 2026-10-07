@@ -1,5 +1,10 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Helper utility for real-time doctor feature locking and subscription expiry.
 class DoctorFeatureGuard {
@@ -33,57 +38,81 @@ class DoctorFeatureGuard {
 
   /// Listens to real-time updates for enabled modules of current logged-in doctor.
   /// Strictly reflects what the Super Admin sets in Firestore `users/{uid}.enabledModules`.
+  ///
+  /// This is the clinic's plan. Someone working in another person's clinic
+  /// gets that clinic's plan (`clinics/{id}`, kept in step with the owner's
+  /// account); what their role allows is applied by the shell
+  /// (`clinic_tabs.dart`). Follows the person's clinic as it changes.
   static Stream<List<String>> watchEnabledModules([User? user]) {
     final currentUser = user ?? FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
       return Stream.value(defaultModules);
     }
 
-    return FirebaseFirestore.instance
-        .collection('users')
-        .doc(currentUser.uid)
-        .snapshots()
-        .map((doc) {
-          if (!doc.exists || doc.data() == null) {
-            return defaultModules;
-          }
-          final data = doc.data()!;
-          final status = (data['status'] as String? ?? 'active').toLowerCase();
+    StreamSubscription<ClinicAccess?>? accessSub;
+    StreamSubscription<DocumentSnapshot<Map<String, dynamic>>>? docSub;
+    String? followedPath;
+    late final StreamController<List<String>> controller;
 
-          DateTime? expiresDate;
-          final rawExpires = data['expiresDate'];
-          if (rawExpires is Timestamp) {
-            expiresDate = rawExpires.toDate();
-          } else if (rawExpires is String) {
-            expiresDate = DateTime.tryParse(rawExpires);
-          }
+    void follow(ClinicAccess? access) {
+      final staff = access != null && !access.isOwner;
+      final doc = staff
+          ? FirebaseFirestore.instance
+                .collection('clinics')
+                .doc(access.clinicId)
+          : FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+      if (doc.path == followedPath) return;
+      followedPath = doc.path;
+      docSub?.cancel();
+      docSub = doc.snapshots().listen(
+        (snap) => controller.add(_modulesFrom(snap.data())),
+        onError: (_) => controller.add(defaultModules),
+      );
+    }
 
-          final now = DateTime.now();
-          final isExpired =
-              (expiresDate != null && expiresDate.isBefore(now)) ||
-              status == 'expired';
+    controller = StreamController<List<String>>(
+      onListen: () {
+        follow(ClinicSession.instance.access);
+        accessSub = ClinicSession.instance.stream.listen(follow);
+      },
+      onCancel: () async {
+        await accessSub?.cancel();
+        await docSub?.cancel();
+      },
+    );
+    return controller.stream;
+  }
 
-          // Read enabledModules list explicitly configured by Super Admin
-          final rawList = data['enabledModules'] as List<dynamic>?;
-          List<String> modulesList;
-          if (rawList != null) {
-            modulesList = rawList
-                .map((e) => e.toString().toLowerCase())
-                .toList();
-          } else {
-            modulesList = List<String>.from(defaultModules);
-          }
+  /// The plan's modules from a `users` or `clinics` document: everything
+  /// configured, or only the base modules once the plan has expired.
+  static List<String> _modulesFrom(Map<String, dynamic>? data) {
+    if (data == null) return defaultModules;
+    final status = (data['status'] as String? ?? 'active').toLowerCase();
 
-          if (isExpired) {
-            // If expired, only allow base modules that are configured in modulesList
-            return modulesList.where((m) => baseModules.contains(m)).toList();
-          }
+    DateTime? expiresDate;
+    final rawExpires = data['expiresDate'];
+    if (rawExpires is Timestamp) {
+      expiresDate = rawExpires.toDate();
+    } else if (rawExpires is String) {
+      expiresDate = DateTime.tryParse(rawExpires);
+    }
 
-          return modulesList;
-        })
-        .handleError((error) {
-          return defaultModules;
-        });
+    final now = DateTime.now();
+    final isExpired =
+        (expiresDate != null && expiresDate.isBefore(now)) ||
+        status == 'expired';
+
+    // Read enabledModules list explicitly configured by Super Admin
+    final rawList = data['enabledModules'] as List<dynamic>?;
+    final modulesList = rawList != null
+        ? rawList.map((e) => e.toString().toLowerCase()).toList()
+        : List<String>.from(defaultModules);
+
+    if (isExpired) {
+      // If expired, only allow base modules that are configured in modulesList
+      return modulesList.where((m) => baseModules.contains(m)).toList();
+    }
+    return modulesList;
   }
 
   /// Maps mobile shell tab index to feature module key.

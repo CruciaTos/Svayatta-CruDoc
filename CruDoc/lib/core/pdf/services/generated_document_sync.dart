@@ -6,6 +6,7 @@ import 'package:doctor_management_app/core/pdf/models/pdf_document_models.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/core/services/medical_storage_service.dart';
 import 'package:doctor_management_app/core/services/storage_sync_queue.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Copies each generated invoice / prescription PDF to Cloud Storage in the
 /// background, and remembers where it went.
@@ -37,7 +38,7 @@ abstract final class GeneratedDocumentSync {
     };
     final patientId = data.patient.patientId;
     if (kind == null || patientId == null || patientId.isEmpty) return;
-    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    final doctorId = ClinicSession.instance.tenantId;
     if (doctorId == null || doctorId.isEmpty || doctorId == kLocalDoctorId) {
       return;
     }
@@ -68,7 +69,7 @@ abstract final class GeneratedDocumentSync {
     required PdfMedicalDocumentType type,
     required String documentNumber,
   }) async {
-    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    final doctorId = ClinicSession.instance.tenantId;
     if (doctorId == null) return null;
     return _storedPath('$doctorId:${type.name}:$documentNumber');
   }

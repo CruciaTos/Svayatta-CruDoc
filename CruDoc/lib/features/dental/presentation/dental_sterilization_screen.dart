@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../data/models/sterilization_log_model.dart';
 import 'providers/dental_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 const Color _accentTeal = Color(0xFF0D9488);
 
@@ -24,7 +25,7 @@ class DentalSterilizationScreen extends ConsumerStatefulWidget {
 class _DentalSterilizationScreenState
     extends ConsumerState<DentalSterilizationScreen> {
   String get _currentDoctorId =>
-      FirebaseAuth.instance.currentUser?.uid ?? 'doc_dental';
+      ClinicSession.instance.tenantId ?? 'doc_dental';
 
   String _resultFilter = 'All';
 

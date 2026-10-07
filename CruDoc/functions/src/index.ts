@@ -15,3 +15,4 @@ export * from "./appointments";
 export * from "./whatsapp-endpoints";
 export * from "./ai";
 export * from "./imaging";
+export * from "./clinic";

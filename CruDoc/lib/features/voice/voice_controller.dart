@@ -34,6 +34,7 @@ import 'domain/voice_command.dart';
 import 'domain/voice_navigation.dart';
 import 'presentation/voice_dialog_hook.dart';
 import 'services/speech_engine.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// One answer the pill offers: said or tapped.
 class VoiceChoice {
@@ -1629,9 +1630,8 @@ class VoiceController {
 
   List<({int tab, String label})> _visibleTabs() => [
     ...sidebarTabs(
-      dentist: _ref.read(isDentistProvider),
-      radiologist: _ref.read(isOralRadiologistProvider),
-      sub: _ref.read(activeDentalSubspecialtyProvider),
+      dental: _ref.read(dentalFeaturesProvider),
+      access: _ref.read(clinicAccessProvider).value,
     ),
     (tab: DesktopTab.settings, label: 'Settings'),
   ];

@@ -5,15 +5,18 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/dashboard_providers.dart';
 import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 
 class _NavItem {
   const _NavItem(this.tab, this.label, this.icon);
@@ -28,91 +31,106 @@ class _NavGroup {
   final List<_NavItem> items;
 }
 
-/// Extra sidebar pages per dental specialty. Phases add cases here.
-List<_NavItem> specialtyNav(DoctorSpecialtyType? sub) => switch (sub) {
-  DoctorSpecialtyType.periodontist => const [
+/// Extra sidebar pages per dental feature.
+List<_NavItem> specialtyNav(DentalFeature f) => switch (f) {
+  DentalFeature.perio => const [
     _NavItem(DesktopTab.perioPatients, 'Perio patients', RecIcons.perio),
   ],
-  DoctorSpecialtyType.endodontist => const [
+  DentalFeature.endo => const [
     _NavItem(DesktopTab.rootCanals, 'Root canals', RecIcons.endo),
   ],
-  DoctorSpecialtyType.pediatricDentist => const [
+  DentalFeature.pedo => const [
     _NavItem(DesktopTab.pedoChildren, 'Children', CruIcons.patients),
   ],
-  DoctorSpecialtyType.oralPathologist => const [
+  DentalFeature.pathology => const [
     _NavItem(DesktopTab.biopsies, 'Biopsies', CruIcons.flask),
   ],
-  DoctorSpecialtyType.oralMedicine => const [
+  DentalFeature.oralMedicine => const [
     _NavItem(DesktopTab.oralMedLesions, 'Lesions', RecIcons.pain),
     _NavItem(DesktopTab.oralMedForms, 'Forms', RecIcons.checklist),
   ],
-  DoctorSpecialtyType.dentalAnesthesiologist => const [
+  DentalFeature.sedation => const [
     _NavItem(DesktopTab.sedationCases, 'Sedation cases', CruIcons.flask),
     _NavItem(DesktopTab.emergency, 'Emergency', CruIcons.warning),
   ],
-  DoctorSpecialtyType.prosthodontist => const [
+  DentalFeature.prostho => const [
     _NavItem(DesktopTab.labCases, 'Lab cases', CruIcons.box),
   ],
-  DoctorSpecialtyType.orthodontist => const [
+  DentalFeature.ortho => const [
     _NavItem(DesktopTab.orthoPatients, 'Ortho patients', CruIcons.patients),
   ],
-  DoctorSpecialtyType.publicHealthDentist => const [
+  DentalFeature.publicHealth => const [
     _NavItem(DesktopTab.healthCamps, 'Camps', CruIcons.megaphone),
     _NavItem(DesktopTab.population, 'Population', CruIcons.patients),
   ],
-  DoctorSpecialtyType.oralSurgeon => const [
+  DentalFeature.surgery => const [
     _NavItem(DesktopTab.surgeries, 'Surgeries', DentalIcons.procedures),
     _NavItem(DesktopTab.implants, 'Implants', DentalIcons.tooth),
   ],
-  // ADD PER-PHASE CASES HERE for the next dental sub-specialty.
   _ => const [],
 };
 
-String specialtyNavTitle(DoctorSpecialtyType? sub) =>
-    sub == null ? '' : DoctorSpecialty.ofType(sub).shortLabel;
-
-/// The sidebar for this login. Dentists also get Treatment plans,
-/// Sterilization and Procedures. Oral & Maxillofacial Radiologists get the
-/// Radiology group (Worklist, Reports, Referrers) instead of the
-/// chairside dental screens.
+/// The sidebar for this login.
 List<_NavGroup> _groupsFor({
-  required bool dentist,
-  required bool radiologist,
-  DoctorSpecialtyType? sub,
+  required Set<DentalFeature> dental,
+  ClinicAccess? access,
 }) => [
-  const _NavGroup('Today', [
-    _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
-    // Live queue + calendar in one place (the queue tab opens its Live view).
-    _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
-  ]),
-  if (radiologist || dentist)
-    const _NavGroup('Radiology', [
-      _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
-      _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),
-      _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
-    ]),
-  _NavGroup('Patients', [
-    const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
-    if (dentist) ...const [
-      _NavItem(DesktopTab.treatmentPlans, 'Treatment plans', DentalIcons.plan),
-      _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
-      _NavItem(DesktopTab.dentalReferrals, 'Referrals', CruIcons.arrowUpRight),
-    ],
-    const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
-  ]),
-  _NavGroup('Clinic', [
-    const _NavItem(DesktopTab.inventory, 'Inventory', CruIcons.box),
-    if (dentist) ...const [
-      _NavItem(DesktopTab.sterilization, 'Sterilization', DentalIcons.shield),
-      _NavItem(DesktopTab.procedures, 'Procedures', DentalIcons.procedures),
-    ],
-    const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
-    const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
-  ]),
-  // Specialty pages for this dental login (each phase adds its own).
-  if (specialtyNav(sub).isNotEmpty)
-    _NavGroup(specialtyNavTitle(sub), specialtyNav(sub)),
+  for (final g in _allGroupsFor(dental: dental))
+    if ([
+          for (final i in g.items)
+            if (clinicAllowsDesktopTab(access, i.tab)) i,
+        ]
+        case final items when items.isNotEmpty)
+      _NavGroup(g.label, items),
 ];
+
+List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
+  final specialtyItems = <_NavItem>[
+    for (final f in DentalFeature.values)
+      if (dental.contains(f)) ...specialtyNav(f),
+  ];
+
+  return [
+    const _NavGroup('Today', [
+      _NavItem(DesktopTab.dashboard, 'Dashboard', CruIcons.dashboard),
+      // Live queue + calendar in one place (the queue tab opens its Live view).
+      _NavItem(DesktopTab.appointments, 'Schedule', CruIcons.calendar),
+    ]),
+    if (dental.contains(DentalFeature.radiology))
+      const _NavGroup('Radiology', [
+        _NavItem(DesktopTab.worklist, 'Worklist', RadIcons.worklist),
+        _NavItem(DesktopTab.reports, 'Reports', RadIcons.report),
+        _NavItem(DesktopTab.referrers, 'Referrers', RadIcons.referrer),
+      ]),
+    _NavGroup('Patients', [
+      const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
+      if (dental.contains(DentalFeature.chairside)) ...const [
+        _NavItem(
+          DesktopTab.treatmentPlans,
+          'Treatment plans',
+          DentalIcons.plan,
+        ),
+        _NavItem(DesktopTab.recalls, 'Recalls', RecIcons.recall),
+        _NavItem(
+          DesktopTab.dentalReferrals,
+          'Referrals',
+          CruIcons.arrowUpRight,
+        ),
+      ],
+      const _NavItem(DesktopTab.scribe, 'Scribe', CruIcons.mic),
+    ]),
+    _NavGroup('Clinic', [
+      const _NavItem(DesktopTab.inventory, 'Inventory', CruIcons.box),
+      if (dental.contains(DentalFeature.chairside)) ...const [
+        _NavItem(DesktopTab.sterilization, 'Sterilization', DentalIcons.shield),
+        _NavItem(DesktopTab.procedures, 'Procedures', DentalIcons.procedures),
+      ],
+      const _NavItem(DesktopTab.revenue, 'Revenue', CruIcons.rupee),
+      const _NavItem(DesktopTab.campaigns, 'Campaigns', CruIcons.megaphone),
+    ]),
+    if (specialtyItems.isNotEmpty) _NavGroup('Specialty care', specialtyItems),
+  ];
+}
 
 /// Actions the account menu offers. The shell supplies them.
 class SidebarCallbacks {
@@ -151,15 +169,10 @@ class SidebarCallbacks {
 /// Every screen in this login's sidebar, so voice can go exactly where
 /// the sidebar goes.
 List<({int tab, String label})> sidebarTabs({
-  required bool dentist,
-  required bool radiologist,
-  DoctorSpecialtyType? sub,
+  required Set<DentalFeature> dental,
+  ClinicAccess? access,
 }) => [
-  for (final g in _groupsFor(
-    dentist: dentist,
-    radiologist: radiologist,
-    sub: sub,
-  ))
+  for (final g in _groupsFor(dental: dental, access: access))
     for (final i in g.items) (tab: i.tab, label: i.label),
 ];
 
@@ -184,11 +197,14 @@ class CruSidebar extends ConsumerWidget {
     final c = context.cru;
     final waiting = ref.watch(waitingNowCountProvider);
     final identity = ref.watch(doctorIdentityProvider);
-    final plan = ref.watch(subscriptionInfoProvider).value;
+    final access = ref.watch(clinicAccessProvider).value;
+    // The plan is the clinic owner's; the team doesn't see or upgrade it.
+    final plan = access == null || access.isOwner
+        ? ref.watch(subscriptionInfoProvider).value
+        : null;
     final groups = _groupsFor(
-      dentist: ref.watch(isDentistProvider),
-      radiologist: ref.watch(isOralRadiologistProvider),
-      sub: ref.watch(activeDentalSubspecialtyProvider),
+      dental: ref.watch(dentalFeaturesProvider),
+      access: access,
     );
 
     return TweenAnimationBuilder<double>(

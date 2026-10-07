@@ -5,6 +5,7 @@ import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/core/utils/search_normalisation.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// SQLite-backed patient data source.
 ///
@@ -35,7 +36,7 @@ class PatientLocalService {
   /// FirestoreSyncService + InitialFirestoreMigrationService), every local
   /// read is still scoped to this value in case that guarantee is ever
   /// broken by a future bug.
-  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _currentDoctorId => ClinicSession.instance.tenantId ?? '';
 
   Future<void> notifyPatientsChanged() => _emitPatients();
 

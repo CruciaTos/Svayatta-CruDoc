@@ -8,6 +8,12 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
 import 'firebase_options.dart';
+import 'core/clinic/clinic_access.dart';
+import 'core/clinic/clinic_models.dart';
+import 'core/clinic/clinic_session.dart';
+import 'core/models/doctor_specialty.dart';
+import 'core/providers/specialty_provider.dart';
+import 'features/dental/dental_features.dart';
 import 'core/router/app_router.dart';
 import 'core/services/encryption_key_manager.dart';
 import 'core/services/device_session_service.dart';
@@ -134,42 +140,20 @@ void _showForcedLogoutSnackBar(String reason) {
   });
 }
 
-/// On Web there's no local SQLite cache to migrate or sync — repositories
-/// read/write Firestore directly (see e.g. PatientRepository's `kIsWeb`
-/// branches) — but those branches still call FieldCipher.encrypt/decrypt,
-/// so the per-doctor key still needs to be loaded as soon as someone signs
-/// in, and cleared on sign-out.
+/// On Web (and Windows) there's no background sync to start — repositories
+/// read/write Firestore directly or sync on write — but they still call
+/// FieldCipher.encrypt/decrypt, so the clinic's key still needs to be loaded
+/// as soon as someone signs in, and cleared on sign-out.
 void _wireWebEncryptionKeyLoading() {
-  String? lastHandledUid;
-
-  FirebaseAuth.instance.authStateChanges().listen((user) async {
-    try {
-      if (user == null) {
-        DeviceSessionService.instance.stopSessionMonitoring();
-        await DeviceSessionService.instance.clearSessionToken();
-        EncryptionKeyManager.instance.clear();
-        lastHandledUid = null;
-        return;
-      }
-
-      DeviceSessionService.instance.startSessionMonitoring(
-        user.uid,
-        onForcedLogout: (reason) {
-          debugPrint('Web forced logout: $reason');
-          _showForcedLogoutSnackBar(reason);
-        },
-      );
-
-      if (lastHandledUid == user.uid) return;
-
-      lastHandledUid = user.uid;
-
-      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
-    } catch (error, stackTrace) {
-      debugPrint('Web startup auth bootstrap failed: $error');
-      debugPrint(stackTrace.toString());
-    }
-  });
+  _followClinic(
+    platform: 'Web',
+    open: (user, access) =>
+        EncryptionKeyManager.instance.loadForDoctor(access.clinicId),
+    close: () async {
+      if (!kIsWeb) await LocalDatabaseService.instance.close();
+      EncryptionKeyManager.instance.clear();
+    },
+  );
 }
 
 /// Starts (and re-starts) the local-first data layer strictly in response
@@ -186,53 +170,163 @@ void _wireWebEncryptionKeyLoading() {
 ///    anything else, it wipes the stale cache so the two doctors' data
 ///    can never mix locally.
 void _wireDoctorScopedStartup() {
-  String? lastHandledUid;
+  _followClinic(
+    platform: 'Mobile',
+    // Order matters: the key must be loaded before migration/sync try to
+    // decrypt anything, and the local cache must be confirmed to belong to
+    // this clinic and person before anything is written into it.
+    open: (user, access) async {
+      await EncryptionKeyManager.instance.loadForDoctor(access.clinicId);
+      await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
+        LocalDatabaseService.scopeFor(access.clinicId, user.uid),
+      );
+      await InitialFirestoreMigrationService.instance.runIfNeeded();
+      await FirestoreSyncService.instance.start();
+    },
+    close: () async {
+      await FirestoreSyncService.instance.stop();
+      await LocalDatabaseService.instance.close();
+      EncryptionKeyManager.instance.clear();
+    },
+  );
+}
+
+/// Signs people in and out of their clinic's data. On sign-in it loads
+/// which clinic they work in ([ClinicSession]); every time that answer
+/// changes it closes the old clinic's data and [open]s the new one. Joining
+/// a clinic re-opens; being removed from one (the answer falls back to
+/// their own uid) clears that clinic off this device and signs them out.
+/// Changes are handled one at a time, in order.
+void _followClinic({
+  required String platform,
+  required Future<void> Function(User user, ClinicAccess access) open,
+  required Future<void> Function() close,
+}) {
+  String? openedUid;
+  String? openedClinicId;
+  var queue = Future<void>.value();
+
+  Future<void> onAccess(ClinicAccess? access) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (access == null || user == null) {
+      if (openedUid != null) await close();
+      openedUid = null;
+      openedClinicId = null;
+      return;
+    }
+    if (access.uid != user.uid) return;
+    if (openedUid == user.uid && openedClinicId == access.clinicId) return;
+
+    final wasInClinic = openedUid == user.uid ? openedClinicId : null;
+    if (openedUid != null) await close();
+    openedUid = null;
+    openedClinicId = null;
+
+    if (wasInClinic != null &&
+        wasInClinic != user.uid &&
+        access.clinicId == user.uid) {
+      await _forgetClinicOnDevice(wasInClinic, user.uid);
+      await FirebaseAuth.instance.signOut();
+      _showForcedLogoutSnackBar('You no longer have access to this clinic.');
+      return;
+    }
+
+    // Removed while signed out, or moved to another clinic: drop the old
+    // clinic's copy from this device.
+    final previous = ClinicSession.instance.previousClinicId;
+    if (previous != null) await _forgetClinicOnDevice(previous, user.uid);
+
+    await open(user, access);
+    openedUid = user.uid;
+    openedClinicId = access.clinicId;
+    await _copyMemberProfile(user);
+  }
+
+  ClinicSession.instance.stream.listen((access) {
+    queue = queue.then((_) async {
+      try {
+        await onAccess(access);
+      } catch (error, stackTrace) {
+        debugPrint('$platform clinic startup failed: $error');
+        debugPrint(stackTrace.toString());
+      }
+    });
+  });
 
   FirebaseAuth.instance.authStateChanges().listen((user) async {
     try {
       if (user == null) {
         DeviceSessionService.instance.stopSessionMonitoring();
         await DeviceSessionService.instance.clearSessionToken();
-
-        if (lastHandledUid != null) {
-          await FirestoreSyncService.instance.stop();
-          await LocalDatabaseService.instance.close();
-          EncryptionKeyManager.instance.clear();
-          lastHandledUid = null;
-        }
-
+        ClinicSession.instance.clear();
         return;
       }
 
       DeviceSessionService.instance.startSessionMonitoring(
         user.uid,
         onForcedLogout: (reason) {
-          debugPrint('Mobile forced logout: $reason');
+          debugPrint('$platform forced logout: $reason');
           _showForcedLogoutSnackBar(reason);
         },
       );
 
-      if (lastHandledUid == user.uid) return;
-
-      lastHandledUid = user.uid;
-
-      // Order matters: the key must be loaded before migration/sync try to
-      // decrypt anything, and the local cache must be confirmed to belong to
-      // this doctor before anything is written into it.
-      await EncryptionKeyManager.instance.loadForDoctor(user.uid);
-
-      await LocalDatabaseService.instance.ensureLocalDataMatchesSignedInDoctor(
-        user.uid,
-      );
-
-      await InitialFirestoreMigrationService.instance.runIfNeeded();
-
-      await FirestoreSyncService.instance.start();
+      await ClinicSession.instance.load(user.uid);
     } catch (error, stackTrace) {
-      debugPrint('Doctor-scoped startup bootstrap failed: $error');
+      debugPrint('$platform startup auth bootstrap failed: $error');
       debugPrint(stackTrace.toString());
     }
   });
+}
+
+/// Clears what this device kept for a clinic the person no longer works
+/// in: its cache file and its cached data key. Never touches anyone's own
+/// (owner) data.
+Future<void> _forgetClinicOnDevice(String clinicId, String uid) async {
+  if (clinicId == uid) return;
+  try {
+    if (!kIsWeb) {
+      await LocalDatabaseService.instance.deleteDatabaseForScope(
+        LocalDatabaseService.scopeFor(clinicId, uid),
+      );
+    }
+    await EncryptionKeyManager.instance.forgetCachedKey(clinicId);
+  } catch (error) {
+    debugPrint('Could not clear clinic $clinicId from this device: $error');
+  }
+}
+
+/// A doctor who joined a clinic, or whose specialty an admin changed, gets
+/// the clinic's choice copied to their own profile (the app keeps an
+/// encrypted copy there too, so the server doesn't write it). Dental
+/// features are copied once only; after that the dentist changes them in
+/// Settings.
+Future<void> _copyMemberProfile(User user) async {
+  final member = ClinicSession.instance.member;
+  if (member == null || member.kind != MemberKind.doctor) return;
+  try {
+    final profile =
+        (await FirebaseFirestore.instance
+                .collection('users')
+                .doc(user.uid)
+                .get())
+            .data() ??
+        const <String, dynamic>{};
+    if (member.specialty.isNotEmpty &&
+        member.specialty != profile['specialty']) {
+      await saveDoctorSpecialty(
+        DoctorSpecialty.fromString(member.specialty),
+        user: user,
+      );
+    }
+    final dental = DentalFeature.parse(member.dentalFeatures);
+    if (dental != null &&
+        dental.isNotEmpty &&
+        profile['dentalFeatures'] == null) {
+      await saveDentalFeatures(dental);
+    }
+  } catch (error) {
+    debugPrint('Could not copy the clinic profile: $error');
+  }
 }
 
 class MoodyDashboardApp extends ConsumerWidget {

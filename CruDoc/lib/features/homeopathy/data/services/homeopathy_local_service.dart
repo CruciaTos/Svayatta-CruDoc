@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// SQLite DAO for homeopathic case sheets, strictly scoped to the active doctor.
 class HomeopathyLocalService {
@@ -25,7 +26,7 @@ class HomeopathyLocalService {
 
   Stream<void> get changes => _changeController.stream;
 
-  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _currentDoctorId => ClinicSession.instance.tenantId ?? '';
 
   Future<void> notifyChanges() async {
     if (!_changeController.isClosed) {

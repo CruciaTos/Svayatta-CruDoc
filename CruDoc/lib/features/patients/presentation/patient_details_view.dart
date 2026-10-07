@@ -33,6 +33,8 @@ import 'package:doctor_management_app/features/radiology/presentation/radiology_
 import 'package:doctor_management_app/features/therapy/presentation/widgets/physio_photos_card.dart';
 import 'package:doctor_management_app/features/therapy/presentation/widgets/muscle_chart_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Main-area padding for Patient details (the dashboard's, 24 on top).
 final EdgeInsets _padding = CruSpace.mainPadding.copyWith(top: CruSpace.s24);
@@ -119,11 +121,16 @@ class _DetailsBody extends ConsumerWidget {
     final now = ref.watch(dashboardNowProvider);
     final specialty = ref.watch(activeDoctorSpecialtyProvider).value?.type;
     final isDentist = ref.watch(isDentistProvider);
-    final isPhysio = ref.watch(isPhysiotherapyProvider);
-    final isHomeopath = specialty == DoctorSpecialtyType.homeopathy;
-    // Radiologists and dentists: the patient's scans and reports.
-    final imaging =
-        (isDentist || specialty == DoctorSpecialtyType.oralRadiologist)
+    // Clinical parts are for people whose role includes clinical records.
+    final clinical = ref.watch(
+      clinicCanProvider(ClinicPermission.clinicalView),
+    );
+    final canEdit = ref.watch(clinicCanProvider(ClinicPermission.patientsEdit));
+    final canBook = ref.watch(clinicCanProvider(ClinicPermission.schedule));
+    final isPhysio = clinical && ref.watch(isPhysiotherapyProvider);
+    final isHomeopath = clinical && specialty == DoctorSpecialtyType.homeopathy;
+    // Scans and reports for dentists with radiology enabled.
+    final imaging = ref.watch(hasDentalRadiologyProvider)
         ? PatientImagingCard(patientId: s.id)
         : null;
 
@@ -223,17 +230,23 @@ class _DetailsBody extends ConsumerWidget {
               DetailsTopBar(
                 patientName: p.fullName,
                 onBack: onBack,
-                onEdit: edit,
-                onNewVisit: newVisit,
+                onEdit: canEdit ? edit : null,
+                onNewVisit: canBook ? newVisit : null,
                 // Dentists have the tooth chart on the page itself.
                 onDentalChart: null,
                 onCaseSheet: isHomeopath
                     ? () => push(HomeopathyPatientDetailsScreen(patient: p))
                     : null,
-                onDelete: () async {
-                  final deleted = await PatientActions.delete(context, ref, p);
-                  if (deleted) onBack();
-                },
+                onDelete: canEdit
+                    ? () async {
+                        final deleted = await PatientActions.delete(
+                          context,
+                          ref,
+                          p,
+                        );
+                        if (deleted) onBack();
+                      }
+                    : null,
               ),
               const SizedBox(height: CruSpace.stackGap),
               IdentityHeader(

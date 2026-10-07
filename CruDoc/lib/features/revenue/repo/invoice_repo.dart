@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/features/revenue/data/models/invoice_model.dart';
 import 'package:doctor_management_app/features/revenue/data/services/invoice_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 class InvoiceRepository {
   InvoiceRepository({
@@ -22,7 +23,8 @@ class InvoiceRepository {
 
   /// Current authenticated doctor's ID — multi-tenant protection.
   String get _currentDoctorId {
-    final uid = _auth.currentUser?.uid;
+    final uid =
+        ClinicSession.instance.access?.clinicId ?? _auth.currentUser?.uid;
     return (uid != null && uid.isNotEmpty) ? uid : 'anonymous';
   }
 

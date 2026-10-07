@@ -2,9 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
+import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// One-time Firestore-to-SQLite bootstrap for existing cloud data.
 ///
@@ -36,7 +38,7 @@ class InitialFirestoreMigrationService {
   };
 
   Future<void> runIfNeeded() async {
-    final doctorId = FirebaseAuth.instance.currentUser?.uid;
+    final doctorId = ClinicSession.instance.tenantId;
     if (doctorId == null || doctorId.isEmpty) {
       // Not signed in yet — nothing to migrate, and querying without a
       // doctorId would either fail the security rules or (worse, if rules
@@ -45,9 +47,16 @@ class InitialFirestoreMigrationService {
       return;
     }
 
-    await _databaseService.ensureLocalDataMatchesSignedInDoctor(doctorId);
+    await _databaseService.ensureLocalDataMatchesSignedInDoctor(
+      LocalDatabaseService.scopeFor(
+        doctorId,
+        FirebaseAuth.instance.currentUser?.uid ?? doctorId,
+      ),
+    );
 
     for (final collection in _collections) {
+      // The rules refuse collections this person can't read.
+      if (!FirestoreSyncService.canReadCollection(collection)) continue;
       if (await _hasCompletedInitialMigration(collection)) continue;
       try {
         await _migrateCollection(collection, doctorId);

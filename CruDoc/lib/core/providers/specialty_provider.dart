@@ -3,10 +3,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/core/services/doctor_encryption_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/dashboard/data/providers/doctor_identity_provider.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 
 // ────────────────── Selected specialty on the auth screen ──────────────────
 
@@ -37,7 +41,15 @@ final activeDoctorSpecialtyProvider = StreamProvider<DoctorSpecialty>((ref) {
     return Stream.value(DoctorSpecialty.defaultSpecialty);
   }
 
+  // Staff have no specialty of their own: they see the clinic's.
+  final clinicSpecialty = ref.watch(activeClinicProvider).value?.specialty;
   return DoctorProfileHelper.watchDoctorProfile(user).map((data) {
+    final own = (data?['specialty'] ?? data?['specialization']) as String?;
+    if ((own == null || own.trim().isEmpty) &&
+        clinicSpecialty != null &&
+        clinicSpecialty.isNotEmpty) {
+      return DoctorSpecialty.fromString(clinicSpecialty);
+    }
     final rawSpecialty = DoctorProfileHelper.formatSpecialty(data, user);
     return DoctorSpecialty.fromString(rawSpecialty);
   });
@@ -166,27 +178,64 @@ final isPhysiotherapyProvider = Provider<bool>(
       DoctorSpecialtyType.physiotherapy,
 );
 
-/// Dentists and dental specialists who treat patients: the Dentist
-/// family except the Oral & Maxillofacial Radiologist (who reads scans).
+/// The signed-in doctor is a dentist (any dental features).
+final isDentalProvider = Provider<bool>((ref) {
+  final s = ref.watch(activeDoctorSpecialtyProvider).value;
+  return s?.type == DoctorSpecialtyType.dentist;
+});
+
+/// This dentist's features: `users/{uid}.dentalFeatures`, or the legacy
+/// mapping from their stored specialty, or the defaults. Empty for
+/// non-dentists.
+final dentalFeaturesProvider = Provider<Set<DentalFeature>>((ref) {
+  final isDental = ref.watch(isDentalProvider);
+  if (!isDental) return const {};
+  if (!ref.watch(clinicCanProvider(ClinicPermission.clinicalView))) {
+    return const {};
+  }
+
+  final profile = ref.watch(doctorProfileProvider).value;
+  final rawFeatures = profile?['dentalFeatures'];
+  final parsed = DentalFeature.parse(rawFeatures);
+  if (parsed != null && parsed.isNotEmpty) {
+    return parsed;
+  }
+  final rawSpecialty = profile?['specialty'] as String?;
+  return DentalFeature.fromLegacySpecialty(rawSpecialty);
+});
+
+/// Saves the dentist's features to their own profile.
+Future<void> saveDentalFeatures(Set<DentalFeature> features) async {
+  if (DemoSessionService.isDemoMode) {
+    DemoSessionService.setDentalFeatures(features);
+    return;
+  }
+
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return;
+
+  final docRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(currentUser.uid);
+
+  await docRef.set({
+    'dentalFeatures': [for (final f in features) f.key],
+    'updatedAt': FieldValue.serverTimestamp(),
+  }, SetOptions(merge: true));
+}
+
+/// The signed-in doctor is a dentist who does chairside dentistry.
 final isDentistProvider = Provider<bool>((ref) {
-  final s = ref.watch(activeDoctorSpecialtyProvider).value;
-  return s != null &&
-      s.rootType == DoctorSpecialtyType.dentist &&
-      s.type != DoctorSpecialtyType.oralRadiologist;
+  final isDental = ref.watch(isDentalProvider);
+  if (!isDental) return false;
+  final features = ref.watch(dentalFeaturesProvider);
+  return features.contains(DentalFeature.chairside);
 });
 
-/// The dental specialty of this login (null for a general dentist and
-/// for other specialties). Specialty screens and cards key off this.
-final activeDentalSubspecialtyProvider = Provider<DoctorSpecialtyType?>((ref) {
-  final s = ref.watch(activeDoctorSpecialtyProvider).value;
-  return s != null && s.parent == DoctorSpecialtyType.dentist ? s.type : null;
+/// The signed-in doctor is a dentist who has dental radiology enabled.
+final hasDentalRadiologyProvider = Provider<bool>((ref) {
+  final isDental = ref.watch(isDentalProvider);
+  if (!isDental) return false;
+  final features = ref.watch(dentalFeaturesProvider);
+  return features.contains(DentalFeature.radiology);
 });
-
-/// Oral & Maxillofacial Radiologists (a dental sub-specialty) get the
-/// Radiology screens: worklist, viewer, reports and referrers. They don't
-/// get the chairside dental screens.
-final isOralRadiologistProvider = Provider<bool>(
-  (ref) =>
-      ref.watch(activeDoctorSpecialtyProvider).value?.type ==
-      DoctorSpecialtyType.oralRadiologist,
-);

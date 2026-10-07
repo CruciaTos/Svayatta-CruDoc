@@ -23,6 +23,7 @@ import 'package:doctor_management_app/features/appointments/presentation/visit_d
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 // ==================== CAREDOC ALL-IN-ONE WEB DASHBOARD ====================
 
@@ -1615,7 +1616,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
   // ==================== INVOICES WORKSPACE (WEB ONLY) ====================
 
   Widget _buildInvoicesWorkspace(BuildContext context) {
-    final currentDoctorId = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final currentDoctorId = ClinicSession.instance.tenantId ?? '';
 
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
@@ -1959,8 +1960,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filteredInvoices.length,
-                        separatorBuilder: (_, __) =>
-                            const Divider(height: 1),
+                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final inv = filteredInvoices[index];
                           final status = (inv['status'] ?? 'Pending')
@@ -2546,9 +2546,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                                   shrinkWrap: true,
                                                   itemCount: options.length,
                                                   separatorBuilder: (_, __) =>
-                                                      const Divider(
-                                                        height: 1,
-                                                      ),
+                                                      const Divider(height: 1),
                                                   itemBuilder: (BuildContext context, int index) {
                                                     final Patient option =
                                                         options.elementAt(
@@ -3089,9 +3087,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                         ),
                                       ],
                                     ),
-                                    const Divider(
-                                      height: 16,
-                                    ),
+                                    const Divider(height: 16),
                                     Row(
                                       mainAxisAlignment:
                                           MainAxisAlignment.spaceBetween,
@@ -3228,8 +3224,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                               // Persist directly to Database (Cloud Firestore) with FieldCipher encryption
                               try {
                                 final currentDoctorId =
-                                    FirebaseAuth.instance.currentUser?.uid ??
-                                    '';
+                                    ClinicSession.instance.tenantId ?? '';
                                 final firestoreData = {
                                   ...newInvoiceObj,
                                   'patientName': FieldCipher.encrypt(

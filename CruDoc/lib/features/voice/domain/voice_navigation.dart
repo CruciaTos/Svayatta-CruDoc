@@ -275,8 +275,8 @@ class NavScreen extends NavResult {
   final NavTarget target;
 }
 
-/// A screen this login's sidebar doesn't have ("lab cases" for a
-/// periodontist).
+/// A screen this login's sidebar doesn't have ("lab cases" when
+/// prosthodontics is off).
 class NavUnavailable extends NavResult {
   const NavUnavailable(this.tab);
   final int tab;

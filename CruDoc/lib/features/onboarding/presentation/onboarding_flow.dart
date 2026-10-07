@@ -6,7 +6,8 @@ import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
-import 'package:doctor_management_app/core/widgets/subspecialty_row.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
+import 'package:doctor_management_app/features/dental/presentation/dental_features_picker.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/subscription/data/doctor_subscription_service.dart';
@@ -41,7 +42,7 @@ Set<String> suggestedModules(PracticeType practice, DoctorSpecialty? spec) => {
   'omnichannel_messaging',
   'ai_assistant',
   if (practice == PracticeType.clinic) 'multi_device_access',
-  if (spec?.rootType == DoctorSpecialtyType.physiotherapy) 'home_visits',
+  if (spec?.type == DoctorSpecialtyType.physiotherapy) 'home_visits',
 };
 
 /// Answers given before the account exists (on a phone, Get started
@@ -52,6 +53,7 @@ class OnboardingAnswers {
     required this.practice,
     required this.name,
     required this.specialty,
+    this.dental = DentalFeature.defaults,
     required this.suggest,
     required this.picked,
   });
@@ -59,6 +61,7 @@ class OnboardingAnswers {
   final PracticeType practice;
   final String name;
   final DoctorSpecialtyType specialty;
+  final Set<DentalFeature> dental;
   final bool suggest;
   final Set<String> picked;
 
@@ -103,6 +106,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
   PracticeType? _practice;
   late final TextEditingController _name;
   DoctorSpecialtyType? _specialty;
+  Set<DentalFeature> _dental = DentalFeature.defaults;
 
   /// Null until the doctor answers; true = take our suggestion.
   bool? _suggest;
@@ -127,6 +131,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
     if (a != null) {
       _practice = a.practice;
       _specialty = a.specialty;
+      _dental = a.dental;
       _suggest = a.suggest;
       _picked.addAll(a.picked);
       _step = _questionSteps - 1;
@@ -165,6 +170,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           practice: _practice!,
           name: _name.text.trim(),
           specialty: _specialty!,
+          dental: _dental,
           suggest: _suggest!,
           picked: {..._picked},
         ),
@@ -199,6 +205,8 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
           DateTime.now().add(const Duration(days: kTrialDays)),
         ),
         'enabledModules': modules,
+        if (spec.type == DoctorSpecialtyType.dentist)
+          'dentalFeatures': [for (final f in _dental) f.key],
         'allowMultiDevice': modules.contains('multi_device_access'),
         // What the Super Admin reads to see how each doctor started.
         'onboarding': {
@@ -404,7 +412,7 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
                     height: _kSpecialtyTile,
                     child: _SpecialtyTile(
                       spec: s,
-                      selected: spec != null && spec.isUnder(s.type),
+                      selected: spec != null && spec.type == s.type,
                       onTap: () => setState(() => _specialty = s.type),
                     ),
                   ),
@@ -412,12 +420,16 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
             );
           },
         ),
-        if (spec != null &&
-            DoctorSpecialty.subspecialtiesOf(spec.rootType).isNotEmpty) ...[
-          const SizedBox(height: CruSpace.s12),
-          SubspecialtyRow(
-            selected: spec,
-            onSelected: (s) => setState(() => _specialty = s.type),
+        if (spec?.type == DoctorSpecialtyType.dentist) ...[
+          const SizedBox(height: CruSpace.s20),
+          Text(
+            'What do you do?',
+            style: CruType.caption.tint(c.label2),
+          ),
+          const SizedBox(height: CruSpace.s8),
+          DentalFeaturesPicker(
+            selected: _dental,
+            onChanged: (features) => setState(() => _dental = features),
           ),
         ],
       ],
@@ -508,7 +520,11 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
               LoyaltyCard(
                 stamps: 1,
                 stampedMonths: [loyaltyMonthKey(DateTime.now())],
+                joinedAt: DateTime.now(),
               ),
+          holderName: name.isEmpty ? null : name,
+          holderId: FirebaseAuth.instance.currentUser?.uid,
+          photoUrl: FirebaseAuth.instance.currentUser?.photoURL,
           animateLast: true,
         ),
       ],

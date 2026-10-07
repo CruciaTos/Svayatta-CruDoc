@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/models/doctor_specialty.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
 
 /// In-memory trial / dev session manager that guarantees instantaneous,
 /// rate-limit-proof login and on-the-fly specialty switching without Firebase network blockers.
@@ -30,25 +31,33 @@ class DemoSessionService {
   static Stream<Map<String, dynamic>> get profileStream =>
       _profileStreamController.stream;
 
+  static Set<DentalFeature>? _demoDentalFeatures;
+  static void setDentalFeatures(Set<DentalFeature> features) {
+    _demoDentalFeatures = features;
+    _profileStreamController.add(currentMockProfile);
+  }
+
   static Map<String, dynamic> get currentMockProfile => {
-          'uid': 'demo_doctor_dev',
-          'email': _activeSpecialty.demoEmail,
-          'displayName': _getDemoDoctorName(_activeSpecialty),
-          'doctorName': _getDemoDoctorName(_activeSpecialty),
-          'specialty': _activeSpecialty.label,
-          'specialization': _activeSpecialty.label,
-          'clinicName': 'CruDoc ${_activeSpecialty.shortLabel} Care Clinic',
-          'status': 'Active',
-          'role': 'doctor',
-          'isDemoAccount': true,
-      };
+    'uid': 'demo_doctor_dev',
+    'email': _activeSpecialty.demoEmail,
+    'displayName': _getDemoDoctorName(_activeSpecialty),
+    'doctorName': _getDemoDoctorName(_activeSpecialty),
+    'specialty': _activeSpecialty.label,
+    'specialization': _activeSpecialty.label,
+    'clinicName': 'CruDoc ${_activeSpecialty.shortLabel} Care Clinic',
+    'status': 'Active',
+    'role': 'doctor',
+    'isDemoAccount': true,
+    if (_activeSpecialty.type == DoctorSpecialtyType.dentist)
+      'dentalFeatures': _demoDentalFeatures != null
+          ? [for (final f in _demoDentalFeatures!) f.key]
+          : [for (final f in DentalFeature.values) f.key],
+  };
 
   static String _getDemoDoctorName(DoctorSpecialty specialty) {
     switch (specialty.type) {
       case DoctorSpecialtyType.dentist:
         return 'Dr. Aryan Dental';
-      case DoctorSpecialtyType.oralRadiologist:
-        return 'Dr. Meera Radiology';
       case DoctorSpecialtyType.homeopathy:
         return 'Dr. Vinit Homeo';
       case DoctorSpecialtyType.cardiologist:
@@ -67,26 +76,6 @@ class DemoSessionService {
         return 'Dr. Rohit Rehab';
       case DoctorSpecialtyType.generalPhysician:
         return 'Dr. Vinit Parab';
-      case DoctorSpecialtyType.periodontist:
-        return 'Dr. Maya Perio';
-      case DoctorSpecialtyType.endodontist:
-        return 'Dr. Vikram Endo';
-      case DoctorSpecialtyType.pediatricDentist:
-        return 'Dr. Ananya PediaDent';
-      case DoctorSpecialtyType.oralPathologist:
-        return 'Dr. Kabir Patho';
-      case DoctorSpecialtyType.oralMedicine:
-        return 'Dr. Sunita Med';
-      case DoctorSpecialtyType.dentalAnesthesiologist:
-        return 'Dr. Farhan Sedation';
-      case DoctorSpecialtyType.prosthodontist:
-        return 'Dr. Gaurav Prosth';
-      case DoctorSpecialtyType.orthodontist:
-        return 'Dr. Riya Ortho';
-      case DoctorSpecialtyType.publicHealthDentist:
-        return 'Dr. Alok Health';
-      case DoctorSpecialtyType.oralSurgeon:
-        return 'Dr. Devendra Surgeon';
     }
   }
 
@@ -103,6 +92,7 @@ class DemoSessionService {
   /// Switches the active specialty in trial demo mode instantly.
   static void setSpecialty(DoctorSpecialty specialty) {
     _activeSpecialty = specialty;
+    _demoDentalFeatures = null;
     specialtyNotifier.value = specialty;
     _profileStreamController.add(currentMockProfile);
   }
@@ -113,6 +103,7 @@ class DemoSessionService {
     sessionStateNotifier.value = false;
     sessionRevisionNotifier.value++;
     _activeSpecialty = DoctorSpecialty.defaultSpecialty;
+    _demoDentalFeatures = null;
     specialtyNotifier.value = _activeSpecialty;
   }
 }

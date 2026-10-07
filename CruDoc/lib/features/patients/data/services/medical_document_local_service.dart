@@ -4,6 +4,7 @@ import '../../../../core/database/local_database.dart';
 import '../../../../core/services/local_database_service.dart';
 import '../../../../core/services/firestore_sync_service.dart';
 import '../models/medical_document.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// SQLite-backed medical documents data source with local-first offline support.
 class MedicalDocumentLocalService {
@@ -16,7 +17,7 @@ class MedicalDocumentLocalService {
   final StreamController<void> _documentsChangedController =
       StreamController<void>.broadcast();
 
-  String get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid ?? '';
+  String get _currentDoctorId => ClinicSession.instance.tenantId ?? '';
 
   Stream<void> get onDocumentsChanged => _documentsChangedController.stream;
 

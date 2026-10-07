@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/radiology/data/radiology_view_fet
 import 'package:doctor_management_app/features/radiology/imaging/rad_pixels.dart';
 import 'package:doctor_management_app/features/radiology/imaging/rad_view_pixels.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 const _uuid = Uuid();
 
@@ -31,7 +32,8 @@ final radiologyRepositoryProvider = Provider<RadiologyRepository>(
 /// account when nobody is signed in, like the dental screens).
 final radDoctorIdProvider = Provider<String>((ref) {
   final user = ref.watch(authStateProvider).value;
-  return user?.uid ?? FirebaseAuth.instance.currentUser?.uid ?? 'doc_omr';
+  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
+  return clinicId ?? user?.uid ?? 'doc_omr';
 });
 
 final radDocsVersionProvider = StreamProvider<int>((ref) async* {

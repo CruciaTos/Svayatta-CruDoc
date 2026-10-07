@@ -26,6 +26,8 @@ import 'package:doctor_management_app/features/patients/presentation/patient_act
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
 import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Home: who's next, how the day is going, and every common task one tap
 /// away. Not a report: anything deeper is a tab or a tap further.
@@ -617,19 +619,21 @@ class _GlanceRow extends ConsumerWidget {
               onTap: () => _toTab(ref, MobileTab.schedule),
             ),
           ),
-          const SizedBox(width: CruSpace.s10),
-          Expanded(
-            child: _Glance(
-              label: 'Collected',
-              value: collected == null
-                  ? '–'
-                  : DashFormat.rupeesCompact(collected.today),
-              valueColor: (collected?.today ?? 0) > 0
-                  ? mobileTone(c, MobileTone.green).$2
-                  : null,
-              onTap: () => _toTab(ref, MobileTab.revenue),
+          if (ref.watch(clinicCanProvider(ClinicPermission.revenue))) ...[
+            const SizedBox(width: CruSpace.s10),
+            Expanded(
+              child: _Glance(
+                label: 'Collected',
+                value: collected == null
+                    ? '–'
+                    : DashFormat.rupeesCompact(collected.today),
+                valueColor: (collected?.today ?? 0) > 0
+                    ? mobileTone(c, MobileTone.green).$2
+                    : null,
+                onTap: () => _toTab(ref, MobileTab.revenue),
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );

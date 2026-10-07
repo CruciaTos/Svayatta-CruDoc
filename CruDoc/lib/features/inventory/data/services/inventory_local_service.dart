@@ -6,6 +6,7 @@ import 'package:doctor_management_app/core/services/local_database_service.dart'
 import 'package:doctor_management_app/features/inventory/data/models/medicine_model.dart';
 import 'package:doctor_management_app/features/inventory/data/models/stock_transaction_model.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Cap for [InventoryLocalService.watchRecentTransactions] — enough to
 /// feed the dashboard's activity card after it's merged with patient/
@@ -41,7 +42,7 @@ class InventoryLocalService {
   Future<void> notifyTransactionsChanged() => _emitRecentTransactions();
 
   String _currentDoctorId() {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ClinicSession.instance.tenantId;
     if (uid == null || uid.isEmpty) return '';
     return uid;
   }

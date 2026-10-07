@@ -3,9 +3,9 @@ rules_version = '2';
 // Firestore rules for CruDoc.
 //
 // Clinical data lives in top-level collections, one document per record,
-// each stamped with the owning doctor's uid in `doctorId`. A doctor can only
-// see and change documents carrying their own uid, and every list query must
-// filter on `doctorId == uid` (the repositories already do).
+// keyed by `doctorId` = clinic id (= owner uid); members of that clinic may
+// use them according to their permissions.
+// Every list query filters on `doctorId == clinicId`.
 //
 // Super Admin manages accounts, plans and settings but is denied patient data.
 // Cloud Functions use the Admin SDK and are not affected by these rules.
@@ -30,6 +30,76 @@ service cloud.firestore {
 
     function isSelf(userId) {
       return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ------------------------------------------------------------
+    // CLINIC MEMBERSHIP
+    // ------------------------------------------------------------
+    // A clinic's id is its owner's uid, so records stamped
+    // doctorId == <owner uid> before clinics existed already belong to it.
+    // Other doctors and staff are clinics/{clinicId}/members/{uid}, written
+    // only by the clinicTeam Cloud Function. The member doc is read on each
+    // request, so a removed member loses access at once.
+
+    function memberPath(clinicId) {
+      return /databases/$(database)/documents/clinics/$(clinicId)/members/$(request.auth.uid);
+    }
+
+    function memberAllows(clinicId, perm) {
+      let m = get(memberPath(clinicId)).data;
+      return m.active == true
+        && (perm == 'member' || m.roleId == 'admin' || perm in m.perms);
+    }
+
+    // perm: a permission key, 'member' (any active member) or 'admin'
+    // (not a real permission, so only the owner and the admin role pass).
+    function clinicAllows(clinicId, perm) {
+      return isAuthenticated()
+        && (request.auth.uid == clinicId || memberAllows(clinicId, perm));
+    }
+
+    function readPerm(collection) {
+      return {
+        'patients': 'patients.view',
+        'appointments': 'schedule',
+        'visitations': 'schedule',
+        'walk_in_queue': 'schedule',
+        'invoices': 'billing',
+        'pending_payments': 'billing',
+        'revenue_entries': 'revenue',
+        'medicines': 'inventory',
+        'stock_transactions': 'inventory',
+        'sterilization_log_entries': 'inventory',
+        'dental_records': 'clinical.view',
+        'radiology_docs': 'clinical.view',
+        'homeopathy_case_sheets': 'clinical.view',
+        'tooth_chart_entries': 'clinical.view',
+        'procedure_log_entries': 'clinical.view',
+        'treatment_plan_line_items': 'clinical.view',
+        'dental_procedure_catalog': 'member'
+      }[collection];
+    }
+
+    function writePerm(collection) {
+      return {
+        'patients': 'patients.edit',
+        'appointments': 'schedule',
+        'visitations': 'schedule',
+        'walk_in_queue': 'schedule',
+        'invoices': 'billing',
+        'pending_payments': 'billing',
+        'revenue_entries': 'billing',
+        'medicines': 'inventory',
+        'stock_transactions': 'inventory',
+        'sterilization_log_entries': 'inventory',
+        'dental_records': 'clinical.edit',
+        'radiology_docs': 'clinical.edit',
+        'homeopathy_case_sheets': 'clinical.edit',
+        'tooth_chart_entries': 'clinical.edit',
+        'procedure_log_entries': 'clinical.edit',
+        'treatment_plan_line_items': 'clinical.edit',
+        'dental_procedure_catalog': 'settings'
+      }[collection];
     }
 
     // The stored document belongs to the caller (or doesn't exist yet, so a
@@ -74,22 +144,20 @@ service cloud.firestore {
     match /{collection}/{docId} {
       allow get: if isDoctorOwnedCollection(collection)
         && isAuthenticated()
-        && ownsExisting();
+        && (resource == null
+          || clinicAllows(resource.data.doctorId, readPerm(collection)));
       allow list: if isDoctorOwnedCollection(collection)
-        && isAuthenticated()
-        && resource.data.doctorId == request.auth.uid;
+        && clinicAllows(resource.data.doctorId, readPerm(collection));
       allow create: if isDoctorOwnedCollection(collection)
-        && isAuthenticated()
-        && writesOwnDoctorId();
-      // doctorId can't be changed, so a record can't be handed to, or taken
-      // from, another doctor.
+        && clinicAllows(request.resource.data.doctorId, writePerm(collection));
+      // doctorId can't be changed, so a record can't move between clinics.
       allow update: if isDoctorOwnedCollection(collection)
-        && isAuthenticated()
-        && resource.data.doctorId == request.auth.uid
-        && writesOwnDoctorId();
+        && request.resource.data.doctorId == resource.data.doctorId
+        && clinicAllows(resource.data.doctorId, writePerm(collection));
       allow delete: if isDoctorOwnedCollection(collection)
         && isAuthenticated()
-        && ownsExisting();
+        && (resource == null
+          || clinicAllows(resource.data.doctorId, writePerm(collection)));
     }
 
     // ============================================================
@@ -100,11 +168,10 @@ service cloud.firestore {
     // and read their own log; nobody can change or delete an entry.
 
     match /access_logs/{logId} {
-      allow get: if isAuthenticated() && ownsExisting();
-      allow list: if isAuthenticated()
-        && resource.data.doctorId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || clinicAllows(resource.data.doctorId, 'team'));
+      allow list: if clinicAllows(resource.data.doctorId, 'team');
       allow create: if isAuthenticated()
-        && writesOwnDoctorId()
+        && clinicAllows(request.resource.data.doctorId, 'member')
         && request.resource.data.actorUid == request.auth.uid
         && request.resource.data.at == request.time
         && request.resource.data.action in ['patient.view', 'file.download']
@@ -120,7 +187,7 @@ service cloud.firestore {
     // never changed or deleted from a client.
 
     match /doctor_keys/{doctorId} {
-      allow get: if isSelf(doctorId);
+      allow get: if isSelf(doctorId) || clinicAllows(doctorId, 'member');
       allow create: if isSelf(doctorId)
         && request.resource.data.keys().hasOnly(['wrappedKey', 'createdAt'])
         && request.resource.data.wrappedKey is string;
@@ -136,16 +203,14 @@ service cloud.firestore {
     // could set would say nothing about what Meta actually did.
 
     match /whatsapp_notification_logs/{logId} {
-      allow get: if isAuthenticated() && ownsExisting();
-      allow list: if isAuthenticated()
-        && resource.data.doctorId == request.auth.uid;
+      allow get: if isAuthenticated() && (resource == null || clinicAllows(resource.data.doctorId, 'messaging'));
+      allow list: if clinicAllows(resource.data.doctorId, 'messaging');
       allow create, update, delete: if false;
 
       // Every raw delivery event, kept for working out what happened.
       match /events/{eventId} {
         allow read: if isAuthenticated()
-          && get(/databases/$(database)/documents/whatsapp_notification_logs/$(logId))
-            .data.doctorId == request.auth.uid;
+          && clinicAllows(get(/databases/$(database)/documents/whatsapp_notification_logs/$(logId)).data.doctorId, 'messaging');
         allow write: if false;
       }
     }
@@ -197,8 +262,45 @@ service cloud.firestore {
     // clinic's own number, template approval. No secrets. Server writes only,
     // so a doctor cannot mark themselves connected.
     match /whatsapp_connections/{doctorId} {
-      allow get: if isSelf(doctorId);
+      allow get: if isSelf(doctorId) || clinicAllows(doctorId, 'messaging');
       allow list, write: if false;
+    }
+
+    // ============================================================
+    // CLINICS, MEMBERS, ROLES, INVITES
+    // ============================================================
+    // Written by the clinicTeam Cloud Function (Admin SDK). A member may
+    // edit only their own public profile fields.
+
+    match /clinics/{clinicId} {
+      allow get: if isSuperAdmin() || clinicAllows(clinicId, 'member');
+      allow list: if isSuperAdmin();
+      allow update: if clinicAllows(clinicId, 'settings')
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'updatedAt']);
+      allow create, delete: if false;
+
+      match /members/{uid} {
+        allow read: if clinicAllows(clinicId, 'member');
+        allow update: if isSelf(uid)
+          && resource.data.active == true
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['name', 'phone', 'qualification', 'registrationNo', 'modules'])
+          && (!('modules' in request.resource.data)
+            || (request.resource.data.modules is list
+              && request.resource.data.modules.size() <= 30));
+        allow create, delete: if false;
+      }
+
+      match /roles/{roleId} {
+        allow read: if clinicAllows(clinicId, 'member');
+        allow write: if false;
+      }
+
+      match /invites/{inviteId} {
+        allow read: if clinicAllows(clinicId, 'team');
+        allow write: if false;
+      }
     }
 
     // ============================================================
@@ -218,10 +320,11 @@ service cloud.firestore {
       allow create: if isSuperAdmin()
         || (isSelf(userId)
           && (!('role' in request.resource.data)
-            || request.resource.data.role == 'doctor'));
+            || request.resource.data.role == 'doctor')
+          && !request.resource.data.keys().hasAny(['clinicId', 'memberKind']));
       allow update: if isSuperAdmin()
         || (isSelf(userId)
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'clinicId', 'memberKind']));
       allow delete: if isSuperAdmin();
 
       // Everything a doctor keeps under their own profile: device sessions,
@@ -247,17 +350,17 @@ service cloud.firestore {
     // ============================================================
 
     match /subscriptions/{doctorId} {
-      allow read: if isSuperAdmin() || isSelf(doctorId);
+      allow read: if isSuperAdmin() || isSelf(doctorId) || clinicAllows(doctorId, 'admin');
       allow write: if isSuperAdmin();
     }
 
     match /feature_flags/{doctorId} {
-      allow read: if isSuperAdmin() || isSelf(doctorId);
+      allow read: if isSuperAdmin() || isSelf(doctorId) || clinicAllows(doctorId, 'member');
       allow write: if isSuperAdmin();
     }
 
     match /doctor_settings/{doctorId} {
-      allow read: if isSuperAdmin() || isSelf(doctorId);
+      allow read: if isSuperAdmin() || isSelf(doctorId) || clinicAllows(doctorId, 'member');
       allow write: if isSuperAdmin();
     }
 

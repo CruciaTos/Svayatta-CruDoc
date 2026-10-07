@@ -10,6 +10,7 @@ import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/firestore_sync_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/services/patient_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Clean API the presentation layer talks to for anything patient-related.
 ///
@@ -30,7 +31,7 @@ class PatientRepository {
   /// directly) would read and write every doctor's shared `patients`
   /// collection instead of just this doctor's own data.
   String get _currentDoctorId {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ClinicSession.instance.tenantId;
     if (uid == null || uid.isEmpty) {
       throw StateError('No signed-in doctor — cannot access patient data.');
     }
@@ -192,7 +193,9 @@ class PatientRepository {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || user.uid.isEmpty) return null;
       if (!FieldCipher.isReady) {
-        await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+        await EncryptionKeyManager.instance.loadForDoctor(
+          ClinicSession.instance.access?.clinicId ?? user.uid,
+        );
       }
       final doc = await FirebaseFirestore.instance
           .collection('patients')
@@ -209,7 +212,9 @@ class PatientRepository {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null && user.uid.isNotEmpty) {
         if (!FieldCipher.isReady) {
-          await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+          await EncryptionKeyManager.instance.loadForDoctor(
+            ClinicSession.instance.access?.clinicId ?? user.uid,
+          );
         }
         final doc = await FirebaseFirestore.instance
             .collection('patients')
@@ -245,14 +250,19 @@ class PatientRepository {
       // If a key was passed in, assume caller has loaded it and FieldCipher
       // is ready. If not, attempt to load as a fallback.
       if (encryptionKey == null && !FieldCipher.isReady) {
-        await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+        await EncryptionKeyManager.instance.loadForDoctor(
+          ClinicSession.instance.access?.clinicId ?? user.uid,
+        );
       }
 
       // Now yield from the Firestore snapshot stream and do synchronous
       // mapping/decryption using FieldCipher which relies on the loaded key.
       yield* FirebaseFirestore.instance
           .collection('patients')
-          .where('doctorId', isEqualTo: user.uid)
+          .where(
+            'doctorId',
+            isEqualTo: ClinicSession.instance.access?.clinicId ?? user.uid,
+          )
           .snapshots()
           .map((snapshot) {
             final list = snapshot.docs
@@ -290,11 +300,16 @@ class PatientRepository {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null || user.uid.isEmpty) return const [];
       if (!FieldCipher.isReady) {
-        await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+        await EncryptionKeyManager.instance.loadForDoctor(
+          ClinicSession.instance.access?.clinicId ?? user.uid,
+        );
       }
       final snap = await FirebaseFirestore.instance
           .collection('patients')
-          .where('doctorId', isEqualTo: user.uid)
+          .where(
+            'doctorId',
+            isEqualTo: ClinicSession.instance.access?.clinicId ?? user.uid,
+          )
           .get();
 
       final list = snap.docs

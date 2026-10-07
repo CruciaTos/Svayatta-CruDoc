@@ -2,7 +2,7 @@
 //   firebase emulators:exec --only storage "npm test --prefix tests/storage-rules"
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { after, afterEach, before, describe, it } from 'node:test';
+import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -11,8 +11,10 @@ import {
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import { getBytes, ref, updateMetadata, uploadBytes } from 'firebase/storage';
+import { doc, setDoc } from 'firebase/firestore';
 
 const RULES = fileURLToPath(new URL('../../storage.rules', import.meta.url));
+const FIRESTORE_RULES = fileURLToPath(new URL('../../firestore.rules', import.meta.url));
 const MB = 1024 * 1024;
 
 /** A file of [size] bytes. */
@@ -27,8 +29,9 @@ let env;
 
 before(async () => {
   env = await initializeTestEnvironment({
-    projectId: 'crudoc-storage-rules-test',
+    projectId: 'demo-crudoc',
     storage: { rules: readFileSync(RULES, 'utf8') },
+    firestore: { rules: readFileSync(FIRESTORE_RULES, 'utf8') },
   });
 });
 
@@ -38,6 +41,7 @@ after(async () => {
 
 afterEach(async () => {
   await env.clearStorage();
+  await env.clearFirestore();
 });
 
 const as = (uid) => env.authenticatedContext(uid).storage();
@@ -47,6 +51,13 @@ const anonymous = () => env.unauthenticatedContext().storage();
 async function seed(path, contentType = 'application/pdf') {
   await env.withSecurityRulesDisabled(async (ctx) => {
     await uploadBytes(ref(ctx.storage(), path), bytes(), { contentType });
+  });
+}
+
+/** Puts a firestore document in place without going through the rules. */
+async function seedFirestore(path, data) {
+  await env.withSecurityRulesDisabled(async (ctx) => {
+    await setDoc(doc(ctx.firestore(), path), data);
   });
 }
 
@@ -199,7 +210,7 @@ describe('clinical/imaging', () => {
   });
 
   it('rejects an original over 250 MB', async () => {
-    await assertFails(uploadBytes(ref(as(A), DCM), bytes(250 * MB + 1), dicom));
+    await assert.rejects(uploadBytes(ref(as(A), DCM), bytes(250 * MB + 1), dicom));
   });
 
   it('keeps the 15 MB limit for pictures in the same folder', async () => {
@@ -289,4 +300,85 @@ describe('everything else', () => {
 // Keeps the runner honest if the rules file is ever emptied.
 it('loads the rules file', () => {
   assert.match(readFileSync(RULES, 'utf8'), /service firebase\.storage/);
+});
+
+describe('clinic members in storage', () => {
+  const RECEP = 'recep-1';
+  const CLINICAL = 'clinical-1';
+  const GONE = 'gone-1';
+
+  beforeEach(async () => {
+    await seedFirestore(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seedFirestore(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'patients.edit', 'schedule', 'billing', 'messaging'],
+      name: 'Recep',
+    });
+    await seedFirestore(`clinics/${A}/members/${CLINICAL}`, {
+      active: true,
+      roleId: 'assistant',
+      perms: ['clinical.view'],
+      name: 'Clinical Member',
+    });
+    await seedFirestore(`clinics/${A}/members/${GONE}`, {
+      active: false,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view'],
+      name: 'Gone Doctor',
+    });
+  });
+
+  it('RECEP cannot read doctors/A/patients/p1/x.pdf', async () => {
+    const file = `doctors/${A}/patients/p1/x.pdf`;
+    await seed(file);
+    await assertFails(getBytes(ref(as(RECEP), file)));
+  });
+
+  it('a member with clinical.view can read doctors/A/patients/p1/x.pdf', async () => {
+    const file = `doctors/${A}/patients/p1/x.pdf`;
+    await seed(file);
+    await assertSucceeds(getBytes(ref(as(CLINICAL), file)));
+  });
+
+  it('RECEP can see patient photos and handle invoices, not prescriptions', async () => {
+    const avatar = `doctors/${A}/patients/p1/avatar/a.jpg`;
+    const invoice = `doctors/${A}/patients/p1/invoices/inv-1.pdf`;
+    const rx = `doctors/${A}/patients/p1/prescriptions/rx-1.pdf`;
+    await seed(avatar, 'image/jpeg');
+    await seed(rx);
+    await assertSucceeds(getBytes(ref(as(RECEP), avatar)));
+    await assertSucceeds(uploadBytes(ref(as(RECEP), invoice), bytes(), pdf));
+    await assertSucceeds(getBytes(ref(as(RECEP), invoice)));
+    await assertFails(getBytes(ref(as(RECEP), rx)));
+  });
+
+  it('RECEP can read doctors/A/clinic/branding/logo.png but cannot write it', async () => {
+    const branding = `doctors/${A}/clinic/branding/logo.png`;
+    await seed(branding, 'image/png');
+    await assertSucceeds(getBytes(ref(as(RECEP), branding)));
+    await assertFails(
+      uploadBytes(ref(as(RECEP), branding), bytes(), { contentType: 'image/png' }),
+    );
+  });
+
+  it('GONE can read nothing', async () => {
+    const file = `doctors/${A}/patients/p1/x.pdf`;
+    const branding = `doctors/${A}/clinic/branding/logo.png`;
+    await seed(file);
+    await seed(branding, 'image/png');
+    await assertFails(getBytes(ref(as(GONE), file)));
+    await assertFails(getBytes(ref(as(GONE), branding)));
+  });
+
+  it('A (owner) can do everything as before', async () => {
+    const file = `doctors/${A}/patients/p1/x.pdf`;
+    const branding = `doctors/${A}/clinic/branding/logo.png`;
+    await assertSucceeds(uploadBytes(ref(as(A), file), bytes(), pdf));
+    await assertSucceeds(getBytes(ref(as(A), file)));
+    await assertSucceeds(
+      uploadBytes(ref(as(A), branding), bytes(), { contentType: 'image/png' }),
+    );
+    await assertSucceeds(getBytes(ref(as(A), branding)));
+  });
 });

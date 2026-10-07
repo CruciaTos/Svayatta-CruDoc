@@ -34,9 +34,9 @@ import 'package:doctor_management_app/features/scribe/presentation/desktop_scrib
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
-import 'package:doctor_management_app/features/messaging/data/providers/reminder_settings_providers.dart';
 import 'package:doctor_management_app/features/shell/components/cru_sidebar.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// A patient's record over the phone screen (swipe back to return).
 void openMobilePatient(BuildContext context, Patient patient) => pushMobile(
@@ -170,9 +170,8 @@ class MobileMoreScreen extends ConsumerWidget {
     bool on(String m) => DoctorFeatureGuard.isEnabled(modules, m);
     final specialty = [
       for (final t in sidebarTabs(
-        dentist: ref.watch(isDentistProvider),
-        radiologist: ref.watch(isOralRadiologistProvider),
-        sub: ref.watch(activeDentalSubspecialtyProvider),
+        dental: ref.watch(dentalFeaturesProvider),
+        access: ref.watch(clinicAccessProvider).value,
       ))
         if (!_onTabs.contains(t.tab)) t,
     ];
@@ -290,9 +289,7 @@ class MobileMoreScreen extends ConsumerWidget {
         if (specialty.isNotEmpty) ...[
           const SizedBox(height: CruSpace.s16),
           MobileRowGroup(
-            title: ref.watch(isOralRadiologistProvider)
-                ? 'Radiology'
-                : 'Dental',
+            title: 'Dental',
 
             children: [
               for (final t in specialty)
@@ -455,12 +452,7 @@ class _MobileSettingsList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sections = [
       for (final s in SettingsSection.values)
-        if ((s != SettingsSection.radiology ||
-                ref.watch(isOralRadiologistProvider)) &&
-            (s != SettingsSection.dental || ref.watch(isDentistProvider)) &&
-            (s != SettingsSection.reminders ||
-                ref.watch(whatsAppRemindersAvailableProvider)))
-          s,
+        if (showSettingsSection(ref, s)) s,
     ];
     return ListView(
       padding: EdgeInsets.only(

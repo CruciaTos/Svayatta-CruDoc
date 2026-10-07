@@ -11,6 +11,7 @@ import 'package:doctor_management_app/features/appointments/data/providers/visit
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/core/services/encryption_key_manager.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 final patientRepositoryProvider = Provider<PatientRepository>(
   (ref) => PatientRepository(),
@@ -24,15 +25,17 @@ final encryptionKeyProvider = FutureProvider<String>((ref) async {
   if (user == null || user.uid.isEmpty) {
     throw StateError('No signed-in doctor — cannot load encryption key.');
   }
-  await EncryptionKeyManager.instance.loadForDoctor(user.uid);
+  final clinicId = ref.watch(clinicAccessProvider).value?.clinicId;
+  await EncryptionKeyManager.instance.loadForDoctor(clinicId ?? user.uid);
   final key = EncryptionKeyManager.instance.currentKey;
   if (key == null) throw StateError('Failed to load encryption key.');
   return base64Encode(key.bytes);
 });
 
 final patientsStreamProvider = StreamProvider<List<Patient>>((ref) {
-  // Keep stream registration reactive to auth changes.
+  // Keep stream registration reactive to auth and clinic changes.
   ref.watch(authStateProvider);
+  ref.watch(clinicAccessProvider);
 
   final keyAsync = ref.watch(encryptionKeyProvider);
 

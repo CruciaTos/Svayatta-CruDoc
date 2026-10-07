@@ -7,6 +7,9 @@ import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/services/auth_service.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
 import 'package:doctor_management_app/features/shell/components/shell_background.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
+import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
+import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/gmail_integration_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/letterhead_branding_card.dart';
 import 'package:doctor_management_app/features/profile/presentation/widgets/active_sessions_card.dart';
@@ -315,6 +318,12 @@ class ProfileScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 20),
+
+                        // ---- Loyalty & Rewards Section ----
+                        _DoctorLoyaltyCardSection(
+                          user: user,
+                          profileData: profileData,
+                        ),
 
                         // ---- Information Cards Section ----
                         const Text(
@@ -638,6 +647,100 @@ class _ProfileCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DoctorLoyaltyCardSection extends StatefulWidget {
+  const _DoctorLoyaltyCardSection({
+    required this.user,
+    required this.profileData,
+  });
+
+  final User? user;
+  final Map<String, dynamic>? profileData;
+
+  @override
+  State<_DoctorLoyaltyCardSection> createState() =>
+      _DoctorLoyaltyCardSectionState();
+}
+
+class _DoctorLoyaltyCardSectionState
+    extends State<_DoctorLoyaltyCardSection> {
+  bool _claiming = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.profileData != null &&
+        widget.profileData!['loyalty'] == null &&
+        !DemoSessionService.isDemoMode) {
+      LoyaltyService.stampThisMonth().catchError((_) => null);
+    }
+  }
+
+  Future<void> _claim() async {
+    if (_claiming) return;
+    setState(() => _claiming = true);
+    try {
+      await LoyaltyService.claimFreeMonth();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Free month added to your plan.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not claim. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var card = LoyaltyCard.fromMap(widget.profileData?['loyalty']);
+    if (card == null) {
+      if (DemoSessionService.isDemoMode) {
+        card = const LoyaltyCard(
+          stamps: 3,
+          stampedMonths: ['2026-08', '2026-09', '2026-10'],
+          freeMonthsClaimed: 0,
+        );
+      } else if (widget.user != null) {
+        card = const LoyaltyCard(stamps: 1, stampedMonths: []);
+      }
+    }
+    if (card == null) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Loyalty & Rewards',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFF475569),
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 10),
+        LoyaltyCardView(
+          card: card,
+          holderName: DoctorProfileHelper.tryFormatDoctorName(
+            widget.user,
+            widget.profileData,
+          ),
+          holderId: widget.user?.uid,
+          photoUrl: widget.user?.photoURL,
+          onClaim: _claiming ? null : _claim,
+        ),
+        const SizedBox(height: 20),
+      ],
     );
   }
 }

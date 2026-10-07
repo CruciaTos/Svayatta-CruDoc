@@ -33,6 +33,7 @@ import 'package:doctor_management_app/features/appointments/domain/appointments_
 import 'package:doctor_management_app/features/subscription/presentation/feature_upgrade_sheet.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/procedures_screen.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/sterilization_screen.dart';
@@ -48,6 +49,9 @@ import 'package:doctor_management_app/features/dental/specialties/forms/forms_sc
 import 'package:doctor_management_app/features/radiology/presentation/referrers_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/reports/reports_screen.dart';
 import 'package:doctor_management_app/features/radiology/presentation/worklist_screen.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
+import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -486,17 +490,16 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
       builder: (context, snapshot) {
         final enabledModules =
             snapshot.data ?? DoctorFeatureGuard.defaultModules;
-        // Dental screens are for dentist logins only; anyone else lands
-        // on the dashboard (a tab saved under another specialty).
-        final dentist = ref.watch(isDentistProvider);
-        final radiologist = ref.watch(isOralRadiologistProvider);
+        final dentist = ref.watch(isDentalProvider);
+        final access = ref.watch(clinicAccessProvider).value;
         final shown =
-            (!dentist && DesktopTab.isDental(_currentIndex)) ||
-                (!radiologist &&
-                    !dentist &&
-                    DesktopTab.isRadiology(_currentIndex))
-            ? DesktopTab.dashboard
-            : _currentIndex;
+            DentalFeature.allowsTab(
+                  _currentIndex,
+                  ref.watch(dentalFeaturesProvider),
+                ) &&
+                clinicAllowsDesktopTab(access, _currentIndex)
+            ? _currentIndex
+            : DesktopTab.dashboard;
         final moduleKey = DoctorFeatureGuard.getModuleKeyForDesktopTab(shown);
         final isTabEnabled =
             shown == 0 ||
@@ -527,9 +530,15 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
 
         Widget content = isTabEnabled
             ? _buildScreen(shown)
-            : MobileFeatureDisabledView(
+            : access == null || access.isOwner
+            ? MobileFeatureDisabledView(
                 featureTitle: DoctorFeatureGuard.getDesktopTabTitle(shown),
                 icon: _icons[shown],
+                onBackToDashboard: () => _onNavTap(0),
+              )
+            : NotAvailableView(
+                featureTitle: DoctorFeatureGuard.getDesktopTabTitle(shown),
+                inPlan: false,
                 onBackToDashboard: () => _onNavTap(0),
               );
         if (isRedesigned) {

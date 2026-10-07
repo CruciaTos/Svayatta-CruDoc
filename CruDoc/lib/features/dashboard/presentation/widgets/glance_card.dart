@@ -10,10 +10,18 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// "Follow-ups due" is not shown: no record holds a follow-up date yet
 /// (GAP, see IMPLEMENTATION_REPORT.md).
 class GlanceCard extends StatelessWidget {
-  const GlanceCard({super.key, required this.glance, required this.collected});
+  const GlanceCard({
+    super.key,
+    required this.glance,
+    required this.collected,
+    this.showCollected = true,
+  });
 
   final GlanceData? glance;
   final CollectedToday? collected;
+
+  /// False for someone whose role doesn't include revenue.
+  final bool showCollected;
 
   @override
   Widget build(BuildContext context) {
@@ -22,9 +30,10 @@ class GlanceCard extends StatelessWidget {
           ? const GlanceCellSkeleton(ring: true)
           : _SeenCell(glance!),
       glance == null ? const GlanceCellSkeleton() : _WaitingCell(glance!),
-      collected == null
-          ? const GlanceCellSkeleton()
-          : _CollectedCell(collected!),
+      if (showCollected)
+        collected == null
+            ? const GlanceCellSkeleton()
+            : _CollectedCell(collected!),
     ];
     return GlanceStrip(
       semanticLabel: 'Today at a glance',

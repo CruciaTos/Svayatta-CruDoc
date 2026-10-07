@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'package:doctor_management_app/features/messaging/data/models/whatsapp_notification_log.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_log_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Reads whether a patient got their appointment reminder.
 ///
@@ -60,7 +61,8 @@ class WhatsAppRepository {
     final override = _doctorIdOverride;
     if (override != null && override.isNotEmpty) return override;
     try {
-      final uid = _auth?.currentUser?.uid;
+      final uid =
+          ClinicSession.instance.access?.clinicId ?? _auth?.currentUser?.uid;
       return (uid != null && uid.isNotEmpty) ? uid : 'anonymous';
     } catch (_) {
       return 'anonymous';

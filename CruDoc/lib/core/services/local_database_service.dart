@@ -11,6 +11,7 @@ import 'package:sqflite_common/sqlite_api.dart' as sqflite_common;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart' as sqflite_ffi;
 import 'package:sqflite_sqlcipher/sqflite.dart' as sqlcipher;
 
+import '../clinic/clinic_session.dart';
 import '../database/local_database.dart';
 import '../database/sqlcipher_local_database.dart';
 import '../database/windows_local_database.dart';
@@ -53,8 +54,13 @@ class LocalDatabaseService extends ChangeNotifier {
 
     String requestedDoctorId = 'signed_out';
     try {
-      requestedDoctorId =
-          FirebaseAuth.instance.currentUser?.uid ?? 'signed_out';
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid != null) {
+        requestedDoctorId = scopeFor(
+          ClinicSession.instance.access?.clinicId ?? uid,
+          uid,
+        );
+      }
     } catch (_) {
       requestedDoctorId = 'signed_out';
     }
@@ -94,9 +100,33 @@ class LocalDatabaseService extends ChangeNotifier {
     return Platform.isWindows ? WindowsDatabase(db) : SqlCipherDatabase(db);
   }
 
+  /// Whose cache a database file holds. An owner (or a doctor working
+  /// alone) keeps the plain uid, so their existing file is reused; anyone
+  /// else gets one file per clinic and person, so a receptionist on a
+  /// shared PC never opens data a doctor's login synced.
+  static String scopeFor(String tenantId, String uid) =>
+      tenantId == uid ? uid : '$tenantId/$uid';
+
   String _databaseFileNameForDoctor(String doctorId) {
-    final safeDoctorId = doctorId.trim().isEmpty ? 'signed_out' : doctorId;
+    final safeDoctorId = doctorId.trim().isEmpty
+        ? 'signed_out'
+        : doctorId.replaceAll('/', '_');
     return '${_databaseNamePrefix}_$safeDoctorId.db';
+  }
+
+  /// Deletes the cache file of [scope] (see [scopeFor]) after the person
+  /// lost access to that clinic. Closes it first if it is the open one.
+  Future<void> deleteDatabaseForScope(String scope) async {
+    if (kIsWeb) return;
+    if (_databaseDoctorId == scope) await close();
+    final fileName = _databaseFileNameForDoctor(scope);
+    if (Platform.isWindows) {
+      final path = await _windowsDatabasePath(fileName);
+      await sqflite_ffi.databaseFactoryFfi.deleteDatabase(path);
+    } else {
+      final path = p.join(await sqlcipher.getDatabasesPath(), fileName);
+      await sqlcipher.deleteDatabase(path);
+    }
   }
 
   Future<sqflite_common.Database> _openSqlCipherDatabaseWithRecovery(

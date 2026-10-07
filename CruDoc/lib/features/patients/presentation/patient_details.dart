@@ -17,6 +17,8 @@ import 'package:doctor_management_app/features/homeopathy/presentation/homeopath
 import 'package:doctor_management_app/features/dental/presentation/dental_patient_details_screen.dart';
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -196,12 +198,14 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
       orElse: () => DoctorSpecialty.defaultSpecialty,
     );
 
-    if (specialty.type == DoctorSpecialtyType.homeopathy) {
+    final clinical = ref.watch(
+      clinicCanProvider(ClinicPermission.clinicalView),
+    );
+    if (specialty.type == DoctorSpecialtyType.homeopathy && clinical) {
       return HomeopathyPatientDetailsScreen(patient: widget.patient);
     }
 
-    if (specialty.isUnder(DoctorSpecialtyType.dentist) &&
-        specialty.type != DoctorSpecialtyType.oralRadiologist) {
+    if (ref.watch(isDentistProvider)) {
       return DentalPatientDetailsScreen(patient: widget.patient);
     }
 

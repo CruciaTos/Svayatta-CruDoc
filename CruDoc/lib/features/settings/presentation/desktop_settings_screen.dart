@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,10 +7,14 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:doctor_management_app/features/dental/domain/tooth_numbering.dart';
+import 'package:doctor_management_app/features/dental/presentation/dental_features_picker.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_icons.dart';
 import 'package:doctor_management_app/features/dental/specialties/pedo/large_mode.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_settings_section.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
+import 'package:doctor_management_app/core/clinic/clinic_models.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/models/device_session.dart';
 import 'package:doctor_management_app/core/providers/specialty_provider.dart';
 import 'package:doctor_management_app/core/services/auth_providers.dart';
@@ -23,10 +28,12 @@ import 'package:doctor_management_app/features/messaging/data/providers/reminder
 import 'package:doctor_management_app/features/dashboard/domain/dashboard_models.dart';
 import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
 import 'package:doctor_management_app/features/onboarding/data/loyalty_card.dart';
+import 'package:doctor_management_app/core/services/demo_session_service.dart';
 import 'package:doctor_management_app/features/onboarding/presentation/loyalty_card_view.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_preferences.dart';
 import 'package:doctor_management_app/features/settings/data/appearance_provider.dart';
 import 'package:doctor_management_app/features/shell/components/specialty_switcher_dialog.dart';
+import 'package:doctor_management_app/features/team/presentation/team_section.dart';
 import 'package:doctor_management_app/features/update/controllers/update_controller.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
@@ -35,9 +42,14 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 enum SettingsSection {
   profile('Profile', CruIcons.user),
   clinic('Clinic & letterhead', CruIcons.pen),
+
+  /// People who can manage the clinic's team.
+  team('Team', CruIcons.patients),
+
+  /// Someone working in another person's clinic.
+  myFeatures('My features', CruIcons.check),
   accounts('Connected accounts', CruIcons.arrowUpRight),
   devices('Devices', CruIcons.sidebar),
-  plan('Plan & rewards', CruIcons.wallet),
   appearance('Appearance', CruIcons.sun),
 
   /// Clinics whose plan includes messaging.
@@ -53,6 +65,27 @@ enum SettingsSection {
   const SettingsSection(this.label, this.icon);
   final String label;
   final CruIconData icon;
+}
+
+/// Whether [s] is listed for the signed-in person (desktop and phone).
+bool showSettingsSection(WidgetRef ref, SettingsSection s) {
+  final access = ref.watch(clinicAccessProvider).value;
+  final isOwner = access == null || access.isOwner;
+  return switch (s) {
+    SettingsSection.radiology => ref.watch(hasDentalRadiologyProvider),
+    SettingsSection.dental =>
+      ref.watch(isDentalProvider) &&
+          (access == null || access.can(ClinicPermission.clinicalView)),
+    // The server reads reminder settings from the owner's profile.
+    SettingsSection.reminders =>
+      isOwner && ref.watch(whatsAppRemindersAvailableProvider),
+    // The letterhead is each doctor's own; staff have none.
+    SettingsSection.clinic =>
+      access == null || access.kind == MemberKind.doctor || isOwner,
+    SettingsSection.team => access != null && access.can(ClinicPermission.team),
+    SettingsSection.myFeatures => !isOwner,
+    _ => true,
+  };
 }
 
 /// The open section. The account menu sets it ("Profile" opens Profile).
@@ -96,9 +129,10 @@ class DesktopSettingsScreen extends ConsumerWidget {
     Widget body(SettingsSection section) => switch (section) {
       SettingsSection.profile => _ProfileSection(user: user, profile: profile),
       SettingsSection.clinic => _ClinicSection(user: user, profile: profile),
+      SettingsSection.team => const TeamSection(),
+      SettingsSection.myFeatures => const MyFeaturesSection(),
       SettingsSection.accounts => const _AccountsSection(),
       SettingsSection.devices => _DevicesSection(user: user),
-      SettingsSection.plan => const _PlanSection(),
       SettingsSection.appearance => const _AppearanceSection(),
       SettingsSection.reminders => const _RemindersSection(),
       SettingsSection.dental => const _DentalSection(),
@@ -151,13 +185,7 @@ class DesktopSettingsScreen extends ConsumerWidget {
                   child: _SectionList(
                     sections: [
                       for (final s in SettingsSection.values)
-                        if ((s != SettingsSection.radiology ||
-                                ref.watch(isOralRadiologistProvider)) &&
-                            (s != SettingsSection.dental ||
-                                ref.watch(isDentistProvider)) &&
-                            (s != SettingsSection.reminders ||
-                                ref.watch(whatsAppRemindersAvailableProvider)))
-                          s,
+                        if (showSettingsSection(ref, s)) s,
                     ],
                     selected: section,
                     onSelect: (s) =>
@@ -640,6 +668,7 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
           ],
         ),
       ),
+      const _ProfileLoyaltySection(),
       _SettingsCard(
         title: 'Your name',
         description: 'Shown on the dashboard, prescriptions and bills.',
@@ -717,6 +746,68 @@ class _ProfileSectionState extends ConsumerState<_ProfileSection> {
         ),
       ),
     ]);
+  }
+}
+
+/// The loyalty card: a stamp per month with CruDoc, the 6th month free.
+class _ProfileLoyaltySection extends ConsumerStatefulWidget {
+  const _ProfileLoyaltySection();
+
+  @override
+  ConsumerState<_ProfileLoyaltySection> createState() =>
+      _ProfileLoyaltySectionState();
+}
+
+class _ProfileLoyaltySectionState
+    extends ConsumerState<_ProfileLoyaltySection> {
+  bool _claiming = false;
+
+  Future<void> _claim() async {
+    if (_claiming) return;
+    setState(() => _claiming = true);
+    try {
+      await LoyaltyService.claimFreeMonth();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Free month added to your plan.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not claim. Try again.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _claiming = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    var card = ref.watch(loyaltyCardProvider).value;
+    if (card == null) {
+      if (DemoSessionService.isDemoMode) {
+        card = const LoyaltyCard(
+          stamps: 3,
+          stampedMonths: ['2026-08', '2026-09', '2026-10'],
+          freeMonthsClaimed: 0,
+        );
+      } else if (ref.watch(authStateProvider).value != null) {
+        card = const LoyaltyCard(stamps: 1, stampedMonths: []);
+      }
+    }
+    // Hide until the card exists (it is created on entering the app).
+    if (card == null) return const SizedBox.shrink();
+    final user = ref.watch(authStateProvider).value;
+    final profile = ref.watch(doctorProfileProvider).value;
+    return LoyaltyCardView(
+      card: card,
+      holderName: DoctorProfileHelper.tryFormatDoctorName(user, profile),
+      holderId: user?.uid,
+      photoUrl: user?.photoURL,
+      onClaim: _claiming ? null : _claim,
+    );
   }
 }
 
@@ -803,6 +894,25 @@ class _ClinicSectionState extends State<_ClinicSection> {
     super.dispose();
   }
 
+  /// The owner's clinic name is also the team's clinic name.
+  Future<void> _syncClinicName(String name) async {
+    final access = ClinicSession.instance.access;
+    if (access == null || !access.isOwner || name.isEmpty) return;
+    try {
+      final clinic = FirebaseFirestore.instance
+          .collection('clinics')
+          .doc(access.clinicId);
+      if ((await clinic.get()).exists) {
+        await clinic.update({
+          'name': name,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (_) {
+      // The letterhead is saved; the team's copy catches up next time.
+    }
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
@@ -816,6 +926,7 @@ class _ClinicSectionState extends State<_ClinicSection> {
         tagline: _tagline.text,
         footerDisclaimer: _footer.text,
       );
+      await _syncClinicName(_clinicName.text.trim());
       if (mounted) _toast(context, 'Clinic details and letterhead saved.');
     } catch (e) {
       if (mounted) _toast(context, 'Could not save the letterhead: $e');
@@ -1505,10 +1616,22 @@ class _DentalSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = context.cru;
+    final dentalFeatures = ref.watch(dentalFeaturesProvider);
     final numbering =
         ref.watch(toothNumberingProvider).value ?? ToothNumbering.fdi;
     final large = ref.watch(largeModeProvider).value ?? false;
     return _Stack([
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Your dental work', style: CruType.headline.tint(c.label)),
+          const SizedBox(height: CruSpace.s12),
+          DentalFeaturesPicker(
+            selected: dentalFeatures,
+            onChanged: (features) => saveDentalFeatures(features),
+          ),
+        ],
+      ),
       _SettingsCard(
         title: 'Tooth numbering',
         description:
@@ -1626,47 +1749,6 @@ class _RemindersSection extends ConsumerWidget {
 // =============================================================================
 // ABOUT
 // =============================================================================
-
-/// The loyalty card: a stamp per month with CruDoc, the 6th month free.
-class _PlanSection extends ConsumerStatefulWidget {
-  const _PlanSection();
-
-  @override
-  ConsumerState<_PlanSection> createState() => _PlanSectionState();
-}
-
-class _PlanSectionState extends ConsumerState<_PlanSection> {
-  bool _claiming = false;
-
-  Future<void> _claim() async {
-    if (_claiming) return;
-    setState(() => _claiming = true);
-    try {
-      await LoyaltyService.claimFreeMonth();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Free month added to your plan.')),
-        );
-      }
-    } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not claim. Try again.')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _claiming = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final card = ref.watch(loyaltyCardProvider).value;
-    // Hide until the card exists (it is created on entering the app).
-    if (card == null) return const SizedBox.shrink();
-    return LoyaltyCardView(card: card, onClaim: _claiming ? null : _claim);
-  }
-}
 
 class _AboutSection extends ConsumerStatefulWidget {
   const _AboutSection();

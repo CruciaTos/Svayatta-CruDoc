@@ -16,6 +16,9 @@ import 'package:doctor_management_app/features/mobile/mobile_revenue.dart';
 import 'package:doctor_management_app/features/mobile/mobile_schedule.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
+import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
 
 /// The phone app: five tabs that swipe sideways, the floating ink-blue
 /// nav, and (from the app root) the island at the top.
@@ -89,15 +92,37 @@ class _MobileShellState extends ConsumerState<MobileShell> {
       ),
       _ => (const <String>[], '', Icons.grid_view_rounded),
     };
+    final access = ref.watch(clinicAccessProvider).value;
+    if (!clinicAllowsMobileTab(access, index)) {
+      return NotAvailableView(
+        featureTitle: title,
+        inPlan: true,
+        onBackToDashboard: () => _goTo(MobileTab.home),
+      );
+    }
     final enabled =
         moduleKeys.isEmpty ||
         moduleKeys.any((k) => DoctorFeatureGuard.isEnabled(modules, k));
     if (!enabled) {
+      if (access != null && !access.isOwner) {
+        return NotAvailableView(
+          featureTitle: title,
+          inPlan: false,
+          onBackToDashboard: () => _goTo(MobileTab.home),
+        );
+      }
       return MobileFeatureDisabledView(
         featureTitle: title,
         icon: icon,
         onBackToDashboard: () => _goTo(MobileTab.home),
       );
+    }
+    // Home and More show only what this person's role allows.
+    if (access != null) {
+      modules = [
+        for (final m in modules)
+          if (access.allowsModule(m)) m,
+      ];
     }
     return switch (index) {
       MobileTab.home => MobileHomeScreen(enabledModules: modules),

@@ -15,8 +15,11 @@ import 'package:doctor_management_app/features/dashboard/presentation/widgets/si
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/skeleton.dart';
 import 'package:doctor_management_app/features/dashboard/presentation/widgets/up_next_card.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
 import 'package:doctor_management_app/features/dental/presentation/desktop/dental_today_card.dart';
-import 'package:doctor_management_app/features/dental/specialties/specialty_cards.dart';
+import 'package:doctor_management_app/features/dental/specialties/perio/perio_today_card.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// The Calm Clinical desktop dashboard: "Who's next, and what must I
 /// know before they walk in?"
@@ -49,8 +52,6 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  bool get _isDentist => ref.watch(isDentistProvider);
-
   @override
   Widget build(BuildContext context) {
     final data = ref.watch(dashboardDataProvider);
@@ -78,19 +79,16 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
       ),
     );
 
+    final features = ref.watch(dentalFeaturesProvider);
     final left = <Widget>[
       data.schedule == null
           ? const SkeletonCard(rows: 5)
           : ScheduleCard(items: data.schedule!, now: data.now),
-      // Dentists: today's sterilization and plans waiting for a yes.
-      if (_isDentist) DentalTodayCard(onNavigate: widget.onNavigateToTab),
-      // Dental sub-specialty cards (perio, endo, ortho, …).
-      ...dentalSpecialtyCards(
-        ref.watch(activeDentalSubspecialtyProvider),
-        widget.onNavigateToTab,
-      ),
-      // Oral & Maxillofacial Radiologists and dentists: what's waiting to be read.
-      if (ref.watch(isOralRadiologistProvider) || _isDentist)
+      if (features.contains(DentalFeature.chairside))
+        DentalTodayCard(onNavigate: widget.onNavigateToTab),
+      if (features.contains(DentalFeature.perio))
+        PerioTodayCard(onNavigate: widget.onNavigateToTab),
+      if (features.contains(DentalFeature.radiology))
         RadiologyTodayCard(onNavigate: widget.onNavigateToTab),
     ];
 
@@ -100,12 +98,15 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
         ? UpNextCard(data: data.upNext!, navigate: widget.onNavigateToTab)
         : NoOneWaitingCard(nextBooking: data.nextBooking);
 
+    // Money is for people whose role includes revenue.
+    final seesRevenue = ref.watch(clinicCanProvider(ClinicPermission.revenue));
     final right = <Widget>[
       upNext,
       ..._rightColumnTop(context, data),
-      data.collections == null
-          ? const SkeletonCard(rows: 1, rowHeight: 140)
-          : CollectionsCard(data: data.collections!),
+      if (seesRevenue)
+        data.collections == null
+            ? const SkeletonCard(rows: 1, rowHeight: 140)
+            : CollectionsCard(data: data.collections!),
     ];
 
     Widget body;
@@ -153,7 +154,11 @@ class DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             DashboardHeader(searchFocusNode: widget.searchFocusNode),
             const SizedBox(height: CruSpace.stackGap),
-            GlanceCard(glance: data.glance, collected: data.collected),
+            GlanceCard(
+              glance: data.glance,
+              collected: data.collected,
+              showCollected: seesRevenue,
+            ),
             const SizedBox(height: CruSpace.stackGap),
             body,
           ],

@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../errors/storage_exceptions.dart';
 import 'access_audit_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 export '../errors/storage_exceptions.dart';
 
@@ -220,7 +221,7 @@ class MedicalStorageService {
     required Uint8List bytes,
     String contentType = _m4a,
   }) {
-    _requireSignedInAs(doctorId);
+    _requireSignedInAs(doctorId, personal: true);
     _requireOneOf(contentType, _audioTypes);
     final path =
         'voice-scratch/doctors/$doctorId/patients/${_segment(patientId)}/'
@@ -471,14 +472,17 @@ class MedicalStorageService {
     return [...result.items, for (final refs in nested) ...refs];
   }
 
-  void _requireSignedInAs(String doctorId) {
+  /// [doctorId] is the clinic for `doctors/…` files; for the voice
+  /// dictation scratch folder ([personal]) it is the signed-in person.
+  void _requireSignedInAs(String doctorId, {bool personal = false}) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
       throw const StorageAuthException(
         'You must be signed in to access files.',
       );
     }
-    if (uid != doctorId) throw const StorageAuthException();
+    final expected = personal ? uid : ClinicSession.instance.tenantId;
+    if (expected != doctorId) throw const StorageAuthException();
   }
 
   /// Checks [storagePath] sits inside the signed-in doctor's own folders.
@@ -496,7 +500,7 @@ class MedicalStorageService {
         'Not a doctor file path',
       );
     }
-    _requireSignedInAs(doctorId);
+    _requireSignedInAs(doctorId, personal: parts.first == 'voice-scratch');
   }
 
   /// Rejects ids that would break out of their path segment.

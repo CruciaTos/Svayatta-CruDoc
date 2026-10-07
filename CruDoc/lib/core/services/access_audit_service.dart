@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Append-only record of which patient records and files were opened, kept
 /// in Firestore `access_logs` so it survives losing the device.
@@ -62,14 +63,15 @@ class AccessAuditService {
   void _log(String action, {String? patientId, String? target}) {
     try {
       final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+      final clinicId = ClinicSession.instance.tenantId;
+      if (uid == null || clinicId == null) return;
       if (!shouldLog('$uid|$action|${target ?? patientId}', DateTime.now())) {
         return;
       }
       FirebaseFirestore.instance
           .collection(collection)
           .add({
-            'doctorId': uid,
+            'doctorId': clinicId,
             'actorUid': uid,
             'action': action,
             'patientId': patientId,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:doctor_management_app/features/dental/dental_features.dart';
 
 /// All supported doctor specialties in CruDoc.
 enum DoctorSpecialtyType {
@@ -12,42 +13,6 @@ enum DoctorSpecialtyType {
   psychiatrist,
   physiotherapy,
   homeopathy,
-
-  /// Dental sub-specialty: Oral & Maxillofacial Radiologist (reads scans).
-  oralRadiologist,
-
-  /// Dental sub-specialty: Periodontist (gum health, scaling, SRP).
-  periodontist,
-
-  /// Dental sub-specialty: Endodontist (root canal therapy).
-  endodontist,
-
-  /// Dental sub-specialty: Pediatric Dentist (children's dentistry).
-  pediatricDentist,
-
-  /// Dental sub-specialty: Oral & Maxillofacial Pathologist (biopsies,
-  /// histopathology).
-  oralPathologist,
-
-  /// Dental sub-specialty: Oral Medicine Specialist (mucosal disease).
-  oralMedicine,
-
-  /// Dental sub-specialty: Dental Anesthesiologist (sedation).
-  dentalAnesthesiologist,
-
-  /// Dental sub-specialty: Prosthodontist (crowns, bridges, dentures).
-  prosthodontist,
-
-  /// Dental sub-specialty: Orthodontist (braces, aligners).
-  orthodontist,
-
-  /// Dental sub-specialty: Public Health Dentist (camps, population
-  /// health).
-  publicHealthDentist,
-
-  /// Dental sub-specialty: Oral & Maxillofacial Surgeon (extractions,
-  /// implants, surgery).
-  oralSurgeon,
 }
 
 /// Metadata, theming, and demo presets for each specialty.
@@ -63,7 +28,6 @@ class DoctorSpecialty {
     required this.demoEmail,
     required this.demoPassword,
     required this.quickActions,
-    this.parent,
   });
 
   final DoctorSpecialtyType type;
@@ -91,16 +55,6 @@ class DoctorSpecialty {
 
   /// Specialty-specific quick action labels.
   final List<String> quickActions;
-
-  /// The specialty this one sits under (Oral & Maxillofacial Radiologist
-  /// sits under Dentist). Null for a top-level specialty.
-  final DoctorSpecialtyType? parent;
-
-  /// The top-level specialty: this one, or the one it sits under.
-  DoctorSpecialtyType get rootType => parent ?? type;
-
-  /// Whether picking [other] in a top-level picker selects this one.
-  bool isUnder(DoctorSpecialtyType other) => rootType == other;
 
   // ─────────────────────────── Registry ───────────────────────────
 
@@ -267,190 +221,11 @@ class DoctorSpecialty {
     quickActions: ['Case Sheet', 'Repertorize', 'Remedy Rx', 'SRP Symptoms'],
   );
 
-  /// Sub-specialties under Dentist, picked after Dentist.
-  static const List<DoctorSpecialty> dentalSubspecialties = [
-    _oralRadiologist,
-    _periodontist,
-    _endodontist,
-    _pediatricDentist,
-    _oralPathologist,
-    _oralMedicine,
-    _dentalAnesthesiologist,
-    _prosthodontist,
-    _orthodontist,
-    _publicHealthDentist,
-    _oralSurgeon,
-  ];
-
-  /// Every specialty, sub-specialties included (for lookups).
-  static const List<DoctorSpecialty> everything = [
-    ...all,
-    ...dentalSubspecialties,
-  ];
-
-  /// Sub-specialties under [type], empty for most.
-  static List<DoctorSpecialty> subspecialtiesOf(DoctorSpecialtyType type) =>
-      type == DoctorSpecialtyType.dentist ? dentalSubspecialties : const [];
-
-  /// The specialty for [type], sub-specialties included.
-  static DoctorSpecialty ofType(DoctorSpecialtyType type) => everything
-      .firstWhere((s) => s.type == type, orElse: () => _generalPhysician);
-
-  static const _oralRadiologist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.oralRadiologist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Oral & Maxillofacial Radiologist',
-    shortLabel: 'OMR',
-    tagline: 'CBCT, X-ray Reading & Radiology Reports',
-    icon: Icons.view_in_ar_rounded,
-    accentColor: Color(0xFF0E7490),
-    gradientColors: [Color(0xFFCFFAFE), Color(0xFFA5F3FC), Color(0xFFE0F2FE)],
-    demoEmail: 'omr@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Worklist', 'Import scans', 'Reports', 'Referrers'],
-  );
-
-  static const _periodontist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.periodontist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Periodontist',
-    shortLabel: 'Perio',
-    tagline: 'Gum Health, Scaling & Periodontal Surgery',
-    icon: Icons.healing_rounded,
-    accentColor: Color(0xFF15803D),
-    gradientColors: [Color(0xFFDCFCE7), Color(0xFFBBF7D0), Color(0xFFD1FAE5)],
-    demoEmail: 'perio@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Perio Chart', 'Pocket Depths', 'SRP Plan', 'Recall'],
-  );
-
-  static const _endodontist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.endodontist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Endodontist',
-    shortLabel: 'Endo',
-    tagline: 'Root Canal Therapy & Pulp Diagnosis',
-    icon: Icons.linear_scale_rounded,
-    accentColor: Color(0xFFB91C1C),
-    gradientColors: [Color(0xFFFEE2E2), Color(0xFFFECACA), Color(0xFFFFE4E6)],
-    demoEmail: 'endo@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Root Canal', 'Vitality Test', 'Obturation', 'Referral'],
-  );
-
-  static const _pediatricDentist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.pediatricDentist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Pediatric Dentist',
-    shortLabel: 'Pedo',
-    tagline: "Child-Friendly Dental Care & Behaviour Guidance",
-    icon: Icons.emoji_emotions_rounded,
-    accentColor: Color(0xFFF59E0B),
-    gradientColors: [Color(0xFFFEF3C7), Color(0xFFFDE68A), Color(0xFFFFEDD5)],
-    demoEmail: 'pedo@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Behaviour Mgmt', 'Fluoride', 'Sealants', 'Growth Chart'],
-  );
-
-  static const _oralPathologist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.oralPathologist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Oral & Maxillofacial Pathologist',
-    shortLabel: 'OMP',
-    tagline: 'Oral Biopsy, Histopathology & Lesion Diagnosis',
-    icon: Icons.biotech_rounded,
-    accentColor: Color(0xFF7C3AED),
-    gradientColors: [Color(0xFFEDE9FE), Color(0xFFDDD6FE), Color(0xFFF3E8FF)],
-    demoEmail: 'omp@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Biopsy Log', 'Histopath', 'Lesion Photo', 'Report'],
-  );
-
-  static const _oralMedicine = DoctorSpecialty._(
-    type: DoctorSpecialtyType.oralMedicine,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Oral Medicine Specialist',
-    shortLabel: 'OralMed',
-    tagline: 'Oral Mucosal Disease & Diagnostic Medicine',
-    icon: Icons.medical_information_rounded,
-    accentColor: Color(0xFF0891B2),
-    gradientColors: [Color(0xFFCFFAFE), Color(0xFFA5F3FC), Color(0xFFE0F2FE)],
-    demoEmail: 'oralmed@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Lesion Exam', 'Mucosal Chart', 'Biopsy Referral', 'Forms'],
-  );
-
-  static const _dentalAnesthesiologist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.dentalAnesthesiologist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Dental Anesthesiologist',
-    shortLabel: 'Anaesth',
-    tagline: 'Sedation, Anaesthesia & Perioperative Care',
-    icon: Icons.vaccines_rounded,
-    accentColor: Color(0xFF6366F1),
-    gradientColors: [Color(0xFFE0E7FF), Color(0xFFC7D2FE), Color(0xFFEDE9FE)],
-    demoEmail: 'anaesth@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Sedation Plan', 'Vitals Log', 'Consent', 'Recovery'],
-  );
-
-  static const _prosthodontist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.prosthodontist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Prosthodontist',
-    shortLabel: 'Prostho',
-    tagline: 'Crowns, Bridges, Dentures & Implant Prosthetics',
-    icon: Icons.precision_manufacturing_rounded,
-    accentColor: Color(0xFFA16207),
-    gradientColors: [Color(0xFFFEF9C3), Color(0xFFFEF08A), Color(0xFFFEF3C7)],
-    demoEmail: 'prostho@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Impression', 'Lab Order', 'Shade Match', 'Try-in'],
-  );
-
-  static const _orthodontist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.orthodontist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Orthodontist',
-    shortLabel: 'Ortho',
-    tagline: 'Braces, Aligners & Bite Correction',
-    icon: Icons.align_horizontal_center_rounded,
-    accentColor: Color(0xFF16A34A),
-    gradientColors: [Color(0xFFDCFCE7), Color(0xFFBBF7D0), Color(0xFFECFCCB)],
-    demoEmail: 'orthodontist@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Cephalometric', 'Bracket Chart', 'Wire Change', 'Retainer'],
-  );
-
-  static const _publicHealthDentist = DoctorSpecialty._(
-    type: DoctorSpecialtyType.publicHealthDentist,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Public Health Dentist',
-    shortLabel: 'PHD',
-    tagline: 'Community Dental Camps & Population Health',
-    icon: Icons.location_city_rounded,
-    accentColor: Color(0xFF1D4ED8),
-    gradientColors: [Color(0xFFDBEAFE), Color(0xFFBFDBFE), Color(0xFFE0F2FE)],
-    demoEmail: 'phd@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Camp Log', 'Screening', 'Survey', 'Outreach'],
-  );
-
-  static const _oralSurgeon = DoctorSpecialty._(
-    type: DoctorSpecialtyType.oralSurgeon,
-    parent: DoctorSpecialtyType.dentist,
-    label: 'Oral & Maxillofacial Surgeon',
-    shortLabel: 'OMFS',
-    tagline: 'Extractions, Implants & Maxillofacial Surgery',
-    icon: Icons.content_cut_rounded,
-    accentColor: Color(0xFF7F1D1D),
-    gradientColors: [Color(0xFFFFE4E6), Color(0xFFFECDD3), Color(0xFFFEE2E2)],
-    demoEmail: 'omfs@crudoc.com',
-    demoPassword: 'demo1234',
-    quickActions: ['Surgery Log', 'Implant Plan', 'Consent', 'Post-op'],
-  );
-
   // ─────────────────────────── Helpers ───────────────────────────
+
+  /// The specialty for [type].
+  static DoctorSpecialty ofType(DoctorSpecialtyType type) =>
+      all.firstWhere((s) => s.type == type, orElse: () => _generalPhysician);
 
   /// Resolve a specialty from a raw string stored in Firestore.
   /// Falls back to General Physician if nothing matches.
@@ -458,12 +233,19 @@ class DoctorSpecialty {
     if (raw == null || raw.trim().isEmpty) return _generalPhysician;
     final lower = raw.trim().toLowerCase();
 
-    for (final spec in everything) {
+    for (final spec in all) {
       if (lower == spec.label.toLowerCase() ||
           lower == spec.shortLabel.toLowerCase() ||
           lower == spec.type.name.toLowerCase()) {
         return spec;
       }
+    }
+
+    // Former dental sub-specialties are dentists now. Checked after the
+    // exact matches: "Ortho" is Orthopedic's short label as well as the old
+    // Orthodontist's, and must stay Orthopedic.
+    if (legacyDentalSpecialties.containsKey(lower)) {
+      return _dentist;
     }
 
     // Explicit keyword matching for each distinct clinical discipline:
@@ -493,29 +275,15 @@ class DoctorSpecialty {
     if (lower.contains('pedia') || lower.contains('child')) {
       return _pediatrician;
     }
-    if (lower.contains('radiolog') || lower.contains('maxillofacial')) {
-      return _oralRadiologist;
+    if (lower.contains('dent') ||
+        lower.contains('oral') ||
+        lower.contains('periodont') ||
+        lower.contains('endodont') ||
+        lower.contains('prosthodont') ||
+        lower.contains('orthodont') ||
+        lower.contains('maxillofacial')) {
+      return _dentist;
     }
-    if (lower.contains('periodont')) return _periodontist;
-    if (lower.contains('endodont')) return _endodontist;
-    if (lower.contains('pedo') || lower.contains('pediatric dent')) {
-      return _pediatricDentist;
-    }
-    if (lower.contains('oral patholog') ||
-        lower.contains('maxillofacial patholog')) {
-      return _oralPathologist;
-    }
-    if (lower.contains('oral med')) return _oralMedicine;
-    if (lower.contains('dental anesth') || lower.contains('dental anaesth')) {
-      return _dentalAnesthesiologist;
-    }
-    if (lower.contains('prosthodont')) return _prosthodontist;
-    if (lower.contains('orthodont')) return _orthodontist;
-    if (lower.contains('public health dent')) return _publicHealthDentist;
-    if (lower.contains('oral surg') || lower.contains('maxillofacial surg')) {
-      return _oralSurgeon;
-    }
-    if (lower.contains('dent') || lower.contains('oral')) return _dentist;
     if (lower.contains('derm') || lower.contains('skin')) {
       return _dermatologist;
     }

@@ -17,6 +17,9 @@ import 'package:doctor_management_app/features/revenue/presentation/desktop_add_
 import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/revenue/presentation/invoices_screen.dart';
 
 /// Revenue: what came in for the period, who still owes, and every
 /// transaction. Recording money is one tap from the header.
@@ -56,6 +59,10 @@ class MobileRevenueScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Billing staff without revenue see invoices only: no totals or charts.
+    if (!ref.watch(clinicCanProvider(ClinicPermission.revenue))) {
+      return const InvoicesScreen();
+    }
     final c = context.cru;
     final view = ref.watch(revenueViewControllerProvider);
     final o = ref.watch(revenueOverviewProvider);

@@ -10,6 +10,7 @@ import 'package:doctor_management_app/features/appointments/data/services/visits
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import 'package:doctor_management_app/features/queue/data/model/queue_entry_model.dart';
 import 'package:doctor_management_app/features/queue/data/services/queue_local_service.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 
 /// Clean API the presentation layer talks to for anything walk-in-queue
 /// related.
@@ -39,7 +40,7 @@ class QueueRepository {
   /// The signed-in doctor's UID — see PatientRepository for why this
   /// matters and what it guards against.
   String get _currentDoctorId {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
+    final uid = ClinicSession.instance.tenantId;
     if (uid == null || uid.isEmpty) {
       throw StateError('No signed-in doctor — cannot access queue data.');
     }

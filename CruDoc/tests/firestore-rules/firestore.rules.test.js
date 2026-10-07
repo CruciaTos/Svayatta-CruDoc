@@ -1,7 +1,7 @@
 // Run with the Firestore emulator up, from CruDoc/:
 //   firebase emulators:exec --project demo-crudoc --only firestore "npm test --prefix tests/firestore-rules"
 import { readFileSync } from 'node:fs';
-import { after, afterEach, before, describe, it } from 'node:test';
+import { after, afterEach, before, beforeEach, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -458,5 +458,195 @@ describe('everything else', () => {
     await seed('medical_documents/m1', { doctorId: A });
     await assertFails(getDoc(doc(doctor(A), 'medical_documents/m1')));
     await assertFails(setDoc(doc(doctor(A), 'anything/x'), { doctorId: A }));
+  });
+});
+
+describe('clinic members', () => {
+  const RECEP = 'recep-1';
+  const ADMIN2 = 'admin-2';
+  const GONE = 'gone-1';
+
+  beforeEach(async () => {
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seed(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'patients.edit', 'schedule', 'billing', 'messaging'],
+      name: 'Recep',
+    });
+    await seed(`clinics/${A}/members/${ADMIN2}`, {
+      active: true,
+      roleId: 'admin',
+      perms: [],
+      name: 'Admin 2',
+    });
+    await seed(`clinics/${A}/members/${GONE}`, {
+      active: false,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view'],
+      name: 'Gone Doctor',
+    });
+  });
+
+  it('1. RECEP can create, get, update and list patients with doctorId: A', async () => {
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(setDoc(doc(db, 'patients/p1'), { doctorId: A, name: 'Alice' }));
+    await assertSucceeds(getDoc(doc(db, 'patients/p1')));
+    await assertSucceeds(updateDoc(doc(db, 'patients/p1'), { name: 'Alice Updated', doctorId: A }));
+    await assertSucceeds(
+      getDocs(query(collection(db, 'patients'), where('doctorId', '==', A))),
+    );
+  });
+
+  it('2. RECEP can create appointments and invoices for A; can create but cannot list revenue_entries', async () => {
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(setDoc(doc(db, 'appointments/apt1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(db, 'invoices/inv1'), { doctorId: A }));
+    await assertSucceeds(setDoc(doc(db, 'revenue_entries/rev1'), { doctorId: A }));
+    await assertFails(
+      getDocs(query(collection(db, 'revenue_entries'), where('doctorId', '==', A))),
+    );
+  });
+
+  it('3. RECEP cannot get or list dental_records / radiology_docs of A', async () => {
+    await seed('dental_records/dr1', { doctorId: A });
+    await seed('radiology_docs/rad1', { doctorId: A });
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertFails(getDoc(doc(db, 'dental_records/dr1')));
+    await assertFails(
+      getDocs(query(collection(db, 'dental_records'), where('doctorId', '==', A))),
+    );
+    await assertFails(getDoc(doc(db, 'radiology_docs/rad1')));
+    await assertFails(
+      getDocs(query(collection(db, 'radiology_docs'), where('doctorId', '==', A))),
+    );
+  });
+
+  it('4. RECEP cannot change doctorId of a patient from A to RECEP', async () => {
+    await seed('patients/p2', { doctorId: A, name: 'Bob' });
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertFails(updateDoc(doc(db, 'patients/p2'), { doctorId: RECEP }));
+  });
+
+  it('5. ADMIN2 can list revenue_entries and dental_records of A', async () => {
+    await seed('revenue_entries/rev2', { doctorId: A });
+    await seed('dental_records/dr2', { doctorId: A });
+    const db = as(ADMIN2, { email: 'admin2@clinic.test' });
+    await assertSucceeds(
+      getDocs(query(collection(db, 'revenue_entries'), where('doctorId', '==', A))),
+    );
+    await assertSucceeds(
+      getDocs(query(collection(db, 'dental_records'), where('doctorId', '==', A))),
+    );
+  });
+
+  it("6. GONE can't read anything of A", async () => {
+    await seed('patients/p3', { doctorId: A, name: 'Charlie' });
+    const db = as(GONE, { email: 'gone@clinic.test' });
+    await assertFails(getDoc(doc(db, 'patients/p3')));
+    await assertFails(
+      getDocs(query(collection(db, 'patients'), where('doctorId', '==', A))),
+    );
+  });
+
+  it("7. Doctor B (not a member) can't read anything of A", async () => {
+    await seed('patients/p4', { doctorId: A });
+    const db = doctor(B);
+    await assertFails(
+      getDocs(query(collection(db, 'patients'), where('doctorId', '==', A))),
+    );
+  });
+
+  it('8. RECEP can read clinics/A, list clinics/A/members, read clinics/A/roles/x; cannot read clinics/A/invites/x; ADMIN2 can', async () => {
+    await seed(`clinics/${A}/roles/role1`, { name: 'Nurse' });
+    await seed(`clinics/${A}/invites/inv1`, { name: 'Pending Person', status: 'pending' });
+    const recepDb = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(getDoc(doc(recepDb, `clinics/${A}`)));
+    await assertSucceeds(getDocs(collection(recepDb, `clinics/${A}/members`)));
+    await assertSucceeds(getDoc(doc(recepDb, `clinics/${A}/roles/role1`)));
+    await assertFails(getDoc(doc(recepDb, `clinics/${A}/invites/inv1`)));
+
+    const adminDb = as(ADMIN2, { email: 'admin2@clinic.test' });
+    await assertSucceeds(getDoc(doc(adminDb, `clinics/${A}/invites/inv1`)));
+  });
+
+  it("9. RECEP can update their own member doc's name and modules; cannot set modules to string; cannot update perms or roleId; cannot update another member", async () => {
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(
+      updateDoc(doc(db, `clinics/${A}/members/${RECEP}`), {
+        name: 'Recep New',
+        modules: ['patients'],
+      }),
+    );
+    await assertFails(
+      updateDoc(doc(db, `clinics/${A}/members/${RECEP}`), { modules: 'not-a-list' }),
+    );
+    await assertFails(
+      updateDoc(doc(db, `clinics/${A}/members/${RECEP}`), { perms: ['team'] }),
+    );
+    await assertFails(
+      updateDoc(doc(db, `clinics/${A}/members/${RECEP}`), { roleId: 'admin' }),
+    );
+    await assertFails(
+      updateDoc(doc(db, `clinics/${A}/members/${ADMIN2}`), { name: 'Hacked' }),
+    );
+  });
+
+  it('10. Nobody (RECEP, ADMIN2, A) can create a member, role or invite doc directly', async () => {
+    for (const uid of [RECEP, ADMIN2, A]) {
+      const db = as(uid, { email: `${uid}@clinic.test` });
+      await assertFails(setDoc(doc(db, `clinics/${A}/members/m_new`), { active: true }));
+      await assertFails(setDoc(doc(db, `clinics/${A}/roles/r_new`), { name: 'Custom' }));
+      await assertFails(setDoc(doc(db, `clinics/${A}/invites/i_new`), { status: 'pending' }));
+    }
+  });
+
+  it('11. RECEP can get doctor_keys/A; B cannot', async () => {
+    await seed(`doctor_keys/${A}`, { wrappedKey: 'secret_key' });
+    const recepDb = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(getDoc(doc(recepDb, `doctor_keys/${A}`)));
+    const bDb = doctor(B);
+    await assertFails(getDoc(doc(bDb, `doctor_keys/${A}`)));
+  });
+
+  it('12. A user cannot create or update users/{self} with clinicId or memberKind', async () => {
+    const selfDb = as('user-new', { email: 'new@clinic.test' });
+    await assertFails(setDoc(doc(selfDb, 'users/user-new'), { clinicId: 'c1' }));
+    await assertFails(setDoc(doc(selfDb, 'users/user-new'), { memberKind: 'doctor' }));
+    await assertSucceeds(setDoc(doc(selfDb, 'users/user-new'), { name: 'Valid User' }));
+    await assertFails(updateDoc(doc(selfDb, 'users/user-new'), { clinicId: 'c1' }));
+    await assertFails(updateDoc(doc(selfDb, 'users/user-new'), { memberKind: 'staff' }));
+  });
+
+  it('13. RECEP writes 25 patients docs for A in one writeBatch -> succeeds', async () => {
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    const batch = writeBatch(db);
+    for (let i = 0; i < 25; i++) {
+      batch.set(doc(db, `patients/batch_${i}`), { doctorId: A, index: i });
+    }
+    await assertSucceeds(batch.commit());
+  });
+
+  it("14. access_logs: RECEP can create an entry with doctorId: A, actorUid: RECEP; cannot list A's log; ADMIN2 can", async () => {
+    const recepDb = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(
+      setDoc(doc(recepDb, 'access_logs/log_recep'), {
+        doctorId: A,
+        actorUid: RECEP,
+        action: 'patient.view',
+        patientId: 'p1',
+        target: 'patients/p1',
+        platform: 'windows',
+        at: serverTimestamp(),
+      }),
+    );
+    await assertFails(
+      getDocs(query(collection(recepDb, 'access_logs'), where('doctorId', '==', A))),
+    );
+
+    const adminDb = as(ADMIN2, { email: 'admin2@clinic.test' });
+    await assertSucceeds(
+      getDocs(query(collection(adminDb, 'access_logs'), where('doctorId', '==', A))),
+    );
   });
 });

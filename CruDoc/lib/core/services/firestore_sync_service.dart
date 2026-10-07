@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:doctor_management_app/core/services/field_cipher.dart';
 import 'package:doctor_management_app/core/services/local_database_service.dart';
@@ -15,6 +14,9 @@ import 'package:doctor_management_app/features/queue/data/services/queue_local_s
 import 'package:doctor_management_app/features/dental/records/dental_records_repo.dart';
 import 'package:doctor_management_app/features/radiology/data/radiology_repository.dart';
 import 'package:doctor_management_app/core/database/local_database.dart';
+import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_access.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 
 /// Background Firestore sync for the local-first SQLite data layer.
 ///
@@ -66,6 +68,37 @@ class FirestoreSyncService {
   final List<StreamSubscription> _liveSubscriptions = [];
   String? _subscribedDoctorId;
 
+  /// Permission needed to read each synced collection (firestore.rules).
+  static const Map<String, ClinicPermission> _readPermission = {
+    'patients': ClinicPermission.patientsView,
+    'revenue_entries': ClinicPermission.revenue,
+    'pending_payments': ClinicPermission.billing,
+    'medicines': ClinicPermission.inventory,
+    'stock_transactions': ClinicPermission.inventory,
+    'walk_in_queue': ClinicPermission.schedule,
+    'dental_records': ClinicPermission.clinicalView,
+    'radiology_docs': ClinicPermission.clinicalView,
+    'appointments': ClinicPermission.schedule,
+    'visitations': ClinicPermission.schedule,
+  };
+
+  /// Whether the signed-in person may read [collection]. Collections they
+  /// can't read are neither listened to nor pulled (the rules would refuse
+  /// them); their own pending writes are still pushed.
+  static bool canReadCollection(String collection) {
+    final access = ClinicSession.instance.access;
+    if (access == null) return true;
+    final perm = _readPermission[collection];
+    return perm == null || access.can(perm);
+  }
+
+  StreamSubscription<ClinicAccess?>? _accessSubscription;
+  String? _accessKey;
+
+  static String _keyFor(ClinicAccess? a) => a == null
+      ? ''
+      : '${a.clinicId}|${a.roleId}|${(a.perms.map((p) => p.key).toList()..sort()).join(',')}';
+
   Future<void> start() async {
     if (_isStarted) return;
     _isStarted = true;
@@ -96,12 +129,29 @@ class FirestoreSyncService {
       _startLiveSubscriptions(doctorId);
     }
 
+    // A role change in the same clinic changes what may be read: listen
+    // again with the new set.
+    _accessKey = _keyFor(ClinicSession.instance.access);
+    _accessSubscription = ClinicSession.instance.stream.listen((access) {
+      final key = _keyFor(access);
+      if (access == null || key == _accessKey) return;
+      _accessKey = key;
+      final id = _currentDoctorId;
+      if (id == null) return;
+      _stopLiveSubscriptions();
+      _startLiveSubscriptions(id);
+      unawaited(synchronize());
+    });
+
     unawaited(synchronize());
   }
 
   Future<void> stop() async {
     await _connectivitySubscription?.cancel();
     _connectivitySubscription = null;
+    await _accessSubscription?.cancel();
+    _accessSubscription = null;
+    _accessKey = null;
     _stopLiveSubscriptions();
     _isStarted = false;
     // Phase 19: reset the sync-in-progress flag so the next doctor's
@@ -117,6 +167,7 @@ class FirestoreSyncService {
     _subscribedDoctorId = doctorId;
 
     for (final collection in _collections) {
+      if (!canReadCollection(collection)) continue;
       final sub = _firestore
           .collection(collection)
           .where('doctorId', isEqualTo: doctorId)
@@ -149,6 +200,7 @@ class FirestoreSyncService {
     }
 
     for (final firestoreCollection in _visitFirestoreToType.keys) {
+      if (!canReadCollection(firestoreCollection)) continue;
       final sub = _firestore
           .collection(firestoreCollection)
           .where('doctorId', isEqualTo: doctorId)
@@ -199,7 +251,7 @@ class FirestoreSyncService {
   ///
   /// Every Firestore read/write in this service is scoped to this value —
   /// without it, sync would pull or push every doctor's data.
-  String? get _currentDoctorId => FirebaseAuth.instance.currentUser?.uid;
+  String? get _currentDoctorId => ClinicSession.instance.tenantId;
 
   Future<void> synchronize() async {
     if (_isSyncing) return;
@@ -359,6 +411,7 @@ class FirestoreSyncService {
   Future<void> _downloadChangedRows(String doctorId) async {
     // ── non-visit collections ────────────────────────────────────────────────
     for (final collection in _collections) {
+      if (!canReadCollection(collection)) continue;
       final lastSyncTime = await _lastSyncTime(collection);
       Query<Map<String, dynamic>> query = _firestore
           .collection(collection)
@@ -388,6 +441,7 @@ class FirestoreSyncService {
 
     // ── visit Firestore collections → visits SQLite table ────────────────────
     for (final firestoreCollection in _visitFirestoreToType.keys) {
+      if (!canReadCollection(firestoreCollection)) continue;
       final lastSyncTime = await _lastSyncTime(firestoreCollection);
       Query<Map<String, dynamic>> query = _firestore
           .collection(firestoreCollection)

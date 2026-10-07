@@ -19,9 +19,10 @@ class DetailsTopBar extends StatelessWidget {
 
   final String patientName;
   final VoidCallback onBack;
-  final VoidCallback onEdit;
-  final VoidCallback onNewVisit;
-  final VoidCallback onDelete;
+  // Null hides the action (not part of the person's role).
+  final VoidCallback? onEdit;
+  final VoidCallback? onNewVisit;
+  final VoidCallback? onDelete;
 
   /// Dentists only.
   final VoidCallback? onDentalChart;
@@ -35,25 +36,30 @@ class DetailsTopBar extends StatelessWidget {
       children: [
         DetailsBackLink(onBack: onBack),
         const Spacer(),
-        CruButton(
-          label: 'Edit',
-          kind: CruButtonKind.secondary,
-          icon: CruIcons.pen,
-          onPressed: onEdit,
-        ),
-        const SizedBox(width: CruSpace.s10),
-        _MoreMenu(
-          patientName: patientName,
-          onDentalChart: onDentalChart,
-          onCaseSheet: onCaseSheet,
-          onDelete: onDelete,
-        ),
-        const SizedBox(width: CruSpace.s10),
-        CruButton(
-          label: 'New visit',
-          icon: CruIcons.plus,
-          onPressed: onNewVisit,
-        ),
+        if (onEdit != null) ...[
+          CruButton(
+            label: 'Edit',
+            kind: CruButtonKind.secondary,
+            icon: CruIcons.pen,
+            onPressed: onEdit,
+          ),
+          const SizedBox(width: CruSpace.s10),
+        ],
+        if (onDentalChart != null || onCaseSheet != null || onDelete != null)
+          _MoreMenu(
+            patientName: patientName,
+            onDentalChart: onDentalChart,
+            onCaseSheet: onCaseSheet,
+            onDelete: onDelete,
+          ),
+        if (onNewVisit != null) ...[
+          const SizedBox(width: CruSpace.s10),
+          CruButton(
+            label: 'New visit',
+            icon: CruIcons.plus,
+            onPressed: onNewVisit,
+          ),
+        ],
       ],
     );
   }
@@ -90,13 +96,13 @@ class DetailsBackLink extends ConsumerWidget {
 class _MoreMenu extends StatelessWidget {
   const _MoreMenu({
     required this.patientName,
-    required this.onDelete,
+    this.onDelete,
     this.onDentalChart,
     this.onCaseSheet,
   });
 
   final String patientName;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   final VoidCallback? onDentalChart;
   final VoidCallback? onCaseSheet;
 
@@ -147,11 +153,12 @@ class _MoreMenu extends StatelessWidget {
             onPressed: onCaseSheet,
             child: const Text('Case sheet'),
           ),
-        MenuItemButton(
-          style: itemStyle,
-          onPressed: onDelete,
-          child: const Text('Delete patient'),
-        ),
+        if (onDelete != null)
+          MenuItemButton(
+            style: itemStyle,
+            onPressed: onDelete,
+            child: const Text('Delete patient'),
+          ),
       ],
       builder: (context, controller, _) => CruSquareButton(
         icon: CruIcons.more,

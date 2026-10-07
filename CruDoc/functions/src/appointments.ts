@@ -375,6 +375,9 @@ export const createAppointment = functions.onRequest(
         res.status(404).json({success: false, error: "Doctor not found"});
         return;
       }
+      // The doctor may work in someone else's clinic: records belong to the
+      // clinic (its id is the owner's uid), the visit to this doctor.
+      const clinicId = clinicOf(doctorId, doctorDoc.data());
 
       // ---- Reject a slot that is already taken ----
       // The voice platform documents the provider call as the real
@@ -386,6 +389,7 @@ export const createAppointment = functions.onRequest(
         scheduledStart.getTime() + durationMinutes * 60_000,
       );
       const conflictId = await findConflictingAppointment(
+        clinicId,
         doctorId,
         scheduledStart,
         scheduledEnd,
@@ -405,7 +409,7 @@ export const createAppointment = functions.onRequest(
 
       // ---- Find or create patient ----
       const patientId = await findOrCreatePatient(
-        doctorId,
+        clinicId,
         patientName,
         phone,
       );
@@ -413,7 +417,9 @@ export const createAppointment = functions.onRequest(
       // ---- Create appointment ----
       const now = admin.firestore.Timestamp.now();
       const appointmentData: Record<string, unknown> = {
-        doctorId: doctorId,
+        doctorId: clinicId,
+        attendingDoctorUid: doctorId,
+        createdByUid: "",
         patientId: patientId,
         scheduledStart: admin.firestore.Timestamp.fromDate(scheduledStart),
         durationMinutes: durationMinutes,
@@ -571,7 +577,12 @@ export const getAvailability = functions.onRequest(
         return;
       }
 
-      const busy = await loadBusyIntervals(doctorId, dayOpen, dayClose);
+      const busy = await loadBusyIntervals(
+        clinicOf(doctorId, doctorDoc.data()),
+        doctorId,
+        dayOpen,
+        dayClose,
+      );
 
       const slots = computeOpenSlots(
         dayOpen,
@@ -694,7 +705,17 @@ export const cancelAppointment = functions.onRequest(
  * MAX_APPOINTMENT_MINUTES so an appointment starting before `from` that
  * runs into it is still seen.
  */
+/**
+ * The clinic a doctor's records belong to: the clinic they joined
+ * (`users/{uid}.clinicId`), else their own (a clinic's id is its owner's uid).
+ */
+function clinicOf(doctorId: string, user?: admin.firestore.DocumentData): string {
+  const clinicId = user?.clinicId;
+  return typeof clinicId === "string" && clinicId.length > 0 ? clinicId : doctorId;
+}
+
 async function loadBusyIntervals(
+  clinicId: string,
   doctorId: string,
   from: Date,
   until: Date,
@@ -705,7 +726,7 @@ async function loadBusyIntervals(
 
   const snapshot = await getDb()
     .collection("appointments")
-    .where("doctorId", "==", doctorId)
+    .where("doctorId", "==", clinicId)
     .where("scheduledStart", ">=", admin.firestore.Timestamp.fromDate(queryFrom))
     .where("scheduledStart", "<", admin.firestore.Timestamp.fromDate(until))
     .get();
@@ -714,6 +735,14 @@ async function loadBusyIntervals(
   for (const doc of snapshot.docs) {
     const data = doc.data();
     if (data.isDeleted === true) continue;
+    // Only this doctor's visits block their slots. Visits made before
+    // clinics had more than one doctor carry no attending doctor: they
+    // are the owner's.
+    const attending =
+      typeof data.attendingDoctorUid === "string" && data.attendingDoctorUid ?
+        data.attendingDoctorUid :
+        clinicId;
+    if (attending !== doctorId) continue;
 
     const status = typeof data.status === "string" ? data.status : "scheduled";
     if (!BLOCKING_STATUSES.has(status)) continue;
@@ -736,11 +765,12 @@ async function loadBusyIntervals(
  * doctor, or null when the slot is free.
  */
 async function findConflictingAppointment(
+  clinicId: string,
   doctorId: string,
   start: Date,
   end: Date,
 ): Promise<string | null> {
-  const busy = await loadBusyIntervals(doctorId, start, end);
+  const busy = await loadBusyIntervals(clinicId, doctorId, start, end);
   const startMillis = start.getTime();
   const endMillis = end.getTime();
   const clash = busy.find((b) => b.start < endMillis && startMillis < b.end);

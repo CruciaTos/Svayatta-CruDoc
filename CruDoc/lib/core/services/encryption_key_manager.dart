@@ -78,6 +78,13 @@ class EncryptionKeyManager {
     _activeDoctorId = null;
   }
 
+  /// Forgets this device's cached copy of [doctorId]'s key, after the person
+  /// lost access to that clinic. The wrapped key in Firestore stays.
+  Future<void> forgetCachedKey(String doctorId) async {
+    if (_activeDoctorId == doctorId) clear();
+    await _secureStorage.delete(key: 'crudoc_dek_$doctorId');
+  }
+
   enc.Key _deriveKek(String doctorId) {
     final digest = sha256.convert(utf8.encode('$doctorId::$_appPepper'));
     return enc.Key(Uint8List.fromList(digest.bytes));

@@ -23,12 +23,16 @@ class PatientsSearchBar extends ConsumerStatefulWidget {
     super.key,
     required this.focusNode,
     required this.sort,
+    this.filter,
+    this.counts,
     this.showSort = true,
   });
 
   /// Focused by Ctrl/⌘ F.
   final FocusNode focusNode;
   final PatientSort sort;
+  final PatientFilter? filter;
+  final Map<PatientFilter, int>? counts;
   final bool showSort;
 
   @override
@@ -142,6 +146,13 @@ class _PatientsSearchBarState extends ConsumerState<PatientsSearchBar> {
     return Row(
       children: [
         Expanded(child: field),
+        if (widget.filter != null) ...[
+          const SizedBox(width: CruSpace.s12),
+          _FilterMenuButton(
+            filter: widget.filter!,
+            counts: widget.counts ?? const {},
+          ),
+        ],
         const SizedBox(width: CruSpace.s12),
         _SortButton(sort: widget.sort),
       ],
@@ -246,6 +257,158 @@ class _SortButton extends ConsumerWidget {
                 size: 14,
                 strokeWidth: 2.2,
                 color: c.label2,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Filter  All ⌄" with a menu of [PatientFilter].
+class _FilterMenuButton extends ConsumerWidget {
+  const _FilterMenuButton({required this.filter, required this.counts});
+
+  final PatientFilter filter;
+  final Map<PatientFilter, int> counts;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.cru;
+    final itemShape = RoundedSuperellipseBorder(
+      borderRadius: BorderRadius.circular(CruRadius.control - CruSpace.s6),
+    );
+    final isActive = filter != PatientFilter.all;
+
+    return MenuAnchor(
+      alignmentOffset: const Offset(0, CruSpace.s6),
+      style: MenuStyle(
+        backgroundColor: WidgetStatePropertyAll(c.surface),
+        surfaceTintColor: WidgetStatePropertyAll(
+          c.surface.withValues(alpha: 0),
+        ),
+        shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.18)),
+        elevation: const WidgetStatePropertyAll(0),
+        padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
+        shape: WidgetStatePropertyAll(
+          RoundedSuperellipseBorder(
+            borderRadius: BorderRadius.circular(CruRadius.control),
+            side: BorderSide(color: c.hairline),
+          ),
+        ),
+      ),
+      menuChildren: [
+        for (final f in PatientFilter.values)
+          if (f == PatientFilter.all || (counts[f] ?? 0) > 0)
+            MenuItemButton(
+              onPressed: () => ref
+                  .read(patientsListControllerProvider.notifier)
+                  .setFilter(f),
+              style: ButtonStyle(
+                minimumSize: const WidgetStatePropertyAll(
+                  Size(0, CruSize.control),
+                ),
+                padding: const WidgetStatePropertyAll(
+                  EdgeInsets.symmetric(horizontal: CruSpace.s12),
+                ),
+                shape: WidgetStatePropertyAll(itemShape),
+                overlayColor: WidgetStatePropertyAll(
+                  c.hoverFill.withValues(alpha: 0),
+                ),
+                backgroundColor: WidgetStateProperty.resolveWith(
+                  (states) =>
+                      states.contains(WidgetState.hovered) ||
+                          states.contains(WidgetState.focused)
+                      ? c.hoverFill
+                      : c.surface,
+                ),
+              ),
+              trailingIcon: f == filter
+                  ? CruIcon(
+                      CruIcons.check,
+                      size: 16,
+                      strokeWidth: 2.2,
+                      color: c.accentText,
+                    )
+                  : (counts[f] != null && f != PatientFilter.all
+                      ? Text(
+                          '${counts[f]}',
+                          style: CruType.caption.tabular.tint(c.label3),
+                        )
+                      : null),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (f.attention) ...[
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: c.amberText,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: CruSpace.s6),
+                  ],
+                  Text(
+                    f.label,
+                    style: (f == filter ? CruType.text.w600 : CruType.text.w500)
+                        .tint(c.label),
+                  ),
+                ],
+              ),
+            ),
+      ],
+      builder: (context, controller, _) => CruPressable(
+        onTap: () => controller.isOpen ? controller.close() : controller.open(),
+        semanticLabel: 'Filter: ${filter.label}',
+        builder: (context, hovered) => AnimatedContainer(
+          duration: CruMotion.of(context, CruMotion.fast),
+          curve: CruMotion.curve,
+          height: CruSize.searchBar,
+          padding: const EdgeInsets.symmetric(horizontal: CruSpace.s14),
+          decoration: ShapeDecoration(
+            color: isActive
+                ? c.accentTint
+                : (hovered ? c.hoverFill : c.surface),
+            shape: cruShape(
+              CruRadius.control,
+              side: BorderSide(
+                color: isActive ? c.accent.withValues(alpha: 0.35) : c.hairline,
+              ),
+            ),
+            shadows: const [],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CruIcon(
+                CruIcons.settings,
+                size: 16,
+                strokeWidth: 2,
+                color: isActive ? c.accentText : c.label2,
+              ),
+              const SizedBox(width: CruSpace.s8),
+              Text(
+                'Filter',
+                style: (isActive ? CruType.text.w600 : CruType.text.w500).tint(
+                  isActive ? c.accentText : c.label2,
+                ),
+              ),
+              if (isActive) ...[
+                const SizedBox(width: CruSpace.s6),
+                Text(
+                  filter.label,
+                  style: CruType.text.w600.tint(c.accentText),
+                ),
+              ],
+              const SizedBox(width: CruSpace.s6),
+              CruIcon(
+                CruIcons.chevronDown,
+                size: 14,
+                strokeWidth: 2.2,
+                color: isActive ? c.accentText : c.label2,
               ),
             ],
           ),

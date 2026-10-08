@@ -12,7 +12,6 @@ import 'package:doctor_management_app/features/patients/domain/patients_models.d
 import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patient_preview_pane.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_compact_list.dart';
-import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_filter_chips.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_first_week_panel.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_header.dart';
 import 'package:doctor_management_app/features/patients/presentation/widgets/list/patients_search_bar.dart';
@@ -315,12 +314,10 @@ class _PatientsListState extends ConsumerState<_PatientsList> {
         PatientsSearchBar(
           focusNode: _searchFocus,
           sort: sort,
+          filter: filter,
+          counts: view?.counts,
           showSort: view != null && !view.firstWeek,
         ),
-      ],
-      if (view != null && !view.firstWeek) ...[
-        const SizedBox(height: CruSpace.s20),
-        PatientsFilterChips(counts: view.counts, active: filter),
       ],
       if (view?.balanceStrip != null) ...[
         const SizedBox(height: CruSpace.s20),

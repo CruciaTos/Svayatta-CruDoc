@@ -24,7 +24,7 @@ import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_actions.dart';
 import 'package:doctor_management_app/features/queue/data/provider/queue_providers.dart';
-import 'package:doctor_management_app/features/profile/presentation/profile_screen.dart';
+import 'package:doctor_management_app/features/settings/presentation/desktop_settings_screen.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -554,7 +554,12 @@ class _HomeHeader extends ConsumerWidget {
           ),
           const SizedBox(width: CruSpace.s12),
           CruPressable(
-            onTap: () => pushMobile(context, const ProfileScreen()),
+            onTap: () => openMobileSettings(
+              context,
+              ref,
+              SettingsSection.profile,
+              backLabel: 'Dashboard',
+            ),
             semanticLabel: 'Your profile',
             builder: (context, _) => MobileAvatar(name: name, size: 38),
           ),

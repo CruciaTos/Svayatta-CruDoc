@@ -37,6 +37,9 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
+        <meta-data
+            android:name="io.flutter.embedding.android.EnableImpeller"
+            android:value="false" />
         <!-- Google Maps SDK for Android — required by google_maps_flutter.
              Replace the placeholder with your real API key from
              https://console.cloud.google.com/apis/credentials -->

@@ -92,6 +92,264 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
     );
   }
 
+  void _openFilterSheet(
+    PatientsListState state,
+    PatientsListView? view,
+  ) {
+    final root = mobileRoot(context);
+    showModalBottomSheet<void>(
+      context: root,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      barrierColor: Colors.black.withValues(alpha: 0.32),
+      builder: (sheetContext) {
+        final c = sheetContext.cru;
+        return Consumer(
+          builder: (context, ref, _) {
+            final currentState = ref.watch(patientsListControllerProvider);
+            final currentView = ref.watch(patientsListViewProvider).value;
+            final counts = currentView?.counts ?? const {};
+
+            return SafeArea(
+              top: false,
+              child: Container(
+                margin: const EdgeInsets.fromLTRB(
+                  CruSpace.s8,
+                  0,
+                  CruSpace.s8,
+                  CruSpace.s8,
+                ),
+                decoration: ShapeDecoration(
+                  color: c.surface,
+                  shape: cruShape(28),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: CruSpace.s8),
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 5,
+                        decoration: ShapeDecoration(
+                          color: c.track,
+                          shape: const StadiumBorder(),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Filter Patients',
+                                style: MobileType.headline.tint(c.label),
+                              ),
+                              const SizedBox(height: CruSpace.s2),
+                              Text(
+                                'Narrow down patient list',
+                                style: MobileType.subhead.tint(c.label2),
+                              ),
+                            ],
+                          ),
+                          if (currentState.filter != PatientFilter.all)
+                            CruPressable(
+                              onTap: () {
+                                ref
+                                    .read(patientsListControllerProvider.notifier)
+                                    .setFilter(PatientFilter.all);
+                              },
+                              semanticLabel: 'Reset filters',
+                              builder: (context, _) => Text(
+                                'Reset',
+                                style: MobileType.callout.w600.tint(c.accentText),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    const CruSeparator(),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: CruSpace.s12,
+                          vertical: CruSpace.s8,
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                              child: Text(
+                                'FILTERS',
+                                style: MobileType.caption.w600.tint(c.label3),
+                              ),
+                            ),
+                            for (final f in PatientFilter.values)
+                              if (f == PatientFilter.all || (counts[f] ?? 0) > 0)
+                                CruPressable(
+                                  onTap: () {
+                                    ref
+                                        .read(patientsListControllerProvider.notifier)
+                                        .setFilter(f);
+                                    Navigator.of(sheetContext).pop();
+                                  },
+                                  semanticLabel: f.label,
+                                  builder: (context, hovered) {
+                                    final isSelected = currentState.filter == f;
+                                    final count = f == PatientFilter.all
+                                        ? currentView?.total
+                                        : counts[f];
+                                    return Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: CruSpace.s12,
+                                        vertical: CruSpace.s12,
+                                      ),
+                                      decoration: ShapeDecoration(
+                                        color: isSelected
+                                            ? c.accentTint
+                                            : (hovered ? c.hoverFill : c.surface),
+                                        shape: cruShape(CruRadius.control),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          if (f.attention) ...[
+                                            Container(
+                                              width: 7,
+                                              height: 7,
+                                              decoration: BoxDecoration(
+                                                color: c.amberText,
+                                                shape: BoxShape.circle,
+                                              ),
+                                            ),
+                                            const SizedBox(width: CruSpace.s8),
+                                          ],
+                                          Expanded(
+                                            child: Text(
+                                              f.label,
+                                              style: (isSelected
+                                                      ? MobileType.row.w600
+                                                      : MobileType.row)
+                                                  .tint(
+                                                    isSelected
+                                                        ? c.accentText
+                                                        : c.label,
+                                                  ),
+                                            ),
+                                          ),
+                                          if (count != null) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 2,
+                                              ),
+                                              decoration: ShapeDecoration(
+                                                color: isSelected
+                                                    ? c.accent.withValues(alpha: 0.15)
+                                                    : c.inset,
+                                                shape: const StadiumBorder(),
+                                              ),
+                                              child: Text(
+                                                '$count',
+                                                style: MobileType.caption.tabular.tint(
+                                                  isSelected
+                                                      ? c.accentText
+                                                      : c.label2,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: CruSpace.s8),
+                                          ],
+                                          if (isSelected)
+                                            CruIcon(
+                                              CruIcons.check,
+                                              size: 18,
+                                              strokeWidth: 2.2,
+                                              color: c.accentText,
+                                            ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                            const SizedBox(height: CruSpace.s12),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                              child: Text(
+                                'SORT BY',
+                                style: MobileType.caption.w600.tint(c.label3),
+                              ),
+                            ),
+                            for (final s in PatientSort.values)
+                              CruPressable(
+                                onTap: () {
+                                  ref
+                                      .read(patientsListControllerProvider.notifier)
+                                      .setSort(s);
+                                  Navigator.of(sheetContext).pop();
+                                },
+                                semanticLabel: s.label,
+                                builder: (context, hovered) {
+                                  final isSelected = currentState.sort == s;
+                                  return Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: CruSpace.s12,
+                                      vertical: CruSpace.s12,
+                                    ),
+                                    decoration: ShapeDecoration(
+                                      color: isSelected
+                                          ? c.accentTint
+                                          : (hovered ? c.hoverFill : c.surface),
+                                      shape: cruShape(CruRadius.control),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Text(
+                                            s.label,
+                                            style: (isSelected
+                                                    ? MobileType.row.w600
+                                                    : MobileType.row)
+                                                .tint(
+                                                  isSelected
+                                                      ? c.accentText
+                                                      : c.label,
+                                                ),
+                                          ),
+                                        ),
+                                        if (isSelected)
+                                          CruIcon(
+                                            CruIcons.check,
+                                            size: 18,
+                                            strokeWidth: 2.2,
+                                            color: c.accentText,
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                            const SizedBox(height: CruSpace.s8),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(patientsListControllerProvider);
@@ -125,45 +383,27 @@ class _MobilePatientsScreenState extends ConsumerState<MobilePatientsScreen> {
                 MobileMetrics.gutter,
                 CruSpace.s12,
               ),
-              child: MobileSearchField(
-                controller: _search,
-                hint: 'Name or phone number',
-                onChanged: (q) => ref
-                    .read(patientsListControllerProvider.notifier)
-                    .setQuery(q),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: MobileSearchField(
+                      controller: _search,
+                      hint: 'Name or phone number',
+                      onChanged: (q) => ref
+                          .read(patientsListControllerProvider.notifier)
+                          .setQuery(q),
+                    ),
+                  ),
+                  const SizedBox(width: CruSpace.s10),
+                  _MobileFilterButton(
+                    selectedFilter: state.filter,
+                    onTap: () => _openFilterSheet(state, view),
+                  ),
+                ],
               ),
             ),
           ),
-          if (view != null && !view.firstWeek)
-            SliverToBoxAdapter(
-              child: SizedBox(
-                height: 36,
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: MobileMetrics.gutter,
-                  ),
-                  children: [
-                    for (final f in PatientFilter.values)
-                      if (f == PatientFilter.all || (view.counts[f] ?? 0) > 0)
-                        Padding(
-                          padding: const EdgeInsets.only(right: CruSpace.s8),
-                          child: MobileChip(
-                            label: f.label,
-                            selected: state.filter == f,
-                            attention: f.attention,
-                            count: f == PatientFilter.all
-                                ? null
-                                : view.counts[f],
-                            onTap: () => ref
-                                .read(patientsListControllerProvider.notifier)
-                                .setFilter(f),
-                          ),
-                        ),
-                  ],
-                ),
-              ),
-            ),
+
           if (view?.balanceStrip case final b?)
             _strip(
               context,
@@ -348,6 +588,77 @@ class _PatientRow extends StatelessWidget {
       trailing: trailing,
       onTap: onTap,
       onLongPress: onLongPress,
+    );
+  }
+}
+
+class _MobileFilterButton extends StatelessWidget {
+  const _MobileFilterButton({
+    required this.selectedFilter,
+    required this.onTap,
+  });
+
+  final PatientFilter selectedFilter;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.cru;
+    final isActive = selectedFilter != PatientFilter.all;
+
+    return CruPressable(
+      onTap: onTap,
+      semanticLabel: 'Filter patients',
+      builder: (context, hovered) => AnimatedContainer(
+        duration: CruMotion.of(context, CruMotion.fast),
+        curve: CruMotion.curve,
+        height: 48,
+        width: 48,
+        decoration: ShapeDecoration(
+          color: isActive
+              ? c.accentTint
+              : (hovered ? c.hoverFill : c.surface),
+          shape: cruShape(
+            CruRadius.control + 2,
+            side: BorderSide(
+              color: isActive
+                  ? c.accent.withValues(alpha: 0.35)
+                  : c.hairline,
+            ),
+          ),
+          shadows: [
+            BoxShadow(
+              color: const Color(0xFF0B1B4D).withValues(alpha: 0.10),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            CruIcon(
+              CruIcons.settings,
+              size: 20,
+              strokeWidth: 2,
+              color: isActive ? c.accentText : c.label2,
+            ),
+            if (isActive)
+              Positioned(
+                top: 10,
+                right: 10,
+                child: Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: c.accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

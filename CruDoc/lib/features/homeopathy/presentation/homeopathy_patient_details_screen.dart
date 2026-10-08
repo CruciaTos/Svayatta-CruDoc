@@ -19,11 +19,11 @@ import 'package:doctor_management_app/features/homeopathy/presentation/homeopath
 const Color _accentEmerald = Color(0xFF059669);
 const Color _accentEmeraldLight = Color(0xFFD1FAE5);
 
-BoxDecoration _cardDecoration({BorderRadius? radius}) {
+BoxDecoration _cardDecoration(CruColors c, {BorderRadius? radius}) {
   return BoxDecoration(
-    color: Colors.white,
+    color: c.surface,
     borderRadius: radius ?? BorderRadius.circular(16),
-    border: Border.all(color: const Color(0xFFE2E8F0)),
+    border: Border.all(color: c.separator),
     boxShadow: const [],
   );
 }
@@ -195,7 +195,7 @@ class _HomeopathyPatientDetailsScreenState
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: context.cru.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Delete Patient Record'),
         content: Text(
@@ -227,6 +227,7 @@ class _HomeopathyPatientDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final patientsAsync = ref.watch(patientsStreamProvider);
     final patient = patientsAsync.maybeWhen(
       data: (list) {
@@ -267,15 +268,18 @@ class _HomeopathyPatientDetailsScreenState
                     caseSheetAsync.when(
                       loading: () => Container(
                         padding: const EdgeInsets.all(20),
-                        decoration: _cardDecoration(),
+                        decoration: _cardDecoration(c),
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
                       error: (err, _) => Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: _cardDecoration(),
-                        child: Text('Error loading case sheet: $err'),
+                        decoration: _cardDecoration(c),
+                        child: Text(
+                          'Error loading case sheet: $err',
+                          style: TextStyle(color: c.label),
+                        ),
                       ),
                       data: (caseSheet) => _HomeopathyCaseSheetCard(
                         patient: patient,
@@ -312,16 +316,17 @@ class _HomeopathyPatientDetailsScreenState
                     visitsAsync.when(
                       loading: () => Container(
                         padding: const EdgeInsets.all(24),
-                        decoration: _cardDecoration(),
+                        decoration: _cardDecoration(c),
                         child: const Center(
                           child: CircularProgressIndicator(strokeWidth: 2),
                         ),
                       ),
                       error: (e, st) => Container(
                         padding: const EdgeInsets.all(16),
-                        decoration: _cardDecoration(),
-                        child: const Text(
+                        decoration: _cardDecoration(c),
+                        child: Text(
                           'Could not load consultation history',
+                          style: TextStyle(color: c.label),
                         ),
                       ),
                       data: (visits) {
@@ -331,28 +336,28 @@ class _HomeopathyPatientDetailsScreenState
                               vertical: 28,
                               horizontal: 20,
                             ),
-                            decoration: _cardDecoration(),
-                            child: const Column(
+                            decoration: _cardDecoration(c),
+                            child: Column(
                               children: [
                                 Icon(
                                   Icons.event_note_outlined,
                                   size: 36,
-                                  color: AppColors.slateBlue,
+                                  color: c.label3,
                                 ),
-                                SizedBox(height: 8),
+                                const SizedBox(height: 8),
                                 Text(
                                   'No Consultations Logged',
                                   style: TextStyle(
                                     fontFamily: AppColors.headingFontFamily,
                                     fontWeight: FontWeight.w600,
                                     fontSize: 14,
-                                    color: AppColors.textPrimary,
+                                    color: c.label,
                                   ),
                                 ),
-                                SizedBox(height: 4),
+                                const SizedBox(height: 4),
                                 Text(
                                   'Schedule the patient\'s first homeopathic consultation below.',
-                                  style: AppColors.bodySmall,
+                                  style: TextStyle(fontSize: 12, color: c.label2),
                                   textAlign: TextAlign.center,
                                 ),
                               ],
@@ -385,7 +390,7 @@ class _HomeopathyPatientDetailsScreenState
       ),
       bottomSheet: Container(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: BoxDecoration(color: Colors.white, boxShadow: const []),
+        decoration: BoxDecoration(color: c.surface, boxShadow: const []),
         child: SafeArea(
           child: Row(
             children: [
@@ -439,26 +444,27 @@ class _HomeopathyTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.arrow_back_rounded,
-              color: AppColors.textPrimary,
+              color: c.label,
             ),
             onPressed: () => Navigator.pop(context),
           ),
           const SizedBox(width: 4),
-          const Expanded(
+          Expanded(
             child: Text(
               'Patient Details',
               style: TextStyle(
                 fontFamily: AppColors.headingFontFamily,
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
           ),
@@ -486,10 +492,10 @@ class _HomeopathyTopBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.edit_outlined,
               size: 20,
-              color: AppColors.textSecondary,
+              color: c.label2,
             ),
             onPressed: onEdit,
           ),
@@ -514,9 +520,10 @@ class _PatientHeaderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(c),
       child: Row(
         children: [
           CircleAvatar(
@@ -540,17 +547,17 @@ class _PatientHeaderCard extends StatelessWidget {
               children: [
                 Text(
                   patient.fullName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontFamily: AppColors.headingFontFamily,
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: c.label,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '${patient.age} years • ${patient.gender}',
-                  style: AppColors.bodySmall,
+                  style: TextStyle(fontSize: 12, color: c.label2),
                 ),
                 if (patient.diagnosis.isNotEmpty) ...[
                   const SizedBox(height: 6),
@@ -563,15 +570,15 @@ class _PatientHeaderCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF1F5F9),
+                          color: c.inset,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           d,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w500,
-                            color: AppColors.slateBlue,
+                            color: c.label3,
                           ),
                         ),
                       );
@@ -600,6 +607,7 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final isFemale = patient.gender.toLowerCase().trim() == 'female';
     final hasSheet = caseSheet != null;
     final completedSections = hasSheet
@@ -616,12 +624,12 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: c.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: hasSheet
               ? _accentEmerald.withValues(alpha: 0.35)
-              : const Color(0xFFE2E8F0),
+              : c.separator,
         ),
         boxShadow: const [],
       ),
@@ -647,13 +655,13 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'Clinical Case Sheet',
                     style: TextStyle(
                       fontFamily: AppColors.headingFontFamily,
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: c.label,
                     ),
                   ),
                 ],
@@ -691,10 +699,10 @@ class _HomeopathyCaseSheetCard extends StatelessWidget {
           if (hasSheet && caseSheet!.overview.chiefProblem.isNotEmpty) ...[
             Text(
               'Chief Complaint: ${caseSheet!.overview.chiefProblem}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
+                color: c.label,
               ),
             ),
             const SizedBox(height: 6),
@@ -799,6 +807,7 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final hasNote = note.trim().isNotEmpty;
 
     return InkWell(
@@ -806,27 +815,27 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
-        decoration: _cardDecoration(),
+        decoration: _cardDecoration(c),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'DOCTOR\'S NOTE',
                   style: TextStyle(
                     fontFamily: AppColors.headingFontFamily,
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
-                    color: AppColors.textSecondary,
+                    color: c.label2,
                   ),
                 ),
                 Icon(
                   hasNote ? Icons.edit_outlined : Icons.add_rounded,
                   size: 16,
-                  color: AppColors.textSecondary,
+                  color: c.label2,
                 ),
               ],
             ),
@@ -838,9 +847,7 @@ class _HomeoDoctorsNoteCard extends StatelessWidget {
               style: TextStyle(
                 fontFamily: AppColors.bodyFontFamily,
                 fontSize: 13,
-                color: hasNote
-                    ? AppColors.textPrimary
-                    : const Color(0xFF94A3B8),
+                color: hasNote ? c.label : c.label3,
                 fontStyle: hasNote ? FontStyle.normal : FontStyle.italic,
               ),
             ),
@@ -859,43 +866,44 @@ class _ContactCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: _cardDecoration(),
+      decoration: _cardDecoration(c),
       child: Column(
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.phone_outlined,
                 size: 18,
-                color: AppColors.slateBlue,
+                color: c.label3,
               ),
               const SizedBox(width: 10),
               Text(
                 phone.isNotEmpty ? phone : 'No phone number',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
-                  color: AppColors.textPrimary,
+                  color: c.label,
                 ),
               ),
             ],
           ),
           if (email.isNotEmpty) ...[
-            const Divider(height: 20),
+            Divider(height: 20, color: c.separator),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.email_outlined,
                   size: 18,
-                  color: AppColors.slateBlue,
+                  color: c.label3,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   email,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textPrimary,
+                    color: c.label,
                   ),
                 ),
               ],
@@ -915,6 +923,7 @@ class _VisitItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final dateFormat = DateFormat('EEE, d MMM yyyy • h:mm a');
     final formattedDate = dateFormat.format(visit.scheduledStart);
 
@@ -924,9 +933,9 @@ class _VisitItemCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: c.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(color: c.separator),
         ),
         child: Row(
           children: [
@@ -952,26 +961,26 @@ class _VisitItemCard extends StatelessWidget {
                             visit.treatmentType!.trim().isNotEmpty)
                         ? visit.treatmentType!
                         : 'Homeopathic Consultation',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w600,
                       fontSize: 13,
-                      color: AppColors.textPrimary,
+                      color: c.label,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     formattedDate,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 11,
-                      color: AppColors.textSecondary,
+                      color: c.label2,
                     ),
                   ),
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right_rounded,
-              color: AppColors.textSecondary,
+              color: c.label2,
               size: 18,
             ),
           ],
@@ -988,14 +997,15 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Text(
       title,
-      style: const TextStyle(
+      style: TextStyle(
         fontFamily: AppColors.headingFontFamily,
         fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.0,
-        color: AppColors.textSecondary,
+        color: c.label2,
       ),
     );
   }

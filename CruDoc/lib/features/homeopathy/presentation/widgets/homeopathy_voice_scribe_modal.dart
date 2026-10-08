@@ -241,7 +241,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF2E7D32), Color(0xFF66BB6A)],
+                    colors: [Color(0xFF059669), Color(0xFF34D399)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
@@ -262,7 +262,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
                       'AI Voice Case Scribe',
                       style: theme.textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF2E7D32),
+                        color: const Color(0xFF059669),
                       ),
                     ),
                     Text(
@@ -316,7 +316,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
                 height: barHeight,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [Color(0xFF2E7D32), Color(0xFF81C784)],
+                    colors: [Color(0xFF059669), Color(0xFF6EE7B7)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
@@ -365,10 +365,10 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: const Color(0xFF2E7D32).withValues(alpha: 0.06),
+            color: const Color(0xFF059669).withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: const Color(0xFF2E7D32).withValues(alpha: 0.15),
+              color: const Color(0xFF059669).withValues(alpha: 0.15),
             ),
           ),
           child: Column(
@@ -424,7 +424,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
               icon: const Icon(Icons.auto_awesome_rounded, size: 20),
               label: const Text('Finish & Auto-Fill'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
+                backgroundColor: const Color(0xFF059669),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 24,
@@ -452,7 +452,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
             height: 52,
             child: CircularProgressIndicator(
               strokeWidth: 4,
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF2E7D32)),
+              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF059669)),
             ),
           ),
           const SizedBox(height: 24),
@@ -466,7 +466,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
           Text(
             _processingStage,
             style: theme.textTheme.bodySmall?.copyWith(
-              color: const Color(0xFF2E7D32),
+              color: const Color(0xFF059669),
               fontWeight: FontWeight.w500,
             ),
             textAlign: TextAlign.center,
@@ -525,7 +525,7 @@ class _HomeopathyVoiceScribeModalState extends State<HomeopathyVoiceScribeModal>
               icon: const Icon(Icons.mic_rounded, size: 18),
               label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
+                backgroundColor: const Color(0xFF059669),
                 foregroundColor: Colors.white,
               ),
             ),

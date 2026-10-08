@@ -38,8 +38,8 @@ class HomeopathyVoiceDictationSheet extends StatefulWidget {
 class _HomeopathyVoiceDictationSheetState
     extends State<HomeopathyVoiceDictationSheet>
     with TickerProviderStateMixin {
-  static const Color _primaryGreen = Color(0xFF2E7D32);
-  static const Color _lightGreen = Color(0xFF81C784);
+  static const Color _primaryGreen = Color(0xFF059669);
+  static const Color _lightGreen = Color(0xFF6EE7B7);
 
   final _transcriptionService = VoiceTranscriptionService.instance;
   final TextEditingController _textController = TextEditingController();

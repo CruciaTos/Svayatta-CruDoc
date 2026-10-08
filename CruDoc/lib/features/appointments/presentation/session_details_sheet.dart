@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'package:doctor_management_app/core/theme/app_colors.dart';
+import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/errors/visit_exceptions.dart';
 import 'package:doctor_management_app/core/widgets/visit_location_map.dart';
 import 'package:doctor_management_app/features/appointments/data/model/visits_model.dart';
@@ -20,22 +20,16 @@ import 'package:doctor_management_app/features/appointments/presentation/desktop
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 export 'package:doctor_management_app/features/appointments/presentation/desktop_session_details_dialog.dart';
 
-// ---------- Accent colours (mirrors visit_details.dart) ----------
-const Color _accentBlue = Color(0xFF5DADE2);
-const Color _accentTeal = Color(0xFF48C9B0);
-const Color _accentAmber = Color(0xFFF2B84B);
-const Color _accentRed = Color(0xFFE57373);
-
-Color _colorForStatus(VisitStatus status) {
+Color _colorForStatus(VisitStatus status, CruColors c) {
   switch (status) {
     case VisitStatus.scheduled:
-      return _accentBlue;
+      return c.accent;
     case VisitStatus.completed:
-      return _accentTeal;
+      return c.green;
     case VisitStatus.cancelled:
-      return _accentRed;
+      return c.redText;
     case VisitStatus.missed:
-      return _accentAmber;
+      return c.amber;
   }
 }
 
@@ -72,7 +66,7 @@ Future<void> showSessionDetailsSheet(
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
     ),
-    backgroundColor: Theme.of(context).colorScheme.surface,
+    backgroundColor: context.cru.surface,
     builder: (_) => _SessionDetailsSheet(initial: vw),
   );
 }
@@ -166,29 +160,29 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
   }
 
   Future<void> _deleteVisit() async {
+    final c = context.cru;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Row(
+        backgroundColor: c.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(CruRadius.card),
+        ),
+        title: Row(
           children: [
-            Icon(Icons.delete_outline, color: Colors.redAccent, size: 24),
-            SizedBox(width: 8),
-            Text(
-              'Delete Appointment',
-              style: TextStyle(
-                fontFamily: AppColors.headingFontFamily,
-                color: AppColors.textPrimary,
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
+            Icon(Icons.delete_outline, color: c.redText, size: 24),
+            const SizedBox(width: CruSpace.s8),
+            Expanded(
+              child: Text(
+                'Delete Appointment',
+                style: CruType.headline.w700.tint(c.label),
               ),
             ),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Are you sure you want to delete this appointment? It will be removed permanently.',
-          style: AppColors.bodyMedium,
+          style: CruType.text.tint(c.label),
         ),
         actions: [
           TextButton(
@@ -197,10 +191,10 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
           ),
           FilledButton(
             style: FilledButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: c.redText,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(CruRadius.control),
               ),
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -287,58 +281,50 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
     final patient = _patient;
-    final statusColor = _colorForStatus(_visit.status);
+    final statusColor = _colorForStatus(_visit.status, c);
     final isPaid = _visit.isPaid;
 
     return Padding(
       padding: EdgeInsets.only(
-        left: 24,
-        right: 24,
-        top: 16,
-        bottom: 24 + bottomInset,
+        left: CruSpace.s24,
+        right: CruSpace.s24,
+        top: CruSpace.s16,
+        bottom: CruSpace.s24 + bottomInset,
       ),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Handle bar
             Center(
               child: Container(
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.silver.withValues(alpha: 0.5),
+                  color: c.label3,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: CruSpace.s20),
             Text(
               _isVisitation ? 'Visitation Details' : 'Appointment Details',
-              style: AppColors.sectionHeading.copyWith(fontSize: 20),
+              style: CruType.title2.tint(c.label),
             ),
-            const SizedBox(height: 14),
-
-            // ----- Patient name (the only place it appears) -----
+            const SizedBox(height: CruSpace.s14),
             Text(
               patient?.fullName ?? 'Unknown patient',
-              style: AppColors.bodyLarge.copyWith(
-                fontFamily: AppColors.headingFontFamily,
-                fontSize: 19,
-                fontWeight: FontWeight.w700,
-              ),
+              style: CruType.headline.w700.tint(c.label),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 10),
-
-            // ----- Pills: status / age & gender / payment -----
+            const SizedBox(height: CruSpace.s10),
             Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: CruSpace.s8,
+              runSpacing: CruSpace.s8,
               children: [
                 _StatusPill(
                   color: statusColor,
@@ -353,28 +339,26 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                   icon: isPaid
                       ? Icons.check_circle_outline
                       : Icons.error_outline,
-                  iconColor: isPaid ? _accentTeal : _accentAmber,
+                  iconColor: isPaid ? c.green : c.amber,
                   label: isPaid ? 'Paid' : 'Payment Pending',
                 ),
               ],
             ),
-            const SizedBox(height: 24),
-
+            const SizedBox(height: CruSpace.s24),
             const _SectionLabel(text: 'SCHEDULE'),
-            const SizedBox(height: 10),
+            const SizedBox(height: CruSpace.s10),
             _ScheduleInfo(visit: _visit),
-            const SizedBox(height: 20),
-
+            const SizedBox(height: CruSpace.s20),
             const _SectionLabel(text: 'PHONE'),
-            const SizedBox(height: 10),
+            const SizedBox(height: CruSpace.s10),
             _PhoneRow(phone: patient?.phone, onTap: _callPatient),
-            const SizedBox(height: 14),
+            const SizedBox(height: CruSpace.s14),
             _WhatsAppNotificationSection(visit: _visit, patient: patient),
 
             if (_isVisitation) ...[
-              const SizedBox(height: 20),
+              const SizedBox(height: CruSpace.s20),
               const _SectionLabel(text: 'LOCATION'),
-              const SizedBox(height: 10),
+              const SizedBox(height: CruSpace.s10),
               _LocationInfo(
                 address: _visit.address,
                 latitude: _visit.latitude,
@@ -383,50 +367,43 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
               ),
             ],
 
-            const SizedBox(height: 20),
+            const SizedBox(height: CruSpace.s20),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const _SectionLabel(text: 'SESSION NOTE'),
                 TextButton.icon(
                   onPressed: _openScribe,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.mic_none_rounded,
                     size: 16,
-                    color: AppColors.slateBlue,
+                    color: c.ai,
                   ),
                   label: Text(
                     'AI Voice Scribe',
-                    style: AppColors.bodySmall.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.slateBlue,
-                    ),
+                    style: CruType.caption.w700.tint(c.ai),
                   ),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
+                      horizontal: CruSpace.s12,
+                      vertical: CruSpace.s6,
                     ),
-                    backgroundColor: AppColors.slateBlue.withValues(
-                      alpha: 0.08,
-                    ),
+                    backgroundColor: c.aiTint,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(CruRadius.full),
                       side: BorderSide(
-                        color: AppColors.slateBlue.withValues(alpha: 0.2),
+                        color: c.ai.withValues(alpha: 0.2),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: CruSpace.s10),
             _buildNoteField(),
-            const SizedBox(height: 20),
-
-            // ---- Clinical & Billing Documents ----
+            const SizedBox(height: CruSpace.s20),
             const _SectionLabel(text: 'CLINICAL & BILLING DOCUMENTS'),
-            const SizedBox(height: 10),
+            const SizedBox(height: CruSpace.s10),
             Row(
               children: [
                 Expanded(
@@ -447,30 +424,28 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                         ),
                       );
                     },
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.receipt_long_rounded,
                       size: 16,
-                      color: Color(0xFF0D9488),
+                      color: c.tealText,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Generate Bill',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF0D9488),
-                      ),
+                      style: CruType.subhead.w700.tint(c.tealText),
                     ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Color(0xFF99F6E4)),
-                      backgroundColor: const Color(0xFFF0FDFA),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CruSpace.s12,
+                      ),
+                      side: BorderSide(color: c.tealText.withValues(alpha: 0.3)),
+                      backgroundColor: c.tealTint,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(CruRadius.control),
                       ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: CruSpace.s10),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
@@ -489,54 +464,50 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                         ),
                       );
                     },
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.medication_rounded,
                       size: 16,
-                      color: Color(0xFF8B5CF6),
+                      color: c.accentText,
                     ),
-                    label: const Text(
+                    label: Text(
                       'Generate Rx',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF8B5CF6),
-                      ),
+                      style: CruType.subhead.w700.tint(c.accentText),
                     ),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: const BorderSide(color: Color(0xFFDDD6FE)),
-                      backgroundColor: const Color(0xFFF5F3FF),
+                      padding: const EdgeInsets.symmetric(
+                        vertical: CruSpace.s12,
+                      ),
+                      side: BorderSide(
+                        color: c.accentText.withValues(alpha: 0.3),
+                      ),
+                      backgroundColor: c.accentTint,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(CruRadius.control),
                       ),
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: CruSpace.s24),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: OutlinedButton.icon(
                 onPressed: _deleteVisit,
-                icon: const Icon(
+                icon: Icon(
                   Icons.delete_outline,
-                  color: Colors.redAccent,
+                  color: c.redText,
                   size: 20,
                 ),
-                label: const Text(
+                label: Text(
                   'Delete Appointment',
-                  style: TextStyle(
-                    color: Colors.redAccent,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: CruType.row.tint(c.redText),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: Colors.redAccent, width: 1.2),
+                  side: BorderSide(color: c.redText, width: 1.2),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                   ),
                 ),
               ),
@@ -548,6 +519,7 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
   }
 
   Widget _buildNoteField() {
+    final c = context.cru;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -556,21 +528,21 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
           enabled: !_savingNote,
           maxLines: 4,
           minLines: 3,
-          style: AppColors.bodyMedium,
+          style: CruType.text.tint(c.label),
           onChanged: (_) => setState(() {}),
           decoration: InputDecoration(
             hintText: 'Add a note about this session…',
-            hintStyle: AppColors.bodySmall,
+            hintStyle: CruType.caption.tint(c.label3),
             filled: true,
-            fillColor: Colors.white.withValues(alpha: 0.5),
-            contentPadding: const EdgeInsets.all(14),
+            fillColor: c.inset,
+            contentPadding: const EdgeInsets.all(CruSpace.s14),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(CruRadius.control),
               borderSide: BorderSide.none,
             ),
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: CruSpace.s10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -589,7 +561,7 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
                 label: const Text('Session Photos'),
                 style: OutlinedButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(CruRadius.iconTile),
                   ),
                 ),
               )
@@ -598,14 +570,14 @@ class _SessionDetailsSheetState extends ConsumerState<_SessionDetailsSheet> {
             ElevatedButton(
               onPressed: (_noteDirty && !_savingNote) ? _saveNote : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.slateBlue,
+                backgroundColor: c.accent,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 10,
+                  horizontal: CruSpace.s20,
+                  vertical: CruSpace.s10,
                 ),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
                 ),
               ),
               child: _savingNote
@@ -636,10 +608,13 @@ class _StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s10,
+        vertical: CruSpace.s6,
+      ),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(CruRadius.full),
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Row(
@@ -650,14 +625,8 @@ class _StatusPill extends StatelessWidget {
             height: 7,
             decoration: BoxDecoration(shape: BoxShape.circle, color: color),
           ),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppColors.bodySmall.copyWith(
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
+          const SizedBox(width: CruSpace.s6),
+          Text(label, style: CruType.caption.w700.tint(color)),
         ],
       ),
     );
@@ -672,24 +641,23 @@ class _InfoPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: CruSpace.s10,
+        vertical: CruSpace.s6,
+      ),
       decoration: BoxDecoration(
-        color: AppColors.cardSurfaceAlt.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: AppColors.cardSurfaceAlt.withValues(alpha: 0.10),
-        ),
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.full),
+        border: Border.all(color: c.separator),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 13, color: iconColor ?? AppColors.textSecondary),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: AppColors.bodySmall.copyWith(fontWeight: FontWeight.w500),
-          ),
+          Icon(icon, size: 13, color: iconColor ?? c.label2),
+          const SizedBox(width: CruSpace.s4),
+          Text(label, style: CruType.caption.w500.tint(c.label2)),
         ],
       ),
     );
@@ -702,14 +670,7 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppColors.bodySmall.copyWith(
-        fontWeight: FontWeight.w700,
-        letterSpacing: 1.1,
-        color: AppColors.textSecondary.withValues(alpha: 0.85),
-      ),
-    );
+    return Text(text, style: CruType.groupLabel.tint(context.cru.label3));
   }
 }
 
@@ -726,44 +687,40 @@ class _ScheduleInfo extends StatelessWidget {
         '${DateFormat('h:mm a').format(visit.scheduledStart)} – '
         '${DateFormat('h:mm a').format(visit.scheduledEnd)}';
 
+    final c = context.cru;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(CruSpace.s16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const Icon(
-                Icons.calendar_today,
-                size: 16,
-                color: AppColors.slateBlue,
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(dateStr, style: AppColors.bodyMedium)),
+              Icon(Icons.calendar_today, size: 16, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
+              Expanded(child: Text(dateStr, style: CruType.text.tint(c.label))),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: CruSpace.s10),
           Row(
             children: [
-              const Icon(
-                Icons.access_time,
-                size: 16,
-                color: AppColors.slateBlue,
-              ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(timeStr, style: AppColors.bodyMedium)),
+              Icon(Icons.access_time, size: 16, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
+              Expanded(child: Text(timeStr, style: CruType.text.tint(c.label))),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: CruSpace.s10),
           Row(
             children: [
-              const Icon(Icons.timelapse, size: 16, color: AppColors.slateBlue),
-              const SizedBox(width: 10),
-              Text('${visit.durationMinutes} min', style: AppColors.bodyMedium),
+              Icon(Icons.timelapse, size: 16, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
+              Text(
+                '${visit.durationMinutes} min',
+                style: CruType.text.tint(c.label),
+              ),
             ],
           ),
         ],
@@ -779,39 +736,32 @@ class _PhoneRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     final trimmed = phone?.trim();
     final hasPhone = trimmed != null && trimmed.isNotEmpty;
 
     return InkWell(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(CruRadius.card),
       onTap: hasPhone ? onTap : null,
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(CruSpace.s16),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.5),
-          borderRadius: BorderRadius.circular(16),
+          color: c.inset,
+          borderRadius: BorderRadius.circular(CruRadius.card),
         ),
         child: Row(
           children: [
-            const Icon(
-              Icons.call_outlined,
-              size: 16,
-              color: AppColors.slateBlue,
-            ),
-            const SizedBox(width: 10),
+            Icon(Icons.call_outlined, size: 16, color: c.label2),
+            const SizedBox(width: CruSpace.s10),
             Expanded(
               child: Text(
                 hasPhone ? trimmed : 'No phone number on file',
-                style: AppColors.bodyMedium,
+                style: CruType.text.tint(c.label),
               ),
             ),
             if (hasPhone)
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: AppColors.textSecondary,
-              ),
+              Icon(Icons.chevron_right, size: 18, color: c.label3),
           ],
         ),
       ),
@@ -833,16 +783,16 @@ class _LocationInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final c = context.cru;
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(CruSpace.s16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(16),
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.card),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Embedded map preview (lite mode — no gestures inside sheet)
           VisitLocationMap(
             latitude: latitude,
             longitude: longitude,
@@ -850,25 +800,21 @@ class _LocationInfo extends StatelessWidget {
             lite: true,
             onOpenMaps: onOpenMaps,
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: CruSpace.s12),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(
-                Icons.location_on_outlined,
-                size: 16,
-                color: AppColors.slateBlue,
-              ),
-              const SizedBox(width: 10),
+              Icon(Icons.location_on_outlined, size: 16, color: c.label2),
+              const SizedBox(width: CruSpace.s10),
               Expanded(
                 child: Text(
                   address.trim().isNotEmpty ? address : 'No address on file',
-                  style: AppColors.bodyMedium,
+                  style: CruType.text.tint(c.label),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: CruSpace.s12),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
@@ -876,13 +822,11 @@ class _LocationInfo extends StatelessWidget {
               icon: const Icon(Icons.map_outlined, size: 16),
               label: const Text('Open in Google Maps'),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.textPrimary,
-                side: BorderSide(
-                  color: AppColors.slateBlue.withValues(alpha: 0.4),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 12),
+                foregroundColor: c.label,
+                side: BorderSide(color: c.separator),
+                padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(CruRadius.iconTile),
                 ),
               ),
             ),
@@ -1005,13 +949,14 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
       badgeLabel = 'WhatsApp: No Mobile Number';
     }
 
+    final c = context.cru;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(CruSpace.s16),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.6),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.divider),
+        color: c.inset,
+        borderRadius: BorderRadius.circular(CruRadius.card),
+        border: Border.all(color: c.separator),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1020,25 +965,21 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 5,
+                  horizontal: CruSpace.s10,
+                  vertical: CruSpace.s4,
                 ),
                 decoration: BoxDecoration(
                   color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(CruRadius.full),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(badgeIcon, size: 14, color: badgeColor),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: CruSpace.s6),
                     Text(
                       badgeLabel,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: badgeColor,
-                      ),
+                      style: CruType.caption.w600.tint(badgeColor),
                     ),
                   ],
                 ),
@@ -1049,12 +990,12 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
                   WhatsAppTemplateService.formatDisplayPhone(
                     log.recipientPhone,
                   ),
-                  style: AppColors.bodySmall,
+                  style: CruType.caption.tint(c.label2),
                 ),
             ],
           ),
           if (hasPhone) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: CruSpace.s12),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -1064,18 +1005,15 @@ class _WhatsAppNotificationSection extends ConsumerWidget {
                   size: 16,
                   color: Colors.white,
                 ),
-                label: const Text(
+                label: Text(
                   'Chat / Resend via WhatsApp',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                  ),
+                  style: CruType.subhead.w600.tint(Colors.white),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF25D366),
-                  padding: const EdgeInsets.symmetric(vertical: 11),
+                  padding: const EdgeInsets.symmetric(vertical: CruSpace.s12),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(CruRadius.control),
                   ),
                 ),
               ),

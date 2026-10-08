@@ -52,6 +52,7 @@ import 'package:doctor_management_app/features/radiology/presentation/worklist_s
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
+import 'package:doctor_management_app/features/files/presentation/files_screen.dart';
 
 /// Intent for the Ctrl+B sidebar toggle shortcut.
 class _ToggleSidebarIntent extends Intent {
@@ -192,6 +193,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     'Surgeries',
     'Implants',
     'Emergency',
+    'Files',
   ];
 
   static const List<IconData> _icons = [
@@ -226,6 +228,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
     Icons.content_cut_outlined,
     Icons.build_outlined,
     Icons.medical_services_outlined,
+    Icons.folder_outlined,
   ];
 
   /// The queue lives in the Schedule tab as its Live view: anything that
@@ -374,6 +377,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
         );
       case DesktopTab.emergency:
         return const EmergencyProtocolsScreen();
+      case DesktopTab.files:
+        return const FilesScreen();
       case DesktopTab.implants:
         return const DentalNotBuiltScreen(
           icon: DentalIcons.tooth,
@@ -511,6 +516,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == 0 ||
             shown == 5 ||
             shown == DesktopTab.settings ||
+            shown == DesktopTab.files ||
             DesktopTab.isDental(shown) ||
             DesktopTab.isRadiology(shown) ||
             DoctorFeatureGuard.isEnabled(enabledModules, moduleKey) ||
@@ -527,6 +533,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
             shown == DesktopTab.revenue ||
             shown == DesktopTab.appointments ||
             shown == DesktopTab.settings ||
+            shown == DesktopTab.files ||
             DesktopTab.isDental(shown) ||
             DesktopTab.isRadiology(shown);
 

@@ -7,6 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/features/files/data/file_types.dart';
+
 import 'medical_storage_service.dart';
 import 'storage_upload_store.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -62,9 +64,17 @@ bool acceptsContentType(UploadKind kind, String contentType) =>
     _allowedTypes[kind]?.contains(contentType) ?? false;
 
 /// True when [sizeBytes] is over what the rules allow for [contentType]:
-/// 250 MB for DICOM and TIFF originals, 15 MB for everything else.
-bool exceedsUploadLimit(int sizeBytes, {String contentType = ''}) =>
-    sizeBytes > MedicalStorageService.maxUploadBytesFor(contentType);
+/// 250 MB for DICOM and TIFF originals, 15 MB for everything else. Files
+/// screen uploads ([UploadKind.patientFile]) have their own limits.
+bool exceedsUploadLimit(
+  int sizeBytes, {
+  String contentType = '',
+  UploadKind? kind,
+}) =>
+    sizeBytes >
+    (kind == UploadKind.patientFile
+        ? PatientFileTypes.maxBytesFor(contentType)
+        : MedicalStorageService.maxUploadBytesFor(contentType));
 
 const Set<String> _images = {'image/jpeg', 'image/png', 'image/webp'};
 const Set<String> _audio = {'audio/mp4', 'audio/aac', 'audio/opus'};
@@ -87,6 +97,7 @@ final Map<UploadKind, Set<String>> _allowedTypes = {
   UploadKind.revenueCsv: {'text/csv'},
   UploadKind.imagingOriginal: {'application/dicom', 'image/tiff'},
   UploadKind.imagingPreview: {'image/jpeg'},
+  UploadKind.patientFile: PatientFileTypes.contentTypes,
 };
 
 /// What a link handler is told once its file is in the bucket.
@@ -295,7 +306,11 @@ class StorageSyncQueue {
           _images.contains(contentType) &&
           (compress || _alwaysCompressed.contains(kind));
       if (!willCompress &&
-          exceedsUploadLimit(bytes.lengthInBytes, contentType: contentType)) {
+          exceedsUploadLimit(
+            bytes.lengthInBytes,
+            contentType: contentType,
+            kind: kind,
+          )) {
         _log(
           'not enqueuing ${kind.name}: ${bytes.lengthInBytes} bytes is over '
           'the limit for $contentType',
@@ -850,6 +865,14 @@ class StorageSyncQueue {
       UploadKind.revenueCsv => service.uploadRevenueCsv(
         doctorId: doctorId,
         bytes: bytes,
+      ),
+      // Stored under the file's own id (the link's document).
+      UploadKind.patientFile => service.uploadPatientFile(
+        doctorId: doctorId,
+        patientId: patientId,
+        fileId: item.link?.docId ?? '',
+        bytes: bytes,
+        contentType: type,
       ),
     };
   }

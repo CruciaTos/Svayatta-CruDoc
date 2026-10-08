@@ -26,7 +26,10 @@ enum UploadKind {
   databaseBackup,
   revenueCsv,
   imagingOriginal,
-  imagingPreview;
+  imagingPreview,
+
+  /// A file added on the Files screen (any type it takes).
+  patientFile;
 
   /// Kinds stored under a patient, which need a `patientId`.
   bool get isPatientScoped => switch (this) {
@@ -39,7 +42,8 @@ enum UploadKind {
     clinicalLab ||
     voiceDictation ||
     imagingOriginal ||
-    imagingPreview => true,
+    imagingPreview ||
+    patientFile => true,
     _ => false,
   };
 }

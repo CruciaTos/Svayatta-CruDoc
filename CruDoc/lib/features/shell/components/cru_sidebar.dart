@@ -17,6 +17,7 @@ import 'package:doctor_management_app/features/radiology/presentation/radiology_
 import 'package:doctor_management_app/core/clinic/clinic_access.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 
 class _NavItem {
   const _NavItem(this.tab, this.label, this.icon);
@@ -104,6 +105,7 @@ List<_NavGroup> _allGroupsFor({required Set<DentalFeature> dental}) {
       ]),
     _NavGroup('Patients', [
       const _NavItem(DesktopTab.patients, 'Patients', CruIcons.patients),
+      const _NavItem(DesktopTab.files, 'Files', FileIcons.folder),
       if (dental.contains(DentalFeature.chairside)) ...const [
         _NavItem(
           DesktopTab.treatmentPlans,

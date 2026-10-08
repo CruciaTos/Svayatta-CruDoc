@@ -241,4 +241,5 @@ String uploadKindLabel(UploadKind kind) => switch (kind) {
   UploadKind.revenueCsv => 'Revenue export',
   UploadKind.imagingOriginal => 'Radiology image',
   UploadKind.imagingPreview => 'Radiology preview',
+  UploadKind.patientFile => 'Patient file',
 };

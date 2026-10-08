@@ -297,6 +297,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createSterilizationLogEntriesTable(txn);
       await _createTreatmentPlanLineItemsTable(txn);
       await _createRadiologyDocsTable(txn);
+      await _createPatientFilesTables(txn);
       await _createDentalRecordsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
@@ -327,6 +328,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createSterilizationLogEntriesTable(txn);
       await _createTreatmentPlanLineItemsTable(txn);
       await _createRadiologyDocsTable(txn);
+      await _createPatientFilesTables(txn);
       await _createDentalRecordsTable(txn);
       await _createSyncStateTable(txn);
       await _createAppMetaTable(txn);
@@ -401,6 +403,16 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'radiology_docs',
         columns: _radiologyDocsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'patient_files',
+        columns: _patientFilesColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'file_folders',
+        columns: _fileFoldersColumns,
       );
       await _ensureColumns(
         txn,
@@ -1583,6 +1595,97 @@ class LocalDatabaseService extends ChangeNotifier {
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  /// The Files screen: patient files and the folders people keep them in
+  /// (see lib/features/files). `visibleTo` is a JSON list of person ids.
+  Future<void> _createPatientFilesTables(LocalDatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS patient_files (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        ownerUid TEXT NOT NULL DEFAULT '',
+        patientId TEXT NOT NULL,
+        folderId TEXT NOT NULL DEFAULT '',
+        rootId TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL DEFAULT '',
+        contentType TEXT NOT NULL DEFAULT '',
+        sizeBytes INTEGER NOT NULL DEFAULT 0,
+        visibleTo TEXT NOT NULL DEFAULT '[]',
+        localPath TEXT NOT NULL DEFAULT '',
+        storagePath TEXT NOT NULL DEFAULT '',
+        cloudStatus TEXT NOT NULL DEFAULT '',
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        lastSyncedAt INTEGER
+      )
+    ''');
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_patient_files_recent '
+      'ON patient_files (doctorId, isDeleted, createdAt)',
+    );
+    await db.execute(
+      'CREATE INDEX IF NOT EXISTS idx_patient_files_patient '
+      'ON patient_files (doctorId, patientId, isDeleted)',
+    );
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS file_folders (
+        id TEXT PRIMARY KEY,
+        doctorId TEXT NOT NULL DEFAULT '',
+        ownerUid TEXT NOT NULL DEFAULT '',
+        parentId TEXT NOT NULL DEFAULT '',
+        rootId TEXT NOT NULL DEFAULT '',
+        name TEXT NOT NULL DEFAULT '',
+        sharing TEXT NOT NULL DEFAULT 'private',
+        visibleTo TEXT NOT NULL DEFAULT '[]',
+        isDeleted INTEGER NOT NULL DEFAULT 0,
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER NOT NULL,
+        syncStatus TEXT NOT NULL DEFAULT 'pending'
+          CHECK (syncStatus IN ('synced', 'pending')),
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _patientFilesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'ownerUid': "ownerUid TEXT NOT NULL DEFAULT ''",
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'folderId': "folderId TEXT NOT NULL DEFAULT ''",
+    'rootId': "rootId TEXT NOT NULL DEFAULT ''",
+    'name': "name TEXT NOT NULL DEFAULT ''",
+    'contentType': "contentType TEXT NOT NULL DEFAULT ''",
+    'sizeBytes': 'sizeBytes INTEGER NOT NULL DEFAULT 0',
+    'visibleTo': "visibleTo TEXT NOT NULL DEFAULT '[]'",
+    'localPath': "localPath TEXT NOT NULL DEFAULT ''",
+    'storagePath': "storagePath TEXT NOT NULL DEFAULT ''",
+    'cloudStatus': "cloudStatus TEXT NOT NULL DEFAULT ''",
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  static const Map<String, String> _fileFoldersColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'ownerUid': "ownerUid TEXT NOT NULL DEFAULT ''",
+    'parentId': "parentId TEXT NOT NULL DEFAULT ''",
+    'rootId': "rootId TEXT NOT NULL DEFAULT ''",
+    'name': "name TEXT NOT NULL DEFAULT ''",
+    'sharing': "sharing TEXT NOT NULL DEFAULT 'private'",
+    'visibleTo': "visibleTo TEXT NOT NULL DEFAULT '[]'",
+    'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'pending'",
     'lastSyncedAt': 'lastSyncedAt INTEGER',
   };
 

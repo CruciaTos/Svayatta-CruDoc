@@ -93,6 +93,9 @@ abstract final class DesktopTab {
   /// Dental Anesthesiologists: the clinic's emergency protocols.
   static const emergency = 30;
 
+  /// Patient files (pictures, X-rays, reports) and the folders they're in.
+  static const files = 31;
+
   /// Oral & Maxillofacial Radiologists only.
   static const worklist = 12;
   static const reports = 13;
@@ -133,6 +136,7 @@ abstract final class DesktopTab {
     surgeries => 'Surgeries',
     implants => 'Implants',
     emergency => 'Emergency',
+    files => 'Files',
     _ => 'Back',
   };
 }

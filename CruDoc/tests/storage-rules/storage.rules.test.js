@@ -10,7 +10,7 @@ import {
   assertSucceeds,
   initializeTestEnvironment,
 } from '@firebase/rules-unit-testing';
-import { getBytes, ref, updateMetadata, uploadBytes } from 'firebase/storage';
+import { deleteObject, getBytes, ref, updateMetadata, uploadBytes } from 'firebase/storage';
 import { doc, setDoc } from 'firebase/firestore';
 
 const RULES = fileURLToPath(new URL('../../storage.rules', import.meta.url));
@@ -380,5 +380,92 @@ describe('clinic members in storage', () => {
       uploadBytes(ref(as(A), branding), bytes(), { contentType: 'image/png' }),
     );
     await assertSucceeds(getBytes(ref(as(A), branding)));
+  });
+});
+
+describe('patient-files (Files screen)', () => {
+  const DOC2 = 'doctor-2';
+  const RECEP = 'recep-1';
+  const path = (fileId = 'x1') => `patient-files/${A}/p1/${fileId}/original`;
+  const jpeg = { contentType: 'image/jpeg' };
+  const record = (over = {}) => ({
+    doctorId: A,
+    ownerUid: A,
+    patientId: 'p1',
+    folderId: '',
+    rootId: '',
+    visibleTo: [A],
+    ...over,
+  });
+
+  beforeEach(async () => {
+    await seedFirestore(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seedFirestore(`clinics/${A}/members/${DOC2}`, {
+      active: true,
+      roleId: 'doctor',
+      perms: ['patients.view', 'clinical.view', 'clinical.edit'],
+      name: 'Doctor 2',
+    });
+    await seedFirestore(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'schedule'],
+      name: 'Recep',
+    });
+  });
+
+  it('lets the owner upload before the record syncs, then read it', async () => {
+    await assertSucceeds(uploadBytes(ref(as(A), path()), bytes(), jpeg));
+    await seedFirestore('patient_files/x1', record());
+    await assertSucceeds(getBytes(ref(as(A), path())));
+  });
+
+  it('takes office documents, 3D scans and video, not programs', async () => {
+    const ok = [
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'model/stl',
+      'video/mp4',
+      'application/dicom',
+    ];
+    for (const [i, contentType] of ok.entries()) {
+      await assertSucceeds(uploadBytes(ref(as(A), path(`ok${i}`)), bytes(), { contentType }));
+    }
+    for (const contentType of ['application/x-msdownload', 'application/zip', 'text/html']) {
+      await assertFails(uploadBytes(ref(as(A), path(`no-${contentType.length}`)), bytes(), { contentType }));
+    }
+  });
+
+  it('caps size at 50 MB, 250 MB for DICOM', async () => {
+    await assertFails(uploadBytes(ref(as(A), path('big')), bytes(50 * MB + 1), jpeg));
+    await assertSucceeds(
+      uploadBytes(ref(as(A), path('dcm')), bytes(50 * MB + 1), { contentType: 'application/dicom' }),
+    );
+  });
+
+  it('is write-once and named "original"', async () => {
+    await assertSucceeds(uploadBytes(ref(as(A), path()), bytes(), jpeg));
+    await assertFails(uploadBytes(ref(as(A), path()), bytes(), jpeg));
+    await assertFails(uploadBytes(ref(as(A), `patient-files/${A}/p1/x2/opg.jpg`), bytes(), jpeg));
+  });
+
+  it('follows the record: private stays private, team sharing opens it', async () => {
+    await seed(path(), 'image/jpeg');
+    await seedFirestore('patient_files/x1', record());
+    await assertFails(getBytes(ref(as(DOC2), path())));
+    await seedFirestore('patient_files/x1', record({ visibleTo: [A, 'team'] }));
+    await assertSucceeds(getBytes(ref(as(DOC2), path())));
+    await assertFails(getBytes(ref(as(RECEP), path())));
+    await assertFails(getBytes(ref(as(B), path())));
+  });
+
+  it('lets only the owner (or an admin) delete it once the record exists', async () => {
+    await seed(path(), 'image/jpeg');
+    await seedFirestore('patient_files/x1', record({ visibleTo: [A, 'team'] }));
+    await assertFails(deleteObject(ref(as(DOC2), path())));
+    await assertSucceeds(deleteObject(ref(as(A), path())));
+  });
+
+  it('keeps other clinics out entirely', async () => {
+    await assertFails(uploadBytes(ref(as(B), path()), bytes(), jpeg));
   });
 });

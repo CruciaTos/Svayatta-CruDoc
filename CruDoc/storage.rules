@@ -101,6 +101,48 @@ service firebase.storage {
         && request.resource.contentType in ['application/dicom', 'image/tiff'];
     }
 
+    // Files screen uploads: one object per file, named after its record in
+    // `patient_files`. Kept outside doctors/ so the clinic-wide patient-file
+    // rule doesn't reach it: who may read a file follows its record (its
+    // folder's sharing, see firestore.rules). Written once by the person
+    // adding it, which may be before the record has synced. Keep the types
+    // and sizes in step with lib/features/files/data/file_types.dart.
+    match /patient-files/{doctorId}/{patientId}/{fileId}/{name} {
+      function fileRecord() {
+        return firestore.get(/databases/(default)/documents/patient_files/$(fileId)).data;
+      }
+
+      allow read: if can(doctorId, 'clinical.view')
+        && fileRecord().doctorId == doctorId
+        && (request.auth.uid in fileRecord().visibleTo
+          || 'team' in fileRecord().visibleTo);
+      allow create: if can(doctorId, 'clinical.edit')
+        && name == 'original'
+        && request.resource.contentType in [
+          'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp',
+          'image/heic', 'image/heif', 'image/tiff', 'application/dicom',
+          'model/stl', 'model/ply', 'model/obj',
+          'application/pdf', 'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'application/vnd.oasis.opendocument.text',
+          'application/vnd.oasis.opendocument.spreadsheet',
+          'application/rtf', 'text/plain', 'text/csv',
+          'video/mp4', 'video/quicktime', 'video/webm',
+          'audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/wav', 'audio/ogg'
+        ]
+        && request.resource.size <= (
+          request.resource.contentType in ['application/dicom', 'image/tiff']
+            ? 250 : 50) * 1024 * 1024;
+      allow delete: if can(doctorId, 'clinical.edit')
+        && (!firestore.exists(/databases/(default)/documents/patient_files/$(fileId))
+          || fileRecord().ownerUid == request.auth.uid
+          || can(doctorId, 'admin'));
+    }
+
     // Clinic branding (logo, signature)
     match /doctors/{doctorId}/clinic/branding/{allPaths=**} {
       allow read: if can(doctorId, 'member');

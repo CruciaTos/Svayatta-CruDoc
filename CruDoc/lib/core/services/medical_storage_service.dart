@@ -7,6 +7,8 @@ import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'package:uuid/uuid.dart';
 
+import 'package:doctor_management_app/features/files/data/file_types.dart';
+
 import '../errors/storage_exceptions.dart';
 import 'access_audit_service.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
@@ -57,8 +59,9 @@ class StoredFile {
 ///
 /// Every file is owned by the signed-in doctor. Permanent patient files go
 /// to `doctors/{doctorId}/patients/{patientId}/{category}/{YYYY}/{MM}/{fileId}.{ext}`;
-/// clinic-level files to `doctors/{doctorId}/{category}/...`; voice
-/// dictation awaiting transcription to
+/// clinic-level files to `doctors/{doctorId}/{category}/...`; files added
+/// on the Files screen to `patient-files/{doctorId}/{patientId}/{fileId}/original`;
+/// voice dictation awaiting transcription to
 /// `voice-scratch/doctors/{doctorId}/patients/{patientId}/{uuid}.m4a`.
 ///
 /// The size cap and content types mirror storage.rules — keep them in sync.
@@ -209,6 +212,31 @@ class MedicalStorageService {
       category: 'clinical/${ClinicalMediaKind.imaging.folder}',
       bytes: bytes,
       contentType: contentType,
+    );
+  }
+
+  /// A file added on the Files screen, stored byte for byte. Kept outside
+  /// `doctors/` so who may read it follows the file's own record (its
+  /// folder's sharing) rather than the clinic-wide patient-file rule. The
+  /// object has no extension (the content type is in its metadata), so no
+  /// lifecycle rule keyed on a suffix ever deletes it.
+  Future<StoredFile> uploadPatientFile({
+    required String doctorId,
+    required String patientId,
+    required String fileId,
+    required Uint8List bytes,
+    required String contentType,
+  }) {
+    _requireSignedInAs(doctorId);
+    _requireOneOf(contentType, PatientFileTypes.contentTypes);
+    final path =
+        'patient-files/$doctorId/${_segment(patientId)}/${_segment(fileId)}/original';
+    return _put(
+      path,
+      bytes,
+      contentType,
+      {'doctorId': doctorId, 'patientId': patientId, 'category': 'files'},
+      limit: PatientFileTypes.maxBytesFor(contentType),
     );
   }
 
@@ -435,9 +463,10 @@ class MedicalStorageService {
     String path,
     Uint8List bytes,
     String contentType,
-    Map<String, String> metadata,
-  ) async {
-    final limit = maxUploadBytesFor(contentType);
+    Map<String, String> metadata, {
+    int? limit,
+  }) async {
+    limit ??= maxUploadBytesFor(contentType);
     if (bytes.lengthInBytes > limit) {
       throw StorageFileTooLargeException(bytes.lengthInBytes, limit);
     }
@@ -491,6 +520,7 @@ class MedicalStorageService {
     final doctorId = switch (parts) {
       ['doctors', final id, _, ...] => id,
       ['voice-scratch', 'doctors', final id, _, ...] => id,
+      ['patient-files', final id, _, ...] => id,
       _ => null,
     };
     if (doctorId == null || parts.any((p) => p.isEmpty || p == '..')) {

@@ -1,0 +1,27 @@
+[debug] [2026-10-07T15:12:23.741Z] ----------------------------------------------------------------------
+[debug] [2026-10-07T15:12:23.744Z] Command:       /usr/bin/node /sessions/rcw-01awgpn65ljgeiivtbulwfsw/.npm/_npx/ba4f1959e38407b5/node_modules/.bin/firebase emulators:exec --only firestore --project demo-crudoc-firestore-rules --config ../../firebase.json node --test
+[debug] [2026-10-07T15:12:23.745Z] CLI Version:   15.32.1
+[debug] [2026-10-07T15:12:23.745Z] Platform:      linux
+[debug] [2026-10-07T15:12:23.746Z] Node Version:  v22.23.2
+[debug] [2026-10-07T15:12:23.746Z] Detected Agent: unknown
+[debug] [2026-10-07T15:12:23.746Z] Time:          Wed Oct 07 2026 15:12:23 GMT+0000 (Coordinated Universal Time)
+[debug] [2026-10-07T15:12:23.746Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-10-07T15:12:23.767Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-10-07T15:12:24.893Z] Object "" in "firebase.json" has unknown property: {"additionalProperty":"flutter"}
+[debug] [2026-10-07T15:12:25.013Z] *** [apiv2] error from fetch(https://firebase-public.firebaseio.com/cli.json, {"headers":{},"method":"GET","dispatcher":{"_events":{},"_eventsCount":0}}): Error: Request was cancelled.
+[warn] ⚠  Unable to fetch the CLI MOTD and remote config. This is not a fatal error, but may indicate an issue with your network connection. 
+[debug] [2026-10-07T15:12:25.015Z] Failed to fetch MOTD FirebaseError: Failed to make request to https://firebase-public.firebaseio.com/cli.json
+[debug] [2026-10-07T15:12:25.020Z] Picked up JAVA_TOOL_OPTIONS: -javaagent:/usr/local/lib/node_modules_global/lib/node_modules/@anthropic-ai/sandbox-runtime/vendor/java-proxy-agent/srt-proxy-agent.jar
+
+[debug] [2026-10-07T15:12:25.299Z] openjdk version "11.0.32.1" 2026-08-18
+
+[debug] [2026-10-07T15:12:25.300Z] OpenJDK Runtime Environment (build 11.0.32.1+1-post-1ubuntu1-22.04-Ubuntu)
+OpenJDK 64-Bit Server VM (build 11.0.32.1+1-post-1ubuntu1-22.04-Ubuntu, mixed mode, sharing)
+
+[debug] [2026-10-07T15:12:25.307Z] Parsed Java major version: 11
+[debug] [2026-10-07T15:12:25.312Z] Could not find VSCode notification endpoint: TypeError: fetch failed. If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[info] i  emulators: Shutting down emulators. {"metadata":{"emulator":{"name":"hub"},"message":"Shutting down emulators."}}
+[debug] [2026-10-07T15:12:25.316Z] Could not find VSCode notification endpoint: TypeError: fetch failed. If you are not running the Firebase SQL Connect VSCode extension, this is expected and not an issue.
+[error] 
+[error] Error: firebase-tools no longer supports Java version before 21. Please install a JDK at version 21 or above to get a compatible runtime.

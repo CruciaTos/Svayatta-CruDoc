@@ -30,6 +30,8 @@ import 'features/scribe/data/services/scribe_audio_sync.dart';
 import 'core/theme/cru_theme.dart';
 import 'features/settings/data/appearance_provider.dart';
 import 'features/voice/presentation/voice_overlay.dart';
+import 'features/files/data/files_cloud_sync.dart';
+import 'features/files/data/files_repository.dart';
 
 const bool _useFirebaseEmulators = bool.fromEnvironment(
   'USE_FIREBASE_EMULATORS',
@@ -93,6 +95,7 @@ Future<void> main() async {
   GeneratedDocumentSync.register();
   InventoryReceiptSync.register();
   DentalPhotoCloudSync.register();
+  FilesRepository.register();
   StorageSyncQueue.instance.start();
 
   runApp(const ProviderScope(child: MoodyDashboardApp()));
@@ -150,6 +153,8 @@ void _wireWebEncryptionKeyLoading() {
     open: (user, access) =>
         EncryptionKeyManager.instance.loadForDoctor(access.clinicId),
     close: () async {
+      // Started on first use here (see FilesCloudSync).
+      FilesCloudSync.instance.stop();
       if (!kIsWeb) await LocalDatabaseService.instance.close();
       EncryptionKeyManager.instance.clear();
     },
@@ -182,8 +187,10 @@ void _wireDoctorScopedStartup() {
       );
       await InitialFirestoreMigrationService.instance.runIfNeeded();
       await FirestoreSyncService.instance.start();
+      FilesCloudSync.instance.ensureStarted();
     },
     close: () async {
+      FilesCloudSync.instance.stop();
       await FirestoreSyncService.instance.stop();
       await LocalDatabaseService.instance.close();
       EncryptionKeyManager.instance.clear();

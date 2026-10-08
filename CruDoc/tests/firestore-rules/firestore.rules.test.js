@@ -11,6 +11,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import {
   collection,
+  collectionGroup,
   deleteDoc,
   doc,
   getDoc,
@@ -648,5 +649,293 @@ describe('clinic members', () => {
     await assertSucceeds(
       getDocs(query(collection(adminDb, 'access_logs'), where('doctorId', '==', A))),
     );
+  });
+});
+
+describe('super admin clinic monitoring (read only)', () => {
+  const OWNER = 'owner-1';
+  const seedClinic = async () => {
+    await seed(`clinics/${OWNER}`, { name: 'Clinic', ownerUid: OWNER });
+    await seed(`clinics/${OWNER}/members/m1`, { name: 'Dr M', roleId: 'doctor', perms: [], active: true });
+    await seed(`clinics/${OWNER}/roles/r1`, { name: 'Nurse', perms: [] });
+    await seed(`clinics/${OWNER}/invites/i1`, { name: 'Pending', status: 'pending' });
+    await seed('access_logs/team1', { doctorId: OWNER, actorUid: OWNER, action: 'team.invite', platform: 'server' });
+    await seed('access_logs/view1', { doctorId: OWNER, actorUid: 'm1', action: 'patient.view', patientId: 'p1', platform: 'windows' });
+  };
+
+  it('reads clinics, members, roles and invites', async () => {
+    await seedClinic();
+    const db = admin();
+    await assertSucceeds(getDocs(collection(db, 'clinics')));
+    await assertSucceeds(getDocs(collection(db, `clinics/${OWNER}/members`)));
+    await assertSucceeds(getDocs(collection(db, `clinics/${OWNER}/roles`)));
+    await assertSucceeds(getDocs(collection(db, `clinics/${OWNER}/invites`)));
+  });
+
+  it('reads members and invites across all clinics (collection group)', async () => {
+    await seedClinic();
+    await assertSucceeds(getDocs(collectionGroup(admin(), 'members')));
+    await assertSucceeds(getDocs(collectionGroup(admin(), 'invites')));
+    await assertFails(getDocs(collectionGroup(doctor(B), 'members')));
+    await assertFails(getDocs(collectionGroup(as('x', { role: 'superAdmin' }), 'invites')));
+  });
+
+  it('cannot write members, roles or invites', async () => {
+    await seedClinic();
+    const db = admin();
+    await assertFails(updateDoc(doc(db, `clinics/${OWNER}/members/m1`), { active: false }));
+    await assertFails(setDoc(doc(db, `clinics/${OWNER}/roles/r2`), { name: 'x' }));
+    await assertFails(deleteDoc(doc(db, `clinics/${OWNER}/invites/i1`)));
+  });
+
+  it('reads team events but never patient.view entries', async () => {
+    await seedClinic();
+    const db = admin();
+    await assertSucceeds(
+      getDocs(query(collection(db, 'access_logs'), where('platform', '==', 'server'))),
+    );
+    await assertSucceeds(getDoc(doc(db, 'access_logs/team1')));
+    await assertFails(getDoc(doc(db, 'access_logs/view1')));
+    await assertFails(getDocs(collection(db, 'access_logs')));
+  });
+
+  it('keeps a half-verified admin and other doctors out', async () => {
+    await seedClinic();
+    const half = as('x', { role: 'superAdmin' });
+    await assertFails(getDocs(collection(half, `clinics/${OWNER}/members`)));
+    await assertFails(getDocs(collection(doctor(B), `clinics/${OWNER}/members`)));
+  });
+});
+
+describe('files screen: folders and patient files', () => {
+  const DOC2 = 'doctor-2'; // other doctors in clinic A
+  const DOC3 = 'doctor-3';
+  const RECEP = 'recep-1'; // no clinical access
+  const ADMIN2 = 'admin-2';
+
+  const folder = (over = {}) => ({
+    doctorId: A,
+    ownerUid: A,
+    parentId: '',
+    rootId: 'f1',
+    name: 'X-rays',
+    sharing: 'private',
+    visibleTo: [A],
+    isDeleted: false,
+    ...over,
+  });
+  const file = (over = {}) => ({
+    doctorId: A,
+    ownerUid: A,
+    patientId: 'p1',
+    folderId: '',
+    rootId: '',
+    name: 'opg.jpg',
+    contentType: 'image/jpeg',
+    sizeBytes: 1200,
+    storagePath: '',
+    visibleTo: [A],
+    isDeleted: false,
+    ...over,
+  });
+  const mine = (db, uid) =>
+    query(
+      collection(db, 'patient_files'),
+      where('doctorId', '==', A),
+      where('visibleTo', 'array-contains', uid),
+    );
+  const team = (db, name = 'patient_files') =>
+    query(
+      collection(db, name),
+      where('doctorId', '==', A),
+      where('visibleTo', 'array-contains', 'team'),
+    );
+
+  beforeEach(async () => {
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    for (const uid of [DOC2, DOC3]) {
+      await seed(`clinics/${A}/members/${uid}`, {
+        active: true,
+        roleId: 'doctor',
+        perms: ['patients.view', 'clinical.view', 'clinical.edit'],
+        name: uid,
+      });
+    }
+    await seed(`clinics/${A}/members/${RECEP}`, {
+      active: true,
+      roleId: 'receptionist',
+      perms: ['patients.view', 'schedule'],
+      name: 'Recep',
+    });
+    await seed(`clinics/${A}/members/${ADMIN2}`, {
+      active: true,
+      roleId: 'admin',
+      perms: [],
+      name: 'Admin 2',
+    });
+  });
+
+  it('lets a doctor keep private folders and files', async () => {
+    const db = doctor(A);
+    await assertSucceeds(setDoc(doc(db, 'file_folders/f1'), folder()));
+    await assertSucceeds(
+      setDoc(doc(db, 'patient_files/x1'), file({ folderId: 'f1', rootId: 'f1' })),
+    );
+    await assertSucceeds(setDoc(doc(db, 'patient_files/x2'), file()));
+    await assertSucceeds(getDocs(mine(db, A)));
+    await assertSucceeds(getDoc(doc(db, 'patient_files/x1')));
+  });
+
+  it('keeps a private folder from colleagues, other clinics and Super Admin', async () => {
+    await seed('file_folders/f1', folder());
+    await seed('patient_files/x1', file({ folderId: 'f1', rootId: 'f1' }));
+    for (const db of [as(DOC2), doctor(B), admin()]) {
+      await assertFails(getDoc(doc(db, 'file_folders/f1')));
+      await assertFails(getDoc(doc(db, 'patient_files/x1')));
+    }
+    // Listing what is shared with the team returns nothing, without error.
+    await assertSucceeds(getDocs(team(as(DOC2))));
+    // Listing someone else's private files is refused.
+    await assertFails(getDocs(mine(as(DOC2), A)));
+  });
+
+  it('refuses a list without the visibility filter', async () => {
+    await seed('patient_files/x1', file());
+    await assertFails(
+      getDocs(query(collection(doctor(A), 'patient_files'), where('doctorId', '==', A))),
+    );
+  });
+
+  it('shares a folder with the clinic, but not with people without clinical access', async () => {
+    await seed('file_folders/f1', folder({ sharing: 'team', visibleTo: [A, 'team'] }));
+    await seed(
+      'patient_files/x1',
+      file({ folderId: 'f1', rootId: 'f1', visibleTo: [A, 'team'] }),
+    );
+    await assertSucceeds(getDoc(doc(as(DOC2), 'patient_files/x1')));
+    await assertSucceeds(getDocs(team(as(DOC2))));
+    await assertSucceeds(getDocs(team(as(DOC2), 'file_folders')));
+    await assertFails(getDoc(doc(as(RECEP), 'patient_files/x1')));
+    await assertFails(getDocs(team(as(RECEP))));
+    await assertFails(getDoc(doc(doctor(B), 'patient_files/x1')));
+  });
+
+  it('shares a folder with chosen doctors only', async () => {
+    await seed('file_folders/f1', folder({ sharing: 'people', visibleTo: [A, DOC2] }));
+    await seed(
+      'patient_files/x1',
+      file({ folderId: 'f1', rootId: 'f1', visibleTo: [A, DOC2] }),
+    );
+    await assertSucceeds(getDoc(doc(as(DOC2), 'patient_files/x1')));
+    await assertSucceeds(getDocs(mine(as(DOC2), DOC2)));
+    await assertFails(getDoc(doc(as(DOC3), 'patient_files/x1')));
+  });
+
+  it('lets a colleague add their own files and folders to a shared folder', async () => {
+    await seed('file_folders/f1', folder({ sharing: 'team', visibleTo: [A, 'team'] }));
+    const db = as(DOC2);
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'patient_files/x9'),
+        file({ ownerUid: DOC2, folderId: 'f1', rootId: 'f1', visibleTo: [A, 'team'] }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(
+        doc(db, 'file_folders/f9'),
+        folder({
+          ownerUid: DOC2,
+          parentId: 'f1',
+          rootId: 'f1',
+          visibleTo: [A, 'team'],
+          sharing: 'team',
+        }),
+      ),
+    );
+  });
+
+  it('refuses files with no patient, the wrong visibility or a faked owner', async () => {
+    await seed('file_folders/f1', folder({ sharing: 'team', visibleTo: [A, 'team'] }));
+    const db = as(DOC2);
+    // No patient.
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/n1'),
+        file({ ownerUid: DOC2, visibleTo: [DOC2], patientId: '' }),
+      ),
+    );
+    // Visibility that isn't the folder's.
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/n2'),
+        file({ ownerUid: DOC2, folderId: 'f1', rootId: 'f1', visibleTo: [DOC2] }),
+      ),
+    );
+    // A loose file shared with the team.
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/n3'),
+        file({ ownerUid: DOC2, visibleTo: [DOC2, 'team'] }),
+      ),
+    );
+    // In someone else's name.
+    await assertFails(
+      setDoc(doc(db, 'patient_files/n4'), file({ ownerUid: A, visibleTo: [A] })),
+    );
+    // Into a private folder that isn't theirs.
+    await seed('file_folders/p1', folder({ rootId: 'p1' }));
+    await assertFails(
+      setDoc(
+        doc(db, 'patient_files/n5'),
+        file({ ownerUid: DOC2, folderId: 'p1', rootId: 'p1', visibleTo: [A] }),
+      ),
+    );
+  });
+
+  it('lets only the owner, the folder owner or an admin change a shared file', async () => {
+    await seed('file_folders/f1', folder({ sharing: 'team', visibleTo: [A, 'team'] }));
+    await seed(
+      'patient_files/x1',
+      file({ ownerUid: DOC2, folderId: 'f1', rootId: 'f1', visibleTo: [A, 'team'] }),
+    );
+    await assertFails(updateDoc(doc(as(DOC3), 'patient_files/x1'), { name: 'mine now' }));
+    await assertSucceeds(updateDoc(doc(as(DOC2), 'patient_files/x1'), { name: 'a.jpg' }));
+    await assertSucceeds(updateDoc(doc(doctor(A), 'patient_files/x1'), { name: 'b.jpg' }));
+    await assertSucceeds(updateDoc(doc(as(ADMIN2), 'patient_files/x1'), { name: 'c.jpg' }));
+    await assertFails(updateDoc(doc(as(DOC2), 'patient_files/x1'), { ownerUid: DOC3 }));
+    await assertFails(updateDoc(doc(as(DOC2), 'patient_files/x1'), { doctorId: B }));
+  });
+
+  it('lets the folder owner stop sharing, then restamp what is inside', async () => {
+    await seed('file_folders/f1', folder({ sharing: 'team', visibleTo: [A, 'team'] }));
+    await seed(
+      'patient_files/x1',
+      file({ ownerUid: DOC2, folderId: 'f1', rootId: 'f1', visibleTo: [A, 'team'] }),
+    );
+    const db = doctor(A);
+    await assertSucceeds(
+      updateDoc(doc(db, 'file_folders/f1'), { sharing: 'private', visibleTo: [A] }),
+    );
+    await assertSucceeds(updateDoc(doc(db, 'patient_files/x1'), { visibleTo: [A] }));
+    await assertFails(getDoc(doc(as(DOC2), 'patient_files/x1')));
+  });
+
+  it('only shares top-level folders, and never deletes', async () => {
+    await seed('file_folders/f1', folder());
+    const db = doctor(A);
+    // An inner folder that claims its own sharing.
+    await assertFails(
+      setDoc(
+        doc(db, 'file_folders/f2'),
+        folder({ parentId: 'f1', rootId: 'f1', visibleTo: [A, 'team'], sharing: 'team' }),
+      ),
+    );
+    await assertSucceeds(
+      setDoc(doc(db, 'file_folders/f2'), folder({ parentId: 'f1', rootId: 'f1' })),
+    );
+    await assertFails(deleteDoc(doc(db, 'file_folders/f1')));
+    await seed('patient_files/x1', file());
+    await assertFails(deleteDoc(doc(db, 'patient_files/x1')));
+    await assertSucceeds(updateDoc(doc(db, 'patient_files/x1'), { isDeleted: true }));
   });
 });

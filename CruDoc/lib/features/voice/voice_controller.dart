@@ -15,11 +15,11 @@ import 'package:doctor_management_app/features/dashboard/data/providers/dashboar
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
 import 'package:doctor_management_app/features/inventory/data/providers/inventory_view_providers.dart';
 import 'package:doctor_management_app/features/inventory/domain/inventory_models.dart';
-import 'package:doctor_management_app/features/patients/data/models/medical_document.dart';
+import 'package:doctor_management_app/features/files/data/file_models.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patients_list_providers.dart';
-import 'package:doctor_management_app/features/patients/data/services/medical_document_local_service.dart';
+import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/patients/domain/patients_models.dart';
 import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 import 'package:doctor_management_app/features/revenue/data/providers/revenue_view_providers.dart';
@@ -1474,24 +1474,29 @@ class VoiceController {
       understood.value = 'Open a patient to delete their file';
       return;
     }
-    final docs = await MedicalDocumentLocalService.instance
-        .getDocumentsForPatient(p.id);
+    // Only files this person may delete (their own, or in their folders).
+    final repo = FilesRepository.instance;
+    final folders = await repo.folders();
+    final docs = [
+      for (final d in await repo.files(patientId: p.id))
+        if (repo.canManage(d.ownerUid, d.rootId, folders)) d,
+    ];
     if (docs.isEmpty) {
       understood.value = 'No files found for ${p.fullName}';
       return;
     }
-    MedicalDocument? target;
+    PatientFile? target;
     if (cmd.name.isNotEmpty) {
       final q = cmd.name.toLowerCase();
       target = docs
-          .where((d) => d.fileName.toLowerCase().contains(q))
+          .where((d) => d.name.toLowerCase().contains(q))
           .firstOrNull;
     }
     target ??= docs.first;
     final file = target;
     _acted = true;
     _ask(
-      'Delete "${file.fileName}" for ${p.fullName}?',
+      'Delete "${file.name}" for ${p.fullName}?',
       const [
         VoiceChoice(
           'Yes, delete file',
@@ -1522,14 +1527,12 @@ class VoiceController {
       ],
       (i) async {
         if (i == 1) {
-          understood.value = 'Kept "${file.fileName}"';
+          understood.value = 'Kept "${file.name}"';
           return;
         }
         try {
-          await MedicalDocumentLocalService.instance.softDeleteDocument(
-            file.documentId,
-          );
-          understood.value = 'Deleted "${file.fileName}"';
+          await repo.deleteFile(file.id);
+          understood.value = 'Deleted "${file.name}"';
         } catch (e) {
           understood.value = "Couldn't delete file: $e";
         }

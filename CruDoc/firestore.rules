@@ -161,6 +161,113 @@ service cloud.firestore {
     }
 
     // ============================================================
+    // FILES SCREEN - PER-PERSON FOLDERS AND PATIENT FILES
+    // ============================================================
+    // Unlike the clinic-wide collections above, each folder and file is
+    // seen only by the people in its `visibleTo`: person uids, plus 'team'
+    // for everyone in the clinic with clinical access. A top-level folder
+    // (rootId == its own id) carries the sharing; folders and files inside
+    // it copy its visibleTo and point rootId at it. A file in no folder
+    // (rootId == '') is its owner's alone. Clients list with
+    // where('doctorId', '==', clinic) and
+    // where('visibleTo', 'array-contains', uid or 'team').
+    // Records are soft-deleted (isDeleted), never removed.
+
+    function seesFileRecord(d) {
+      return request.auth.uid in d.visibleTo || 'team' in d.visibleTo;
+    }
+
+    // The top-level folder of [d], as it will be once this write is done.
+    function fileRootAfter(d) {
+      return getAfter(/databases/$(database)/documents/file_folders/$(d.rootId)).data;
+    }
+
+    // [d]'s visibility is the one it must have: its top-level folder's, or
+    // (no folder) only its owner.
+    function followsRoot(d) {
+      return d.rootId == ''
+        ? d.visibleTo == [d.ownerUid]
+        : fileRootAfter(d).doctorId == d.doctorId
+          && fileRootAfter(d).visibleTo == d.visibleTo;
+    }
+
+    // Who may change a record: its owner, the owner of the top-level
+    // folder it is in, or a clinic admin.
+    function managesFileRecord(d) {
+      return request.auth.uid == d.ownerUid
+        || clinicAllows(d.doctorId, 'admin')
+        || (d.rootId != ''
+          && get(/databases/$(database)/documents/file_folders/$(d.rootId)).data.ownerUid == request.auth.uid);
+    }
+
+    function validFolder(d, folderId) {
+      return d.ownerUid is string
+        && d.name is string && d.name.size() <= 2000
+        && d.parentId is string
+        && d.sharing in ['private', 'team', 'people']
+        && d.visibleTo is list && d.visibleTo.size() <= 50
+        && (d.rootId == folderId
+          // Top level: carries the sharing; the owner always sees it.
+          ? d.parentId == '' && d.ownerUid in d.visibleTo
+          : d.parentId != '' && followsRoot(d));
+    }
+
+    function validFile(d) {
+      return d.ownerUid is string
+        && d.patientId is string && d.patientId.size() > 0
+        && d.patientId.size() <= 128
+        && d.name is string && d.name.size() <= 2000
+        && d.folderId is string && d.rootId is string
+        && (d.folderId == '') == (d.rootId == '')
+        && d.contentType is string
+        && d.sizeBytes is int
+        && d.storagePath is string
+        && d.visibleTo is list && d.visibleTo.size() <= 50
+        && followsRoot(d);
+    }
+
+    match /file_folders/{folderId} {
+      allow get: if isAuthenticated()
+        && (resource == null
+          || (clinicAllows(resource.data.doctorId, 'clinical.view')
+            && seesFileRecord(resource.data)));
+      allow list: if clinicAllows(resource.data.doctorId, 'clinical.view')
+        && seesFileRecord(resource.data);
+      allow create: if clinicAllows(request.resource.data.doctorId, 'clinical.edit')
+        && request.resource.data.ownerUid == request.auth.uid
+        && seesFileRecord(request.resource.data)
+        && validFolder(request.resource.data, folderId);
+      allow update: if clinicAllows(resource.data.doctorId, 'clinical.edit')
+        && seesFileRecord(resource.data)
+        && managesFileRecord(resource.data)
+        && request.resource.data.doctorId == resource.data.doctorId
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && validFolder(request.resource.data, folderId);
+      allow delete: if false;
+    }
+
+    match /patient_files/{fileId} {
+      allow get: if isAuthenticated()
+        && (resource == null
+          || (clinicAllows(resource.data.doctorId, 'clinical.view')
+            && seesFileRecord(resource.data)));
+      allow list: if clinicAllows(resource.data.doctorId, 'clinical.view')
+        && seesFileRecord(resource.data);
+      // Adding to a folder needs only that the folder is shared with you.
+      allow create: if clinicAllows(request.resource.data.doctorId, 'clinical.edit')
+        && request.resource.data.ownerUid == request.auth.uid
+        && seesFileRecord(request.resource.data)
+        && validFile(request.resource.data);
+      allow update: if clinicAllows(resource.data.doctorId, 'clinical.edit')
+        && seesFileRecord(resource.data)
+        && managesFileRecord(resource.data)
+        && request.resource.data.doctorId == resource.data.doctorId
+        && request.resource.data.ownerUid == resource.data.ownerUid
+        && validFile(request.resource.data);
+      allow delete: if false;
+    }
+
+    // ============================================================
     // PATIENT ACCESS LOG - APPEND ONLY
     // ============================================================
     // Written by AccessAuditService when a patient record is opened or a
@@ -168,8 +275,13 @@ service cloud.firestore {
     // and read their own log; nobody can change or delete an entry.
 
     match /access_logs/{logId} {
-      allow get: if isAuthenticated() && (resource == null || clinicAllows(resource.data.doctorId, 'team'));
-      allow list: if clinicAllows(resource.data.doctorId, 'team');
+      // Super Admin sees only the team events the clinicTeam function writes
+      // (platform == 'server'), never patient.view / file.download entries.
+      // Query with where('platform', '==', 'server').
+      allow get: if isAuthenticated() && (resource == null || clinicAllows(resource.data.doctorId, 'team')
+        || (isSuperAdmin() && resource.data.platform == 'server'));
+      allow list: if clinicAllows(resource.data.doctorId, 'team')
+        || (isSuperAdmin() && resource.data.platform == 'server');
       allow create: if isAuthenticated()
         && clinicAllows(request.resource.data.doctorId, 'member')
         && request.resource.data.actorUid == request.auth.uid
@@ -281,7 +393,8 @@ service cloud.firestore {
       allow create, delete: if false;
 
       match /members/{uid} {
-        allow read: if clinicAllows(clinicId, 'member');
+        // Super Admin monitors who works in each clinic (read only).
+        allow read: if isSuperAdmin() || clinicAllows(clinicId, 'member');
         allow update: if isSelf(uid)
           && resource.data.active == true
           && request.resource.data.diff(resource.data).affectedKeys()
@@ -293,14 +406,24 @@ service cloud.firestore {
       }
 
       match /roles/{roleId} {
-        allow read: if clinicAllows(clinicId, 'member');
+        allow read: if isSuperAdmin() || clinicAllows(clinicId, 'member');
         allow write: if false;
       }
 
       match /invites/{inviteId} {
-        allow read: if clinicAllows(clinicId, 'team');
+        allow read: if isSuperAdmin() || clinicAllows(clinicId, 'team');
         allow write: if false;
       }
+    }
+
+    // Super Admin clinic overview: one collection-group read per kind instead
+    // of one query per clinic. Read only; nothing here lets anyone else in.
+    match /{path=**}/members/{uid} {
+      allow read: if isSuperAdmin();
+    }
+
+    match /{path=**}/invites/{inviteId} {
+      allow read: if isSuperAdmin();
     }
 
     // ============================================================

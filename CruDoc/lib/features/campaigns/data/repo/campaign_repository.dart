@@ -63,16 +63,30 @@ class CampaignRepository {
     return CampaignModel.fromFirestore(doc);
   }
 
-  /// Deletes a campaign and its recipient logs.
+  /// Deletes a campaign and all of its recipient logs.
+  ///
+  /// Recipient logs are removed in batches until the subcollection is drained,
+  /// so campaigns with more than 500 recipients do not leave orphaned docs.
   Future<void> deleteCampaign(String doctorId, String campaignId) async {
     final recCol = _recipientsCol(doctorId, campaignId);
-    final recSnap = await recCol.limit(500).get();
-    final batch = _firestore.batch();
-    for (final doc in recSnap.docs) {
-      batch.delete(doc.reference);
+
+    // Firestore caps a batch at 500 writes; page through until empty.
+    const pageSize = 450;
+    while (true) {
+      final recSnap = await recCol.limit(pageSize).get();
+      if (recSnap.docs.isEmpty) break;
+
+      final batch = _firestore.batch();
+      for (final doc in recSnap.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
+
+      // A short page means the subcollection is now empty.
+      if (recSnap.docs.length < pageSize) break;
     }
-    batch.delete(_campaignsCol(doctorId).doc(campaignId));
-    await batch.commit();
+
+    await _campaignsCol(doctorId).doc(campaignId).delete();
   }
 
   /// Real-time stream of all campaigns belonging to the specified doctor.

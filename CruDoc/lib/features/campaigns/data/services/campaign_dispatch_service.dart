@@ -30,9 +30,11 @@ class CampaignDispatchService {
     'WHATSAPP_DEV_TOKEN',
     defaultValue: '',
   );
+  // No baked-in default: the developer escape hatch below is inert unless both
+  // this and WHATSAPP_DEV_TOKEN are supplied via --dart-define.
   static const _metaPhoneId = String.fromEnvironment(
     'WHATSAPP_PHONE_NUMBER_ID',
-    defaultValue: '1260194177180019',
+    defaultValue: '',
   );
 
   static const _gmailNotConnectedError =
@@ -551,7 +553,7 @@ class CampaignDispatchService {
         WhatsAppTemplateService.normalizePhone(phone) ?? phone;
 
     // Developer-only direct Meta dispatch against a test number.
-    if (_devMetaToken.isNotEmpty) {
+    if (_devMetaToken.isNotEmpty && _metaPhoneId.isNotEmpty) {
       final metaUrl = Uri.parse(
         'https://graph.facebook.com/v20.0/$_metaPhoneId/messages',
       );

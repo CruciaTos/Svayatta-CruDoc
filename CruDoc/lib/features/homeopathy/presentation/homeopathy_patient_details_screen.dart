@@ -15,6 +15,7 @@ import 'package:doctor_management_app/features/patients/data/providers/patient_p
 import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy_case_sheet.dart';
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_case_taking_sheet.dart';
+import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
 
 const Color _accentEmerald = Color(0xFF059669);
 const Color _accentEmeraldLight = Color(0xFFD1FAE5);
@@ -302,6 +303,9 @@ class _HomeopathyPatientDetailsScreenState
 
                     // Doctor's Common Note
                     _HomeoDoctorsNoteCard(note: _note, onTap: _openNoteEditor),
+                    // Every file and report added for this patient.
+                    const SizedBox(height: 16),
+                    PatientFilesCard(patient: patient),
                     const SizedBox(height: 20),
 
                     // Contact Section

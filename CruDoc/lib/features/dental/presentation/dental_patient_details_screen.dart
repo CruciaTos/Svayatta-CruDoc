@@ -25,6 +25,8 @@ import 'package:doctor_management_app/features/radiology/open_study.dart';
 import 'package:doctor_management_app/features/radiology/presentation/rad_import_flow.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
+import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
 
 const Color _accentTeal = Color(0xFF0D9488);
 const Color _accentTealLight = Color(0xFFCCFBF1);
@@ -264,6 +266,14 @@ class _DentalPatientDetailsScreenState
                     _buildImagingSection(patient),
 
                     const SizedBox(height: 16),
+
+                    // Section: every file and report added for this patient.
+                    if (ref.watch(
+                      clinicCanProvider(ClinicPermission.clinicalView),
+                    )) ...[
+                      PatientFilesCard(patient: patient),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Section: Tooth Chart (Odontogram)
                     _buildOdontogramSection(toothChartAsync),

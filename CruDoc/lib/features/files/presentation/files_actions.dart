@@ -1,7 +1,11 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:doctor_management_app/features/dashboard/presentation/dashboard_actions.dart';
@@ -16,6 +20,7 @@ import 'package:doctor_management_app/features/files/presentation/files_dialogs.
 import 'package:doctor_management_app/features/appointments/presentation/patient_picker_dialog.dart';
 import 'package:doctor_management_app/features/mobile/mobile_more.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
+import 'package:doctor_management_app/features/radiology/open_dicom_file.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 /// What the Files screen and the patient's Files card can do. Dialogs open
@@ -45,10 +50,27 @@ abstract final class FilesActions {
 
   // ───────────────────────────── Opening ─────────────────────────────
 
-  /// Opens a file straight away: pictures and PDFs inside CruDoc, anything
-  /// else in the computer's own app. Downloads it first when this device
+  /// Opens a file straight away: pictures and PDFs inside CruDoc, DICOM in
+  /// CruDoc's X-ray viewer, anything else in the computer's own app. Downloads it first when this device
   /// doesn't have it yet.
   static Future<void> open(
+    BuildContext context,
+    PatientFile file, {
+    required String patientName,
+  }) async {
+    // A double tap reaches here twice; the second must not open it again.
+    if (_opening) return;
+    _opening = true;
+    try {
+      await _open(context, file, patientName: patientName);
+    } finally {
+      _opening = false;
+    }
+  }
+
+  static bool _opening = false;
+
+  static Future<void> _open(
     BuildContext context,
     PatientFile file, {
     required String patientName,
@@ -66,6 +88,18 @@ abstract final class FilesActions {
     try {
       final local = await FilesRepository.instance.localCopy(file);
       messenger?.hideCurrentSnackBar();
+      // DICOM opens in CruDoc's own X-ray viewer, not another app.
+      if (file.contentType == PatientFileTypes.dicom &&
+          !kIsWeb &&
+          context.mounted) {
+        final shown = await openDicomFileInViewer(
+          context,
+          file: file,
+          local: local,
+          patientName: patientName,
+        );
+        if (shown) return;
+      }
       final inApp =
           PatientFileTypes.isViewableImage(file.contentType) ||
           file.contentType == 'application/pdf';
@@ -143,6 +177,19 @@ abstract final class FilesActions {
     String? patientId,
     String folderId = '',
   }) async {
+    // On a phone the doctor often photographs a paper report there and then.
+    if (_onPhone) {
+      final camera = await _askTakePhoto(context);
+      if (camera == null || !context.mounted) return;
+      if (camera) {
+        await _takePhotoAndAdd(
+          context,
+          patientId: patientId,
+          folderId: folderId,
+        );
+        return;
+      }
+    }
     final result = await FilePicker.pickFiles(
       allowMultiple: true,
       withData: kIsWeb,
@@ -160,6 +207,76 @@ abstract final class FilesActions {
     await addSources(
       context,
       sources,
+      patientId: patientId,
+      folderId: folderId,
+    );
+  }
+
+  static bool get _onPhone =>
+      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+  /// True for the camera, false for files, null when dismissed.
+  static Future<bool?> _askTakePhoto(BuildContext context) =>
+      showModalBottomSheet<bool>(
+        context: context,
+        useRootNavigator: true,
+        showDragHandle: true,
+        builder: (sheet) => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              0,
+              CruSpace.s8,
+              CruSpace.s16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: const Text('Take a photo'),
+                  onTap: () => Navigator.pop(sheet, true),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.folder_open_outlined),
+                  title: const Text('Choose files'),
+                  onTap: () => Navigator.pop(sheet, false),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+
+  static Future<void> _takePhotoAndAdd(
+    BuildContext context, {
+    String? patientId,
+    String folderId = '',
+  }) async {
+    final XFile? photo;
+    try {
+      photo = await ImagePicker().pickImage(
+        source: ImageSource.camera,
+        imageQuality: 85,
+      );
+    } catch (e) {
+      debugPrint('[Files] camera: $e');
+      if (context.mounted) say(context, 'The camera couldn’t be opened.');
+      return;
+    }
+    if (photo == null) return;
+    final size = await File(photo.path).length();
+    if (!context.mounted) return;
+    final now = DateTime.now();
+    String two(int n) => n.toString().padLeft(2, '0');
+    final dot = photo.path.lastIndexOf('.');
+    final ext = dot >= 0 ? photo.path.substring(dot) : '.jpg';
+    final name =
+        'Photo ${now.year}-${two(now.month)}-${two(now.day)} '
+        '${two(now.hour)}.${two(now.minute)}.${two(now.second)}$ext';
+    await addSources(
+      context,
+      [FileSource(name: name, sizeBytes: size, path: photo.path)],
       patientId: patientId,
       folderId: folderId,
     );

@@ -6,14 +6,16 @@ import 'package:doctor_management_app/features/files/data/file_types.dart';
 import 'package:doctor_management_app/features/files/data/files_providers.dart';
 import 'package:doctor_management_app/features/files/data/files_repository.dart';
 import 'package:doctor_management_app/features/files/domain/files_builder.dart';
+import 'package:doctor_management_app/features/files/presentation/widgets/files_bars.dart';
 import 'package:doctor_management_app/features/files/presentation/widgets/files_style.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/data/providers/patient_providers.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
-/// "Add files": what was chosen or dropped, the patient they are for
-/// (required: a file can't be saved without one) and the folder. Returns
-/// how many were added, or null when cancelled.
+/// "Add files": what was chosen or dropped, the patient each file is for
+/// (required: a file can't be saved without one) and the folder. Each file
+/// can go to a different patient. Returns how many were added, or null
+/// when cancelled.
 Future<int?> showAddFilesDialog(
   BuildContext context, {
   required List<FileSource> sources,
@@ -43,70 +45,133 @@ class _AddFilesDialog extends ConsumerStatefulWidget {
   ConsumerState<_AddFilesDialog> createState() => _AddFilesDialogState();
 }
 
+/// One chosen file and the patient it is going to.
+class _Item {
+  _Item(this.source, this.patient);
+
+  final FileSource source;
+  Patient? patient;
+
+  bool get ok => source.problem == null;
+}
+
 class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
-  Patient? _patient;
+  late final List<_Item> _items;
   late String _folderId = widget.folderId;
   bool _saving = false;
-  String? _patientError;
+  bool _removedAny = false;
+
+  /// After a submit with files still missing a patient, those rows say so.
+  bool _showMissing = false;
   String? _notice;
 
   @override
   void initState() {
     super.initState();
+    Patient? preset;
     final id = widget.patientId;
     if (id != null) {
       final patients = ref.read(patientsStreamProvider).value ?? const [];
       for (final p in patients) {
-        if (p.id == id) _patient = p;
+        if (p.id == id) preset = p;
       }
     }
+    _items = [for (final s in widget.sources) _Item(s, preset)];
   }
 
-  List<FileSource> get _ok => [
-    for (final s in widget.sources)
-      if (s.problem == null) s,
+  List<_Item> get _ok => [
+    for (final i in _items)
+      if (i.ok) i,
   ];
 
-  Future<void> _pickPatient() async {
+  /// Files that can be added but have no patient yet.
+  List<_Item> get _missing => [
+    for (final i in _ok)
+      if (i.patient == null) i,
+  ];
+
+  Future<void> _pickPatient(_Item item) async {
     final p = await showPatientPickerDialog(
       context,
-      title: 'Who are these files for?',
+      title: 'Who is “${item.source.name}” for?',
     );
     if (p != null && mounted) {
       setState(() {
-        _patient = p;
-        _patientError = null;
+        item.patient = p;
+        if (_missing.isEmpty) _notice = null;
       });
     }
   }
 
+  void _remove(_Item item) {
+    setState(() {
+      _items.remove(item);
+      _removedAny = true;
+      if (_missing.isEmpty) _notice = null;
+    });
+    if (_items.isEmpty) Navigator.of(context).pop();
+  }
+
+  /// Gives [item]'s patient to every file that has none yet.
+  void _useForRest(_Item item) {
+    final p = item.patient;
+    if (p == null) return;
+    setState(() {
+      for (final i in _missing) {
+        i.patient = p;
+      }
+      _notice = null;
+    });
+  }
+
   Future<void> _save() async {
-    final patient = _patient;
-    if (patient == null) {
-      setState(() => _patientError = 'Choose the patient these files are for.');
+    final ok = _ok;
+    if (ok.isEmpty) {
+      setState(() => _notice = 'None of these files can be added.');
       return;
     }
-    if (_ok.isEmpty) {
-      setState(() => _notice = 'None of these files can be added.');
+    final missing = _missing.length;
+    if (missing > 0) {
+      setState(() {
+        _showMissing = true;
+        _notice = missing == 1
+            ? 'Choose a patient for 1 file, or remove it.'
+            : 'Choose a patient for $missing files, or remove them.';
+      });
       return;
     }
     setState(() {
       _saving = true;
       _notice = null;
     });
+
+    // One add per patient, in the order the patients first appear.
+    final groups = <String, List<_Item>>{};
+    for (final i in ok) {
+      groups.putIfAbsent(i.patient!.id, () => []).add(i);
+    }
+    var added = 0;
     try {
-      final added = await FilesRepository.instance.addFiles(
-        _ok,
-        patientId: patient.id,
-        folderId: _folderId,
-      );
+      for (final entry in groups.entries) {
+        added += await FilesRepository.instance.addFiles(
+          [for (final i in entry.value) i.source],
+          patientId: entry.key,
+          folderId: _folderId,
+        );
+        // Saved: drop them, so a retry after an error doesn't add them twice.
+        _items.removeWhere(entry.value.contains);
+      }
       if (mounted) Navigator.of(context).pop(added);
     } catch (e) {
+      if (!mounted) return;
+      final why = e is FilesException
+          ? e.message
+          : "Couldn't add the files. Try again.";
       setState(() {
         _saving = false;
-        _notice = e is FilesException
-            ? e.message
-            : "Couldn't add the files. Try again.";
+        _notice = added == 0
+            ? why
+            : '${added == 1 ? '1 file was' : '$added files were'} added. $why';
       });
     }
   }
@@ -115,9 +180,10 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
   Widget build(BuildContext context) {
     final c = context.cru;
     final ok = _ok;
-    final total = ok.fold<int>(0, (sum, s) => sum + s.sizeBytes);
+    final total = ok.fold<int>(0, (sum, i) => sum + i.source.sizeBytes);
     final folders = ref.watch(filesViewProvider).value?.allFolders ?? const [];
     final count = ok.length;
+    final missing = _missing.length;
     return CruFormDialog(
       title: count == 1 ? 'Add file' : 'Add $count files',
       subtitle: count == 0
@@ -130,7 +196,11 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
       submitLabel: count == 1 ? 'Add file' : 'Add files',
       onSubmit: _save,
       busy: _saving,
-      dirty: _patient != null && _patient!.id != widget.patientId,
+      dirty:
+          _removedAny ||
+          _items.any(
+            (i) => i.patient != null && i.patient!.id != widget.patientId,
+          ),
       notice: _notice,
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -138,27 +208,29 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
           CruFormSection(
             first: true,
             title: 'Files',
+            description:
+                'Every file belongs to a patient. Each one can be '
+                'for someone different.',
             children: [
               Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  for (final s in widget.sources) _SourceRow(source: s),
+                  for (final i in _items)
+                    _ItemRow(
+                      item: i,
+                      showMissing: _showMissing,
+                      remaining: i.patient == null ? 0 : missing,
+                      onPickPatient: () => _pickPatient(i),
+                      onRemove: () => _remove(i),
+                      onUseForRest: () => _useForRest(i),
+                    ),
                 ],
               ),
             ],
           ),
           CruFormSection(
-            title: 'Where',
-            description: 'Every file belongs to a patient.',
+            title: 'Folder',
             children: [
-              CruPickerField(
-                label: 'Patient',
-                icon: CruIcons.user,
-                value: _patient?.fullName,
-                placeholder: 'Choose a patient',
-                onTap: _pickPatient,
-                error: _patientError,
-              ),
               CruDropdownField<String>(
                 label: 'Folder',
                 icon: FileIcons.folder,
@@ -171,7 +243,7 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
               ),
             ],
           ),
-          if (widget.sources.length != ok.length)
+          if (_items.length != ok.length)
             Padding(
               padding: const EdgeInsets.only(top: CruSpace.s8),
               child: Text(
@@ -187,16 +259,49 @@ class _AddFilesDialogState extends ConsumerState<_AddFilesDialog> {
   }
 }
 
-class _SourceRow extends StatelessWidget {
-  const _SourceRow({required this.source});
+/// A file: its name, type and size, the patient it goes to, and a ▾ menu
+/// to remove it or give its patient to every file that has none yet.
+class _ItemRow extends StatelessWidget {
+  const _ItemRow({
+    required this.item,
+    required this.showMissing,
+    required this.remaining,
+    required this.onPickPatient,
+    required this.onRemove,
+    required this.onUseForRest,
+  });
 
-  final FileSource source;
+  final _Item item;
+  final bool showMissing;
+
+  /// Files without a patient that this row's patient could be given to.
+  final int remaining;
+  final VoidCallback onPickPatient;
+  final VoidCallback onRemove;
+  final VoidCallback onUseForRest;
+
+  static String _typeAndSize(FileSource s) {
+    final dot = s.name.lastIndexOf('.');
+    final ext = dot >= 0 && dot < s.name.length - 1
+        ? s.name.substring(dot + 1).toUpperCase()
+        : '';
+    final size = PatientFileTypes.sizeLabel(s.sizeBytes);
+    return ext.isEmpty ? size : '$ext · $size';
+  }
+
+  /// The patient's name, cut short so the row keeps one line.
+  static String _short(String name) =>
+      name.length > 22 ? '${name.substring(0, 21).trimRight()}…' : name;
 
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
+    final source = item.source;
     final type = source.contentType;
     final problem = source.problem;
+    final patient = item.patient;
+    final needsPatient = problem == null && patient == null && showMissing;
+    final narrow = MediaQuery.sizeOf(context).width < CruBreakpoint.phone;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: CruSpace.s6),
       child: Row(
@@ -219,13 +324,50 @@ class _SourceRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
-                  problem ?? PatientFileTypes.sizeLabel(source.sizeBytes),
-                  style: problem == null
+                  problem ??
+                      (needsPatient
+                          ? '${_typeAndSize(source)} · Needs a patient'
+                          : _typeAndSize(source)),
+                  style: problem == null && !needsPatient
                       ? CruType.subhead.tabular.tint(c.label2)
                       : CruType.subhead.w600.tint(c.amberText),
                   maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
+            ),
+          ),
+          if (problem == null) ...[
+            const SizedBox(width: CruSpace.s8),
+            CruCapsuleButton(
+              // Phones get a shorter label so the file name keeps room.
+              label: narrow
+                  ? (patient == null
+                        ? 'Choose'
+                        : _short(patient.firstName.trim()))
+                  : (patient == null
+                        ? 'Choose patient'
+                        : _short(patient.fullName.trim())),
+              icon: CruIcons.user,
+              onPressed: onPickPatient,
+            ),
+          ],
+          const SizedBox(width: CruSpace.s4),
+          FilesMenu(
+            // Opens inward so it stays inside the form.
+            endAlignedWidth: 160,
+            items: [
+              FilesMenuItem('Remove', onRemove),
+              if (patient != null && remaining > 0)
+                FilesMenuItem('Apply to rest', onUseForRest),
+            ],
+            builder: (context, open) => CruIconButton(
+              icon: CruIcons.chevronDown,
+              size: CruSize.capsule,
+              iconSize: 18,
+              semanticLabel: 'Options for ${source.name}',
+              tooltip: 'Options',
+              onPressed: open,
             ),
           ),
         ],

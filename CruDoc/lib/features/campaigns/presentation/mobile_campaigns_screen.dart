@@ -1,27 +1,32 @@
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_recipient_log.dart';
 import '../data/models/campaign_enums.dart';
+import '../data/providers/campaign_providers.dart';
 import '../data/repo/campaign_repository.dart';
 import '../data/services/campaign_dispatch_service.dart';
 import 'mobile_post_campaign_sheet.dart';
 
 /// CruDoc Mobile Campaign Management Screen.
 /// Seamlessly matches the app's clean typography, card surfaces, and color palette.
-class MobileCampaignsScreen extends StatefulWidget {
+class MobileCampaignsScreen extends ConsumerStatefulWidget {
   const MobileCampaignsScreen({super.key});
 
   @override
-  State<MobileCampaignsScreen> createState() => _MobileCampaignsScreenState();
+  ConsumerState<MobileCampaignsScreen> createState() =>
+      _MobileCampaignsScreenState();
 }
 
-class _MobileCampaignsScreenState extends State<MobileCampaignsScreen> {
-  final CampaignRepository _campaignRepository = CampaignRepository();
-  final CampaignDispatchService _dispatchService = CampaignDispatchService();
+class _MobileCampaignsScreenState extends ConsumerState<MobileCampaignsScreen> {
+  CampaignRepository get _campaignRepository =>
+      ref.read(campaignRepositoryProvider);
+  CampaignDispatchService get _dispatchService =>
+      ref.read(campaignDispatchServiceProvider);
 
   String _searchQuery = '';
   CampaignCategory? _selectedCategory;

@@ -1,8 +1,10 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:doctor_management_app/features/campaigns/data/models/campaign_enums.dart';
 import 'package:doctor_management_app/features/campaigns/data/models/campaign_model.dart';
+import 'package:doctor_management_app/features/campaigns/data/providers/campaign_providers.dart';
 import 'package:doctor_management_app/features/campaigns/data/repo/campaign_repository.dart';
 import 'package:doctor_management_app/features/campaigns/data/services/campaign_dispatch_service.dart';
 import 'package:doctor_management_app/features/campaigns/presentation/campaign_analytics_dialog.dart';
@@ -14,15 +16,18 @@ import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 /// Campaigns on the phone: how many patients your messages reached, then
 /// every campaign with its delivery. Tap one for its log, a retry of the
 /// failed sends, or delete.
-class MobileCampaignsPage extends StatefulWidget {
+class MobileCampaignsPage extends ConsumerStatefulWidget {
   const MobileCampaignsPage({super.key});
 
   @override
-  State<MobileCampaignsPage> createState() => _MobileCampaignsPageState();
+  ConsumerState<MobileCampaignsPage> createState() =>
+      _MobileCampaignsPageState();
 }
 
-class _MobileCampaignsPageState extends State<MobileCampaignsPage> {
-  final _repo = CampaignRepository();
+class _MobileCampaignsPageState extends ConsumerState<MobileCampaignsPage> {
+  CampaignRepository get _repo => ref.read(campaignRepositoryProvider);
+  CampaignDispatchService get _dispatch =>
+      ref.read(campaignDispatchServiceProvider);
   late final Stream<List<CampaignModel>> _stream = _repo.watchDoctorCampaigns(
     FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
   );
@@ -57,7 +62,7 @@ class _MobileCampaignsPageState extends State<MobileCampaignsPage> {
             MobileHeader(
               pushed: true,
               title: 'Campaigns',
-              subtitle: 'Health notes to your patients on WhatsApp and email',
+              subtitle: 'Health notes to your patients by email',
               trailing: MobileCircleButton(
                 icon: CruIcons.plus,
                 semanticLabel: 'Post a campaign',
@@ -139,7 +144,14 @@ class _MobileCampaignsPageState extends State<MobileCampaignsPage> {
               ],
               const SizedBox(height: CruSpace.s16),
               MobileRowGroup(
-                children: [for (final x in shown) _CampaignRow(campaign: x)],
+                children: [
+                  for (final x in shown)
+                    _CampaignRow(
+                      campaign: x,
+                      repository: _repo,
+                      dispatchService: _dispatch,
+                    ),
+                ],
               ),
             ],
           ],
@@ -176,9 +188,15 @@ class _Figure extends StatelessWidget {
 }
 
 class _CampaignRow extends StatelessWidget {
-  const _CampaignRow({required this.campaign});
+  const _CampaignRow({
+    required this.campaign,
+    required this.repository,
+    required this.dispatchService,
+  });
 
   final CampaignModel campaign;
+  final CampaignRepository repository;
+  final CampaignDispatchService dispatchService;
 
   String get _channel => switch (campaign.channels) {
     CampaignChannel.email => 'Email',
@@ -211,7 +229,7 @@ class _CampaignRow extends StatelessWidget {
             label: 'Retry the failed sends',
             icon: CruIcons.play,
             tone: MobileTone.amber,
-            onTap: () => CampaignDispatchService().retryFailedRecipients(
+            onTap: () => dispatchService.retryFailedRecipients(
               doctorId: x.doctorId,
               campaignId: x.id,
             ),
@@ -229,8 +247,7 @@ class _CampaignRow extends StatelessWidget {
                 label: 'Delete',
                 icon: CruIcons.close,
                 destructive: true,
-                onTap: () =>
-                    CampaignRepository().deleteCampaign(x.doctorId, x.id),
+                onTap: () => repository.deleteCampaign(x.doctorId, x.id),
               ),
             ],
           ),

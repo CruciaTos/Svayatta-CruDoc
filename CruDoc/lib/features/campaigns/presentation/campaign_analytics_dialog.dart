@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_recipient_log.dart';
 import '../data/models/campaign_enums.dart';
+import '../data/providers/campaign_providers.dart';
 import '../data/repo/campaign_repository.dart';
 import '../data/services/campaign_dispatch_service.dart';
 
 /// Detailed inspection dialog displaying real-time delivery logs, channel breakdowns,
 /// error diagnostics, and a 1-click retry option for failed recipients.
-class CampaignAnalyticsDialog extends StatefulWidget {
+class CampaignAnalyticsDialog extends ConsumerStatefulWidget {
   const CampaignAnalyticsDialog({
     super.key,
     required this.campaign,
@@ -39,13 +41,16 @@ class CampaignAnalyticsDialog extends StatefulWidget {
   }
 
   @override
-  State<CampaignAnalyticsDialog> createState() =>
+  ConsumerState<CampaignAnalyticsDialog> createState() =>
       _CampaignAnalyticsDialogState();
 }
 
-class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
-  final CampaignRepository _campaignRepository = CampaignRepository();
-  final CampaignDispatchService _dispatchService = CampaignDispatchService();
+class _CampaignAnalyticsDialogState
+    extends ConsumerState<CampaignAnalyticsDialog> {
+  CampaignRepository get _campaignRepository =>
+      ref.read(campaignRepositoryProvider);
+  CampaignDispatchService get _dispatchService =>
+      ref.read(campaignDispatchServiceProvider);
 
   late CampaignModel _currentCampaign;
   String _filter = 'all'; // 'all', 'delivered', 'failed', 'email', 'whatsapp'

@@ -1,10 +1,12 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_enums.dart';
+import '../data/providers/campaign_providers.dart';
 import '../data/repo/campaign_repository.dart';
 import '../data/services/campaign_dispatch_service.dart';
 import 'post_campaign_modal.dart';
@@ -28,16 +30,20 @@ const _kBorderLight = Color(0xFFE2E8F0);
 const _kCardBg = Colors.white;
 
 /// Full desktop Campaign Management Hub screen.
-class DesktopCampaignsScreen extends StatefulWidget {
+class DesktopCampaignsScreen extends ConsumerStatefulWidget {
   const DesktopCampaignsScreen({super.key});
 
   @override
-  State<DesktopCampaignsScreen> createState() => _DesktopCampaignsScreenState();
+  ConsumerState<DesktopCampaignsScreen> createState() =>
+      _DesktopCampaignsScreenState();
 }
 
-class _DesktopCampaignsScreenState extends State<DesktopCampaignsScreen> {
-  final CampaignRepository _campaignRepository = CampaignRepository();
-  final CampaignDispatchService _dispatchService = CampaignDispatchService();
+class _DesktopCampaignsScreenState
+    extends ConsumerState<DesktopCampaignsScreen> {
+  CampaignRepository get _campaignRepository =>
+      ref.read(campaignRepositoryProvider);
+  CampaignDispatchService get _dispatchService =>
+      ref.read(campaignDispatchServiceProvider);
   final TextEditingController _searchController = TextEditingController();
 
   String _searchQuery = '';

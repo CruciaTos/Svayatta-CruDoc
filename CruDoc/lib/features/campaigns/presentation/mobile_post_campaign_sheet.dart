@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
@@ -11,12 +12,13 @@ import 'package:doctor_management_app/features/patients/data/repo/patient_reposi
 import 'package:crudoc_shared/theme/cru_colors.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_enums.dart';
+import '../data/providers/campaign_providers.dart';
 import '../data/services/campaign_audience_helper.dart';
 import '../data/services/campaign_dispatch_service.dart';
 
 /// Touch-friendly Campaign composer bottom sheet modal.
 /// Fully respects CruColors day/evening (light/dark) theme.
-class MobilePostCampaignSheet extends StatefulWidget {
+class MobilePostCampaignSheet extends ConsumerStatefulWidget {
   const MobilePostCampaignSheet({
     super.key,
     this.initialCategory,
@@ -43,14 +45,16 @@ class MobilePostCampaignSheet extends StatefulWidget {
   }
 
   @override
-  State<MobilePostCampaignSheet> createState() =>
+  ConsumerState<MobilePostCampaignSheet> createState() =>
       _MobilePostCampaignSheetState();
 }
 
-class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
+class _MobilePostCampaignSheetState
+    extends ConsumerState<MobilePostCampaignSheet> {
   static const _uuid = Uuid();
   final PatientRepository _patientRepository = PatientRepository();
-  final CampaignDispatchService _dispatchService = CampaignDispatchService();
+  CampaignDispatchService get _dispatchService =>
+      ref.read(campaignDispatchServiceProvider);
   final GmailAuthService _gmailAuthService = GmailAuthService();
 
   int _currentStep = 0; // 0: Compose, 1: Audience, 2: Preview, 3: Dispatching
@@ -800,22 +804,42 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   // STEP 3: PREVIEW
   // ===========================================================================
   Widget _buildStep3Preview(CruColors c) {
-    final samplePatient = _filteredAudience.isNotEmpty
-        ? _filteredAudience.first
-        : Patient(
-            id: 'sample',
-            firstName: 'Rahul',
-            lastName: 'Sharma',
-            phone: '+919876543210',
-            email: 'rahul@example.com',
-            gender: 'Male',
-            dateOfBirth: DateTime(1985, 4, 12),
-            diagnosis: const [],
-            packageBalance: 0,
-            isArchived: false,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
+    // Preview is personalised against a real recipient. With no audience there
+    // is nothing to preview — show guidance rather than a fabricated patient.
+    if (_filteredAudience.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.groups_outlined, size: 40, color: c.label3),
+            const SizedBox(height: 12),
+            Text(
+              'No recipients to preview',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+                color: c.label,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Choose an audience with at least one patient to see how the '
+              'message will look.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 12.5,
+                color: c.label2,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final samplePatient = _filteredAudience.first;
 
     final whatsAppText = CampaignAudienceHelper.buildFormattedWhatsAppText(
       _messageController.text.trim().isNotEmpty

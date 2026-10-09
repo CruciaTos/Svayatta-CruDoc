@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
@@ -7,12 +8,13 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/patients/data/repo/patient_repository.dart';
 import '../data/models/campaign_model.dart';
 import '../data/models/campaign_enums.dart';
+import '../data/providers/campaign_providers.dart';
 import '../data/services/campaign_audience_helper.dart';
 import '../data/services/campaign_dispatch_service.dart';
 
 /// Interactive modal wizard allowing doctors to compose, target, preview,
 /// and dispatch campaigns to patients via Email and WhatsApp.
-class PostCampaignModal extends StatefulWidget {
+class PostCampaignModal extends ConsumerStatefulWidget {
   const PostCampaignModal({
     super.key,
     this.initialCategory,
@@ -45,13 +47,14 @@ class PostCampaignModal extends StatefulWidget {
   }
 
   @override
-  State<PostCampaignModal> createState() => _PostCampaignModalState();
+  ConsumerState<PostCampaignModal> createState() => _PostCampaignModalState();
 }
 
-class _PostCampaignModalState extends State<PostCampaignModal> {
+class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
   static const _uuid = Uuid();
   final PatientRepository _patientRepository = PatientRepository();
-  final CampaignDispatchService _dispatchService = CampaignDispatchService();
+  CampaignDispatchService get _dispatchService =>
+      ref.read(campaignDispatchServiceProvider);
 
   int _currentStep =
       0; // 0: Compose, 1: Audience & Channels, 2: Preview, 3: Dispatching
@@ -1133,22 +1136,39 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
   // STEP 3: LIVE PREVIEW & CONFIRMATION
   // ===========================================================================
   Widget _buildStep3Preview() {
-    final samplePatient = _filteredAudience.isNotEmpty
-        ? _filteredAudience.first
-        : Patient(
-            id: 'sample',
-            firstName: 'Rahul',
-            lastName: 'Sharma',
-            phone: '+91 98765 43210',
-            email: 'rahul.sharma@example.com',
-            gender: 'Male',
-            dateOfBirth: DateTime(1985, 4, 12),
-            diagnosis: ['Diabetes'],
-            packageBalance: 0,
-            isArchived: false,
-            createdAt: DateTime.now(),
-            updatedAt: DateTime.now(),
-          );
+    // Preview is personalised against a real recipient. With no audience there
+    // is nothing to preview — show guidance rather than a fabricated patient.
+    if (_filteredAudience.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(40),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.groups_outlined, size: 48, color: Color(0xFF94A3B8)),
+              SizedBox(height: 14),
+              Text(
+                'No recipients to preview',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  fontSize: 15,
+                  color: Color(0xFF334155),
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Choose an audience with at least one patient to see how the '
+                'message will look.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final samplePatient = _filteredAudience.first;
 
     final whatsAppText = CampaignAudienceHelper.buildFormattedWhatsAppText(
       _messageController.text.trim().isNotEmpty

@@ -71,7 +71,7 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
   final Set<String> _selectedPatientIds = {};
 
   bool _enableEmail = true;
-  bool _enableWhatsApp = true;
+  bool _enableWhatsApp = kWhatsAppCampaignsEnabled;
 
   // Patient Cache
   List<Patient> _allPatients = [];
@@ -1077,22 +1077,35 @@ class _PostCampaignModalState extends State<PostCampaignModal> {
                           : const Color(0xFFE2E8F0),
                     ),
                   ),
-                  secondary: const Icon(
+                  secondary: Icon(
                     Icons.chat_rounded,
-                    color: Color(0xFF16A34A),
+                    color: kWhatsAppCampaignsEnabled
+                        ? const Color(0xFF16A34A)
+                        : const Color(0xFF94A3B8),
                   ),
-                  title: const Text(
+                  title: Text(
                     'WhatsApp Message',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: kWhatsAppCampaignsEnabled
+                          ? const Color(0xFF0F172A)
+                          : const Color(0xFF94A3B8),
+                    ),
                   ),
-                  subtitle: const Text(
-                    'Direct mobile chat notification',
-                    style: TextStyle(fontSize: 11),
+                  subtitle: Text(
+                    kWhatsAppCampaignsEnabled
+                        ? 'Direct mobile chat notification'
+                        : 'Available once your clinic connects its own '
+                              'WhatsApp number. Use Email for now.',
+                    style: const TextStyle(fontSize: 11),
                   ),
-                  onChanged: (val) {
-                    if (val == false && !_enableEmail) return;
-                    setState(() => _enableWhatsApp = val ?? true);
-                  },
+                  onChanged: kWhatsAppCampaignsEnabled
+                      ? (val) {
+                          if (val == false && !_enableEmail) return;
+                          setState(() => _enableWhatsApp = val ?? true);
+                        }
+                      : null,
                 ),
               ),
             ],

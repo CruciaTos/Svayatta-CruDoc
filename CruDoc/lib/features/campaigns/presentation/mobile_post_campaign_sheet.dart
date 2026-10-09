@@ -70,7 +70,7 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
   final Set<String> _selectedPatientIds = {};
 
   bool _enableEmail = true;
-  bool _enableWhatsApp = true;
+  bool _enableWhatsApp = kWhatsAppCampaignsEnabled;
 
   // Patient Cache
   List<Patient> _allPatients = [];
@@ -774,17 +774,22 @@ class _MobilePostCampaignSheetState extends State<MobilePostCampaignSheet> {
                 fontFamily: AppColors.bodyFontFamily,
                 fontWeight: FontWeight.w600,
                 fontSize: 13.5,
-                color: c.label,
+                color: kWhatsAppCampaignsEnabled ? c.label : c.label3,
               ),
             ),
             subtitle: Text(
-              'Delivers automatically via WhatsApp Business Cloud API.',
+              kWhatsAppCampaignsEnabled
+                  ? 'Delivers automatically via WhatsApp Business Cloud API.'
+                  : 'Available once your clinic connects its own WhatsApp '
+                        'number. Use Email for now.',
               style: TextStyle(fontSize: 11, color: c.label2),
             ),
-            onChanged: (v) {
-              if (v == false && !_enableEmail) return;
-              setState(() => _enableWhatsApp = v);
-            },
+            onChanged: kWhatsAppCampaignsEnabled
+                ? (v) {
+                    if (v == false && !_enableEmail) return;
+                    setState(() => _enableWhatsApp = v);
+                  }
+                : null,
           ),
         ],
       ),

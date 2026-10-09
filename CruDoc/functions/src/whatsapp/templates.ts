@@ -72,8 +72,44 @@ export const APPOINTMENT_REMINDER: TemplateSpec = {
   },
 };
 
+/**
+ * A general clinic campaign — a health advisory, a camp, a vaccination drive,
+ * a reopening notice.
+ *
+ * MARKETING, because it is business-initiated outreach rather than a message
+ * about something the patient already did; it therefore needs its own opt-in
+ * and carries a "Stop promotions" button (added by {@link buildCreationPayload}).
+ *
+ * The doctor's composed note becomes the single {{3}} variable, held between a
+ * fixed sender line and a fixed opt-out line. That keeps the body from being
+ * "mostly one variable" — which Meta rejects — and guarantees every campaign
+ * message tells the patient how to stop.
+ *
+ * NOTE: the body here must be submitted to and approved by Meta before it can
+ * send, and the registered name/language/category must match this spec. Refine
+ * the wording with the clinic before submitting.
+ */
+export const CLINIC_CAMPAIGN: TemplateSpec = {
+  key: "clinic_campaign",
+  name: "clinic_campaign_v1",
+  category: "MARKETING",
+  language: "en",
+  paramOrder: ["patientFirstName", "clinicName", "message", "clinicPhone"],
+  body:
+    "Hi {{1}}, an update from {{2}}. {{3}} For any questions or to book, " +
+    "call us on {{4}}. Reply STOP to opt out of these updates.",
+  example: {
+    patientFirstName: "Rahul",
+    clinicName: "Smile Dental Clinic",
+    message:
+      "We are holding a free dental check-up camp this Sunday, 10 AM to 2 PM.",
+    clinicPhone: "9812345678",
+  },
+};
+
 export const TEMPLATES: Record<string, TemplateSpec> = {
   [APPOINTMENT_REMINDER.key]: APPOINTMENT_REMINDER,
+  [CLINIC_CAMPAIGN.key]: CLINIC_CAMPAIGN,
 };
 
 export const TEMPLATE_KEYS = Object.keys(TEMPLATES);

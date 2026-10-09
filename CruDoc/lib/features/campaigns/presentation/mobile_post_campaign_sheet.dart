@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
+import 'package:doctor_management_app/features/messaging/data/providers/gmail_auth_providers.dart';
 import 'package:doctor_management_app/features/messaging/data/services/gmail_auth_service.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
@@ -55,7 +56,9 @@ class _MobilePostCampaignSheetState
   final PatientRepository _patientRepository = PatientRepository();
   CampaignDispatchService get _dispatchService =>
       ref.read(campaignDispatchServiceProvider);
-  final GmailAuthService _gmailAuthService = GmailAuthService();
+  // Shared Gmail auth singleton — the same instance Profile connects, so a
+  // connected account is visible here and used by the dispatch above.
+  GmailAuthService get _gmailAuthService => ref.read(gmailAuthServiceProvider);
 
   int _currentStep = 0; // 0: Compose, 1: Audience, 2: Preview, 3: Dispatching
 
@@ -72,6 +75,7 @@ class _MobilePostCampaignSheetState
   int _selectedAgeMin = 0;
   int _selectedAgeMax = 120;
   final Set<String> _selectedPatientIds = {};
+  String _patientPickerQuery = '';
 
   bool _enableEmail = true;
   bool _enableWhatsApp = kWhatsAppCampaignsEnabled;
@@ -675,6 +679,11 @@ class _MobilePostCampaignSheetState
             ),
           ],
 
+          if (_selectedAudienceType == AudienceType.customSelection) ...[
+            const SizedBox(height: 4),
+            _buildPatientPicker(c),
+          ],
+
           const SizedBox(height: 16),
 
           // Audience Summary Badge
@@ -796,6 +805,170 @@ class _MobilePostCampaignSheetState
                 : null,
           ),
         ],
+      ),
+    );
+  }
+
+  /// Searchable checkbox list for the "Specific Patients" audience.
+  Widget _buildPatientPicker(CruColors c) {
+    if (_isLoadingPatients) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: c.accent),
+          ),
+        ),
+      );
+    }
+
+    final active = _allPatients.where((p) => !p.isArchived).toList();
+    final q = _patientPickerQuery.trim().toLowerCase();
+    final results = q.isEmpty
+        ? active
+        : active
+              .where(
+                (p) =>
+                    p.fullName.toLowerCase().contains(q) ||
+                    p.email.toLowerCase().contains(q) ||
+                    p.phone.toLowerCase().contains(q),
+              )
+              .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          onChanged: (v) => setState(() => _patientPickerQuery = v),
+          style: TextStyle(
+            fontFamily: AppColors.bodyFontFamily,
+            fontSize: 14,
+            color: c.label,
+          ),
+          decoration: InputDecoration(
+            hintText: 'Search patients by name, email or phone',
+            hintStyle: TextStyle(
+              fontFamily: AppColors.bodyFontFamily,
+              fontSize: 14,
+              color: c.label2,
+            ),
+            prefixIcon: Icon(Icons.search_rounded, size: 18, color: c.label2),
+            filled: true,
+            fillColor: c.inset,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: c.accent, width: 1.5),
+            ),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        if (active.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'No patients found.',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                color: c.label2,
+              ),
+            ),
+          )
+        else if (results.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'No patients match your search.',
+              style: TextStyle(
+                fontFamily: AppColors.bodyFontFamily,
+                fontSize: 13,
+                color: c.label2,
+              ),
+            ),
+          )
+        else
+          Container(
+            constraints: const BoxConstraints(maxHeight: 260),
+            decoration: BoxDecoration(
+              color: c.inset,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: ListView.builder(
+              shrinkWrap: true,
+              padding: EdgeInsets.zero,
+              itemCount: results.length,
+              itemBuilder: (_, i) => _buildPatientPickRow(c, results[i]),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPatientPickRow(CruColors c, Patient p) {
+    final selected = _selectedPatientIds.contains(p.id);
+    final contact = p.email.isNotEmpty
+        ? p.email
+        : (p.phone.isNotEmpty ? p.phone : 'No email on file');
+    return InkWell(
+      onTap: () => setState(() {
+        if (selected) {
+          _selectedPatientIds.remove(p.id);
+        } else {
+          _selectedPatientIds.add(p.id);
+        }
+      }),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          children: [
+            Icon(
+              selected
+                  ? Icons.check_box_rounded
+                  : Icons.check_box_outline_blank_rounded,
+              size: 20,
+              color: selected ? c.accent : c.label2,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    p.fullName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
+                      color: c.label,
+                    ),
+                  ),
+                  Text(
+                    contact,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: AppColors.bodyFontFamily,
+                      fontSize: 11.5,
+                      color: p.email.isEmpty ? c.amber : c.label2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

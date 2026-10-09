@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
+import 'package:doctor_management_app/core/errors/gmail_exceptions.dart';
 import 'package:doctor_management_app/features/messaging/data/services/gmail_auth_service.dart';
 import 'package:doctor_management_app/features/messaging/data/services/gmail_send_service.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
@@ -36,6 +38,16 @@ class CampaignDispatchService {
     'WHATSAPP_PHONE_NUMBER_ID',
     defaultValue: '',
   );
+
+  /// Email throttling to stay under Gmail's ~60 sends/min per-user quota:
+  /// at most [_emailChunkSize] concurrent sends, then pause [_emailBatchPause]
+  /// before the next batch (~4 per 5s ≈ 48/min).
+  static const int _emailChunkSize = 4;
+  static const Duration _emailBatchPause = Duration(seconds: 5);
+
+  /// A rate-limited send is retried up to this many times with backoff before
+  /// it is recorded as a failure.
+  static const int _emailMaxAttempts = 4;
 
   static const _gmailNotConnectedError =
       'Email not sent — no Gmail account is connected. '
@@ -141,8 +153,10 @@ class CampaignDispatchService {
       );
     }
 
-    // 3. Process in batches of 10 to protect resources and allow reactive UI updates
-    const chunkSize = 10;
+    // 3. Process in batches, smaller and paced when email is involved so bulk
+    // sends stay under Gmail's per-user per-minute quota (~60 sends/min).
+    final includesEmail = campaign.channels.includesEmail;
+    final chunkSize = includesEmail ? _emailChunkSize : 10;
     for (var i = 0; i < targetPatients.length; i += chunkSize) {
       final chunk = targetPatients.sublist(
         i,
@@ -199,7 +213,7 @@ class CampaignDispatchService {
                     );
 
                 if (isGmailConnected) {
-                  final result = await _gmailSendService.sendEmail(
+                  final result = await _sendEmailWithRetry(
                     to: patient.email.trim(),
                     subject: emailSubject,
                     body: emailHtml,
@@ -309,6 +323,13 @@ class CampaignDispatchService {
         updatedAt: DateTime.now(),
       );
       await _campaignRepository.createCampaign(currentCampaign);
+
+      // Pace real email batches to stay under the Gmail quota. Skipped after
+      // the last batch, when simulating, and when email is not a channel.
+      final isLastChunk = i + chunkSize >= targetPatients.length;
+      if (includesEmail && isGmailConnected && !isLastChunk) {
+        await Future.delayed(_emailBatchPause);
+      }
     }
 
     // 4. Final Status Evaluation
@@ -424,7 +445,7 @@ class CampaignDispatchService {
           }
 
           if (isGmailConnected) {
-            final res = await _gmailSendService.sendEmail(
+            final res = await _sendEmailWithRetry(
               to: log.email.trim(),
               subject: emailSubject,
               body: emailHtml,
@@ -528,6 +549,38 @@ class CampaignDispatchService {
     await _campaignRepository.updateCampaign(currentCampaign);
 
     return currentCampaign;
+  }
+
+  /// Sends one email, retrying on Gmail rate-limit (403/429) with exponential
+  /// backoff and jitter so a transient quota spike becomes an eventual send
+  /// rather than a failure. Other errors propagate immediately.
+  Future<GmailSendResult> _sendEmailWithRetry({
+    required String to,
+    required String subject,
+    required String body,
+  }) async {
+    var attempt = 0;
+    while (true) {
+      attempt++;
+      try {
+        return await _gmailSendService.sendEmail(
+          to: to,
+          subject: subject,
+          body: body,
+        );
+      } on GmailRateLimitException {
+        if (attempt >= _emailMaxAttempts) rethrow;
+        // Back off (4s, 8s, 16s…) plus up to 1s jitter so concurrent sends in a
+        // batch don't all retry on the same beat.
+        final backoff = Duration(seconds: 2 << attempt);
+        final jitter = Duration(milliseconds: Random().nextInt(1000));
+        debugPrint(
+          '[Campaign Dispatch] Gmail rate-limited; retry $attempt for $to '
+          'in ${backoff.inSeconds}s.',
+        );
+        await Future.delayed(backoff + jitter);
+      }
+    }
   }
 
   /// Attempts to send a campaign WhatsApp message.

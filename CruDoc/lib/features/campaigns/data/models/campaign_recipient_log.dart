@@ -17,6 +17,14 @@ class CampaignRecipientLog {
   final String? whatsAppMessageId;
   final String? emailError;
   final String? whatsAppError;
+
+  /// True when the email was not sent through a real provider but produced by
+  /// the debug simulator. Never true in release builds.
+  final bool emailSimulated;
+
+  /// True when the WhatsApp message was produced by the debug simulator rather
+  /// than a real delivery route. Never true in release builds.
+  final bool whatsAppSimulated;
   final DateTime dispatchedAt;
   final DateTime updatedAt;
 
@@ -34,6 +42,8 @@ class CampaignRecipientLog {
     this.whatsAppMessageId,
     this.emailError,
     this.whatsAppError,
+    this.emailSimulated = false,
+    this.whatsAppSimulated = false,
     required this.dispatchedAt,
     required this.updatedAt,
   });
@@ -48,6 +58,9 @@ class CampaignRecipientLog {
   bool get hasFailed =>
       emailStatus == RecipientDeliveryStatus.failed ||
       whatsAppStatus == RecipientDeliveryStatus.failed;
+
+  /// True when any delivered channel was only simulated, not really sent.
+  bool get isSimulated => emailSimulated || whatsAppSimulated;
 
   String get formattedDispatchedAt {
     return DateFormat('MMM dd, hh:mm a').format(dispatchedAt);
@@ -92,6 +105,8 @@ class CampaignRecipientLog {
       whatsAppMessageId: map['whatsAppMessageId'] as String?,
       emailError: map['emailError'] as String?,
       whatsAppError: map['whatsAppError'] as String?,
+      emailSimulated: map['emailSimulated'] as bool? ?? false,
+      whatsAppSimulated: map['whatsAppSimulated'] as bool? ?? false,
       dispatchedAt: parseDate(map['dispatchedAt'], DateTime.now()),
       updatedAt: parseDate(map['updatedAt'], DateTime.now()),
     );
@@ -111,6 +126,8 @@ class CampaignRecipientLog {
       'whatsAppMessageId': whatsAppMessageId,
       'emailError': emailError,
       'whatsAppError': whatsAppError,
+      'emailSimulated': emailSimulated,
+      'whatsAppSimulated': whatsAppSimulated,
       'dispatchedAt': Timestamp.fromDate(dispatchedAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -130,6 +147,8 @@ class CampaignRecipientLog {
     String? whatsAppMessageId,
     String? emailError,
     String? whatsAppError,
+    bool? emailSimulated,
+    bool? whatsAppSimulated,
     DateTime? dispatchedAt,
     DateTime? updatedAt,
   }) {
@@ -147,6 +166,8 @@ class CampaignRecipientLog {
       whatsAppMessageId: whatsAppMessageId ?? this.whatsAppMessageId,
       emailError: emailError ?? this.emailError,
       whatsAppError: whatsAppError ?? this.whatsAppError,
+      emailSimulated: emailSimulated ?? this.emailSimulated,
+      whatsAppSimulated: whatsAppSimulated ?? this.whatsAppSimulated,
       dispatchedAt: dispatchedAt ?? this.dispatchedAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

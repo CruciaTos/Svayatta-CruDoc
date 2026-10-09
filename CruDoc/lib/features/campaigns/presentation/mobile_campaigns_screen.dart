@@ -897,12 +897,14 @@ class _RecipientLogsModalContentState
                             _buildDeliveryBadge(
                               log.emailStatus.label,
                               log.emailStatus.color,
+                              simulated: log.emailSimulated,
                             ),
                           const SizedBox(width: 4),
                           if (campaign.channels.includesWhatsApp)
                             _buildDeliveryBadge(
                               log.whatsAppStatus.label,
                               log.whatsAppStatus.color,
+                              simulated: log.whatsAppSimulated,
                             ),
                         ],
                       ),
@@ -995,20 +997,28 @@ class _RecipientLogsModalContentState
     );
   }
 
-  Widget _buildDeliveryBadge(String text, Color color) {
+  Widget _buildDeliveryBadge(
+    String text,
+    Color color, {
+    bool simulated = false,
+  }) {
+    // A simulated send is not a real delivery — show it in amber and labelled,
+    // never as a confirmed green status.
+    final effectiveColor = simulated ? const Color(0xFFB45309) : color;
+    final label = simulated ? '$text · SIM' : text;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: effectiveColor.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        text,
+        label,
         style: TextStyle(
           fontFamily: AppColors.bodyFontFamily,
           fontSize: 9.5,
           fontWeight: FontWeight.w700,
-          color: color,
+          color: effectiveColor,
         ),
       ),
     );

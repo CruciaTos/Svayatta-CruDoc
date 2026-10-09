@@ -472,7 +472,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                         color: Color(0xFF64748B),
                       ),
                       const SizedBox(width: 4),
-                      _buildStatusBadge(log.emailStatus, log.emailError),
+                      _buildStatusBadge(
+                        log.emailStatus,
+                        log.emailError,
+                        simulated: log.emailSimulated,
+                      ),
                     ],
                   ),
                 ),
@@ -491,7 +495,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
                         color: Color(0xFF64748B),
                       ),
                       const SizedBox(width: 4),
-                      _buildStatusBadge(log.whatsAppStatus, log.whatsAppError),
+                      _buildStatusBadge(
+                        log.whatsAppStatus,
+                        log.whatsAppError,
+                        simulated: log.whatsAppSimulated,
+                      ),
                     ],
                   ),
                 ),
@@ -513,7 +521,11 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
     );
   }
 
-  Widget _buildStatusBadge(RecipientDeliveryStatus status, String? error) {
+  Widget _buildStatusBadge(
+    RecipientDeliveryStatus status,
+    String? error, {
+    bool simulated = false,
+  }) {
     final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -544,21 +556,50 @@ class _CampaignAnalyticsDialogState extends State<CampaignAnalyticsDialog> {
       ),
     );
 
-    if (error != null && error.isNotEmpty) {
-      return Tooltip(
-        message: 'Reason: $error',
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            badge,
-            const SizedBox(width: 4),
-            const Icon(Icons.info_outline, size: 14, color: Color(0xFFDC2626)),
-          ],
+    final children = <Widget>[badge];
+
+    if (simulated) {
+      children.add(const SizedBox(width: 4));
+      children.add(
+        Tooltip(
+          message:
+              'Simulated in a test build — this message was NOT actually sent.',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD97706).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Text(
+              'SIMULATED',
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.4,
+                color: Color(0xFFB45309),
+              ),
+            ),
+          ),
         ),
       );
     }
 
-    return badge;
+    if (error != null && error.isNotEmpty) {
+      children.add(const SizedBox(width: 4));
+      children.add(
+        Tooltip(
+          message: 'Reason: $error',
+          child: const Icon(
+            Icons.info_outline,
+            size: 14,
+            color: Color(0xFFDC2626),
+          ),
+        ),
+      );
+    }
+
+    if (children.length == 1) return badge;
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
   }
 
   Widget _buildFooter() {

@@ -23,6 +23,11 @@ class CampaignDispatchService {
   final GmailSendService _gmailSendService;
   final http.Client _httpClient;
 
+  /// Whether the debug delivery simulator may stand in for a real provider.
+  /// Defaults to `!kReleaseMode`, so release builds never fake a delivery.
+  /// Injectable so tests can exercise the production (fail-honestly) path.
+  final bool allowSimulation;
+
   static const _devMetaToken = String.fromEnvironment(
     'WHATSAPP_DEV_TOKEN',
     defaultValue: '',
@@ -32,11 +37,19 @@ class CampaignDispatchService {
     defaultValue: '1260194177180019',
   );
 
+  static const _gmailNotConnectedError =
+      'Email not sent — no Gmail account is connected. '
+      'Connect Gmail in Profile > Settings, then retry.';
+  static const _whatsAppNotConfiguredError =
+      'WhatsApp not sent — the messaging service is not configured. '
+      'Contact support to enable WhatsApp delivery, then retry.';
+
   CampaignDispatchService({
     CampaignRepository? campaignRepository,
     GmailAuthService? gmailAuthService,
     GmailSendService? gmailSendService,
     http.Client? httpClient,
+    bool? allowSimulation,
   }) : _campaignRepository = campaignRepository ?? CampaignRepository(),
        _gmailAuthService = gmailAuthService ?? GmailAuthService(),
        _gmailSendService =
@@ -44,7 +57,8 @@ class CampaignDispatchService {
            GmailSendService(
              authService: gmailAuthService ?? GmailAuthService(),
            ),
-       _httpClient = httpClient ?? http.Client();
+       _httpClient = httpClient ?? http.Client(),
+       allowSimulation = allowSimulation ?? !kReleaseMode;
 
   static const _uuid = Uuid();
 
@@ -149,6 +163,8 @@ class CampaignDispatchService {
           String? whatsAppMessageId;
           String? emailError;
           String? whatsAppError;
+          var emailSimulated = false;
+          var whatsAppSimulated = false;
 
           // --- Channel 1: Email Dispatch ---
           if (campaign.channels.includesEmail) {
@@ -157,6 +173,12 @@ class CampaignDispatchService {
               emailError = patient.email.isEmpty
                   ? 'No email address registered'
                   : 'Invalid email format (${patient.email})';
+              emailsFailed++;
+            } else if (!isGmailConnected && !allowSimulation) {
+              // Production: never fake a send. Record an actionable failure so
+              // the doctor knows the email did not reach the patient.
+              emailStatus = RecipientDeliveryStatus.failed;
+              emailError = _gmailNotConnectedError;
               emailsFailed++;
             } else {
               try {
@@ -183,9 +205,12 @@ class CampaignDispatchService {
                   );
                   emailMessageId = result.messageId;
                 } else {
-                  // Simulated robust dispatch for dev/unconnected mode
+                  // Debug only: simulate so the flow can be exercised without a
+                  // connected Gmail account. Flagged so the UI never presents
+                  // it as a real delivery.
                   await Future.delayed(const Duration(milliseconds: 60));
                   emailMessageId = 'sim_mail_${_uuid.v4().substring(0, 8)}';
+                  emailSimulated = true;
                 }
 
                 emailStatus = RecipientDeliveryStatus.sent;
@@ -227,7 +252,11 @@ class CampaignDispatchService {
 
                 if (res.success) {
                   whatsAppMessageId = res.messageId;
-                  whatsAppStatus = RecipientDeliveryStatus.delivered;
+                  whatsAppSimulated = res.simulated;
+                  // A simulated message is not a confirmed delivery.
+                  whatsAppStatus = res.simulated
+                      ? RecipientDeliveryStatus.sent
+                      : RecipientDeliveryStatus.delivered;
                   whatsAppSent++;
                 } else {
                   whatsAppStatus = RecipientDeliveryStatus.failed;
@@ -258,6 +287,8 @@ class CampaignDispatchService {
             whatsAppMessageId: whatsAppMessageId,
             emailError: emailError,
             whatsAppError: whatsAppError,
+            emailSimulated: emailSimulated,
+            whatsAppSimulated: whatsAppSimulated,
             dispatchedAt: DateTime.now(),
             updatedAt: DateTime.now(),
           );
@@ -347,6 +378,8 @@ class CampaignDispatchService {
       String? whatsAppError = log.whatsAppError;
       String? emailMessageId = log.emailMessageId;
       String? whatsAppMessageId = log.whatsAppMessageId;
+      var emailSimulated = log.emailSimulated;
+      var whatsAppSimulated = log.whatsAppSimulated;
 
       // Dummy Patient wrapper for interpolation
       final patient = Patient(
@@ -396,14 +429,23 @@ class CampaignDispatchService {
               body: emailHtml,
             );
             emailMessageId = res.messageId;
-          } else {
+            emailSimulated = false;
+            emailStatus = RecipientDeliveryStatus.sent;
+            emailError = null;
+            emailsSent++;
+            if (emailsFailed > 0) emailsFailed--;
+          } else if (allowSimulation) {
             await Future.delayed(const Duration(milliseconds: 60));
             emailMessageId = 'retry_mail_${_uuid.v4().substring(0, 8)}';
+            emailSimulated = true;
+            emailStatus = RecipientDeliveryStatus.sent;
+            emailError = null;
+            emailsSent++;
+            if (emailsFailed > 0) emailsFailed--;
+          } else {
+            // Production: keep it failed with an actionable reason.
+            emailError = _gmailNotConnectedError;
           }
-          emailStatus = RecipientDeliveryStatus.sent;
-          emailError = null;
-          emailsSent++;
-          if (emailsFailed > 0) emailsFailed--;
         } catch (e) {
           emailError = e.toString();
         }
@@ -431,7 +473,10 @@ class CampaignDispatchService {
 
           if (res.success) {
             whatsAppMessageId = res.messageId;
-            whatsAppStatus = RecipientDeliveryStatus.delivered;
+            whatsAppSimulated = res.simulated;
+            whatsAppStatus = res.simulated
+                ? RecipientDeliveryStatus.sent
+                : RecipientDeliveryStatus.delivered;
             whatsAppError = null;
             whatsAppSent++;
             if (whatsAppFailed > 0) whatsAppFailed--;
@@ -450,6 +495,8 @@ class CampaignDispatchService {
         whatsAppMessageId: whatsAppMessageId,
         emailError: emailError,
         whatsAppError: whatsAppError,
+        emailSimulated: emailSimulated,
+        whatsAppSimulated: whatsAppSimulated,
         updatedAt: DateTime.now(),
       );
       await _campaignRepository.saveRecipientLog(updatedLog);
@@ -483,7 +530,10 @@ class CampaignDispatchService {
   }
 
   /// Sends a WhatsApp message via Meta WhatsApp Business Cloud API with template fallback.
-  Future<({bool success, String? messageId, String? error})>
+  ///
+  /// `simulated` is true only when the debug simulator produced the result; it
+  /// is never true in release builds, where an unconfigured route fails instead.
+  Future<({bool success, String? messageId, String? error, bool simulated})>
   _dispatchWhatsAppDirect({
     required String phone,
     required String formattedText,
@@ -512,7 +562,7 @@ class CampaignDispatchService {
           debugPrint(
             '[Campaign WhatsApp] Dispatched to $normalizedPhone via Cloud Function ($id)',
           );
-          return (success: true, messageId: id, error: null);
+          return (success: true, messageId: id, error: null, simulated: false);
         }
       }
     } catch (e) {
@@ -552,7 +602,7 @@ class CampaignDispatchService {
           final id = (messages != null && messages.isNotEmpty)
               ? messages[0]['id'] as String?
               : null;
-          return (success: true, messageId: id, error: null);
+          return (success: true, messageId: id, error: null, simulated: false);
         } else {
           lastError =
               data['error']?['message'] as String? ??
@@ -562,14 +612,30 @@ class CampaignDispatchService {
         lastError = e.toString();
       }
 
-      return (success: false, messageId: null, error: 'Meta API: $lastError');
+      return (
+        success: false,
+        messageId: null,
+        error: 'Meta API: $lastError',
+        simulated: false,
+      );
     }
 
-    // 3. Fallback for testing/unconnected dev environment
+    // 3. No real delivery route available.
+    // Production must never fake a delivery: fail with an actionable reason.
+    if (!allowSimulation) {
+      return (
+        success: false,
+        messageId: null,
+        error: _whatsAppNotConfiguredError,
+        simulated: false,
+      );
+    }
+
+    // Debug only: simulate so the flow can be exercised without a live route.
     final simId = 'sim_wa_${_uuid.v4().substring(0, 8)}';
     debugPrint(
       '[Campaign WhatsApp] Simulated delivery to $normalizedPhone ($simId)',
     );
-    return (success: true, messageId: simId, error: null);
+    return (success: true, messageId: simId, error: null, simulated: true);
   }
 }

@@ -3,7 +3,11 @@ import 'package:doctor_management_app/features/patients/data/models/patient.dart
 import 'package:doctor_management_app/features/campaigns/data/models/campaign_enums.dart';
 import 'package:doctor_management_app/features/campaigns/data/models/campaign_model.dart';
 import 'package:doctor_management_app/features/campaigns/data/models/campaign_recipient_log.dart';
+import 'package:doctor_management_app/features/campaigns/data/repo/campaign_repository.dart';
 import 'package:doctor_management_app/features/campaigns/data/services/campaign_audience_helper.dart';
+import 'package:doctor_management_app/features/campaigns/data/services/campaign_dispatch_service.dart';
+import 'package:doctor_management_app/features/messaging/data/services/gmail_auth_service.dart';
+import 'package:doctor_management_app/features/messaging/data/services/gmail_send_service.dart';
 
 void main() {
   group('Campaign Model & Enum Tests', () {
@@ -95,6 +99,42 @@ void main() {
       expect(fromMap.emailStatus, RecipientDeliveryStatus.sent);
       expect(fromMap.whatsAppStatus, RecipientDeliveryStatus.failed);
       expect(fromMap.whatsAppError, 'Invalid WhatsApp format');
+    });
+
+    test('CampaignRecipientLog carries simulated flags through serialization', () {
+      final now = DateTime(2026, 8, 22, 11, 0);
+      final log = CampaignRecipientLog(
+        id: 'rec-2',
+        campaignId: 'camp-101',
+        doctorId: 'doc-456',
+        patientId: 'pat-1',
+        patientName: 'Sim Patient',
+        emailStatus: RecipientDeliveryStatus.sent,
+        whatsAppStatus: RecipientDeliveryStatus.sent,
+        emailSimulated: true,
+        whatsAppSimulated: true,
+        dispatchedAt: now,
+        updatedAt: now,
+      );
+
+      expect(log.isSimulated, isTrue);
+
+      final roundTripped = CampaignRecipientLog.fromMap(
+        log.toMap(),
+        id: 'rec-2',
+      );
+      expect(roundTripped.emailSimulated, isTrue);
+      expect(roundTripped.whatsAppSimulated, isTrue);
+      expect(roundTripped.isSimulated, isTrue);
+
+      // Legacy documents without the field default to false (not simulated).
+      final legacy = CampaignRecipientLog.fromMap(
+        {'patientName': 'Legacy', 'emailStatus': 'delivered'},
+        id: 'rec-legacy',
+      );
+      expect(legacy.emailSimulated, isFalse);
+      expect(legacy.whatsAppSimulated, isFalse);
+      expect(legacy.isSimulated, isFalse);
     });
   });
 
@@ -297,4 +337,200 @@ void main() {
       expect(CampaignAudienceHelper.isValidEmail('@nodomain.com'), isFalse);
     });
   });
+
+  group('Campaign Dispatch — honest delivery (no fabricated sends)', () {
+    late _FakeCampaignRepository repo;
+
+    setUp(() => repo = _FakeCampaignRepository());
+
+    CampaignDispatchService buildService({required bool allowSimulation}) {
+      return CampaignDispatchService(
+        campaignRepository: repo,
+        gmailAuthService: _FakeGmailAuthService(connected: false),
+        gmailSendService: _FakeGmailSendService(),
+        allowSimulation: allowSimulation,
+      );
+    }
+
+    test('production build fails WhatsApp honestly instead of simulating', () async {
+      final result = await buildService(allowSimulation: false).dispatchCampaign(
+        campaign: _campaign(channels: CampaignChannel.whatsapp),
+        targetPatients: [_patient(id: 'p1', phone: '+919876543210')],
+      );
+
+      expect(result.status, CampaignStatus.failed);
+      expect(result.whatsAppSent, 0);
+      expect(result.whatsAppFailed, 1);
+
+      final log = repo.savedLogs.single;
+      expect(log.whatsAppStatus, RecipientDeliveryStatus.failed);
+      expect(log.whatsAppSimulated, isFalse);
+      expect(log.whatsAppError, contains('not configured'));
+    });
+
+    test('debug build simulates WhatsApp but flags it, never claims delivered', () async {
+      final result = await buildService(allowSimulation: true).dispatchCampaign(
+        campaign: _campaign(channels: CampaignChannel.whatsapp),
+        targetPatients: [_patient(id: 'p1', phone: '+919876543210')],
+      );
+
+      expect(result.status, CampaignStatus.completed);
+      expect(result.whatsAppSent, 1);
+
+      final log = repo.savedLogs.single;
+      expect(log.whatsAppSimulated, isTrue);
+      // A simulated send is never presented as a confirmed delivery.
+      expect(log.whatsAppStatus, RecipientDeliveryStatus.sent);
+    });
+
+    test('production build fails email honestly when Gmail is not connected', () async {
+      final result = await buildService(allowSimulation: false).dispatchCampaign(
+        campaign: _campaign(channels: CampaignChannel.email),
+        targetPatients: [_patient(id: 'p1', email: 'patient@example.com')],
+      );
+
+      expect(result.status, CampaignStatus.failed);
+      expect(result.emailsSent, 0);
+      expect(result.emailsFailed, 1);
+
+      final log = repo.savedLogs.single;
+      expect(log.emailStatus, RecipientDeliveryStatus.failed);
+      expect(log.emailSimulated, isFalse);
+      expect(log.emailError, contains('Gmail'));
+    });
+
+    test('debug build simulates email but flags it', () async {
+      final result = await buildService(allowSimulation: true).dispatchCampaign(
+        campaign: _campaign(channels: CampaignChannel.email),
+        targetPatients: [_patient(id: 'p1', email: 'patient@example.com')],
+      );
+
+      expect(result.status, CampaignStatus.completed);
+      expect(result.emailsSent, 1);
+
+      final log = repo.savedLogs.single;
+      expect(log.emailSimulated, isTrue);
+      expect(log.emailStatus, RecipientDeliveryStatus.sent);
+    });
+
+    test('invalid contact details fail regardless of simulation setting', () async {
+      final result = await buildService(allowSimulation: true).dispatchCampaign(
+        campaign: _campaign(channels: CampaignChannel.email),
+        targetPatients: [_patient(id: 'p1', email: '')],
+      );
+
+      expect(result.emailsFailed, 1);
+      final log = repo.savedLogs.single;
+      expect(log.emailStatus, RecipientDeliveryStatus.failed);
+      expect(log.emailSimulated, isFalse);
+    });
+  });
+}
+
+CampaignModel _campaign({required CampaignChannel channels}) {
+  final now = DateTime(2026, 10, 9, 9, 0);
+  return CampaignModel(
+    id: 'camp-test',
+    doctorId: 'doc-test',
+    title: 'Seasonal Advisory',
+    message: 'Dear {{patient_name}}, stay hydrated this summer.',
+    channels: channels,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+Patient _patient({required String id, String phone = '', String email = ''}) {
+  final now = DateTime(2026, 10, 9);
+  return Patient(
+    id: id,
+    firstName: 'Test',
+    lastName: 'Patient',
+    phone: phone,
+    email: email,
+    gender: 'Female',
+    dateOfBirth: DateTime(1990, 1, 1),
+    diagnosis: const [],
+    packageBalance: 0,
+    isArchived: false,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+/// In-memory stand-in for [CampaignRepository] that records writes without
+/// touching Firestore. Only the methods the dispatcher uses are implemented;
+/// anything else throws via [noSuchMethod].
+class _FakeCampaignRepository implements CampaignRepository {
+  final List<CampaignRecipientLog> savedLogs = [];
+  CampaignModel? lastCampaign;
+
+  @override
+  Future<void> createCampaign(CampaignModel campaign) async {
+    lastCampaign = campaign;
+  }
+
+  @override
+  Future<void> updateCampaign(CampaignModel campaign) async {
+    lastCampaign = campaign;
+  }
+
+  @override
+  Future<void> saveRecipientLogsBatch(
+    String doctorId,
+    String campaignId,
+    List<CampaignRecipientLog> logs,
+  ) async {
+    for (final log in logs) {
+      _upsert(log);
+    }
+  }
+
+  @override
+  Future<void> saveRecipientLog(CampaignRecipientLog log) async => _upsert(log);
+
+  @override
+  Future<List<CampaignRecipientLog>> getRecipientLogs(
+    String doctorId,
+    String campaignId,
+  ) async => List.of(savedLogs);
+
+  @override
+  Future<CampaignModel?> getCampaign(
+    String doctorId,
+    String campaignId,
+  ) async => lastCampaign;
+
+  void _upsert(CampaignRecipientLog log) {
+    savedLogs.removeWhere((e) => e.id == log.id);
+    savedLogs.add(log);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      super.noSuchMethod(invocation);
+}
+
+class _FakeGmailAuthService implements GmailAuthService {
+  _FakeGmailAuthService({this.connected = false});
+  final bool connected;
+
+  @override
+  bool get isConnected => connected;
+
+  @override
+  Future<bool> restoreSession() async => connected;
+
+  @override
+  String? get connectedEmail => connected ? 'doctor@example.com' : null;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      super.noSuchMethod(invocation);
+}
+
+class _FakeGmailSendService implements GmailSendService {
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      super.noSuchMethod(invocation);
 }

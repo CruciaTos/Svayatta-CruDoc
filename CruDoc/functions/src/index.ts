@@ -13,6 +13,7 @@ setGlobalOptions({
 export * from "./super-admin";
 export * from "./appointments";
 export * from "./whatsapp-endpoints";
+export * from "./whatsapp-outbox";
 export * from "./ai";
 export * from "./imaging";
 export * from "./clinic";

@@ -365,7 +365,7 @@ void main() {
       final log = repo.savedLogs.single;
       expect(log.whatsAppStatus, RecipientDeliveryStatus.failed);
       expect(log.whatsAppSimulated, isFalse);
-      expect(log.whatsAppError, contains('not configured'));
+      expect(log.whatsAppError, contains('not available'));
     });
 
     test('debug build simulates WhatsApp but flags it, never claims delivered', () async {

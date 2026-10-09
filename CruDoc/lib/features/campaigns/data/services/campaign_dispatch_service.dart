@@ -3,8 +3,6 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:uuid/uuid.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:doctor_management_app/features/messaging/data/services/gmail_auth_service.dart';
 import 'package:doctor_management_app/features/messaging/data/services/gmail_send_service.dart';
 import 'package:doctor_management_app/features/messaging/data/services/whatsapp_template_service.dart';
@@ -41,8 +39,9 @@ class CampaignDispatchService {
       'Email not sent — no Gmail account is connected. '
       'Connect Gmail in Profile > Settings, then retry.';
   static const _whatsAppNotConfiguredError =
-      'WhatsApp not sent — the messaging service is not configured. '
-      'Contact support to enable WhatsApp delivery, then retry.';
+      'WhatsApp campaigns are not available yet — CruDoc\'s shared number '
+      'sends appointment reminders only. Campaigns are enabled once your '
+      'clinic connects its own WhatsApp number. Use Email for now.';
 
   CampaignDispatchService({
     CampaignRepository? campaignRepository,
@@ -529,10 +528,20 @@ class CampaignDispatchService {
     return currentCampaign;
   }
 
-  /// Sends a WhatsApp message via Meta WhatsApp Business Cloud API with template fallback.
+  /// Attempts to send a campaign WhatsApp message.
   ///
-  /// `simulated` is true only when the debug simulator produced the result; it
-  /// is never true in release builds, where an unconfigured route fails instead.
+  /// There is deliberately no production route here. CruDoc's WhatsApp number
+  /// is shared across every clinic and is reminders-only; broadcasting
+  /// marketing from it would risk Meta's quality rating for all clinics at
+  /// once, so the campaign Cloud Function was removed on the backend (see
+  /// handoff/whatsapp_shared_number.md §5, §8). Campaigns become available per
+  /// clinic once a clinic connects its own number.
+  ///
+  /// The only real send below is a developer escape hatch gated on
+  /// WHATSAPP_DEV_TOKEN (never set in production), used to exercise the flow
+  /// against a test number. `simulated` is true only when the debug simulator
+  /// produced the result; it is never true in release builds, where the
+  /// absence of a route fails honestly instead.
   Future<({bool success, String? messageId, String? error, bool simulated})>
   _dispatchWhatsAppDirect({
     required String phone,
@@ -541,35 +550,7 @@ class CampaignDispatchService {
     final normalizedPhone =
         WhatsAppTemplateService.normalizePhone(phone) ?? phone;
 
-    // 1. Production Secure Route: Firebase Cloud Function (Server-Side Secret Management)
-    try {
-      final currentDoctorId = FirebaseAuth.instance.currentUser?.uid;
-      if (currentDoctorId != null && currentDoctorId.isNotEmpty) {
-        final callable = FirebaseFunctions.instanceFor(
-          region: 'asia-south1',
-        ).httpsCallable('sendWhatsAppCampaignMessage');
-        final result = await callable
-            .call<Map<String, dynamic>>({
-              'doctorId': currentDoctorId,
-              'phone': normalizedPhone,
-              'templateName': 'appointment_confirmation',
-            })
-            .timeout(const Duration(seconds: 12));
-
-        final data = result.data;
-        if (data['success'] == true) {
-          final id = data['messageId'] as String?;
-          debugPrint(
-            '[Campaign WhatsApp] Dispatched to $normalizedPhone via Cloud Function ($id)',
-          );
-          return (success: true, messageId: id, error: null, simulated: false);
-        }
-      }
-    } catch (e) {
-      debugPrint('[Campaign WhatsApp] Cloud Function route note: $e');
-    }
-
-    // 2. Development Direct Meta Dispatch (only if dev explicitly sets WHATSAPP_DEV_TOKEN)
+    // Developer-only direct Meta dispatch against a test number.
     if (_devMetaToken.isNotEmpty) {
       final metaUrl = Uri.parse(
         'https://graph.facebook.com/v20.0/$_metaPhoneId/messages',
@@ -620,8 +601,8 @@ class CampaignDispatchService {
       );
     }
 
-    // 3. No real delivery route available.
-    // Production must never fake a delivery: fail with an actionable reason.
+    // No real delivery route available (the expected production state until a
+    // clinic connects its own WhatsApp number). Never fake a delivery.
     if (!allowSimulation) {
       return (
         success: false,

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Whether WhatsApp may be chosen as a campaign broadcast channel.
 ///
-/// Disabled: marketing/campaigns are not allowed on CruDoc's shared,
-/// reminders-only WhatsApp number — broadcasting from it risks Meta's quality
-/// rating for every clinic at once (see handoff/whatsapp_shared_number.md §1,
-/// §5, §8). WhatsApp campaigns become available per clinic once a clinic
-/// connects its own number; flip this to `true` when that ships.
-const bool kWhatsAppCampaignsEnabled = false;
+/// When enabled, the composer hands WhatsApp recipients to the server-side
+/// `enqueueCampaign` callable, which sends an approved template from the
+/// clinic's own connected number, or the shared CruDoc number as a fallback
+/// (see functions/src/whatsapp-outbox.ts). It does NOT send from the client.
+///
+/// Delivery still requires the Cloud Functions to be deployed and the
+/// `clinic_campaign_v1` template to be approved by Meta.
+const bool kWhatsAppCampaignsEnabled = true;
 
 /// Categories for clinical and communication campaigns.
 enum CampaignCategory {

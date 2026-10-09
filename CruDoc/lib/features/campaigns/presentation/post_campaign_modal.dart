@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/utils/doctor_profile_helper.dart';
@@ -11,6 +12,7 @@ import '../data/models/campaign_enums.dart';
 import '../data/providers/campaign_providers.dart';
 import '../data/services/campaign_audience_helper.dart';
 import '../data/services/campaign_dispatch_service.dart';
+import '../data/services/whatsapp_campaign_service.dart';
 
 /// Interactive modal wizard allowing doctors to compose, target, preview,
 /// and dispatch campaigns to patients via Email and WhatsApp.
@@ -55,6 +57,8 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
   final PatientRepository _patientRepository = PatientRepository();
   CampaignDispatchService get _dispatchService =>
       ref.read(campaignDispatchServiceProvider);
+  WhatsAppCampaignService get _whatsAppService =>
+      ref.read(whatsAppCampaignServiceProvider);
 
   int _currentStep =
       0; // 0: Compose, 1: Audience & Channels, 2: Preview, 3: Dispatching
@@ -84,6 +88,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
   // Doctor / Clinic Info
   String _doctorName = 'Dr. Specialist';
   String _clinicName = 'CruDoc Medical Center';
+  String _clinicPhone = '';
 
   // Step 4: Dispatch State
   bool _isDispatching = false;
@@ -91,6 +96,7 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
   int _dispatchTotal = 0;
   CampaignModel? _dispatchedCampaign;
   String? _dispatchError;
+  String? _whatsAppNote;
 
   @override
   void initState() {
@@ -119,10 +125,18 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
         if (profileSnap != null) {
           final dName = DoctorProfileHelper.formatDoctorName(user, profileSnap);
           final cName = DoctorProfileHelper.formatClinicName(user, profileSnap);
+          final cPhone =
+              (profileSnap['clinicPhone'] ??
+                      profileSnap['phone'] ??
+                      profileSnap['contactNumber'] ??
+                      '')
+                  .toString()
+                  .trim();
           if (mounted) {
             setState(() {
               _doctorName = dName;
               _clinicName = cName;
+              _clinicPhone = cPhone;
             });
           }
         }
@@ -234,11 +248,13 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
     );
 
     try {
+      // Email is sent here; WhatsApp is handed to the server-side outbox.
       final result = await _dispatchService.dispatchCampaign(
         campaign: campaign,
         targetPatients: targetList,
         clinicName: _clinicName,
         doctorName: _doctorName,
+        handleWhatsAppInternally: false,
         onProgress: (processed, total) {
           if (mounted) {
             setState(() {
@@ -248,6 +264,10 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
           }
         },
       );
+
+      if (_enableWhatsApp) {
+        await _enqueueWhatsApp(campaign.id, targetList);
+      }
 
       if (mounted) {
         setState(() {
@@ -261,6 +281,40 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
         setState(() {
           _isDispatching = false;
           _dispatchError = e.toString();
+        });
+      }
+    }
+  }
+
+  /// Queues the WhatsApp half for server-side sending; a WhatsApp failure does
+  /// not fail the whole publish (email may already have gone out).
+  Future<void> _enqueueWhatsApp(
+    String campaignId,
+    List<Patient> audience,
+  ) async {
+    try {
+      final res = await _whatsAppService.enqueueCampaign(
+        campaignId: campaignId,
+        message: _messageController.text.trim(),
+        clinicName: _clinicName,
+        clinicPhone: _clinicPhone,
+        recipients: [
+          for (final p in audience) WhatsAppCampaignRecipient.fromPatient(p),
+        ],
+      );
+      if (mounted) {
+        setState(() {
+          _whatsAppNote =
+              'WhatsApp queued for ${res.queued} patient'
+              '${res.queued == 1 ? '' : 's'}.';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _whatsAppNote =
+              'Email sent. WhatsApp could not be queued: '
+              '${e is FirebaseFunctionsException ? e.message : e}';
         });
       }
     }
@@ -1570,7 +1624,16 @@ class _PostCampaignModalState extends ConsumerState<PostCampaignModal> {
             Text(
               'Campaign broadcast dispatched to ${campaign?.totalRecipients ?? _dispatchTotal} eligible patients.',
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+              textAlign: TextAlign.center,
             ),
+            if (_whatsAppNote != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _whatsAppNote!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12.5, color: Colors.grey[600]),
+              ),
+            ],
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,

@@ -1,8 +1,11 @@
 import {onCall, HttpsError} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {defineSecret} from "firebase-functions/params";
 
-import {WhatsAppConfig, getMode} from "./whatsapp/config";
+import {
+  WhatsAppConfig, WhatsAppNotConfiguredError, getConfig, getMode,
+} from "./whatsapp/config";
 import {normalisePhone} from "./whatsapp/format";
 import {filterOptedOut} from "./whatsapp/optouts";
 import {MetaSendError, sendTemplateMessage} from "./whatsapp/send";
@@ -41,6 +44,12 @@ import {
  */
 
 const REGION = "asia-south1";
+
+/**
+ * The shared CruDoc number's token, needed only for the fallback send path.
+ * The per-clinic path reads each tenant's token from Secret Manager directly.
+ */
+const accessToken = defineSecret("WHATSAPP_ACCESS_TOKEN");
 
 function graphVersion(): string {
   return (process.env.WHATSAPP_GRAPH_VERSION || "v23.0").trim();
@@ -116,13 +125,13 @@ export const enqueueCampaign = onCall({region: REGION}, async (request) => {
     throw new HttpsError("invalid-argument", "recipients is empty.");
   }
 
-  // The clinic's own number has to be connected: campaigns are not sent on the
-  // shared CruDoc number.
+  // A reauth-required tenant must reconnect before anything queues for it; a
+  // clinic with no tenant at all still queues and sends from the shared number.
   const tenant = await getTenantConfig(doctorId);
-  if (!tenant || tenant.status !== "connected") {
+  if (tenant && tenant.status === "reauth_required") {
     throw new HttpsError(
       "failed-precondition",
-      "Connect this clinic's WhatsApp number before sending campaigns.",
+      "Reconnect this clinic's WhatsApp number before sending campaigns.",
     );
   }
 
@@ -167,20 +176,38 @@ export const enqueueCampaign = onCall({region: REGION}, async (request) => {
 
 /** Sends one claimed row, then records its outcome. */
 async function processRow(row: OutboxRow): Promise<void> {
-  let creds;
+  // Prefer the clinic's own connected number; otherwise fall back to the shared
+  // CruDoc number (the one reminders already send from). A reauth-required
+  // tenant is parked rather than silently sent from the shared number.
+  let config: WhatsAppConfig;
   try {
-    creds = await getTenantCreds(row.doctorId);
+    const creds = await getTenantCreds(row.doctorId);
+    config = tenantSendConfig(creds);
   } catch (err) {
-    if (
-      err instanceof TenantNotConnectedError ||
-      err instanceof TenantReauthRequiredError
-    ) {
-      // Park it: releaseBlocked re-queues when the clinic (re)connects.
-      await markBlocked(row.id, "blocked_tenant", (err as Error).message);
+    if (err instanceof TenantReauthRequiredError) {
+      await markBlocked(row.id, "blocked_tenant", err.message);
       return;
     }
-    await markRetryable(row.id, (err as Error)?.message || "tenant read failed");
-    return;
+    if (err instanceof TenantNotConnectedError) {
+      try {
+        config = getConfig();
+      } catch (e2) {
+        if (e2 instanceof WhatsAppNotConfiguredError) {
+          // No per-clinic number and no shared number: wait for one.
+          await markBlocked(row.id, "blocked_tenant", e2.message);
+          return;
+        }
+        await markRetryable(
+          row.id, (e2 as Error)?.message || "config read failed",
+        );
+        return;
+      }
+    } else {
+      await markRetryable(
+        row.id, (err as Error)?.message || "tenant read failed",
+      );
+      return;
+    }
   }
 
   let spec;
@@ -196,7 +223,7 @@ async function processRow(row: OutboxRow): Promise<void> {
       to: row.toPhone,
       spec,
       params: row.params,
-      config: tenantSendConfig(creds),
+      config,
     });
     await markSent(row.id, messageId);
   } catch (err) {
@@ -228,7 +255,12 @@ async function drain(limit = 100): Promise<void> {
 
 /** The steady sweep: catches retries, blocked rows released, and stalled leases. */
 export const drainWhatsAppOutbox = onSchedule(
-  {schedule: "every 1 minutes", region: REGION, maxInstances: 1},
+  {
+    schedule: "every 1 minutes",
+    region: REGION,
+    maxInstances: 1,
+    secrets: [accessToken],
+  },
   async () => {
     await drain();
   },
@@ -236,7 +268,7 @@ export const drainWhatsAppOutbox = onSchedule(
 
 /** The fast path: send a freshly queued row without waiting for the sweep. */
 export const onWhatsAppOutboxQueued = onDocumentCreated(
-  {document: "whatsapp_outbox/{id}", region: REGION},
+  {document: "whatsapp_outbox/{id}", region: REGION, secrets: [accessToken]},
   async (event) => {
     const id = event.params.id;
     const claimed = await claim(id);

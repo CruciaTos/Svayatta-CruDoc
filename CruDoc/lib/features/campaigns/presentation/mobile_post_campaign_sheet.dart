@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:uuid/uuid.dart';
 import 'package:doctor_management_app/core/theme/app_colors.dart';
@@ -16,6 +17,7 @@ import '../data/models/campaign_enums.dart';
 import '../data/providers/campaign_providers.dart';
 import '../data/services/campaign_audience_helper.dart';
 import '../data/services/campaign_dispatch_service.dart';
+import '../data/services/whatsapp_campaign_service.dart';
 
 /// Touch-friendly Campaign composer bottom sheet modal.
 /// Fully respects CruColors day/evening (light/dark) theme.
@@ -56,6 +58,8 @@ class _MobilePostCampaignSheetState
   final PatientRepository _patientRepository = PatientRepository();
   CampaignDispatchService get _dispatchService =>
       ref.read(campaignDispatchServiceProvider);
+  WhatsAppCampaignService get _whatsAppService =>
+      ref.read(whatsAppCampaignServiceProvider);
   // Shared Gmail auth singleton — the same instance Profile connects, so a
   // connected account is visible here and used by the dispatch above.
   GmailAuthService get _gmailAuthService => ref.read(gmailAuthServiceProvider);
@@ -87,6 +91,7 @@ class _MobilePostCampaignSheetState
   // Doctor / Clinic / Gmail Info
   String _doctorName = 'Dr. Specialist';
   String _clinicName = 'CruDoc Healthcare';
+  String _clinicPhone = '';
   String? _connectedGmail;
 
   // Step 4: Dispatch State
@@ -95,6 +100,7 @@ class _MobilePostCampaignSheetState
   int _dispatchTotal = 0;
   CampaignModel? _dispatchedCampaign;
   String? _dispatchError;
+  String? _whatsAppNote;
 
   /// Semantic colour tokens for the current theme (day = light, evening = dark).
   CruColors get _c {
@@ -133,12 +139,20 @@ class _MobilePostCampaignSheetState
         final data = profile.data();
         final docName = DoctorProfileHelper.formatDoctorName(user, data);
         final clName = DoctorProfileHelper.formatClinicName(user, data);
+        final clPhone =
+            (data?['clinicPhone'] ??
+                    data?['phone'] ??
+                    data?['contactNumber'] ??
+                    '')
+                .toString()
+                .trim();
         await _gmailAuthService.restoreSession();
         final gmail = _gmailAuthService.connectedEmail;
         if (mounted) {
           setState(() {
             _doctorName = docName.isNotEmpty ? docName : 'Dr. Specialist';
             _clinicName = clName.isNotEmpty ? clName : 'CruDoc Healthcare';
+            _clinicPhone = clPhone;
             _connectedGmail = gmail;
           });
         }
@@ -1340,7 +1354,20 @@ class _MobilePostCampaignSheetState
                 color: c.label2,
                 fontSize: 13,
               ),
+              textAlign: TextAlign.center,
             ),
+            if (_whatsAppNote != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                _whatsAppNote!,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: AppColors.bodyFontFamily,
+                  color: c.label2,
+                  fontSize: 12,
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             FilledButton(
               onPressed: () {
@@ -1509,11 +1536,13 @@ class _MobilePostCampaignSheetState
     });
 
     try {
+      // Email is sent here; WhatsApp is handed to the server-side outbox.
       final finished = await _dispatchService.dispatchCampaign(
         campaign: campaign,
         targetPatients: audience,
         doctorName: _doctorName,
         clinicName: _clinicName,
+        handleWhatsAppInternally: false,
         onProgress: (processed, total) {
           if (mounted) {
             setState(() {
@@ -1523,6 +1552,10 @@ class _MobilePostCampaignSheetState
           }
         },
       );
+
+      if (_enableWhatsApp) {
+        await _enqueueWhatsApp(campaignId, audience);
+      }
 
       if (mounted) {
         setState(() {
@@ -1535,6 +1568,42 @@ class _MobilePostCampaignSheetState
         setState(() {
           _isDispatching = false;
           _dispatchError = 'Failed to broadcast campaign: $e';
+        });
+      }
+    }
+  }
+
+  /// Queues the WhatsApp half of a campaign for server-side sending.
+  ///
+  /// A WhatsApp failure does not fail the whole publish: email may already have
+  /// gone out, so it is surfaced as a non-fatal note instead.
+  Future<void> _enqueueWhatsApp(
+    String campaignId,
+    List<Patient> audience,
+  ) async {
+    try {
+      final result = await _whatsAppService.enqueueCampaign(
+        campaignId: campaignId,
+        message: _messageController.text.trim(),
+        clinicName: _clinicName,
+        clinicPhone: _clinicPhone,
+        recipients: [
+          for (final p in audience) WhatsAppCampaignRecipient.fromPatient(p),
+        ],
+      );
+      if (mounted) {
+        setState(() {
+          _whatsAppNote =
+              'WhatsApp queued for ${result.queued} patient'
+              '${result.queued == 1 ? '' : 's'}.';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _whatsAppNote =
+              'Email sent. WhatsApp could not be queued: '
+              '${e is FirebaseFunctionsException ? e.message : e}';
         });
       }
     }

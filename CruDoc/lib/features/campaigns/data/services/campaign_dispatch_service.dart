@@ -76,11 +76,17 @@ class CampaignDispatchService {
   static const _uuid = Uuid();
 
   /// Dispatches a campaign to the targeted patient cohort asynchronously.
+  ///
+  /// When [handleWhatsAppInternally] is false, WhatsApp recipients are recorded
+  /// as `queued` and NOT sent here — the caller hands them to the server-side
+  /// `enqueueCampaign` path, which owns real WhatsApp delivery. Email is always
+  /// sent here.
   Future<CampaignModel> dispatchCampaign({
     required CampaignModel campaign,
     required List<Patient> targetPatients,
     String? clinicName,
     String? doctorName,
+    bool handleWhatsAppInternally = true,
     void Function(int processed, int total)? onProgress,
   }) async {
     final doctorId = campaign.doctorId;
@@ -247,6 +253,10 @@ class CampaignDispatchService {
                   ? 'No phone number registered'
                   : 'Invalid phone number format (${patient.phone})';
               whatsAppFailed++;
+            } else if (!handleWhatsAppInternally) {
+              // Handed to the server-side outbox (enqueueCampaign); it owns the
+              // real send and status. Record it as queued here.
+              whatsAppStatus = RecipientDeliveryStatus.queued;
             } else {
               try {
                 final formattedWa =

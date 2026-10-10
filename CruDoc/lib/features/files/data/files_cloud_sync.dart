@@ -143,7 +143,8 @@ class FilesCloudSync {
     try {
       do {
         _pushAgain = false;
-        final folders = await _repo.pendingRows('file_folders');
+        // sqflite's result list is read-only; sort a copy.
+        final folders = [...await _repo.pendingRows('file_folders')];
         folders.sort((a, b) {
           final at = a['id'] == a['rootId'] ? 0 : 1;
           final bt = b['id'] == b['rootId'] ? 0 : 1;

@@ -439,15 +439,29 @@ service cloud.firestore {
       allow list: if isSuperAdmin()
         || (isAuthenticated() && resource.data.email == request.auth.token.email);
 
-      // A signed-in user may create their own profile, but never as an admin.
+      // Subscription/entitlement fields are written only by the
+      // activateDoctorFeatures / startDoctorTrial Cloud Functions (admin
+      // SDK, which bypasses these rules). A doctor must never set them on
+      // their own profile, or they could unlock every paid module for free.
+      // Keep in sync with functions/src/subscription.ts.
+      // A signed-in user may create their own profile, but never as an admin
+      // and never with its own entitlements.
       allow create: if isSuperAdmin()
         || (isSelf(userId)
           && (!('role' in request.resource.data)
             || request.resource.data.role == 'doctor')
-          && !request.resource.data.keys().hasAny(['clinicId', 'memberKind']));
+          && !request.resource.data.keys().hasAny([
+            'clinicId', 'memberKind',
+            'enabledModules', 'expiresDate', 'status', 'subscriptionPlan',
+            'allowMultiDevice', 'lastPaymentDate', 'lastTransactionId',
+            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt']));
       allow update: if isSuperAdmin()
         || (isSelf(userId)
-          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'clinicId', 'memberKind']));
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+            'role', 'clinicId', 'memberKind',
+            'enabledModules', 'expiresDate', 'status', 'subscriptionPlan',
+            'allowMultiDevice', 'lastPaymentDate', 'lastTransactionId',
+            'lastPaymentAmount', 'lastPaymentMethod', 'trialStartedAt']));
       allow delete: if isSuperAdmin();
 
       // Everything a doctor keeps under their own profile: device sessions,

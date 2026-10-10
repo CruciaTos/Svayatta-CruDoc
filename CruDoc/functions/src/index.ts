@@ -17,3 +17,4 @@ export * from "./whatsapp-outbox";
 export * from "./ai";
 export * from "./imaging";
 export * from "./clinic";
+export * from "./subscription";

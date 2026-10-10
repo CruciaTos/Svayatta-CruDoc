@@ -152,7 +152,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen>
           'email': spec.demoEmail,
           'specialty': spec.label,
           'specialization': spec.label,
-          'status': 'Active',
+          // `status`/entitlements are owned by Cloud Functions now; a demo
+          // account relies on the default-active treatment in the guard.
           'role': 'doctor',
           'isDemoAccount': true,
           'updatedAt': FieldValue.serverTimestamp(),

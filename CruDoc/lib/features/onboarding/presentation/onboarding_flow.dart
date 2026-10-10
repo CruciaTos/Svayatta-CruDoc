@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -196,18 +197,21 @@ class _OnboardingFlowState extends State<OnboardingFlow> {
         ..._modules,
       }.toList();
       await saveDoctorSpecialty(spec, user: user);
+
+      // The trial window and feature entitlements are granted by the
+      // `startDoctorTrial` Cloud Function (admin privileges) so the client
+      // can't grant itself a longer trial or extra modules by writing
+      // Firestore directly. The server computes the 30-day expiry.
+      await FirebaseFunctions.instanceFor(region: 'asia-south1')
+          .httpsCallable('startDoctorTrial')
+          .call({'modules': modules});
+
+      // Non-entitlement profile fields stay a client write.
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'displayName': name,
         'practiceType': _practice!.name,
-        'status': 'trial',
-        'subscriptionPlan': 'Trial',
-        'expiresDate': Timestamp.fromDate(
-          DateTime.now().add(const Duration(days: kTrialDays)),
-        ),
-        'enabledModules': modules,
         if (spec.type == DoctorSpecialtyType.dentist)
           'dentalFeatures': [for (final f in _dental) f.key],
-        'allowMultiDevice': modules.contains('multi_device_access'),
         // What the Super Admin reads to see how each doctor started.
         'onboarding': {
           'practiceType': _practice!.name,

@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:uuid/uuid.dart';
 import 'package:crudoc_shared/subscription/feature_catalog.dart';
 import 'package:crudoc_shared/subscription/upgrade_request_model.dart';
 import 'package:doctor_management_app/core/utils/doctor_feature_guard.dart';
@@ -38,10 +38,16 @@ class DoctorSubscriptionInfo {
 class DoctorSubscriptionService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
+  final FirebaseFunctions _functions;
 
-  DoctorSubscriptionService({FirebaseFirestore? firestore, FirebaseAuth? auth})
-    : _firestore = firestore ?? FirebaseFirestore.instance,
-      _auth = auth ?? FirebaseAuth.instance;
+  DoctorSubscriptionService({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+    FirebaseFunctions? functions,
+  }) : _firestore = firestore ?? FirebaseFirestore.instance,
+       _auth = auth ?? FirebaseAuth.instance,
+       _functions =
+           functions ?? FirebaseFunctions.instanceFor(region: 'asia-south1');
 
   static const List<FeaturePricingItem> availableFeatures = featureCatalog;
 
@@ -110,7 +116,14 @@ class DoctorSubscriptionService {
     });
   }
 
-  /// Processes in-app payment and instantly activates the selected features for 1 month (30 days).
+  /// Processes the in-app (simulated) payment and activates the selected
+  /// features for 1 month (30 days).
+  ///
+  /// The actual entitlement write is done by the `activateDoctorFeatures`
+  /// Cloud Function running with admin privileges — the client never writes
+  /// its own `enabledModules`/`expiresDate`, so features cannot be unlocked
+  /// by tampering with Firestore directly. The server also computes the
+  /// expiry, so the plan length can't be forged.
   Future<({bool success, String transactionId, DateTime newExpiryDate})>
   processPaymentAndActivateFeatures({
     required List<String> selectedModules,
@@ -123,60 +136,28 @@ class DoctorSubscriptionService {
       throw StateError('No doctor logged in');
     }
 
-    final doctorId = user.uid;
-    final now = DateTime.now();
-    final newExpiresDate = now.add(const Duration(days: 30));
-    final transactionId =
-        'TXN_${DateTime.now().millisecondsSinceEpoch}_${const Uuid().v4().substring(0, 6).toUpperCase()}';
-
-    // 1. Ensure all base modules are included in the activated list
-    final fullModulesList = <String>{
-      ...DoctorFeatureGuard.baseModules,
-      ...selectedModules,
-    }.toList();
-
-    // 2. Derive allowMultiDevice from the purchased modules
-    final allowMultiDevice = fullModulesList.contains('multi_device_access');
-
-    // 3. Update user document directly
-    await _firestore.collection('users').doc(doctorId).update({
-      'enabledModules': fullModulesList,
-      'status': 'active',
-      'expiresDate': Timestamp.fromDate(newExpiresDate),
-      'lastPaymentDate': Timestamp.fromDate(now),
-      'lastTransactionId': transactionId,
-      'lastPaymentAmount': amountPaid,
-      'lastPaymentMethod': paymentMethod,
-      'allowMultiDevice': allowMultiDevice,
-    });
-
-    // 4. Update doctor_settings if exists
+    final HttpsCallableResult result;
     try {
-      await _firestore.collection('doctor_settings').doc(doctorId).set({
-        'doctorId': doctorId,
-        'enabledModules': fullModulesList,
-        'allowMultiDevice': allowMultiDevice,
-        'lastModified': Timestamp.fromDate(now),
-      }, SetOptions(merge: true));
-    } catch (_) {}
+      result = await _functions.httpsCallable('activateDoctorFeatures').call({
+        'selectedModules': selectedModules,
+        'amount': amountPaid,
+        'paymentMethod': paymentMethod,
+        'transactionReference': transactionReference,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw StateError(e.message ?? 'Activation failed. Please try again.');
+    }
 
-    // 4. Save payment receipt in payment_transactions collection
-    await _firestore.collection('payment_transactions').doc(transactionId).set({
-      'transactionId': transactionId,
-      'doctorId': doctorId,
-      'doctorEmail': user.email ?? '',
-      'doctorName': user.displayName ?? 'Doctor',
-      'amount': amountPaid,
-      'currency': 'INR',
-      'paymentMethod': paymentMethod,
-      'transactionReference': transactionReference ?? transactionId,
-      'activatedModules': fullModulesList,
-      'validUntil': Timestamp.fromDate(newExpiresDate),
-      'status': 'success',
-      'timestamp': Timestamp.fromDate(now),
-    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    final transactionId = (data['transactionId'] as String?) ?? '';
+    final validUntilRaw = data['validUntil'] as String?;
+    final newExpiresDate =
+        DateTime.tryParse(validUntilRaw ?? '') ??
+        DateTime.now().add(const Duration(days: 30));
 
-    // 5. A paid month earns a loyalty stamp (one per calendar month).
+    // A paid month earns a loyalty stamp (one per calendar month). This
+    // writes to the doctor's own loyalty subcollection, so it stays on the
+    // client.
     try {
       await LoyaltyService.stampThisMonth();
     } catch (_) {}

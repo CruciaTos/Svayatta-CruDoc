@@ -319,6 +319,12 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 20),
 
+                        // ---- Subscription & Billing entry ----
+                        _SubscriptionBillingTile(
+                          onTap: () => context.push('/subscription'),
+                        ),
+                        const SizedBox(height: 20),
+
                         // ---- Loyalty & Rewards Section ----
                         _DoctorLoyaltyCardSection(
                           user: user,
@@ -641,6 +647,81 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                 ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Tappable entry that opens the full-screen Subscription & Billing page.
+class _SubscriptionBillingTile extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _SubscriptionBillingTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFF16A34A), Color(0xFF15803D)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.workspace_premium_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 14),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Subscription & Billing',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Manage your plan, unlock features & view payments',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: Colors.white70,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: Colors.white,
+                size: 24,
               ),
             ],
           ),

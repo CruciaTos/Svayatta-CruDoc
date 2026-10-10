@@ -24,6 +24,7 @@ import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/features/mobile/mobile_campaigns.dart';
 import 'package:doctor_management_app/features/mobile/mobile_invoices.dart';
 import 'package:doctor_management_app/features/mobile/mobile_kit.dart';
+import 'package:doctor_management_app/features/subscription/presentation/subscription_billing_page.dart';
 import 'package:doctor_management_app/features/patients/data/models/patient.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_details_view.dart';
 import 'package:doctor_management_app/features/radiology/presentation/radiology_ui.dart';
@@ -251,6 +252,20 @@ class MobileMoreScreen extends ConsumerWidget {
               ],
             ),
           ),
+        ),
+        const SizedBox(height: CruSpace.s16),
+        MobileRowGroup(
+          title: 'Plan',
+
+          children: [
+            row(
+              'Subscription & Billing',
+              CruIcons.wallet,
+              MobileTone.green,
+              () => pushMobile(context, const SubscriptionBillingPage()),
+              detail: 'Unlock features, manage your plan & payments',
+            ),
+          ],
         ),
         const SizedBox(height: CruSpace.s16),
         MobileRowGroup(

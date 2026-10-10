@@ -7,6 +7,7 @@ import 'package:doctor_management_app/core/services/demo_session_service.dart';
 
 import '../../features/auth/presentation/auth_screen.dart';
 import '../../features/shell/presentation/responsive_shell.dart';
+import '../../features/subscription/presentation/subscription_billing_page.dart';
 
 final GoRouter appRouter = _createAppRouter();
 
@@ -65,6 +66,10 @@ GoRouter _createAppRouter() {
       GoRoute(
         path: '/dashboard',
         builder: (context, state) => const ResponsiveShell(),
+      ),
+      GoRoute(
+        path: '/subscription',
+        builder: (context, state) => const SubscriptionBillingPage(),
       ),
     ],
   );

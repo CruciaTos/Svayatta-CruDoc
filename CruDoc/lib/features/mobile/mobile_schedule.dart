@@ -42,12 +42,26 @@ class MobileScheduleScreen extends ConsumerStatefulWidget {
       _MobileScheduleScreenState();
 }
 
-class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
+class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen>
+    with SingleTickerProviderStateMixin {
   /// Week pages around the current week; page [_anchor] is this week.
   static const _anchor = 520;
-  late final PageController _weeks = PageController(initialPage: _anchor);
+  late PageController _weeks = PageController(initialPage: _anchor);
+  int _page = _anchor;
   bool _isMonthExpanded = false;
   late DateTime _monthDate;
+
+  /// The month row that is the week strip: it slides down into its slot as
+  /// the month opens, and back up as it closes.
+  int _anchorRow = 0;
+  late final AnimationController _expand = AnimationController(
+    vsync: this,
+    duration: CruMotion.standard,
+  );
+  late final Animation<double> _t = CurvedAnimation(
+    parent: _expand,
+    curve: CruMotion.curve,
+  );
 
   @override
   void initState() {
@@ -57,6 +71,7 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
 
   @override
   void dispose() {
+    _expand.dispose();
     _weeks.dispose();
     super.dispose();
   }
@@ -86,15 +101,51 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
     }
   }
 
+  int _rowOf(DateTime month, DateTime day) =>
+      ApptsBuilder.monthGrid(
+        month,
+      ).indexWhere((d) => ApptsBuilder.sameDay(d, day)) ~/
+      7;
+
   void _toggleCalendarView() {
     MobileHaptics.tap();
+    if (_isMonthExpanded) {
+      _collapse();
+      return;
+    }
+    // Open on the month of the week in view, with that week as the row
+    // that moves.
+    final week = _weekStart(_page);
+    final day = ref.read(mobileScheduleDayProvider);
+    final inWeek = !day.isBefore(week) && day.difference(week).inDays < 7;
+    final pivot = inWeek ? day : week.add(const Duration(days: 3));
     setState(() {
-      _isMonthExpanded = !_isMonthExpanded;
-      if (_isMonthExpanded) {
-        final currentDay = ref.read(mobileScheduleDayProvider);
-        _monthDate = DateTime(currentDay.year, currentDay.month);
-      }
+      _isMonthExpanded = true;
+      _monthDate = DateTime(pivot.year, pivot.month);
+      _anchorRow = _rowOf(_monthDate, week);
     });
+    _expand.duration = CruMotion.of(context, CruMotion.standard);
+    _expand.forward();
+  }
+
+  /// Folds the month back to the selected day's week (or its first week
+  /// when the selected day is not on this page).
+  void _collapse() {
+    final day = ref.read(mobileScheduleDayProvider);
+    final grid = ApptsBuilder.monthGrid(_monthDate);
+    final row = grid.any((d) => ApptsBuilder.sameDay(d, day))
+        ? _rowOf(_monthDate, day)
+        : 0;
+    final page = _pageOf(grid[row * 7]);
+    _weeks.dispose();
+    setState(() {
+      _isMonthExpanded = false;
+      _anchorRow = row;
+      _page = page;
+      _weeks = PageController(initialPage: page);
+    });
+    _expand.duration = CruMotion.of(context, CruMotion.standard);
+    _expand.reverse();
   }
 
   Future<void> _book(DateTime day) async {
@@ -132,7 +183,9 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
       slivers: [
         SliverToBoxAdapter(
           child: MobileHeader(
-            overline: DateFormat('MMMM y').format(_isMonthExpanded ? _monthDate : day),
+            overline: DateFormat(
+              'MMMM y',
+            ).format(_isMonthExpanded ? _monthDate : day),
             title: 'Schedule',
             titleTrailing: _ViewDropdown(
               isMonth: _isMonthExpanded,
@@ -148,41 +201,52 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
         ),
         const SliverToBoxAdapter(child: SizedBox(height: CruSpace.s16)),
         SliverToBoxAdapter(
-          child: AnimatedCrossFade(
-            duration: CruMotion.standard,
-            firstCurve: CruMotion.curve,
-            secondCurve: CruMotion.curve,
-            sizeCurve: CruMotion.curve,
-            crossFadeState: _isMonthExpanded
-                ? CrossFadeState.showSecond
-                : CrossFadeState.showFirst,
-            firstChild: SizedBox(
-              height: 74,
-              child: PageView.builder(
-                controller: _weeks,
-                itemBuilder: (context, page) => _WeekStrip(
-                  start: _weekStart(page),
-                  selected: day,
-                  today: now,
-                  onSelect: _select,
-                ),
+          child: Column(
+            children: [
+              _WeekdayInitials(
+                today: _isMonthExpanded
+                    ? (now.year == _monthDate.year &&
+                              now.month == _monthDate.month
+                          ? now
+                          : null)
+                    : (_pageOf(now) == _page ? now : null),
               ),
-            ),
-            secondChild: _MonthGrid(
-              month: _monthDate,
-              selected: day,
-              today: now,
-              onSelect: (picked) {
-                _select(picked);
-                setState(() {
-                  _isMonthExpanded = false;
-                  _monthDate = DateTime(picked.year, picked.month);
-                });
-              },
-              onMonthChange: (newMonth) {
-                setState(() => _monthDate = newMonth);
-              },
-            ),
+              const SizedBox(height: CruSpace.s6),
+              AnimatedBuilder(
+                animation: _t,
+                builder: (context, _) {
+                  if (_expand.isDismissed && !_isMonthExpanded) {
+                    return SizedBox(
+                      height: _DayCell.rowHeight,
+                      child: PageView.builder(
+                        controller: _weeks,
+                        onPageChanged: (p) => setState(() => _page = p),
+                        itemBuilder: (context, page) => _WeekStrip(
+                          start: _weekStart(page),
+                          selected: day,
+                          today: now,
+                          onSelect: _select,
+                        ),
+                      ),
+                    );
+                  }
+                  return _MonthGrid(
+                    month: _monthDate,
+                    anchorRow: _anchorRow,
+                    t: _t.value,
+                    selected: day,
+                    today: now,
+                    onSelect: (picked) {
+                      _select(picked);
+                      _collapse();
+                    },
+                    onMonthChange: (newMonth) {
+                      setState(() => _monthDate = newMonth);
+                    },
+                  );
+                },
+              ),
+            ],
           ),
         ),
         const SliverToBoxAdapter(child: SizedBox(height: CruSpace.s16)),
@@ -304,8 +368,125 @@ class _MobileScheduleScreenState extends ConsumerState<MobileScheduleScreen> {
   );
 }
 
+/// Weekday initials above the week strip and the month grid. They stay put
+/// while the days move beneath them; today's column is tinted when today is
+/// on screen.
+class _WeekdayInitials extends StatelessWidget {
+  const _WeekdayInitials({required this.today});
+
+  final DateTime? today;
+
+  static const _letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    final eve = mobileOnDark(context);
+    final ink = mobileInk(context);
+    final accent = eve ? Colors.white : MobileBlue.neon;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
+      child: Row(
+        children: [
+          for (var i = 0; i < 7; i++)
+            Expanded(
+              child: Text(
+                _letters[i],
+                textAlign: TextAlign.center,
+                style: MobileType.micro.tint(
+                  today?.weekday == i + 1
+                      ? accent
+                      : ink.withValues(alpha: 0.55),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One day in the week strip or the month grid: a number in a circle and a
+/// dot when the day is booked. [fade] dims days outside the month.
+class _DayCell extends ConsumerWidget {
+  const _DayCell({
+    required this.day,
+    required this.selected,
+    required this.today,
+    required this.onSelect,
+    this.fade = 0,
+  });
+
+  static const rowHeight = 52.0;
+
+  final DateTime day;
+  final DateTime selected;
+  final DateTime today;
+  final ValueChanged<DateTime> onSelect;
+  final double fade;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Day: dark ink on the light canvas, the selected day a Neon Blue
+    // circle. Evening: white on navy, the selected day a white circle.
+    final eve = mobileOnDark(context);
+    final ink = mobileInk(context);
+    final selFill = eve ? Colors.white : MobileBlue.neon;
+    final selText = eve ? MobileBlue.neon : Colors.white;
+    final accent = eve ? Colors.white : MobileBlue.neon;
+    final isSel = ApptsBuilder.sameDay(day, selected);
+    final isToday = ApptsBuilder.sameDay(day, today);
+    final booked =
+        ref.watch(apptDayItemsProvider(day)).value?.isNotEmpty ?? false;
+    final dayInk = ink.withValues(alpha: 1 - 0.72 * fade);
+    return CruPressable(
+      onTap: () => onSelect(day),
+      semanticLabel: DateFormat('EEEE d MMMM').format(day),
+      scaleOnPress: false,
+      builder: (context, _) => SizedBox(
+        height: rowHeight,
+        child: Column(
+          children: [
+            AnimatedContainer(
+              duration: CruMotion.of(context, CruMotion.fast),
+              curve: CruMotion.curve,
+              width: 40,
+              height: 40,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: isSel
+                    ? selFill
+                    : (isToday
+                          ? accent.withValues(alpha: eve ? 0.2 : 0.1)
+                          : null),
+              ),
+              child: Text(
+                '${day.day}',
+                style: MobileType.row.tabular.tint(
+                  isSel ? selText : (isToday ? accent : dayInk),
+                ),
+              ),
+            ),
+            const SizedBox(height: CruSpace.s4),
+            Container(
+              width: 5,
+              height: 5,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: booked
+                    ? accent.withValues(alpha: 0.7 * (1 - fade))
+                    : Colors.transparent,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Seven days; swipe it for other weeks. A dot marks booked days.
-class _WeekStrip extends ConsumerWidget {
+class _WeekStrip extends StatelessWidget {
   const _WeekStrip({
     required this.start,
     required this.selected,
@@ -319,79 +500,18 @@ class _WeekStrip extends ConsumerWidget {
   final ValueChanged<DateTime> onSelect;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Day: dark ink on the light canvas, the selected day a Neon Blue
-    // circle. Evening: white on navy, the selected day a white circle.
-    final eve = mobileOnDark(context);
-    final ink = mobileInk(context);
-    final selFill = eve ? Colors.white : MobileBlue.neon;
-    final selText = eve ? MobileBlue.neon : Colors.white;
-    final accent = eve ? Colors.white : MobileBlue.neon;
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
       child: Row(
         children: [
           for (var i = 0; i < 7; i++)
             Expanded(
-              child: Builder(
-                builder: (context) {
-                  final d = start.add(Duration(days: i));
-                  final isSel = ApptsBuilder.sameDay(d, selected);
-                  final isToday = ApptsBuilder.sameDay(d, today);
-                  final booked =
-                      ref.watch(apptDayItemsProvider(d)).value?.isNotEmpty ??
-                      false;
-                  return CruPressable(
-                    onTap: () => onSelect(d),
-                    semanticLabel: DateFormat('EEEE d MMMM').format(d),
-                    scaleOnPress: false,
-                    builder: (context, _) => Column(
-                      children: [
-                        Text(
-                          DateFormat('E').format(d).substring(0, 1),
-                          style: MobileType.micro.tint(
-                            isToday ? accent : ink.withValues(alpha: 0.55),
-                          ),
-                        ),
-                        const SizedBox(height: CruSpace.s6),
-                        AnimatedContainer(
-                          duration: CruMotion.of(context, CruMotion.fast),
-                          curve: CruMotion.curve,
-                          width: 40,
-                          height: 40,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: isSel
-                                ? selFill
-                                : (isToday
-                                      ? accent.withValues(
-                                          alpha: eve ? 0.2 : 0.1,
-                                        )
-                                      : null),
-                          ),
-                          child: Text(
-                            '${d.day}',
-                            style: MobileType.row.tabular.tint(
-                              isSel ? selText : (isToday ? accent : ink),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: CruSpace.s4),
-                        Container(
-                          width: 5,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: booked
-                                ? accent.withValues(alpha: 0.7)
-                                : Colors.transparent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
+              child: _DayCell(
+                day: start.add(Duration(days: i)),
+                selected: selected,
+                today: today,
+                onSelect: onSelect,
               ),
             ),
         ],
@@ -817,10 +937,7 @@ extension on String {
 
 /// The dropdown pill beside "Schedule": toggles between Week and Month view.
 class _ViewDropdown extends StatelessWidget {
-  const _ViewDropdown({
-    required this.isMonth,
-    required this.onTap,
-  });
+  const _ViewDropdown({required this.isMonth, required this.onTap});
 
   final bool isMonth;
   final VoidCallback onTap;
@@ -833,17 +950,16 @@ class _ViewDropdown extends StatelessWidget {
 
     return CruPressable(
       onTap: onTap,
-      semanticLabel: isMonth ? 'Switch to weekly view' : 'Switch to monthly view',
+      semanticLabel: isMonth
+          ? 'Switch to weekly view'
+          : 'Switch to monthly view',
       scaleOnPress: true,
       builder: (context, hovered) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: hovered ? bg.withValues(alpha: 0.22) : bg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: accent.withValues(alpha: 0.28),
-            width: 1,
-          ),
+          border: Border.all(color: accent.withValues(alpha: 0.28), width: 1),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -857,11 +973,7 @@ class _ViewDropdown extends StatelessWidget {
               turns: isMonth ? 0.5 : 0.0,
               duration: CruMotion.standard,
               curve: CruMotion.curve,
-              child: CruIcon(
-                CruIcons.chevronDown,
-                size: 13,
-                color: accent,
-              ),
+              child: CruIcon(CruIcons.chevronDown, size: 13, color: accent),
             ),
           ],
         ),
@@ -870,10 +982,14 @@ class _ViewDropdown extends StatelessWidget {
   }
 }
 
-/// Expanded month grid with appointment dots and month stepper.
-class _MonthGrid extends ConsumerWidget {
+/// The month grid. [t] runs 0 → 1 as it opens: row [anchorRow] (the week
+/// strip) slides from the top down into its slot while the other weeks
+/// fade in around it and the grid grows to full height.
+class _MonthGrid extends StatelessWidget {
   const _MonthGrid({
     required this.month,
+    required this.anchorRow,
+    required this.t,
     required this.selected,
     required this.today,
     required this.onSelect,
@@ -881,25 +997,23 @@ class _MonthGrid extends ConsumerWidget {
   });
 
   final DateTime month;
+  final int anchorRow;
+  final double t;
   final DateTime selected;
   final DateTime today;
   final ValueChanged<DateTime> onSelect;
   final ValueChanged<DateTime> onMonthChange;
 
-  static const _weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final eve = mobileOnDark(context);
-    final ink = mobileInk(context);
-    final selFill = eve ? Colors.white : MobileBlue.neon;
-    final selText = eve ? MobileBlue.neon : Colors.white;
-    final accent = eve ? Colors.white : MobileBlue.neon;
+  Widget build(BuildContext context) {
+    const rowH = _DayCell.rowHeight;
     final days = ApptsBuilder.monthGrid(month);
-    final isCurrentMonth = month.year == today.year && month.month == today.month;
+    final isCurrentMonth =
+        month.year == today.year && month.month == today.month;
     final weeks = <List<DateTime>>[
       for (var i = 0; i < days.length; i += 7) days.sublist(i, i + 7),
     ];
+    final height = rowH + (weeks.length - 1) * rowH * t;
 
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
@@ -919,143 +1033,93 @@ class _MonthGrid extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Month navigation bar
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 10),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      DateFormat('MMMM yyyy').format(month),
-                      style: MobileType.headline.tint(ink),
-                    ),
-                  ),
-                  if (!isCurrentMonth) ...[
-                    CruCapsuleButton(
-                      label: 'Today',
-                      height: 28,
-                      onPressed: () {
-                        MobileHaptics.select();
-                        onMonthChange(DateTime(today.year, today.month));
-                      },
-                    ),
-                    const SizedBox(width: CruSpace.s6),
-                  ],
-                  CruIconButton(
-                    icon: CruIcons.chevronLeft,
-                    semanticLabel: 'Previous month',
-                    size: 32,
-                    iconSize: 16,
-                    onPressed: () {
-                      MobileHaptics.select();
-                      onMonthChange(DateTime(month.year, month.month - 1));
-                    },
-                  ),
-                  const SizedBox(width: CruSpace.s4),
-                  CruIconButton(
-                    icon: CruIcons.chevronRight,
-                    semanticLabel: 'Next month',
-                    size: 32,
-                    iconSize: 16,
-                    onPressed: () {
-                      MobileHaptics.select();
-                      onMonthChange(DateTime(month.year, month.month + 1));
-                    },
-                  ),
-                ],
-              ),
-            ),
-            // Weekday initials
-            Row(
-              children: [
-                for (final d in _weekdays)
-                  Expanded(
-                    child: Text(
-                      d,
-                      textAlign: TextAlign.center,
-                      style: MobileType.micro.tint(ink.withValues(alpha: 0.55)),
-                    ),
-                  ),
-              ],
-            ),
-            const SizedBox(height: CruSpace.s6),
-            // Month week rows
-            for (final week in weeks)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
+            ClipRect(
+              child: SizedBox(
+                height: height,
+                child: Stack(
                   children: [
-                    for (final d in week)
-                      Expanded(
-                        child: Builder(
-                          builder: (context) {
-                            final inMonth = d.month == month.month;
-                            final isSel = ApptsBuilder.sameDay(d, selected);
-                            final isToday = ApptsBuilder.sameDay(d, today);
-                            final booked = ref
-                                    .watch(apptDayItemsProvider(d))
-                                    .value
-                                    ?.isNotEmpty ??
-                                false;
-                            final dayInk = inMonth
-                                ? ink
-                                : ink.withValues(alpha: 0.28);
-
-                            return CruPressable(
-                              onTap: () => onSelect(d),
-                              semanticLabel: DateFormat('EEEE d MMMM').format(d),
-                              scaleOnPress: false,
-                              builder: (context, _) => Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  AnimatedContainer(
-                                    duration: CruMotion.of(
-                                      context,
-                                      CruMotion.fast,
-                                    ),
-                                    curve: CruMotion.curve,
-                                    width: 36,
-                                    height: 36,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: isSel
-                                          ? selFill
-                                          : (isToday
-                                              ? accent.withValues(
-                                                  alpha: eve ? 0.2 : 0.1,
-                                                )
-                                              : null),
-                                    ),
-                                    child: Text(
-                                      '${d.day}',
-                                      style: MobileType.row.tabular.tint(
-                                        isSel
-                                            ? selText
-                                            : (isToday ? accent : dayInk),
-                                      ),
-                                    ),
+                    for (var i = 0; i < weeks.length; i++)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        top: (i - anchorRow * (1 - t)) * rowH,
+                        height: rowH,
+                        child: Opacity(
+                          opacity: i == anchorRow ? 1 : t,
+                          child: Row(
+                            children: [
+                              for (final d in weeks[i])
+                                Expanded(
+                                  child: _DayCell(
+                                    day: d,
+                                    selected: selected,
+                                    today: today,
+                                    onSelect: onSelect,
+                                    fade: d.month == month.month ? 0 : t,
                                   ),
-                                  const SizedBox(height: 2),
-                                  Container(
-                                    width: 4,
-                                    height: 4,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: booked && inMonth
-                                          ? accent.withValues(alpha: 0.7)
-                                          : Colors.transparent,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          },
+                                ),
+                            ],
+                          ),
                         ),
                       ),
                   ],
                 ),
               ),
+            ),
+            // Month stepper; the month's name is in the header above.
+            ClipRect(
+              child: Align(
+                alignment: Alignment.topCenter,
+                heightFactor: t,
+                child: Opacity(
+                  opacity: t,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: CruSpace.s4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        if (!isCurrentMonth) ...[
+                          CruCapsuleButton(
+                            label: 'Today',
+                            height: 28,
+                            onPressed: () {
+                              MobileHaptics.select();
+                              onMonthChange(DateTime(today.year, today.month));
+                            },
+                          ),
+                          const SizedBox(width: CruSpace.s6),
+                        ],
+                        CruIconButton(
+                          icon: CruIcons.chevronLeft,
+                          semanticLabel: 'Previous month',
+                          size: 32,
+                          iconSize: 16,
+                          onPressed: () {
+                            MobileHaptics.select();
+                            onMonthChange(
+                              DateTime(month.year, month.month - 1),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: CruSpace.s4),
+                        CruIconButton(
+                          icon: CruIcons.chevronRight,
+                          semanticLabel: 'Next month',
+                          size: 32,
+                          iconSize: 16,
+                          onPressed: () {
+                            MobileHaptics.select();
+                            onMonthChange(
+                              DateTime(month.year, month.month + 1),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

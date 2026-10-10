@@ -16,6 +16,7 @@ import 'package:doctor_management_app/features/mobile/mobile_revenue.dart';
 import 'package:doctor_management_app/features/mobile/mobile_schedule.dart';
 import 'package:doctor_management_app/features/shell/components/mobile_feature_disabled_view.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/search_lift.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
 import 'package:doctor_management_app/core/clinic/clinic_tabs.dart';
 import 'package:doctor_management_app/features/team/presentation/not_available_view.dart';
@@ -215,8 +216,19 @@ class _MobileShellState extends ConsumerState<MobileShell> {
                                   i;
                               FocusManager.instance.primaryFocus?.unfocus();
                             },
-                            itemBuilder: (context, i) =>
-                                MobileKeepAlive(child: _tab(i, modules)),
+                            itemBuilder: (context, i) => MobileKeepAlive(
+                              // A search field rises to the top; the
+                              // keyboard overlays this scaffold, so
+                              // the page makes room for it.
+                              child: SearchLift(
+                                top:
+                                    MediaQuery.paddingOf(context).top +
+                                    CruSpace.s16,
+                                avoidKeyboard: true,
+                                handleBack: false,
+                                child: _tab(i, modules),
+                              ),
+                            ),
                           ),
                         ),
                       ),

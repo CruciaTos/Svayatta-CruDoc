@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:doctor_management_app/features/mobile/mobile_backdrop.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/search_lift.dart';
 
 /// The phone's five tabs, in bottom-nav order.
 abstract final class MobileTab {
@@ -1269,30 +1270,43 @@ class MobileHostPage extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             SizedBox(height: (top >= 20 ? top : 44) + CruSpace.s4),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: SizedBox(
-                  height: 40,
-                  child: CruLink(
-                    label: backLabel,
-                    onPressed: () => Navigator.of(context).maybePop(),
-                    style: MobileType.row.copyWith(fontWeight: FontWeight.w500),
-                    leading: const CruIcon(
-                      CruIcons.chevronLeft,
-                      size: 22,
-                      strokeWidth: 2.2,
-                    ),
-                  ),
-                ),
-              ),
-            ),
             Expanded(
-              child: MediaQuery.removePadding(
-                context: context,
-                removeTop: true,
-                child: child,
+              child: SearchLift(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: CruSpace.s10,
+                      ),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          height: 40,
+                          child: CruLink(
+                            label: backLabel,
+                            onPressed: () => Navigator.of(context).maybePop(),
+                            style: MobileType.row.copyWith(
+                              fontWeight: FontWeight.w500,
+                            ),
+                            leading: const CruIcon(
+                              CruIcons.chevronLeft,
+                              size: 22,
+                              strokeWidth: 2.2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeTop: true,
+                        child: child,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -1396,57 +1410,64 @@ class MobileSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      height: 48,
-      padding: const EdgeInsets.only(left: CruSpace.s16, right: CruSpace.s4),
-      decoration: ShapeDecoration(
-        color: c.surface,
-        shape: cruShape(CruRadius.control + 2),
-        shadows: [
-          BoxShadow(
-            color: const Color(0xFF0B1B4D).withValues(alpha: 0.10),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CruIcon(CruIcons.search, size: 19, strokeWidth: 2, color: c.label3),
-          const SizedBox(width: CruSpace.s10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              textInputAction: TextInputAction.search,
-              style: MobileType.input.tint(c.label),
-              cursorColor: MobileBlue.neon,
-              decoration: InputDecoration(
-                isCollapsed: true,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                hintText: hint,
-                hintStyle: MobileType.input.tint(c.label3),
+    return SearchLiftField(
+      controller: controller,
+      onClear: () {
+        controller.clear();
+        onChanged('');
+      },
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.only(left: CruSpace.s16, right: CruSpace.s4),
+        decoration: ShapeDecoration(
+          color: c.surface,
+          shape: cruShape(CruRadius.control + 2),
+          shadows: [
+            BoxShadow(
+              color: const Color(0xFF0B1B4D).withValues(alpha: 0.10),
+              blurRadius: 18,
+              offset: const Offset(0, 6),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CruIcon(CruIcons.search, size: 19, strokeWidth: 2, color: c.label3),
+            const SizedBox(width: CruSpace.s10),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                textInputAction: TextInputAction.search,
+                style: MobileType.input.tint(c.label),
+                cursorColor: MobileBlue.neon,
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                  hintText: hint,
+                  hintStyle: MobileType.input.tint(c.label3),
+                ),
               ),
             ),
-          ),
-          ListenableBuilder(
-            listenable: controller,
-            builder: (context, _) => controller.text.isEmpty
-                ? const SizedBox(width: CruSpace.s10)
-                : CruIconButton(
-                    icon: CruIcons.close,
-                    size: 40,
-                    iconSize: 16,
-                    semanticLabel: 'Clear search',
-                    onPressed: () {
-                      controller.clear();
-                      onChanged('');
-                    },
-                  ),
-          ),
-        ],
+            ListenableBuilder(
+              listenable: controller,
+              builder: (context, _) => controller.text.isEmpty
+                  ? const SizedBox(width: CruSpace.s10)
+                  : CruIconButton(
+                      icon: CruIcons.close,
+                      size: 40,
+                      iconSize: 16,
+                      semanticLabel: 'Clear search',
+                      onPressed: () {
+                        controller.clear();
+                        onChanged('');
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }

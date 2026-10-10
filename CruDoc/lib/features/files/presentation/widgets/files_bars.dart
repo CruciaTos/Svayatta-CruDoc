@@ -554,10 +554,15 @@ class FilesMenu extends StatelessWidget {
     required this.items,
     required this.builder,
     this.controller,
+    this.endAlignedWidth,
   });
 
   final List<FilesMenuItem> items;
   final Widget Function(BuildContext context, VoidCallback open) builder;
+
+  /// When set, the menu is this wide and lines up with the button's right
+  /// edge, so it opens inward (a button at the right of a dialog).
+  final double? endAlignedWidth;
 
   /// Lets the owner open the menu at a point (right-click on a row).
   final MenuController? controller;
@@ -568,16 +573,25 @@ class FilesMenu extends StatelessWidget {
     final itemShape = RoundedSuperellipseBorder(
       borderRadius: BorderRadius.circular(CruRadius.control - CruSpace.s6),
     );
+    final endWidth = endAlignedWidth;
     return MenuAnchor(
       controller: controller,
-      alignmentOffset: const Offset(0, CruSpace.s6),
+      alignmentOffset: Offset(endWidth == null ? 0 : -endWidth, CruSpace.s6),
       style: MenuStyle(
+        alignment: endWidth == null ? null : AlignmentDirectional.bottomEnd,
+        minimumSize: endWidth == null
+            ? null
+            : WidgetStatePropertyAll(Size(endWidth, 0)),
+        maximumSize: endWidth == null
+            ? null
+            : WidgetStatePropertyAll(Size(endWidth, double.infinity)),
         backgroundColor: WidgetStatePropertyAll(c.surface),
         surfaceTintColor: WidgetStatePropertyAll(
           c.surface.withValues(alpha: 0),
         ),
         shadowColor: WidgetStatePropertyAll(c.label.withValues(alpha: 0.18)),
-        elevation: const WidgetStatePropertyAll(0),
+        // Raised when it opens over other controls inside a form.
+        elevation: WidgetStatePropertyAll(endWidth == null ? 0 : 6),
         padding: const WidgetStatePropertyAll(EdgeInsets.all(CruSpace.s6)),
         shape: WidgetStatePropertyAll(
           RoundedSuperellipseBorder(

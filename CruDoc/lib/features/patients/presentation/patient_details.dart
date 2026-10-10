@@ -20,6 +20,7 @@ import 'package:doctor_management_app/features/dental/records/dental_records_rep
 import 'package:doctor_management_app/features/therapy/presentation/physio_photos_dialog.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';
 import 'package:doctor_management_app/core/clinic/clinic_session.dart';
+import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
 
 const Color _accentBlue = Color(0xFF5DADE2);
 const Color _accentTeal = Color(0xFF48C9B0);
@@ -264,6 +265,11 @@ class _PatientDetailsPageState extends ConsumerState<PatientDetailsPage> {
                     if (ref.watch(isPhysiotherapyProvider)) ...[
                       const SizedBox(height: 16),
                       _PhysioPhotosActionCard(patient: patient),
+                    ],
+                    // Every file and report added for this patient.
+                    if (clinical) ...[
+                      const SizedBox(height: 16),
+                      PatientFilesCard(patient: patient),
                     ],
                     const SizedBox(height: 20),
                     const _SectionLabel(text: 'CONTACT'),

@@ -48,12 +48,14 @@ abstract interface class RadViewportHost {
   void upgradeToFull(String imageId);
 }
 
-enum _Drag { none, pan, zoom, window, draw, angleArm, freehand, edit }
+enum _Drag { none, pan, zoom, window, draw, angleArm, freehand, edit, pinch }
 
 /// One dark image pane: the image through its window, annotations,
 /// corner read-outs, the loupe and the frame slider. Left-drag uses the
 /// active tool; right and middle drags follow the mouse preferences;
-/// the wheel zooms at the cursor; double-click fits.
+/// the wheel zooms at the cursor; double-click fits. On a touch screen one
+/// finger uses the tool and two fingers pinch to zoom and drag to move,
+/// whatever the tool.
 class RadViewport extends StatefulWidget {
   const RadViewport({
     super.key,
@@ -106,6 +108,19 @@ class _RadViewportState extends State<RadViewport> {
   double _panZoomScale = 1;
   double _wheelAcc = 0;
 
+  // Touch: fingers on the screen, and the pinch they make.
+  final Map<int, Offset> _touches = {};
+  Offset _pinchFocal = Offset.zero;
+  double _pinchDist = 0;
+
+  /// The draft before the first finger touched, so a pinch can take back
+  /// what that finger started drawing.
+  RadAnnotation? _draftBeforeTouch;
+
+  /// After a pinch the finger still down does nothing until it lifts, so
+  /// lifting one finger first doesn't start a drawing.
+  bool _ignoreUntilUp = false;
+
   // Editing an existing annotation.
   RadAnnotation? _editOrig;
   int _editHandle = -1;
@@ -139,6 +154,12 @@ class _RadViewportState extends State<RadViewport> {
   // ───────────────────────────── Pointer ─────────────────────────────
 
   void _down(PointerDownEvent e) {
+    if (e.kind == PointerDeviceKind.touch) {
+      _touches[e.pointer] = e.localPosition;
+      if (_touches.length == 2) return _startPinch();
+      if (_touches.length > 2 || _ignoreUntilUp) return;
+      _draftBeforeTouch = pane.draft;
+    }
     widget.host.activatePane(pane);
     final pos = e.localPosition;
     pane.cursor = pos;
@@ -277,6 +298,13 @@ class _RadViewportState extends State<RadViewport> {
   }
 
   void _move(PointerMoveEvent e) {
+    if (e.kind == PointerDeviceKind.touch) {
+      if (_touches.containsKey(e.pointer)) {
+        _touches[e.pointer] = e.localPosition;
+      }
+      if (_drag == _Drag.pinch) return _pinchUpdate();
+      if (_ignoreUntilUp) return;
+    }
     final pos = e.localPosition;
     final delta = pos - _lastPos;
     _lastPos = pos;
@@ -286,6 +314,9 @@ class _RadViewportState extends State<RadViewport> {
     switch (_drag) {
       case _Drag.none:
         pane.touch();
+      case _Drag.pinch:
+        // Handled above; a pinch never reaches the tools.
+        break;
       case _Drag.pan:
         pane.pan += delta;
         pane.touch();
@@ -340,6 +371,7 @@ class _RadViewportState extends State<RadViewport> {
   }
 
   void _up(PointerUpEvent e) {
+    if (e.kind == PointerDeviceKind.touch && _touchUp(e.pointer)) return;
     final d = pane.draft;
     switch (_drag) {
       case _Drag.draw:
@@ -367,6 +399,70 @@ class _RadViewportState extends State<RadViewport> {
         break;
     }
     if (_drag != _Drag.none) setState(() => _drag = _Drag.none);
+    if (e.kind == PointerDeviceKind.touch) {
+      // No finger, no loupe.
+      pane.cursor = null;
+      pane.touch();
+    }
+  }
+
+  // ───────────────────────────── Touch ─────────────────────────────
+
+  /// A second finger: undo what the first one started, then pinch.
+  void _startPinch() {
+    switch (_drag) {
+      case _Drag.draw:
+      case _Drag.angleArm:
+      case _Drag.freehand:
+        pane.draft = _draftBeforeTouch;
+        pane.draftHover = null;
+      case _Drag.edit:
+        _editOrig = null;
+        widget.host.endEdit();
+      case _Drag.window:
+        pane.requestRender(progressive: true);
+      default:
+        // A tap that added a point to an area or path: take it back.
+        if (widget.tool.draws) pane.draft = _draftBeforeTouch;
+    }
+    final pts = _touches.values.take(2).toList();
+    _pinchFocal = (pts[0] + pts[1]) / 2;
+    _pinchDist = (pts[0] - pts[1]).distance;
+    _lastClick = null;
+    pane.cursor = null;
+    pane.touch();
+    setState(() => _drag = _Drag.pinch);
+  }
+
+  void _pinchUpdate() {
+    if (!pane.hasImage || _touches.length < 2) return;
+    final pts = _touches.values.take(2).toList();
+    final focal = (pts[0] + pts[1]) / 2;
+    final dist = (pts[0] - pts[1]).distance;
+    pane.pan += focal - _pinchFocal;
+    if (_pinchDist > 0 && dist > 0) pane.zoomAt(focal, dist / _pinchDist);
+    _pinchFocal = focal;
+    _pinchDist = dist;
+    pane.touch();
+    widget.host.viewChanged(pane);
+  }
+
+  /// A finger lifted. True when it was part of a pinch (or its tail) and
+  /// so shouldn't finish a tool action.
+  bool _touchUp(int pointer) {
+    _touches.remove(pointer);
+    if (_drag == _Drag.pinch) {
+      if (_touches.length < 2) {
+        _ignoreUntilUp = _touches.isNotEmpty;
+        setState(() => _drag = _Drag.none);
+      }
+      return true;
+    }
+    if (_ignoreUntilUp) {
+      if (_touches.isEmpty) _ignoreUntilUp = false;
+      return true;
+    }
+    return false;
   }
 
   void _hover(PointerHoverEvent e) {
@@ -445,7 +541,11 @@ class _RadViewportState extends State<RadViewport> {
               onPointerDown: _down,
               onPointerMove: _move,
               onPointerUp: _up,
-              onPointerCancel: (_) => setState(() => _drag = _Drag.none),
+              onPointerCancel: (e) {
+                _touches.remove(e.pointer);
+                if (_touches.isEmpty) _ignoreUntilUp = false;
+                setState(() => _drag = _Drag.none);
+              },
               onPointerHover: _hover,
               onPointerSignal: _signal,
               onPointerPanZoomStart: (_) => _panZoomScale = 1,
@@ -909,12 +1009,8 @@ class _FrameSlider extends StatelessWidget {
   }
 }
 
-
 class _PreviewPill extends StatelessWidget {
-  const _PreviewPill({
-    required this.upgrading,
-    required this.onUpgrade,
-  });
+  const _PreviewPill({required this.upgrading, required this.onUpgrade});
 
   final bool upgrading;
   final VoidCallback onUpgrade;
@@ -927,9 +1023,7 @@ class _PreviewPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: CruSpace.s10),
       decoration: const ShapeDecoration(
         color: RadInk.overlayFill,
-        shape: StadiumBorder(
-          side: BorderSide(color: RadInk.overlayBorder),
-        ),
+        shape: StadiumBorder(side: BorderSide(color: RadInk.overlayBorder)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -956,8 +1050,9 @@ class _PreviewPill extends StatelessWidget {
                 'Full quality',
                 style: CruType.caption.w600.copyWith(
                   color: hovered ? c.accentText : c.accent,
-                  decoration:
-                      hovered ? TextDecoration.underline : TextDecoration.none,
+                  decoration: hovered
+                      ? TextDecoration.underline
+                      : TextDecoration.none,
                 ),
               ),
             ),

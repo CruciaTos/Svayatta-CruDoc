@@ -6,6 +6,7 @@ import 'package:doctor_management_app/features/dental/data/models/sterilization_
 import 'package:doctor_management_app/features/dental/data/models/treatment_plan_line_item_model.dart';
 import 'package:doctor_management_app/features/dental/domain/dental_chart.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
+import 'package:doctor_management_app/shared/widgets/search_lift.dart';
 
 /// Dates and times on the dental screens.
 abstract final class DentalFormat {
@@ -435,55 +436,65 @@ class DentalSearchField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    return Container(
-      height: CruSize.control,
-      padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s6, 0),
-      decoration: ShapeDecoration(
-        color: c.surface,
-        shape: cruShape(CruRadius.control, side: BorderSide(color: c.hairline)),
-        shadows: const [],
-      ),
-      child: Row(
-        children: [
-          CruIcon(CruIcons.search, size: 16, strokeWidth: 2, color: c.label3),
-          const SizedBox(width: CruSpace.s8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              style: CruType.subhead.tint(c.label),
-              cursorColor: c.accent,
-              textInputAction: TextInputAction.search,
-              decoration: InputDecoration(
-                isCollapsed: true,
-                filled: false,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-                hint: Text(
-                  hint,
-                  style: CruType.subhead.tint(c.label3),
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.clip,
+    return SearchLiftField(
+      controller: controller,
+      onClear: () {
+        controller.clear();
+        onChanged('');
+      },
+      child: Container(
+        height: CruSize.control,
+        padding: const EdgeInsets.fromLTRB(CruSpace.s12, 0, CruSpace.s6, 0),
+        decoration: ShapeDecoration(
+          color: c.surface,
+          shape: cruShape(
+            CruRadius.control,
+            side: BorderSide(color: c.hairline),
+          ),
+          shadows: const [],
+        ),
+        child: Row(
+          children: [
+            CruIcon(CruIcons.search, size: 16, strokeWidth: 2, color: c.label3),
+            const SizedBox(width: CruSpace.s8),
+            Expanded(
+              child: TextField(
+                controller: controller,
+                onChanged: onChanged,
+                style: CruType.subhead.tint(c.label),
+                cursorColor: c.accent,
+                textInputAction: TextInputAction.search,
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  filled: false,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                  hint: Text(
+                    hint,
+                    style: CruType.subhead.tint(c.label3),
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                  ),
                 ),
               ),
             ),
-          ),
-          if (controller.text.isNotEmpty)
-            CruIconButton(
-              icon: CruIcons.close,
-              size: CruSize.rowCapsule,
-              iconSize: 14,
-              semanticLabel: 'Clear search',
-              tooltip: 'Clear search',
-              onPressed: () {
-                controller.clear();
-                onChanged('');
-              },
-            )
-          else
-            const SizedBox(width: CruSpace.s8),
-        ],
+            if (controller.text.isNotEmpty)
+              CruIconButton(
+                icon: CruIcons.close,
+                size: CruSize.rowCapsule,
+                iconSize: 14,
+                semanticLabel: 'Clear search',
+                tooltip: 'Clear search',
+                onPressed: () {
+                  controller.clear();
+                  onChanged('');
+                },
+              )
+            else
+              const SizedBox(width: CruSpace.s8),
+          ],
+        ),
       ),
     );
   }

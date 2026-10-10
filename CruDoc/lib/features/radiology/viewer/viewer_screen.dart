@@ -25,6 +25,7 @@ import 'package:doctor_management_app/features/radiology/viewer/viewer_dialogs.d
 import 'package:doctor_management_app/features/radiology/viewer/viewer_export.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_icons.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_pane.dart';
+import 'package:doctor_management_app/features/radiology/viewer/viewer_phone_bar.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_prefs.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_shortcuts_dialog.dart';
 import 'package:doctor_management_app/features/radiology/viewer/viewer_toolbar.dart';
@@ -35,6 +36,9 @@ import 'package:doctor_management_app/features/radiology/viewer_plus/subtraction
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 
 enum _ExportKind { pngMarks, png, jpgMarks, jpg, area, dicom }
+
+/// The phone bar's groups: each opens its own row of tools.
+enum _PhoneGroup { adjust, measure, draw, rotate, more }
 
 /// Annotations and calibration at one moment (an undo step).
 class _Snapshot {
@@ -116,6 +120,9 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
   RadTool _toolBeforeCalibrate = RadTool.select;
   bool _link = false;
   bool _loupe = false;
+
+  /// The phone bar's open group, if any.
+  _PhoneGroup? _phoneGroup;
   LogicalKeyboardKey? _loupeKey;
   DateTime? _loupeDownAt;
   bool _reading = false;
@@ -1053,9 +1060,15 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
 
   @override
   void toggleInvert() {
-    _pane.toggleInvert();
+    // setState too, so the Invert button's highlight follows.
+    setState(_pane.toggleInvert);
     _pane.touch();
   }
+
+  /// Picks [t], or goes back to Move when [t] is already the tool: tapping
+  /// a highlighted tool switches it off.
+  void _toggleTool(RadTool t) =>
+      _setTool(_tool == t && t != RadTool.select ? RadTool.select : t);
 
   @override
   Future<void> resetAdjustments() async {
@@ -1065,6 +1078,8 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     p.resetWindow();
     p.touch();
     _rememberState();
+    // Invert's highlight follows the reset.
+    if (mounted) setState(() {});
   }
 
   // ───────────────────────────── Actions ─────────────────────────────
@@ -1545,7 +1560,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                         style: RadBarButtonStyle.tool,
                         onPressed: t == RadTool.calibrate
                             ? (has && own ? startCalibration : null)
-                            : () => _setTool(t),
+                            : () => _toggleTool(t),
                       ),
                     const RadBarDivider(),
                   ],
@@ -1764,6 +1779,311 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
     );
   }
 
+  // ───────────────────────────── Phone bar ─────────────────────────────
+
+  bool _isCeph(RadStudy s) {
+    final image = _imageRef(_pane);
+    return s.modality == RadModality.ceph ||
+        (image?.seriesDescription.toLowerCase().contains('ceph') ?? false);
+  }
+
+  /// The tools as a photo editor lays them out: labelled buttons along the
+  /// bottom, groups opening their own row, and a line on how to use the
+  /// current tool.
+  Widget _phoneBar(RadStudy s, List<RadStudy> others) {
+    final p = _pane;
+    final has = p.hasImage;
+    final own = p.studyId == s.id;
+    final group = _phoneGroup;
+
+    void open(_PhoneGroup g) =>
+        setState(() => _phoneGroup = group == g ? null : g);
+    RadPhoneBarItem tool(RadTool t, {bool enabled = true}) => RadPhoneBarItem(
+      icon: t.icon,
+      label: t.short,
+      selected: _tool == t,
+      onTap: !enabled
+          ? null
+          : t == RadTool.calibrate && _tool != RadTool.calibrate
+          ? startCalibration
+          : () => _toggleTool(t),
+    );
+    RadPhoneBarItem act(
+      CruIconData icon,
+      String label,
+      VoidCallback action, {
+      bool enabled = true,
+      bool selected = false,
+    }) => RadPhoneBarItem(
+      icon: icon,
+      label: label,
+      selected: selected,
+      onTap: enabled ? action : null,
+    );
+
+    const measuring = {
+      RadTool.length,
+      RadTool.angle,
+      RadTool.polygon,
+      RadTool.calibrate,
+    };
+    const drawing = {
+      RadTool.arrow,
+      RadTool.freehand,
+      RadTool.text,
+      RadTool.rect,
+      RadTool.ellipse,
+      RadTool.polyline,
+    };
+
+    final items = [
+      RadPhoneBarItem(
+        icon: RadTool.select.icon,
+        label: 'Move',
+        selected:
+            group == null &&
+            {RadTool.select, RadTool.pan, RadTool.zoom}.contains(_tool),
+        onTap: () {
+          _setTool(RadTool.select);
+          setState(() => _phoneGroup = null);
+        },
+      ),
+      RadPhoneBarItem(
+        icon: RadTool.window.icon,
+        label: 'Adjust',
+        selected:
+            group == _PhoneGroup.adjust ||
+            (group == null && _tool == RadTool.window),
+        onTap: () => open(_PhoneGroup.adjust),
+      ),
+      RadPhoneBarItem(
+        icon: RadTool.length.icon,
+        label: 'Measure',
+        selected:
+            group == _PhoneGroup.measure ||
+            (group == null && measuring.contains(_tool)),
+        onTap: () => open(_PhoneGroup.measure),
+      ),
+      RadPhoneBarItem(
+        icon: RadTool.freehand.icon,
+        label: 'Draw',
+        selected:
+            group == _PhoneGroup.draw ||
+            (group == null && drawing.contains(_tool)),
+        onTap: () => open(_PhoneGroup.draw),
+      ),
+      RadPhoneBarItem(
+        icon: RadTool.tooth.icon,
+        label: 'Tooth',
+        selected: group == null && _tool == RadTool.tooth,
+        onTap: () {
+          _toggleTool(RadTool.tooth);
+          setState(() => _phoneGroup = null);
+        },
+      ),
+      RadPhoneBarItem(
+        icon: RadViewerIcons.rotate,
+        label: 'Rotate',
+        selected: group == _PhoneGroup.rotate,
+        onTap: () => open(_PhoneGroup.rotate),
+      ),
+      act(
+        RadViewerIcons.fit,
+        'Fit',
+        () => _run(RadViewerAction.fit),
+        enabled: has,
+      ),
+      act(RadViewerIcons.panel, 'Details', _togglePanel, selected: _phonePanel),
+      act(
+        RadViewerIcons.export,
+        'Export',
+        () => _exportSheet(),
+        enabled: has && !_busy,
+      ),
+      RadPhoneBarItem(
+        icon: CruIcons.more,
+        label: 'More',
+        selected: group == _PhoneGroup.more,
+        onTap: () => open(_PhoneGroup.more),
+      ),
+    ];
+
+    final List<RadPhoneBarItem>? sub = switch (group) {
+      null => null,
+      _PhoneGroup.adjust => [
+        tool(RadTool.window, enabled: has),
+        act(
+          RadViewerIcons.invert,
+          'Invert',
+          toggleInvert,
+          enabled: has,
+          selected: p.userInvert,
+        ),
+        act(
+          RadViewerIcons.loupe,
+          'Magnifier',
+          () => setState(() => _loupe = !_loupe),
+          selected: _loupe,
+        ),
+        act(
+          RadViewerIcons.reset,
+          'Reset',
+          () => _run(RadViewerAction.reset),
+          enabled: has,
+        ),
+      ],
+      _PhoneGroup.measure => [
+        tool(RadTool.length),
+        tool(RadTool.angle),
+        tool(RadTool.polygon),
+        tool(RadTool.calibrate, enabled: has && own),
+      ],
+      _PhoneGroup.draw => [
+        tool(RadTool.arrow),
+        tool(RadTool.freehand),
+        tool(RadTool.text),
+        tool(RadTool.rect),
+        tool(RadTool.ellipse),
+        tool(RadTool.polyline),
+      ],
+      _PhoneGroup.rotate => [
+        act(
+          RadViewerIcons.rotate,
+          'Rotate 90°',
+          () => _run(RadViewerAction.rotate),
+          enabled: has,
+        ),
+        act(
+          RadViewerIcons.flipH,
+          'Mirror',
+          () => _run(RadViewerAction.flipH),
+          enabled: has,
+        ),
+        act(
+          RadViewerIcons.flipV,
+          'Flip',
+          () => _run(RadViewerAction.flipV),
+          enabled: has,
+        ),
+      ],
+      _PhoneGroup.more => [
+        act(
+          RadViewerIcons.keyImage,
+          'Key image',
+          () => _run(RadViewerAction.keyImage),
+          enabled: has && own && !_busy,
+        ),
+        if (others.isNotEmpty)
+          act(
+            RadViewerIcons.compare,
+            'Compare',
+            // Tapped again while comparing: stop comparing.
+            _compare != null
+                ? () => _setCompare(null)
+                : () => _compareSheet(others),
+            selected: _compare != null,
+          ),
+        if (_panes.length > 1)
+          act(RadViewerIcons.link, 'Link', _toggleLink, selected: _link),
+        act(
+          RadViewerIcons.subtract,
+          'Subtract',
+          () => _push(RadSubtractionScreen(studyId: s.id, imageIdA: p.imageId)),
+          enabled: has && own,
+        ),
+        if (_isCeph(s))
+          act(
+            RadViewerIcons.ceph,
+            'Ceph',
+            () => _push(RadCephScreen(studyId: s.id, imageId: p.imageId)),
+            enabled: has && own,
+          ),
+        act(
+          RadViewerIcons.readingMode,
+          'Full screen',
+          () => setState(() => _reading = true),
+        ),
+      ],
+    };
+
+    return RadPhoneToolBar(
+      hint: _tool.hint,
+      items: items,
+      subItems: sub,
+      onUndo: _undo.isEmpty ? null : _undoStep,
+      onRedo: _redo.isEmpty ? null : _redoStep,
+    );
+  }
+
+  /// A bottom sheet of choices; returns the picked value.
+  Future<T?> _sheet<T>(String title, List<(T, String)> choices) {
+    return showModalBottomSheet<T>(
+      context: context,
+      useRootNavigator: true,
+      showDragHandle: true,
+      builder: (sheet) {
+        final c = sheet.cru;
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              CruSpace.s8,
+              0,
+              CruSpace.s8,
+              CruSpace.s16,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    CruSpace.s16,
+                    0,
+                    CruSpace.s16,
+                    CruSpace.s8,
+                  ),
+                  child: Text(title, style: CruType.headline.tint(c.label)),
+                ),
+                for (final (value, label) in choices)
+                  ListTile(
+                    title: Text(label, style: CruType.text.tint(c.label)),
+                    onTap: () => Navigator.pop(sheet, value),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _exportSheet() async {
+    final image = _imageRef(_pane);
+    final kind = await _sheet<_ExportKind>('Export', [
+      (_ExportKind.pngMarks, 'PNG with marks'),
+      (_ExportKind.png, 'PNG without marks'),
+      (_ExportKind.jpgMarks, 'JPG with marks'),
+      (_ExportKind.jpg, 'JPG without marks'),
+      if (_selectedBox(_pane) != null)
+        (_ExportKind.area, 'PNG of the selected area'),
+      if (image?.kind == RadFileKind.dicom)
+        (_ExportKind.dicom, 'Anonymised DICOM'),
+    ]);
+    if (kind != null && mounted) await _export(kind);
+  }
+
+  Future<void> _compareSheet(List<RadStudy> others) async {
+    final id = await _sheet<String>('Compare with', [
+      for (final o in others)
+        (o.id, '${o.modality.short} · ${RadFormat.date(o.studyDate)}'),
+      if (_compare != null) ('', 'Stop comparing'),
+    ]);
+    if (id == null || !mounted) return;
+    _setCompare(
+      id.isEmpty ? null : others.where((o) => o.id == id).firstOrNull,
+    );
+  }
+
   Widget _panel(RadStudy s, RadReport? report, {double? width}) {
     final p = _pane;
     final own = p.studyId == s.id;
@@ -1922,7 +2242,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                   shortcutsKey: _prefs.keyFor(RadViewerAction.shortcuts),
                   onOpen3d: radIsVolume(s) ? _open3d : null,
                 ),
-                _toolbar(s, others),
+                if (!phone) _toolbar(s, others),
               ],
               Expanded(
                 child: Row(
@@ -1998,6 +2318,7 @@ class _RadViewerScreenState extends ConsumerState<RadViewerScreen>
                   ],
                 ),
               ),
+              if (!_reading && phone) _phoneBar(s, others),
             ],
           ),
         ),

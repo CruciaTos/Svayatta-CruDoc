@@ -120,12 +120,35 @@ class _FilesScreenState extends ConsumerState<FilesScreen> {
 
   bool get _wide => MediaQuery.sizeOf(context).width >= CruBreakpoint.splitPane;
 
-  /// Tap opens the file. On wide screens it also becomes the panel's file,
-  /// so its details are there when the viewer closes.
+  /// The last tap on a wide screen, to spot the second half of a double tap.
+  String? _lastTapId;
+  DateTime? _lastTapAt;
+
+  /// On a phone a tap opens the file. On wide screens a tap selects it and
+  /// shows its details in the panel; a double tap opens it.
   void _onTap(FileEntry entry) {
-    if (_wide) _controller.select(entry.id);
-    _open(entry);
+    if (!_wide) {
+      _open(entry);
+      return;
+    }
+    final now = DateTime.now();
+    final last = _lastTapAt;
+    final isDouble =
+        _lastTapId == entry.id &&
+        last != null &&
+        now.difference(last) <= _doubleTapWindow;
+    _controller.select(entry.id);
+    if (isDouble) {
+      _lastTapId = null;
+      _lastTapAt = null;
+      _open(entry);
+    } else {
+      _lastTapId = entry.id;
+      _lastTapAt = now;
+    }
   }
+
+  static const Duration _doubleTapWindow = Duration(milliseconds: 500);
 
   void _open(FileEntry entry) =>
       FilesActions.open(context, entry.file, patientName: entry.patientName);

@@ -120,17 +120,25 @@ export function fullNameOf(patient: {
 }
 
 /**
- * Normalises a phone number to digits only, with a country code and no "+",
- * which is the form both wa.me and the Cloud API take.
+ * Normalises a phone number to an Indian mobile as digits only, with the
+ * country code and no "+" ("919876543210"), which is the form both wa.me and
+ * the Cloud API take.
  *
- * Returns null when the number cannot be a mobile, so the caller logs a skip
- * rather than sending into the void.
+ * Returns null for anything else, so the caller logs a skip rather than
+ * sending into the void. CruDoc serves Indian clinics only, and this used to
+ * accept any 11-15 digit number: an encrypted phone ("enc:v1:<base64>") read
+ * without decrypting stripped down to digits that started with the "1" of
+ * "v1", so about a quarter of them passed as valid foreign numbers.
  */
 export function normalisePhone(
   raw: string | null | undefined,
-  defaultCountryCode = "91",
 ): string | null {
   if (!raw || typeof raw !== "string") return null;
+
+  // Ciphertext is never a phone number, however many digits it contains.
+  if (raw.includes("enc:")) return null;
+  // A real number has nothing but digits, spaces and + ( ) - . in it.
+  if (/[^\d\s+()\-.]/.test(raw)) return null;
 
   let digits = raw.replace(/\D/g, "");
   if (!digits) return null;
@@ -138,18 +146,14 @@ export function normalisePhone(
   digits = digits.replace(/^0+/, "");
 
   if (digits.length === 10) {
-    digits = `${defaultCountryCode}${digits}`;
+    digits = `91${digits}`;
   }
-
-  if (digits.length < 10 || digits.length > 15) return null;
 
   // An Indian mobile is 10 digits starting 6-9. Landlines and short codes
   // cannot receive WhatsApp, so they are refused here rather than failing at
   // Meta with an unhelpful error.
-  if (digits.startsWith("91")) {
-    const local = digits.slice(2);
-    if (local.length !== 10 || !/^[6-9]/.test(local)) return null;
-  }
+  if (digits.length !== 12 || !digits.startsWith("91")) return null;
+  if (!/^[6-9]/.test(digits.slice(2))) return null;
 
   return digits;
 }

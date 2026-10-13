@@ -291,6 +291,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createConsultationNotesTable(txn);
       await _createWalkInQueueTable(txn);
       await _createHomeopathyCaseSheetsTable(txn);
+      await _createHomeopathySessionNotesTable(txn);
       await _createDentalProcedureCatalogTable(txn);
       await _createToothChartEntriesTable(txn);
       await _createProcedureLogEntriesTable(txn);
@@ -322,6 +323,7 @@ class LocalDatabaseService extends ChangeNotifier {
       await _createConsultationNotesTable(txn);
       await _createWalkInQueueTable(txn);
       await _createHomeopathyCaseSheetsTable(txn);
+      await _createHomeopathySessionNotesTable(txn);
       await _createDentalProcedureCatalogTable(txn);
       await _createToothChartEntriesTable(txn);
       await _createProcedureLogEntriesTable(txn);
@@ -368,6 +370,11 @@ class LocalDatabaseService extends ChangeNotifier {
         txn,
         table: 'homeopathy_case_sheets',
         columns: _homeopathyCaseSheetsColumns,
+      );
+      await _ensureColumns(
+        txn,
+        table: 'homeopathy_session_notes',
+        columns: _homeopathySessionNotesColumns,
       );
       await _ensureColumns(
         txn,
@@ -759,6 +766,7 @@ class LocalDatabaseService extends ChangeNotifier {
         'consultation_notes',
         'walk_in_queue',
         'homeopathy_case_sheets',
+        'homeopathy_session_notes',
         'dental_procedure_catalog',
         'tooth_chart_entries',
         'procedure_log_entries',
@@ -947,6 +955,10 @@ class LocalDatabaseService extends ChangeNotifier {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_homeopathy_case_sheets_doctor
       ON homeopathy_case_sheets (doctorId, updatedAt DESC)
+    ''');
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_homeopathy_session_notes_patient
+      ON homeopathy_session_notes (patientId, doctorId, sessionDate DESC)
     ''');
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_dental_records_sync_pending
@@ -1281,6 +1293,79 @@ class LocalDatabaseService extends ChangeNotifier {
     'isDeleted': 'isDeleted INTEGER NOT NULL DEFAULT 0',
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'updatedAt': 'updatedAt INTEGER NOT NULL DEFAULT 0',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
+    'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
+    'lastSyncedAt': 'lastSyncedAt INTEGER',
+  };
+
+  Future<void> _createHomeopathySessionNotesTable(
+    LocalDatabaseExecutor db,
+  ) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS homeopathy_session_notes (
+        id TEXT PRIMARY KEY,
+        patientId TEXT NOT NULL DEFAULT '',
+        doctorId TEXT NOT NULL DEFAULT '',
+        visitId TEXT NOT NULL DEFAULT '',
+        sessionDate INTEGER NOT NULL,
+        problemToday TEXT NOT NULL DEFAULT '',
+        symptomStatus TEXT NOT NULL DEFAULT 'unspecified',
+        symptomDetails TEXT NOT NULL DEFAULT '',
+        oldSymptomsReturned TEXT NOT NULL DEFAULT '',
+        newSymptoms TEXT NOT NULL DEFAULT '',
+        modalitiesToday TEXT NOT NULL DEFAULT '',
+        mentalStateToday TEXT NOT NULL DEFAULT '',
+        generalsToday TEXT NOT NULL DEFAULT '',
+        complianceNotes TEXT NOT NULL DEFAULT '',
+        intercurrentIllness TEXT NOT NULL DEFAULT '',
+        responseToRemedy TEXT NOT NULL DEFAULT 'notApplicable',
+        heringsLawObservation TEXT NOT NULL DEFAULT '',
+        clinicalImpression TEXT NOT NULL DEFAULT '',
+        remedyGiven TEXT NOT NULL DEFAULT '',
+        potency TEXT NOT NULL DEFAULT '',
+        repetition TEXT NOT NULL DEFAULT '',
+        adviceGiven TEXT NOT NULL DEFAULT '',
+        nextFollowUpDate INTEGER,
+        transcript TEXT NOT NULL DEFAULT '',
+        confidenceNote TEXT NOT NULL DEFAULT '',
+        createdAt INTEGER NOT NULL,
+        updatedAt INTEGER,
+        syncStatus TEXT NOT NULL DEFAULT 'synced',
+        pendingDelete INTEGER NOT NULL DEFAULT 0,
+        lastSyncedAt INTEGER
+      )
+    ''');
+  }
+
+  static const Map<String, String> _homeopathySessionNotesColumns = {
+    'id': 'id TEXT PRIMARY KEY',
+    'patientId': "patientId TEXT NOT NULL DEFAULT ''",
+    'doctorId': "doctorId TEXT NOT NULL DEFAULT ''",
+    'visitId': "visitId TEXT NOT NULL DEFAULT ''",
+    'sessionDate': 'sessionDate INTEGER NOT NULL DEFAULT 0',
+    'problemToday': "problemToday TEXT NOT NULL DEFAULT ''",
+    'symptomStatus': "symptomStatus TEXT NOT NULL DEFAULT 'unspecified'",
+    'symptomDetails': "symptomDetails TEXT NOT NULL DEFAULT ''",
+    'oldSymptomsReturned': "oldSymptomsReturned TEXT NOT NULL DEFAULT ''",
+    'newSymptoms': "newSymptoms TEXT NOT NULL DEFAULT ''",
+    'modalitiesToday': "modalitiesToday TEXT NOT NULL DEFAULT ''",
+    'mentalStateToday': "mentalStateToday TEXT NOT NULL DEFAULT ''",
+    'generalsToday': "generalsToday TEXT NOT NULL DEFAULT ''",
+    'complianceNotes': "complianceNotes TEXT NOT NULL DEFAULT ''",
+    'intercurrentIllness': "intercurrentIllness TEXT NOT NULL DEFAULT ''",
+    'responseToRemedy':
+        "responseToRemedy TEXT NOT NULL DEFAULT 'notApplicable'",
+    'heringsLawObservation': "heringsLawObservation TEXT NOT NULL DEFAULT ''",
+    'clinicalImpression': "clinicalImpression TEXT NOT NULL DEFAULT ''",
+    'remedyGiven': "remedyGiven TEXT NOT NULL DEFAULT ''",
+    'potency': "potency TEXT NOT NULL DEFAULT ''",
+    'repetition': "repetition TEXT NOT NULL DEFAULT ''",
+    'adviceGiven': "adviceGiven TEXT NOT NULL DEFAULT ''",
+    'nextFollowUpDate': 'nextFollowUpDate INTEGER',
+    'transcript': "transcript TEXT NOT NULL DEFAULT ''",
+    'confidenceNote': "confidenceNote TEXT NOT NULL DEFAULT ''",
+    'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
+    'updatedAt': 'updatedAt INTEGER',
     'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'synced'",
     'pendingDelete': 'pendingDelete INTEGER NOT NULL DEFAULT 0',
     'lastSyncedAt': 'lastSyncedAt INTEGER',

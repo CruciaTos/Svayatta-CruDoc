@@ -9,6 +9,8 @@ import {claimReminder, logSkipped, markFailed, markSent} from "./logs";
 import {filterOptedOut} from "./optouts";
 import {MetaSendError, sendTemplateMessage} from "./send";
 import {APPOINTMENT_REMINDER} from "./templates";
+import {decryptField, PatientKeyring} from "../crypto/patientCipher";
+import {decryptProfileField} from "../crypto/profileCipher";
 
 /**
  * The evening sweep that sends tomorrow's reminders.
@@ -73,12 +75,14 @@ function assessDoctor(
 
   if (!data) return {...base, reason: "no_doctor_profile"};
 
-  const doctorName =
-    (data.displayName || data.name || data.fullName || "").toString().trim();
-  const clinicName =
-    (data.clinicName || data.practiceName || "").toString().trim();
+  // Super Admin stores these encrypted (super-admin.ts encryptDoctorValue).
+  // Read raw, the reminder greeted patients with ciphertext.
+  const plain = (...values: unknown[]) =>
+    values.map((v) => decryptProfileField(v, doctorId)).find((v) => v) || "";
+  const doctorName = plain(data.displayName, data.name, data.fullName);
+  const clinicName = plain(data.clinicName, data.practiceName);
   const clinicPhone = normalisePhone(
-    data.clinicPhone || data.phone || data.contactNumber,
+    plain(data.clinicPhone, data.phone, data.contactNumber),
   );
 
   const profile: DoctorProfile = {
@@ -124,9 +128,19 @@ function assessDoctor(
   return {...profile, eligible: true};
 }
 
-async function findTomorrowsVisits(now: Date): Promise<Candidate[]> {
+/**
+ * Scheduled visits on one clinic-local day, optionally only those starting at
+ * or after `notBefore`.
+ */
+async function findVisits(
+  now: Date,
+  dayOffset: number,
+  notBefore?: Date,
+): Promise<Candidate[]> {
   const db = getDb();
-  const {start, end} = istDayRange(now, 1);
+  const day = istDayRange(now, dayOffset);
+  const start = notBefore && notBefore > day.start ? notBefore : day.start;
+  const end = day.end;
   const out: Candidate[] = [];
 
   for (const collection of VISIT_COLLECTIONS) {
@@ -189,6 +203,33 @@ async function loadAll(
 export async function sendDayBeforeReminders(
   now: Date = new Date(),
 ): Promise<SweepSummary> {
+  return sendReminders(await findVisits(now, 1), "day_before");
+}
+
+/** The earliest same-day appointment the morning catch-up reminds about. */
+const CATCH_UP_FIRST_HOUR_IST = 10;
+
+/**
+ * The 08:00 catch-up: today's appointments from 10:00 onwards that the evening
+ * sweep could not see because they were booked after it ran.
+ *
+ * Anything the evening sweep already sent is skipped by the per-appointment
+ * claim, so a patient never gets the same reminder twice.
+ */
+export async function sendMorningCatchUpReminders(
+  now: Date = new Date(),
+): Promise<SweepSummary> {
+  const today = istDayRange(now, 0);
+  const notBefore = new Date(
+    today.start.getTime() + CATCH_UP_FIRST_HOUR_IST * 60 * 60 * 1000,
+  );
+  return sendReminders(await findVisits(now, 0, notBefore), "morning_catch_up");
+}
+
+async function sendReminders(
+  candidates: Candidate[],
+  label: string,
+): Promise<SweepSummary> {
   const summary: SweepSummary = {
     considered: 0, sent: 0, failed: 0, skipped: {},
   };
@@ -209,7 +250,6 @@ export async function sendDayBeforeReminders(
     throw err;
   }
 
-  const candidates = await findTomorrowsVisits(now);
   summary.considered = candidates.length;
   if (!candidates.length) return summary;
 
@@ -220,6 +260,8 @@ export async function sendDayBeforeReminders(
     "patients",
     candidates.map((c) => c.patientId).filter((p): p is string => !!p),
   );
+
+  const keyring = new PatientKeyring(getDb());
 
   const profiles = new Map<string, DoctorProfile>();
   for (const [id, data] of doctors) {
@@ -249,12 +291,34 @@ export async function sendDayBeforeReminders(
       patients.get(candidate.patientId) :
       undefined;
 
-    const nameSource = patient ?? {fullName: candidate.inlineName || ""};
+    // Patient fields are encrypted with the clinic's key. Reading them as
+    // they are put ciphertext in the greeting and, worse, turned the
+    // encrypted phone into a random foreign number.
+    let dek: Buffer | null = null;
+    try {
+      dek = await keyring.dekFor(
+        String(patient?.doctorId || candidate.doctorId),
+      );
+    } catch (err) {
+      console.error(
+        `[WhatsApp] cannot unwrap the key for ${candidate.doctorId}: ` +
+        `${(err as Error).message}`,
+      );
+    }
+    const plain = (value: unknown) => decryptField(value, dek) ?? "";
+
+    const nameSource = patient ?
+      {
+        firstName: plain(patient.firstName),
+        lastName: plain(patient.lastName),
+        fullName: plain(patient.fullName),
+      } :
+      {fullName: plain(candidate.inlineName)};
     const firstName = firstNameOf(nameSource);
     const fullName = fullNameOf(nameSource);
 
     const phone = normalisePhone(
-      (patient?.phone as string) || candidate.inlinePhone,
+      plain(patient?.phone) || plain(candidate.inlinePhone),
     );
 
     if (!phone) {
@@ -349,7 +413,7 @@ export async function sendDayBeforeReminders(
   }
 
   console.log(
-    `[WhatsApp] sweep: considered ${summary.considered}, sent ${summary.sent}, ` +
+    `[WhatsApp] ${label} sweep: considered ${summary.considered}, sent ${summary.sent}, ` +
     `failed ${summary.failed}, skipped ${JSON.stringify(summary.skipped)}`,
   );
 

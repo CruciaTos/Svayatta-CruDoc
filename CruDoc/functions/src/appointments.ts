@@ -18,13 +18,13 @@ export const voiceBotApiKeySecret = defineSecret("VOICE_BOT_API_KEY");
  * every request. These defaults exist for callers that don't -- e.g. a
  * manual curl, or the legacy single-tenant bot.
  */
-const DEFAULT_TZ_OFFSET_MINUTES = 330; // Asia/Kolkata (+05:30)
-const DEFAULT_SLOT_MINUTES = 30;
+export const DEFAULT_TZ_OFFSET_MINUTES = 330; // Asia/Kolkata (+05:30)
+export const DEFAULT_SLOT_MINUTES = 30;
 const DEFAULT_OPEN_TIME = "09:00";
 const DEFAULT_CLOSE_TIME = "18:00";
 
 /** Widest appointment we look back for when detecting slot overlap. */
-const MAX_APPOINTMENT_MINUTES = 240;
+export const MAX_APPOINTMENT_MINUTES = 240;
 
 /** Statuses that still occupy a slot on the doctor's calendar. */
 const BLOCKING_STATUSES = new Set(["scheduled", "completed"]);
@@ -36,7 +36,7 @@ function getDb() {
   return admin.firestore();
 }
 
-function getExpectedVoiceBotKey(): string {
+export function getExpectedVoiceBotKey(): string {
   try {
     const val = voiceBotApiKeySecret.value();
     if (val && val.trim().length > 0) return val.trim();
@@ -136,7 +136,7 @@ function readIntParam(
  * Normalises a time string like "2:30 PM" or "14:30" into "HH:MM"
  * 24-hour format.
  */
-function normaliseTime(raw: string): string {
+export function normaliseTime(raw: string): string {
   const trimmed = raw.trim().toUpperCase();
 
   // Already 24-hour? e.g. "14:30"
@@ -173,7 +173,7 @@ function normaliseTime(raw: string): string {
  * shifted by the clinic's UTC offset. We therefore construct the instant
  * from an explicit offset instead of relying on the ambient zone.
  */
-function instantFromClinicLocal(
+export function instantFromClinicLocal(
   date: string,
   time: string,
   tzOffsetMinutes: number,
@@ -251,7 +251,7 @@ function resolveScheduledStart(
  * part most likely to be quietly wrong, and it should be testable without
  * standing up Firestore.
  */
-function computeOpenSlots(
+export function computeOpenSlots(
   dayOpen: Date,
   dayClose: Date,
   slotMinutes: number,
@@ -696,6 +696,15 @@ export const cancelAppointment = functions.onRequest(
 // ============================================================
 
 /**
+ * The clinic a doctor's records belong to: the clinic they joined
+ * (`users/{uid}.clinicId`), else their own (a clinic's id is its owner's uid).
+ */
+export function clinicOf(doctorId: string, user?: admin.firestore.DocumentData): string {
+  const clinicId = user?.clinicId;
+  return typeof clinicId === "string" && clinicId.length > 0 ? clinicId : doctorId;
+}
+
+/**
  * Loads the intervals on a doctor's calendar that actually occupy time,
  * over [from, until).
  *
@@ -704,35 +713,32 @@ export const cancelAppointment = functions.onRequest(
  * rather than adding index permutations. The lookback widens the window by
  * MAX_APPOINTMENT_MINUTES so an appointment starting before `from` that
  * runs into it is still seen.
+ *
+ * The query is exposed on its own so a transaction can run it with `tx.get`.
  */
-/**
- * The clinic a doctor's records belong to: the clinic they joined
- * (`users/{uid}.clinicId`), else their own (a clinic's id is its owner's uid).
- */
-function clinicOf(doctorId: string, user?: admin.firestore.DocumentData): string {
-  const clinicId = user?.clinicId;
-  return typeof clinicId === "string" && clinicId.length > 0 ? clinicId : doctorId;
-}
-
-async function loadBusyIntervals(
+export function busyQuery(
   clinicId: string,
-  doctorId: string,
   from: Date,
   until: Date,
-): Promise<Array<{id: string; start: number; end: number}>> {
+): admin.firestore.Query {
   const queryFrom = new Date(
     from.getTime() - MAX_APPOINTMENT_MINUTES * 60_000,
   );
-
-  const snapshot = await getDb()
+  return getDb()
     .collection("appointments")
     .where("doctorId", "==", clinicId)
     .where("scheduledStart", ">=", admin.firestore.Timestamp.fromDate(queryFrom))
-    .where("scheduledStart", "<", admin.firestore.Timestamp.fromDate(until))
-    .get();
+    .where("scheduledStart", "<", admin.firestore.Timestamp.fromDate(until));
+}
 
+/** The intervals in a `busyQuery` result that block this doctor's time. */
+export function busyIntervalsFrom(
+  docs: admin.firestore.QueryDocumentSnapshot[],
+  clinicId: string,
+  doctorId: string,
+): Array<{id: string; start: number; end: number}> {
   const busy: Array<{id: string; start: number; end: number}> = [];
-  for (const doc of snapshot.docs) {
+  for (const doc of docs) {
     const data = doc.data();
     if (data.isDeleted === true) continue;
     // Only this doctor's visits block their slots. Visits made before
@@ -758,6 +764,16 @@ async function loadBusyIntervals(
     busy.push({id: doc.id, start, end: start + duration * 60_000});
   }
   return busy;
+}
+
+export async function loadBusyIntervals(
+  clinicId: string,
+  doctorId: string,
+  from: Date,
+  until: Date,
+): Promise<Array<{id: string; start: number; end: number}>> {
+  const snapshot = await busyQuery(clinicId, from, until).get();
+  return busyIntervalsFrom(snapshot.docs, clinicId, doctorId);
 }
 
 /**

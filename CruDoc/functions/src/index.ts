@@ -18,3 +18,5 @@ export * from "./ai";
 export * from "./imaging";
 export * from "./clinic";
 export * from "./subscription";
+export {voiceApi} from "./voice";
+export {onPatientWrittenIndexPhone} from "./crypto/patientIndex";

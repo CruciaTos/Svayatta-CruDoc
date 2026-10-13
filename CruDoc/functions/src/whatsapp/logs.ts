@@ -62,6 +62,28 @@ export async function claimReminder(seed: ReminderLogSeed): Promise<boolean> {
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
 
+    // The log is keyed by appointment, but a reminder is for one start time.
+    // When the appointment has been moved since, the old log says nothing
+    // about the new time, so the claim starts afresh.
+    const loggedStart = (snap.data()?.scheduledStart as admin.firestore.Timestamp | undefined)
+      ?.toMillis?.();
+    const moved = loggedStart !== undefined &&
+      loggedStart !== seed.scheduledStart.getTime();
+
+    if (snap.exists && moved) {
+      tx.set(ref, {
+        ...freshLog(seed),
+        previousScheduledStart: snap.data()?.scheduledStart ?? null,
+        status: "pending",
+        attemptCount: 1,
+        whatsappMessageId: null,
+        failureReason: null,
+        attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+      return true;
+    }
+
     if (snap.exists) {
       const data = snap.data() || {};
       const status = data.status as LogStatus | undefined;
@@ -85,14 +107,7 @@ export async function claimReminder(seed: ReminderLogSeed): Promise<boolean> {
     }
 
     tx.set(ref, {
-      appointmentId: seed.appointmentId,
-      doctorId: seed.doctorId,
-      patientId: seed.patientId ?? null,
-      recipientPhone: seed.recipientPhone,
-      recipientName: seed.recipientName,
-      clinicName: seed.clinicName,
-      scheduledStart: admin.firestore.Timestamp.fromDate(seed.scheduledStart),
-      kind: "day_before_reminder",
+      ...freshLog(seed),
       status: "pending",
       attemptCount: admin.firestore.FieldValue.increment(1),
       attemptedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -102,6 +117,19 @@ export async function claimReminder(seed: ReminderLogSeed): Promise<boolean> {
 
     return true;
   });
+}
+
+function freshLog(seed: ReminderLogSeed): Record<string, unknown> {
+  return {
+    appointmentId: seed.appointmentId,
+    doctorId: seed.doctorId,
+    patientId: seed.patientId ?? null,
+    recipientPhone: seed.recipientPhone,
+    recipientName: seed.recipientName,
+    clinicName: seed.clinicName,
+    scheduledStart: admin.firestore.Timestamp.fromDate(seed.scheduledStart),
+    kind: "day_before_reminder",
+  };
 }
 
 export async function markSent(

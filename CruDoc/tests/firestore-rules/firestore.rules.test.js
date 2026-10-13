@@ -399,6 +399,68 @@ describe('whatsapp reminder log', () => {
   });
 });
 
+describe('ai receptionist', () => {
+  const RECEP = 'recep-ai';
+  const NURSE = 'nurse-ai';
+
+  beforeEach(async () => {
+    await seed(`clinics/${A}`, { name: 'Clinic A', ownerUid: A });
+    await seed(`clinics/${A}/members/${RECEP}`, {
+      active: true, roleId: 'receptionist', perms: ['schedule'], name: 'Recep',
+    });
+    await seed(`clinics/${A}/members/${NURSE}`, {
+      active: true, roleId: 'nurse', perms: ['clinical.view'], name: 'Nurse',
+    });
+    await seed('voice_lines/918064261740', { doctorId: A, status: 'active' });
+    await seed(`voice_usage/${A}_202610`, { doctorId: A, calls: 3 });
+    await seed('voice_calls/int_1', { doctorId: A, outcome: 'booked' });
+    await seed('voice_callbacks/cb1', { doctorId: A, status: 'open', note: 'enc:v1:x' });
+    await seed('slot_locks/l1', { appointmentId: 'a1' });
+  });
+
+  it('the owner reads lines, usage and calls but writes none of them', async () => {
+    const db = doctor(A);
+    await assertSucceeds(getDoc(doc(db, 'voice_lines/918064261740')));
+    await assertSucceeds(getDoc(doc(db, `voice_usage/${A}_202610`)));
+    await assertSucceeds(getDocs(query(collection(db, 'voice_calls'), where('doctorId', '==', A))));
+    await assertFails(setDoc(doc(db, 'voice_lines/919999999999'), { doctorId: A }));
+    await assertFails(updateDoc(doc(db, `voice_usage/${A}_202610`), { calls: 0 }));
+    await assertFails(updateDoc(doc(db, 'voice_calls/int_1'), { outcome: 'info' }));
+  });
+
+  it('reception sees callback cards and can only mark them done', async () => {
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertSucceeds(getDocs(query(collection(db, 'voice_callbacks'), where('doctorId', '==', A))));
+    await assertSucceeds(updateDoc(doc(db, 'voice_callbacks/cb1'), {
+      status: 'done', doneAt: serverTimestamp(), doneBy: RECEP,
+    }));
+    await assertFails(updateDoc(doc(db, 'voice_callbacks/cb1'), { note: 'changed' }));
+    await assertFails(updateDoc(doc(db, 'voice_callbacks/cb1'), { status: 'deleted' }));
+    await assertFails(updateDoc(doc(db, 'voice_callbacks/cb1'), { status: 'done', doneBy: A }));
+    await assertFails(setDoc(doc(db, 'voice_callbacks/cb2'), { doctorId: A, status: 'open' }));
+    await assertFails(deleteDoc(doc(db, 'voice_callbacks/cb1')));
+    // Reception has no 'ai' permission: calls and usage stay hidden.
+    await assertFails(getDoc(doc(db, 'voice_calls/int_1')));
+  });
+
+  it('keeps other clinics, staff without access and Super Admin out of patient details', async () => {
+    await assertFails(getDoc(doc(doctor(B), 'voice_callbacks/cb1')));
+    await assertFails(getDocs(collection(doctor(B), 'voice_calls')));
+    await assertFails(getDoc(doc(doctor(B), 'voice_lines/918064261740')));
+    const nurse = as(NURSE, { email: 'nurse@clinic.test' });
+    await assertFails(getDoc(doc(nurse, 'voice_callbacks/cb1')));
+    await assertFails(getDoc(doc(admin(), 'voice_callbacks/cb1')));
+    await assertFails(getDoc(doc(admin(), 'voice_calls/int_1')));
+    await assertSucceeds(getDoc(doc(admin(), `voice_usage/${A}_202610`)));
+    await assertSucceeds(getDoc(doc(admin(), 'voice_lines/918064261740')));
+  });
+
+  it('hides slot locks from everyone', async () => {
+    await assertFails(getDoc(doc(doctor(A), 'slot_locks/l1')));
+    await assertFails(setDoc(doc(doctor(A), 'slot_locks/l2'), { appointmentId: 'x' }));
+  });
+});
+
 describe('whatsapp per-clinic credentials', () => {
   it('keeps a doctor out of their own tenant record', async () => {
     // It names the Secret Manager entry holding the token that sends to this

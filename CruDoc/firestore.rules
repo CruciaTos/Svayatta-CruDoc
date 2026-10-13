@@ -73,6 +73,7 @@ service cloud.firestore {
         'dental_records': 'clinical.view',
         'radiology_docs': 'clinical.view',
         'homeopathy_case_sheets': 'clinical.view',
+        'homeopathy_session_notes': 'clinical.view',
         'tooth_chart_entries': 'clinical.view',
         'procedure_log_entries': 'clinical.view',
         'treatment_plan_line_items': 'clinical.view',
@@ -95,6 +96,7 @@ service cloud.firestore {
         'dental_records': 'clinical.edit',
         'radiology_docs': 'clinical.edit',
         'homeopathy_case_sheets': 'clinical.edit',
+        'homeopathy_session_notes': 'clinical.edit',
         'tooth_chart_entries': 'clinical.edit',
         'procedure_log_entries': 'clinical.edit',
         'treatment_plan_line_items': 'clinical.edit',
@@ -128,6 +130,7 @@ service cloud.firestore {
         'dental_records',
         'radiology_docs',
         'homeopathy_case_sheets',
+        'homeopathy_session_notes',
         'dental_procedure_catalog',
         'tooth_chart_entries',
         'procedure_log_entries',
@@ -313,6 +316,59 @@ service cloud.firestore {
     // Meta's delivery receipts. A doctor reads their own rows to see whether a
     // patient got their reminder, and cannot write them: a status the app
     // could set would say nothing about what Meta actually did.
+
+    // ============================================================
+    // AI RECEPTIONIST (functions/src/voice) - WRITTEN BY FUNCTIONS
+    // ============================================================
+    // Lines, calls and usage are what the voiceApi function did, so the app
+    // only reads them, with the 'ai' permission. Callback cards are
+    // reception's to-do list: readable with 'schedule' or 'ai', and the only
+    // client change is marking one done (or reopening it). Slot locks are
+    // internal to booking and seen by nobody. Super Admin sees lines and usage
+    // (billing), never calls or callbacks, which hold patient details.
+
+    function aiStaff(clinicId) {
+      return clinicAllows(clinicId, 'ai') || clinicAllows(clinicId, 'schedule');
+    }
+
+    match /voice_lines/{lineId} {
+      allow get: if isSuperAdmin() || (isAuthenticated()
+        && (resource == null || clinicAllows(resource.data.doctorId, 'ai')));
+      allow list: if isSuperAdmin() || clinicAllows(resource.data.doctorId, 'ai');
+      allow write: if false;
+    }
+
+    match /voice_usage/{usageId} {
+      allow get: if isSuperAdmin() || (isAuthenticated()
+        && (resource == null || clinicAllows(resource.data.doctorId, 'ai')));
+      allow list: if isSuperAdmin() || clinicAllows(resource.data.doctorId, 'ai');
+      allow write: if false;
+    }
+
+    match /voice_calls/{callId} {
+      allow get: if isAuthenticated()
+        && (resource == null || clinicAllows(resource.data.doctorId, 'ai'));
+      allow list: if clinicAllows(resource.data.doctorId, 'ai');
+      allow write: if false;
+    }
+
+    match /voice_callbacks/{callbackId} {
+      allow get: if isAuthenticated()
+        && (resource == null || aiStaff(resource.data.doctorId));
+      allow list: if aiStaff(resource.data.doctorId);
+      allow update: if aiStaff(resource.data.doctorId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'doneAt', 'doneBy'])
+        && request.resource.data.status in ['open', 'done']
+        && (!('doneBy' in request.resource.data)
+          || request.resource.data.doneBy == null
+          || request.resource.data.doneBy == request.auth.uid);
+      allow create, delete: if false;
+    }
+
+    match /slot_locks/{lockId} {
+      allow read, write: if false;
+    }
 
     match /whatsapp_notification_logs/{logId} {
       allow get: if isAuthenticated() && (resource == null || clinicAllows(resource.data.doctorId, 'messaging'));

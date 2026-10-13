@@ -1,7 +1,10 @@
 import {onRequest} from "firebase-functions/v2/https";
 import {onSchedule} from "firebase-functions/v2/scheduler";
 import {defineSecret} from "firebase-functions/params";
-import {sendDayBeforeReminders} from "./whatsapp/reminders";
+import {
+  sendDayBeforeReminders, sendMorningCatchUpReminders,
+} from "./whatsapp/reminders";
+import {patientKekPepperSecret} from "./crypto/patientCipher";
 import {
   processWebhook, verifySignature, verifySubscription,
 } from "./whatsapp/webhook";
@@ -47,10 +50,32 @@ export const sendDayBeforeWhatsAppReminders = onSchedule(
     timeoutSeconds: 540,
     memory: "512MiB",
     retryCount: 0,
-    secrets: [accessToken],
+    // The pepper unwraps each clinic's key: patient names and phones are
+    // encrypted, and must be read decrypted or not at all.
+    secrets: [accessToken, patientKekPepperSecret],
   },
   async () => {
     await sendDayBeforeReminders();
+  },
+);
+
+/**
+ * The 08:00 IST catch-up: today's appointments from 10:00 that were booked
+ * after last evening's sweep ran. Same claim, so nothing is sent twice.
+ */
+export const sendMorningCatchUpWhatsAppReminders = onSchedule(
+  {
+    schedule: "0 8 * * *",
+    timeZone: "Asia/Kolkata",
+    region: "asia-south1",
+    maxInstances: 1,
+    timeoutSeconds: 540,
+    memory: "512MiB",
+    retryCount: 0,
+    secrets: [accessToken, patientKekPepperSecret],
+  },
+  async () => {
+    await sendMorningCatchUpReminders();
   },
 );
 

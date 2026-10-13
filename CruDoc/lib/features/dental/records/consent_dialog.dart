@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pdf/pdf.dart';
@@ -514,9 +515,21 @@ class SignaturePad extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(CruRadius.control),
-            child: GestureDetector(
-              onPanStart: (d) => controller._start(d.localPosition),
-              onPanUpdate: (d) => controller._add(d.localPosition),
+            // A RawGestureDetector with a greedy pan recognizer: on a phone or
+            // tablet the finger must draw on the pad, not scroll the dialog it
+            // sits inside, so the pad has to win the gesture arena outright.
+            child: RawGestureDetector(
+              behavior: HitTestBehavior.opaque,
+              gestures: <Type, GestureRecognizerFactory>{
+                _SignPanRecognizer:
+                    GestureRecognizerFactoryWithHandlers<_SignPanRecognizer>(
+                      () => _SignPanRecognizer(),
+                      (r) {
+                        r.onStart = (d) => controller._start(d.localPosition);
+                        r.onUpdate = (d) => controller._add(d.localPosition);
+                      },
+                    ),
+              },
               child: ListenableBuilder(
                 listenable: controller,
                 builder: (context, _) => CustomPaint(
@@ -530,6 +543,15 @@ class SignaturePad extends StatelessWidget {
       },
     );
   }
+}
+
+/// A pan recognizer that refuses to lose the gesture arena: inside the
+/// consent dialog's scroll view a plain [GestureDetector] hands vertical
+/// finger-drags to the scrollable, so nothing is drawn. Accepting on reject
+/// keeps every stroke on the pad, on touch as well as with a mouse.
+class _SignPanRecognizer extends PanGestureRecognizer {
+  @override
+  void rejectGesture(int pointer) => acceptGesture(pointer);
 }
 
 class _PadPainter extends CustomPainter {

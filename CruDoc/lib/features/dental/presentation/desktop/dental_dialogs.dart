@@ -1092,8 +1092,9 @@ class _TreatmentPlanDialog extends ConsumerWidget {
                         case _PlanAction.up:
                           if (i > 0) await _move(ref, items, i, i - 1);
                         case _PlanAction.down:
-                          if (i < items.length - 1)
+                          if (i < items.length - 1) {
                             await _move(ref, items, i, i + 1);
+                          }
                         case _PlanAction.edit:
                           await showPlanItemDialog(
                             context,

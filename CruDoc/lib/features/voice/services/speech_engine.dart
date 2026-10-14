@@ -19,6 +19,7 @@ class VoiceTranscript {
     required this.isFinal,
     this.latencyMs,
     this.source = 'fast',
+    this.dictation = false,
   });
 
   final String text;
@@ -27,8 +28,12 @@ class VoiceTranscript {
   /// How long the model took to produce this text.
   final int? latencyMs;
 
-  /// Which stream produced this transcript: 'fast' (base.en) or 'accurate' (large-v3-turbo).
+  /// Which stream produced this transcript: 'fast' (live) or 'accurate'.
   final String source;
+
+  /// Part of a scribe dictation ([SpeechEngine.startDictation]): a
+  /// consultation being written down, not a command.
+  final bool dictation;
 }
 
 /// Offline speech-to-text for the Windows demo build, using Parakeet or
@@ -52,9 +57,10 @@ class SpeechEngine {
   static const _server = 'http://127.0.0.1:8765';
   static const _sampleRate = 16000;
 
-  /// New audio needed before the next live pass. The GPU server is quick
-  /// enough to go again almost at once; on-device models are not.
-  static const _minNewSamples = model == 'server' ? 1920 : 8000;
+  /// New audio needed before the next live pass. Every pass on the server
+  /// runs large-v3-turbo, so going again every 120 ms only queued live
+  /// passes in front of the accurate ones; a fifth of a second is plenty.
+  static const _minNewSamples = model == 'server' ? 3200 : 8000;
 
   /// Audio kept from just before the talk key goes down, so the first
   /// word isn't clipped, and after it comes up, for the last syllable.
@@ -101,18 +107,66 @@ class SpeechEngine {
   bool get handsFree => _handsFree;
   bool _handsFree = false;
   bool _starting = false;
-  bool _stopping = false;
   double _noise = 0.01;
   DateTime? _lastVoice;
   DateTime? _began;
   static const _endSilence = Duration(milliseconds: 700);
   static const _maxUtterance = Duration(seconds: 15);
 
+  /// Dictation pauses mid-thought more than commands do, and a sentence
+  /// can run long; each piece is still one final pass with full context.
+  static const _dictationEndSilence = Duration(milliseconds: 900);
+  static const _dictationMaxUtterance = Duration(seconds: 25);
+
+  /// The scribe is writing down a consultation: speech is cut into
+  /// sentences at pauses, and push-to-talk can't stop it.
+  bool get isDictating => _dictating;
+  bool _dictating = false;
+
+  /// The end of what has been dictated so far, sent with each piece so
+  /// Whisper keeps names and spellings consistent across pauses.
+  String _dictationContext = '';
+
   Future<void> setHandsFree(bool on) async {
     await init();
     await _ensureMic();
     _handsFree = on;
     if (!on && _listening) await stop();
+  }
+
+  /// Starts writing down a consultation. Transcripts arrive with
+  /// [VoiceTranscript.dictation] set: live partials for the sentence being
+  /// spoken, and a final for each sentence once the speaker pauses.
+  Future<void> startDictation() async {
+    await init();
+    await _ensureMic();
+    if (_dictating) return;
+    // A command half-spoken when the scribe opened is dropped.
+    if (_listening) {
+      _utterance++;
+      _listening = false;
+      level.value = 0;
+    }
+    _dictationContext = '';
+    _dictating = true;
+  }
+
+  /// Stops dictation. With [keepLast], the sentence still being spoken is
+  /// transcribed first; the returned future completes once its final is
+  /// out, so a listener can wait for it before closing the transcript.
+  Future<void> stopDictation({bool keepLast = true}) async {
+    if (!_dictating) return;
+    // Off at once, so a quick resume can start dictating again while the
+    // last sentence is still being transcribed.
+    _dictating = false;
+    if (!_listening) return;
+    if (keepLast) {
+      await _end(dictation: true);
+    } else {
+      _utterance++;
+      _listening = false;
+      level.value = 0;
+    }
   }
 
   bool get isListening => _listening;
@@ -153,7 +207,7 @@ class SpeechEngine {
 
   void _onMic(Uint8List bytes) {
     final f = _toFloat32(bytes);
-    if (_handsFree) _detectSpeech(f);
+    if (_handsFree || _dictating) _detectSpeech(f);
     if (_listening) {
       var peak = 0.0;
       for (final x in f) {
@@ -186,16 +240,20 @@ class SpeechEngine {
     if (!_listening) {
       if (speaking) {
         _lastVoice = now;
-        unawaited(start());
+        unawaited(_begin());
       } else {
         _noise = _noise * 0.95 + rms * 0.05;
       }
       return;
     }
     if (speaking) _lastVoice = now;
-    final quiet = now.difference(_lastVoice ?? now) > _endSilence;
-    final tooLong = now.difference(_began ?? now) > _maxUtterance;
-    if (quiet || tooLong) unawaited(stop());
+    final quiet =
+        now.difference(_lastVoice ?? now) >
+        (_dictating ? _dictationEndSilence : _endSilence);
+    final tooLong =
+        now.difference(_began ?? now) >
+        (_dictating ? _dictationMaxUtterance : _maxUtterance);
+    if (quiet || tooLong) unawaited(_end());
   }
 
   Future<bool> _ping() async {
@@ -219,21 +277,44 @@ class SpeechEngine {
           'tool/voice_server not found; start server.py by hand',
         );
       }
-      _serverProcess = await Process.start(
-        p.join(dir, '.venv', 'Scripts', 'python.exe'),
-        ['server.py'],
-        workingDirectory: dir,
-      );
-      _serverProcess!.stdout.listen(
-        (b) => debugPrint('[voice_server] ${String.fromCharCodes(b).trim()}'),
-      );
-      _serverProcess!.stderr.listen(
-        (b) => debugPrint('[voice_server] ${String.fromCharCodes(b).trim()}'),
-      );
+      final python = p.join(dir, '.venv', 'Scripts', 'python.exe');
+      if (!File(python).existsSync()) {
+        throw StateError(
+          'voice server not installed — see tool/voice_server/README.md',
+        );
+      }
+      // -u: unbuffered, so the server's log (and a crash) shows up here
+      // as it happens instead of when the process ends.
+      _serverProcess = await Process.start(python, [
+        '-u',
+        'server.py',
+      ], workingDirectory: dir);
+      // The last lines it printed: on a crash they say why.
+      final tail = <String>[];
+      void log(String line) {
+        if (line.trim().isEmpty) return;
+        debugPrint('[voice_server] $line');
+        tail.add(line.trim());
+        if (tail.length > 3) tail.removeAt(0);
+      }
+
+      for (final out in [_serverProcess!.stdout, _serverProcess!.stderr]) {
+        out.transform(utf8.decoder).transform(const LineSplitter()).listen(log);
+      }
+      int? exitCode;
+      unawaited(_serverProcess!.exitCode.then((c) => exitCode = c));
       final deadline = DateTime.now().add(const Duration(minutes: 3));
       while (!await _ping()) {
+        if (exitCode != null) {
+          _serverProcess = null;
+          _initFuture = null; // let a later init try again
+          throw StateError(
+            'Voice server stopped (exit $exitCode): '
+            '${tail.isEmpty ? 'no output' : tail.last}',
+          );
+        }
         if (DateTime.now().isAfter(deadline)) {
-          throw StateError('Voice server did not start');
+          throw StateError('Voice server did not start within 3 minutes');
         }
         await Future<void>.delayed(const Duration(seconds: 1));
       }
@@ -274,8 +355,22 @@ class SpeechEngine {
     _worker = await ready.future;
   }
 
-  /// Starts listening. Call on talk-key down.
+  /// Starts listening. Call on talk-key down. Ignored while dictating:
+  /// the scribe owns the mic then, and cuts sentences itself.
   Future<void> start() async {
+    if (_dictating) return;
+    await _begin();
+  }
+
+  /// Stops listening and emits the final text. Call on talk-key up.
+  /// Ignored while dictating, so Space (or a space typed in a field)
+  /// can't cut the consultation's transcript short.
+  Future<void> stop() async {
+    if (_dictating) return;
+    await _end();
+  }
+
+  Future<void> _begin() async {
     if (_listening || _starting) return;
     _starting = true;
     try {
@@ -297,42 +392,71 @@ class SpeechEngine {
     _fastDecodedSamples = 0;
     _accurateDecodedSamples = 0;
     _listening = true;
-    unawaited(_pumpFast(_utterance));
+    // Dictation only needs the accurate partials; a second live stream
+    // would just compete with them for the GPU.
+    if (!_dictating) unawaited(_pumpFast(_utterance));
     if (model == 'server') {
       unawaited(_pumpAccurate(_utterance));
     }
   }
 
-  /// Stops listening and emits the final text. Call on talk-key up.
-  Future<void> stop() async {
-    if (!_listening || _stopping) return;
-    _stopping = true;
+  /// The final pass in progress, so a second caller waits for the same one.
+  Future<void>? _ending;
+
+  Future<void> _end({bool? dictation}) {
+    if (!_listening) return _ending ?? Future<void>.value();
+    return _ending ??= _finish(
+      dictation ?? _dictating,
+    ).whenComplete(() => _ending = null);
+  }
+
+  Future<void> _finish(bool dictation) async {
     final utterance = _utterance;
     await Future<void>.delayed(_tail);
-    _stopping = false;
     if (utterance != _utterance) return;
     _listening = false;
     level.value = 0;
 
     if (_samples < _sampleRate ~/ 4) {
       _transcripts.add(
-        const VoiceTranscript('', isFinal: true, source: 'accurate'),
+        VoiceTranscript(
+          '',
+          isFinal: true,
+          source: 'accurate',
+          dictation: dictation,
+        ),
       );
       return;
     }
     final short = _samples < _sampleRate * _shortSeconds;
     final (text, ms) = await _transcribe(
-      _snapshot(),
-      pass: short ? 'short' : 'accurate',
+      _snapshot(maxSamples: _maxWindow),
+      pass: short && !dictation ? 'short' : 'accurate',
+      dictation: dictation,
     );
     if (utterance != _utterance) return;
+    if (dictation && text.isNotEmpty) {
+      final all = '$_dictationContext $text'.trim();
+      _dictationContext = all.length > 400
+          ? all.substring(all.length - 400)
+          : all;
+    }
     _transcripts.add(
-      VoiceTranscript(text, isFinal: true, latencyMs: ms, source: 'accurate'),
+      VoiceTranscript(
+        text,
+        isFinal: true,
+        latencyMs: ms,
+        source: 'accurate',
+        dictation: dictation,
+      ),
     );
   }
 
-  /// Live fast passes (base.en): fires every ~60ms when new audio arrives.
-  /// Uses a rolling window of the last 3 seconds (up to 48000 samples).
+  /// Whisper always decodes a padded 30 s window, so sending less audio
+  /// saves nothing; cutting it only loses the start of the sentence.
+  static const _maxWindow = _sampleRate * 30;
+
+  /// Live passes for the words as they're spoken.
   Future<void> _pumpFast(int utterance) async {
     while (_listening && utterance == _utterance) {
       // Wait for new audio, and for enough of it that Whisper doesn't
@@ -344,7 +468,7 @@ class SpeechEngine {
       }
       _fastDecodedSamples = _samples;
       final (text, ms) = await _transcribe(
-        _snapshot(maxSamples: _sampleRate * 3),
+        _snapshot(maxSamples: _maxWindow),
         pass: 'fast',
       );
       if (_listening && utterance == _utterance && text.isNotEmpty) {
@@ -355,11 +479,11 @@ class SpeechEngine {
     }
   }
 
-  /// Live accurate passes (large-v3-turbo) in parallel: clean field values.
-  /// Fires whenever large-v3-turbo finishes and at least ~0.5s of new audio is ready.
-  /// Uses a rolling window of the last 6 seconds (up to 96000 samples).
+  /// Live accurate passes in parallel: clean field values. Fires whenever
+  /// the last one is done and at least ~0.5 s of new audio is ready.
   Future<void> _pumpAccurate(int utterance) async {
-    while (_listening && utterance == _utterance) {
+    final dictation = _dictating;
+    while (_listening && utterance == _utterance && _dictating == dictation) {
       if (_samples - _accurateDecodedSamples < 8000 ||
           _samples < _sampleRate * 0.6) {
         await Future<void>.delayed(const Duration(milliseconds: 40));
@@ -367,8 +491,9 @@ class SpeechEngine {
       }
       _accurateDecodedSamples = _samples;
       final (text, ms) = await _transcribe(
-        _snapshot(maxSamples: _sampleRate * 6),
+        _snapshot(maxSamples: _maxWindow),
         pass: 'accurate',
+        dictation: dictation,
       );
       if (_listening && utterance == _utterance && text.isNotEmpty) {
         _transcripts.add(
@@ -377,6 +502,7 @@ class SpeechEngine {
             isFinal: false,
             latencyMs: ms,
             source: 'accurate',
+            dictation: dictation,
           ),
         );
       }
@@ -408,21 +534,28 @@ class SpeechEngine {
 
   /// [pass]: 'fast' (live), 'short' or 'accurate' (final). Only the GPU
   /// server has more than one model; on-device modes ignore it.
+  ///
+  /// [dictation]: a consultation, not a command; the server steers
+  /// Whisper with clinical words and what was said just before.
   Future<(String, int)> _transcribe(
     Float32List samples, {
     required String pass,
+    bool dictation = false,
   }) {
-    if (model == 'server') return _transcribeOnServer(samples, pass);
+    if (model == 'server') {
+      return _transcribeOnServer(samples, pass, dictation);
+    }
     final id = _nextJob++;
     final done = Completer<(String, int)>();
     _replies[id] = done;
     _worker!.send((id, samples));
-    return done.future.then((r) => (_clean(r.$1), r.$2));
+    return done.future.then((r) => (_clean(r.$1, keepCase: dictation), r.$2));
   }
 
   Future<(String, int)> _transcribeOnServer(
     Float32List samples,
     String pass,
+    bool dictation,
   ) async {
     final pcm = Int16List(samples.length);
     for (var i = 0; i < samples.length; i++) {
@@ -434,11 +567,17 @@ class SpeechEngine {
         headers: {
           'X-Hints': Uri.encodeComponent(hints.join(', ')),
           'X-Model': pass,
+          if (dictation) 'X-Mode': 'dictation',
+          if (dictation && _dictationContext.isNotEmpty)
+            'X-Context': Uri.encodeComponent(_dictationContext),
         },
         body: pcm.buffer.asUint8List(),
       );
       final j = jsonDecode(r.body) as Map<String, dynamic>;
-      return (_clean(j['text'] as String? ?? ''), j['ms'] as int? ?? 0);
+      return (
+        _clean(j['text'] as String? ?? '', keepCase: dictation),
+        j['ms'] as int? ?? 0,
+      );
     } catch (e) {
       debugPrint('[SpeechEngine] server error: $e');
       return ('', 0);
@@ -477,9 +616,9 @@ class SpeechEngine {
 
   /// Whisper writes "Tomorrow at 5 p.m."; lower-case it for the parser,
   /// and drop the "Thank you." it sometimes invents from silence.
-  static String _clean(String text) {
-    final t = text.trim().toLowerCase();
-    final bare = t.replaceAll(RegExp(r'[^a-z ]'), '').trim();
+  static String _clean(String text, {bool keepCase = false}) {
+    final t = keepCase ? text.trim() : text.trim().toLowerCase();
+    final bare = t.toLowerCase().replaceAll(RegExp(r'[^a-z ]'), '').trim();
     const invented = {
       'thank you',
       'thanks for watching',

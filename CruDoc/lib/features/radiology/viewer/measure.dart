@@ -102,8 +102,9 @@ abstract final class RadMeasure {
     int height,
   ) {
     if (a.points.length < 2) return null;
-    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect)
+    if (a.kind != RadAnnoKind.ellipse && a.kind != RadAnnoKind.rect) {
       return null;
+    }
     final p = a.points;
     final x0 = math.min(p[0].x, p[1].x), x1 = math.max(p[0].x, p[1].x);
     final y0 = math.min(p[0].y, p[1].y), y1 = math.max(p[0].y, p[1].y);

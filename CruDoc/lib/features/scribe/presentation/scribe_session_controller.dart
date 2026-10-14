@@ -15,7 +15,6 @@ import 'package:doctor_management_app/features/scribe/data/services/scribe_audio
 import 'package:doctor_management_app/features/scribe/presentation/scribe_draft_form_controller.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_live_extractor.dart';
 import 'package:doctor_management_app/features/scribe/services/scribe_processing_service.dart';
-import 'package:doctor_management_app/features/scribe/services/scribe_transcript_formatter.dart';
 import 'package:doctor_management_app/features/voice/presentation/voice_dialog_hook.dart';
 import 'package:doctor_management_app/features/voice/services/speech_engine.dart';
 
@@ -47,6 +46,8 @@ class ScribeSessionController extends ChangeNotifier {
     required this.visit,
     required ScribeProcessingService processingService,
     required ConsultationNoteRepository repository,
+    this.specialty = SessionSpecialty.none,
+    this.queueEntryId,
     AudioRecorder? recorder,
   }) : _processingService = processingService,
        _repository = repository,
@@ -71,6 +72,13 @@ class ScribeSessionController extends ChangeNotifier {
   static const _silenceThresholdDb = -50.0;
 
   final Visit visit;
+
+  /// [SessionSpecialty] stamped on every note this session produces.
+  final String specialty;
+
+  /// The queue token being seen, when the session was started from the queue.
+  final String? queueEntryId;
+
   final ScribeProcessingService _processingService;
   final ConsultationNoteRepository _repository;
   final AudioRecorder _recorder;
@@ -132,8 +140,13 @@ class ScribeSessionController extends ChangeNotifier {
   }
 
   final ScribeLiveExtractor _extractor = const ScribeLiveExtractor();
+
+  /// Sentences already transcribed in full, and the one being spoken.
   String _accumulatedTranscript = '';
-  String get accumulatedTranscript => _accumulatedTranscript;
+  String _livePiece = '';
+  String get accumulatedTranscript => _livePiece.isEmpty
+      ? _accumulatedTranscript
+      : '$_accumulatedTranscript $_livePiece'.trim();
   StreamSubscription<VoiceTranscript>? _transcriptSub;
 
   String? _audioPath;
@@ -171,6 +184,13 @@ class ScribeSessionController extends ChangeNotifier {
 
   // ---- Recording ----
 
+  /// Records the patient's consent and starts recording in one step — the
+  /// single tap the consultation launcher asks for.
+  Future<void> consentAndStart() async {
+    setConsent(true);
+    await start();
+  }
+
   Future<void> start() async {
     if (!_consentGiven || _phase != ScribeSessionPhase.ready) return;
     _error = null;
@@ -183,6 +203,9 @@ class ScribeSessionController extends ChangeNotifier {
           doctorId: doctorId,
           patientId: visit.patientId,
           visitId: visit.id,
+          specialty: specialty,
+          queueEntryId: queueEntryId,
+          authorUid: doctorId,
           consentGiven: true,
           consentAt: DateTime.now(),
           status: ConsultationNoteStatus.draft,
@@ -190,18 +213,20 @@ class ScribeSessionController extends ChangeNotifier {
         );
     activeDraftForm ??= ScribeDraftFormController(initialNote);
     _accumulatedTranscript = '';
+    _livePiece = '';
 
     // Mark openKind as scribe so VoiceController treats this as dedicated consultation session
     VoiceBus.openKind.value = 'scribe';
 
-    // Start live speech engine transcription
+    // Start live speech engine transcription: dictation, so the
+    // conversation is cut into sentences at pauses, each transcribed once
+    // in full, and push-to-talk can't stop it.
     try {
-      await SpeechEngine.instance.init();
-      await SpeechEngine.instance.start();
       _transcriptSub?.cancel();
       _transcriptSub = SpeechEngine.instance.transcripts.listen(
         _onLiveTranscript,
       );
+      await SpeechEngine.instance.startDictation();
     } catch (e) {
       debugPrint(
         '[ScribeSession] Live speech engine transcription warning: $e',
@@ -236,36 +261,53 @@ class ScribeSessionController extends ChangeNotifier {
   }
 
   void _onLiveTranscript(VoiceTranscript t) {
-    if (_phase != ScribeSessionPhase.recording) return;
-
-    if (t.source == 'fast') {
-      // 1. Fast stream cue detection: immediately dissolve relevant fields
-      final cues = _extractor.detectFieldCues(t.text);
-      for (final field in cues) {
-        activeDraftForm?.setFieldPending(field, true);
-      }
-    } else {
-      // 2. Accurate stream: extract clinical entities and merge into active draft
-      if (t.text.trim().isNotEmpty) {
-        _accumulatedTranscript = ScribeTranscriptFormatter.mergeLiveChunk(
-          _accumulatedTranscript,
-          t.text,
-        );
-      }
-      final ext = _extractor.extract(
-        _accumulatedTranscript.isNotEmpty ? _accumulatedTranscript : t.text,
-      );
-      activeDraftForm?.mergeLiveExtraction(ext);
+    // Commands spoken with the talk key aren't part of the consultation.
+    if (!t.dictation) return;
+    // A pause still delivers the sentence that was being spoken.
+    if (_phase != ScribeSessionPhase.recording &&
+        _phase != ScribeSessionPhase.paused) {
+      return;
     }
+    final text = t.text.trim();
+
+    // Fields the words are about dissolve while they fill in.
+    for (final field in _extractor.detectFieldCues(text)) {
+      activeDraftForm?.setFieldPending(field, true);
+    }
+    if (t.isFinal) {
+      // A finished sentence: kept as heard, never re-merged.
+      if (text.isNotEmpty) {
+        _accumulatedTranscript = '$_accumulatedTranscript $text'.trim();
+      }
+      _livePiece = '';
+    } else {
+      // The sentence being spoken: each pass replaces the last.
+      _livePiece = text;
+    }
+    final all = accumulatedTranscript;
+    if (all.isEmpty) return;
+    activeDraftForm?.mergeLiveExtraction(_extractor.extract(all));
   }
 
   /// Manually simulates a speech utterance for testing live consultation scribing
   void simulateSpeechTurn(String text) {
-    _onLiveTranscript(VoiceTranscript(text, isFinal: false, source: 'fast'));
+    _onLiveTranscript(
+      VoiceTranscript(
+        text,
+        isFinal: false,
+        source: 'accurate',
+        dictation: true,
+      ),
+    );
     Future.delayed(const Duration(milliseconds: 180), () {
       if (!_disposed) {
         _onLiveTranscript(
-          VoiceTranscript(text, isFinal: true, source: 'accurate'),
+          VoiceTranscript(
+            text,
+            isFinal: true,
+            source: 'accurate',
+            dictation: true,
+          ),
         );
       }
     });
@@ -278,7 +320,7 @@ class ScribeSessionController extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ScribeSession] Pause failed: $e');
     }
-    unawaited(SpeechEngine.instance.stop());
+    unawaited(SpeechEngine.instance.stopDictation());
     _stopwatch.stop();
     levels.value = List<double>.filled(levelCount, 0);
     _phase = ScribeSessionPhase.paused;
@@ -292,7 +334,7 @@ class ScribeSessionController extends ChangeNotifier {
     } catch (e) {
       debugPrint('[ScribeSession] Resume failed: $e');
     }
-    unawaited(SpeechEngine.instance.start());
+    unawaited(SpeechEngine.instance.startDictation());
     _stopwatch.start();
     _phase = ScribeSessionPhase.recording;
     _notify();
@@ -358,6 +400,7 @@ class ScribeSessionController extends ChangeNotifier {
     activeDraftForm?.dispose();
     activeDraftForm = null;
     _accumulatedTranscript = '';
+    _livePiece = '';
     _phase = ScribeSessionPhase.ready;
     _error = null;
     _failureKind = null;
@@ -380,6 +423,9 @@ class ScribeSessionController extends ChangeNotifier {
       doctorId: doctorId,
       patientId: visit.patientId,
       visitId: visit.id,
+      specialty: specialty,
+      queueEntryId: queueEntryId,
+      authorUid: doctorId,
       consentGiven: _consentAt != null,
       consentAt: _consentAt,
       status: ConsultationNoteStatus.draft,
@@ -416,15 +462,21 @@ class ScribeSessionController extends ChangeNotifier {
 
     try {
       // Process locally: uses live transcribed consultation and active draft fields
-      final draft = _processingService.processLocally(
-        transcript: _accumulatedTranscript,
-        noteId: const Uuid().v4(),
-        doctorId: doctorId,
-        patientId: visit.patientId,
-        visitId: visit.id,
-        consentAt: _consentAt ?? DateTime.now(),
-        existingDraft: activeDraftForm?.toNote(),
-      );
+      final draft = _processingService
+          .processLocally(
+            transcript: accumulatedTranscript,
+            noteId: const Uuid().v4(),
+            doctorId: doctorId,
+            patientId: visit.patientId,
+            visitId: visit.id,
+            consentAt: _consentAt ?? DateTime.now(),
+            existingDraft: activeDraftForm?.toNote(),
+          )
+          .copyWith(
+            specialty: specialty,
+            queueEntryId: queueEntryId,
+            authorUid: doctorId,
+          );
 
       // The note is safe locally first; the recording then goes to the
       // cloud in the background, so an offline doctor never waits on it.
@@ -479,9 +531,11 @@ class ScribeSessionController extends ChangeNotifier {
     _ticker = null;
     await _amplitudeSub?.cancel();
     _amplitudeSub = null;
+    // The sentence being spoken is transcribed before the transcript
+    // closes, so the end of the consultation isn't lost.
+    await SpeechEngine.instance.stopDictation(keepLast: !cancel);
     await _transcriptSub?.cancel();
     _transcriptSub = null;
-    unawaited(SpeechEngine.instance.stop());
     VoiceBus.openKind.value = null;
     _stopwatch.stop();
     try {
@@ -553,7 +607,7 @@ class ScribeSessionController extends ChangeNotifier {
     _amplitudeSub?.cancel();
     _transcriptSub?.cancel();
     _transcriptSub = null;
-    unawaited(SpeechEngine.instance.stop());
+    unawaited(SpeechEngine.instance.stopDictation(keepLast: false));
     VoiceBus.openKind.value = null;
     activeDraftForm?.dispose();
     activeDraftForm = null;

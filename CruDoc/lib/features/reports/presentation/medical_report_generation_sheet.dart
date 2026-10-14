@@ -230,7 +230,7 @@ class _MedicalReportGenerationSheetState
                       width: 54,
                       height: 54,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => const Icon(
+                      errorWidget: (_, _, _) => const Icon(
                         Icons.local_hospital_rounded,
                         size: 36,
                         color: Color(0xFF1E78FF),

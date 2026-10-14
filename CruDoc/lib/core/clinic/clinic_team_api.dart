@@ -80,13 +80,13 @@ class ClinicTeamApi {
     final data = await _call('invite', {
       'clinicId': clinicId,
       'name': name,
-      if (phone != null) 'phone': phone,
-      if (email != null) 'email': email,
+      'phone': ?phone,
+      'email': ?email,
       'kind': kind.value,
       'roleId': roleId,
       if (specialty != null && specialty.isNotEmpty) 'specialty': specialty,
-      if (modules != null) 'modules': modules,
-      if (dentalFeatures != null) 'dentalFeatures': dentalFeatures,
+      'modules': ?modules,
+      'dentalFeatures': ?dentalFeatures,
     });
     return data['inviteId'] as String;
   }
@@ -109,13 +109,12 @@ class ClinicTeamApi {
   }) => _call('updateMember', {
     'clinicId': clinicId,
     'uid': uid,
-    if (roleId != null) 'roleId': roleId,
+    'roleId': ?roleId,
     if (kind != null) 'kind': kind.value,
-    if (specialty != null) 'specialty': specialty,
+    'specialty': ?specialty,
     if (clearModules)
       'modules': null
-    else if (modules != null)
-      'modules': modules,
+    else 'modules': ?modules,
   });
 
   /// Removes [uid] from the clinic and signs them out everywhere.
@@ -132,7 +131,7 @@ class ClinicTeamApi {
   }) async {
     final data = await _call('saveRole', {
       'clinicId': clinicId,
-      if (roleId != null) 'roleId': roleId,
+      'roleId': ?roleId,
       'name': name,
       'kind': kind.value,
       'perms': [for (final p in perms) p.key],

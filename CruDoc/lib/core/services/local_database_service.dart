@@ -941,6 +941,10 @@ class LocalDatabaseService extends ChangeNotifier {
       ON consultation_notes (visitId, status)
     ''');
     await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_consultation_notes_patient
+      ON consultation_notes (patientId, status, createdAt DESC)
+    ''');
+    await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_walk_in_queue_doctor_date
       ON walk_in_queue (doctorId, queueDate, isDeleted)
     ''');
@@ -1170,7 +1174,13 @@ class LocalDatabaseService extends ChangeNotifier {
           CHECK (status IN ('draft', 'confirmed', 'discarded')),
         createdAt INTEGER NOT NULL,
         confirmedAt INTEGER,
-        updatedAt INTEGER
+        updatedAt INTEGER,
+        specialty TEXT NOT NULL DEFAULT '',
+        queueEntryId TEXT,
+        authorUid TEXT NOT NULL DEFAULT '',
+        editedAt INTEGER,
+        editedByUid TEXT,
+        syncStatus TEXT NOT NULL DEFAULT 'local'
       )
     ''');
   }
@@ -1197,6 +1207,12 @@ class LocalDatabaseService extends ChangeNotifier {
     'createdAt': 'createdAt INTEGER NOT NULL DEFAULT 0',
     'confirmedAt': 'confirmedAt INTEGER',
     'updatedAt': 'updatedAt INTEGER',
+    'specialty': "specialty TEXT NOT NULL DEFAULT ''",
+    'queueEntryId': 'queueEntryId TEXT',
+    'authorUid': "authorUid TEXT NOT NULL DEFAULT ''",
+    'editedAt': 'editedAt INTEGER',
+    'editedByUid': 'editedByUid TEXT',
+    'syncStatus': "syncStatus TEXT NOT NULL DEFAULT 'local'",
   };
 
   Future<void> _createEmailLogTable(LocalDatabaseExecutor db) async {

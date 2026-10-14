@@ -16,6 +16,8 @@ import 'package:doctor_management_app/features/homeopathy/data/models/homeopathy
 import 'package:doctor_management_app/features/homeopathy/data/providers/homeopathy_providers.dart';
 import 'package:doctor_management_app/features/homeopathy/presentation/homeopathy_case_taking_sheet.dart';
 import 'package:doctor_management_app/features/files/presentation/patient_files_card.dart';
+import 'package:doctor_management_app/features/patients/presentation/widgets/details/session_history_card.dart';
+import 'package:doctor_management_app/features/scribe/data/providers/scribe_providers.dart';
 
 const Color _accentEmerald = Color(0xFF059669);
 const Color _accentEmeraldLight = Color(0xFFD1FAE5);
@@ -242,6 +244,8 @@ class _HomeopathyPatientDetailsScreenState
 
     final visitsAsync = ref.watch(visitsForPatientProvider(patient.id));
     final caseSheetAsync = ref.watch(homeopathyCaseSheetProvider(patient.id));
+    final sessions =
+        ref.watch(sessionHistoryProvider(patient.id)).value ?? const [];
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -300,6 +304,12 @@ class _HomeopathyPatientDetailsScreenState
                       ),
                     ),
                     const SizedBox(height: 16),
+
+                    // Consultations recorded with the AI scribe.
+                    if (sessions.isNotEmpty) ...[
+                      SessionHistoryCard(patient: patient, sessions: sessions),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Doctor's Common Note
                     _HomeoDoctorsNoteCard(note: _note, onTap: _openNoteEditor),

@@ -40,7 +40,7 @@ class RoleEditorDialog extends ConsumerStatefulWidget {
 class _RoleEditorDialogState extends ConsumerState<RoleEditorDialog> {
   late final _name = TextEditingController(text: widget.role?.name ?? '');
   late MemberKind _kind = widget.role?.kind ?? MemberKind.staff;
-  late Set<ClinicPermission> _picked = {...?widget.role?.perms};
+  late final Set<ClinicPermission> _picked = {...?widget.role?.perms};
   bool _busy = false;
   String? _notice;
 

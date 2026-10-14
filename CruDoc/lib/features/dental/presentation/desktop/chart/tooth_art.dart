@@ -1763,8 +1763,9 @@ abstract final class ToothArt {
       } else {
         if (s.backRoot != null) _root(canvas, s.backRoot!, s, c, back: true);
         _root(canvas, s.roots, s, c);
-        if (look.rootCanal && !look.pulp)
+        if (look.rootCanal && !look.pulp) {
           _canals(canvas, s, c, c.greenText, clip: s.roots);
+        }
       }
 
       // Crown.

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import 'package:crudoc_shared/theme/cru_colors.dart';
@@ -420,8 +419,9 @@ class _DentalProcedureLogSheetState
                         selected: _selectedStatus == 'completed',
                         selectedColor: const Color(0xFFDCFCE7),
                         onSelected: (sel) {
-                          if (sel)
+                          if (sel) {
                             setState(() => _selectedStatus = 'completed');
+                          }
                         },
                       ),
                       const SizedBox(width: 8),
@@ -430,8 +430,9 @@ class _DentalProcedureLogSheetState
                         selected: _selectedStatus == 'inProgress',
                         selectedColor: const Color(0xFFFEF08A),
                         onSelected: (sel) {
-                          if (sel)
+                          if (sel) {
                             setState(() => _selectedStatus = 'inProgress');
+                          }
                         },
                       ),
                       const SizedBox(width: 8),

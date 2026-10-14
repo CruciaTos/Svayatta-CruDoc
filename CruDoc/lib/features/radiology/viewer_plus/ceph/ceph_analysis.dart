@@ -911,16 +911,18 @@ List<CephLine> cephLines(String analysisKey, Map<String, Offset> p) {
   final out = <CephLine>[];
   void line(String a, String b, String label, {bool analysis = false}) {
     final pa = p[a], pb = p[b];
-    if (pa != null && pb != null)
+    if (pa != null && pb != null) {
       out.add(CephLine(pa, pb, label, analysis: analysis));
+    }
   }
 
   line('S', 'N', 'SN');
   line('Po', 'Or', 'FH');
   line('PNS', 'ANS', 'PP');
   final u1t = p['U1T'], l1t = p['L1T'], mo = p['Mo'];
-  if (u1t != null && l1t != null && mo != null)
+  if (u1t != null && l1t != null && mo != null) {
     out.add(CephLine(mo, (u1t + l1t) / 2, 'OP'));
+  }
   line('Go', 'Me', 'MP');
   line('U1A', 'U1T', 'U1');
   line('L1A', 'L1T', 'L1');
@@ -941,10 +943,11 @@ List<CephLine> cephLines(String analysisKey, Map<String, Offset> p) {
         final down = _perpDown(po, or) * (or - po).distance * 1.6;
         final n = p['N'], a = p['A'];
         if (n != null) out.add(CephLine(n, n + down, 'N⊥', analysis: true));
-        if (a != null)
+        if (a != null) {
           out.add(
             CephLine(a - down * 0.25, a + down * 0.25, 'A⊥', analysis: true),
           );
+        }
       }
       line('Ba', 'N', 'Ba-N', analysis: true);
       line('Pt', 'Gn', 'Pt-Gn', analysis: true);

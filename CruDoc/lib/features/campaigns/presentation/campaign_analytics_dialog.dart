@@ -173,7 +173,7 @@ class _CampaignAnalyticsDialogState
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: cat.color.withOpacity(0.12),
+              color: cat.color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(cat.icon, color: cat.color, size: 22),
@@ -203,10 +203,10 @@ class _CampaignAnalyticsDialogState
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: _currentCampaign.status.color.withOpacity(0.12),
+                        color: _currentCampaign.status.color.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: _currentCampaign.status.color.withOpacity(0.3),
+                          color: _currentCampaign.status.color.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Text(
@@ -282,9 +282,9 @@ class _CampaignAnalyticsDialogState
         margin: const EdgeInsets.symmetric(horizontal: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.05),
+          color: color.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.15)),
+          border: Border.all(color: color.withValues(alpha: 0.15)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +416,7 @@ class _CampaignAnalyticsDialogState
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       itemCount: logs.length,
-      separatorBuilder: (_, __) =>
+      separatorBuilder: (_, _) =>
           const Divider(height: 1),
       itemBuilder: (context, index) {
         final log = logs[index];
@@ -534,7 +534,7 @@ class _CampaignAnalyticsDialogState
     final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: status.color.withOpacity(0.1),
+        color: status.color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(

@@ -130,7 +130,7 @@ class LetterheadBrandingCard extends StatelessWidget {
                                 child: CachedNetworkImage(
                                   imageUrl: config.logoUrl!,
                                   fit: BoxFit.cover,
-                                  errorWidget: (_, __, ___) => const Icon(
+                                  errorWidget: (_, _, _) => const Icon(
                                     Icons.local_hospital_rounded,
                                     color: Color(0xFF1E78FF),
                                     size: 24,

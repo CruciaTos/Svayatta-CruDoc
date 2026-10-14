@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:doctor_management_app/features/voice/domain/medical_conditions.dart';
 import 'package:doctor_management_app/features/voice/domain/voice_command.dart';
 
 void main() {

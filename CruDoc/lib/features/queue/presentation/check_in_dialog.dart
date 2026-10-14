@@ -278,7 +278,7 @@ class _CheckInDialogState extends ConsumerState<CheckInDialog> {
                                   padding: EdgeInsets.zero,
                                   shrinkWrap: true,
                                   itemCount: options.length,
-                                  separatorBuilder: (_, __) =>
+                                  separatorBuilder: (_, _) =>
                                       const CruSeparator(),
                                   itemBuilder: (context, i) {
                                     final patient = options.elementAt(i);

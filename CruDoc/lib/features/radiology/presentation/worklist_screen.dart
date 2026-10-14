@@ -36,8 +36,9 @@ RadStudy? radNextUnread(List<RadStudy> studies) {
 }
 
 int _byUrgency(RadStudy a, RadStudy b) {
-  if (a.priority != b.priority)
+  if (a.priority != b.priority) {
     return b.priority.index.compareTo(a.priority.index);
+  }
   final da = a.dueAt ?? a.receivedAt, db = b.dueAt ?? b.receivedAt;
   return da.compareTo(db);
 }

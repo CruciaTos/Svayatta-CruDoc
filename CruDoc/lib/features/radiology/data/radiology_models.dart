@@ -1021,10 +1021,11 @@ class RadReport {
   String toPlainText() {
     final b = StringBuffer();
     if (title.isNotEmpty) b.writeln(title);
-    if (technique.trim().isNotEmpty)
+    if (technique.trim().isNotEmpty) {
       b
         ..writeln('\nTechnique')
         ..writeln(technique.trim());
+    }
     for (final s in sections) {
       if (s.body.trim().isEmpty) continue;
       b
@@ -1037,10 +1038,11 @@ class RadReport {
         b.writeln('${e.key}: ${e.value}');
       }
     }
-    if (impression.trim().isNotEmpty)
+    if (impression.trim().isNotEmpty) {
       b
         ..writeln('\nImpression')
         ..writeln(impression.trim());
+    }
     if (recommendations.trim().isNotEmpty) {
       b
         ..writeln('\nRecommendations')

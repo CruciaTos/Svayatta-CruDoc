@@ -75,9 +75,9 @@ class _MobilePostCampaignSheetState
   // Step 2: Audience & Channels
   AudienceType _selectedAudienceType = AudienceType.all;
   final _conditionFilterController = TextEditingController();
-  String _selectedGender = 'all';
-  int _selectedAgeMin = 0;
-  int _selectedAgeMax = 120;
+  final String _selectedGender = 'all';
+  final int _selectedAgeMin = 0;
+  final int _selectedAgeMax = 120;
   final Set<String> _selectedPatientIds = {};
   String _patientPickerQuery = '';
 

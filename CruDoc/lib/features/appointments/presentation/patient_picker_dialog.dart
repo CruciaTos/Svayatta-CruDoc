@@ -183,7 +183,7 @@ class _PatientPickerDialogState extends ConsumerState<_PatientPickerDialog> {
 
                   return ListView.separated(
                     itemCount: patients.length,
-                    separatorBuilder: (_, __) => const CruSeparator(
+                    separatorBuilder: (_, _) => const CruSeparator(
                       indent: 72,
                       endIndent: CruSpace.s20,
                     ),

@@ -45,6 +45,7 @@ const DOCTOR_OWNED = [
   'dental_records',
   'radiology_docs',
   'homeopathy_case_sheets',
+  'consultation_notes',
   'dental_procedure_catalog',
   'tooth_chart_entries',
   'procedure_log_entries',
@@ -583,6 +584,22 @@ describe('clinic members', () => {
     await assertFails(
       getDocs(query(collection(db, 'radiology_docs'), where('doctorId', '==', A))),
     );
+  });
+
+  it('3b. RECEP cannot read or write session notes (consultation_notes) of A', async () => {
+    await seed('consultation_notes/cn1', { doctorId: A, patientId: 'p1' });
+    const db = as(RECEP, { email: 'recep@clinic.test' });
+    await assertFails(getDoc(doc(db, 'consultation_notes/cn1')));
+    await assertFails(
+      getDocs(
+        query(
+          collection(db, 'consultation_notes'),
+          where('doctorId', '==', A),
+          where('patientId', '==', 'p1'),
+        ),
+      ),
+    );
+    await assertFails(updateDoc(doc(db, 'consultation_notes/cn1'), { advice: 'x' }));
   });
 
   it('4. RECEP cannot change doctorId of a patient from A to RECEP', async () => {

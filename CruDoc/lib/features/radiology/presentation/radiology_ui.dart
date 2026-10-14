@@ -139,8 +139,9 @@ abstract final class RadFormat {
   /// Turnaround text and whether it's late or close: "Due in 5h",
   /// "Overdue 2h", "Signed".
   static ({String text, bool late, bool soon}) due(RadStudy s, DateTime now) {
-    if (!s.status.isOpen)
+    if (!s.status.isOpen) {
       return (text: s.status.label, late: false, soon: false);
+    }
     final due = s.dueAt;
     if (due == null) return (text: 'No due time', late: false, soon: false);
     if (now.isAfter(due)) {
@@ -161,8 +162,9 @@ abstract final class RadFormat {
     if (dob != null) {
       var y = now.year - dob.year;
       if (now.month < dob.month ||
-          (now.month == dob.month && now.day < dob.day))
+          (now.month == dob.month && now.day < dob.day)) {
         y--;
+      }
       parts.add('$y y');
     }
     if (s.patientSex.isNotEmpty) parts.add(s.patientSex);
@@ -172,8 +174,9 @@ abstract final class RadFormat {
   static String bytes(int b) {
     if (b < 1024) return '$b B';
     if (b < 1024 * 1024) return '${(b / 1024).toStringAsFixed(0)} KB';
-    if (b < 1024 * 1024 * 1024)
+    if (b < 1024 * 1024 * 1024) {
       return '${(b / 1024 / 1024).toStringAsFixed(1)} MB';
+    }
     return '${(b / 1024 / 1024 / 1024).toStringAsFixed(2)} GB';
   }
 

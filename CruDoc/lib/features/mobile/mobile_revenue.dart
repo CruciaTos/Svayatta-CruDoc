@@ -14,7 +14,6 @@ import 'package:doctor_management_app/features/revenue/data/providers/revenue_vi
 import 'package:doctor_management_app/features/revenue/domain/revenue_builder.dart';
 import 'package:doctor_management_app/features/revenue/domain/revenue_models.dart';
 import 'package:doctor_management_app/features/revenue/presentation/desktop_add_transaction_dialog.dart';
-import 'package:doctor_management_app/features/revenue/presentation/desktop_create_invoice_dialog.dart';
 import 'package:doctor_management_app/features/revenue/presentation/transaction_details.dart';
 import 'package:doctor_management_app/shared/widgets/cru/cru.dart';
 import 'package:doctor_management_app/core/clinic/clinic_permission.dart';

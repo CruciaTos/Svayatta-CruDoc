@@ -117,8 +117,9 @@ class _RadLesionCardState extends State<RadLesionCard> {
     String? hint,
   }) {
     final c = context.cru;
-    if (widget.readOnly && t.text.trim().isEmpty)
+    if (widget.readOnly && t.text.trim().isEmpty) {
       return const SizedBox.shrink();
+    }
     return Padding(
       padding: const EdgeInsets.only(top: CruSpace.s14),
       child: Column(

@@ -21,6 +21,8 @@ GoogleService-Info.plist
 !CruDoc/firebase.json
 !CruDoc/firestore.indexes.json
 !CruDoc/lifecycle.json
+# The muscle chart can't load without it.
+!CruDoc/assets/muscle_viewer/catalog.json
 CruDoc/lib/firebase_options.dart
 .agents/
 .cursor/

@@ -36,8 +36,9 @@ final clinicRolesProvider = StreamProvider<List<ClinicRole>>((ref) {
       for (final d in snap.docs) ClinicRole.fromMap(d.id, d.data()),
     ];
     roles.sort((a, b) {
-      if ((a.id == 'admin') != (b.id == 'admin'))
+      if ((a.id == 'admin') != (b.id == 'admin')) {
         return a.id == 'admin' ? -1 : 1;
+      }
       return a.name.toLowerCase().compareTo(b.name.toLowerCase());
     });
     return roles;

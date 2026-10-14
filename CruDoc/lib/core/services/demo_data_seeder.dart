@@ -175,7 +175,7 @@ class DemoDataSeeder {
       patientId: patientIds[0],
       reason: pick(_reasons),
     );
-    await queue.startConsultation(first.id);
+    await queue.startConsultation(first.id, announce: false);
     for (final id in patientIds.sublist(1, 4)) {
       await queue.checkIn(patientId: id, reason: pick(_reasons));
     }

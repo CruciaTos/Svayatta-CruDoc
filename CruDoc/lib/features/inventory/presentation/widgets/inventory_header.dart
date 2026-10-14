@@ -63,12 +63,10 @@ class InventoryHeader extends StatelessWidget {
           const SizedBox(height: CruSpace.s2),
           SizedBox(
             height: CruType.text.fontSize! * CruType.text.height!,
-            child: subtitle == null
-                ? const Align(
+            child: subtitle ?? const Align(
                     alignment: Alignment.centerLeft,
                     child: SkeletonBox(width: 180, height: 12),
-                  )
-                : subtitle,
+                  ),
           ),
           const SizedBox(height: CruSpace.s14),
           Row(
@@ -107,12 +105,10 @@ class InventoryHeader extends StatelessWidget {
               const SizedBox(height: CruSpace.s2),
               SizedBox(
                 height: CruType.text.fontSize! * CruType.text.height!,
-                child: subtitle == null
-                    ? const Align(
+                child: subtitle ?? const Align(
                         alignment: Alignment.centerLeft,
                         child: SkeletonBox(width: 180, height: 12),
-                      )
-                    : subtitle,
+                      ),
               ),
             ],
           ),

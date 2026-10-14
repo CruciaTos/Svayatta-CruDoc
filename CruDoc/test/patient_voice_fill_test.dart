@@ -6,7 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
 import 'package:doctor_management_app/core/services/gemini_json_client.dart';
-import 'package:doctor_management_app/features/patients/presentation/desktop_add_edit_patient_dialog.dart';
 import 'package:doctor_management_app/features/patients/presentation/patient_form.dart';
 import 'package:doctor_management_app/features/patients/services/patient_voice_fill_service.dart';
 

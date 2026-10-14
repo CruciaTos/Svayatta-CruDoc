@@ -120,7 +120,7 @@ class _InventoryListScreenState extends ConsumerState<InventoryListScreen> {
                 const SizedBox(height: 12),
                 medicinesAsync.when(
                   loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                   data: (medicines) => _FilterRow(
                     selected: _filter,
                     category: _category,

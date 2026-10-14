@@ -697,7 +697,7 @@ Date: *${DateFormat('dd MMM yyyy').format(_billDate)}*
 Doctor: *${widget.letterheadConfig.doctorName}*
 
 *Total Amount:* ₹${_grandTotal.toStringAsFixed(2)}
-*Amount Paid:* ₹${_paidAmount.toStringAsFixed(2)} (${_selectedPaymentMode})
+*Amount Paid:* ₹${_paidAmount.toStringAsFixed(2)} ($_selectedPaymentMode)
 *Balance Due:* ₹${_balanceDue.toStringAsFixed(2)}
 
 Thank you for visiting! Contact: ${widget.letterheadConfig.clinicPhone}

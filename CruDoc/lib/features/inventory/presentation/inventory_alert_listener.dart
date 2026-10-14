@@ -59,7 +59,7 @@ class _InventoryAlertListenerState
           _previousLowStockIds = medicines.map((m) => m.id).toSet();
         },
         loading: () {},
-        error: (_, __) {},
+        error: (_, _) {},
       );
     });
 
@@ -83,7 +83,7 @@ class _InventoryAlertListenerState
           _previousExpiringIds = medicines.map((m) => m.id).toSet();
         },
         loading: () {},
-        error: (_, __) {},
+        error: (_, _) {},
       );
     });
 

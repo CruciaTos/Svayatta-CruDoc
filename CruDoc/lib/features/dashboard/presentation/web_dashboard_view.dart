@@ -1961,7 +1961,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
                         itemCount: filteredInvoices.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
+                        separatorBuilder: (_, _) => const Divider(height: 1),
                         itemBuilder: (context, index) {
                           final inv = filteredInvoices[index];
                           final status = (inv['status'] ?? 'Pending')
@@ -2270,7 +2270,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                 size: 24,
                               ),
                               SizedBox(width: 10),
-                              const Text(
+                              Text(
                                 'cru.doc',
                                 style: TextStyle(
                                   color: Colors.white,
@@ -2546,7 +2546,7 @@ class _WebDashboardViewState extends ConsumerState<WebDashboardView> {
                                                       ),
                                                   shrinkWrap: true,
                                                   itemCount: options.length,
-                                                  separatorBuilder: (_, __) =>
+                                                  separatorBuilder: (_, _) =>
                                                       const Divider(height: 1),
                                                   itemBuilder: (BuildContext context, int index) {
                                                     final Patient option =

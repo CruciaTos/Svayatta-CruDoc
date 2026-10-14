@@ -358,8 +358,9 @@ class _ReferrerPickerState extends ConsumerState<_ReferrerPicker> {
                 context,
                 initialName: _search.text.trim(),
               );
-              if (added != null && context.mounted)
+              if (added != null && context.mounted) {
                 Navigator.of(context).pop(added);
+              }
             },
           ),
           const Spacer(),

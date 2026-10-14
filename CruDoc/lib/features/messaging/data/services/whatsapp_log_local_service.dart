@@ -94,12 +94,14 @@ class WhatsAppLogLocalService {
       'status': status.value,
       'updatedAt': DateTime.now().millisecondsSinceEpoch,
     };
-    if (whatsappMessageId != null)
+    if (whatsappMessageId != null) {
       values['whatsappMessageId'] = whatsappMessageId;
+    }
     if (failureReason != null) values['failureReason'] = failureReason;
     if (sentAt != null) values['sentAt'] = sentAt.millisecondsSinceEpoch;
-    if (deliveredAt != null)
+    if (deliveredAt != null) {
       values['deliveredAt'] = deliveredAt.millisecondsSinceEpoch;
+    }
     if (readAt != null) values['readAt'] = readAt.millisecondsSinceEpoch;
 
     await db.update(tableName, values, where: 'id = ?', whereArgs: [id]);

@@ -37,6 +37,11 @@ enum VoiceIntent {
 
   /// Delete a medical document / file.
   deleteFile,
+
+  /// Begin seeing a patient now ("start the session", "start consultation
+  /// with Rahul", "consulting with the patient"): calls their queue token
+  /// in and starts the consultation, which opens the scribe.
+  startConsultation,
 }
 
 /// One parsed utterance. Every field is optional: partial speech fills in
@@ -334,6 +339,27 @@ const _appointment = {
   'visit',
 };
 const _addWords = {'add', 'ad', 'new', 'register', 'create', 'enroll', 'admit'};
+
+/// "Start the session", "begin consultation", "consulting with Rahul".
+const _startVerbs = {
+  'start',
+  'starting',
+  'started',
+  'begin',
+  'beginning',
+  'commence',
+  'initiate',
+};
+const _sessionWords = {
+  'session',
+  'sessions',
+  'consultation',
+  'consultations',
+  'consult',
+  'consulting',
+  'scribe',
+  'therapy',
+};
 const _open = {
   'open',
   'show',
@@ -965,6 +991,15 @@ const _filler = {
   ..._reschedule,
   ..._appointment,
   ..._addWords,
+  ..._startVerbs,
+  // _sessionWords, less 'consultation' (already an appointment word).
+  'session',
+  'sessions',
+  'consultations',
+  'consult',
+  'consulting',
+  'scribe',
+  'therapy',
   ..._open,
   ..._confirm,
   ..._cancel,
@@ -1221,6 +1256,7 @@ class _Parser {
     }
     if (_onlyConfirm) return VoiceIntent.confirm;
     if (_paid != null) return VoiceIntent.recordPayment;
+    if (_startsConsultation) return VoiceIntent.startConsultation;
     final noShow =
         _seq('no', 'show') ||
         _seq('didnt', 'show') ||
@@ -1288,6 +1324,36 @@ class _Parser {
     }
     if (_has(_open)) return VoiceIntent.openPatient;
     return VoiceIntent.none;
+  }
+
+  /// "Start the session", "begin consultation with Rahul", "consulting
+  /// with the patient", "let's start with Priya". Never a booking: a date,
+  /// a time or a booking word makes it an appointment instead.
+  bool get _startsConsultation {
+    if (_date != null || _time != null) return false;
+    if (_has(const {
+      'book',
+      'booking',
+      'schedule',
+      'appointment',
+      'appointments',
+      'appt',
+      'reschedule',
+      'cancel',
+    })) {
+      return false;
+    }
+    if (_has(_startVerbs) && _has(_sessionWords)) return true;
+    if (_has(const {'consult', 'consulting'})) return true;
+    // "Start with Rahul", "let's begin with Priya".
+    for (var i = 0; i + 1 < t.length; i++) {
+      if (_startVerbs.contains(t[i]) &&
+          t[i + 1] == 'with' &&
+          _nameList.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // ── Free-text fields: names, notes, reason, address, conditions ───────

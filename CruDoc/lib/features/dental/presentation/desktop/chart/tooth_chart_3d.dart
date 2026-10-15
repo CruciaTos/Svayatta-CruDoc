@@ -51,10 +51,11 @@ class _Pose {
   }
 }
 
-/// Both jaws in 3D. Drag to turn, scroll or pinch to zoom, click a tooth
-/// to select it, double-click to bring it to the front. Open the mouth,
-/// show the roots, or jump to a preset view. Callouts name the teeth
-/// with findings (or planned work).
+/// Both jaws in 3D: white teeth in see-through jaw bone, the roots
+/// showing faintly through it. Drag to turn, scroll or pinch to zoom,
+/// click a tooth to select it, double-click to bring it to the front.
+/// Open the mouth, show the roots plainly, or jump to a preset view.
+/// Callouts name the teeth with findings (or planned work).
 class ToothChart3D extends StatefulWidget {
   const ToothChart3D({
     super.key,
@@ -108,6 +109,7 @@ class _ToothChart3DState extends State<ToothChart3D>
   double _panZoomScale = 1;
 
   _Frame? _frame;
+  final _Buffers _buffers = _Buffers();
 
   @override
   void initState() {
@@ -342,11 +344,12 @@ class _ToothChart3DState extends State<ToothChart3D>
                 hover: _hover,
                 colors: c,
                 numbering: widget.numbering,
+                buffers: _buffers,
               ).render(size);
               _frame = frame;
               return DecoratedBox(
                 decoration: ShapeDecoration(
-                  color: c.stage,
+                  gradient: _stage(c),
                   shape: cruShape(CruRadius.panel),
                 ),
                 child: ClipRRect(
@@ -529,42 +532,161 @@ class _ToothChart3DState extends State<ToothChart3D>
 
 // ------------------------------------------------------------- renderer
 
+/// Behind the jaws: white in the middle, a soft grey towards the edges.
+Gradient _stage(CruColors c) => RadialGradient(
+  center: const Alignment(0, -0.15),
+  radius: 1.25,
+  colors: c.isEvening
+      ? const [Color(0xFF292D34), Color(0xFF1F2228), Color(0xFF16181C)]
+      : const [Color(0xFFFFFFFF), Color(0xFFF6F7FA), Color(0xFFE8EBF1)],
+  stops: const [0, 0.5, 1],
+);
+
+/// The disc behind a tooth's number in its callout: a soft tint of its
+/// state's colour (amber waiting, green done, the accent for planned
+/// work).
+Color _mark(CruColors c, ToothState state, {required bool planned}) {
+  final e = c.isEvening;
+  Color tint(Color hue, double day, double evening) =>
+      Color.lerp(c.surface, hue, e ? evening : day)!;
+  if (planned) return tint(c.accent, 0.28, 0.55);
+  return switch (state) {
+    ToothState.needsCare => tint(c.amber, 0.36, 0.45),
+    ToothState.treated => tint(c.green, 0.32, 0.42),
+    ToothState.missing || ToothState.notErupted => tint(c.label3, 0.22, 0.3),
+    ToothState.healthy => tint(c.label3, 0.1, 0.18),
+  };
+}
+
+/// A colour in linear light (for shading).
+typedef _Rgb = (double, double, double);
+
+double _toLinear(double v) =>
+    v <= 0.04045 ? v / 12.92 : math.pow((v + 0.055) / 1.055, 2.4).toDouble();
+
+_Rgb _lin(Color c) => (_toLinear(c.r), _toLinear(c.g), _toLinear(c.b));
+
+_Rgb _mix(_Rgb a, _Rgb b, double t) => (
+  a.$1 + (b.$1 - a.$1) * t,
+  a.$2 + (b.$2 - a.$2) * t,
+  a.$3 + (b.$3 - a.$3) * t,
+);
+
+/// Linear light (0..1 in 4096 steps) to an 8-bit sRGB channel.
+final Uint8List _srgb = () {
+  final t = Uint8List(4096);
+  for (var i = 0; i < t.length; i++) {
+    final v = i / (t.length - 1);
+    final s = v <= 0.0031308 ? v * 12.92 : 1.055 * math.pow(v, 1 / 2.4) - 0.055;
+    t[i] = (s * 255).round().clamp(0, 255);
+  }
+  return t;
+}();
+
+/// The 3D chart's materials: porcelain teeth, their roots, titanium, and
+/// the jaw bone as frosted glass (milky face-on, denser and greyer at
+/// its edges).
+class _Palette {
+  _Palette(CruColors c)
+    : enamel = _lin(
+        c.isEvening ? const Color(0xFFDCDAD4) : const Color(0xFFF5F4F0),
+      ),
+      root = _lin(
+        c.isEvening ? const Color(0xFF7D838D) : const Color(0xFFF1ECE3),
+      ),
+      rootShown = _lin(c.toothRoot),
+      metal = _lin(c.implantMetal),
+      accent = _lin(c.accent),
+      amber = _lin(c.amber),
+      green = _lin(c.green),
+      boneFace = _lin(
+        c.isEvening ? const Color(0xFF59606C) : const Color(0xFFF2F4F7),
+      ),
+      boneEdge = _lin(
+        c.isEvening ? const Color(0xFFB9C1CE) : const Color(0xFFA2AAB7),
+      );
+
+  final _Rgb enamel;
+
+  /// Roots inside the bone: near its colour, so they show only faintly.
+  final _Rgb root;
+
+  /// Roots when they're asked for: the cementum's own colour.
+  final _Rgb rootShown;
+  final _Rgb metal;
+  final _Rgb accent;
+  final _Rgb amber;
+  final _Rgb green;
+  final _Rgb boneFace;
+  final _Rgb boneEdge;
+}
+
 /// A callout on the 3D view: which tooth, what to say, where.
 class _Callout {
   const _Callout({
     required this.tooth,
+    required this.number,
     required this.text,
     required this.anchor,
     required this.at,
-    required this.dot,
+    required this.mark,
     required this.selected,
   });
 
   final String tooth;
+
+  /// The tooth's number as the clinic writes it.
+  final String number;
   final String text;
+
+  /// The point on the tooth, and the middle of the bubble.
   final Offset anchor;
   final Offset at;
-  final Color dot;
+
+  /// The disc behind the number.
+  final Color mark;
   final bool selected;
+
+  /// The bubble sits above its tooth (and points down to it).
+  bool get above => at.dy < anchor.dy;
+
+  /// The end of the bubble's pointer.
+  Offset get tip => Offset(
+    at.dx,
+    at.dy + (above ? 1 : -1) * (_CalloutChip.height / 2 + _CalloutChip.tail),
+  );
+
+  _Callout movedTo(Offset p) => _Callout(
+    tooth: tooth,
+    number: number,
+    text: text,
+    anchor: anchor,
+    at: p,
+    mark: mark,
+    selected: selected,
+  );
 }
 
 /// One rendered image: the triangles to draw, what to pick, the callouts.
 class _Frame {
-  _Frame(this.vertices, this.screen, this.owner, this.callouts);
+  _Frame(this.vertices, this.screen, this.owner, this.teeth, this.callouts);
 
   final ui.Vertices? vertices;
 
   /// Six floats per triangle in draw order (back to front).
   final Float32List screen;
 
-  /// Tooth per triangle; null for gums.
-  final List<String?> owner;
+  /// Per triangle, its tooth's index in [teeth]; -1 for bone.
+  final Int16List owner;
+  final List<String> teeth;
   final List<_Callout> callouts;
 
-  /// The front-most tooth under [p] (gums in front hide what's behind).
+  /// The front-most tooth under [p]. The bone is see-through, so it
+  /// doesn't hide the teeth behind it.
   String? pick(Offset p) {
     final x = p.dx, y = p.dy;
     for (var t = owner.length - 1; t >= 0; t--) {
+      if (owner[t] < 0) continue;
       final i = t * 6;
       final ax = screen[i], ay = screen[i + 1];
       final bx = screen[i + 2], by = screen[i + 3];
@@ -581,9 +703,47 @@ class _Frame {
       final neg = d1 < 0 || d2 < 0 || d3 < 0;
       final pos = d1 > 0 || d2 > 0 || d3 > 0;
       if (neg && pos) continue;
-      return owner[t];
+      return teeth[owner[t]];
     }
     return null;
+  }
+}
+
+/// Scratch space for one chart's frames, reused from frame to frame.
+class _Buffers {
+  static const buckets = 1 << 14;
+
+  Float64List vx = Float64List(0);
+  Float64List vy = Float64List(0);
+  Float64List vz = Float64List(0);
+  Float64List px = Float64List(0);
+  Float64List py = Float64List(0);
+  Int32List col = Int32List(0);
+  Float32List tri = Float32List(0);
+  Int32List triCol = Int32List(0);
+  Float64List depth = Float64List(0);
+  Int16List owner = Int16List(0);
+  Int32List keys = Int32List(0);
+  Int32List order = Int32List(0);
+  final Int32List counts = Int32List(buckets + 1);
+
+  void ensure(int vertices, int triangles) {
+    if (vx.length < vertices) {
+      vx = Float64List(vertices);
+      vy = Float64List(vertices);
+      vz = Float64List(vertices);
+      px = Float64List(vertices);
+      py = Float64List(vertices);
+      col = Int32List(vertices);
+    }
+    if (depth.length < triangles) {
+      tri = Float32List(triangles * 6);
+      triCol = Int32List(triangles * 3);
+      depth = Float64List(triangles);
+      owner = Int16List(triangles);
+      keys = Int32List(triangles);
+      order = Int32List(triangles);
+    }
   }
 }
 
@@ -599,6 +759,7 @@ class _Renderer {
     required this.hover,
     required this.colors,
     required this.numbering,
+    required this.buffers,
   });
 
   final JawModel model;
@@ -611,11 +772,58 @@ class _Renderer {
   final String? hover;
   final CruColors colors;
   final ToothNumbering numbering;
+  final _Buffers buffers;
 
-  static const _lx = -0.36, _ly = 0.56, _lz = 0.745;
+  // Lights, in view space: a key light from above left, a fill from the
+  // right, and a rim from behind.
+  static final _V _key = _V.unit(-0.42, 0.72, 0.56);
+  static final _V _fill = _V.unit(0.62, -0.05, 0.78);
+  static final _V _back = _V.unit(0.15, 0.55, -0.82);
+
+  /// How a tooth part looks: its colour (linear), opacity and shine;
+  /// null when it isn't drawn.
+  (_Rgb, double, double)? _surface(MeshPart part, ToothVisual v, _Palette pal) {
+    _Rgb base;
+    var alpha = 1.0;
+    double gloss;
+    switch (part.material) {
+      case MeshMaterial.bone:
+        return null;
+      case MeshMaterial.root:
+        if (v.missing || v.implant) return null;
+        base = roots ? pal.rootShown : pal.root;
+        gloss = 0.06;
+      case MeshMaterial.implant:
+        if (!v.implant) return null;
+        base = pal.metal;
+        gloss = 0.8;
+      case MeshMaterial.crown:
+        base = pal.enamel;
+        gloss = 0.42;
+        if (v.missing && !v.implant) {
+          alpha = 0.2;
+          gloss = 0;
+        } else if (mode == ChartMode.plan) {
+          if (v.isPlanned) base = _mix(base, pal.accent, 0.42);
+        } else {
+          base = switch (v.state) {
+            ToothState.needsCare => _mix(base, pal.amber, 0.45),
+            ToothState.treated => _mix(base, pal.green, v.capped ? 0.42 : 0.3),
+            _ => base,
+          };
+        }
+    }
+    if (part.tooth == selected) {
+      base = _mix(base, pal.accent, 0.5);
+    } else if (part.tooth == hover) {
+      base = _mix(base, pal.accent, 0.22);
+    }
+    return (base, alpha, gloss);
+  }
 
   _Frame render(Size size) {
     final c = colors;
+    final pal = _Palette(c);
     final cx = size.width / 2;
     final cy = size.height / 2 + 8;
     final focal = math.min(size.width, size.height) * 1.8;
@@ -624,11 +832,244 @@ class _Renderer {
     final openA = pose.open * 0.42;
     final co = math.cos(openA), so = math.sin(openA);
     final hy = model.hingeY, hz = model.hingeZ;
+    final dist = pose.dist;
 
-    final screen = <double>[];
-    final depth = <double>[];
-    final colorsOut = <int>[];
-    final owner = <String?>[];
+    final buf = buffers..ensure(model.maxVertices, model.triangleCount);
+    final vx = buf.vx, vy = buf.vy, vz = buf.vz;
+    final px = buf.px, py = buf.py, col = buf.col;
+    final tri = buf.tri, triCol = buf.triCol, depth = buf.depth;
+    final owner = buf.owner;
+    final lut = _srgb;
+    const top = 4095.0;
+    final kx = _key.x, ky = _key.y, kz = _key.z;
+    final fx = _fill.x, fy = _fill.y, fz = _fill.z;
+    final bx = _back.x, by = _back.y, bz = _back.z;
+    // The bone is milky face-on, so the roots show only as a hint, and
+    // denser at its edges; nearly clear when the roots are asked for.
+    final boneFaceA = roots ? 0.12 : 0.84;
+    final boneEdgeA = roots ? 0.45 : 0.95;
+    var count = 0;
+    var zMin = double.infinity, zMax = -double.infinity;
+
+    for (final part in model.parts) {
+      if (part.lower ? jaws == _Jaws.upper : jaws == _Jaws.lower) continue;
+      final tooth = part.tooth;
+      final ghost = part.material == MeshMaterial.bone;
+      final v = tooth == null ? null : data.of(tooth);
+      var base = pal.boneFace;
+      var alpha = 1.0;
+      var gloss = 0.0;
+      if (!ghost) {
+        final look = _surface(part, v!, pal);
+        if (look == null) continue;
+        (base, alpha, gloss) = look;
+      }
+      final (ar, ag, ab) = base;
+      final (er, eg, eb) = pal.boneEdge;
+      final a = (alpha * 255).round() << 24;
+
+      // Unerupted teeth sit down in the bone.
+      var sx = 0.0, sy = 0.0, sz = 0.0;
+      final frame = tooth == null ? null : model.frames[tooth];
+      if (v != null && frame != null && v.state == ToothState.notErupted) {
+        final k = frame.spec.crown * 0.55;
+        sx = frame.axis.x * k;
+        sy = frame.axis.y * k;
+        sz = frame.axis.z * k;
+      }
+
+      final n = part.vertexCount;
+      final pos = part.positions, nrm = part.normals;
+      final occ = part.occlusion, fade = part.fade;
+      // Where the bone covers a root's neck the root takes on its colour,
+      // unless the roots are asked for.
+      final neck = roots ? null : part.neck;
+      final (gr, gg, gb) = pal.boneFace;
+      final opens = part.lower && openA > 0;
+      for (var i = 0; i < n; i++) {
+        final i3 = i * 3;
+        final x = pos[i3] + sx;
+        var y = pos[i3 + 1] + sy;
+        var z = pos[i3 + 2] + sz;
+        var nx = nrm[i3], ny = nrm[i3 + 1], nz = nrm[i3 + 2];
+        if (opens) {
+          final dy = y - hy, dz = z - hz;
+          y = hy + dy * co - dz * so;
+          z = hz + dy * so + dz * co;
+          final ny2 = ny * co - nz * so;
+          nz = ny * so + nz * co;
+          ny = ny2;
+        }
+        final x1 = x * cyaw + z * syaw;
+        final z1 = -x * syaw + z * cyaw;
+        final yv = y * cp - z1 * sp;
+        final zv = y * sp + z1 * cp - dist;
+        vx[i] = x1;
+        vy[i] = yv;
+        vz[i] = zv;
+        final w = -zv;
+        px[i] = cx + focal * x1 / w;
+        py[i] = cy - focal * yv / w;
+        // The normal, turned the same way.
+        final nxv = nx * cyaw + nz * syaw;
+        final nz1 = -nx * syaw + nz * cyaw;
+        final nyv = ny * cp - nz1 * sp;
+        final nzv = ny * sp + nz1 * cp;
+        // Towards the eye.
+        final il = 1 / math.sqrt(x1 * x1 + yv * yv + zv * zv);
+        final ex = -x1 * il, ey = -yv * il, ez = -zv * il;
+        var facing = nxv * ex + nyv * ey + nzv * ez;
+        if (facing < 0) facing = 0;
+        final rim = 1 - facing;
+        final k1 = nxv * kx + nyv * ky + nzv * kz;
+
+        if (ghost) {
+          // Matte, lit like the teeth so it has form; greyer and denser
+          // towards its edges, like frosted glass.
+          final f2 = rim * rim;
+          var d1 = (k1 + 0.4) / 1.4;
+          if (d1 < 0) d1 = 0;
+          var d2 = (nxv * fx + nyv * fy + nzv * fz + 0.4) / 1.4;
+          if (d2 < 0) d2 = 0;
+          final light = 0.5 + 0.08 * nyv + 0.46 * d1 + 0.12 * d2;
+          // Where the bone fades out (at the necks, above the jaw) its
+          // edges don't darken either.
+          final f = fade![i];
+          final edge = f2 * 0.5 * f;
+          final r = ar * light * (1 - edge) + er * edge;
+          final g = ag * light * (1 - edge) + eg * edge;
+          final b = ab * light * (1 - edge) + eb * edge;
+          final al = (f * (boneFaceA + (boneEdgeA - boneFaceA) * f2) * 255)
+              .round();
+          col[i] =
+              (al << 24) |
+              (lut[((r >= 1 ? 1.0 : r) * top).toInt()] << 16) |
+              (lut[((g >= 1 ? 1.0 : g) * top).toInt()] << 8) |
+              lut[((b >= 1 ? 1.0 : b) * top).toInt()];
+          continue;
+        }
+
+        // Soft light that wraps round the crown, as through enamel; a
+        // brighter sky than ground; grooves and contacts in shade.
+        final ao = occ == null ? 1.0 : occ[i];
+        var d1 = (k1 + 0.3) / 1.3;
+        if (d1 < 0) d1 = 0;
+        var d2 = (nxv * fx + nyv * fy + nzv * fz + 0.3) / 1.3;
+        if (d2 < 0) d2 = 0;
+        var d3 = nxv * bx + nyv * by + nzv * bz;
+        if (d3 < 0) d3 = 0;
+        // The sky and fill a little cool, the key light a little warm.
+        final sky = (0.3 + 0.1 * nyv) * ao;
+        final key = 0.62 * d1 * (0.4 + 0.6 * ao);
+        final fill = 0.2 * d2 * (0.4 + 0.6 * ao);
+        final glow = 0.1 * d3 + 0.08 * rim * rim * rim;
+        final litR = sky * 0.95 + key * 1.03 + fill * 0.95 + glow;
+        final litG = sky * 0.98 + key + fill * 0.99 + glow;
+        final litB = sky * 1.05 + key * 0.95 + fill * 1.05 + glow;
+        // A glossy highlight from the key light.
+        var spec = 0.0;
+        if (gloss > 0) {
+          final hx = kx + ex, hy2 = ky + ey, hz2 = kz + ez;
+          var h =
+              (nxv * hx + nyv * hy2 + nzv * hz2) /
+              math.sqrt(hx * hx + hy2 * hy2 + hz2 * hz2);
+          if (h < 0) h = 0;
+          final h2 = h * h, h4 = h2 * h2, h8 = h4 * h4;
+          final h16 = h8 * h8, h32 = h16 * h16;
+          spec = gloss * (0.55 * h32 * h16 + 0.12 * h8) * ao;
+        }
+        var r = ar, g = ag, b = ab;
+        if (neck != null) {
+          final t = neck[i];
+          r += (gr - r) * t;
+          g += (gg - g) * t;
+          b += (gb - b) * t;
+        }
+        r = r * litR + spec;
+        g = g * litG + spec;
+        b = b * litB + spec;
+        if (r > 1) r = 1;
+        if (g > 1) g = 1;
+        if (b > 1) b = 1;
+        col[i] =
+            a |
+            (lut[(r * top).toInt()] << 16) |
+            (lut[(g * top).toInt()] << 8) |
+            lut[(b * top).toInt()];
+      }
+
+      final tris = part.triangles;
+      final id = tooth == null ? -1 : model.toothIds[tooth]!;
+      // The bone sorts a little nearer than it is, so where it meets
+      // the teeth at their necks it covers them evenly.
+      final bias = ghost ? 1.5 : 0.0;
+      for (var t = 0; t < tris.length; t += 3) {
+        final ia = tris[t], ib = tris[t + 1], ic = tris[t + 2];
+        final az = vz[ia], bz2 = vz[ib], cz = vz[ic];
+        if (az > -1 || bz2 > -1 || cz > -1) continue;
+        // Back faces away.
+        final ax = vx[ia], ay = vy[ia];
+        final ux = vx[ib] - ax, uy = vy[ib] - ay, uz = bz2 - az;
+        final wx = vx[ic] - ax, wy = vy[ic] - ay, wz = cz - az;
+        final fnx = uy * wz - uz * wy;
+        final fny = uz * wx - ux * wz;
+        final fnz = ux * wy - uy * wx;
+        if (fnx * -ax + fny * -ay + fnz * -az <= 0) continue;
+        final o = count * 6;
+        tri[o] = px[ia];
+        tri[o + 1] = py[ia];
+        tri[o + 2] = px[ib];
+        tri[o + 3] = py[ib];
+        tri[o + 4] = px[ic];
+        tri[o + 5] = py[ic];
+        final oc = count * 3;
+        triCol[oc] = col[ia];
+        triCol[oc + 1] = col[ib];
+        triCol[oc + 2] = col[ic];
+        final d = az + bz2 + cz + bias;
+        depth[count] = d;
+        if (d < zMin) zMin = d;
+        if (d > zMax) zMax = d;
+        owner[count] = id;
+        count++;
+      }
+    }
+
+    // Back to front: a counting sort on depth.
+    const buckets = _Buffers.buckets;
+    final counts = buf.counts..fillRange(0, buckets + 1, 0);
+    final keys = buf.keys, order = buf.order;
+    final span = zMax - zMin;
+    final scale = span > 0 ? (buckets - 1) / span : 0.0;
+    for (var t = 0; t < count; t++) {
+      final k = ((depth[t] - zMin) * scale).toInt();
+      keys[t] = k;
+      counts[k + 1]++;
+    }
+    for (var k = 1; k <= buckets; k++) {
+      counts[k] += counts[k - 1];
+    }
+    for (var t = 0; t < count; t++) {
+      order[counts[keys[t]]++] = t;
+    }
+    final positions = Float32List(count * 6);
+    final colorsOut = Int32List(count * 3);
+    final owners = Int16List(count);
+    for (var k = 0; k < count; k++) {
+      final t = order[k];
+      final s6 = t * 6, d6 = k * 6;
+      positions[d6] = tri[s6];
+      positions[d6 + 1] = tri[s6 + 1];
+      positions[d6 + 2] = tri[s6 + 2];
+      positions[d6 + 3] = tri[s6 + 3];
+      positions[d6 + 4] = tri[s6 + 4];
+      positions[d6 + 5] = tri[s6 + 5];
+      final s3 = t * 3, d3 = k * 3;
+      colorsOut[d3] = triCol[s3];
+      colorsOut[d3 + 1] = triCol[s3 + 1];
+      colorsOut[d3 + 2] = triCol[s3 + 2];
+      owners[k] = owner[t];
+    }
 
     // Transforms a model point into view space ([x, y, z]; camera at the
     // origin looking down -z).
@@ -642,173 +1083,7 @@ class _Renderer {
       final z1 = -x * syaw + z * cyaw;
       final y2 = y * cp - z1 * sp;
       final z2 = y * sp + z1 * cp;
-      return [x1, y2, z2 - pose.dist];
-    }
-
-    for (final part in model.parts) {
-      if (part.lower && jaws == _Jaws.upper) continue;
-      if (!part.lower && jaws == _Jaws.lower) continue;
-      final tooth = part.tooth;
-      final v = tooth == null ? null : data.of(tooth);
-      final frame = tooth == null ? null : model.frames[tooth];
-
-      // What to draw, in which colour.
-      Color base;
-      var alpha = 1.0;
-      var shiny = 0.0;
-      switch (part.material) {
-        case MeshMaterial.gum:
-          base = c.gum;
-          if (roots) alpha = 0.3;
-        case MeshMaterial.root:
-          if (!roots || v!.missing || v.implant) continue;
-          base = c.toothRoot;
-        case MeshMaterial.implant:
-          if (!v!.implant || !roots) continue;
-          base = c.implantMetal;
-          shiny = 0.5;
-        case MeshMaterial.crown:
-          base = c.enamel;
-          shiny = 0.38;
-          if (v!.missing && !v.implant) {
-            alpha = 0.16;
-            shiny = 0;
-          } else if (mode == ChartMode.plan) {
-            if (v.isPlanned) base = Color.lerp(base, c.accent, 0.42)!;
-          } else {
-            base = switch (v.state) {
-              ToothState.needsCare => Color.lerp(base, c.amber, 0.5)!,
-              ToothState.treated => Color.lerp(
-                base,
-                c.green,
-                v.capped ? 0.45 : 0.3,
-              )!,
-              _ => base,
-            };
-          }
-      }
-      if (tooth != null && part.material != MeshMaterial.gum) {
-        if (tooth == selected) {
-          base = Color.lerp(base, c.accent, 0.5)!;
-        } else if (tooth == hover) {
-          base = Color.lerp(base, c.accent, 0.22)!;
-        }
-      }
-
-      // Unerupted teeth sit down in the gum.
-      var sx = 0.0, sy = 0.0, sz = 0.0;
-      if (v != null && frame != null && v.state == ToothState.notErupted) {
-        final k = frame.spec.crown * 0.55;
-        sx = frame.axis.x * k;
-        sy = frame.axis.y * k;
-        sz = frame.axis.z * k;
-      }
-
-      final n = part.vertexCount;
-      final vx = Float64List(n), vy = Float64List(n), vz = Float64List(n);
-      final px = Float64List(n), py = Float64List(n);
-      final col = Int32List(n);
-      final argb = base.toARGB32();
-      final br = (argb >> 16) & 0xFF, bg = (argb >> 8) & 0xFF, bb = argb & 0xFF;
-      final a = (alpha * 255).round() << 24;
-      final pos = part.positions, nrm = part.normals;
-      final opens = part.lower && openA > 0;
-      for (var i = 0; i < n; i++) {
-        final x = pos[i * 3] + sx;
-        var y = pos[i * 3 + 1] + sy;
-        var z = pos[i * 3 + 2] + sz;
-        if (opens) {
-          final dy = y - hy, dz = z - hz;
-          y = hy + dy * co - dz * so;
-          z = hz + dy * so + dz * co;
-        }
-        final x1 = x * cyaw + z * syaw;
-        final z1 = -x * syaw + z * cyaw;
-        final y2 = y * cp - z1 * sp;
-        final zc = y * sp + z1 * cp - pose.dist;
-        vx[i] = x1;
-        vy[i] = y2;
-        vz[i] = zc;
-        final w = -zc;
-        px[i] = cx + focal * x1 / w;
-        py[i] = cy - focal * y2 / w;
-        // Normal: the same turns, no translation.
-        var nx = nrm[i * 3], ny = nrm[i * 3 + 1], nz = nrm[i * 3 + 2];
-        if (opens) {
-          final ny2 = ny * co - nz * so;
-          nz = ny * so + nz * co;
-          ny = ny2;
-        }
-        final nx1 = nx * cyaw + nz * syaw;
-        final nz1 = -nx * syaw + nz * cyaw;
-        final ny2 = ny * cp - nz1 * sp;
-        final nz2 = ny * sp + nz1 * cp;
-        nx = nx1;
-        ny = ny2;
-        nz = nz2;
-        final diff = math.max(0.0, nx * _lx + ny * _ly + nz * _lz);
-        final fill = math.max(0.0, nx * 0.45 - ny * 0.3 + nz * 0.8) * 0.2;
-        var k = 0.36 + 0.64 * diff + fill;
-        // Specular (Blinn, view straight on).
-        var spec = 0.0;
-        if (shiny > 0) {
-          var h = math.max(0.0, nx * -0.2 + ny * 0.32 + nz * 0.93);
-          h = h * h;
-          h = h * h;
-          h = h * h;
-          h = h * h;
-          h = h * h;
-          spec = h * shiny * 255;
-        }
-        if (k > 1.15) k = 1.15;
-        final r = (br * k + spec).clamp(0, 255).toInt();
-        final g = (bg * k + spec).clamp(0, 255).toInt();
-        final b = (bb * k + spec).clamp(0, 255).toInt();
-        col[i] = a | (r << 16) | (g << 8) | b;
-      }
-
-      final tris = part.triangles;
-      for (var t = 0; t < tris.length; t += 3) {
-        final ia = tris[t], ib = tris[t + 1], ic = tris[t + 2];
-        // Back faces away.
-        final ux = vx[ib] - vx[ia], uy = vy[ib] - vy[ia], uz = vz[ib] - vz[ia];
-        final wx = vx[ic] - vx[ia], wy = vy[ic] - vy[ia], wz = vz[ic] - vz[ia];
-        final fnx = uy * wz - uz * wy;
-        final fny = uz * wx - ux * wz;
-        final fnz = ux * wy - uy * wx;
-        if (fnx * -vx[ia] + fny * -vy[ia] + fnz * -vz[ia] <= 0) continue;
-        if (vz[ia] > -1 || vz[ib] > -1 || vz[ic] > -1) continue;
-        screen
-          ..add(px[ia])
-          ..add(py[ia])
-          ..add(px[ib])
-          ..add(py[ib])
-          ..add(px[ic])
-          ..add(py[ic]);
-        colorsOut
-          ..add(col[ia])
-          ..add(col[ib])
-          ..add(col[ic]);
-        depth.add((vz[ia] + vz[ib] + vz[ic]) / 3);
-        owner.add(tooth);
-      }
-    }
-
-    // Back to front.
-    final order = List<int>.generate(depth.length, (i) => i)
-      ..sort((a, b) => depth[a].compareTo(depth[b]));
-    final positions = Float32List(order.length * 6);
-    final colorsArr = Int32List(order.length * 3);
-    final owners = List<String?>.filled(order.length, null);
-    for (var k = 0; k < order.length; k++) {
-      final t = order[k];
-      for (var j = 0; j < 6; j++) {
-        positions[k * 6 + j] = screen[t * 6 + j];
-      }
-      for (var j = 0; j < 3; j++) {
-        colorsArr[k * 3 + j] = colorsOut[t * 3 + j];
-      }
-      owners[k] = owner[t];
+      return [x1, y2, z2 - dist];
     }
 
     // Callouts for teeth with something to say, facing the camera.
@@ -840,33 +1115,38 @@ class _Renderer {
       final fromTop = top > side;
       if (math.max(side, top) < 0.2 && !isSel) continue;
       final an = fromTop ? f.base : f.anchor;
-      final dirV = f.outward;
       final a = toView(an.x, an.y, an.z, !upper);
-      final tip = an + dirV * 10;
+      final tip = an + f.outward * 10;
       final b = toView(tip.x, tip.y, tip.z, !upper);
       final pa = Offset(cx + focal * a[0] / -a[2], cy - focal * a[1] / -a[2]);
       final pb = Offset(cx + focal * b[0] / -b[2], cy - focal * b[1] / -b[2]);
       var dir = pb - pa;
       if (dir.distance < 1) dir = Offset(0, upper ? -1 : 1);
       dir = dir / dir.distance;
-      final at = pa + dir * 46 + Offset(0, upper ? -16 : 16);
-      final Color dot;
-      if (mode == ChartMode.plan) {
-        dot = c.accent;
-      } else {
-        dot = toothColors(c, v.state).text;
-      }
-      final label = toothLabel(tooth, numbering);
+      // Out from the arch, and up from the upper teeth or down from the
+      // lower ones.
+      var lift = dir + Offset(0, upper ? -1.6 : 1.6);
+      lift = lift / lift.distance;
+      final at = pa + lift * 54;
       callouts.add(
         _Callout(
           tooth: tooth,
-          text: text == null ? label : '$label  $text',
+          number: toothLabel(tooth, numbering),
+          text:
+              text ??
+              (mode == ChartMode.plan
+                  ? 'Nothing planned'
+                  : DentalChart.stateLabel(v.state)),
           anchor: pa,
           at: Offset(
-            at.dx.clamp(60.0, size.width - 60),
+            at.dx.clamp(70.0, size.width - 70),
             at.dy.clamp(56.0, size.height - 56),
           ),
-          dot: dot,
+          mark: _mark(
+            c,
+            v.state,
+            planned: mode == ChartMode.plan && v.isPlanned,
+          ),
           selected: isSel,
         ),
       );
@@ -887,21 +1167,36 @@ class _Renderer {
           : ui.Vertices.raw(
               ui.VertexMode.triangles,
               positions,
-              colors: colorsArr,
+              colors: colorsOut,
             ),
       positions,
       owners,
+      model.teeth,
       shown,
     );
   }
 }
 
-/// Moves callouts apart so none overlap (estimated pill sizes).
+/// A unit vector for the lights.
+class _V {
+  const _V(this.x, this.y, this.z);
+
+  factory _V.unit(double x, double y, double z) {
+    final l = math.sqrt(x * x + y * y + z * z);
+    return _V(x / l, y / l, z / l);
+  }
+
+  final double x, y, z;
+}
+
+/// Moves callouts apart so none overlap (estimated bubble sizes). A
+/// bubble above its tooth moves up and one below moves down, away from
+/// the teeth.
 List<_Callout> _spread(List<_Callout> input, Size size) {
   if (input.length < 2) return input;
   final at = [for (final c in input) c.at];
-  double w(int i) => input[i].text.length * 7.2 + 34;
-  const h = 32.0;
+  double w(int i) => input[i].text.length * 7.0 + 52;
+  const h = _CalloutChip.height + _CalloutChip.tail + 4;
   for (var pass = 0; pass < 24; pass++) {
     var moved = false;
     for (var i = 0; i < at.length; i++) {
@@ -911,27 +1206,38 @@ List<_Callout> _spread(List<_Callout> input, Size size) {
         final minX = (w(i) + w(j)) / 2;
         if (dx >= minX || dy >= h) continue;
         moved = true;
-        // Push apart vertically (the cheaper direction), half each.
-        final push = (h - dy) / 2 + 1;
-        final up = at[i].dy <= at[j].dy;
-        at[i] = at[i].translate(0, up ? -push : push);
-        at[j] = at[j].translate(0, up ? push : -push);
+        final iFirst = at[i].dy <= at[j].dy;
+        final push = h - dy + 1;
+        final up = input[i].above && input[j].above;
+        final down = !input[i].above && !input[j].above;
+        if (up) {
+          // The higher one goes higher.
+          if (iFirst) {
+            at[i] = at[i].translate(0, -push);
+          } else {
+            at[j] = at[j].translate(0, -push);
+          }
+        } else if (down) {
+          if (iFirst) {
+            at[j] = at[j].translate(0, push);
+          } else {
+            at[i] = at[i].translate(0, push);
+          }
+        } else {
+          at[i] = at[i].translate(0, iFirst ? -push / 2 : push / 2);
+          at[j] = at[j].translate(0, iFirst ? push / 2 : -push / 2);
+        }
       }
     }
     if (!moved) break;
   }
   return [
     for (var i = 0; i < input.length; i++)
-      _Callout(
-        tooth: input[i].tooth,
-        text: input[i].text,
-        anchor: input[i].anchor,
-        at: Offset(
-          at[i].dx.clamp(60.0, size.width - 60),
+      input[i].movedTo(
+        Offset(
+          at[i].dx.clamp(70.0, size.width - 70),
           at[i].dy.clamp(56.0, size.height - 56),
         ),
-        dot: input[i].dot,
-        selected: input[i].selected,
       ),
   ];
 }
@@ -946,23 +1252,27 @@ class _FramePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final v = frame.vertices;
     if (v != null) canvas.drawVertices(v, BlendMode.dst, Paint());
-    // Leader lines from each callout to its tooth.
+    // A fine line from each bubble's pointer to its tooth, and a dot on
+    // the tooth.
     for (final c in frame.callouts) {
-      final paint = Paint()
-        ..color = c.selected ? colors.accent : colors.label3
-        ..strokeWidth = 1.2;
-      canvas.drawLine(c.anchor, c.at, paint);
-      canvas.drawCircle(
-        c.anchor,
-        3,
-        Paint()..color = c.selected ? colors.accent : colors.surface,
-      );
+      final ink = c.selected ? colors.accent : colors.label3;
+      final tip = c.tip;
+      if ((tip - c.anchor).distance > 4) {
+        canvas.drawLine(
+          tip,
+          c.anchor,
+          Paint()
+            ..color = ink.withValues(alpha: 0.6)
+            ..strokeWidth = 1,
+        );
+      }
+      canvas.drawCircle(c.anchor, 3, Paint()..color = colors.surface);
       canvas.drawCircle(
         c.anchor,
         3,
         Paint()
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.2
+          ..strokeWidth = 1.4
           ..color = c.selected ? colors.accent : colors.label2,
       );
     }
@@ -972,9 +1282,13 @@ class _FramePainter extends CustomPainter {
   bool shouldRepaint(_FramePainter old) => true;
 }
 
-/// A callout pill: a dot in the tooth's colour, the number and finding.
+/// A white bubble pointing at its tooth: the tooth's number on a disc in
+/// its state's colour, then what was found or planned.
 class _CalloutChip extends StatelessWidget {
   const _CalloutChip({required this.label, required this.onTap});
+
+  static const double height = 30;
+  static const double tail = 6;
 
   final _Callout label;
   final VoidCallback onTap;
@@ -982,47 +1296,72 @@ class _CalloutChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = context.cru;
-    const h = 28.0;
-    final text = Text(
-      label.text,
-      maxLines: 1,
-      style: CruType.caption.w600.tabular.tint(
-        label.selected ? c.onAccent : c.label,
-      ),
-    );
+    final selected = label.selected;
+    final above = label.above;
     return Positioned(
       left: label.at.dx,
-      top: label.at.dy - h / 2,
+      top: label.at.dy - height / 2 - (above ? 0 : tail),
       child: FractionalTranslation(
         translation: const Offset(-0.5, 0),
         child: CruPressable(
           onTap: onTap,
-          semanticLabel: 'Tooth ${label.text}',
+          semanticLabel: 'Tooth ${label.number}, ${label.text}',
           builder: (context, hovered) => Container(
-            height: h,
-            padding: const EdgeInsets.fromLTRB(CruSpace.s8, 0, CruSpace.s10, 0),
+            height: height + tail,
+            padding: EdgeInsets.fromLTRB(
+              4,
+              above ? 0 : tail,
+              CruSpace.s12,
+              above ? tail : 0,
+            ),
             decoration: ShapeDecoration(
-              color: label.selected
+              color: selected
                   ? c.accent
                   : hovered
                   ? cruHoverShade(c.surface, c)
                   : c.surface,
-              shape: StadiumBorder(side: BorderSide(color: c.hairline)),
-              shadows: const [],
+              shape: _BubbleBorder(pointDown: above, tail: tail),
+              shadows: [
+                BoxShadow(
+                  color: c.isEvening
+                      ? const Color(0x73000000)
+                      : const Color(0x243B4A6B),
+                  blurRadius: 14,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8,
-                  height: 8,
+                  width: 22,
+                  height: 22,
+                  alignment: Alignment.center,
                   decoration: ShapeDecoration(
-                    color: label.selected ? c.onAccent : label.dot,
+                    color: selected ? c.onAccent : label.mark,
                     shape: const CircleBorder(),
                   ),
+                  child: Text(
+                    label.number,
+                    maxLines: 1,
+                    style: CruType.micro.w600.tabular.tint(
+                      selected ? c.accent : c.label,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: CruSpace.s6),
-                text,
+                const SizedBox(width: CruSpace.s8),
+                Text(
+                  label.text,
+                  maxLines: 1,
+                  style: CruType.caption.w600.tint(
+                    selected
+                        ? c.onAccent
+                        : c.isEvening
+                        ? CruBrand.ink300
+                        : c.accent,
+                  ),
+                ),
               ],
             ),
           ),
@@ -1030,6 +1369,48 @@ class _CalloutChip extends StatelessWidget {
       ),
     );
   }
+}
+
+/// A pill with a small pointer in the middle of its top or bottom edge.
+class _BubbleBorder extends ShapeBorder {
+  const _BubbleBorder({required this.pointDown, required this.tail});
+
+  final bool pointDown;
+  final double tail;
+
+  @override
+  EdgeInsetsGeometry get dimensions => EdgeInsets.zero;
+
+  Path _path(Rect rect) {
+    final pill = pointDown
+        ? Rect.fromLTRB(rect.left, rect.top, rect.right, rect.bottom - tail)
+        : Rect.fromLTRB(rect.left, rect.top + tail, rect.right, rect.bottom);
+    final x = rect.center.dx;
+    final body = Path()
+      ..addRRect(
+        RRect.fromRectAndRadius(pill, Radius.circular(pill.height / 2)),
+      );
+    final edge = pointDown ? pill.bottom - 1 : pill.top + 1;
+    final end = pointDown ? rect.bottom : rect.top;
+    final pointer = Path()
+      ..moveTo(x - tail, edge)
+      ..quadraticBezierTo(x - tail * 0.3, edge, x, end)
+      ..quadraticBezierTo(x + tail * 0.3, edge, x + tail, edge)
+      ..close();
+    return Path.combine(PathOperation.union, body, pointer);
+  }
+
+  @override
+  Path getOuterPath(Rect rect, {TextDirection? textDirection}) => _path(rect);
+
+  @override
+  Path getInnerPath(Rect rect, {TextDirection? textDirection}) => _path(rect);
+
+  @override
+  void paint(Canvas canvas, Rect rect, {TextDirection? textDirection}) {}
+
+  @override
+  ShapeBorder scale(double t) => this;
 }
 
 /// A preset view ("Front", "Upper teeth").
